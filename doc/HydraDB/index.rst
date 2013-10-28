@@ -187,6 +187,22 @@ look in tDescriptor for data_id 1.
  * data_dimen: Dimension -- for comparison with dimension in tAttr.
  * cr_date: Creation date
 
+tDatasetGroup
+^^^^^^^^^^^^^
+
+Groups datasets into named sets for easy & convenient categorisation.
+
+ * group_name: The human-readable name of the group or category
+ * group_id  : Unique identifier for the group. PK.
+
+tDatasetGroupItem
+^^^^^^^^^^^^^^^^^
+
+Keeps track of which piece of data is in which group.
+
+ * dataset_id : refers to the piece of data in tScenarioData that is in the group
+ * group_id   : refers to the group_id in tDatasetGroup.
+
 tDescriptor
 ^^^^^^^^^^^
 

@@ -181,6 +181,20 @@ CREATE TABLE tScenarioData (
     'eqtimeseries', 'scalar', 'array'))
 );
 
+CREATE TABLE tDatasetGroup (
+    group_id    INT     NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    group_name  VARCHAR(45) NOT NULL,
+    cr_date     TIMESTAMP default localtimestamp
+);
+
+CREATE TABLE tDatasetGroupItem (
+    group_id    INT    NOT NULL,
+    dataset_id  INT    NOT NULL,
+    PRIMARY KEY (group_id, dataset_id),
+    FOREIGN KEY (group_id) REFERENCES tDatasetGroup(group_id),
+    FOREIGN KEY (dataset_id) REFERENCES tScenarioData(dataset_id)
+);
+
 CREATE TABLE tDataAttr (
     d_attr_id   INTEGER     NOT NULL PRIMARY KEY AUTOINCREMENT,
     dataset_id  INTEGER     NOT NULL,
