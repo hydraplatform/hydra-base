@@ -155,7 +155,7 @@ CREATE TABLE tTimeSeries (
 
 CREATE TABLE tTimeSeriesData(
     data_id  INT         NOT NULL,
-    ts_time  DOUBLE UNSIGNED NOT NULL,
+    ts_time  DATETIME    NOT NULL,
     ts_value BLOB        NOT NULL,
     PRIMARY KEY (data_id, ts_time),
     FOREIGN KEY (data_id) references tTimeSeries(data_id)
@@ -163,7 +163,7 @@ CREATE TABLE tTimeSeriesData(
 
 CREATE TABLE tEqTimeSeries (
     data_id       INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    start_time    DOUBLE UNSIGNED NOT NULL,
+    start_time    DATETIME    NOT NULL,
     frequency     DOUBLE      NOT NULL,
     arr_data      BLOB        NOT NULL
 );
@@ -194,6 +194,7 @@ CREATE TABLE tDatasetGroup (
     group_id    INT     NOT NULL PRIMARY KEY AUTO_INCREMENT,
     group_name  VARCHAR(45) NOT NULL,
     cr_date     TIMESTAMP default localtimestamp
+    UNIQUE (group_name)
 );
 
 CREATE TABLE tDatasetGroupItem (
