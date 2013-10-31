@@ -185,6 +185,7 @@ look in tDescriptor for data_id 1.
  * data_units: What is this data type measured in?
  * data_name: A name for this data
  * data_dimen: Dimension -- for comparison with dimension in tAttr.
+ * data_hash: The hash of the datum. This hash is generated using python's hash() function, as used in hash tables. Allows for easy comparison of data.
  * cr_date: Creation date
 
 tDatasetGroup

@@ -185,6 +185,7 @@ CREATE TABLE tScenarioData (
     data_units  VARCHAR(45) NOT NULL,
     data_name   VARCHAR(45) NOT NULL,
     data_dimen  VARCHAR(45) NOT NULL,
+    data_hash   BIGINT      NOT NULL,
     cr_date  TIMESTAMP default localtimestamp,
     constraint chk_type check (data_type in ('descriptor', 'timeseries',
     'eqtimeseries', 'scalar', 'array'))
@@ -193,7 +194,7 @@ CREATE TABLE tScenarioData (
 CREATE TABLE tDatasetGroup (
     group_id    INT     NOT NULL PRIMARY KEY AUTO_INCREMENT,
     group_name  VARCHAR(45) NOT NULL,
-    cr_date     TIMESTAMP default localtimestamp
+    cr_date     TIMESTAMP default localtimestamp,
     UNIQUE (group_name)
 );
 
