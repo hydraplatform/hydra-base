@@ -13,6 +13,13 @@ Database connection
 .. automodule:: HydraLib.hdb
    :members:
 
+
+Plug-in development
+-------------------
+
+.. automodule:: HydraLib.PluginLib
+   :members:
+
 Validity checks
 ---------------
 

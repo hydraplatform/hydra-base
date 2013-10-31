@@ -36,6 +36,7 @@ Technical documents
    :maxdepth: 1
 
    techdocs/units_and_dimensions
+   techdocs/timeseries
 
 Tests
 -----
