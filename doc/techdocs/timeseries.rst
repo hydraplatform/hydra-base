@@ -60,8 +60,21 @@ this:
    url = 'http://localhost:8000?wsdl'
    client = Client(url)
 
+   #These should obviously be valid IDs
+   scenario_id = AAA
+   resource_attribute_id = BBB
+
    dataset = [(datetime(2002, 1, 1), 4.0), (datetime(2002, 1, 2), 4.5)]
 
+   #In general, data sent to the server must be contained in a 'dataset' obhect
+   dataset = self.client.factory.create('ns1:Dataset')
+   dataset.type      = 'timeseries'
+   dataset.name      = 'Max Capacity'
+   dataset.unit      = 'metres cubed'
+   dataset.dimension = 'Volume'
+
+
+   #Create the timeseries object
    timeseries = client.factory.create('ns1:TimeSeries')
 
    for time, value in dataset:
@@ -71,7 +84,9 @@ this:
 
        timeseries.ts_values.TimeSeriesData.append(tsdata)
 
-   client.service.add_dataset(timeseries)
+   dataset.value = timeseries
+
+   client.service.add_data_to_attribute(scenario_id, resource_attribute_id, dataset)
 
 If you would like to save a seasonal time series to the server an optional
 parameter to ``PluginLib.date_to_string()`` should to the trick::
