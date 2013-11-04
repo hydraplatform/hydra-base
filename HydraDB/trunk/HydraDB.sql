@@ -70,7 +70,7 @@ CREATE TABLE tAttr (
     attr_name  VARCHAR(45) NOT NULL,
     attr_dimen VARCHAR(45),
     cr_date  TIMESTAMP default localtimestamp,
-    UNIQUE (attr_name)
+    UNIQUE (attr_name, attr_dimen)
 );
 
 CREATE TABLE tResourceTemplateGroup (
