@@ -29,9 +29,11 @@ A network contains links and scenarios, not no nodes directly. The topology
 of a network is defined through its links -- a link connects two nodes.
 A network also contains scenarios, which are containers for network data.
 
+ * project_id: THe project in which this network resides.
  * network_id: Unique identifier
- * network_name: The name of the network
+ * network_name: The name of the network. This is UNIQUE within a project.
  * network_description: A non-mandatory description
+ * network_layout: Layout parameters for the network.
  * status: A character, which can be A (active) or X (deleted)
  * projection: A string describing the map projection of the coordinates in the
    network.
@@ -43,9 +45,10 @@ tNode
 Along with the standard id, name, description
 and status, a Node has an X, Y coordinate.
 
+
  * node_id: Unique identifier
  * network_id: The network in which this link resides.
- * node_name: Node name
+ * node_name: Node name. This is UNIQUE within a network.
  * node_description: non-mandatory description
  * status: A character, which can be A (active) or X (deleted)
  * node_x: The node's X-coordinate on a standard plane
@@ -65,7 +68,7 @@ and a network_id.
  * status: A character, which can be A (active) or X (deleted)
  * node_1_id: Link from node 1...
  * node_2_id: ...to node 2
- * link_name: Name of the link.
+ * link_name: Name of the link. This is UNIQUE for links between the same 2 nodes.
  * link_layout: A string describing layout parameters. The layout includes
    intermediate points.
  * cr_date: Creation date

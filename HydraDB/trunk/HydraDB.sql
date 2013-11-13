@@ -11,7 +11,8 @@ CREATE TABLE tProject (
     project_description VARCHAR(1000),
     status              VARCHAR(1) default 'A' NOT NULL,
     cr_date  TIMESTAMP default localtimestamp,
-    created_by          INT
+    created_by          INT,
+    UNIQUE (project_name)
 );
 
 CREATE TABLE tNetwork (
@@ -23,7 +24,8 @@ CREATE TABLE tNetwork (
     status              VARCHAR(1) default 'A' NOT NULL,
     cr_date  TIMESTAMP default localtimestamp,
     projection          VARCHAR(1000),
-    FOREIGN KEY (project_id) REFERENCES tProject(project_id)
+    FOREIGN KEY (project_id) REFERENCES tProject(project_id),
+    UNIQUE (project_id, network_name)
 );
 
 CREATE TABLE tNode (
@@ -36,7 +38,8 @@ CREATE TABLE tNode (
     node_y           DOUBLE,
     node_layout      VARCHAR(1000),
     cr_date  TIMESTAMP default localtimestamp,
-    FOREIGN KEY (network_id) REFERENCES tNetwork(network_id)
+    FOREIGN KEY (network_id) REFERENCES tNetwork(network_id),
+    UNIQUE (network_id, node_name)
 );
 
 CREATE TABLE tLink (
@@ -50,7 +53,8 @@ CREATE TABLE tLink (
     cr_date  TIMESTAMP default localtimestamp,
     FOREIGN KEY (network_id) REFERENCES tNetwork(network_id),
     FOREIGN KEY (node_1_id) REFERENCES tNode(node_id),
-    FOREIGN KEY (node_2_id) REFERENCES tNode(node_id)
+    FOREIGN KEY (node_2_id) REFERENCES tNode(node_id),
+    UNIQUE (node_1_id, node_2_id, link_name)
 );
 
 CREATE TABLE tScenario (
@@ -60,7 +64,8 @@ CREATE TABLE tScenario (
     status               VARCHAR(1) default 'A' NOT NULL,
     network_id           INT,
     cr_date  TIMESTAMP default localtimestamp,
-    FOREIGN KEY (network_id) REFERENCES tNetwork(network_id)
+    FOREIGN KEY (network_id) REFERENCES tNetwork(network_id),
+    UNIQUE (network_id, scenario_name)
 );
 
 /* Attributes */
@@ -75,14 +80,16 @@ CREATE TABLE tAttr (
 
 CREATE TABLE tResourceTemplateGroup (
     group_id   INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    group_name VARCHAR(45) NOT NULL
+    group_name VARCHAR(45) NOT NULL,
+    UNIQUE(group_name)
 );
 
 CREATE TABLE tResourceTemplate(
     template_id   INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
     template_name VARCHAR(45) NOT NULL,
     group_id INT,
-    FOREIGN KEY (group_id) REFERENCES tResourceTemplateGroup(group_id)
+    FOREIGN KEY (group_id) REFERENCES tResourceTemplateGroup(group_id),
+    UNIQUE(group_id, template_name)
 );
 
 CREATE TABLE tResourceTemplateItem (
