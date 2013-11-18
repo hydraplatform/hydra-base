@@ -15,6 +15,8 @@ CREATE TABLE tProject (
     UNIQUE (project_name)
 );
 
+insert into tProject (project_name) values ('Default Project');
+
 CREATE TABLE tNetwork (
     network_id          INT          NOT NULL PRIMARY KEY AUTO_INCREMENT,
     network_name        VARCHAR(45)  NOT NULL,
@@ -27,6 +29,8 @@ CREATE TABLE tNetwork (
     FOREIGN KEY (project_id) REFERENCES tProject(project_id),
     UNIQUE (project_id, network_name)
 );
+
+insert into tNetwork(project_id, network_name) values (1, 'Default Network');
 
 CREATE TABLE tNode (
     node_id          INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
@@ -68,6 +72,12 @@ CREATE TABLE tScenario (
     UNIQUE (network_id, scenario_name)
 );
 
+/*Project scenario is the container for all project-related attributes.
+  As data must be contained in a scenario, but projects do not have scenarios
+  This one scenario is a special case, only for project attributes.
+*/
+insert into tScenario (network_id, scenario_name) values (1, 'Project Scenario');
+
 /* Attributes */
 
 CREATE TABLE tAttr (
@@ -83,6 +93,8 @@ CREATE TABLE tResourceTemplateGroup (
     group_name VARCHAR(45) NOT NULL,
     UNIQUE(group_name)
 );
+
+insert into tResourceTemplateGroup (group_name) values ('Default');
 
 CREATE TABLE tResourceTemplate(
     template_id   INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
