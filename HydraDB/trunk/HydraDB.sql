@@ -72,8 +72,8 @@ CREATE TABLE tScenario (
     UNIQUE (network_id, scenario_name)
 );
 
-/*Project scenario is the container for all project-related attributes.
-  As data must be contained in a scenario, but projects do not have scenarios
+/*"Project scenario" (scenario_id 1) is the container for all project-related attributes.
+  As data must be contained in a scenario, but projects do not have scenarios.
   This one scenario is a special case, only for project attributes.
 */
 insert into tScenario (network_id, scenario_name) values (1, 'Project Scenario');
@@ -145,7 +145,9 @@ CREATE TABLE tConstraint (
 CREATE TABLE tConstraintItem (
     item_id          INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     constraint_id    INT NOT NULL,
-    resource_attr_id INT NOT NULL,
+    resource_attr_id INT,
+    constant         BLOB,
+    CHECK ((constant is null and resource_attr_id is not null) or (constant is not null and resource_attr_id is null)), 
     FOREIGN KEY (constraint_id) REFERENCES tConstraint(constraint_id),
     FOREIGN KEY (resource_attr_id) REFERENCES tResourceAttr(resource_Attr_id)
 );
