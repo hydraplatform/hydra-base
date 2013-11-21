@@ -160,6 +160,8 @@ CREATE TABLE tConstraintGroup (
     ref_key_2     VARCHAR(45),
     ref_id_2      INT,
     op            VARCHAR(10),
+    CHECK (ref_key_1 in ('GRP', 'ITEM')),
+    CHECK (ref_key_2 is null or ref_key_2 in ('GRP', 'ITEM')),
     FOREIGN KEY (constraint_id) REFERENCES tConstraint(constraint_id)
 );
 
