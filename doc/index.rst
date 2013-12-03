@@ -37,6 +37,7 @@ Technical documents
 
    techdocs/units_and_dimensions
    techdocs/timeseries
+   techdocs/libraries_and_templates
 
 Tests
 -----
