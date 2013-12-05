@@ -40,9 +40,32 @@ Scenarios
 .. automodule:: soap_server.scenario
    :members:
 
+Constraints
+---------
+
+.. automodule:: soap_server.constraints
+   :members:
+
+User Management
+---------
+
+.. automodule:: soap_server.users
+   :members:
+
 Plugins
 -------
 
 .. automodule:: soap_server.plugins
    :members:
 
+Resource Templates
+-------
+
+.. automodule:: soap_server.template
+   :members:
+
+Static Files
+-------
+
+.. automodule:: soap_server.static
+   :members:
