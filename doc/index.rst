@@ -51,14 +51,6 @@ Tests
 Miscellaneous
 -------------
 
-SVN and Trac
-~~~~~~~~~~~~
-
-.. toctree::
-   :maxdepth: 2
-
-   devdocs/account
-
 Server maintenance
 ~~~~~~~~~~~~~~~~~~
 
