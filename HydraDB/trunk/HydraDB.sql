@@ -120,6 +120,15 @@ CREATE TABLE tAttrMap (
     FOREIGN KEY (attr_id_b) REFERENCES tAttr(attr_id)
 );
 
+CREATE TABLE tResourceType (
+    ref_key          VARCHAR(45) NOT NULL,
+    ref_id           INT         NOT NULL,
+    template_id      int         NOT NULL,
+    FOREIGN KEY (template_id) REFERENCES tResourceTemplate(template_id),
+    PRIMARY KEY (ref_key, ref_id, template_id),
+    CHECK (ref_key in ('NODE', 'LINK', 'NETWORK'))
+);
+
 CREATE TABLE tResourceAttr (
     resource_attr_id INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
     attr_id          INT         NOT NULL,
@@ -205,9 +214,9 @@ CREATE TABLE tScenarioData (
     dataset_id  INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
     data_id     INT         NOT NULL,
     data_type   VARCHAR(45) NOT NULL,
-    data_units  VARCHAR(45) NOT NULL,
+    data_units  VARCHAR(45),
+    data_dimen  VARCHAR(45),
     data_name   VARCHAR(45) NOT NULL,
-    data_dimen  VARCHAR(45) NOT NULL,
     data_hash   BIGINT      NOT NULL,
     cr_date  TIMESTAMP default localtimestamp,
     constraint chk_type check (data_type in ('descriptor', 'timeseries',
