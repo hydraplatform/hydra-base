@@ -175,7 +175,7 @@ CREATE TABLE tArray (
     arr_data       BLOB        NOT NULL
 );
 
-CREATE TABLE tScenarioData (
+CREATE TABLE tDataset (
     dataset_id  INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
     data_id     INT         NOT NULL,
     data_type   VARCHAR(45) NOT NULL,
@@ -192,7 +192,7 @@ CREATE TABLE tDataAttr (
     dataset_id  INT         NOT NULL,
     d_attr_name VARCHAR(45) NOT NULL,
     d_attr_val  DOUBLE      NOT NULL,
-    FOREIGN KEY (dataset_id) REFERENCES tScenarioData(dataset_id)
+    FOREIGN KEY (dataset_id) REFERENCES tDataset(dataset_id)
 );
 
 CREATE TABLE tResourceScenario (
@@ -201,7 +201,7 @@ CREATE TABLE tResourceScenario (
     resource_attr_id INT NOT NULL,
     PRIMARY KEY (resource_attr_id, scenario_id),
     FOREIGN KEY (scenario_id) REFERENCES tScenario(scenario_id),
-    FOREIGN KEY (dataset_id) REFERENCES tScenarioData(dataset_id),
+    FOREIGN KEY (dataset_id) REFERENCES tDataset(dataset_id),
     FOREIGN KEY (resource_attr_id) REFERENCES tResourceAttr(resource_attr_id)
 );
 
@@ -260,5 +260,5 @@ CREATE TABLE tDatasetOwner (
     cr_date  TIMESTAMP default localtimestamp,
     PRIMARY KEY (user_id, dataset_id),
     FOREIGN KEY (user_id) REFERENCES tUser(user_id),
-    FOREIGN KEY (dataset_id) REFERENCES tScenarioData(dataset_id)
+    FOREIGN KEY (dataset_id) REFERENCES tDataset(dataset_id)
 );

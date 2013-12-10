@@ -164,7 +164,7 @@ tResourceScenario
 
 This connects a piece of data, a scenario and a resource attribute.
 The data itself is not accessed directly from this table, but through 
-tScenarioData, which stores what type the data its, its units and other information.
+tDataset, which stores what type the data its, its units and other information.
 
  * dataset_id: A reference to the scenario data table.
  * scenario_id: A reference to the scenario
@@ -174,7 +174,7 @@ tScenarioData, which stores what type the data its, its units and other informat
 Datasets
 ********
 
-tScenarioData
+tDataset
 ^^^^^^^^^^^^^
 
 Links a scenario to a single piece of data. This table references the data
@@ -204,7 +204,7 @@ tDatasetGroupItem
 
 Keeps track of which piece of data is in which group.
 
- * dataset_id : refers to the piece of data in tScenarioData that is in the group
+ * dataset_id : refers to the piece of data in tDataset that is in the group
  * group_id   : refers to the group_id in tDatasetGroup.
 
 tDescriptor
@@ -382,10 +382,10 @@ Ownership of a project
  * project_id: Project ID
  * user_id   : User's ID
 
-tDatsetOwner
+tDatasetOwner
 ^^^^^^^^^^^^
 
 Ownership of apiece of data.
 
- * dataset_id: Dataset ID. References tScenarioData
+ * dataset_id: Dataset ID. References tDataset
  * user_id   : User's ID

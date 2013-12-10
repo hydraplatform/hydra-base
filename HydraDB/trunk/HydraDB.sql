@@ -78,14 +78,31 @@ CREATE TABLE tScenario (
 */
 insert into tScenario (network_id, scenario_name) values (1, 'Project Scenario');
 
+CREATE TABLE tDataset (
+    dataset_id  INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    data_id     INT         NOT NULL,
+    data_type   VARCHAR(45) NOT NULL,
+    data_units  VARCHAR(45),
+    data_dimen  VARCHAR(45),
+    data_name   VARCHAR(45) NOT NULL,
+    data_hash   BIGINT      NOT NULL,
+    cr_date  TIMESTAMP default localtimestamp,
+    constraint chk_type check (data_type in ('descriptor', 'timeseries',
+    'eqtimeseries', 'scalar', 'array'))
+);
+
 /* Attributes */
 
 CREATE TABLE tAttr (
     attr_id    INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
     attr_name  VARCHAR(45) NOT NULL,
     attr_dimen VARCHAR(45),
+    default_dataset_id  INT,
+    attr_is_var VARCHAR(1),
     cr_date  TIMESTAMP default localtimestamp,
-    UNIQUE (attr_name, attr_dimen)
+    UNIQUE (attr_name, attr_dimen),
+    FOREIGN KEY (default_dataset_id) REFERENCES tDataset(dataset_id),
+    check (is_var in ('Y', 'N'))
 );
 
 CREATE TABLE tResourceTemplateGroup (
@@ -210,19 +227,6 @@ CREATE TABLE tArray (
     arr_data       BLOB        NOT NULL
 );
 
-CREATE TABLE tScenarioData (
-    dataset_id  INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    data_id     INT         NOT NULL,
-    data_type   VARCHAR(45) NOT NULL,
-    data_units  VARCHAR(45),
-    data_dimen  VARCHAR(45),
-    data_name   VARCHAR(45) NOT NULL,
-    data_hash   BIGINT      NOT NULL,
-    cr_date  TIMESTAMP default localtimestamp,
-    constraint chk_type check (data_type in ('descriptor', 'timeseries',
-    'eqtimeseries', 'scalar', 'array'))
-);
-
 CREATE TABLE tDatasetGroup (
     group_id    INT     NOT NULL PRIMARY KEY AUTO_INCREMENT,
     group_name  VARCHAR(45) NOT NULL,
@@ -235,7 +239,7 @@ CREATE TABLE tDatasetGroupItem (
     dataset_id  INT    NOT NULL,
     PRIMARY KEY (group_id, dataset_id),
     FOREIGN KEY (group_id) REFERENCES tDatasetGroup(group_id),
-    FOREIGN KEY (dataset_id) REFERENCES tScenarioData(dataset_id)
+    FOREIGN KEY (dataset_id) REFERENCES tDataset(dataset_id)
 );
 
 CREATE TABLE tDataAttr (
@@ -243,7 +247,7 @@ CREATE TABLE tDataAttr (
     dataset_id  INT         NOT NULL,
     d_attr_name VARCHAR(45) NOT NULL,
     d_attr_val  DOUBLE      NOT NULL,
-    FOREIGN KEY (dataset_id) REFERENCES tScenarioData(dataset_id)
+    FOREIGN KEY (dataset_id) REFERENCES tDataset(dataset_id)
 );
 
 CREATE TABLE tResourceScenario (
@@ -252,7 +256,7 @@ CREATE TABLE tResourceScenario (
     resource_attr_id INT NOT NULL,
     PRIMARY KEY (resource_attr_id, scenario_id),
     FOREIGN KEY (scenario_id) REFERENCES tScenario(scenario_id),
-    FOREIGN KEY (dataset_id) REFERENCES tScenarioData(dataset_id),
+    FOREIGN KEY (dataset_id) REFERENCES tDataset(dataset_id),
     FOREIGN KEY (resource_attr_id) REFERENCES tResourceAttr(resource_attr_id)
 );
 
@@ -311,5 +315,5 @@ CREATE TABLE tDatasetOwner (
     cr_date  TIMESTAMP default localtimestamp,
     PRIMARY KEY (user_id, dataset_id),
     FOREIGN KEY (user_id) REFERENCES tUser(user_id),
-    FOREIGN KEY (dataset_id) REFERENCES tScenarioData(dataset_id)
+    FOREIGN KEY (dataset_id) REFERENCES tDataset(dataset_id)
 );
