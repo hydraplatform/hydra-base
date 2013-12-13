@@ -97,12 +97,8 @@ CREATE TABLE tAttr (
     attr_id    INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
     attr_name  VARCHAR(45) NOT NULL,
     attr_dimen VARCHAR(45),
-    default_dataset_id  INT,
-    attr_is_var VARCHAR(1),
     cr_date  TIMESTAMP default localtimestamp,
-    UNIQUE (attr_name, attr_dimen),
-    FOREIGN KEY (default_dataset_id) REFERENCES tDataset(dataset_id),
-    check (is_var in ('Y', 'N'))
+    UNIQUE (attr_name, attr_dimen)
 );
 
 CREATE TABLE tResourceTemplateGroup (
@@ -124,9 +120,13 @@ CREATE TABLE tResourceTemplate(
 CREATE TABLE tResourceTemplateItem (
     attr_id     INT NOT NULL,
     template_id INT NOT NULL,
+    default_dataset_id  INT,
+    attr_is_var VARCHAR(1),
     PRIMARY KEY (attr_id, template_id),
     FOREIGN KEY (attr_id) REFERENCES tAttr(attr_id),
-    FOREIGN KEY (template_id) REFERENCES tResourceTemplate(template_id)
+    FOREIGN KEY (template_id) REFERENCES tResourceTemplate(template_id),
+    FOREIGN KEY (default_dataset_id) REFERENCES tDataset(dataset_id),
+    check (is_var in ('Y', 'N'))
 );
 
 CREATE TABLE tAttrMap (
