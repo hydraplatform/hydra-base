@@ -87,7 +87,7 @@ For example: A reservoir might have this attribute: Name: 'Capacity' Dimension '
  * attr_dimen: Dimension of the value that will be stored against this attribute. 
 
 
-tResourceTemplate
+tTemplate
 ^^^^^^^^^^^^^^^^^
 
 A resource template defines a grouping for attributes. This allows a 'type' of
@@ -98,7 +98,7 @@ contain two attributes: Flow and Capacity (each of which were defined in tattr)
  * template_name: Template Name ('Reservoir' for example)
  * group_id: The group to which this template belongs (For example: "EBSD Nodes")
 
-tResourceTemplateGroup
+tTemplateGroup
 ^^^^^^^^^^^^^^^^^^^^^^
 
 A grouping for resource templates. Used to categorise resource types into a single
@@ -109,7 +109,7 @@ a GAMS plugin.
  * group_id: Unique Identifier
  * group_name: Name
 
-tResourceTemplateItem
+tTemplateItem
 ^^^^^^^^^^^^^^^^^^^^^
 
 This links attributes to their template. An attribute can be in several templates.

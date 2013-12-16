@@ -101,30 +101,30 @@ CREATE TABLE tAttr (
     UNIQUE (attr_name, attr_dimen)
 );
 
-CREATE TABLE tResourceTemplateGroup (
+CREATE TABLE tTemplateGroup (
     group_id   INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
     group_name VARCHAR(45) NOT NULL,
     UNIQUE(group_name)
 );
 
-insert into tResourceTemplateGroup (group_name) values ('Default');
+insert into tTemplateGroup (group_name) values ('Default');
 
-CREATE TABLE tResourceTemplate(
+CREATE TABLE tTemplate(
     template_id   INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
     template_name VARCHAR(45) NOT NULL,
     group_id INT,
-    FOREIGN KEY (group_id) REFERENCES tResourceTemplateGroup(group_id),
+    FOREIGN KEY (group_id) REFERENCES tTemplateGroup(group_id),
     UNIQUE(group_id, template_name)
 );
 
-CREATE TABLE tResourceTemplateItem (
+CREATE TABLE tTemplateItem (
     attr_id     INT NOT NULL,
     template_id INT NOT NULL,
     default_dataset_id  INT,
     attr_is_var VARCHAR(1),
     PRIMARY KEY (attr_id, template_id),
     FOREIGN KEY (attr_id) REFERENCES tAttr(attr_id),
-    FOREIGN KEY (template_id) REFERENCES tResourceTemplate(template_id),
+    FOREIGN KEY (template_id) REFERENCES tTemplate(template_id),
     FOREIGN KEY (default_dataset_id) REFERENCES tDataset(dataset_id),
     check (is_var in ('Y', 'N'))
 );
@@ -141,7 +141,7 @@ CREATE TABLE tResourceType (
     ref_key          VARCHAR(45) NOT NULL,
     ref_id           INT         NOT NULL,
     template_id      int         NOT NULL,
-    FOREIGN KEY (template_id) REFERENCES tResourceTemplate(template_id),
+    FOREIGN KEY (template_id) REFERENCES tTemplate(template_id),
     PRIMARY KEY (ref_key, ref_id, template_id),
     CHECK (ref_key in ('NODE', 'LINK', 'NETWORK'))
 );
