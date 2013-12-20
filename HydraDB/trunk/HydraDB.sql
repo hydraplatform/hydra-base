@@ -78,6 +78,28 @@ CREATE TABLE tScenario (
 */
 insert into tScenario (network_id, scenario_name) values (1, 'Project Scenario');
 
+CREATE TABLE tResourceGroup (
+    group_id          INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    group_name        VARCHAR(45) NOT NULL,
+    group_description VARCHAR(1000),
+    status            VARCHAR(1),
+    cr_date           TIMESTAMP default localtimestamp,
+    network_id        INT NOT NULL,
+    FOREIGN KEY (network_id) REFERENCES tNetwork(network_id)
+);
+
+CREATE TABLE tResourceGroupItem(
+    item_id            INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    ref_id             INT NOT NULL,
+    ref_key            VARCHAR(45) NOT NULL,
+    group_id           INT NOT NULL,
+    scenario_id        INT NOT NULL,
+    FOREIGN KEY (group_id) REFERENCES tResourceGroup(group_id),
+    FOREIGN KEY (scenario_id) REFERENCES tScenario(scenario_id),
+    CHECK (ref_key in ('GROUP', 'NODE', 'LINK', 'NETWORK')),
+    UNIQUE (scenario_id, group_id, ref_key, ref_id)
+);
+
 CREATE TABLE tDataset (
     dataset_id  INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
     data_id     INT         NOT NULL,
@@ -143,7 +165,7 @@ CREATE TABLE tResourceType (
     template_id      int         NOT NULL,
     FOREIGN KEY (template_id) REFERENCES tTemplate(template_id),
     PRIMARY KEY (ref_key, ref_id, template_id),
-    CHECK (ref_key in ('NODE', 'LINK', 'NETWORK'))
+    CHECK (ref_key in ('GROUP', 'NODE', 'LINK', 'NETWORK'))
 );
 
 CREATE TABLE tResourceAttr (
@@ -152,7 +174,8 @@ CREATE TABLE tResourceAttr (
     ref_key          VARCHAR(45) NOT NULL,
     ref_id           INT         NOT NULL,
     attr_is_var      VARCHAR(1)  NOT NULL default 'N',
-    FOREIGN KEY (attr_id) REFERENCES tAttr(attr_id)
+    FOREIGN KEY (attr_id) REFERENCES tAttr(attr_id),
+    CHECK (ref_key in ('GROUP', 'NODE', 'LINK', 'NETWORK'))
 );
 CREATE UNIQUE INDEX iResourceAttr_1 ON tResourceAttr (attr_id, ref_key, ref_id);
 CREATE INDEX iResourceAttr_2 ON tResourceAttr (ref_key, ref_id);
