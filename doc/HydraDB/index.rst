@@ -96,6 +96,7 @@ contain two attributes: Flow and Capacity (each of which were defined in tattr)
 
  * template_id: Unique identifier
  * template_name: Template Name ('Reservoir' for example)
+ * template_alias: This is a non-functional string used for display purposes.
  * group_id: The group to which this template belongs (For example: "EBSD Nodes")
 
 tTemplateGroup

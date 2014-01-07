@@ -134,7 +134,8 @@ insert into tTemplateGroup (group_name) values ('Default');
 CREATE TABLE tTemplate(
     template_id   INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
     template_name VARCHAR(45) NOT NULL,
-    group_id INT,
+    group_id      INT,
+    alias         varchar(45),
     FOREIGN KEY (group_id) REFERENCES tTemplateGroup(group_id),
     UNIQUE(group_id, template_name)
 );
