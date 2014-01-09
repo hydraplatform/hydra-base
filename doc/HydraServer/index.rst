@@ -41,13 +41,13 @@ Scenarios
    :members:
 
 Constraints
----------
+-----------
 
 .. automodule:: soap_server.constraints
    :members:
 
 User Management
----------
+---------------
 
 .. automodule:: soap_server.users
    :members:
@@ -59,13 +59,19 @@ Plugins
    :members:
 
 Resource Templates
--------
+------------------
 
 .. automodule:: soap_server.template
    :members:
 
+Units and Dimensions
+--------------------
+
+.. automodule:: soap_server.units
+   :members:
+
 Static Files
--------
+------------
 
 .. automodule:: soap_server.static
    :members:

@@ -20,6 +20,12 @@ Plug-in development
 .. automodule:: HydraLib.PluginLib
    :members:
 
+Units and Dimensions
+--------------------
+
+.. automodule:: HydraLib.units
+   :members:
+
 Validity checks
 ---------------
 
