@@ -18,15 +18,22 @@ create index iUser on tUser(username);
 
 CREATE TABLE tRole (
     role_id   INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    role_code VARCHAR(45) NOT NULL,
     role_name VARCHAR(45) NOT NULL,
-    cr_date  TIMESTAMP default localtimestamp
+    cr_date  TIMESTAMP default localtimestamp,
+    UNIQUE (role_code)
 );
+create index iRole1 on tRole(role_code);
 
 CREATE TABLE tPerm (
     perm_id   INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    perm_code VARCHAR(45) NOT NULL,
     perm_name VARCHAR(45) NOT NULL,
-    cr_date  TIMESTAMP default localtimestamp
+    cr_date  TIMESTAMP default localtimestamp,
+    UNIQUE (perm_code),
+    INDEX (perm_code)
 );
+create index iPerm1 on tPerm(perm_code);
 
 CREATE TABLE tRoleUser (
     user_id INT NOT NULL,
@@ -347,3 +354,5 @@ CREATE TABLE tResourceScenario (
     FOREIGN KEY (dataset_id) REFERENCES tDataset(dataset_id),
     FOREIGN KEY (resource_attr_id) REFERENCES tResourceAttr(resource_attr_id)
 );
+
+source data.sql;
