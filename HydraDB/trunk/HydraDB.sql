@@ -3,6 +3,66 @@ CREATE DATABASE hydradb;
 
 USE hydradb;
 
+/* ========================================================================= */
+/* User permission management                                                */
+
+CREATE TABLE tUser (
+    user_id  INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    username varchar(45) NOT NULL,
+    password varchar(1000) NOT NULL,
+    last_login DATETIME,
+    last_edit  DATETIME,
+    cr_date  TIMESTAMP default localtimestamp
+);
+create index iUser on tUser(username);
+
+CREATE TABLE tRole (
+    role_id   INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    role_name VARCHAR(45) NOT NULL,
+    cr_date  TIMESTAMP default localtimestamp
+);
+
+CREATE TABLE tPerm (
+    perm_id   INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    perm_name VARCHAR(45) NOT NULL,
+    cr_date  TIMESTAMP default localtimestamp
+);
+
+CREATE TABLE tRoleUser (
+    user_id INT NOT NULL,
+    role_id INT NOT NULL,
+    cr_date  TIMESTAMP default localtimestamp,
+    PRIMARY KEY (user_id, role_id),
+    FOREIGN KEY (user_id) REFERENCES tUser(user_id),
+    FOREIGN KEY (role_id) REFERENCES tRole(role_id)
+);
+
+CREATE TABLE tRolePerm (
+    perm_id INT NOT NULL,
+    role_id INT NOT NULL,
+    cr_date  TIMESTAMP default localtimestamp,
+    PRIMARY KEY (perm_id, role_id),
+    FOREIGN KEY (perm_id) REFERENCES tPerm(perm_id),
+    FOREIGN KEY (role_id) REFERENCES tRole(role_id)
+);
+
+CREATE TABLE tOwner (
+    user_id  INT NOT NULL,
+    ref_key  VARCHAR(45) NOT NULL,
+    ref_id   INT NOT NULL,
+    cr_date  TIMESTAMP default localtimestamp,
+    view     VARCHAR(1) NOT NULL,
+    edit     VARCHAR(1) NOT NULL,
+    share     VARCHAR(1) NOT NULL,
+    PRIMARY KEY (user_id, ref_key, ref_id),
+    CHECK (ref_key in ('PROJECT', 'NETWORK')),
+    CHECK (view in ('Y','N')),
+    CHECK (edit in ('Y','N')),
+    CHECK (share in ('Y','N')),
+    FOREIGN KEY (user_id) REFERENCES tUser(user_id)
+);
+CREATE INDEX iOwner_1 ON tOwner (ref_key, ref_id);
+
 /* Project network and scenearios */
 
 CREATE TABLE tProject (
@@ -12,7 +72,8 @@ CREATE TABLE tProject (
     status              VARCHAR(1) default 'A' NOT NULL,
     cr_date  TIMESTAMP default localtimestamp,
     created_by          INT,
-    UNIQUE (project_name)
+    UNIQUE (project_name),
+    FOREIGN KEY (created_by) REFERENCES tUser(user_id)
 );
 
 insert into tProject (project_name) values ('Default Project');
@@ -21,11 +82,13 @@ CREATE TABLE tNetwork (
     network_id          INT          NOT NULL PRIMARY KEY AUTO_INCREMENT,
     network_name        VARCHAR(45)  NOT NULL,
     network_description VARCHAR(1000),
-    network_layout      VARCHAR(1000),
+    network_layout      BLOB,
     project_id          INT          NOT NULL,
     status              VARCHAR(1) default 'A' NOT NULL,
     cr_date  TIMESTAMP default localtimestamp,
     projection          VARCHAR(1000),
+    created_by          INT,
+    FOREIGN KEY (created_by) REFERENCES tUser(user_id),
     FOREIGN KEY (project_id) REFERENCES tProject(project_id),
     UNIQUE (project_id, network_name)
 );
@@ -40,7 +103,7 @@ CREATE TABLE tNode (
     status           VARCHAR(1) default 'A' NOT NULL,
     node_x           DOUBLE,
     node_y           DOUBLE,
-    node_layout      VARCHAR(1000),
+    node_layout      BLOB,
     cr_date  TIMESTAMP default localtimestamp,
     FOREIGN KEY (network_id) REFERENCES tNetwork(network_id),
     UNIQUE (network_id, node_name)
@@ -53,7 +116,7 @@ CREATE TABLE tLink (
     node_1_id       INT          NOT NULL,
     node_2_id       INT          NOT NULL,
     link_name       VARCHAR(45),
-    link_layout     VARCHAR(1000),
+    link_layout     BLOB,
     cr_date  TIMESTAMP default localtimestamp,
     FOREIGN KEY (network_id) REFERENCES tNetwork(network_id),
     FOREIGN KEY (node_1_id) REFERENCES tNode(node_id),
@@ -136,6 +199,7 @@ CREATE TABLE tTemplate(
     template_name VARCHAR(45) NOT NULL,
     group_id      INT,
     alias         varchar(45),
+    layout        BLOB,
     FOREIGN KEY (group_id) REFERENCES tTemplateGroup(group_id),
     UNIQUE(group_id, template_name)
 );
@@ -282,64 +346,4 @@ CREATE TABLE tResourceScenario (
     FOREIGN KEY (scenario_id) REFERENCES tScenario(scenario_id),
     FOREIGN KEY (dataset_id) REFERENCES tDataset(dataset_id),
     FOREIGN KEY (resource_attr_id) REFERENCES tResourceAttr(resource_attr_id)
-);
-
-/* ========================================================================= */
-/* User permission management                                                */
-
-CREATE TABLE tUser (
-    user_id  INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    username varchar(45) NOT NULL,
-    password varchar(1000) NOT NULL,
-    last_login DATETIME,
-    last_edit  DATETIME,
-    cr_date  TIMESTAMP default localtimestamp
-);
-
-CREATE TABLE tRole (
-    role_id   INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    role_name VARCHAR(45) NOT NULL,
-    cr_date  TIMESTAMP default localtimestamp
-);
-
-CREATE TABLE tPerm (
-    perm_id   INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    perm_name VARCHAR(45) NOT NULL,
-    cr_date  TIMESTAMP default localtimestamp
-);
-
-CREATE TABLE tRoleUser (
-    user_id INT NOT NULL,
-    role_id INT NOT NULL,
-    cr_date  TIMESTAMP default localtimestamp,
-    PRIMARY KEY (user_id, role_id),
-    FOREIGN KEY (user_id) REFERENCES tUser(user_id),
-    FOREIGN KEY (role_id) REFERENCES tRole(role_id)
-);
-
-CREATE TABLE tRolePerm (
-    perm_id INT NOT NULL,
-    role_id INT NOT NULL,
-    cr_date  TIMESTAMP default localtimestamp,
-    PRIMARY KEY (perm_id, role_id),
-    FOREIGN KEY (perm_id) REFERENCES tPerm(perm_id),
-    FOREIGN KEY (role_id) REFERENCES tRole(role_id)
-);
-
-CREATE TABLE tProjectOwner (
-    user_id INT NOT NULL,
-    project_id INT NOT NULL,
-    cr_date  TIMESTAMP default localtimestamp,
-    PRIMARY KEY (user_id, project_id),
-    FOREIGN KEY (user_id) REFERENCES tUser(user_id),
-    FOREIGN KEY (project_id) REFERENCES tProject(project_id)
-);
-
-CREATE TABLE tDatasetOwner (
-    user_id INT NOT NULL,
-    dataset_id INT NOT NULL,
-    cr_date  TIMESTAMP default localtimestamp,
-    PRIMARY KEY (user_id, dataset_id),
-    FOREIGN KEY (user_id) REFERENCES tUser(user_id),
-    FOREIGN KEY (dataset_id) REFERENCES tDataset(dataset_id)
 );

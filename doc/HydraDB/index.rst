@@ -96,7 +96,8 @@ contain two attributes: Flow and Capacity (each of which were defined in tattr)
 
  * template_id: Unique identifier
  * template_name: Template Name ('Reservoir' for example)
- * template_alias: This is a non-functional string used for display purposes.
+ * alias: This is a non-functional string used for display purposes.
+ * layout: Default display parameters for a tempalte -- colour, shape etc.
  * group_id: The group to which this template belongs (For example: "EBSD Nodes")
 
 tTemplateGroup
@@ -375,18 +376,15 @@ Ownership
 
 These tables define what belongs to which users.
 
-tProjectOwner
+tOwner
 ^^^^^^^^^^^^^
 
-Ownership of a project
+Ownership of a resource
 
- * project_id: Project ID
  * user_id   : User's ID
-
-tDatasetOwner
-^^^^^^^^^^^^
-
-Ownership of apiece of data.
-
- * dataset_id: Dataset ID. References tDataset
- * user_id   : User's ID
+ * ref_key   : resource type identifier (currently PROJECT & NETWORK)
+ * ref_id    : resource instance identifier
+ * view      : Flag to indicate read permissions (read is a reserved word, hence 'view).
+ * edit      : Flag to indicate write permissions (write is a reserved word, hence 'edit').
+ * share     : Flag to indicate share permissions
+ * cr_date   : creation date
