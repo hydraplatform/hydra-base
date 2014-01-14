@@ -344,6 +344,7 @@ Define roles
   
  * role_id: Unique identifier 
  * role_name: Role name
+ * role_code: Role code. Unique. Used for easier identification
  * cr_date: Creation date
 
 tPerm
@@ -353,6 +354,7 @@ Define particular permissions
 
  * perm_id: Unique identifier
  * perm_name: Permission Name
+ * perm_code: Permission code. Unique. Used for easier identification
  * cr_date: Creation date
 
 tRoleUser

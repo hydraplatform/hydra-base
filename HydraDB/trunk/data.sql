@@ -10,13 +10,13 @@ insert into tPerm (perm_code, perm_name) values ("create_networks", "Create Netw
 insert into tPerm (perm_code, perm_name) values ("edit_networks",   "Edit Networks");
 insert into tPerm (perm_code, perm_name) values ("delete_networks", "Delete Networks");
 insert into tPerm (perm_code, perm_name) values ("share_networks",  "Share Networks");
+insert into tPerm (perm_code, perm_name) values ("edit_topology", "Edit network topology");
 
 insert into tPerm (perm_code, perm_name) values ("create_projects", "Create Projects");
 insert into tPerm (perm_code, perm_name) values ("edit_projects",   "Edit Projects");
 insert into tPerm (perm_code, perm_name) values ("delete_projects", "Delete Projects");
 insert into tPerm (perm_code, perm_name) values ("share_projects",  "Share Projects");
 
-insert into tPerm (perm_code, perm_name) values ("edit_topology", "Edit network topology");
 
 insert into tPerm (perm_code, perm_name) values ("edit_data", "Edit network data");
 insert into tPerm (perm_code, perm_name) values ("view_data", "View network data");
@@ -101,6 +101,3 @@ call add_perm_to_role("manager", "view_data");
 
 /*Decision Maker*/
 
-
-
-insert into tUser (username, password) values ('root', '');
