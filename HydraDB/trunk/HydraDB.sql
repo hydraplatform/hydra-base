@@ -62,7 +62,7 @@ CREATE TABLE tOwner (
     edit     VARCHAR(1) NOT NULL,
     share     VARCHAR(1) NOT NULL,
     PRIMARY KEY (user_id, ref_key, ref_id),
-    CHECK (ref_key in ('PROJECT', 'NETWORK')),
+    CHECK (ref_key in ('PROJECT', 'NETWORK', 'DATASET')),
     CHECK (view in ('Y','N')),
     CHECK (edit in ('Y','N')),
     CHECK (share in ('Y','N')),
@@ -178,9 +178,13 @@ CREATE TABLE tDataset (
     data_dimen  VARCHAR(45),
     data_name   VARCHAR(45) NOT NULL,
     data_hash   BIGINT      NOT NULL,
-    cr_date  TIMESTAMP default localtimestamp,
+    cr_date     TIMESTAMP default localtimestamp,
+    created_by  INT,
+    locked      VARCHAR(1) NOT NULL default 'N',
+    FOREIGN KEY (created_by) REFERENCES tUser(user_id),
     constraint chk_type check (data_type in ('descriptor', 'timeseries',
-    'eqtimeseries', 'scalar', 'array'))
+    'eqtimeseries', 'scalar', 'array')),
+    CHECK (locked in ('Y', 'N'))
 );
 
 /* Attributes */
