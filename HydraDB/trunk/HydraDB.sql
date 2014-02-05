@@ -89,7 +89,7 @@ CREATE TABLE tNetwork (
     network_id          INT          NOT NULL PRIMARY KEY AUTO_INCREMENT,
     network_name        VARCHAR(45)  NOT NULL,
     network_description VARCHAR(1000),
-    network_layout      BLOB,
+    network_layout      TEXT,
     project_id          INT          NOT NULL,
     status              VARCHAR(1) default 'A' NOT NULL,
     cr_date  TIMESTAMP default localtimestamp,
@@ -110,7 +110,7 @@ CREATE TABLE tNode (
     status           VARCHAR(1) default 'A' NOT NULL,
     node_x           DOUBLE,
     node_y           DOUBLE,
-    node_layout      BLOB,
+    node_layout      TEXT,
     cr_date  TIMESTAMP default localtimestamp,
     FOREIGN KEY (network_id) REFERENCES tNetwork(network_id),
     UNIQUE (network_id, node_name)
@@ -123,7 +123,7 @@ CREATE TABLE tLink (
     node_1_id       INT          NOT NULL,
     node_2_id       INT          NOT NULL,
     link_name       VARCHAR(45),
-    link_layout     BLOB,
+    link_layout     TEXT,
     cr_date  TIMESTAMP default localtimestamp,
     FOREIGN KEY (network_id) REFERENCES tNetwork(network_id),
     FOREIGN KEY (node_1_id) REFERENCES tNode(node_id),
@@ -210,7 +210,7 @@ CREATE TABLE tTemplate(
     template_name VARCHAR(45) NOT NULL,
     group_id      INT,
     alias         varchar(45),
-    layout        BLOB,
+    layout        TEXT,
     FOREIGN KEY (group_id) REFERENCES tTemplateGroup(group_id),
     UNIQUE(group_id, template_name)
 );
