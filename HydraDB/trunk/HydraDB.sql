@@ -128,7 +128,8 @@ CREATE TABLE tLink (
     FOREIGN KEY (network_id) REFERENCES tNetwork(network_id),
     FOREIGN KEY (node_1_id) REFERENCES tNode(node_id),
     FOREIGN KEY (node_2_id) REFERENCES tNode(node_id),
-    UNIQUE (node_1_id, node_2_id, link_name)
+    UNIQUE (node_1_id, node_2_id, link_id),
+    UNIQUE (network_id, link_name)
 );
 
 CREATE TABLE tScenario (
