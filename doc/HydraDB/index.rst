@@ -1,7 +1,7 @@
 Hydra database schema
 =====================
 
-The database schema can be found in :download:`here <Hydra_DB_ERD.png>`.
+The database schema can be found :download:`here <Hydra_DB_ERD.png>`.
 
 Hydra data
 ----------
