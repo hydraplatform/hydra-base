@@ -87,7 +87,7 @@ Units
 Unit                         Abbr.        Linear factor    Constant fac. Description
 ============================ ============ ================ ============= ==========================
 **Dimensionless**            
-No unit                      -            1.0              0.0           Dimensionless parameter
+No unit                      ``-``        1.0              0.0           Dimensionless parameter
                                                                          without units
 Percent                      %            0.01             0.0           
 **Energy price**
