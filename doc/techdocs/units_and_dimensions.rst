@@ -76,6 +76,7 @@ List of dimension keywords
   ``Volumetric flow rate``
   ``Monetary value``
   ``Energy price``
+  ``Dimensionless``
   ======================== =
 
 
@@ -85,8 +86,15 @@ Units
 ============================ ============ ================ ============= ==========================
 Unit                         Abbr.        Linear factor    Constant fac. Description
 ============================ ============ ================ ============= ==========================
-**Energy Cost**
-USDollars per kilojoule      USD kJ^-1    1.0              0.0           Cost in US Dollars per 
+**Dimensionless**            
+No unit                      -            1.0              0.0           Dimensionless parameter
+                                                                         without units
+Percent                      %            0.01             0.0           
+**Energy price**
+US Dollars per joule         USD J^-1     1.0              0.0           Cost in US Dollars per
+                                                                         Joule
+US Dollars per kilojoule     USD kJ^-1    0.001            0.0           
+US Dollars per kilowatt-hour USD kWh^-1   2.77777777e-07   0.0 
 **Mass flow rate**
 kilograms per second         kg s^-1      1.0              0.0
 grams per second             g s^-1       0.001            0.0
@@ -123,6 +131,17 @@ acre-inch per minute         ac-in min^-1 1.71316922       0.0
 acre-inch per hour           ac-in h^-1   0.0285528203     0.0
 acre-inch per day            ac-in day^-1 0.00118970085    0.0
 acre-inch per month          ac-in mon^-1 3.90875157e-05   0.0
+litre per second             l s^-1       0.001"           0.0
+litre per minute             l min^-1     1.66666667e-05   0.0
+litre per hour               l h^-1       2.77777778e-07   0.0
+litre per day                l day^-1     1.15740741e-08   0.0
+litre per month              l mon^-1     3.80265176e-10   0.0
+megalitre per second         Ml s^-1      1000             0.0
+megalitre per minute         Ml min^-1    1.66666667       0.0
+megalitre per hour           Ml h^-1      2.77777778e-01   0.0
+megalitre per day            Ml day^-1    1.15740741e-02   0.0
+megalitre per month          Ml mon^-1    3.80265176e-04   0.0
+
 **Angle**
 degree                       °            1.0              0.0           Is a measurement of plane
                                                                          angle, representing 1/360
@@ -323,7 +342,7 @@ barrel(oil)                  bbl          0.158987295      0.0           The sta
                                                                          for crude oil or other 
                                                                          petroleum products. 1 Oil 
                                                                          barrel = 42 US gallons
-centiliter                   cl           1e-05            0.0
+centilitre                   cl           1e-05            0.0
 cubic centimetre             cm^3         1e-06            0.0
 cubic decimetre              dm^3         0.001            0.0
 cubic hectometre             hm^3         1000000.0        0.0
@@ -332,16 +351,19 @@ cubic inch                   in^3         1.6387064e-05    0.0
 cubic metre                  m^3          1.0              0.0
 cubic millimetre             mm^3         1e-09            0.0
 cubic yard                   yd^3         0.764554857984   0.0
-deciliter                    dl           0.0001           0.0
+decilitre                    dl           0.0001           0.0
 fluid ounce(US)              fl oz        2.9574e-05       0.0
 gallon, liquid(US)           gal          0.003785411784   0.0           US liquid gallon is 231 
                                                                          in^3 or 128 fl oz or 
                                                                          3.785411784 L.
-liter                        L            1.0              0.0           A litre is defined as a 
+litre                        L            0.001            0.0           A litre is defined as a 
                                                                          special name for a cubic 
                                                                          decimetre (1 L = 1 dm^3).
-deciliter                    dl           0.0001           0.0
-milliliter                   ml           1e-06            0.0
+decilitre                    dl           0.0001           0.0
+millilitre                   ml           1e-06            0.0
+megalitre                    Ml           1000             0.0           A megalitre is a unit used
+                                                                         in water management (1 Ml 
+                                                                         = 10^3 m^3)
 pint, liquid(US)             pt           0.000473176475   0.0
 acre-foot                    ac-ft        1.23348184       0.0           An acre foot is the volume
                                                                          of water that covers one 
