@@ -131,7 +131,7 @@ acre-inch per minute         ac-in min^-1 1.71316922       0.0
 acre-inch per hour           ac-in h^-1   0.0285528203     0.0
 acre-inch per day            ac-in day^-1 0.00118970085    0.0
 acre-inch per month          ac-in mon^-1 3.90875157e-05   0.0
-litre per second             l s^-1       0.001"           0.0
+litre per second             l s^-1       0.001            0.0
 litre per minute             l min^-1     1.66666667e-05   0.0
 litre per hour               l h^-1       2.77777778e-07   0.0
 litre per day                l day^-1     1.15740741e-08   0.0
@@ -150,8 +150,8 @@ grad or gon                  grd          0.9              0.0           One gra
                                                                          degree or π/200 of a
                                                                          radian     
 radian                       rad          57.29577951      0.0           1 rad=180/π 
-minutes                      '            0.0166666666     0.0           1°=1/60     
-seconds                      ''           0.00027777777778 0.0           1°=1/3600   
+minutes                      ``'``        0.0166666666     0.0           1°=1/60     
+seconds                      ``''``       0.00027777777778 0.0           1°=1/3600   
 **Temperature**
 Celsius                      °C           1.0              273.15        The Celsius scale sets
                                                                          0.01 °C to be at the
