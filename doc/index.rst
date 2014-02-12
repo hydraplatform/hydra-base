@@ -29,6 +29,14 @@ Hydra plug-ins
 
    HydraPlugins/index
 
+Tutorials
+---------
+
+.. toctree::
+   :maxdepth: 1
+
+   tutorials/plug-in/simple_plugin_in_python
+
 Technical documents
 -------------------
 
