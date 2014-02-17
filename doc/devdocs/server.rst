@@ -17,14 +17,38 @@ Open two command promots, and in both, navigate to the directory containing both
 To run the server, in the first command prompt, type "python server.py"
 To run the test client, in the second command promot, type "python test.py"
 
-Creating the windows executable
--------------------------------
-To create a windows executable, in the same directory as the server and test, type "python setup.py install" This will create or update the dist/exe.win23-2.7 directory.
+Creating the windows executable using cx_Freeze (deprecated)
+------------------------------------------------------------
+To create a windows executable, in the same directory as the server and test,
+type ``python setup.py build`` This will create or update the
+build/exe.win23-2.7 directory.
 
-Thei server executable can be run by double-clicking on the server.bat file in the server directory from a windows explorer window.
+Thei server executable can be run by double-clicking on the server.bat file in
+the server directory from a windows explorer window.
+
+Building windows execuatable using Pyinstaller
+----------------------------------------------
+
+Make sure you have installed pip (:ref:`pip`).
+
+Install pyinstalled (if you haven't done so already)::
+
+    pip install pyinstaller
+
+Build the server::
+
+    pyinstaller --hidden-import=spyne.service -y server.py
+
+.. note::
+    The ``-y`` option will force pyinstaller to overwrite previous builds
+    without asking. 
+
+The server can now be run in the commandline::
+
+    dist\server\server.exe
 
 Installing Python
-------
+-----------------
 Several installations of python are available.
 The one we recommend is PythonXY:
 http://code.google.com/p/pythonxy/wiki/Downloads
@@ -34,6 +58,7 @@ running a setup python file in a zip file you have downloaded. To ensure you can
 
 PeaZip: http://peazip.sourceforge.net/
 
+.. _pip:
 
 Additional Libraries
 --------------------

@@ -1,0 +1,62 @@
+Name,From,To,WRSE Ref,Co. From,Co. to,Zone from,Zone to,Category,Flow DYAA,Flow peak,Flow MDO,Flow NYAA,End year,Full Capacity,tblLinkDescriptionID,Description
+,,,,,,,,,Ml/d,Ml/d,Ml/d,Ml/d,,,,
+Loc52_ph2,ExDO39cj,WRZ19B,SES-ETR-ESU-5020,SES,SES,ESU,ESU,Local transfer,45.46,70,45.46,45.46,2040,0,10063,Bough Beech to East Surrey local
+Lex042_ph2,WRZ19A,WRZ19B,SES-ETR-ESU-5011,SES,SES,SUT,ESU,Existing transfer intra company,10,10,10,10,2040,0,10041,From Sutton to East Surrey (Margery to Buckland)
+Lex040_ph2,WRZ19B,WRZ19A,SES-ETR-SUT-5000,SES,SES,ESU,SUT,Existing transfer intra company,7.5,7.5,7.5,7.5,2040,0,10039,From East Surrey to Sutton (The Avenue)
+Lex041_ph2,WRZ19B,WRZ19A,SES-ETR-SUT-5010,SES,SES,ESU,SUT,Existing transfer intra company,18,18,18,18,2040,0,10040,From East Surrey to Sutton (Buckland to Margery)
+Lex015_ph2,Ex.DO36j,WRZ18,VWS-ETR-VWS-5010,SEW,VWS,RZ8,VWS,Ex.  transfer with negotiated period,2,2,2,2,2014,1,10014,Barham Import
+Lex021_ph2,WRZ14,WRZ13,SEW-ETR-RZ2-0110,SEW,SEW,RZ3,RZ2,Existing transfer intra company,26,26,26,26,2040,0,10020,SEW Arlington Eastbourne to SEW Barcombe Mid-Sussex
+Lex051_ph2,WRZ06,WRZ16A,SEW-ETR-RZ6-0240,SWS,SEW,KME,RZ6,Ex.  transfer,0.1,0.5,0.1,0.1,2040,1,10050,SWS Kent Medway Pitfield Booster to RZ6
+Lex031_ph2,WRZ36,WRZ11,SEW-ETR-RZ4-0270,VWC,SEW,VW6,RZ4,Existing transfer perpetual,36,36,36,36,2040,1,10030,Egham (zone 6) bulk supply to SEW (RZ4)
+Lex022_ph2,WRZ13,WRZ14,SEW-ETR-RZ3-0120,SEW,SEW,RZ2,RZ3,Existing transfer intra company,26,26,26,26,2040,0,10021,SEW Barcombe Mid-Sussex to SEW Arlington Eastbourne
+Lex023_ph2,WRZ13,WRZ15,SEW-ETR-RZ1-0130,SEW,SEW,RZ2,RZ1,Existing transfer intra company,5,5,5,5,2040,0,10022,SEW Mid Sussex (Horsted Keynes) to SEW Medway (Pembury) 
+Lex024_ph2,WRZ15,WRZ13,SEW-ETR-RZ2-0140,SEW,SEW,RZ1,RZ2,Existing transfer intra company,5.1,5.1,5.1,5.1,2040,0,10023,SEW Medway (Pembury) to SEW Mid-Sussex (Horsted Keynes) 
+Lex025_ph2,WRZ11,WRZ12,SEW-ETR-RZ5-0150,SEW,SEW,RZ4,RZ5,Existing transfer intra company,10,12,10,10,2040,0,10024,SEW Northern North to SEW Northern South
+Lex026_ph2,WRZ12,WRZ11,SEW-ETR-RZ4-0160,SEW,SEW,RZ5,RZ4,Existing transfer intra company,10,12,10,10,2040,0,10025,SEW Northern South to SEW Northern North
+Lex029_ph2,WRZ16B,WRZ17,SEW-ETR-RZ8-0170,SEW,SEW,RZ7,RZ8,Existing transfer intra company,6.2,6.2,6.2,6.2,2040,0,10028,Bewl to Ashford Trunk Main
+Lex030_ph2,WRZ17,WRZ16B,SEW-ETR-RZ7-0180,SEW,SEW,RZ8,RZ7,Existing transfer intra company,6.2,6.2,6.2,6.2,2040,0,10029,Ashford to Bewl Trunk Main
+Lex036_ph2,WRZ16B,WRZ15,SEW-ETR-RZ1-0190,SEW,SEW,RZ7,RZ1,Existing transfer intra company,4,4,4,4,2040,0,10035,SEW RZ 7 to SEW Medway (RZ1)
+Lex005_ph2,WRZ03,WRZ13,SEW-ETR-RZ2-0020,SWS,SEW,SNO,RZ2,Ex.  transfer with negotiated period,5.4,5.4,5.4,5.4,2020,1,10004,SWS Weir Wood Res. to SEW Mid -Sussex (RZ2)
+Lex037_ph2,WRZ17,WRZ16A,SEW-ETR-RZ6-0200,SEW,SEW,RZ8,RZ6,Existing transfer intra company,12,12,12,12,2040,0,10036,SEW RZ8 to RZ6 (Hollingbourne to Maidstone)
+Lex039_ph2,WRZ16A,WRZ17,SEW-ETR-RZ8-0210,SEW,SEW,RZ6,RZ8,Existing transfer intra company,12,12,12,12,2040,0,10038,SEW RZ6 to SEW RZ8 (Maidstone to Hollingbourne)
+Loc24_ph2,Ex.DO36j,WRZ17,SEW-ETR-RZ8-0220,SEW,SEW,RZ8,RZ8,Local transfer,10,10,10,10,2040,0,10061,SEW Kingston Local (to SEW RZ 8)
+Lex050_ph2,Ex.DO13j,WRZ13,SEW-ETR-RZ2-0230,SEW,SEW,RZ7,RZ2,Existing transfer intra company,4,5,4,4,2040,0,10049,Transfer from Bewl to Best Beech (RZ7 - RZ2)
+Lex011_ph2,WRZ16A,WRZ16B,SEW-ETR-RZ7-0250,SEW,SEW,RZ6,RZ7,Existing transfer intra company,2,2,2,2,2040,0,10010,SEW RZ 6 to RZ7 - 2Ml/d transfer
+Lex007_ph2,Ex.DO11j,WRZ16A,SEW-ETR-RZ6-0030,SWS,SEW,KME,RZ6,Existing transfer perpetual,6.3,7.8,6.3,6.3,2040,1,10006,SWS Belmont Scheme to SEW RZ6
+Lex008_ph2,Ex.DO13j,FS02,SEW-ETR-BEJ-0040,SWS,SEW,BEW,BEJ,Existing transfer perpetual,16.18,21,16.18,16.18,2040,1,10007,Bewl-Medway scheme to Flow split junction
+Lex009_ph2,FS02,WRZ16B,SEW-ETR-RZ7-0050,SWS,SEW,BEJ,RZ7,Existing transfer,13.8,13.8,13.8,13.8,2040,0,10008,Bewl-Medway scheme to SEW RZ 7
+Lex010_ph2,FS02,WRZ16A,SEW-ETR-RZ6-0060,SWS,SEW,BEJ,RZ6,Existing transfer,14.6,14.6,14.6,14.6,2040,0,10009,Bewl-Medway scheme to SEW RZ 6
+Lex001_ph2,Ex.DO01cj,WRZ02,SWS-ETR-IOW-5010,SWS,SWS,HSO,IOW,Existing transfer intra company,12,12,12,12,2040,0,10000,Cross Solent Main
+Lex002_ph2,WRZ04B,WRZ03,SWS-ETR-SNO-5020,SWS,SWS,SWO,SNO,Existing transfer intra company,15,15,15,15,2040,0,10001,SWS Sussex Worthing to SWS Sussex North
+Lex003_ph2,WRZ03,WRZ04B,SWS-ETR-SWO-5021,SWS,SWS,SNO,SWO,Existing transfer intra company,15,15,15,15,2040,0,10002,SWS Sussex North to SWS Sussex Worthing
+Lex004_ph2,WRZ06,WRZ07,SWS-ETR-KTH-5030,SWS,SWS,KME,KTH,Existing transfer intra company,13,13,13,13,2040,0,10003,Selling - Fleete Main
+Lex019_ph2,WRZ08,WRZ03,SWS-ETR-SNO-5100,PRT,SWS,PRT,SNO,Existing transfer perpetual,4.45,15,4.45,4.45,2040,1,10018,PRTS to SWS Sussex North
+Lex038_ph2,WRZ04B,WRZ04A,SWS-ETR-SBR-5120,SWS,SWS,SWO,SBR,Existing transfer intra company,7,7,7,7,2040,0,10037,SWS Sussex Worthing to Sussex Brighton
+Loc07_ph2,Ex.DO08j,WRZ05,SWS-ETR-SHA-5130,SWS,SWS,SHA,SHA,Local transfer,43.23,43.23,43.23,43.23,2040,0,10058,SWS Darwell to SWS Sussex Hastings
+Loc08_ph2,Ex.DO11j,WRZ06,SWS-ETR-KME-5140,SWS,SWS,KME,KME,Local transfer,11.7,11.7,11.7,11.7,2040,0,10059,SWS Belmont Junction to SWS Kent Medway
+Loc10_ph2,Ex.DO13j,WRZ06,SWS-ETR-KME-5150,SWS,SWS,BEW,KME,Local transfer,67.54,69.5,69.5,67.54,2040,0,10060,Bewl to SWS Kent Medway 
+Loc51_ph2,Ex.DO01cj,WRZ01C,SWS-ETR-HSO-5170,SWS,SWS,HSO,HSO,Local transfer,105,105,105,105,2040,0,10062,Testwood to Hampshire South
+Lex043_ph2,WRZ19B,WRZ03,SWS-ETR-SNO-5180,SES,SWS,ESU,SNO,Ex.  transfer,0.05,0.05,0.05,0.05,2040,1,10042,SESW Gatwick transfer to SWS Sussex North
+Lex027_ph2,WRZ08,WRZ04B,SWS-ETR-SWO-5410,PRT,SWS,PRT,SWO,Ex.  transfer with negotiated period,1,8,1,1,2015,0,10026,PRTS to SWS Sussex Worthing spur link
+Lex049_ph2,WRZ24,WRZ23,TWU-ETR-SWX-5020,TWU,TWU,SWA,SWX,Existing transfer intra company,2.08,5,2.08,2.08,2040,1,10048,Three minor transfers SWA to SWOX
+Lex034_ph2,WRZ22,WRZ34,VWC-ETR-VW4-5020,TWU,VWC,LON,VW4,Existing transfer perpetual,10,10,10,10,2040,1,10033,Fortis Green supply to VWC zone 4
+Lex046_ph2,WRZ22,WRZ34,VWC-ETR-VW4-5040,TWU,VWC,LON,VW4,Existing transfer perpetual,2,2,2,2,2040,1,10045,Sunnymeads Raw Water Transfer to VW zone 4
+Lex048_ph2,WRZ22,WRZ34,VWC-ETR-VW4-5060,TWU,VWC,LON,VW4,Existing transfer perpetual,0.2,0.2,0.2,0.2,2040,1,10047,Hampstead Lane from London to VW zone 4
+Lex047_ph2,WRZ27,WRZ36,VWC-ETR-VW6-5050,TWU,VWC,GUI,VW6,Existing transfer perpetual,2.2,2.2,2.2,2.2,2040,1,10046,Ladymeade (from TW Guildford) transfer to VW zone 6
+Lex055_ph2,WRZ34,WRZ31,VWC-ETR-VW1-5100,VWC,VWC,VW4,VW1,Existing transfer intra company,36,36,36,36,2040,0,10054,Batchworth to Heronsgate and Springwell Booster combined 
+Lex058_ph2,WRZ33,WRZ32,VWC-ETR-VW2-5130,VWC,VWC,VW3,VW2,Existing transfer intra company,10,10,10,10,2040,0,10057,Bow Bridge South
+Lex057_ph2,WRZ34,WRZ32,VWC-ETR-VW2-5120,VWC,VWC,VW4,VW2,Existing transfer intra company,50,50,50,50,2040,0,10056,Ickenham Booster to Oxhey Wood
+Lex054_ph2,WRZ31,WRZ33,VWC-ETR-VW3-5090,VWC,VWC,VW1,VW3,Existing transfer intra company,20,20,20,20,2040,0,10053,Boxted to Friars Wash
+Lex044_ph2,WRZ34,WRZ33,VWC-ETR-VW3-5021,VWC,VWC,VW4,VW3,Existing transfer intra company,42,42,42,42,2040,0,10043,From VW zone 4 to zone 3 (West End & Batchworth)
+Lex056_ph2,WRZ32,WRZ34,VWC-ETR-VW4-5110,VWC,VWC,VW2,VW4,Existing transfer intra company,240,240,240,240,2040,0,10055,Bushey to Harrow PRV Umbrella
+Lex045_ph2,WRZ33,WRZ34,VWC-ETR-VW4-5030,VWC,VWC,VW3,VW4,Existing transfer intra company,22,22,22,22,2040,0,10044,From VW zone 3 to zone 4 (West End)
+Lex033_ph2,WRZ36,WRZ34,VWC-ETR-VW4-5011,VWC,VWC,VW6,VW4,Existing transfer intra company,10,10,10,10,2040,0,10032,Iver-Egham (zone 6) to VWC zone 4 (bi-directional)
+Lex052_ph2,WRZ33,WRZ35,VWC-ETR-VW5-5070,VWC,VWC,VW3,VW5,Existing transfer intra company,10,10,10,10,2040,0,10051,Northern Link Main
+Lex053_ph2,WRZ33,WRZ35,VWC-ETR-VW5-5080,VWC,VWC,VW3,VW5,Existing transfer intra company,50,50,50,50,2040,0,10052,Hadham Mill to Sibleys and Rye Hill
+Lex032_ph2,WRZ34,WRZ36,VWC-ETR-VW6-5010,VWC,VWC,VW4,VW6,Existing transfer intra company,38,38,38,38,2040,0,10031,Iver-Egham (zone 4) supply to VWC zone 6 (bidirectional)
+Lex013_ph2,Ex.DO08j,WRZ14,SEW-ETR-RZ3-0070,SWS,SEW,SHA,RZ3,Ex.  transfer with negotiated period,8,8,8,8,2026,1,10012,Darwell to SEW Eastbourne (RZ3)
+Lex017_ph2,WRZ07,WRZ18,VWS-ETR-VWS-5020,SWS,VWS,KTH,VWS,Ex.  transfer with negotiated period,1.33,0,4,1.33,2011,1,10016,Deal Import
+Lex012_ph2,ExDO13j,Ex.DO08j,SWS-ETR-SHA-5070,SWS,SWS,BEW,DAR,,35,35,35,35,2040,0,10011,Bewl to Darwell (Ex) 
+Lex100_ph2,WRZ31,WRZ32,VWC-ETR-VW2-9999,VWC,VWC,VW1,VW2,,48,48,48,48,2040,0,30189,AW1 to AW2 @ 48Ml/d
+Lex101_ph2,WRZ31,WRZ34,VWC-ETR-VW4-9999,VWC,VWC,VW1,VW4,,51,51,51,51,2040,0,30190,AW1 to AW4 @ 51Ml/d
+Lex102_ph2,WRZ32,WRZ33,VWC-ETR-VW3-9999,VWC,VWC,VW2,VW3,,6,6,6,6,2040,0,30191,AW2 to AW3 @ 6Ml/d
