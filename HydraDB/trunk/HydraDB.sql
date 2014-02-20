@@ -304,7 +304,7 @@ CREATE TABLE tTimeSeries (
 
 CREATE TABLE tTimeSeriesData(
     data_id  INT         NOT NULL,
-    ts_time  DOUBLE PRECISION(20, 10) UNSIGNED NOT NULL,
+    ts_time  DECIMAL(30, 20) UNSIGNED NOT NULL,
     ts_value BLOB        NOT NULL,
     PRIMARY KEY (data_id, ts_time),
     FOREIGN KEY (data_id) references tTimeSeries(data_id)
@@ -312,7 +312,7 @@ CREATE TABLE tTimeSeriesData(
 
 CREATE TABLE tEqTimeSeries (
     data_id       INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    start_time    DOUBLE PRECISION(20, 10) UNSIGNED NOT NULL,
+    start_time    DECIMAL(30, 20) UNSIGNED NOT NULL,
     frequency     DOUBLE      NOT NULL,
     arr_data      BLOB        NOT NULL
 );
