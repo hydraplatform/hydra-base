@@ -198,33 +198,36 @@ CREATE TABLE tAttr (
     UNIQUE (attr_name, attr_dimen)
 );
 
-CREATE TABLE tTemplateGroup (
-    group_id   INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    group_name VARCHAR(45) NOT NULL,
-    UNIQUE(group_name)
-);
-
-insert into tTemplateGroup (group_name) values ('Default');
-
-CREATE TABLE tTemplate(
+CREATE TABLE tTemplate (
     template_id   INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
     template_name VARCHAR(45) NOT NULL,
-    group_id      INT,
-    alias         varchar(45),
-    layout        TEXT,
-    FOREIGN KEY (group_id) REFERENCES tTemplateGroup(group_id),
-    UNIQUE(group_id, template_name)
+    UNIQUE(template_name)
 );
 
-CREATE TABLE tTemplateItem (
+insert into tTemplate (template_name) values ('Default');
+
+CREATE TABLE tTemplateType(
+    type_id       INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    type_name     VARCHAR(45) NOT NULL,
+    template_id      INT,
+    alias         varchar(45),
+    layout        TEXT,
+    FOREIGN KEY (template_id) REFERENCES tTemplate(template_id),
+    UNIQUE(template_id, type_name)
+);
+
+CREATE TABLE tTypeAttr (
     attr_id     INT NOT NULL,
-    template_id INT NOT NULL,
+    type_id INT NOT NULL,
     default_dataset_id  INT,
     attr_is_var VARCHAR(1),
-    PRIMARY KEY (attr_id, template_id),
+    data_type   VARCHAR(45),
+    PRIMARY KEY (attr_id, type_id),
     FOREIGN KEY (attr_id) REFERENCES tAttr(attr_id),
-    FOREIGN KEY (template_id) REFERENCES tTemplate(template_id),
+    FOREIGN KEY (type_id) REFERENCES tTemplateType(type_id),
     FOREIGN KEY (default_dataset_id) REFERENCES tDataset(dataset_id),
+    constraint chk_data_type check (data_type in ('descriptor', 'timeseries',
+    'eqtimeseries', 'scalar', 'array')),
     check (is_var in ('Y', 'N'))
 );
 
@@ -239,9 +242,9 @@ CREATE TABLE tAttrMap (
 CREATE TABLE tResourceType (
     ref_key          VARCHAR(45) NOT NULL,
     ref_id           INT         NOT NULL,
-    template_id      int         NOT NULL,
-    FOREIGN KEY (template_id) REFERENCES tTemplate(template_id),
-    PRIMARY KEY (ref_key, ref_id, template_id),
+    type_id      int         NOT NULL,
+    FOREIGN KEY (type_id) REFERENCES tTemplateType(type_id),
+    PRIMARY KEY (ref_key, ref_id, type_id),
     CHECK (ref_key in ('GROUP', 'NODE', 'LINK', 'NETWORK'))
 );
 
