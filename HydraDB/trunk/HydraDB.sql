@@ -105,7 +105,7 @@ insert into tNetwork(project_id, network_name) values (1, 'Default Network');
 CREATE TABLE tNode (
     node_id          INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
     network_id       INT         NOT NULL,
-    node_description VARCHAR(45),
+    node_description VARCHAR(1000),
     node_name        VARCHAR(45) NOT NULL,
     status           VARCHAR(1) default 'A' NOT NULL,
     node_x           DOUBLE,
@@ -123,6 +123,7 @@ CREATE TABLE tLink (
     node_1_id       INT          NOT NULL,
     node_2_id       INT          NOT NULL,
     link_name       VARCHAR(45),
+    link_description VARCHAR(1000),
     link_layout     TEXT,
     cr_date  TIMESTAMP default localtimestamp,
     FOREIGN KEY (network_id) REFERENCES tNetwork(network_id),
