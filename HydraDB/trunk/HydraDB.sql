@@ -10,6 +10,7 @@ CREATE TABLE tUser (
     user_id  INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
     username varchar(45) NOT NULL,
     password varchar(1000) NOT NULL,
+    display_name varchar(60) NOT NULL, 
     last_login DATETIME,
     last_edit  DATETIME,
     cr_date  TIMESTAMP default localtimestamp
