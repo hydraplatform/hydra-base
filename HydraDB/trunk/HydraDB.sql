@@ -140,9 +140,9 @@ CREATE TABLE tScenario (
     scenario_description VARCHAR(1000),
     status               VARCHAR(1) default 'A' NOT NULL,
     network_id           INT,
-    start_time           DATETIME,
-    end_time             DATETIME,
-    time_step            INT,
+    start_time           DECIMAL(30, 20) UNSIGNED,
+    end_time             DECIMAL(30, 20) UNSIGNED,
+    time_step            VARCHAR(60),
     cr_date  TIMESTAMP default localtimestamp,
     FOREIGN KEY (network_id) REFERENCES tNetwork(network_id),
     UNIQUE (network_id, scenario_name)
