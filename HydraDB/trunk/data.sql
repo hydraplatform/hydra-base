@@ -6,16 +6,16 @@ insert into tPerm (perm_code, perm_name) values ("edit_role",  "Edit Role");
 insert into tPerm (perm_code, perm_name) values ("add_perm",   "Add Permission");
 insert into tPerm (perm_code, perm_name) values ("edit_perm",  "Edit Permission");
 
-insert into tPerm (perm_code, perm_name) values ("create_networks", "Create Networks");
-insert into tPerm (perm_code, perm_name) values ("edit_networks",   "Edit Networks");
-insert into tPerm (perm_code, perm_name) values ("delete_networks", "Delete Networks");
-insert into tPerm (perm_code, perm_name) values ("share_networks",  "Share Networks");
-insert into tPerm (perm_code, perm_name) values ("edit_topology", "Edit network topology");
+insert into tPerm (perm_code, perm_name) values ("add_network",    "Add network");
+insert into tPerm (perm_code, perm_name) values ("edit_network",   "Edit network");
+insert into tPerm (perm_code, perm_name) values ("delete_network", "Delete network");
+insert into tPerm (perm_code, perm_name) values ("share_network",  "Share network");
+insert into tPerm (perm_code, perm_name) values ("edit_topology",  "Edit network topology");
 
-insert into tPerm (perm_code, perm_name) values ("create_projects", "Create Projects");
-insert into tPerm (perm_code, perm_name) values ("edit_projects",   "Edit Projects");
-insert into tPerm (perm_code, perm_name) values ("delete_projects", "Delete Projects");
-insert into tPerm (perm_code, perm_name) values ("share_projects",  "Share Projects");
+insert into tPerm (perm_code, perm_name) values ("add_project",    "Add Project");
+insert into tPerm (perm_code, perm_name) values ("edit_project",   "Edit Project");
+insert into tPerm (perm_code, perm_name) values ("delete_project", "Delete Project");
+insert into tPerm (perm_code, perm_name) values ("share_project",  "Share Project");
 
 
 insert into tPerm (perm_code, perm_name) values ("edit_data", "Edit network data");
@@ -51,14 +51,14 @@ call add_perm_to_role("admin", "add_role");
 call add_perm_to_role("admin", "edit_role");
 call add_perm_to_role("admin", "add_perm");
 call add_perm_to_role("admin", "edit_perm");
-call add_perm_to_role("admin", "create_networks");
-call add_perm_to_role("admin", "edit_networks"); 
-call add_perm_to_role("admin", "delete_networks");
-call add_perm_to_role("admin", "share_networks");
-call add_perm_to_role("admin", "create_projects");
-call add_perm_to_role("admin", "edit_projects");
-call add_perm_to_role("admin", "delete_projects");
-call add_perm_to_role("admin", "share_projects");
+call add_perm_to_role("admin", "add_network");
+call add_perm_to_role("admin", "edit_network");
+call add_perm_to_role("admin", "delete_network");
+call add_perm_to_role("admin", "share_network");
+call add_perm_to_role("admin", "add_project");
+call add_perm_to_role("admin", "edit_project");
+call add_perm_to_role("admin", "delete_project");
+call add_perm_to_role("admin", "share_project");
 call add_perm_to_role("admin", "edit_topology"); 
 call add_perm_to_role("admin", "edit_data");
 call add_perm_to_role("admin", "view_data");
@@ -66,14 +66,14 @@ call add_perm_to_role("admin", "add_template");
 call add_perm_to_role("admin", "edit_template");
 
 /*Developer*/
-call add_perm_to_role("dev", "create_networks");
-call add_perm_to_role("dev", "edit_networks"); 
-call add_perm_to_role("dev", "delete_networks");
-call add_perm_to_role("dev", "share_networks");
-call add_perm_to_role("dev", "create_projects");
-call add_perm_to_role("dev", "edit_projects");
-call add_perm_to_role("dev", "delete_projects");
-call add_perm_to_role("dev", "share_projects");
+call add_perm_to_role("dev", "add_network");
+call add_perm_to_role("dev", "edit_network");
+call add_perm_to_role("dev", "delete_network");
+call add_perm_to_role("dev", "share_network");
+call add_perm_to_role("dev", "add_project");
+call add_perm_to_role("dev", "edit_project");
+call add_perm_to_role("dev", "delete_project");
+call add_perm_to_role("dev", "share_project");
 call add_perm_to_role("dev", "edit_topology"); 
 call add_perm_to_role("dev", "edit_data");
 call add_perm_to_role("dev", "view_data");
@@ -81,15 +81,15 @@ call add_perm_to_role("dev", "add_template");
 call add_perm_to_role("dev", "edit_template");
 
 /*Modeller*/
-call add_perm_to_role("modeller", "create_networks");
-call add_perm_to_role("modeller", "edit_networks"); 
-call add_perm_to_role("modeller", "delete_networks");
-call add_perm_to_role("modeller", "share_networks");
+call add_perm_to_role("modeller", "add_network");
+call add_perm_to_role("modeller", "edit_network");
+call add_perm_to_role("modeller", "delete_network");
+call add_perm_to_role("modeller", "share_network");
 call add_perm_to_role("modeller", "edit_topology"); 
-call add_perm_to_role("modeller", "create_projects");
-call add_perm_to_role("modeller", "edit_projects");
-call add_perm_to_role("modeller", "delete_projects");
-call add_perm_to_role("modeller", "share_projects");
+call add_perm_to_role("modeller", "add_project");
+call add_perm_to_role("modeller", "edit_project");
+call add_perm_to_role("modeller", "delete_project");
+call add_perm_to_role("modeller", "share_project");
 call add_perm_to_role("modeller", "edit_data");
 call add_perm_to_role("modeller", "view_data");
 
