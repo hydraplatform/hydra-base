@@ -58,13 +58,8 @@ SVN
 
    The URL of the SVN repository is::
 
-        svn+ssh://<username>@ec2-54-229-95-247.eu-west-1.compute.amazonaws.com/home/svn/svnrepository/HYDRA
-
-
-.. note::
-
-    If you connect the first time to the SVN server, TortoiseSVN might ask you
-    for the password multiple times (usually twice).
+        svn+ssh://<user>@ec2-54-229-95-247.eu-west-1.compute.amazonaws.com
+        /home/svn/svnrepository/HYDRA
 
 
 SVN+SSH for Linux users

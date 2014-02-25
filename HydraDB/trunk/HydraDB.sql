@@ -303,7 +303,7 @@ CREATE TABLE tConstraintGroup (
 
 CREATE TABLE tDescriptor (
     data_id  INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    desc_val VARCHAR(45) NOT NULL
+    desc_val VARCHAR(1000) NOT NULL
 );
 
 CREATE TABLE tTimeSeries (

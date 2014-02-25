@@ -31,17 +31,13 @@ Building windows execuatable using Pyinstaller
 
 Make sure you have installed pip (:ref:`pip`).
 
-Install pyinstalled (if you haven't done so already)::
+Install pyinstaller (if you haven't done so already)::
 
     pip install pyinstaller
 
 Build the server::
 
-    pyinstaller --hidden-import=spyne.service -y server.py
-
-.. note::
-    The ``-y`` option will force pyinstaller to overwrite previous builds
-    without asking. 
+    pyinstaller server.spec
 
 The server can now be run in the commandline::
 

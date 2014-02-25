@@ -75,6 +75,8 @@ List of dimension keywords
   ``Pressure``
   ``Volumetric flow rate``
   ``Monetary value``
+  ``Unit price (volume)``
+  ``Unit price (mass)``
   ``Energy price``
   ``Dimensionless``
   ======================== =
@@ -97,7 +99,18 @@ US Dollars per kilojoule     USD kJ^-1    0.001            0.0
 US Dollars per kilowatt-hour USD kWh^-1   2.77777777e-07   0.0 
 **Mass flow rate**
 kilograms per second         kg s^-1      1.0              0.0
+kilograms per minute         kg min^-1    0.0166666667     0.0
+kilograms per hour           kg h^-1      0.000277777778   0.0
+kilograms per day            kg day^-1    1.15740741e-05   0.0
+kilograms per month          kg mon^-1    3.80265176e-07   0.0
+kilograms per year           kg yr^-1     3.16887646e-08   0.0
 grams per second             g s^-1       0.001            0.0
+tonnes per second            kg s^-1      1000.0           0.0
+tonnes per minute            kg min^-1    16.66666666667   0.0
+tonnes per hour              kg h^-1      0.277777777778   0.0
+tonnes per day               kg day^-1    1.15740741e-02   0.0
+tonnes per month             kg mon^-1    3.80265176e-04   0.0
+tonnes per year              kg yr^-1     3.16887646e-05   0.0
 **Volumetric flow rate**
 cubic metres per second      m^3 s^-1     1.0              0.0           SI unit for volumetric
                                                                          flow rate.
@@ -707,6 +720,10 @@ speed of light in vacuum     c            299792458.0      0.0           The spe
                                                                          rest mass.
 **Monetary value**
 US Dollar                    $            1.0              0.0           
+**Unit price (volume)**
+US Dollar per square metre   $ m^-3       1.0              0.0
+**Unit price (mass)**
+US Dollar per kilogram       $ kg^-1      1.0              0.0
 **Energy price**
 USDollars per kilowatt-hour  $ kWh^-1     2.77777777e-07   0.0           Cost in US Dollars per
                                                                          energy unit 
@@ -715,6 +732,13 @@ USDollars per kilojoule      $ kJ^-1      0.001            0.0           Cost in
                                                                          energy unit (kilojoule).
 USDollars per joule          $ J^-1       1.0              0.0           Cost in US Dollars per
                                                                          energy unit (joule).
+**Specific cost (time)**
+US Dollar per second         $ s^-1       1.0              0.0
+US Dollar per minute         $ min^-1     0.0166666667     0.0
+US Dollar per hour           $ h^-1       0.000277777778   0.0
+US Dollar per day            $ day^-1     1.15740741e-05   0.0
+US Dollar per month          $ mon^-1     3.80265176e-07   0.0
+US Dollar per year           $ yr^-1      3.16887646e-08   0.0
 ============================ ============ ================ ============= ==========================
 
 
