@@ -81,6 +81,7 @@ CREATE TABLE tProject (
     cr_date  TIMESTAMP default localtimestamp,
     created_by          INT,
     UNIQUE (project_name),
+    constraint chk_status check (status in ('A', 'X')),
     FOREIGN KEY (created_by) REFERENCES tUser(user_id)
 );
 
@@ -98,6 +99,7 @@ CREATE TABLE tNetwork (
     created_by          INT,
     FOREIGN KEY (created_by) REFERENCES tUser(user_id),
     FOREIGN KEY (project_id) REFERENCES tProject(project_id),
+    constraint chk_status check (status in ('A', 'X')),
     UNIQUE (project_id, network_name)
 );
 
@@ -114,6 +116,7 @@ CREATE TABLE tNode (
     node_layout      TEXT,
     cr_date  TIMESTAMP default localtimestamp,
     FOREIGN KEY (network_id) REFERENCES tNetwork(network_id),
+    constraint chk_status check (status in ('A', 'X')),
     UNIQUE (network_id, node_name)
 );
 
@@ -130,6 +133,7 @@ CREATE TABLE tLink (
     FOREIGN KEY (network_id) REFERENCES tNetwork(network_id),
     FOREIGN KEY (node_1_id) REFERENCES tNode(node_id),
     FOREIGN KEY (node_2_id) REFERENCES tNode(node_id),
+    constraint chk_status check (status in ('A', 'X')),
     UNIQUE (node_1_id, node_2_id, link_id),
     UNIQUE (network_id, link_name)
 );
@@ -145,6 +149,7 @@ CREATE TABLE tScenario (
     time_step            VARCHAR(60),
     cr_date  TIMESTAMP default localtimestamp,
     FOREIGN KEY (network_id) REFERENCES tNetwork(network_id),
+    constraint chk_status check (status in ('A', 'X')),
     UNIQUE (network_id, scenario_name)
 );
 
@@ -161,6 +166,7 @@ CREATE TABLE tResourceGroup (
     status            VARCHAR(1),
     cr_date           TIMESTAMP default localtimestamp,
     network_id        INT NOT NULL,
+    constraint chk_status check (status in ('A', 'X')),
     FOREIGN KEY (network_id) REFERENCES tNetwork(network_id)
 );
 
