@@ -12,5 +12,8 @@ GAMS import
    :members:
 
 
+GAMS plug-in library
+====================
+
 .. automodule:: GAMSplugin
    :members:
