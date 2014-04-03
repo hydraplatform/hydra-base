@@ -4,6 +4,12 @@ Hydra server
 .. automodule:: db.HydraIface
    :members: 
 
+Database connection
+-------------------
+
+.. automodule:: db.hdb
+   :members:
+
 SOAP server
 ============
 

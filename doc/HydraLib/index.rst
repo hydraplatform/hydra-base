@@ -7,12 +7,6 @@ Utility functions
 .. automodule:: HydraLib.util
    :members:
 
-Database connection
--------------------
-
-.. automodule:: HydraLib.hdb
-   :members:
-
 
 Plug-in development
 -------------------
@@ -24,12 +18,6 @@ Units and Dimensions
 --------------------
 
 .. automodule:: HydraLib.units
-   :members:
-
-Validity checks
----------------
-
-.. automodule:: HydraLib.checks
    :members:
 
 Logging
