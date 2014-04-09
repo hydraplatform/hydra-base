@@ -212,6 +212,7 @@ CREATE TABLE tAttr (
 CREATE TABLE tTemplate (
     template_id   INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
     template_name VARCHAR(45) NOT NULL,
+    layout        TEXT,
     UNIQUE(template_name)
 );
 
@@ -220,7 +221,7 @@ insert into tTemplate (template_name) values ('Default');
 CREATE TABLE tTemplateType(
     type_id       INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
     type_name     VARCHAR(45) NOT NULL,
-    template_id      INT,
+    template_id   INT,
     alias         varchar(45),
     layout        TEXT,
     FOREIGN KEY (template_id) REFERENCES tTemplate(template_id),
