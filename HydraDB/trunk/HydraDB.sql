@@ -358,11 +358,11 @@ CREATE TABLE tDatasetGroupItem (
     FOREIGN KEY (dataset_id) REFERENCES tDataset(dataset_id)
 );
 
-CREATE TABLE tDataAttr (
-    d_attr_id   INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
+CREATE TABLE tMetadata (
     dataset_id  INT         NOT NULL,
-    d_attr_name VARCHAR(45) NOT NULL,
-    d_attr_val  DOUBLE      NOT NULL,
+    metadata_name VARCHAR(45) NOT NULL,
+    metadata_val  BLOB      NOT NULL,
+    PRIMARY KEY (dataset_id, metadata_name),
     FOREIGN KEY (dataset_id) REFERENCES tDataset(dataset_id)
 );
 
