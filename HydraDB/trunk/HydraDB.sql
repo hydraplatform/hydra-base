@@ -147,9 +147,11 @@ CREATE TABLE tScenario (
     start_time           DECIMAL(30, 20) UNSIGNED,
     end_time             DECIMAL(30, 20) UNSIGNED,
     time_step            VARCHAR(60),
+    locked               VARCHAR(1) default 'N' NOT NULL,
     cr_date  TIMESTAMP default localtimestamp,
     FOREIGN KEY (network_id) REFERENCES tNetwork(network_id),
     constraint chk_status check (status in ('A', 'X')),
+    constraint chk_locked check (locked in ('Y', 'N')),
     UNIQUE (network_id, scenario_name)
 );
 
