@@ -216,7 +216,7 @@ insert into tTemplate (template_name) values ('Default');
 
 CREATE TABLE tTemplateType(
     type_id       INT         NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    type_name     VARCHAR(45) NOT NULL,
+    type_name     VARCHAR(60) NOT NULL,
     resource_type VARCHAR(60),
     template_id   INT,
     alias         varchar(60),
