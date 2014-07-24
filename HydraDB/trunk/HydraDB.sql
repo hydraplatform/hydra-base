@@ -231,6 +231,7 @@ CREATE TABLE tTypeAttr (
     default_dataset_id  INT,
     attr_is_var VARCHAR(1) default 'N',
     data_type   VARCHAR(60),
+    data_restriction VARCHAR(1000),
     dimension   VARCHAR(60),
     PRIMARY KEY (attr_id, type_id),
     FOREIGN KEY (attr_id) REFERENCES tAttr(attr_id),
