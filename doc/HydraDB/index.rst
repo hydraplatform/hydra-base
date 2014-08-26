@@ -47,7 +47,6 @@ tNode
 Along with the standard id, name, description
 and status, a Node has an X, Y coordinate.
 
-
  * node_id: Unique identifier
  * network_id: The network in which this link resides.
  * node_name: Node name. This is UNIQUE within a network.
@@ -71,6 +70,7 @@ and a network_id.
  * node_1_id: Link from node 1...
  * node_2_id: ...to node 2
  * link_name: Name of the link. This is UNIQUE for links between the same 2 nodes.
+ * link_description: Description of the link..
  * link_layout: A string describing layout parameters. The layout includes
    intermediate points.
  * cr_date: Creation date
@@ -87,40 +87,47 @@ For example: A reservoir might have this attribute: Name: 'Capacity' Dimension '
  * attr_id: Unique identifier
  * attr_name: Name (Capacity, Flow)
  * attr_dimen: Dimension of the value that will be stored against this attribute. 
+ * cr_date: Creation date
 
 
-tTemplate
+tType
 ^^^^^^^^^^^^^^^^^
 
-A resource template defines a grouping for attributes. This allows a 'type' of
+A resource type defines a grouping for attributes. This allows a 'type' of
 resource to be defined. For example, a simple reservoir template would
 contain two attributes: Flow and Capacity (each of which were defined in tattr)
 
- * template_id: Unique identifier
- * template_name: Template Name ('Reservoir' for example)
+ * type_id: Unique identifier
+ * type_name: Template Name ('Reservoir' for example)
  * alias: This is a non-functional string used for display purposes.
- * layout: Default display parameters for a tempalte -- colour, shape etc.
- * group_id: The group to which this template belongs (For example: "EBSD Nodes")
+ * layout: Default display parameters for a type -- colour, shape etc.
+ * template_id: The template to which this type belongs (For example: "EBSD Nodes")
 
-tTemplateGroup
+tTemplate
 ^^^^^^^^^^^^^^^^^^^^^^
 
-A grouping for resource templates. Used to categorise resource types into a single
+A grouping for resource types. Used to categorise resource types into a single
 group -- for example, the 'GAMS Nodes' Group might contain two resource templates:
 'Reservoir' and 'Refinery'. This grouping should define what is required by
 a GAMS plugin.
 
- * group_id: Unique Identifier
- * group_name: Name
+ * template_id: Unique Identifier
+ * template_name: Name
+ * layout: Default display parameters for a template -- colour, shape etc.
 
-tTemplateItem
+tTypeattr
 ^^^^^^^^^^^^^^^^^^^^^
 
 This links attributes to their template. An attribute can be in several templates.
 Both attr_id and template_id make up the PK.
 
  * attr_id: The attribute
- * template_id: The template that this attribute is in.
+ * type_id: The type that this attribute is in.
+ * default_dataset_id: Id of a dataset which can be used as a default.
+ * attr_is_var: Flag to indicate whether, in this type, the attribute is a variable
+ * data_type:   The expected data type for the attribute in this type
+ * data_dimension: The expeted dimension of the data
+ * data_restriction: A python dictionary, which looks something like:{'NUMPLACES': '1', 'LESSTHAN': '10'}
 
 tResourceAttr
 ^^^^^^^^^^^^^
@@ -134,7 +141,11 @@ table that data can be associated with a resource.
  * resource_attr_id: Unique identifier
  * attr_id: The attribute being assigned to this resource
  * ref_key: The type of resource. Can be one of: ('NODE', 'LINK', 'NETWORK', 'PROJECT', 'SCENARIO')
- * ref_id: The identifer for the resource.
+ * network_id: The identifer for the network (can only be not-null if ref_key is 'NETWORK').
+ * project_id: The identifer for the project (can only be not-null if ref_key is 'PROJECT').
+ * node_id: The identifer for the node.      (can only be not-null if ref_key is 'NODE')
+ * link_id: The identifer for the link.      (can only be not-null if ref_key is 'LINK')
+ * group_id: The identifer for the resource group. (can only be not-null if ref_key is 'GROUP')
  * attr_is_var: Either 'Y' or 'N' -- This flag indicates whether data should be assigned to the resource attribute. If not, it is assumed this will be done by an app.
 
 tAttrMap
@@ -160,6 +171,11 @@ same network.
  * network_id: The network to which this scenario applies
  * scenario_name: The name of this scenario
  * scenario_description: Non-mandatory description
+ * scenario_layout: Used to store layout information for the UI
+ * start_time: Scenario start time (required for some models)
+ * end_time: Scenario end time
+ * time_step: Scenario time step
+ * locked: Flag to indicate whether the scenario is editable
  * status: A character, which can be A (active) or X (deleted)
  * cr_date: Creation date
 
@@ -173,6 +189,7 @@ tDataset, which stores what type the data its, its units and other information.
  * dataset_id: A reference to the scenario data table.
  * scenario_id: A reference to the scenario
  * resource_attr_id: A reference to the resource attribute.
+ * source: An varchar describing which app this dataset came from. 
 
 
 Datasets
@@ -193,6 +210,8 @@ look in tDescriptor for data_id 1.
  * data_name: A name for this data
  * data_dimen: Dimension -- for comparison with dimension in tAttr.
  * data_hash: The hash of the datum. This hash is generated using python's hash() function, as used in hash tables. Allows for easy comparison of data.
+ * locked: Flag to indicate whether this dataset has been locked by its owner.
+ * value: Contains the actual value. This will usually be a single value or a JSON string.
  * cr_date: Creation date
 
 tDatasetGroup
@@ -211,118 +230,24 @@ Keeps track of which piece of data is in which group.
  * dataset_id : refers to the piece of data in tDataset that is in the group
  * group_id   : refers to the group_id in tDatasetGroup.
 
-tDescriptor
-^^^^^^^^^^^
-
-A string: ``"I am a value"``
-
- * data_id: unique identifier
- * desc_val: Value (string)
-
-tScalar
-^^^^^^^
-
-A single numeric value: 10.5
-
- * data_id: Unique identifier
- * param_value: value (double)
-
-tArray
-^^^^^^
-
-A multi-dimensional array, stored as a BLOB.
-
- * data_id: Unique identifier
- * arr_data: Value (BLOB)
-
-tTimeSeries
-^^^^^^^^^^^
-
-A container for time series data.
-
- * data_id: Unique identifier
-
 tTimeSeriesData
 ^^^^^^^^^^^^^^^
 
 Time series data, stored as multiple time - value pairs, all associated with
 a single data_id, which is contained in tTimeSeries.
 
- * data_id: Reference to data_id in tTimeSeries
+ * dataset_id: Reference to data_id in tTimeSeries
  * ts_time: Timestamp
  * ts_value: a multi-dimensional array, stored as a blob. Can also just be a single value.
 
-tEqTimeSeries
-^^^^^^^^^^^^^
-
-Equally spaced time series. Starting at a specified time, and with a given
-frequency (measured in seconds), there is a multi-dimensional array, stored as a BLOB.
-
- * data_id: Unique identifier
- * start_time: timestamp
- * frequency: measured in seconds
- * arr_data: multi-dimensional array, stored as a BLOB.
-
-tDataAttr
+tMetaData
 ^^^^^^^^^
 
 Auxiliary information about the data, in name / value pairs.
 
- * d_attr_id: Unique Identifier
  * dataset_id: Reference to the data about which this info is stored.
- * d_attr_name: Name of the auxiliary piece of data
- * d_attr_val: Value
-
-Rules and constraints
-*********************
-Using these three tables, it is possible to generate a complex mathematical
-equation. Think of the constraint as the container, the groups as parenteses (), and
-items as the values within the parentheses. Constraints are logically contained within
-scenarios.
-
-tConstraint
-^^^^^^^^^^^
-
-A constraint exists within a scenario and essentially looks like this:
-(some equation) = Value. There's a left-hand-side, which contains the actual
-contraint information, and operation, and a value to which the left-hand-side must
-be related.
-
-    constraint_id: Unique identifer
-    scenario_id: Reference to scenario
-    group_id: Reference to first group (or outermost brackets) on the left hand side of the equation.
-    constant: The value to which the left hand side is campared.
-    op: The operation used to compare the left and right hand side.
-
-tConstraintGroup
-^^^^^^^^^^^^^^^^
-
-A constraint group can be thought of as the inside of a pair of parentheses in
-a mathematical equation. For example, in the condition (A + B) = 1, the group
-is A + B, where A and B are Items, on either side of an operation.
-In a more complex example: ((A + B) - C) = 1, (A + B) - C is one group containing the group (A + B) and the item C.
-
-    group_id: Unique identifier
-    constraint_id: reference to the constraint
-    ref_key_1: Type of entity contained on the left hand side of this group (can be
-    another group (GROUP) or an item (ITEM).
-    ref_id_1: Id of either group or item (as indicated by ref_key_1)
-    ref_key_2: Type of entity on right hand side of this group (can be GROUP, ITEM).
-    This value can be null if there is nothing on the right hand side of the operation.
-    ref_id_2:  Id of either group or item (as indicated by ref_key_2)
-    op: Operation put between the two entites in this group. Can be null if the group
-    contains only a single entity.
-
-
-tConstraintItem
-^^^^^^^^^^^^^^^
-
-The atomic part of a constraint. This must link to a resource attribute -- and 
-therefore to a piece of data. 
-
- * item_id: Unique identifier
- * constraint_id: Reference to constraint
- * resource_attr_id: Reference to the resource attribute, through which we can access the data used in the constraint equation.
+ * metadata_name: Name of the auxiliary piece of data
+ * metadata_val: Value
 
 User and permission management
 ******************************
@@ -380,14 +305,37 @@ Ownership
 
 These tables define what belongs to which users.
 
-tOwner
+tProjectOwner
 ^^^^^^^^^^^^^
 
 Ownership of a resource
 
  * user_id   : User's ID
- * ref_key   : resource type identifier (currently PROJECT & NETWORK)
- * ref_id    : resource instance identifier
+ * project_id   : Reference to the project
+ * view      : Flag to indicate read permissions (read is a reserved word, hence 'view).
+ * edit      : Flag to indicate write permissions (write is a reserved word, hence 'edit').
+ * share     : Flag to indicate share permissions
+ * cr_date   : creation date
+
+tNetworkOwner
+^^^^^^^^^^^^^
+
+Ownership of a resource
+
+ * user_id   : User's ID
+ * network_id    : Reference to the Network.
+ * view      : Flag to indicate read permissions (read is a reserved word, hence 'view).
+ * edit      : Flag to indicate write permissions (write is a reserved word, hence 'edit').
+ * share     : Flag to indicate share permissions
+ * cr_date   : creation date
+
+tDatasetOwner
+^^^^^^^^^^^^^
+
+Ownership of a resource
+
+ * user_id   : User's ID
+ * dataset_id    : Reference to the dataset
  * view      : Flag to indicate read permissions (read is a reserved word, hence 'view).
  * edit      : Flag to indicate write permissions (write is a reserved word, hence 'edit').
  * share     : Flag to indicate share permissions
