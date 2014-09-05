@@ -1,17 +1,20 @@
 Hydra server
 ============
 
-.. automodule:: db.HydraIface
-   :members: 
-
 Database connection
 -------------------
 
-.. automodule:: db.hdb
+.. automodule:: db.model
    :members:
 
 SOAP server
 ============
+
+Soap Objects
+============
+
+.. automodule:: soap_server.hydra_complexmodels
+   :members:
 
 Projects
 --------
