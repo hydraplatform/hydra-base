@@ -46,13 +46,10 @@ The server can now be run in the commandline::
 Installing Python
 -----------------
 Several installations of python are available.
-The one we recommend is PythonXY:
-http://code.google.com/p/pythonxy/wiki/Downloads
+The one we recommend is `PythonXY http://code.google.com/p/pythonxy/wiki/Downloads`_
 
 Some of the libraries may require you to install them from source. This means
-running a setup python file in a zip file you have downloaded. To ensure you can unzip the files correctly, make sure you have an unzip program installed like:
-
-PeaZip: http://peazip.sourceforge.net/
+running a setup python file in a zip file you have downloaded. To ensure you can unzip the files correctly, make sure you have an unzip program installed like `PeaZip: http://peazip.sourceforge.net/`_
 
 .. _pip:
 
@@ -132,3 +129,17 @@ MySql Connector
 Navigate to: http://dev.mysql.com/downloads/connector/python/
 
 Click on 'Download' of the MSI installer appropriate for your windows installation.
+
+SqlAlchemy
+**********
+Try:
+pip install sqlalchemy
+
+We use sqlalchemy to provide database connections and manage the database communication.  
+
+Pandas
+******
+Try:
+pip install pandas
+
+Pandas allows us to manipulate and store timeseries and arrays in a very efficient and flexible way.

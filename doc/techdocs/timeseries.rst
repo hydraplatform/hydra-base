@@ -75,14 +75,12 @@ this:
 
 
    #Create the timeseries object
-   timeseries = client.factory.create('ns1:TimeSeries')
-
+   timeseries = {"Header": {}}
    for time, value in dataset:
-       tsdata = client.factory.create('ns1:TimeSeriesData')
-       tsdata.ts_time = PluginLib.date_to_string(time)
-       tsdata.ts_value = value
+        t = PluginLib.date_to_string(time)
+        timeseries["0"][t] = value
 
-       timeseries.ts_values.TimeSeriesData.append(tsdata)
+   timeseries.ts_values = json.dumps(timeseries)
 
    dataset.value = timeseries
 
@@ -93,11 +91,6 @@ parameter to ``PluginLib.date_to_string()`` should to the trick::
 
    tsdata.ts_time = PluginLib.date_to_string(time, seasonal=True)
     
-
-
-Equally space time series
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
 
 Retrieving time series from the server
 --------------------------------------
