@@ -186,7 +186,7 @@ Now data can be added::
     dataset.name = 'Volume of water in a reservoir during a dry year'
     dataset.unit = 'ml'
     dataset.dimension = 'Volume' # THis must match the dimension of the attribute.
-    dataset.locked = 'N'
+    dataset.hidden = 'N'
     dataset.value = {'desc_val':100000}
 
     scenario.resourcescenarios.ResourceScenario.append(dataset)

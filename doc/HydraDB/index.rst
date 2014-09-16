@@ -210,7 +210,7 @@ look in tDescriptor for data_id 1.
  * data_name: A name for this data
  * data_dimen: Dimension -- for comparison with dimension in tAttr.
  * data_hash: The hash of the datum. This hash is generated using python's hash() function, as used in hash tables. Allows for easy comparison of data.
- * locked: Flag to indicate whether this dataset has been locked by its owner.
+ * hidden: Flag to indicate whether this dataset has been hidden by its owner.
  * value: Contains the actual value. This will usually be a single value or a JSON string.
  * cr_date: Creation date
 
