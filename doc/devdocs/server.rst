@@ -165,9 +165,4 @@ pip install cherrypy
 
 CherryPy allows developers to build web applications in much the same way they would build any other object-oriented Python program.
 
-SOAPpy
-******
-Try:
-pip install SOAPpy
 
-SOAPpy provides tools for building SOAP clients and servers.
