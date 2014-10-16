@@ -70,10 +70,19 @@ Spyne
 ******
 Spyne is the SOAP server library.
 
+*edit*: The spyne library has a small bug, which needs to be fixed in order
+to work with plugins. The fixed version is available here. To install it, you
+need to download the zip file on the right hand side of this page: https://github.com/knoxsp/spyne
+
+Open up this zip file somewhere and navigate to this directory in the command line.
+THen type 'python setup.py install' or read the Read me.
+
+If this does not work and you want to install the base version of spyne, do the
+following:
+
 In the command prompt, type:
 
 pip install spyne
-
 
 Should this fail, you must install it from source. Don't worry. It's easy.
 The source is available at: www.spyne.io
