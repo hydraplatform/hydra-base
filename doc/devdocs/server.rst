@@ -174,4 +174,10 @@ pip install cherrypy
 
 CherryPy allows developers to build web applications in much the same way they would build any other object-oriented Python program.
 
+python-dateutil
+****************
+Try: 
+pip install python-dateutil
+
+The dateutil module provides powerful extensions to the standard datetime module.
 
