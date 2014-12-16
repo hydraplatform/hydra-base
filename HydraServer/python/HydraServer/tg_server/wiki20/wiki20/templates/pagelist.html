@@ -1,0 +1,26 @@
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:py="http://genshi.edgewall.org/"
+      xmlns:xi="http://www.w3.org/2001/XInclude">
+
+  <xi:include href="master.html" />
+
+<head>
+  <meta content="text/html; charset=UTF-8" http-equiv="content-type" py:replace="''"/>
+  <title>The TurboGears 2 Wiki Listing</title>
+</head>
+
+<body>
+    <div class="main_content">
+        <h1> All pages </h1>
+        <ul>
+            <li py:for="pagename in pages">
+                <a href="${tg.url('/' + pagename)}"
+                   py:content="pagename">
+                     Page Name Here.
+                </a>
+            </li>
+        </ul>
+        Return to the <a href="/">FrontPage</a>
+    </div>
+</body>
+</html>

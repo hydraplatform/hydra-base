@@ -1,0 +1,8 @@
+<table xmlns:py="http://genshi.edgewall.org/"
+    class="${w.css_class}"
+    py:attrs='w.attrs'>
+<tr><th>Name</th><th>Value</th></tr>
+<py:for each="child in w.children">
+${child.display(value=w.value, displays_on='genshi')}
+</py:for>
+</table>

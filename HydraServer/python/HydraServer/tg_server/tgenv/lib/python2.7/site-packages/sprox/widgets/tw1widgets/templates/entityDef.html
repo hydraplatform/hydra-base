@@ -1,0 +1,15 @@
+<tr xmlns="http://www.w3.org/1999/xhtml" xmlns:py="http://genshi.edgewall.org/"
+    class="${css_class}"
+    py:attrs='value_of("attrs", "")'
+
+    >
+    <td py:if="hasattr(entity, 'key')">
+        $entity.key
+    </td>
+    <td py:if="hasattr(entity, 'type')">
+        $entity.type
+    </td>
+    <td py:if="not hasattr(entity, 'type')">
+        relation
+    </td>
+</tr>

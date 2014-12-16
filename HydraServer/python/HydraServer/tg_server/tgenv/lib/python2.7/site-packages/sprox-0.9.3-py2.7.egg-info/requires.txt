@@ -1,0 +1,17 @@
+formencode>=1.3.0a1
+markupsafe
+
+[testing_mongodb]
+sqlalchemy
+sieve
+tw2.forms
+genshi
+mako
+ming
+
+[testing]
+sqlalchemy
+sieve
+tw2.forms
+genshi
+mako

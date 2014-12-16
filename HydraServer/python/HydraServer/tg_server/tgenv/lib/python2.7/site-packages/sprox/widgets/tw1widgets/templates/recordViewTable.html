@@ -1,0 +1,10 @@
+<table xmlns="http://www.w3.org/1999/xhtml" xmlns:py="http://genshi.edgewall.org/"
+    id="${id}"
+    class="${css_class}"
+    py:attrs='value_of("attrs", "")'
+>
+<tr><th>Name</th><th>Value</th></tr>
+<py:for each="child in children">
+${child.display(value)}
+</py:for>
+</table>

@@ -1,0 +1,9 @@
+<div xmlns="http://www.w3.org/1999/xhtml" xmlns:py="http://genshi.edgewall.org/"
+    id="${id}"
+    class="${css_class}"
+    py:attrs='value_of("attrs", "")'
+    >
+<py:for each="child in children">
+${child(value, controller=controller)}
+</py:for>
+</div>

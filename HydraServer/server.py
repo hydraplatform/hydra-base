@@ -16,7 +16,6 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
-import cffi
 import bcrypt
 bcrypt.hashpw('', bcrypt.gensalt())
 
@@ -41,31 +40,31 @@ import spyne.decorator
 
 from spyne.error import Fault, ArgumentError
 
-from util.hdb import make_root_user
-import db.model
+from HydraServer.util.hdb import make_root_user
+from HydraServer.db import model
 
-from soap_server.network import NetworkService
-from soap_server.project import ProjectService
-from soap_server.attributes import AttributeService
-from soap_server.scenario import ScenarioService
-from soap_server.data import DataService
-from soap_server.plugins import PluginService
-from soap_server.users import UserService
-from soap_server.template import TemplateService
-from soap_server.static import ImageService, FileService
-from soap_server.groups import ResourceGroupService
-from soap_server.units import UnitService
-from soap_server.rules import RuleService
-from soap_server.notes import NoteService
-from soap_server.hydra_base import AuthenticationService,\
+from HydraServer.soap_server.network import NetworkService
+from HydraServer.soap_server.project import ProjectService
+from HydraServer.soap_server.attributes import AttributeService
+from HydraServer.soap_server.scenario import ScenarioService
+from HydraServer.soap_server.data import DataService
+from HydraServer.soap_server.plugins import PluginService
+from HydraServer.soap_server.users import UserService
+from HydraServer.soap_server.template import TemplateService
+from HydraServer.soap_server.static import ImageService, FileService
+from HydraServer.soap_server.groups import ResourceGroupService
+from HydraServer.soap_server.units import UnitService
+from HydraServer.soap_server.rules import RuleService
+from HydraServer.soap_server.notes import NoteService
+from HydraServer.soap_server.hydra_base import AuthenticationService,\
     LogoutService,\
     get_session_db,\
     AuthenticationError,\
     ObjectNotFoundError,\
     HydraServiceError,\
     HydraDocument
-import plugins 
-from soap_server.sharing import SharingService
+import HydraServer.plugins 
+from HydraServer.soap_server.sharing import SharingService
 from spyne.util.wsgi_wrapper import WsgiMounter
 
 applications = [
@@ -87,18 +86,18 @@ applications = [
     RuleService,
     NoteService,
 ]
-applications.extend(plugins.services)
+applications.extend(HydraServer.plugins.services)
 
 from HydraLib.HydraException import HydraError
 
 from HydraLib import config
-from util import hdb
+from HydraServer.util import hdb
 
 import datetime
 import traceback
 
 from cherrypy.wsgiserver import CherryPyWSGIServer
-from db import commit_transaction, rollback_transaction 
+from HydraServer.db import commit_transaction, rollback_transaction 
 
 log = logging.getLogger(__name__)
 

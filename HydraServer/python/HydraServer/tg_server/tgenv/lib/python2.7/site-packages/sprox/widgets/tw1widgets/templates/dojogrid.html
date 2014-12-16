@@ -1,0 +1,32 @@
+
+<div>
+<script>
+//<![CDATA[
+function lessThan(str) {
+return str.replace(/&lt;/gi, "<");
+}
+//]]>
+</script>
+<div dojoType="${dojoStoreType}" jsId="${jsId}_store"  id="${jsId}_store" xhrArgs="{preventCache:true}" url="${action}"/>
+<table xmlns="http://www.w3.org/1999/xhtml"
+       xmlns:py="http://genshi.edgewall.org/"
+        dojoType="$dojoType"
+        jsId="${jsId}"
+        id="${id}"
+        store="${jsId}_store"
+        columnReordering="${columnReordering}"
+        rowsPerPage="${rowsPerPage}"
+        model="${model}"
+        delayScroll="${delayScroll}"
+        class="${cssclass}"
+        escapeHTMLInData="${(attrs and attrs.get('escapeHTMLInData', False) and 'True') or 'False'}"
+        py:attrs="attrs"
+        >
+    <thead>
+            <tr>
+                <th formatter="lessThan" py:for="column in columns" width="${column_widths.get(column, default_column_width)}" field="${column}" py:attrs="column_options.get(column,default_column_options)">${headers.get(column, column)}
+                </th>
+            </tr>
+        </thead>
+</table>
+</div>

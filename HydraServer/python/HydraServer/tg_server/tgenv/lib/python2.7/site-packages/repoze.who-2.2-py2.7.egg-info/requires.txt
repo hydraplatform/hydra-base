@@ -1,0 +1,15 @@
+WebOb
+zope.interface
+setuptools
+
+[docs]
+WebOb
+zope.interface
+Sphinx
+repoze.sphinx.autointerface
+
+[testing]
+WebOb
+zope.interface
+nose
+coverage

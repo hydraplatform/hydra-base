@@ -1,0 +1,23 @@
+<div {{ w.attrs|xmlattr }}>
+    {% for c in w.children_hidden %}
+        {{ c.display() }}
+    {% endfor %}
+
+    {% for c in w.children_non_hidden %}
+    <div {% if w.hover_help and c.help_text %}title="{{ c.help_text }}"{% endif %}
+         class="{{ (c|attr('validator') and (c|attr('validator')|attr('required') or c|attr('validator')|attr('not_empty'))) and ' required' or '' }}{{ c.error_msg and ' has-error' or '' }}">
+      <div {{ c.container_attrs|xmlattr }}>
+        <label for="{{c.compound_id}}" {{ (c|attr('label_attrs') or {})|xmlattr }}>{{ c.label }}</label>
+        <div {{ (c|attr('wrapper_attrs') or {})|xmlattr }}>{{c.display()}}</div>
+        {% if not w.hover_help %}{{ c.help_text or '' }}{% endif %}
+        <span id="{{ c.compound_id or '' }}:error" class="error help-block">{{ c.error_msg or '' }}</span>
+      </div>
+    </div>
+   {% endfor %}
+
+   <div class="error"><span id="{{ w.compound_id or '' }}:error" class="error">
+        {% for error in w.rollup_errors %}
+        <p>{{ error }}</p>
+        {% endfor %}
+    </span></div>
+</div>

@@ -1,0 +1,10 @@
+<table xmlns="http://www.w3.org/1999/xhtml" xmlns:py="http://genshi.edgewall.org/"
+    id="${id}"
+    class="${css_class}"
+    py:attrs='value_of("attrs", "")'
+>
+<tr><th>Name</th><th>Definition</th></tr>
+<py:for each="i, child in enumerate(children)">
+${child.display(value, css_class=((i%2 and 'even') or 'odd'))}
+</py:for>
+</table>

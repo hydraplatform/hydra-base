@@ -1,0 +1,2 @@
+setuptools
+tgext.crud>=0.7.1
