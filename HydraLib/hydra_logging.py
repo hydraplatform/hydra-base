@@ -44,10 +44,20 @@ def init(level=None):
  #   logging.addLevelName( logging.CRITICAL, "\033[0;35m%s\033[0;35m" % logging.getLevelName(logging.CRITICAL))
 
  #   logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s\033[0m', level=level)
+    #Log to a file with the same name as that calling 'import logging'
+    #ex: server.py logs to server.log, ImportCSV.py logs to ImportCSV.log
+    #All log files should be located in the same location.
+
     calling_file = inspect.stack()[-1][0].f_globals['__file__']
+
     log_file = "%s.log"%calling_file.split('.')[0]
     log_base_path = config.get('logging_conf', 'log_file_dir', '.')
+
+    if not os.path.isdir(log_base_path):
+        os.makedirs(log_base_path)
+
     log_loc = os.path.expanduser(os.path.join(log_base_path, log_file))
+
     use_default = False
     try:
         config_file = os.path.expanduser(config.get('logging_conf', 'log_config_path'))
@@ -57,7 +67,7 @@ def init(level=None):
             logger = logging.getLogger()
             handler = logging.FileHandler(os.path.join(log_base_path, log_file),"a")
             handler.setLevel(logging.DEBUG)
-            formatter = logging.Formatter("%(levelname)s - %(message)s")
+            formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
             handler.setFormatter(formatter)
             logger.addHandler(handler)
             use_default=False
