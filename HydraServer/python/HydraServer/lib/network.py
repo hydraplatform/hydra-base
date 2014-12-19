@@ -1383,12 +1383,12 @@ def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, 
     except NoResultFound:
         raise HydraError("Scenario %s not found."%scenario_id)
 
-    rs_qry = DBSession.query(ResourceAttr).join(ResourceScenario)\
-            .join(ResourceScenario.dataset).filter(
+    rs_qry = DBSession.query(ResourceScenario).filter(
+                            ResourceAttr.resource_attr_id==ResourceScenario.resource_attr_id,
                             ResourceScenario.scenario_id==scenario_id,
                             ResourceAttr.ref_key==ref_key)\
-            .options(joinedload_all('resourcescenario.dataset', innerjoin=True))\
-            .options(noload('resourcescenario.dataset.metadata'))
+            .join(ResourceScenario.dataset)\
+            .options(noload('dataset.metadata'))
 
     log.info("Querying %s data",ref_key)
     if ref_ids is not None and len(ref_ids) < 999:
@@ -1399,35 +1399,36 @@ def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, 
         elif ref_key == 'GROUP':
             rs_qry = rs_qry.filter(ResourceAttr.group_id.in_(ref_ids))
 
-    all_resource_attrs = rs_qry.all()
+    all_resource_scenarios = rs_qry.all()
     log.info("Data retrieved")
-    resource_attrs   = []
+    resource_scenarios = []
     dataset_ids      = []
     if ref_ids is not None:
         log.info("Pulling out requested info")
-        for r in all_resource_attrs:
+        for r in all_resource_scenarios:
+            ra = r.resourceattr
             if ref_key == 'NODE':
                 if r.node_id in ref_ids:
-                    resource_attrs.append(r)
-                    if r.resourcescenario.dataset_id not in dataset_ids:
-                        dataset_ids.append(r.resourcescenario.dataset_id)
+                    resource_scenarios.append(ra)
+                    if r.dataset_id not in dataset_ids:
+                        dataset_ids.append(r.dataset_id)
             elif ref_key == 'LINK':
                 if r.link_id in ref_ids:
-                    resource_attrs.append(r)
-                    if r.resourcescenario.dataset_id not in dataset_ids:
-                        dataset_ids.append(r.resourcescenario.dataset_id)
+                    resource_scenarios.append(ra)
+                    if r.dataset_id not in dataset_ids:
+                        dataset_ids.append(r.dataset_id)
             elif ref_key == 'GROUP':
                 if r.group_id in ref_ids:
-                    resource_attrs.append(r)
-                    if r.resourcescenario.dataset_id not in dataset_ids:
-                        dataset_ids.append(r.resourcescenario.dataset_id)
+                    resource_scenarios.append(ra)
+                    if r.dataset_id not in dataset_ids:
+                        dataset_ids.append(r.dataset_id)
             else:
-                resource_attrs.append(r)
+                resource_scenarios.append(ra)
         log.info("Requested info pulled out.")
     else:
-        resource_attrs = all_resource_attrs
+        resource_scenarios = all_resource_scenarios
 
-    log.info("Retrieved %s resource attrs", len(resource_attrs))
+    log.info("Retrieved %s resource attrs", len(resource_scenarios))
 
     if include_metadata == 'Y':
         metadata_qry = DBSession.query(Metadata).filter(
@@ -1457,8 +1458,8 @@ def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, 
             else:
                 metadata_dict[m.dataset_id] = [m]
 
-    for ra in resource_attrs:
-        d = ra.resourcescenario.dataset
+    for rs in resource_scenarios:
+        d = rs.dataset
         if d.hidden == 'Y':
            try:
                 d.check_read_permission(kwargs.get('user_id'))
@@ -1468,9 +1469,9 @@ def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, 
                d.metadata = []
         else:
             if include_metadata == 'Y':
-                ra.resourcescenario.dataset.metadata = metadata_dict.get(d.dataset_id, [])
+                rs.resourcescenario.dataset.metadata = metadata_dict.get(d.dataset_id, [])
 
-    return resource_attrs
+    return resource_scenarios
 
 def test_get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, include_metadata='N', **kwargs):
     """

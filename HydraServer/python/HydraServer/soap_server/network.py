@@ -501,15 +501,15 @@ class NetworkService(HydraService):
         """
         start = datetime.datetime.now()
 
-        node_resourceattrs = network.get_attributes_for_resource(network_id, scenario_id, 'NODE', node_ids, include_metadata)
+        node_resourcescenarios = network.get_attributes_for_resource(network_id, scenario_id, 'NODE', node_ids, include_metadata)
 
         log.info("Qry done in %s", (datetime.datetime.now() - start))
         start = datetime.datetime.now()
 
         return_ras = []
-        for nodeattr in node_resourceattrs:
-            ra = ResourceAttr(nodeattr)
-            x = ResourceScenario(nodeattr.resourcescenario, ra.attr_id)
+        for ns in node_resourcescenarios:
+            ra = ResourceAttr(ns.resourceattr)
+            x = ResourceScenario(ns, ra.attr_id)
             ra.resourcescenario = x
             return_ras.append(ra)
 
@@ -642,15 +642,15 @@ class NetworkService(HydraService):
         """
         start = datetime.datetime.now()
 
-        link_resourceattrs = network.get_attributes_for_resource(network_id, scenario_id, 'LINK', link_ids, include_metadata)
+        link_resourcescenarios = network.get_attributes_for_resource(network_id, scenario_id, 'LINK', link_ids, include_metadata)
 
         log.info("Qry done in %s", (datetime.datetime.now() - start))
         start = datetime.datetime.now()
 
         return_ras = []
-        for linkattr in link_resourceattrs:
-            ra = ResourceAttr(linkattr)
-            ra.resourcescenario = ResourceScenario(linkattr.resourcescenario, ra.attr_id)
+        for linkrs in link_resourcescenarios:
+            ra = ResourceAttr(linkrs.resourceattr)
+            ra.resourcescenario = ResourceScenario(linkrs, ra.attr_id)
             return_ras.append(ra)
 
         log.info("Return vals built in %s", (datetime.datetime.now() - start))
@@ -666,11 +666,11 @@ class NetworkService(HydraService):
             attribute, containing the actual value for the scenario specified.
         """
 
-        group_resourceattrs = network.get_attributes_for_resource(network_id, scenario_id, 'GROUP', group_ids, include_metadata)
+        group_resourcescenarios = network.get_attributes_for_resource(network_id, scenario_id, 'GROUP', group_ids, include_metadata)
         return_ras = []
-        for groupattr in group_resourceattrs:
-            ra = ResourceAttr(groupattr)
-            ra.resourcescenario = ResourceScenario(groupattr.resourcescenario)
+        for grouprs in group_resourcescenarios:
+            ra = ResourceAttr(grouprs.resourceattr)
+            ra.resourcescenario = ResourceScenario(grouprs.resourcescenario, ra.attr_id)
             return_ras.append(ra)
 
         return return_ras
