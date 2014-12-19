@@ -49,8 +49,9 @@ def init(level=None):
     #All log files should be located in the same location.
 
     calling_file = inspect.stack()[-1][0].f_globals['__file__']
+    calling_file = os.path.split(calling_file)[1]
 
-    log_file = "%s.log"%calling_file.split('.')[0]
+    log_file = "%s.log" % calling_file.split('.')[0]
     log_base_path = config.get('logging_conf', 'log_file_dir', '.')
 
     if not os.path.isdir(log_base_path):
@@ -78,8 +79,6 @@ def init(level=None):
     except Exception, e:
         logging.critical("Error finding logging conf file: %s", e)
         use_default = True
-    
-
 
     if use_default is True:
         logging_conf_dict = {
