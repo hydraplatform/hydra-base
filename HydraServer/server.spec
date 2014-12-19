@@ -1,14 +1,15 @@
 # -*- mode: python -*-
 a = Analysis(['server.py'],
-             pathex=['F:\\work\\HYDRA\\svn\\HYDRA\\HydraServer\\trunk'],
+             pathex=['F:\\work\\HYDRA\\svn\\HYDRA\\HydraServer\\'],
              hiddenimports=['spyne.service', 'sqlalchemy', 'cherrypy', 'cherrypy.wsgiserver', 'zope.sqlalchemy', 'zope.interface', 'numpy', 'numpy.linalg', 'winpaths'],
              hookspath=None,
-             runtime_hooks=None)
+             runtime_hooks=None,
+             excludes=['_tkinter'])
 
 a.datas += [('HydraLib/static/unit_definitions.xml',
-            '../../HydraLib/trunk/HydraLib/static/unit_definitions.xml', 'DATA'), 
+            '../HydraLib/static/unit_definitions.xml', 'DATA'), 
             ('HydraLib/static/user_units.xml',
-            '../../HydraLib/trunk/HydraLib/static/user_units.xml', 'DATA'),
+            '../HydraLib/static/user_units.xml', 'DATA'),
             ]
 
 pyz = PYZ(a.pure)
