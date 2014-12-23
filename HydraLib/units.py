@@ -309,6 +309,70 @@ class Units(object):
         with open(user_unitfile, 'w') as f:
             f.write(etree.tostring(self.usertree, pretty_print=True))
 
+def validate_resource_attributes(resource, attributes, template):
+    """
+        Validate that the resource provided matches the template.
+        Only passes if the resource contains ONLY the attributes specified
+        in the template.
+
+        The template should take the form of a dictionary, as should the
+        resources.
+
+        @returns a list of error messages. An empty list indicates no
+        errors were found.
+    """
+    errors = []
+    #is it a node or link?
+    res_type = 'GROUP'
+    if resource.get('x') is not None:
+        res_type = 'NODE'
+    elif resource.get('node_1_id') is not None:
+       res_type = 'LINK'
+    elif resource.get('nodes') is not None:
+        res_type = 'NETWORK'
+
+    #Find all the node/link/network definitions in the template
+    tmpl_res = template['resources'][res_type]
+
+    #the user specified type of the resource
+    res_user_type = resource.get('type')
+
+    #Check the user specified type is in the template
+    if res_user_type is None:
+        errors.append("No type specified on resource %s"%(resource['name']))
+
+
+        errors.append("Resource %s is defined as having type %s but "
+                      "this type is not specified in the template."%
+                      (resource['name'], res_user_type))
+
+    #It is in the template. Now check all the attributes are correct.
+    tmpl_attrs = tmpl_res.get(res_user_type)['attributes']
+
+    attrs = {}
+    for a in attributes.values():
+        attrs[a['id']] = a
+
+    resource_attributes = {}
+    #Check that each of the attributes specified on the resource are valid.
+    for res_attr in resource['attributes']:
+        attr = attrs[res_attr['attr_id']]
+        resource_attributes[attr['name']] = attr
+        if tmpl_attrs.get(attr['name']) is None:
+            errors.append("Resource %s has defined attribute %s but this is not specified in the Template."%(resource['name'], attr['name']))
+        else:
+            tmpl_attr = tmpl_attrs[attr['name']]
+
+            if attr.get('dimen') != tmpl_attr.get('dimension'):
+                errors.append("Dimension mismatch for resource %s"%(resource['name']))
+
+    #for attr_name, type_attr in tmpl_attrs.items():
+    #    if resource_attributes.get(attr_name) is None:
+    #       errors.append("Attribute %s specified on the template "
+    #                     "but not on resource %s."%(attr_name, resource['name'])) 
+
+    return errors
+
 if __name__ == '__main__':
     units = Units()
     for dim in units.unittree:
