@@ -390,6 +390,72 @@ class JSONObject(dict):
 def object_hook(x):
     return JSONObject(x)
 
+def _get_hostname(url):
+    """
+        Find the hostname in a url.
+        Assume url can take these forms. The () means optional.:
+        1: (http(s)://)hostname
+        2: (http(s)://)hostname:port
+        3: (http(s)://)hostname:port/path
+    """
+
+    if url.find('http://') == 0:
+        url = url.replace('http://', '')
+    if url.find('https://') == 0:
+        url = url.replace('https://', '')
+
+    hostname = url.split('/')[0]
+    
+    #is a user-defined port specified?
+    port_parts = url.split(':')
+    if len(port_parts) > 1:
+        hostname = port_parts[0]
+
+    return hostname
+
+def _get_port(url):
+    """
+        Get the port of a url.
+        Default port is 80. A specified port
+        will come after the first ':' and before the next '/'
+    """
+
+    if url.find('http://') == 0:
+        url = url.replace('http://', '')
+    if url.find('https://') == 0:
+        url = url.replace('https://', '')
+
+    port = 80
+
+    url_parts = url.split(':')
+    
+    if len(url_parts) == 1:
+        return port
+    else:
+        port_part = url_parts[1]
+        port_section = port_part.split('/')[0]
+        try:
+            int(port_section)
+        except:
+            return port
+        return int(port_section)
+
+    return port
+
+def _get_protocol(url):
+    """
+        Get the port of a url.
+        Default port is 80. A specified port
+        will come after the first ':' and before the next '/'
+    """
+
+    if url.find('http://') == 0:
+        return 'http'
+    elif url.find('https://') == 0:
+        return 'https'
+    else:
+        return 'http'
+
 class JsonConnection(object):
     url = None
     session_id = None
@@ -400,7 +466,11 @@ class JsonConnection(object):
             domain = config.get('hydra_server', 'domain', '127.0.0.1')
             self.url = "http://%s:%s/json"%(domain, port)
         else:
-            self.url = url
+            log.info("Using user-defined URL: %s", url)
+            port = _get_port(url)
+            hostname = _get_hostname(url)
+            protocol = _get_protocol(url)
+            self.url = "%s://%s:%s/json"%(protocol,hostname,port)
         log.info("Setting URL %s", self.url)
 
     def call(self, func, args):
