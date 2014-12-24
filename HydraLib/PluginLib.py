@@ -390,6 +390,25 @@ class JSONObject(dict):
 def object_hook(x):
     return JSONObject(x)
 
+def _get_path(url):
+    """
+        Find the path in a url. (The bit after the hostname
+        and port).
+        ex: http://www.google.com/test
+        returns: test
+    """
+
+    if url.find('http://') == 0:
+        url = url.replace('http://', '')
+    if url.find('https://') == 0:
+        url = url.replace('https://', '')
+
+    hostname = url.split('/')
+    if len(hostname) == 1:
+        return ''
+    else:
+        return "/%s"%("/".join(hostname[1:]))
+    
 def _get_hostname(url):
     """
         Find the hostname in a url.
@@ -469,8 +488,9 @@ class JsonConnection(object):
             log.info("Using user-defined URL: %s", url)
             port = _get_port(url)
             hostname = _get_hostname(url)
+            path = _get_path(url)
             protocol = _get_protocol(url)
-            self.url = "%s://%s:%s/json"%(protocol,hostname,port)
+            self.url = "%s://%s:%s%s/json"%(protocol,hostname,port,path)
         log.info("Setting URL %s", self.url)
 
     def call(self, func, args):
