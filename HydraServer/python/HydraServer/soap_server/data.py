@@ -23,7 +23,7 @@ from hydra_complexmodels import Descriptor,\
         Array as HydraArray,\
         Dataset,\
         Metadata,\
-        DatasetGroup
+        DatasetCollection
 
 from HydraServer.lib import data
 
@@ -72,7 +72,7 @@ class DataService(HydraService):
          _returns=SpyneArray(Dataset))
     def get_datasets(ctx, dataset_id,
                 name,
-                group_name,
+                collection_name,
                 data_type,
                 dimension,
                 unit,
@@ -89,7 +89,7 @@ class DataService(HydraService):
 
         datasets = data.get_datasets(dataset_id,
                                      name,
-                                     group_name,
+                                     collection_name,
                                      data_type,
                                      dimension,
                                      unit,
@@ -133,52 +133,52 @@ class DataService(HydraService):
 
         return [d.dataset_id for d in datasets]
 
-    @rpc(_returns=SpyneArray(DatasetGroup))
-    def get_all_dataset_groups(ctx):
+    @rpc(_returns=SpyneArray(DatasetCollection))
+    def get_all_dataset_collections(ctx):
 
-        dataset_grps = data.get_all_dataset_groups(**ctx.in_header.__dict__)
-        all_grps = []
-        for d_g in dataset_grps:
-            all_grps.append(DatasetGroup(d_g))
-        return all_grps
+        dataset_colns = data.get_all_dataset_collections(**ctx.in_header.__dict__)
+        all_colns = []
+        for d_g in dataset_colns:
+            all_colns.append(DatasetCollection(d_g))
+        return all_colns
 
-    @rpc(Integer, _returns=DatasetGroup)
-    def get_dataset_group(ctx, group_id):
+    @rpc(Integer, _returns=DatasetCollection)
+    def get_dataset_collection(ctx, collection_id):
 
-        dataset_grp_i = data.get_dataset_group(group_id, **ctx.in_header.__dict__)
-        return DatasetGroup(dataset_grp_i)
+        dataset_coln_i = data.get_dataset_collection(collection_id, **ctx.in_header.__dict__)
+        return DatasetCollection(dataset_coln_i)
 
-    @rpc(Unicode, _returns=DatasetGroup)
-    def get_dataset_group_by_name(ctx, group_name):
+    @rpc(Unicode, _returns=DatasetCollection)
+    def get_dataset_collection_by_name(ctx, collection_name):
 
-        dataset_grp_i = data.get_dataset_group_by_name(group_name, **ctx.in_header.__dict__)
-        return DatasetGroup(dataset_grp_i)
+        dataset_coln_i = data.get_dataset_collection_by_name(collection_name, **ctx.in_header.__dict__)
+        return DatasetCollection(dataset_coln_i)
 
-    @rpc(DatasetGroup, _returns=DatasetGroup)
-    def add_dataset_group(ctx, group):
+    @rpc(DatasetCollection, _returns=DatasetCollection)
+    def add_dataset_collection(ctx, collection):
 
-        dataset_grp_i = data.add_dataset_group(group, **ctx.in_header.__dict__)
+        dataset_coln_i = data.add_dataset_collection(collection, **ctx.in_header.__dict__)
 
-        new_grp = DatasetGroup(dataset_grp_i)
-        return new_grp
+        new_coln = DatasetCollection(dataset_coln_i)
+        return new_coln
 
-    @rpc(Unicode, _returns=SpyneArray(DatasetGroup))
-    def get_groups_like_name(ctx, group_name):
+    @rpc(Unicode, _returns=SpyneArray(DatasetCollection))
+    def get_collections_like_name(ctx, collection_name):
         """
-            Get all the datasets from the group with the specified name
+            Get all the datasets from the collection with the specified name
         """
-        groups = data.get_groups_like_name(group_name, **ctx.in_header.__dict__)
-        ret_groups = [DatasetGroup(g) for g in groups]
-        return ret_groups
+        collections = data.get_collections_like_name(collection_name, **ctx.in_header.__dict__)
+        ret_collections = [DatasetCollection(g) for g in collections]
+        return ret_collections
 
     @rpc(Integer, _returns=SpyneArray(Dataset))
-    def get_group_datasets(ctx, group_id):
+    def get_collection_datasets(ctx, collection_id):
         """
-            Get all the datasets from the group with the specified name
+            Get all the datasets from the collection with the specified name
         """
-        group_datasets = data.get_group_datasets(group_id,
+        collection_datasets = data.get_collection_datasets(collection_id,
                                                  **ctx.in_header.__dict__)
-        ret_data = [Dataset(d) for d in group_datasets]
+        ret_data = [Dataset(d) for d in collection_datasets]
 
         return ret_data
 

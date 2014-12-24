@@ -17,8 +17,8 @@ import datetime
 import sys
 from HydraLib.dateutil import get_datetime
 import logging
-from HydraServer.db.model import Dataset, Metadata, DatasetOwner, DatasetGroup,\
-        DatasetGroupItem, ResourceScenario, ResourceAttr, TypeAttr
+from HydraServer.db.model import Dataset, Metadata, DatasetOwner, DatasetCollection,\
+        DatasetCollectionItem, ResourceScenario, ResourceAttr, TypeAttr
 from HydraServer.util import generate_data_hash
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.sql.expression import case
@@ -94,7 +94,7 @@ def get_dataset(dataset_id,**kwargs):
 
 def get_datasets(dataset_id=None,
                 dataset_name=None,
-                group_name=None,
+                collection_name=None,
                 data_type=None,
                 dimension=None,
                 unit=None,
@@ -148,11 +148,11 @@ def get_datasets(dataset_id=None,
                 func.lower(Dataset.data_name).like("%%%s%%"%dataset_name.lower())
             )
 
-        if group_name is not None:
-            dataset_qry = dataset_qry.join(DatasetGroup,
-                        and_(DatasetGroupItem.group_id == DatasetGroup.group_id,
-                        func.lower(DatasetGroup.group_name).like("%%%s%%"%group_name.lower()))
-                        ).join(DatasetGroupItem,and_(DatasetGroupItem.dataset_id == Dataset.dataset_id))
+        if collection_name is not None:
+            dataset_qry = dataset_qry.join(DatasetCollection,
+                        and_(DatasetCollectionItem.collection_id == DatasetCollection.collection_id,
+                        func.lower(DatasetCollection.collection_name).like("%%%s%%"%collection_name.lower()))
+                        ).join(DatasetCollectionItem,and_(DatasetCollectionItem.dataset_id == Dataset.dataset_id))
 
         if data_type is not None:
             dataset_qry = dataset_qry.filter(
@@ -592,58 +592,58 @@ def _get_existing_data(hashes):
 
     return hash_dict
 
-def get_all_dataset_groups(**kwargs):
-    all_groups = DBSession.query(DatasetGroup).all()
+def get_all_dataset_collections(**kwargs):
+    all_collections = DBSession.query(DatasetCollection).all()
 
-    return all_groups
+    return all_collections
 
 
-def get_dataset_group(group_id,**kwargs):
+def get_dataset_collection(collection_id,**kwargs):
     try:
-        group = DBSession.query(DatasetGroup).filter(DatasetGroup.group_id==group_id).one()
+        collection = DBSession.query(DatasetCollection).filter(DatasetCollection.collection_id==collection_id).one()
     except NoResultFound:
-        raise ResourceNotFoundError("No dataset group found with id %s"%group_id)
+        raise ResourceNotFoundError("No dataset collection found with id %s"%collection_id)
 
-    return group
+    return collection
 
-def get_dataset_group_by_name(group_name,**kwargs):
+def get_dataset_collection_by_name(collection_name,**kwargs):
     try:
-        group = DBSession.query(DatasetGroup).filter(DatasetGroup.group_name==group_name).one()
+        collection = DBSession.query(DatasetCollection).filter(DatasetCollection.collection_name==collection_name).one()
     except NoResultFound:
-        raise ResourceNotFoundError("No dataset group found with id %s"%group_name)
+        raise ResourceNotFoundError("No dataset collection found with id %s"%collection_name)
 
-    return group
+    return collection
 
-def add_dataset_group(group,**kwargs):
+def add_dataset_collection(collection,**kwargs):
 
-    grp_i = DatasetGroup(group_name=group.group_name)
+    coln_i = DatasetCollection(collection_name=collection.collection_name)
 
-    for dataset_id in group.dataset_ids:
-        datasetitem = DatasetGroupItem(dataset_id=dataset_id)
-        grp_i.items.append(datasetitem)
-    DBSession.add(grp_i)
+    for dataset_id in collection.dataset_ids:
+        datasetitem = DatasetCollectionItem(dataset_id=dataset_id)
+        coln_i.items.append(datasetitem)
+    DBSession.add(coln_i)
     DBSession.flush()
-    return grp_i
+    return coln_i
 
-def get_groups_like_name(group_name,**kwargs):
+def get_collections_like_name(collection_name,**kwargs):
     """
-        Get all the datasets from the group with the specified name
+        Get all the datasets from the collection with the specified name
     """
     try:
-        groups = DBSession.query(DatasetGroup).filter(DatasetGroup.group_name.like("%%%s%%"%group_name.lower())).all()
+        collections = DBSession.query(DatasetCollection).filter(DatasetCollection.collection_name.like("%%%s%%"%collection_name.lower())).all()
     except NoResultFound:
-        raise ResourceNotFoundError("No dataset group found with name %s"%group_name)
+        raise ResourceNotFoundError("No dataset collection found with name %s"%collection_name)
 
-    return groups
+    return collections
 
-def get_group_datasets(group_id,**kwargs):
+def get_collection_datasets(collection_id,**kwargs):
     """
-        Get all the datasets from the group with the specified name
+        Get all the datasets from the collection with the specified name
     """
-    group_datasets = DBSession.query(Dataset).filter(Dataset.dataset_id==DatasetGroupItem.dataset_id,
-                                        DatasetGroupItem.group_id==DatasetGroup.group_id,
-                                        DatasetGroup.group_id==group_id).all()
-    return group_datasets 
+    collection_datasets = DBSession.query(Dataset).filter(Dataset.dataset_id==DatasetCollectionItem.dataset_id,
+                                        DatasetCollectionItem.collection_id==DatasetCollection.collection_id,
+                                        DatasetCollection.collection_id==collection_id).all()
+    return collection_datasets 
 
 def get_val_at_time(dataset_id, timestamps,**kwargs):
     """

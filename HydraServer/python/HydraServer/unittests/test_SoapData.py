@@ -311,21 +311,21 @@ class ArrayTest(test_SoapServer.SoapServerTest):
                 #Get one of the datasets, make it uneven and update it.
                 self.assertRaises(WebFault, self.client.service.update_dataset,rs)
 
-class DataGroupTest(test_SoapServer.SoapServerTest):
+class DataCollectionTest(test_SoapServer.SoapServerTest):
 
-    def test_get_groups_like_name(self):
-        groups = self.client.service.get_groups_like_name('test')
+    def test_get_collections_like_name(self):
+        collections = self.client.service.get_collections_like_name('test')
  
-        assert len(groups) > 0; "groups were not retrieved correctly!"
+        assert len(collections) > 0; "collections were not retrieved correctly!"
    
-    def test_get_group_datasets(self):
-        groups = self.client.service.get_groups_like_name('test')
+    def test_get_collection_datasets(self):
+        collections = self.client.service.get_collections_like_name('test')
         
-        datasets = self.client.service.get_group_datasets(groups.DatasetGroup[-1].group_id)
+        datasets = self.client.service.get_collection_datasets(collections.DatasetCollection[-1].collection_id)
  
         assert len(datasets) > 0, "Datasets were not retrieved correctly!"
 
-    def test_add_group(self):
+    def test_add_collection(self):
         
         network = self.create_network_with_data(ret_full_net = False)
 
@@ -333,7 +333,7 @@ class DataGroupTest(test_SoapServer.SoapServerTest):
         
         scenario_data = self.client.service.get_scenario_data(scenario_id)
 
-        group = self.client.factory.create('ns1:DatasetGroup')
+        collection = self.client.factory.create('ns1:DatasetCollection')
 
         grp_dataset_ids = self.client.factory.create("integerArray")
         dataset_id = scenario_data.Dataset[0].id
@@ -343,15 +343,15 @@ class DataGroupTest(test_SoapServer.SoapServerTest):
                 grp_dataset_ids.integer.append(d.id)
                 break
 
-        group.dataset_ids = grp_dataset_ids 
-        group.group_name  = 'test soap group %s'%(datetime.datetime.now())
+        collection.dataset_ids = grp_dataset_ids 
+        collection.collection_name  = 'test soap collection %s'%(datetime.datetime.now())
 
-        newly_added_group = self.client.service.add_dataset_group(group)
+        newly_added_collection = self.client.service.add_dataset_collection(collection)
 
-        assert newly_added_group.group_id is not None, "Dataset group does not have an ID!"
-        assert len(newly_added_group.dataset_ids.integer) == 2, "Dataset group does not have any items!"  
+        assert newly_added_collection.collection_id is not None, "Dataset collection does not have an ID!"
+        assert len(newly_added_collection.dataset_ids.integer) == 2, "Dataset collection does not have any items!"  
 
-    def test_get_all_groups(self):
+    def test_get_all_collections(self):
         
         network = self.create_network_with_data(ret_full_net = False)
 
@@ -359,7 +359,7 @@ class DataGroupTest(test_SoapServer.SoapServerTest):
         
         scenario_data = self.client.service.get_scenario_data(scenario_id)
 
-        group = self.client.factory.create('ns1:DatasetGroup')
+        collection = self.client.factory.create('ns1:DatasetCollection')
 
         grp_dataset_ids = self.client.factory.create("integerArray")
         dataset_id = scenario_data.Dataset[0].id
@@ -369,12 +369,12 @@ class DataGroupTest(test_SoapServer.SoapServerTest):
                 grp_dataset_ids.integer.append(d.id)
                 break
 
-        group.dataset_ids = grp_dataset_ids 
-        group.group_name  = 'test soap group %s'%(datetime.datetime.now())
+        collection.dataset_ids = grp_dataset_ids 
+        collection.collection_name  = 'test soap collection %s'%(datetime.datetime.now())
 
-        newly_added_group = self.client.service.add_dataset_group(group)
-        groups = self.client.service.get_all_dataset_groups(group)
-        assert newly_added_group.group_id in [g.group_id for g in groups.DatasetGroup]
+        newly_added_collection = self.client.service.add_dataset_collection(collection)
+        collections = self.client.service.get_all_dataset_collections(collection)
+        assert newly_added_collection.collection_id in [g.collection_id for g in collections.DatasetCollection]
 
 
 class SharingTest(test_SoapServer.SoapServerTest):
@@ -793,7 +793,7 @@ class RetrievalTest(test_SoapServer.SoapServerTest):
             filters, including:
                 ID,
                 Name,
-                Group name,
+                Collection name,
                 Type,
                 Dimension,
                 Unit
@@ -823,19 +823,19 @@ class RetrievalTest(test_SoapServer.SoapServerTest):
         ts_1['id'] = dataset_ids.integer[3]
         ts_2['id'] = dataset_ids.integer[4]
 
-        #create a dataset group and put one timeseries into it.
+        #create a dataset collection and put one timeseries into it.
 
         grp_dataset_ids = self.client.factory.create("integerArray")
         grp_dataset_ids.integer.append(ts_1['id'])
         grp_dataset_ids.integer.append(ts_2['id'])
 
-        group = dict(
+        collection = dict(
             dataset_ids = grp_dataset_ids,
-            group_name  = 'timeseries group %s'%(datetime.datetime.now())
+            collection_name  = 'timeseries collection %s'%(datetime.datetime.now())
         )
 
-        timeseries_group = self.client.service.add_dataset_group(group)
-        group_name = timeseries_group.group_name
+        timeseries_collection = self.client.service.add_dataset_collection(collection)
+        collection_name = timeseries_collection.collection_name
 
         #search for datset with ID
 
@@ -958,8 +958,8 @@ class RetrievalTest(test_SoapServer.SoapServerTest):
         res_1 = self.client.service.get_datasets(metadata_name='non-existent', inc_metadata='Y')
         assert res_1 == ''
 
-        #search by group name (return only one timeseries)
-        res_1 = self.client.service.get_datasets(group_name=group_name)
+        #search by collection name (return only one timeseries)
+        res_1 = self.client.service.get_datasets(collection_name=collection_name)
         assert len(res_1.Dataset) == 2
         ts_ids = [ts_1['id'], ts_2['id']]
         for d in res_1.Dataset:
@@ -1001,10 +1001,10 @@ class RetrievalTest(test_SoapServer.SoapServerTest):
             ids.append(d.id)
             assert d.name == array['name'] and d.unit == 'bar'
 
-        #group name, name
-        res_1 = self.client.service.get_datasets(name='array',group_name=group_name)
+        #collection name, name
+        res_1 = self.client.service.get_datasets(name='array',collection_name=collection_name)
         assert res_1 == ''
-        res_1 = self.client.service.get_datasets(name='time',group_name=group_name)
+        res_1 = self.client.service.get_datasets(name='time',collection_name=collection_name)
         assert len(res_1.Dataset) == 2
         ts_ids = [ts_1['id'], ts_2['id']]
         for d in res_1.Dataset:

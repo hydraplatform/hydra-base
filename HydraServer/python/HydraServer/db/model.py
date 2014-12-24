@@ -250,27 +250,27 @@ class Dataset(Base):
                              " access on dataset %s" %
                              (user_id, self.dataset_id))
 
-class DatasetGroup(Base):
+class DatasetCollection(Base):
     """
     """
 
-    __tablename__='tDatasetGroup'
+    __tablename__='tDatasetCollection'
 
-    group_id = Column(Integer(), primary_key=True, nullable=False)
-    group_name = Column(String(60),  nullable=False)
+    collection_id = Column(Integer(), primary_key=True, nullable=False)
+    collection_name = Column(String(60),  nullable=False)
     cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     
-class DatasetGroupItem(Base):
+class DatasetCollectionItem(Base):
     """
     """
 
-    __tablename__='tDatasetGroupItem'
+    __tablename__='tDatasetCollectionItem'
 
-    group_id = Column(Integer(), ForeignKey('tDatasetGroup.group_id'), primary_key=True, nullable=False)
+    collection_id = Column(Integer(), ForeignKey('tDatasetCollection.collection_id'), primary_key=True, nullable=False)
     dataset_id = Column(Integer(), ForeignKey('tDataset.dataset_id'), primary_key=True, nullable=False)
     
-    group = relationship('DatasetGroup', backref=backref("items", order_by=dataset_id, cascade="all, delete-orphan"))
-    dataset = relationship('Dataset', backref=backref("groupitems", order_by=dataset_id))
+    collection = relationship('DatasetCollection', backref=backref("items", order_by=dataset_id, cascade="all, delete-orphan"))
+    dataset = relationship('Dataset', backref=backref("collectionitems", order_by=dataset_id))
 
 
 class Metadata(Base):
@@ -664,8 +664,8 @@ class Network(Base):
             Add a new group to a network.
         """
 
-        existing_grp = DBSession.query(ResourceGroup).filter(ResourceGroup.group_name==name, ResourceGroup.network_id==self.network_id).first()
-        if existing_grp is not None:
+        existing_group = DBSession.query(ResourceGroup).filter(ResourceGroup.group_name==name, ResourceGroup.network_id==self.network_id).first()
+        if existing_group is not None:
             raise HydraError("A resource group with name %s is already in network %s"%(name, self.network_id))
 
         group_i                      = ResourceGroup()
