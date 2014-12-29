@@ -105,7 +105,7 @@
                 <dimension>energy price</dimension>
                 <default>
                     <value>1.25</value>
-                    <unit>$ kJ^-1</unit>
+                    <unit>USD kJ^-1</unit>
                  </default>
             </attribute>
         </resource>

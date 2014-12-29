@@ -276,27 +276,28 @@
         <unit name="kilagrams per cubic-metre" abbr="kg m^-3" lf="1.0" cf="0.0" info=""/>
     </dimension>
     <dimension name="Monetary value">
-        <unit abbr="$" cf="0" info="" lf="1" name="US Dollar"/>
+        <unit abbr="USD" cf="0" info="" lf="1" name="US Dollar"/>
+        <unit abbr="GBP" cf="0" info="" lf="1.5" name="Pound Sterling"/>
     </dimension>
     <dimension name="Energy price">
-        <unit name="USDollars per kilowatt-hour" abbr="$ kWh^-1"    lf="2.77777777e-07" cf="0" info="Cost in US Dollars per energy unit (kilowatt-hour)."/>
-        <unit name="USDollars per kilojoule" abbr="$ kJ^-1"    lf="0.001" cf="0" info="Cost in US Dollars per energy unit (kilojoule)."/>
-        <unit name="USDollars per joule" abbr="$ J^-1"    lf="1" cf="0" info="Cost in US Dollars per energy unit (joule)."/>
+        <unit name="USDollars per kilowatt-hour" abbr="USD kWh^-1"    lf="2.77777777e-07" cf="0" info="Cost in US Dollars per energy unit (kilowatt-hour)."/>
+        <unit name="USDollars per kilojoule" abbr="USD kJ^-1"    lf="0.001" cf="0" info="Cost in US Dollars per energy unit (kilojoule)."/>
+        <unit name="USDollars per joule" abbr="USD J^-1"    lf="1" cf="0" info="Cost in US Dollars per energy unit (joule)."/>
     </dimension>
     <dimension name="Unit price (volume)">
-        <unit name="US Dollar per square metre" abbr="$ m^-3"     lf="1.0" cf="0.0" info=""/>
-        <unit name="US Dollar per acre-foot"    abbr="$ ac-ft^-1" lf="0.000810713194" cf="0.0" info=""/>
+        <unit name="US Dollar per square metre" abbr="USD m^-3"     lf="1.0" cf="0.0" info=""/>
+        <unit name="US Dollar per acre-foot"    abbr="USD ac-ft^-1" lf="0.000810713194" cf="0.0" info=""/>
     </dimension>
     <dimension name="Unit price (mass)">
-        <unit name="US Dollar per kilogram" abbr="$ kg^-1" lf="1.0" cf="0.0" info=""/>
+        <unit name="US Dollar per kilogram" abbr="USD kg^-1" lf="1.0" cf="0.0" info=""/>
     </dimension>
     <dimension name="Specific cost (time)">
-        <unit name="US Dollar per second" abbr="$ s^-1"    lf="1.0" cf="0.0" info=""/>
-        <unit name="US Dollar per minute" abbr="$ min^-1"  lf="0.0166666667"   cf="0.0" info=""/>
-        <unit name="US Dollar per hour"   abbr="$ h^-1"    lf="0.000277777778" cf="0.0" info=""/>
-        <unit name="US Dollar per day"    abbr="$ day^-1"  lf="1.15740741e-05" cf="0.0" info=""/>
-        <unit name="US Dollar per month"  abbr="$ mon^-1"  lf="3.80265176e-07" cf="0.0" info=""/>
-        <unit name="US Dollar per year"   abbr="$ yr^-1"   lf="3.16887646e-08" cf="0.0" info=""/>
+        <unit name="US Dollar per second" abbr="USD s^-1"    lf="1.0" cf="0.0" info=""/>
+        <unit name="US Dollar per minute" abbr="USD min^-1"  lf="0.0166666667"   cf="0.0" info=""/>
+        <unit name="US Dollar per hour"   abbr="USD h^-1"    lf="0.000277777778" cf="0.0" info=""/>
+        <unit name="US Dollar per day"    abbr="USD day^-1"  lf="1.15740741e-05" cf="0.0" info=""/>
+        <unit name="US Dollar per month"  abbr="USD mon^-1"  lf="3.80265176e-07" cf="0.0" info=""/>
+        <unit name="US Dollar per year"   abbr="USD yr^-1"   lf="3.16887646e-08" cf="0.0" info=""/>
     </dimension>
     <dimension name="Dimensionless">
         <unit abbr="-" cf="0" info="" lf="1" name="No unit"/>

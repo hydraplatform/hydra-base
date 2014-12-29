@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 # (c) Copyright 2013, 2014, University of Manchester
 #
 # HydraPlatform is free software: you can redistribute it and/or modify
@@ -13,8 +15,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """This module provides facilities for unit conversion and consistency checking
 between units and dimensions.
 """
@@ -309,7 +309,7 @@ class Units(object):
         with open(user_unitfile, 'w') as f:
             f.write(etree.tostring(self.usertree, pretty_print=True))
 
-def validate_resource_attributes(resource, attributes, template):
+def validate_resource_attributes(resource, attributes, template, check_unit=True):
     """
         Validate that the resource provided matches the template.
         Only passes if the resource contains ONLY the attributes specified
@@ -356,20 +356,28 @@ def validate_resource_attributes(resource, attributes, template):
     resource_attributes = {}
     #Check that each of the attributes specified on the resource are valid.
     for res_attr in resource['attributes']:
+
         attr = attrs[res_attr['attr_id']]
         resource_attributes[attr['name']] = attr
+
+        #If an attribute is not specified in the template, then throw an error
         if tmpl_attrs.get(attr['name']) is None:
             errors.append("Resource %s has defined attribute %s but this is not specified in the Template."%(resource['name'], attr['name']))
         else:
+            #If the dimensions or units don't match, throw an error
+
             tmpl_attr = tmpl_attrs[attr['name']]
 
             if attr.get('dimen') != tmpl_attr.get('dimension'):
                 errors.append("Dimension mismatch for resource %s"%(resource['name']))
 
-    #for attr_name, type_attr in tmpl_attrs.items():
-    #    if resource_attributes.get(attr_name) is None:
-    #       errors.append("Attribute %s specified on the template "
-    #                     "but not on resource %s."%(attr_name, resource['name'])) 
+            if check_unit is True:
+                if tmpl_attr.get('unit') is not None:
+                    if attr.get('unit') != tmpl_attr.get('unit'):
+                        errors.append("Unit mismatch for resource %s with unit %s "
+                                      "(template says %s)"
+                                      %(resource['name'], attr.get('unit'),
+                                        tmpl_attr.get('unit')))
 
     return errors
 
