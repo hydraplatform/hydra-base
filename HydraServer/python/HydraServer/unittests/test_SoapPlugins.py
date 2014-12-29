@@ -78,9 +78,9 @@ class PluginsTest(test_SoapServer.SoapServerTest):
         #subprocesses to finish. (Important when waiting for files to be written before starting the next
         #piece of work
         if os.name == 'nt':
-       	    stream = Popen('cd ..\\..\\..\\..\\HydraPlugins\\CSVplugin\\trunk\\testdata\\hydro-econ & import_data', shell=True, stdout=PIPE)
+       	    stream = Popen('cd ..\\..\\..\\..\\HydraPlugins\\CSVplugin\\testdata\\hydro-econ & import_data', shell=True, stdout=PIPE)
        	else:
-       	    stream = Popen('cd ../../../../HydraPlugins/CSVplugin/trunk/testdata/hydro-econ; ./import_data.sh', shell=True, stdout=PIPE)
+       	    stream = Popen('cd ../../../../HydraPlugins/CSVplugin/testdata/hydro-econ; ./import_data.sh', shell=True, stdout=PIPE)
 
         stream.wait()
         result_text = stream.stdout.readlines()
@@ -99,14 +99,14 @@ class PluginsTest(test_SoapServer.SoapServerTest):
 
         network_id = int(tree.find('network_id').text)
         #Export the network
-        stream = Popen('python ../../../../HydraPlugins/CSVplugin/trunk/ExportCSV/ExportCSV.py -t %s'%network_id, shell=True); 
+        stream = Popen('python ../../../../HydraPlugins/CSVplugin/ExportCSV/ExportCSV.py -t %s'%network_id, shell=True); 
         stream.wait()
        
         #Re-import the network (this ensures that export csv worked correctly).
         network_file = "network_%s/CSV_import/network.csv"%network_id
         nodes_file = "network_%s/CSV_import/nodes.csv"%network_id
         links_file = "network_%s/CSV_import/links.csv"%network_id
-        stream = Popen('python ../../../../HydraPlugins/CSVplugin/trunk/ImportCSV/ImportCSV.py -t %s -n %s -l %s -x'%(network_file, nodes_file, links_file), shell=True, stdout=PIPE)
+        stream = Popen('python ../../../../HydraPlugins/CSVplugin/ImportCSV/ImportCSV.py -t %s -n %s -l %s -x'%(network_file, nodes_file, links_file), shell=True, stdout=PIPE)
         stream.wait()
         updated_result_text = stream.stdout.readlines()
         xml_start = 1

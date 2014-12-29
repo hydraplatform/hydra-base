@@ -1408,18 +1408,18 @@ def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, 
         for r in all_resource_scenarios:
             ra = r.resourceattr
             if ref_key == 'NODE':
-                if r.node_id in ref_ids:
-                    resource_scenarios.append(ra)
+                if ra.node_id in ref_ids:
+                    resource_scenarios.append(r)
                     if r.dataset_id not in dataset_ids:
                         dataset_ids.append(r.dataset_id)
             elif ref_key == 'LINK':
-                if r.link_id in ref_ids:
-                    resource_scenarios.append(ra)
+                if ra.link_id in ref_ids:
+                    resource_scenarios.append(r)
                     if r.dataset_id not in dataset_ids:
                         dataset_ids.append(r.dataset_id)
             elif ref_key == 'GROUP':
-                if r.group_id in ref_ids:
-                    resource_scenarios.append(ra)
+                if ra.group_id in ref_ids:
+                    resource_scenarios.append(r)
                     if r.dataset_id not in dataset_ids:
                         dataset_ids.append(r.dataset_id)
             else:
