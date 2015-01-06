@@ -500,6 +500,9 @@ class Project(Base):
     
     user = relationship('User', backref=backref("projects", order_by=project_id))
 
+    def get_name(self):
+        return self.project_name
+
     def get_attribute_data(self):
         attribute_data_rs = DBSession.query(ResourceScenario).join(ResourceAttr).filter(ResourceAttr.project_id==1).all()
         self.attribute_data = attribute_data_rs
@@ -598,6 +601,9 @@ class Network(Base):
     created_by = Column(Integer(), ForeignKey('tUser.user_id'))
     
     project = relationship('Project', backref=backref("networks", order_by=network_id, cascade="all, delete-orphan"))
+
+    def get_name(self):
+        return self.network_name
 
     def add_attribute(self, attr_id, attr_is_var='N'):
         attr = ResourceAttr()
@@ -765,6 +771,9 @@ class Link(Base):
     node_a = relationship('Node', foreign_keys=[node_1_id], backref=backref("links_to", order_by=link_id, cascade="all, delete-orphan"))
     node_b = relationship('Node', foreign_keys=[node_2_id], backref=backref("links_from", order_by=link_id, cascade="all, delete-orphan"))
 
+    def get_name(self):
+        return self.link_name
+
     def add_attribute(self, attr_id, attr_is_var='N'):
         attr = ResourceAttr()
         attr.attr_id = attr_id
@@ -797,6 +806,9 @@ class Node(Base):
     
     network = relationship('Network', backref=backref("nodes", order_by=network_id, cascade="all, delete-orphan"), lazy='joined')
 
+    def get_name(self):
+        return self.node_name
+
     def add_attribute(self, attr_id, attr_is_var='N'):
         attr = ResourceAttr()
         attr.attr_id = attr_id
@@ -826,6 +838,9 @@ class ResourceGroup(Base):
     
     network = relationship('Network', backref=backref("resourcegroups", order_by=group_id, cascade="all, delete-orphan"), lazy='joined')
     
+	def get_name(self):
+        return self.group_name
+
     def add_attribute(self, attr_id, attr_is_var='N'):
         attr = ResourceAttr()
         attr.attr_id = attr_id
