@@ -147,15 +147,16 @@ class TimeSeriesTest(test_SoapServer.SoapServerTest):
             val_to_query.id,
             datetime.datetime(2000, 10, 10, 00, 00, 00)
            )
-        parse_suds_array(jan_val.data) == parse_suds_array(val_to_query.value.ts_values[0].ts_value)
-        parse_suds_array(feb_val.data) == parse_suds_array(val_to_query.value.ts_values[1].ts_value)
-        parse_suds_array(mar_val.data) == parse_suds_array(val_to_query.value.ts_values[2].ts_value)
-        parse_suds_array(oct_val.data) == parse_suds_array(val_to_query.value.ts_values[2].ts_value)
+        assert parse_suds_array(jan_val.data) == parse_suds_array(val_to_query.value.ts_values[0].ts_value)
+        assert parse_suds_array(feb_val.data) == parse_suds_array(val_to_query.value.ts_values[1].ts_value)
+        assert parse_suds_array(mar_val.data) == parse_suds_array(val_to_query.value.ts_values[2].ts_value)
+        assert parse_suds_array(oct_val.data) == parse_suds_array(val_to_query.value.ts_values[2].ts_value)
         
+        start_time = datetime.datetime(2000, 07, 10, 00, 00, 00)
         vals = self.client.service.get_vals_between_times(
             val_to_query.id,
-            now,
-            now + datetime.timedelta(minutes=75),
+            start_time,
+            start_time + datetime.timedelta(minutes=75),
             'minutes',
             1,
             )
@@ -653,6 +654,58 @@ class SharingTest(test_SoapServer.SoapServerTest):
         assert extents.max_y == 99
 
 class RetrievalTest(test_SoapServer.SoapServerTest):
+
+    def _make_timeseries(self):
+        dataset = self.client.factory.create('hyd:Dataset')
+
+        dataset.type = 'timeseries'
+        dataset.name = 'time series to retrieve'
+        dataset.unit = 'feet cubed'
+        dataset.dimension = 'cubic capacity'
+
+        dataset.value = {'ts_values' : 
+            [
+                {'ts_time' : datetime.datetime.now(),
+                'ts_value' : str([11, 21, 31, 41, 51])},
+                {'ts_time' : datetime.datetime.now()+datetime.timedelta(hours=1),
+                'ts_value' : str([12, 22, 32, 42, 52])},
+            ]
+        }
+        new_d = self.client.service.add_dataset(dataset)
+        return new_d
+
+    def test_get_dataset(self):
+        """
+        Test to get a single dataset by ID.
+        Should return the dataset if found and throw a not found error if not.
+        """
+        dataset_1 = self._make_timeseries()
+
+        retrieved_d = self.client.service.get_dataset(dataset_1['id'])
+
+        assert str(dataset_1.value) == str(retrieved_d.value)
+
+        self.assertRaises(WebFault, self.client.service.get_dataset, int(dataset_1['id'])+1)
+
+    def test_get_datasets(self):
+        """
+            Test to get a list of datasets by ID.
+            Should return a list of datasets if found and return an empty list if not.
+        """
+        dataset_1 = self._make_timeseries()
+        dataset_2 = self._make_timeseries()
+
+        dataset_ids = self.client.factory.create('integerArray')
+        dataset_ids.integer.append(dataset_1.id)
+        dataset_ids.integer.append(dataset_2.id)
+
+        retrieved_ds = self.client.service.get_datasets(dataset_ids)
+        assert retrieved_ds is not None
+        
+        assert str(dataset_1.value) == str(retrieved_ds.Dataset[0].value)
+        assert str(dataset_2.value) == str(retrieved_ds.Dataset[1].value)
+
+
     def test_get_node_data(self):
         """
             Test for the potentially likely case of creating a network with two
@@ -787,7 +840,7 @@ class RetrievalTest(test_SoapServer.SoapServerTest):
 
     def test_data_search(self):
         """
-            Test for the 'get_datasets' function.
+            Test for the 'search_datasets' function.
 
             This function should retrieve a list of datasets given a set of 
             filters, including:
@@ -839,13 +892,13 @@ class RetrievalTest(test_SoapServer.SoapServerTest):
 
         #search for datset with ID
 
-        res_1 = self.client.service.get_datasets(array['id'])
+        res_1 = self.client.service.search_datasets(array['id'])
         assert len(res_1.Dataset) == 1
         assert res_1.Dataset[0].id == array['id']
         assert res_1.Dataset[0].name == array['name']
         
         #search for dataset by name
-        res_1 = self.client.service.get_datasets(name=array['name'])
+        res_1 = self.client.service.search_datasets(name=array['name'])
         assert len(res_1.Dataset) >= 1
         ids = []
         for d in res_1.Dataset:
@@ -854,7 +907,7 @@ class RetrievalTest(test_SoapServer.SoapServerTest):
         assert array['id'] in ids
 
         #search for scalars
-        res_1 = self.client.service.get_datasets(data_type='scalar')
+        res_1 = self.client.service.search_datasets(data_type='scalar')
         assert len(res_1.Dataset) >= 1
         ids = []
         for d in res_1.Dataset:
@@ -863,7 +916,7 @@ class RetrievalTest(test_SoapServer.SoapServerTest):
         assert scalar['id'] in ids
 
         #search for descriptors
-        res_1 = self.client.service.get_datasets(data_type='descriptor')
+        res_1 = self.client.service.search_datasets(data_type='descriptor')
         assert len(res_1.Dataset) >= 1
         for d in res_1.Dataset:
             ids.append(d.id)
@@ -871,7 +924,7 @@ class RetrievalTest(test_SoapServer.SoapServerTest):
         assert descriptor['id'] in ids
 
         #search for arrays
-        res_1 = self.client.service.get_datasets(data_type='array')
+        res_1 = self.client.service.search_datasets(data_type='array')
         assert len(res_1.Dataset) >= 1
         ids = []
         for d in res_1.Dataset:
@@ -880,7 +933,7 @@ class RetrievalTest(test_SoapServer.SoapServerTest):
         assert array['id'] in ids
 
         #search for timeseries
-        res_1 = self.client.service.get_datasets(data_type='timeseries', metadata_val='search')
+        res_1 = self.client.service.search_datasets(data_type='timeseries', metadata_val='search')
         assert len(res_1.Dataset) >= 1
         ids = []
         for d in res_1.Dataset:
@@ -889,48 +942,48 @@ class RetrievalTest(test_SoapServer.SoapServerTest):
         assert ts_1['id'] in ids
         assert ts_2['id'] in ids
         #search by non-existant type
-        res_1 = self.client.service.get_datasets(data_type='notadatatype')
+        res_1 = self.client.service.search_datasets(data_type='notadatatype')
         assert res_1 == ''
 
         #We have at least 2 timeseries, so let's page to 1
-        res_1 = self.client.service.get_datasets(data_type='timeseries', metadata_val='search', page_size=1, inc_val='Y')
+        res_1 = self.client.service.search_datasets(data_type='timeseries', metadata_val='search', page_size=1, inc_val='Y')
         assert len(res_1.Dataset) == 1
         assert res_1.Dataset[0].value.ts_values[0].ts_value.array.item == "1.234"
         assert res_1.Dataset[0].value.ts_values[1].ts_value.array.item == "2.345"
         assert res_1.Dataset[0].value.ts_values[2].ts_value.array.item == "3.456"
 
-        res_1 = self.client.service.get_datasets(data_type='timeseries', metadata_val='search', page_start=1000)
+        res_1 = self.client.service.search_datasets(data_type='timeseries', metadata_val='search', page_start=1000)
         assert res_1 == ''
 
         #search by non-existant type
-        res_1 = self.client.service.get_datasets(data_type='notadatatype')
+        res_1 = self.client.service.search_datasets(data_type='notadatatype')
         assert res_1 == ''
 
         #search by dimension x 2 (non-exisent dimension, exisiting dimension)
 
-        res_1 = self.client.service.get_datasets(dimension='Volume')
+        res_1 = self.client.service.search_datasets(dimension='Volume')
         for d in res_1.Dataset:
             assert d.dimension == 'Volume'
 
-        res_1 = self.client.service.get_datasets(dimension='iamnotadimension')
+        res_1 = self.client.service.search_datasets(dimension='iamnotadimension')
         assert res_1 == ''
 
         #search by unit x2 (non-exisent unit, exisiting unit)
-        res_1 = self.client.service.get_datasets(unit='m s^-1')
+        res_1 = self.client.service.search_datasets(unit='m s^-1')
         for d in res_1.Dataset:
             assert d.unit == 'm s^-1'
 
-        res_1 = self.client.service.get_datasets(unit='iamnotaunit')
+        res_1 = self.client.service.search_datasets(unit='iamnotaunit')
         assert res_1 == ''
 
         #search by scenario
         net = self.create_network_with_data(num_nodes=5)
         scenario = net.scenarios.Scenario[0]
-        res_1 = self.client.service.get_datasets(scenario_id=scenario.id)
+        res_1 = self.client.service.search_datasets(scenario_id=scenario.id)
         assert len(res_1.Dataset) == len(scenario.resourcescenarios.ResourceScenario)
 
         #search by metadata
-        res_1 = self.client.service.get_datasets(metadata_name='created_by', inc_metadata='Y')
+        res_1 = self.client.service.search_datasets(metadata_name='created_by', inc_metadata='Y')
         assert res_1 != ''
         for d in res_1.Dataset:
             metadata_names = []
@@ -939,7 +992,7 @@ class RetrievalTest(test_SoapServer.SoapServerTest):
             assert 'created_by' in metadata_names
 
         #search by metadata
-        res_1 = self.client.service.get_datasets(metadata_name='used for', metadata_val='earch', inc_metadata='Y')
+        res_1 = self.client.service.search_datasets(metadata_name='used for', metadata_val='earch', inc_metadata='Y')
         assert res_1 != ''
         for d in res_1.Dataset:
             metadata_names = []
@@ -947,7 +1000,7 @@ class RetrievalTest(test_SoapServer.SoapServerTest):
                metadata_names.append(m.name)
             assert 'is used for' in metadata_names
 
-        res_1 = self.client.service.get_datasets(metadata_val='search', inc_metadata='Y')
+        res_1 = self.client.service.search_datasets(metadata_val='search', inc_metadata='Y')
         assert res_1 != ''
         for d in res_1.Dataset:
             metadata_names = []
@@ -955,11 +1008,11 @@ class RetrievalTest(test_SoapServer.SoapServerTest):
                metadata_names.append(m.name)
             assert 'is used for' in metadata_names
 
-        res_1 = self.client.service.get_datasets(metadata_name='non-existent', inc_metadata='Y')
+        res_1 = self.client.service.search_datasets(metadata_name='non-existent', inc_metadata='Y')
         assert res_1 == ''
 
         #search by collection name (return only one timeseries)
-        res_1 = self.client.service.get_datasets(collection_name=collection_name)
+        res_1 = self.client.service.search_datasets(collection_name=collection_name)
         assert len(res_1.Dataset) == 2
         ts_ids = [ts_1['id'], ts_2['id']]
         for d in res_1.Dataset:
@@ -967,14 +1020,14 @@ class RetrievalTest(test_SoapServer.SoapServerTest):
 
         #combinations:
         #search by type, dimension
-        res_1 = self.client.service.get_datasets(data_type='scalar', dimension='speed')
+        res_1 = self.client.service.search_datasets(data_type='scalar', dimension='speed')
         assert len(res_1.Dataset) >= 1
         ids = []
         for d in res_1.Dataset:
             ids.append(d.id)
             assert d.type == 'scalar' and d.dimension == 'Speed'
         #matching unit, dimension
-        res_1 = self.client.service.get_datasets(unit='m s^-1', dimension='speed')
+        res_1 = self.client.service.search_datasets(unit='m s^-1', dimension='speed')
         assert len(res_1.Dataset) >= 1
         ids = []
         for d in res_1.Dataset:
@@ -982,11 +1035,11 @@ class RetrievalTest(test_SoapServer.SoapServerTest):
             assert d.unit == 'm s^-1' and d.dimension == 'Speed'
 
         #mismatching unit, dimension
-        res_1 = self.client.service.get_datasets(unit='cm^3', dimension='speed')
+        res_1 = self.client.service.search_datasets(unit='cm^3', dimension='speed')
         assert res_1 == '' 
 
         #partial name, dimension
-        res_1 = self.client.service.get_datasets(name='flow sp', dimension='speed')
+        res_1 = self.client.service.search_datasets(name='flow sp', dimension='speed')
         assert len(res_1.Dataset) >= 1
         ids = []
         for d in res_1.Dataset:
@@ -994,7 +1047,7 @@ class RetrievalTest(test_SoapServer.SoapServerTest):
             assert d.name == scalar['name'] and d.dimension == 'Speed'
 
         #name, unit
-        res_1 = self.client.service.get_datasets(name='array', unit='bar')
+        res_1 = self.client.service.search_datasets(name='array', unit='bar')
         assert len(res_1.Dataset) >= 1
         ids = []
         for d in res_1.Dataset:
@@ -1002,15 +1055,15 @@ class RetrievalTest(test_SoapServer.SoapServerTest):
             assert d.name == array['name'] and d.unit == 'bar'
 
         #collection name, name
-        res_1 = self.client.service.get_datasets(name='array',collection_name=collection_name)
+        res_1 = self.client.service.search_datasets(name='array',collection_name=collection_name)
         assert res_1 == ''
-        res_1 = self.client.service.get_datasets(name='time',collection_name=collection_name)
+        res_1 = self.client.service.search_datasets(name='time',collection_name=collection_name)
         assert len(res_1.Dataset) == 2
         ts_ids = [ts_1['id'], ts_2['id']]
         for d in res_1.Dataset:
             assert d.id in ts_ids
 
-        res_1 = self.client.service.get_datasets(unconnected='Y')
+        res_1 = self.client.service.search_datasets(unconnected='Y')
         assert len(res_1.Dataset) >= 1
         ds_ids = [d.id for d in res_1.Dataset]
         assert ts_1['id'] in ds_ids
@@ -1021,7 +1074,7 @@ class RetrievalTest(test_SoapServer.SoapServerTest):
         for rs in net.scenarios.Scenario[0].resourcescenarios.ResourceScenario:
             if rs.attr_id == attr_id:
                 attr_dataset_ids.append(rs.value.id)
-        res_1 = self.client.service.get_datasets(attr_id=attr_id)
+        res_1 = self.client.service.search_datasets(attr_id=attr_id)
         res_dataset_ids = [d.id for d in res_1.Dataset]
         for res_id in attr_dataset_ids:
             assert res_id in res_dataset_ids 
@@ -1034,7 +1087,7 @@ class RetrievalTest(test_SoapServer.SoapServerTest):
         for rs in net.scenarios.Scenario[0].resourcescenarios.ResourceScenario:
             if rs.resource_attr_id in ra_ids:
                 link_type_dataset_ids.append(rs.value.id)
-        res_1 = self.client.service.get_datasets(type_id=type_id)
+        res_1 = self.client.service.search_datasets(type_id=type_id)
         assert res_1 != ''
         res_dataset_ids = [d.id for d in res_1.Dataset]
         for res_id in link_type_dataset_ids:

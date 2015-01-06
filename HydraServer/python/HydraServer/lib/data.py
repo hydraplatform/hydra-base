@@ -91,8 +91,54 @@ def get_dataset(dataset_id,**kwargs):
 
     return dataset 
 
+def get_datasets(dataset_ids,**kwargs):
+    """
+        Get a single dataset, by ID
+    """
 
-def get_datasets(dataset_id=None,
+    user_id = int(kwargs.get('user_id'))
+
+    if len(dataset_ids) == 0:
+        return []
+    try:
+        datasets = DBSession.query(Dataset.dataset_id,
+                Dataset.data_type,
+                Dataset.data_units,
+                Dataset.data_dimen,
+                Dataset.data_name,
+                Dataset.hidden,
+                Dataset.cr_date,
+                Dataset.created_by,
+                DatasetOwner.user_id,
+                null().label('metadata'),
+                case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)], 
+                        else_=Dataset.start_time).label('start_time'),
+                case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)], 
+                        else_=Dataset.frequency).label('frequency'),
+                case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)], 
+                        else_=Dataset.value).label('value')).filter(
+                Dataset.dataset_id.in_(dataset_ids)).outerjoin(DatasetOwner, 
+                                    and_(DatasetOwner.dataset_id==Dataset.dataset_id, 
+                                    DatasetOwner.user_id==user_id)).all()
+
+        #convert the value row into a string as it is returned as a binary
+        for dataset in datasets:
+            if dataset.value is not None:
+                dataset.value = str(dataset.value)
+
+            if dataset.hidden == 'N' or (dataset.hidden == 'Y' and dataset.user_id is not None):
+                metadata = DBSession.query(Metadata).filter(Metadata.dataset_id == dataset.dataset_id).all()
+                dataset.metadata = metadata
+            else:
+                dataset.metadata = []
+    except NoResultFound:
+        raise HydraError("Datasets not found.")
+
+    return datasets
+
+
+
+def search_datasets(dataset_id=None,
                 dataset_name=None,
                 collection_name=None,
                 data_type=None,

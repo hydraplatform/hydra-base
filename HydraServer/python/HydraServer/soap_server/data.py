@@ -53,7 +53,14 @@ class DataService(HydraService):
         
         return Dataset(dataset_i)
 
-
+    @rpc(SpyneArray(Integer), _returns=SpyneArray(Dataset))
+    def get_datasets(ctx, dataset_ids):
+        """
+            Get a list of datasets, by ID
+        """
+        datasets = data.get_datasets(dataset_ids, **ctx.in_header.__dict__)
+        ret_datasets = [Dataset(d) for d in datasets]
+        return ret_datasets
 
     @rpc(Integer, _returns=Dataset)
     def get_dataset(ctx, dataset_id):
@@ -70,7 +77,7 @@ class DataService(HydraService):
          Unicode(pattern='[YN]', default='N'), # include value flag
          Integer(default=0),Integer(default=2000), #start, size page flags
          _returns=SpyneArray(Dataset))
-    def get_datasets(ctx, dataset_id,
+    def search_datasets(ctx, dataset_id,
                 name,
                 collection_name,
                 data_type,
@@ -86,8 +93,10 @@ class DataService(HydraService):
                 inc_val,
                 page_start,
                 page_size):
-
-        datasets = data.get_datasets(dataset_id,
+        """
+            Search for datadets that satisfy the criteria specified.
+        """
+        datasets = data.search_datasets(dataset_id,
                                      name,
                                      collection_name,
                                      data_type,
