@@ -9,7 +9,7 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
@@ -60,7 +60,7 @@ def get_timestamp(ordinal):
 
 class Dataset(Base):
     """
-        Table holding all the attribute values 
+        Table holding all the attribute values
     """
     __tablename__='tDataset'
 
@@ -73,7 +73,7 @@ class Dataset(Base):
     cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     created_by = Column(Integer(), ForeignKey('tUser.user_id'))
     hidden = Column(String(1),  nullable=False, server_default=text(u"'N'"))
-   
+
     start_time = Column(String(),  nullable=True)
     frequency = Column(String(),  nullable=True)
     value = Column('value', LargeBinary(),  nullable=True)
@@ -96,7 +96,7 @@ class Dataset(Base):
             if m.metadata_name in metadata_dict.keys():
                 if m.metadata_val != metadata_dict[m.metadata_name]:
                     m.metadata_val = metadata_dict[m.metadata_name]
-        
+
         for k, v in metadata_dict.items():
             if k not in existing_metadata:
                 m_i = Metadata(metadata_name=str(k),metadata_val=str(v))
@@ -104,7 +104,7 @@ class Dataset(Base):
 
     def get_val(self, timestamp=None):
         """
-            If a timestamp is passed to this function, 
+            If a timestamp is passed to this function,
             return the values appropriate to the requested times.
 
             If the timestamp is *before* the start of the timeseries data, return None
@@ -134,7 +134,7 @@ class Dataset(Base):
                         v = eval(value)
                     except:
                         v = value
-                    try: 
+                    try:
                         test_val_keys.append(get_datetime(time))
                     except:
                         test_val_keys.append(time)
@@ -162,12 +162,12 @@ class Dataset(Base):
                            value      = self.value,
                            metadata   = metadata)
 
-        data_hash = generate_data_hash(dataset_dict) 
-        
+        data_hash = generate_data_hash(dataset_dict)
+
         self.data_hash = data_hash
-        
+
         return data_hash
-   
+
     def get_metadata_as_dict(self):
         metadata = {}
         for r in self.metadata:
@@ -185,7 +185,7 @@ class Dataset(Base):
                 break
         else:
             owner = DatasetOwner()
-            owner.dataset_id = self.dataset_id 
+            owner.dataset_id = self.dataset_id
             owner.user_id = int(user_id)
             self.owners.append(owner)
 
@@ -196,7 +196,7 @@ class Dataset(Base):
 
     def check_read_permission(self, user_id):
         """
-            Check whether this user can read this dataset 
+            Check whether this user can read this dataset
         """
 
         for owner in self.owners:
@@ -210,7 +210,7 @@ class Dataset(Base):
 
     def check_user(self, user_id):
         """
-            Check whether this user can read this dataset 
+            Check whether this user can read this dataset
         """
 
         if self.hidden == 'N':
@@ -238,7 +238,7 @@ class Dataset(Base):
 
     def check_share_permission(self, user_id):
         """
-            Check whether this user can write this dataset 
+            Check whether this user can write this dataset
         """
 
         for owner in self.owners:
@@ -259,7 +259,7 @@ class DatasetCollection(Base):
     collection_id = Column(Integer(), primary_key=True, nullable=False)
     collection_name = Column(String(60),  nullable=False)
     cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    
+
 class DatasetCollectionItem(Base):
     """
     """
@@ -268,7 +268,7 @@ class DatasetCollectionItem(Base):
 
     collection_id = Column(Integer(), ForeignKey('tDatasetCollection.collection_id'), primary_key=True, nullable=False)
     dataset_id = Column(Integer(), ForeignKey('tDataset.dataset_id'), primary_key=True, nullable=False)
-    
+
     collection = relationship('DatasetCollection', backref=backref("items", order_by=dataset_id, cascade="all, delete-orphan"))
     dataset = relationship('Dataset', backref=backref("collectionitems", order_by=dataset_id))
 
@@ -282,7 +282,7 @@ class Metadata(Base):
     dataset_id = Column(Integer(), ForeignKey('tDataset.dataset_id'), primary_key=True, nullable=False, index=True)
     metadata_name = Column(String(60), primary_key=True, nullable=False)
     metadata_val = Column(LargeBinary(),  nullable=False)
-    
+
     dataset = relationship('Dataset', backref=backref("metadata", order_by=dataset_id, cascade="all, delete-orphan"))
 
 
@@ -327,7 +327,7 @@ class Template(Base):
     template_id = Column(Integer(), primary_key=True, nullable=False)
     template_name = Column(String(60),  nullable=False, unique=True)
     layout = Column(Text(1000))
-    
+
 class TemplateType(Base):
     """
     """
@@ -343,9 +343,9 @@ class TemplateType(Base):
     resource_type = Column(String(60))
     alias = Column(String(100))
     layout = Column(Text(1000))
-    
+
     template = relationship('Template', backref=backref("templatetypes", order_by=type_id, cascade="all, delete-orphan"))
-    
+
 class TypeAttr(Base):
     """
     """
@@ -363,9 +363,9 @@ class TypeAttr(Base):
     attr = relationship('Attr')
     templatetype = relationship('TemplateType',  backref=backref("typeattrs", order_by=attr_id, cascade="all, delete-orphan"))
     default_dataset = relationship('Dataset')
-   
+
     def get_attr(self):
-       
+
         if self.attr is None:
             attr = DBSession.query(Attr).filter(Attr.attr_id==self.attr_id).first()
         else:
@@ -389,7 +389,7 @@ class ResourceAttr(Base):
     link_id     = Column(Integer(),  ForeignKey('tLink.link_id'), index=True, nullable=True)
     group_id    = Column(Integer(),  ForeignKey('tResourceGroup.group_id'), index=True, nullable=True)
     attr_is_var = Column(String(1),  nullable=False, server_default=text(u"'N'"))
-    
+
     attr = relationship('Attr')
     project = relationship('Project', backref=backref('attributes', uselist=True, cascade="all, delete-orphan"), uselist=False)
     network = relationship('Network', backref=backref('attributes', uselist=True, cascade="all, delete-orphan"), uselist=False)
@@ -444,7 +444,7 @@ class ResourceType(Base):
     link_id     = Column(Integer(),  ForeignKey('tLink.link_id'), nullable=True)
     group_id    = Column(Integer(),  ForeignKey('tResourceGroup.group_id'), nullable=True)
 
-    
+
     templatetype = relationship('TemplateType', backref=backref('resourcetypes', uselist=True, cascade="all, delete-orphan"))
 
     network = relationship('Network', backref=backref('types', uselist=True, cascade="all, delete-orphan"), uselist=False)
@@ -497,7 +497,7 @@ class Project(Base):
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     created_by = Column(Integer(), ForeignKey('tUser.user_id'))
-    
+
     user = relationship('User', backref=backref("projects", order_by=project_id))
 
     def get_name(self):
@@ -506,7 +506,7 @@ class Project(Base):
     def get_attribute_data(self):
         attribute_data_rs = DBSession.query(ResourceScenario).join(ResourceAttr).filter(ResourceAttr.project_id==1).all()
         self.attribute_data = attribute_data_rs
-        return attribute_data_rs 
+        return attribute_data_rs
 
     def add_attribute(self, attr_id, attr_is_var='N'):
         attr = ResourceAttr()
@@ -526,7 +526,7 @@ class Project(Base):
                 break
         else:
             owner = ProjectOwner()
-            owner.project_id = self.project_id 
+            owner.project_id = self.project_id
             owner.user_id = int(user_id)
             self.owners.append(owner)
 
@@ -599,7 +599,7 @@ class Network(Base):
     cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     projection = Column(String(1000))
     created_by = Column(Integer(), ForeignKey('tUser.user_id'))
-    
+
     project = relationship('Project', backref=backref("networks", order_by=network_id, cascade="all, delete-orphan"))
 
     def get_name(self):
@@ -634,7 +634,7 @@ class Network(Base):
         l.node_b           = node_2
 
         DBSession.add(l)
-        
+
         self.links.append(l)
 
         return l
@@ -660,7 +660,7 @@ class Network(Base):
         #to bulk insert nodes, not one at a time.
 
         DBSession.add(node)
-        
+
         self.nodes.append(node)
 
         return node
@@ -680,7 +680,7 @@ class Network(Base):
         group_i.status            = status
 
         DBSession.add(group_i)
-        
+
         self.resourcegroups.append(group_i)
 
 
@@ -694,7 +694,7 @@ class Network(Base):
                 break
         else:
             owner = NetworkOwner()
-            owner.network_id = self.network_id 
+            owner.network_id = self.network_id
             self.owners.append(owner)
 
         owner.user_id = int(user_id)
@@ -706,7 +706,7 @@ class Network(Base):
 
     def check_read_permission(self, user_id):
         """
-            Check whether this user can read this network 
+            Check whether this user can read this network
         """
 
         for owner in self.owners:
@@ -766,7 +766,7 @@ class Link(Base):
     link_description = Column(String(1000))
     link_layout = Column(Text(1000))
     cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-   
+
     network = relationship('Network', backref=backref("links", order_by=network_id, cascade="all, delete-orphan"), lazy='joined')
     node_a = relationship('Node', foreign_keys=[node_1_id], backref=backref("links_to", order_by=link_id, cascade="all, delete-orphan"))
     node_b = relationship('Node', foreign_keys=[node_2_id], backref=backref("links_from", order_by=link_id, cascade="all, delete-orphan"))
@@ -803,7 +803,7 @@ class Node(Base):
     node_y = Column(Numeric(asdecimal=True))
     node_layout = Column(Text(1000))
     cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    
+
     network = relationship('Network', backref=backref("nodes", order_by=network_id, cascade="all, delete-orphan"), lazy='joined')
 
     def get_name(self):
@@ -835,10 +835,10 @@ class ResourceGroup(Base):
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     network_id = Column(Integer(), ForeignKey('tNetwork.network_id'),  nullable=False)
-    
+
     network = relationship('Network', backref=backref("resourcegroups", order_by=group_id, cascade="all, delete-orphan"), lazy='joined')
-    
-	def get_name(self):
+
+    def get_name(self):
         return self.group_name
 
     def add_attribute(self, attr_id, attr_is_var='N'):
@@ -850,7 +850,7 @@ class ResourceGroup(Base):
         self.attributes.append(attr)
 
         return attr
-    
+
 class ResourceGroupItem(Base):
     """
     """
@@ -866,7 +866,7 @@ class ResourceGroupItem(Base):
 
     group_id = Column(Integer(), ForeignKey('tResourceGroup.group_id'))
     scenario_id = Column(Integer(), ForeignKey('tScenario.scenario_id'),  nullable=False)
-    
+
     group = relationship('ResourceGroup', foreign_keys=[group_id], backref=backref("items", order_by=group_id))
     scenario = relationship('Scenario', backref=backref("resourcegroupitems", order_by=item_id, cascade="all, delete-orphan"))
 
@@ -903,7 +903,7 @@ class ResourceScenario(Base):
     scenario_id = Column(Integer(), ForeignKey('tScenario.scenario_id'), primary_key=True, nullable=False, index=True)
     resource_attr_id = Column(Integer(), ForeignKey('tResourceAttr.resource_attr_id'), primary_key=True, nullable=False, index=True)
     source           = Column(String(60))
-    
+
     dataset      = relationship('Dataset', backref=backref("resourcescenarios", order_by=dataset_id))
     scenario     = relationship('Scenario', backref=backref("resourcescenarios", order_by=resource_attr_id, cascade="all, delete-orphan"))
     resourceattr = relationship('ResourceAttr', backref=backref("resourcescenario", cascade="all, delete-orphan", uselist=False), uselist=False)
@@ -915,14 +915,14 @@ class ResourceScenario(Base):
                 Dataset.data_dimen,
                 Dataset.data_name,
                 Dataset.hidden,
-                case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)], 
+                case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
                         else_=Dataset.start_time).label('start_time'),
-                case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)], 
+                case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
                         else_=Dataset.frequency).label('frequency'),
-                case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)], 
+                case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
                         else_=Dataset.value).label('value')).filter(
-                Dataset.dataset_id==self.dataset_id).outerjoin(DatasetOwner, 
-                                    and_(Dataset.dataset_id==DatasetOwner.dataset_id, 
+                Dataset.dataset_id==self.dataset_id).outerjoin(DatasetOwner,
+                                    and_(Dataset.dataset_id==DatasetOwner.dataset_id,
                                     DatasetOwner.user_id==user_id)).one()
 
         return dataset
@@ -948,13 +948,13 @@ class Scenario(Base):
     time_step = Column(String(60))
     cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     created_by = Column(Integer(), ForeignKey('tUser.user_id'))
-    
+
     network = relationship('Network', backref=backref("scenarios", order_by=scenario_id))
 
     def add_resource_scenario(self, resource_attr, dataset=None, source=None):
         rs_i = ResourceScenario()
         if resource_attr.resource_attr_id is None:
-            rs_i.resourceattr = resource_attr 
+            rs_i.resourceattr = resource_attr
         else:
             rs_i.resource_attr_id = resource_attr.resource_attr_id
 
@@ -991,7 +991,7 @@ class Rule(Base):
 
 
     rule_id = Column(Integer(), primary_key=True, nullable=False)
-    
+
     rule_name = Column(String(60), nullable=False)
     rule_description = Column(String(1000), nullable=False)
 
@@ -1003,12 +1003,12 @@ class Rule(Base):
 
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     scenario_id = Column(Integer(), ForeignKey('tScenario.scenario_id'),  nullable=False)
-    
+
     network_id  = Column(Integer(),  ForeignKey('tNetwork.network_id'), index=True, nullable=True,)
     node_id     = Column(Integer(),  ForeignKey('tNode.node_id'), index=True, nullable=True)
     link_id     = Column(Integer(),  ForeignKey('tLink.link_id'), index=True, nullable=True)
     group_id    = Column(Integer(),  ForeignKey('tResourceGroup.group_id'), index=True, nullable=True)
-    
+
     scenario = relationship('Scenario', backref=backref('rules', uselist=True, cascade="all, delete-orphan"), uselist=True, lazy='joined')
 
 class Note(Base):
@@ -1021,7 +1021,7 @@ class Note(Base):
     __tablename__='tNote'
 
     note_id = Column(Integer(), primary_key=True, nullable=False)
-    
+
     ref_key = Column(String(60),  nullable=False, index=True)
 
     note_text = Column('value', LargeBinary(),  nullable=True)
@@ -1031,12 +1031,12 @@ class Note(Base):
     cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     scenario_id = Column(Integer(), ForeignKey('tScenario.scenario_id'),  index=True, nullable=True)
     project_id = Column(Integer(), ForeignKey('tProject.project_id'),  index=True, nullable=True)
-    
+
     network_id  = Column(Integer(),  ForeignKey('tNetwork.network_id'), index=True, nullable=True,)
     node_id     = Column(Integer(),  ForeignKey('tNode.node_id'), index=True, nullable=True)
     link_id     = Column(Integer(),  ForeignKey('tLink.link_id'), index=True, nullable=True)
     group_id    = Column(Integer(),  ForeignKey('tResourceGroup.group_id'), index=True, nullable=True)
-    
+
     scenario = relationship('Scenario', backref=backref('notes', uselist=True, cascade="all, delete-orphan"), uselist=True, lazy='joined')
     node = relationship('Node', backref=backref('notes', uselist=True, cascade="all, delete-orphan"), uselist=True, lazy='joined')
     link = relationship('Link', backref=backref('notes', uselist=True, cascade="all, delete-orphan"), uselist=True, lazy='joined')
@@ -1046,7 +1046,7 @@ class Note(Base):
 
     def set_ref(self, ref_key, ref_id):
         """
-            Using a ref key and ref id set the 
+            Using a ref key and ref id set the
             reference to the appropriate resource type.
         """
         if ref_key == 'NETWORK':
@@ -1061,7 +1061,7 @@ class Note(Base):
             self.scenario_id = ref_id
         elif ref_key == 'PROJECT':
             self.project_id = ref_id
-        
+
         else:
             raise HydraError("Ref Key %s not recognised."%ref_key)
 
@@ -1116,7 +1116,7 @@ class ProjectOwner(Base):
     view = Column(String(1),  nullable=False)
     edit = Column(String(1),  nullable=False)
     share = Column(String(1),  nullable=False)
-    
+
     user = relationship('User')
     project = relationship('Project', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
 
@@ -1132,7 +1132,7 @@ class NetworkOwner(Base):
     view = Column(String(1),  nullable=False)
     edit = Column(String(1),  nullable=False)
     share = Column(String(1),  nullable=False)
-    
+
     user = relationship('User')
     network = relationship('Network', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
 
@@ -1148,7 +1148,7 @@ class DatasetOwner(Base):
     view = Column(String(1),  nullable=False)
     edit = Column(String(1),  nullable=False)
     share = Column(String(1),  nullable=False)
-    
+
     user = relationship('User')
     dataset = relationship('Dataset', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
 
@@ -1163,7 +1163,7 @@ class Perm(Base):
     perm_name = Column(String(60),  nullable=False)
     cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     roleperms = relationship('RolePerm', lazy='joined')
-    
+
 class Role(Base):
     """
     """
@@ -1176,7 +1176,7 @@ class Role(Base):
     cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     roleperms = relationship('RolePerm', lazy='joined', cascade='all')
     roleusers = relationship('RoleUser', lazy='joined', cascade='all')
-    
+
 class RolePerm(Base):
     """
     """
@@ -1186,10 +1186,10 @@ class RolePerm(Base):
     perm_id = Column(Integer(), ForeignKey('tPerm.perm_id'), primary_key=True, nullable=False)
     role_id = Column(Integer(), ForeignKey('tRole.role_id'), primary_key=True, nullable=False)
     cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    
+
     perm = relationship('Perm', lazy='joined')
     role = relationship('Role', lazy='joined')
-    
+
 class RoleUser(Base):
     """
     """
@@ -1199,7 +1199,7 @@ class RoleUser(Base):
     user_id = Column(Integer(), ForeignKey('tUser.user_id'), primary_key=True, nullable=False)
     role_id = Column(Integer(), ForeignKey('tRole.role_id'), primary_key=True, nullable=False)
     cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-   
+
     user = relationship('User', lazy='joined')
     role = relationship('Role', lazy='joined')
 
