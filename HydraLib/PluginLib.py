@@ -408,7 +408,7 @@ def _get_path(url):
         return ''
     else:
         return "/%s"%("/".join(hostname[1:]))
-    
+
 def _get_hostname(url):
     """
         Find the hostname in a url.
@@ -424,7 +424,7 @@ def _get_hostname(url):
         url = url.replace('https://', '')
 
     hostname = url.split('/')[0]
-    
+
     #is a user-defined port specified?
     port_parts = url.split(':')
     if len(port_parts) > 1:
@@ -447,7 +447,7 @@ def _get_port(url):
     port = 80
 
     url_parts = url.split(':')
-    
+
     if len(url_parts) == 1:
         return port
     else:
@@ -497,7 +497,7 @@ class JsonConnection(object):
         log.info("Calling: %s"%(func))
         call = {func:args}
         headers = {
-                    'Content-Type': 'application/json',       
+                    'Content-Type': 'application/json',
                     'session_id'  : self.session_id,
                     'app_name'    : 'Import CSV'
                 }
@@ -512,7 +512,7 @@ class JsonConnection(object):
                 else:
                     err = "An unknown server has occurred."
             raise HydraPluginError(err)
-        
+
         ret_obj = json.loads(r.content, object_hook=object_hook)
 
         log.info('done')
@@ -773,6 +773,17 @@ def create_dict(arr):
     if type(arr) is not list:
         return arr
     return {'array': [create_sub_dict(arr)]}
+
+def array_dict_to_list(arrdict):
+    """Convert an array dict created by 'create_dict()' to a nested list."""
+    if 'array' in arrdict.keys():
+        arr = []
+        for arrdata in arrdict['array']:
+            arr.append(array_dict_to_list(arrdata))
+    elif 'item' in arrdict.keys():
+        arr = arrdict['item']
+
+    return arr
 
 def create_sub_dict(arr):
     if arr is None:
