@@ -154,6 +154,7 @@ class SoapServerTest(unittest.TestCase):
         typeattr_1 = self.client.factory.create('hyd:TypeAttr')
         typeattr_1.attr_id = node_attr_1.id
         typeattr_1.data_restriction = {'LESSTHAN': 10, 'NUMPLACES': 1}
+        typeattr_1.unit = 'm^3'
         typeattrs.TypeAttr.append(typeattr_1)
 
         typeattr_2 = self.client.factory.create('hyd:TypeAttr')

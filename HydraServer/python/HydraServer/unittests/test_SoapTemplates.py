@@ -848,5 +848,34 @@ class TemplatesTest(test_SoapServer.SoapServerTest):
                 #        logging.info("Validating RA %s in scenario %s", ra.id, scenario.id)
                         self.assertRaises(WebFault, self.client.service.validate_attr, ra.id, scenario.id, None)
 
+    def test_validate_network(self):
+        network = self.create_network_with_data()
+        scenario = network.scenarios.Scenario[0]
+        template = network.nodes.Node[0].types.TypeSummary[0]
+        #Validate the network without data: should pass as the network is built
+        #based on the template in these unit tests
+        errors1 = self.client.service.validate_network(network['id'],
+                                                       template['template_id'])
+        assert len(errors1) == 0
+
+        #Validate the network with data. Should fail as one of the attributes (node_attr_3)
+        #is specified as being a 'Cost' in the template but 'Speed' is the dimension
+        #of the dataset used. In addition, node_attr_1 specified a unit of 'm^3'
+        #whereas the timeseries in the data is in 'cm^3', so each will fail on unit
+        #mismatch also.
+        errors2 = self.client.service.validate_network(network['id'],
+                                                       template['template_id'],
+                                                       scenario['id'])
+
+        assert len(errors2) > 0
+        #every node should have an associated error.
+        assert len(errors2.string) == len(network['nodes'].Node * 2)
+        for err in errors2.string:
+            try:
+                assert err.startswith("Unit mismatch")
+            except AssertionError:
+                assert err.startswith("Dimension mismatch")
+        
+
 if __name__ == '__main__':
     test_SoapServer.run()

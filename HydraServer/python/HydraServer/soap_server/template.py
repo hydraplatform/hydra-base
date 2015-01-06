@@ -300,3 +300,8 @@ class TemplateService(HydraService):
     def validate_attr(ctx, resource_attr_id, scenario_id, type_id):
         template.validate_attr(resource_attr_id, scenario_id, type_id)
         return 'OK'
+
+    @rpc(Integer, Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(Unicode))
+    def validate_network(ctx, network_id, template_id, scenario_id):
+        errors = template.validate_network(network_id, template_id, scenario_id)
+        return errors

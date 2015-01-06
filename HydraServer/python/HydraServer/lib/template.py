@@ -14,7 +14,7 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 from HydraServer.db import DBSession
-from HydraServer.db.model import Template, TemplateType, TypeAttr, Attr, Network, Node, Link, ResourceGroup, ResourceType, ResourceAttr, ResourceScenario
+from HydraServer.db.model import Template, TemplateType, TypeAttr, Attr, Network, Node, Link, ResourceGroup, ResourceType, ResourceAttr, ResourceScenario, Scenario
 from data import add_dataset
 
 from HydraLib.HydraException import HydraError, ResourceNotFoundError
@@ -23,7 +23,7 @@ from lxml import etree
 from decimal import Decimal
 import logging
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.orm import joinedload_all
+from sqlalchemy.orm import joinedload_all, noload
 from sqlalchemy import or_, and_
 import re
 import units
@@ -993,15 +993,27 @@ def delete_typeattr(typeattr,**kwargs):
     return 'OK'
 
 def validate_attr(resource_attr_id, scenario_id, type_id=None):
+    """
+        Check that a resource attribute satisfies the requirements of all the types of the 
+        resource.
+    """
     try:
-        rs = DBSession.query(ResourceScenario).filter(ResourceScenario.resource_attr_id==resource_attr_id, ResourceScenario.scenario_id==scenario_id).options(joinedload_all("resourceattr")).options(joinedload_all("dataset")).one()
+        rs = DBSession.query(ResourceScenario).filter(ResourceScenario.resource_attr_id==resource_attr_id, 
+            ResourceScenario.scenario_id==scenario_id).options(
+            joinedload_all("resourceattr")).options(
+            joinedload_all("dataset")
+            ).one()
 
-        _do_validate_resourcescenario(rs)
+        _do_validate_resourcescenario(rs, type_id)
                     
     except NoResultFound:
         raise ResourceNotFoundError("Resource Scenario %s not found"%resource_attr_id)
 
 def validate_attrs(resource_attr_ids, scenario_id, type_id=None):
+    """
+        Check that multiple resource attribute satisfy the requirements of the types of resources to
+        which the they are attached.
+    """
     try:
         multi_rs = DBSession.query(ResourceScenario).filter(ResourceScenario.resource_attr_id.in_(resource_attr_ids), ResourceScenario.scenario_id==scenario_id).options(joinedload_all("resourceattr")).options(joinedload_all("dataset")).all()
         
@@ -1013,6 +1025,10 @@ def validate_attrs(resource_attr_ids, scenario_id, type_id=None):
 
 
 def _do_validate_resourcescenario(resourcescenario, type_id=None):
+    """
+        Perform a check to ensure a resource scenario's datasets are correct given what the
+        definition of that resource (its type) specifies.
+    """
     res = resourcescenario.resourceattr.get_resource()
 
     types = res.types
@@ -1038,6 +1054,135 @@ def _do_validate_resourcescenario(resourcescenario, type_id=None):
                 if ta.data_restriction:
                     validation_dict = eval(ta.data_restriction)
                     util.validate_value(validation_dict, dataset.get_val())
+
+def validate_network(network_id, template_id, scenario_id=None):
+    """
+        Given a network, scenario and template, ensure that all the nodes, links & groups
+        in the network have the correct resource attributes as defined by the types in the template.
+        Also ensure valid entries in tresourcetype.
+        This validation will not fail if a resource has more than the required type, but will fail if 
+        it has fewer or if any attribute has a conflicting dimension or unit.
+    """
+
+    network = DBSession.query(Network).filter(Network.network_id==network_id).options(noload('scenarios')).first()
+
+    if network is None:
+        raise HydraError("Could not find network %s"%(network_id))
+
+    resource_scenario_dict = {}
+    if scenario_id is not None:
+        scenario = DBSession.query(Scenario).filter(Scenario.scenario_id==scenario_id).first()
+
+        if scenario is None:
+            raise HydraError("Could not find scenario %s"%(scenario_id,))
+
+        for rs in scenario.resourcescenarios:
+            resource_scenario_dict[rs.resource_attr_id] = rs
+
+    template = DBSession.query(Template).filter(Template.template_id == template_id).options(joinedload_all('templatetypes')).first()
+
+    if template is None:
+        raise HydraError("Could not find template %s"%(template_id,))
+
+    resource_type_defs = {
+        'NETWORK' : {},
+        'NODE'    : {},
+        'LINK'    : {},
+        'GROUP'   : {},
+    }
+    for ta in template.templatetypes:
+        resource_type_defs[ta.resource_type][ta.type_id] = ta
+
+    errors = []
+    #Only check if there are type definitions for a network in the template.
+    if resource_type_defs.get('NETWORK'):
+        net_types = resource_type_defs['NETWORK']
+        errors.extend(_validate_resource(network, net_types, resource_scenario_dict))
+
+    #check all nodes
+    if resource_type_defs.get('NODE'):
+        node_types = resource_type_defs['NODE']
+        for node in network.nodes:
+            errors.extend(_validate_resource(node, node_types, resource_scenario_dict))
+
+    #check all links
+    if resource_type_defs.get('LINK'):
+        link_types = resource_type_defs['LINK']
+        for link in network.links:
+            errors.extend(_validate_resource(link, link_types, resource_scenario_dict))
+
+    #check all groups
+    if resource_type_defs.get('GROUP'):
+        group_types = resource_type_defs['GROUP']
+        for group in network.resourcegroups:
+            errors.extend(_validate_resource(group, group_types, resource_scenario_dict))
+
+    return errors
+
+def _validate_resource(resource, tmpl_types, resource_scenarios=[]):
+    errors = []
+    resource_type = None 
+    
+    type_ids = tmpl_types.keys()
+    
+    #No validation required if the link has no type.
+    if len(resource.types) == 0:
+        return []
+
+    for rt in resource.types:
+        if rt.type_id in type_ids:
+                resource_type = tmpl_types[rt.type_id]
+                break
+        else:
+            errors.append("Type %s not found on %s %s"%
+                          (tmpl_types, resource_type, resource.get_name()))
+
+    #Make sure the resource has all the attributes specified in the tempalte
+    #by checking whether the template attributes are a subset of the resource
+    #attributes.
+    type_attrs = set([ta.attr_id for ta in resource_type.typeattrs])
+    
+    resource_attrs = set([ra.attr_id for ra in resource.attributes])
+ 
+    if not type_attrs.issubset(resource_attrs):
+        for ta in type_attrs.difference(resource_attrs):
+            errors.append("Resource %s does not have attribute %s"%
+                          (resource.get_name(), ta.attr.attr_name))
+
+    ta_dict = {}
+    for ta in resource_type.typeattrs:
+        ta_dict[ta.attr_id] = ta
+
+    resource_attr_ids = set([ra.resource_attr_id for ra in resource.attributes])
+    #if data is included, check to make sure each dataset conforms
+    #to the boundaries specified in the template: i.e. that it has
+    #the correct dimension and (if specified) unit.
+    if len(resource_scenarios) > 0:
+        for ra_id in resource_attr_ids:
+            rs = resource_scenarios.get(ra_id)
+            if rs is None:
+                continue
+            attr_name = rs.resourceattr.attr.attr_name
+            rs_unit = rs.dataset.data_units
+            rs_dimension = rs.dataset.data_dimen
+            type_dimension = ta_dict[rs.resourceattr.attr_id].attr.attr_dimen
+            type_unit = ta_dict[rs.resourceattr.attr_id].unit
+            
+            if rs_dimension != type_dimension:
+                errors.append("Dimension mismatch on %s %s, attribute %s: "
+                              "%s on attribute, %s on type"%
+                             ( resource.ref_key, resource.get_name(), attr_name,
+                              rs_dimension, type_dimension))
+
+            if type_unit is not None:
+                if rs_unit != type_unit:
+                    errors.append("Unit mismatch on attribute %s. "
+                                  "%s on attribute, %s on type"%
+                                 (attr_name, rs_unit, type_unit))
+    if len(errors) > 0:
+        log.warn(errors)
+
+    return errors
 
 def get_network_as_xml_template(network_id,**kwargs):
     """
