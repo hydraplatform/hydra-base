@@ -780,6 +780,10 @@ def array_dict_to_list(arrdict):
         arr = []
         for arrdata in arrdict['array']:
             arr.append(array_dict_to_list(arrdata))
+    elif'arr_data' in arrdict.keys():
+        arr = []
+        for arrdata in arrdict['arr_data']:
+            arr.append(array_dict_to_list(arrdata))
     elif 'item' in arrdict.keys():
         arr = arrdict['item']
 
