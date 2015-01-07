@@ -838,7 +838,7 @@ class ResourceGroup(Base):
     
     network = relationship('Network', backref=backref("resourcegroups", order_by=group_id, cascade="all, delete-orphan"), lazy='joined')
     
-	def get_name(self):
+    def get_name(self):
         return self.group_name
 
     def add_attribute(self, attr_id, attr_is_var='N'):
