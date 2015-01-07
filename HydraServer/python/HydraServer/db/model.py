@@ -268,6 +268,7 @@ class DatasetCollectionItem(Base):
 
     collection_id = Column(Integer(), ForeignKey('tDatasetCollection.collection_id'), primary_key=True, nullable=False)
     dataset_id = Column(Integer(), ForeignKey('tDataset.dataset_id'), primary_key=True, nullable=False)
+    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     collection = relationship('DatasetCollection', backref=backref("items", order_by=dataset_id, cascade="all, delete-orphan"))
     dataset = relationship('Dataset', backref=backref("collectionitems", order_by=dataset_id))
@@ -326,6 +327,7 @@ class Template(Base):
 
     template_id = Column(Integer(), primary_key=True, nullable=False)
     template_name = Column(String(60),  nullable=False, unique=True)
+    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     layout = Column(Text(1000))
 
 class TemplateType(Base):
@@ -343,6 +345,7 @@ class TemplateType(Base):
     resource_type = Column(String(60))
     alias = Column(String(100))
     layout = Column(Text(1000))
+    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     template = relationship('Template', backref=backref("templatetypes", order_by=type_id, cascade="all, delete-orphan"))
 
@@ -359,6 +362,7 @@ class TypeAttr(Base):
     data_type          = Column(String(60))
     data_restriction   = Column(Text(1000))
     unit               = Column(String(60))
+    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     attr = relationship('Attr')
     templatetype = relationship('TemplateType',  backref=backref("typeattrs", order_by=attr_id, cascade="all, delete-orphan"))
@@ -389,6 +393,7 @@ class ResourceAttr(Base):
     link_id     = Column(Integer(),  ForeignKey('tLink.link_id'), index=True, nullable=True)
     group_id    = Column(Integer(),  ForeignKey('tResourceGroup.group_id'), index=True, nullable=True)
     attr_is_var = Column(String(1),  nullable=False, server_default=text(u"'N'"))
+    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     attr = relationship('Attr')
     project = relationship('Project', backref=backref('attributes', uselist=True, cascade="all, delete-orphan"), uselist=False)
@@ -443,6 +448,7 @@ class ResourceType(Base):
     node_id     = Column(Integer(),  ForeignKey('tNode.node_id'), nullable=True)
     link_id     = Column(Integer(),  ForeignKey('tLink.link_id'), nullable=True)
     group_id    = Column(Integer(),  ForeignKey('tResourceGroup.group_id'), nullable=True)
+    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
 
     templatetype = relationship('TemplateType', backref=backref('resourcetypes', uselist=True, cascade="all, delete-orphan"))
@@ -867,6 +873,8 @@ class ResourceGroupItem(Base):
     group_id = Column(Integer(), ForeignKey('tResourceGroup.group_id'))
     scenario_id = Column(Integer(), ForeignKey('tScenario.scenario_id'),  nullable=False)
 
+    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    
     group = relationship('ResourceGroup', foreign_keys=[group_id], backref=backref("items", order_by=group_id))
     scenario = relationship('Scenario', backref=backref("resourcegroupitems", order_by=item_id, cascade="all, delete-orphan"))
 
@@ -903,6 +911,7 @@ class ResourceScenario(Base):
     scenario_id = Column(Integer(), ForeignKey('tScenario.scenario_id'), primary_key=True, nullable=False, index=True)
     resource_attr_id = Column(Integer(), ForeignKey('tResourceAttr.resource_attr_id'), primary_key=True, nullable=False, index=True)
     source           = Column(String(60))
+    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     dataset      = relationship('Dataset', backref=backref("resourcescenarios", order_by=dataset_id))
     scenario     = relationship('Scenario', backref=backref("resourcescenarios", order_by=resource_attr_id, cascade="all, delete-orphan"))

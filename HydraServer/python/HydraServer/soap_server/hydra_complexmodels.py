@@ -187,7 +187,7 @@ class Dataset(HydraComplexModel):
         ('value',            AnyDict(min_occurs=1, default=None)),
         ('hidden',           Unicode(min_occurs=0, default='N', pattern="[YN]")),
         ('created_by',       Integer(min_occurs=0, default=None)),
-        ('created_at',       Unicode(min_occurs=0, default=None)),
+        ('cr_date',          Unicode(min_occurs=0, default=None)),
         ('metadata',         SpyneArray(Metadata, default=None)),
     ]
 
@@ -201,7 +201,7 @@ class Dataset(HydraComplexModel):
         self.type      = parent.data_type
         self.name      = parent.data_name
         self.created_by = parent.created_by
-        self.created_at = str(parent.cr_date)
+        self.cr_date    = str(parent.cr_date)
 
         self.dimension = parent.data_dimen
         self.unit      = parent.data_units
@@ -590,6 +590,7 @@ class DatasetCollection(HydraComplexModel):
         ('collection_name', Unicode(default=None)),
         ('collection_id'  , Integer(default=None)),
         ('dataset_ids',   SpyneArray(Integer)),
+        ('cr_date',       Unicode(default=None)),
     ]
 
     def __init__(self, parent=None):
@@ -599,6 +600,7 @@ class DatasetCollection(HydraComplexModel):
         self.collection_name = parent.collection_name
         self.collection_id   = parent.collection_id
         self.dataset_ids = [d.dataset_id for d in parent.items]
+        self.cr_date = str(parent.cr_date)
 
 class Attr(HydraComplexModel):
     """
@@ -607,6 +609,7 @@ class Attr(HydraComplexModel):
         ('id', Integer(default=None)),
         ('name', Unicode(default=None)),
         ('dimen', Unicode(default=None)),
+        ('cr_date', Unicode(default=None)),
     ]
 
     def __init__(self, parent=None):
@@ -616,6 +619,7 @@ class Attr(HydraComplexModel):
         self.id = parent.attr_id
         self.name = parent.attr_name
         self.dimen = parent.attr_dimen
+        self.cr_date = str(parent.cr_date)
 
 class ResourceScenario(HydraComplexModel):
     """
@@ -625,6 +629,7 @@ class ResourceScenario(HydraComplexModel):
         ('attr_id',          Integer(default=None)),
         ('value',            Dataset),
         ('source',           Unicode),
+        ('cr_date',       Unicode(default=None)),
     ]
 
     def __init__(self, parent=None, attr_id=None):
@@ -636,6 +641,7 @@ class ResourceScenario(HydraComplexModel):
 
         self.value = Dataset(parent.dataset)
         self.source = parent.source
+        self.cr_date = str(parent.cr_date)
 
 class ResourceAttr(HydraComplexModel):
     """
@@ -647,6 +653,7 @@ class ResourceAttr(HydraComplexModel):
         ('ref_key', Unicode(min_occurs=0, default=None)),
         ('attr_is_var', Unicode(min_occurs=0, default='N')),
         ('resourcescenario', ResourceScenario),
+        ('cr_date', Unicode(default=None)),
     ]
 
     def __init__(self, parent=None):
@@ -656,6 +663,7 @@ class ResourceAttr(HydraComplexModel):
         self.id = parent.resource_attr_id
         self.attr_id = parent.attr_id
         self.ref_key  = parent.ref_key
+        self.cr_date = str(parent.cr_date)
         if parent.ref_key == 'NETWORK':
             self.ref_id = parent.network_id
         elif parent.ref_key  == 'NODE':
@@ -692,6 +700,7 @@ class TypeAttr(HydraComplexModel):
         ('default_dataset_id', Integer(default=None)),
         ('data_restriction',   AnyDict(default=None)),
         ('is_var',             Unicode(default=None)),
+        ('cr_date',            Unicode(default=None)),
     ]
 
     def __init__(self, parent=None):
@@ -712,6 +721,7 @@ class TypeAttr(HydraComplexModel):
         self.data_type = parent.data_type
         self.unit      = parent.unit
         self.default_dataset_id = self.default_dataset_id
+        self.cr_date = str(parent.cr_date)
         if parent.data_restriction is not None:
             self.data_restriction = eval(parent.data_restriction)
             for k, v in self.data_restriction.items():
@@ -731,6 +741,7 @@ class TemplateType(HydraComplexModel):
         ('layout',      AnyDict(min_occurs=0, max_occurs=1, default=None)),
         ('template_id', Integer(min_occurs=1, default=None)),
         ('typeattrs',   SpyneArray(TypeAttr)),
+        ('cr_date',     Unicode(default=None)),
     ]
 
     def __init__(self, parent=None):
@@ -742,6 +753,7 @@ class TemplateType(HydraComplexModel):
         self.name      = parent.type_name
         self.alias     = parent.alias
         self.resource_type = parent.resource_type
+        self.cr_date = str(parent.cr_date)
         if parent.layout is not None:
             self.layout    = eval(parent.layout)
         else:
@@ -762,6 +774,7 @@ class Template(HydraComplexModel):
         ('name',      Unicode(default=None)),
         ('layout',    AnyDict(min_occurs=0, max_occurs=1, default=None)),
         ('types',     SpyneArray(TemplateType)),
+        ('cr_date',   Unicode(default=None)),
     ]
 
     def __init__(self, parent=None):
@@ -771,6 +784,7 @@ class Template(HydraComplexModel):
 
         self.name   = parent.template_name
         self.id     = parent.template_id
+        self.cr_date = str(parent.cr_date)
         if parent.layout is not None:
             self.layout    = eval(parent.layout)
         else:
@@ -862,6 +876,7 @@ class Node(Resource):
         ('status',      Unicode(default='A', pattern="[AX]")),
         ('attributes',  SpyneArray(ResourceAttr)),
         ('types',       SpyneArray(TypeSummary)),
+        ('cr_date',     Unicode(default=None)),
     ]
 
     def __init__(self, parent=None, summary=False):
@@ -876,6 +891,7 @@ class Node(Resource):
         self.x = parent.node_x
         self.y = parent.node_y
         self.description = parent.node_description
+        self.cr_date = str(parent.cr_date)
         if parent.node_layout not in (None, ""):
             self.layout    = eval(parent.node_layout)
         else:
@@ -900,6 +916,7 @@ class Link(Resource):
         ('status',      Unicode(default='A', pattern="[AX]")),
         ('attributes',  SpyneArray(ResourceAttr)),
         ('types',       SpyneArray(TypeSummary)),
+        ('cr_date',     Unicode(default=None)),
     ]
 
     def __init__(self, parent=None, summary=False):
@@ -914,6 +931,7 @@ class Link(Resource):
         self.node_1_id = parent.node_1_id
         self.node_2_id = parent.node_2_id
         self.description = parent.link_description
+        self.cr_date = str(parent.cr_date)
 
         if parent.link_layout not in (None, "") :
             self.layout    = eval(parent.link_layout)
@@ -945,6 +963,7 @@ class ResourceGroupItem(HydraComplexModel):
         ('ref_id',   Integer(default=None)),
         ('ref_key',  Unicode(default=None)),
         ('group_id', Integer(default=None)),
+        ('cr_date',     Unicode(default=None)),
     ]
 
     def __init__(self, parent=None):
@@ -954,6 +973,7 @@ class ResourceGroupItem(HydraComplexModel):
         self.id = parent.item_id
         self.group_id = parent.group_id
         self.ref_key = parent.ref_key
+        self.cr_date     = str(parent.cr_date)
         if self.ref_key == 'NODE':
             self.ref_id = parent.node_id
         elif self.ref_key == 'LINK':
@@ -972,6 +992,7 @@ class ResourceGroup(HydraComplexModel):
         ('status',      Unicode(default='A', pattern="[AX]")),
         ('attributes',  SpyneArray(ResourceAttr)),
         ('types',       SpyneArray(TypeSummary)),
+        ('cr_date',     Unicode(default=None)),
     ]
 
     def __init__(self, parent=None, summary=False):
@@ -985,6 +1006,7 @@ class ResourceGroup(HydraComplexModel):
         self.description = parent.group_description
         self.status      = parent.status
         self.network_id  = parent.network_id
+        self.cr_date     = str(parent.cr_date)
 
         self.types       = [TypeSummary(t.templatetype) for t in parent.types]
 
@@ -1051,6 +1073,7 @@ class Rule(HydraComplexModel):
         ('ref_key', Unicode),
         ('ref_id', Integer),
         ('text', Unicode),
+        ('cr_date', Unicode(default=None)),
     ]
 
     def __init__(self, parent=None):
@@ -1073,6 +1096,7 @@ class Rule(HydraComplexModel):
 
         self.scenario_id = parent.scenario_id
         self.text        = parent.rule_text
+        self.cr_date    = str(parent.cr_date)
 
 class Note(HydraComplexModel):
     """
@@ -1083,6 +1107,7 @@ class Note(HydraComplexModel):
         ('ref_id', Integer),
         ('text', Unicode),
         ('created_by', Integer),
+        ('cr_date', Integer),
     ]
 
     def __init__(self, parent=None):
@@ -1107,6 +1132,7 @@ class Note(HydraComplexModel):
 
         self.text        = parent.note_text
         self.created_by  = parent.created_by
+        self.cr_date     = str(parent.cr_date)
 
 
 class ResourceGroupDiff(HydraComplexModel):
