@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-from spyne.model.primitive import Integer, Boolean, Unicode, AnyDict, Decimal
+from spyne.model.primitive import Integer, Integer32, Boolean, Unicode, AnyDict, Decimal
 from spyne.model.complex import Array as SpyneArray
 from spyne.decorator import rpc
 from hydra_complexmodels import Descriptor,\
@@ -53,7 +53,7 @@ class DataService(HydraService):
         
         return Dataset(dataset_i)
 
-    @rpc(SpyneArray(Integer), _returns=SpyneArray(Dataset))
+    @rpc(SpyneArray(Integer32), _returns=SpyneArray(Dataset))
     def get_datasets(ctx, dataset_ids):
         """
             Get a list of datasets, by ID

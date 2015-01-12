@@ -695,9 +695,9 @@ class RetrievalTest(test_SoapServer.SoapServerTest):
         dataset_1 = self._make_timeseries()
         dataset_2 = self._make_timeseries()
 
-        dataset_ids = self.client.factory.create('integerArray')
-        dataset_ids.integer.append(dataset_1.id)
-        dataset_ids.integer.append(dataset_2.id)
+        dataset_ids = self.client.factory.create('intArray')
+        dataset_ids.int.append(dataset_1.id)
+        dataset_ids.int.append(dataset_2.id)
 
         retrieved_ds = self.client.service.get_datasets(dataset_ids)
         assert retrieved_ds is not None
