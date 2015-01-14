@@ -4,7 +4,7 @@ a = Analysis(['server.py'],
              hiddenimports=['spyne.service', 'sqlalchemy', 'cherrypy', 'cherrypy.wsgiserver', 'zope.sqlalchemy', 'zope.interface', 'numpy', 'numpy.linalg', 'winpaths'],
              hookspath=None,
              runtime_hooks=None,
-             excludes=['_tkinter'])
+             excludes=['_tkinter', 'IPython'])
 
 a.datas += [('HydraLib/static/unit_definitions.xml',
             '../HydraLib/static/unit_definitions.xml', 'DATA'), 

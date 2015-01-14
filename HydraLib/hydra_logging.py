@@ -81,6 +81,7 @@ def init(level=None):
         use_default = True
 
     if use_default is True:
+        print "Logging to %s"%log_loc
         logging_conf_dict = {
         'version': 1,
         'disable_existing_loggers': False,

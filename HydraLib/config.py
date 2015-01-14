@@ -56,12 +56,16 @@ def load_config():
     config = ConfigParser.ConfigParser(allow_no_value=True)
 
     for ini_file in repofiles:
+        print "Repofile: %s"%ini_file
         config.read(ini_file)
     for ini_file in sysfiles:
+        print "Sysfile: %s"%ini_file
         config.read(ini_file)
     for ini_file in userfiles:
+        print "Userfile: %s"%ini_file   
         config.read(ini_file)
     for ini_file in localfiles:
+        print "Localfile: %s"%ini_file
         config.read(ini_file)
 
     if os.name == 'nt':
