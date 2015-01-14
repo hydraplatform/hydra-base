@@ -1107,7 +1107,7 @@ class Note(HydraComplexModel):
         ('ref_id', Integer),
         ('text', Unicode),
         ('created_by', Integer),
-        ('cr_date', Integer),
+        ('cr_date', Unicode),
     ]
 
     def __init__(self, parent=None):
