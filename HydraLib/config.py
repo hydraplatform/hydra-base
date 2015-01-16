@@ -17,6 +17,7 @@ import os
 import glob
 import ConfigParser
 import sys
+import logging
 
 global CONFIG
 CONFIG = None
@@ -38,7 +39,7 @@ def load_config():
     every user."""
 
     global CONFIG
-
+    logging.basicConfig(level='INFO')
     #TODO: Check for the operating system we are running, provide search paths
     #      for Windows machines.
     modulepath = os.path.dirname(os.path.abspath(__file__))
@@ -56,16 +57,16 @@ def load_config():
     config = ConfigParser.ConfigParser(allow_no_value=True)
 
     for ini_file in repofiles:
-        print "Repofile: %s"%ini_file
+        logging.info("Repofile: %s"%ini_file)
         config.read(ini_file)
     for ini_file in sysfiles:
-        print "Sysfile: %s"%ini_file
+        logging.info("Sysfile: %s"%ini_file)
         config.read(ini_file)
     for ini_file in userfiles:
-        print "Userfile: %s"%ini_file   
+        logging.info("Userfile: %s"%ini_file)
         config.read(ini_file)
     for ini_file in localfiles:
-        print "Localfile: %s"%ini_file
+        logging.info("Localfile: %s"%ini_file)
         config.read(ini_file)
 
     if os.name == 'nt':

@@ -74,7 +74,7 @@ def init(level=None):
             use_default=False
             logging.info("Using logging config at %s", config_file)
         else:
-            logging.critical("No logging config file found!")
+            logging.info("No logging config file found. Using default settings.")
             use_default = True
     except Exception, e:
         logging.critical("Error finding logging conf file: %s", e)
@@ -176,7 +176,7 @@ class ColorizingStreamHandler(logging.StreamHandler):
     else:
         level_map = {
             logging.DEBUG: (None, 'cyan', False),
-            logging.INFO: (None, 'blue', False),
+            logging.INFO: (None, 'white', False),
             logging.WARNING: (None, 'yellow', False),
             logging.ERROR: (None, 'red', False),
             logging.CRITICAL: ('red', 'white', True),
