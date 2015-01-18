@@ -368,7 +368,10 @@ def validate_resource_attributes(resource, attributes, template, check_unit=True
 
             tmpl_attr = tmpl_attrs[attr['name']]
 
-            if attr.get('dimen') != tmpl_attr.get('dimension'):
+            attr_dimen = "" if attr.get('dimen') is None else attr.get('dimen')
+            tmpl_attr_dimen = "" if tmpl_attr.get('dimension') is None else tmpl_attr.get('dimension')
+            
+            if attr_dimen.lower() != tmpl_attr_dimen.lower():
                 errors.append("Dimension mismatch for resource %s on attribute %s (template says %s, data says %s)"%(attr.get('name'), resource['name'], tmpl_attr.get('dimension'), attr.get('dimen')))
 
             if check_unit is True:

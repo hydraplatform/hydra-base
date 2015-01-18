@@ -44,15 +44,15 @@ def load_config():
     #      for Windows machines.
     modulepath = os.path.dirname(os.path.abspath(__file__))
 
-    localfiles = glob.glob(os.getcwd() + '/*.ini')
-    userfiles = glob.glob(os.path.expanduser('~') + '/.config/hydra/*.ini')
-    sysfiles = glob.glob('/etc/hydra/*.ini')
-    repofiles = glob.glob(modulepath + '/../config/*.ini')
+    localfiles = glob.glob(os.getcwd() + '/hydra.ini')
+    userfiles = glob.glob(os.path.expanduser('~') + '/.config/hydra/hydra.ini')
+    sysfiles = glob.glob('/etc/hydra/hydra.ini')
+    repofiles = glob.glob(modulepath + '/../config/hydra.ini')
 
     if os.name == 'nt':
         import winpaths
         userfiles = glob.glob(os.path.expanduser('~') + '/AppData/Local/hydra.ini')
-        sysfiles = glob.glob(winpaths.get_common_documents() + '/Hydra/*.ini')
+        sysfiles = glob.glob(winpaths.get_common_documents() + '/Hydra/hydra.ini')
     
     config = ConfigParser.ConfigParser(allow_no_value=True)
 
