@@ -353,6 +353,10 @@ def validate_resource_attributes(resource, attributes, template, check_unit=True
     for a in attributes.values():
         attrs[a['id']] = a
 
+    for a in tmpl_attrs.values():
+        if a.get('id'):
+            attrs[a['id']] = {'name':a['name'], 'unit':a.get('unit'), 'dimen':a.get('dimension')}
+
     resource_attributes = {}
     #Check that each of the attributes specified on the resource are valid.
     for res_attr in resource['attributes']:
@@ -362,7 +366,8 @@ def validate_resource_attributes(resource, attributes, template, check_unit=True
 
         #If an attribute is not specified in the template, then throw an error
         if tmpl_attrs.get(attr['name']) is None:
-            errors.append("Resource %s has defined attribute %s but this is not specified in the Template."%(resource['name'], attr['name']))
+            errors.append("Resource %s has defined attribute %s but this is not"
+                          " specified in the Template."%(resource['name'], attr['name']))
         else:
             #If the dimensions or units don't match, throw an error
 
@@ -372,7 +377,10 @@ def validate_resource_attributes(resource, attributes, template, check_unit=True
             tmpl_attr_dimen = "" if tmpl_attr.get('dimension') is None else tmpl_attr.get('dimension')
             
             if attr_dimen.lower() != tmpl_attr_dimen.lower():
-                errors.append("Dimension mismatch for resource %s on attribute %s (template says %s, data says %s)"%(attr.get('name'), resource['name'], tmpl_attr.get('dimension'), attr.get('dimen')))
+                errors.append("Dimension mismatch on resource %s for attribute %s"
+                              " (template says %s, data says %s)"%
+                              (resource['name'], attr.get('name'), 
+                               tmpl_attr.get('dimension'), attr.get('dimen')))
 
             if check_unit is True:
                 if tmpl_attr.get('unit') is not None:

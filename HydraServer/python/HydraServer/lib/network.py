@@ -39,13 +39,15 @@ def _update_attributes(resource_i, attributes):
     if attributes is None:
         return dict()
     attrs = {}
+    attr_id_map = dict([(ra_i.resource_attr_id, ra_i) for ra_i in resource_i.attributes])
+
     #ra is for ResourceAttr
     for ra in attributes:
 
         if ra.id < 0:
             ra_i = resource_i.add_attribute(ra.attr_id, ra.attr_is_var)
         else:
-            ra_i = DBSession.query(ResourceAttr).filter(ResourceAttr.resource_attr_id==ra.id).one()
+            ra_i = attr_id_map[ra.id]
             ra_i.attr_is_var = ra.attr_is_var
         attrs[ra.id] = ra_i
 
@@ -724,7 +726,7 @@ def update_network(network,**kwargs):
     """
         Update an entire network
     """
-
+    log.info("Updating Network %s", network.name)
     user_id = kwargs.get('user_id')
     #check_perm('update_network')
 
@@ -744,83 +746,98 @@ def update_network(network,**kwargs):
 
     #Maps temporary node_ids to real node_ids
     node_id_map = dict()
-
+    
     if network.nodes is not None:
+        log.info("Updating nodes")
+        t0 = time.time()
         #First add all the nodes
+        node_id_map = dict([(n.node_id, n) for n in net_i.nodes])
         for node in network.nodes:
-
             #If we get a negative or null node id, we know
             #it is a new node.
             if node.id is not None and node.id > 0:
-                n = DBSession.query(Node).filter(Node.node_id==node.id).one()
+                n = node_id_map[node.id]
                 n.node_name        = node.name
                 n.node_description = node.description
                 n.node_x           = node.x
                 n.node_y           = node.y
                 n.status           = node.status
             else:
+                log.info("Adding new node %s", node.name)
                 n = net_i.add_node(node.name,
                                    node.description,
                                    node.layout,
                                    node.x,
                                    node.y)
                 net_i.nodes.append(n)
+                node_id_map[n.id] = n
+
             all_resource_attrs.update(_update_attributes(n, node.attributes))
             add_resource_types(n, node.types)
-
-            node_id_map[node.id] = n
+        log.info("Updating nodes took %s", time.time() - t0)
 
     link_id_map = dict()
     if network.links is not None:
+        log.info("Updating links")
+        t0 = time.time()
+        link_id_map = dict([(l.link_id, l) for l in net_i.links])
         for link in network.links:
             node_1 = node_id_map[link.node_1_id]
 
             node_2 = node_id_map[link.node_2_id]
 
             if link.id is None or link.id < 0:
+                log.info("Adding new link %s", link.name)
                 l = net_i.add_link(link.name,
                                    link.description,
                                    link.layout,
                                    node_1,
                                    node_2)
                 net_i.links.append(l)
+                link_id_map[link.id] = l
             else:
-                l = DBSession.query(Link).filter(Link.link_id==link.id).one()
+                l = link_id_map[link.id]
                 l.link_name       = link.name
                 l.link_descripion = link.description
                 l.node_a          = node_1
                 l.node_b          = node_2
+                
 
             all_resource_attrs.update(_update_attributes(l, link.attributes))
             add_resource_types(l, link.types)
-            link_id_map[link.id] = l
+        log.info("Updating links took %s", time.time() - t0)
 
     group_id_map = dict()
-
     #Next all the groups
     if network.resourcegroups is not None:
+        log.info("Updating groups")
+        t0 = time.time()
+        group_id_map = dict([(g.group_id, g) for g in net_i.resourcegroups])
         for group in network.resourcegroups:
-
             #If we get a negative or null group id, we know
             #it is a new group.
             if group.id is not None and group.id > 0:
-                g_i = DBSession.query(ResourceGroup).filter(ResourceGroup.group_id==group.id).one()
+                g_i = group_id_map[group.id]
                 g_i.group_name        = group.name
                 g_i.group_description = group.description
                 g_i.status           = group.status
             else:
+                log.info("Adding new group %s", link.name)
                 g_i = net_i.add_group(group.name,
                                    group.description,
                                    group.status)
                 net_i.resourcegroups.append(net_i)
+                group_id_map[g_i.group_id] = g_i
 
             all_resource_attrs.update(_update_attributes(g_i, group.attributes))
             add_resource_types(g_i, group.types)
-
             group_id_map[group.id] = g_i
+        log.info("Updating groups took %s", time.time() - t0)
+
     errors = []
     if network.scenarios is not None:
         for s in network.scenarios:
+            add_scenario = False
             if s.id is not None:
                 if s.id > 0:
                     try:
@@ -828,63 +845,23 @@ def update_network(network,**kwargs):
                         if scen_i.locked == 'Y':
                             errors.append('Scenario %s was not updated as it is locked'%(s.id))
                             continue
+
+                        scenario.update_scenario(s, **kwargs)
                     except NoResultFound:
                         raise ResourceNotFoundError("Scenario %s not found"%(s.id))
                 else:
-                    scen_i = Scenario()
-                    scen_i.created_by = user_id
-                    scenario_id = get_scenario_by_name(network.id, s.name)
-                    if scenario_id:
-                        scen_i.name = s.name + "update" + str(datetime.datetime.now())
-                    net_i.scenarios.append(scen_i)
+                    add_scenario = True
             else:
-                scen_i = Scenario()
-                scen_i.created_by = user_id
-                net_i.scenarios.append(scen_i)
+                add_scenario = True
 
-            start_time = str(timestamp_to_ordinal(s.start_time)) if s.start_time else None
-            end_time   = str(timestamp_to_ordinal(s.end_time)) if s.end_time else None
-
-            scen_i.scenario_name        = s.name
-            scen_i.scenario_description = s.description
-            scen_i.scenario_layout      = s.get_layout()
-            scen_i.start_time           = start_time 
-            scen_i.end_time             = end_time
-            scen_i.time_step            = s.time_step
-            scen_i.network_id           = net_i.network_id
-
-            if s.resourcescenarios is not None:
-                for r_scen in s.resourcescenarios:
-                    if r_scen.resource_attr_id < 0:
-                        r_scen.resource_attr_id = all_resource_attrs[r_scen.resource_attr_id].resource_attr_id
-                    scenario._update_resourcescenario(scen_i, r_scen, user_id=user_id, source=kwargs.get('app_name'))
-                    DBSession.flush()
-
-            if s.resourcegroupitems is not None:
-                for group_item in s.resourcegroupitems:
-
-                    if group_item.id and group_item.id > 0:
-                        group_item_i = DBSession.query(ResourceGroupItem).filter(
-                                    ResourceGroupItem.item_id==group_item.id).one()
-                    else:
-                        group_item_i = ResourceGroupItem()
-                        group_item_i.group_id = group_id_map[group_item.group_id].group_id
-                        scen_i.resourcegroupitems.append(group_item_i)
-
-                    group_item_i.ref_key = group_item.ref_key
-                    if group_item.ref_key == 'NODE':
-                        group_item_i.node = node_id_map.get(group_item.ref_id)
-                    elif group_item.ref_key == 'LINK':
-                        group_item_i.link = link_id_map.get(group_item.ref_id)
-                    elif group_item.ref_key == 'GROUP':
-                        group_item_i.subgroup = group_id_map.get(group_item.ref_id)
-                    else:
-                        raise HydraError("A ref key of %s is not valid for a "
-                                         "resource group item."%group_item.ref_key)
+            if add_scenario is True:
+                log.info("Adding new scenario %s to network", s.name)
+                scenario.add_scenario(network.id, s, **kwargs)
 
     DBSession.flush()
 
-    return net_i
+    updated_net = get_network(network.id, summary=True, **kwargs)
+    return updated_net
 
 def set_network_status(network_id,status,**kwargs):
     """

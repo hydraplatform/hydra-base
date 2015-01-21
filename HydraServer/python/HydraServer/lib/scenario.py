@@ -39,8 +39,7 @@ log = logging.getLogger(__name__)
 
 def _check_network_ownership(network_id, user_id):
     try:
-        netowner = DBSession.query(NetworkOwner).filter(NetworkOwner.network_id==network_id
-                                                         and NetworkOwner.user_id==user_id).one()
+        netowner = DBSession.query(NetworkOwner).filter(NetworkOwner.network_id==network_id, NetworkOwner.user_id==user_id).one()
         if netowner.edit == 'N':
             raise PermissionError("Permission denied."
                                 " User %s cannot edit network %s"%(user_id,network_id))
@@ -214,6 +213,11 @@ def update_scenario(scenario,**kwargs):
     scen.start_time           = str(timestamp_to_ordinal(scenario.start_time)) if scenario.start_time else None
     scen.end_time             = str(timestamp_to_ordinal(scenario.end_time)) if scenario.end_time else None
     scen.time_step            = scenario.time_step
+
+    if scenario.resourcescenarios == None:
+        scenario.resourcescenarios = []
+    if scenario.resourcegroupitems == None:
+        scenario.resourcegroupitems = []
 
     datasets = [rs.value for rs in scenario.resourcescenarios]
     updated_datasets = data._bulk_insert_data(datasets, user_id, kwargs.get('app_name')) 
