@@ -309,7 +309,7 @@ class Units(object):
         with open(user_unitfile, 'w') as f:
             f.write(etree.tostring(self.usertree, pretty_print=True))
 
-def validate_resource_attributes(resource, attributes, template, check_unit=True):
+def validate_resource_attributes(resource, attributes, template, check_unit=True, exact_match=False):
     """
         Validate that the resource provided matches the template.
         Only passes if the resource contains ONLY the attributes specified
@@ -317,6 +317,14 @@ def validate_resource_attributes(resource, attributes, template, check_unit=True
 
         The template should take the form of a dictionary, as should the
         resources.
+
+        *check_unit*:  Make sure that if a unit is specified in the template, it 
+                     is the same in the data 
+        *exact_match*: Enure that all the attributes in the template are in 
+                     the data also. By default this is false, meaning a subset 
+                     of the template attributes may be specified in the data.
+                     An attribute specified in the data *must* be defined in 
+                     the template.
 
         @returns a list of error messages. An empty list indicates no
         errors were found.
@@ -341,7 +349,7 @@ def validate_resource_attributes(resource, attributes, template, check_unit=True
     if res_user_type is None:
         errors.append("No type specified on resource %s"%(resource['name']))
 
-
+    elif tmpl_res.get(res_user_type) is None:
         errors.append("Resource %s is defined as having type %s but "
                       "this type is not specified in the template."%
                       (resource['name'], res_user_type))
@@ -357,12 +365,36 @@ def validate_resource_attributes(resource, attributes, template, check_unit=True
         if a.get('id'):
             attrs[a['id']] = {'name':a['name'], 'unit':a.get('unit'), 'dimen':a.get('dimension')}
 
-    resource_attributes = {}
+    if exact_match is True:
+        #Check that all the attributes in the template are in the data.
+        #get all the attribute names from the template
+        tmpl_attr_names = set(tmpl_attrs.keys())
+        #get all the attribute names from the data for this resource
+        resource_attr_names = []
+        for ra in resource['attributes']:
+            attr_name = attrs[ra['attr_id']]['name']
+            resource_attr_names.append(attr_name)
+        resource_attr_names = set(resource_attr_names)
+
+        #Compare the two lists to ensure they are the same (using sets is easier)
+        in_tmpl_not_in_resource = tmpl_attr_names - resource_attr_names
+        in_resource_not_in_tmpl = resource_attr_names - tmpl_attr_names
+
+        if len(in_tmpl_not_in_resource) > 0:
+            errors.append("Template has defined attributes %s for type %s but they are not"
+                            " specified in the Data."%(','.join(in_tmpl_not_in_resource),
+                                                    res_user_type ))
+
+        if len(in_resource_not_in_tmpl) > 0:
+            errors.append("Resource %s (type %s) has defined attributes %s but this is not"
+                            " specified in the Template."%(resource['name'],
+                                                        res_user_type,
+                                                        ','.join(in_resource_not_in_tmpl)))
+
     #Check that each of the attributes specified on the resource are valid.
     for res_attr in resource['attributes']:
 
         attr = attrs[res_attr['attr_id']]
-        resource_attributes[attr['name']] = attr
 
         #If an attribute is not specified in the template, then throw an error
         if tmpl_attrs.get(attr['name']) is None:

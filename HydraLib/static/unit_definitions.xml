@@ -17,7 +17,7 @@
 -->
 <UNITS>
     <dimension name="Length">
-        <unit name="ångström"           abbr="Å"      lf="1e-10"             cf="0" info="Angstrom sometimes used expressing the size of atoms, and lengths of chemical bonds and visible-light spectra." />
+        <unit name="angstrÃ¶m"           abbr="Ã…"      lf="1e-10"             cf="0" info="Angstrom sometimes used expressing the size of atoms, and lengths of chemical bonds and visible-light spectra." />
         <unit name="astronomical unit"  abbr="AU"       lf="149598550000"      cf="0" info="Is a unit of length approximately equal to the distance from the Earth to the Sun."/>
         <unit name="centimetre"         abbr="cm"       lf="0.01"              cf="0" />
         <unit name="decimetre"          abbr="dm"       lf="0.1"               cf="0" />
