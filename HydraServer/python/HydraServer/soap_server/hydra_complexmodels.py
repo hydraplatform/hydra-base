@@ -333,6 +333,11 @@ class Dataset(HydraComplexModel):
             if len(arr_data) == 1:
                 if arr_data[0].get('item'):
                     for v in arr_data[0].get('item'):
+
+                        #an empty dict is the equivalent to receiving null
+                        if v == {}:
+                            v = ''
+
                         try:
                             ret_arr.append(eval(v))
                         except:

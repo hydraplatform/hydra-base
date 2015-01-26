@@ -34,6 +34,8 @@ from HydraLib.util import create_dict
 from decimal import Decimal
 import copy
 
+import json
+
 import units as hydra_units
 
 global FORMAT
@@ -638,6 +640,36 @@ def _get_existing_data(hashes):
 
     return hash_dict
 
+def _get_datasets(dataset_ids):
+
+
+    dataset_dict = {}
+
+    datasets = []
+    if len(dataset_ids) > qry_in_threshold:
+        idx = 0
+        extent =qry_in_threshold 
+        while idx < len(dataset_ids):
+            log.info("Querying %s datasets", len(dataset_ids[idx:extent]))
+            rs = DBSession.query(Dataset).filter(Dataset.dataset_id.in_(dataset_ids[idx:extent])).all()
+            datasets.extend(rs)
+            idx = idx + qry_in_threshold 
+            
+            if idx + qry_in_threshold > len(dataset_ids):
+                extent = len(dataset_ids)
+            else:
+                extent = extent + qry_in_threshold 
+    else:
+        datasets = DBSession.query(Dataset).filter(Dataset.dataset_id.in_(dataset_ids))
+
+
+    for r in datasets:
+        dataset_dict[r.dataset_id] = r
+
+    log.info("Retrieved %s datasets", len(dataset_dict))
+
+    return dataset_dict
+
 def get_all_dataset_collections(**kwargs):
     all_collections = DBSession.query(DatasetCollection).all()
 
@@ -711,6 +743,31 @@ def get_val_at_time(dataset_id, timestamps,**kwargs):
     dataset = {'data': data}
 
     return dataset
+
+def get_multiple_vals_at_time(dataset_ids, timestamps,**kwargs):
+    """
+    Given a timestamp (or list of timestamps) and a list of timeseries datasets,
+    return the values appropriate to the requested times.
+
+    If the timestamp is before the start of the timeseries data, return
+    None If the timestamp is after the end of the timeseries data, return
+    the last value.  """
+    
+    datasets = _get_datasets(dataset_ids)
+    datetimes = []
+    for time in timestamps:
+        datetimes.append(get_datetime(time))
+   
+    return_vals = {}
+    for dataset_i in datasets.values():
+        data = dataset_i.get_val(timestamp=datetimes)
+        ret_data = {}
+        if type(data) is list:
+            for i, t in enumerate(timestamps):
+                ret_data[t] = data[i]
+        return_vals['dataset_%s'%dataset_i.dataset_id] = json.dumps(ret_data)
+
+    return return_vals
 
 def get_vals_between_times(dataset_id, start_time, end_time, timestep,increment,**kwargs):
     """

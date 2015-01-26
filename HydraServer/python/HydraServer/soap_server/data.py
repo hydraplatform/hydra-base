@@ -248,6 +248,13 @@ class DataService(HydraService):
         return data.get_val_at_time(dataset_id, 
                                     timestamps,
                                     **ctx.in_header.__dict__)
+    
+    @rpc(Integer32(min_occurs=0, max_occurs='unbounded'), Unicode(min_occurs=0, max_occurs='unbounded'), _returns=AnyDict)
+    def get_multiple_vals_at_time(ctx, dataset_ids, timestamps):
+        result = data.get_multiple_vals_at_time(dataset_ids, 
+                                    timestamps,
+                                    **ctx.in_header.__dict__)
+        return result
 
     @rpc(Integer,Unicode,Unicode,Unicode(values=['seconds', 'minutes', 'hours', 'days', 'months']), Decimal(default=1),_returns=AnyDict)
     def get_vals_between_times(ctx, dataset_id, start_time, end_time, timestep, increment):

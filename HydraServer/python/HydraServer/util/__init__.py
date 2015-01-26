@@ -81,10 +81,20 @@ def get_val(dataset, timestamp=None):
                 #Replace all numpy NAN values with None
                 pandas_ts = pandas_ts.where(pandas_ts.notnull(), None)
 
-                if type(timestamp) is list and len(timestamp) == 1:
-                    ret_val = pandas_ts.loc[timestamp[0]].values.tolist()
+                val_is_array = False
+                if len(pandas_ts.columns) > 1:
+                    val_is_array = True
+
+                if val_is_array:
+                    if type(timestamp) is list and len(timestamp) == 1:
+                        ret_val = pandas_ts.loc[timestamp[0]].values.tolist()
+                    else:
+                        ret_val = pandas_ts.loc[timestamp].values.tolist()
                 else:
-                    ret_val = pandas_ts.loc[timestamp].values.tolist()
+                    if type(timestamp) is list and len(timestamp) == 1:
+                        ret_val = pandas_ts.loc[timestamp[0]][0]
+                    else:
+                        ret_val = pandas_ts.loc[timestamp][0].values.tolist()
 
                 return ret_val
 

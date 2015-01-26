@@ -22,6 +22,7 @@ import logging
 from HydraLib.PluginLib import parse_suds_array, create_dict
 from HydraLib.util import parse_array
 from suds import WebFault
+import json
 log = logging.getLogger(__name__)
 
 class TimeSeriesTest(test_SoapServer.SoapServerTest):
@@ -168,6 +169,69 @@ class TimeSeriesTest(test_SoapServer.SoapServerTest):
             x = parse_suds_array(val_a)
             y = parse_suds_array(val)
             assert x == y
+
+
+    def test_multiple_vals_at_time(self):
+        net = self.build_network()
+
+        relative_ts = self.create_seasonal_timeseries()
+
+        s = net['scenarios'].Scenario[0]
+        for rs in s['resourcescenarios'].ResourceScenario:
+            if rs['value']['type'] == 'timeseries':
+                rs['value']['value'] = relative_ts
+        
+        new_network_summary = self.client.service.add_network(net)
+        new_net = self.client.service.get_network(new_network_summary.id)
+        
+        scenario = new_net.scenarios.Scenario[0]
+        val_to_query = None
+        for d in scenario.resourcescenarios.ResourceScenario:
+            if d.value.type == 'timeseries':
+                val_to_query = d.value
+                break
+
+        val_a = val_to_query.value.ts_values[2].ts_value
+
+        qry_times =             [
+            datetime.datetime(2000, 01, 10, 00, 00, 00),
+            datetime.datetime(2000, 02, 10, 00, 00, 00),
+            datetime.datetime(2000, 03, 10, 00, 00, 00),
+            datetime.datetime(2000, 10, 10, 00, 00, 00),
+            ]
+
+
+        seasonal_vals = self.client.service.get_multiple_vals_at_time(
+            val_to_query.id,
+            qry_times,
+           )
+
+        return_val = json.loads(seasonal_vals['dataset_%s'%val_to_query.id])
+
+        assert return_val[str(qry_times[0])] == parse_suds_array(val_to_query.value.ts_values[0].ts_value)
+        assert return_val[str(qry_times[1])] == parse_suds_array(val_to_query.value.ts_values[1].ts_value)
+        assert return_val[str(qry_times[2])] == parse_suds_array(val_to_query.value.ts_values[2].ts_value)
+        assert return_val[str(qry_times[3])] == parse_suds_array(val_to_query.value.ts_values[2].ts_value)
+        
+        start_time = datetime.datetime(2000, 07, 10, 00, 00, 00)
+        vals = self.client.service.get_vals_between_times(
+            val_to_query.id,
+            start_time,
+            start_time + datetime.timedelta(minutes=75),
+            'minutes',
+            1,
+            )
+
+
+        data = vals.data
+        assert len(data) == 76
+        for val in data:
+            x = parse_suds_array(val_a)
+            y = parse_suds_array(val)
+            assert x == y
+
+
+
 
 
 
