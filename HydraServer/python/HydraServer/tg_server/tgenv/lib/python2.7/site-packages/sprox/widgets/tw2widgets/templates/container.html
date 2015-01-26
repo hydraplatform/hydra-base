@@ -1,0 +1,7 @@
+<div xmlns:py="http://genshi.edgewall.org/"
+    class="${w.css_class}"
+    py:attrs='w.attrs'>
+<py:for each="child in w.children">
+    ${child.display(displays_on='genshi', value=w.value, controller=w.controller)}
+</py:for>
+</div>

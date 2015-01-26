@@ -1,0 +1,29 @@
+{% extends "master.jinja" %}
+
+{% block master_title %}
+{{ tmpl_context.title }} - Edit {{ model }}
+{% endblock %}
+
+{% block master_head %}
+{% endblock %}
+
+{% block contents %}
+  <div class="row">
+    <div class="col-md-2">
+      {% if tmpl_context.menu_items is defined %}
+        <ul class="nav crud-sidebar hidden-xs hidden-sm">
+          {% for lower, item in tmpl_context.menu_items.items()|sort %}
+            <li class="{{item==model and 'active' or ''}}">
+                <a href="{{tmpl_context.crud_helpers.make_link(lower, pk_count or 1)}}">{{item}}</a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+
+    <div class="col-md-10">
+      <h1 class="page-header">Edit {{model}}</h1>
+      {{ tmpl_context.widget(value=value, action='./')|safe }}
+    </div>
+  </div>
+{% endblock %}

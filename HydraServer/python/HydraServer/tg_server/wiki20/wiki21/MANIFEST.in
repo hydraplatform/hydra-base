@@ -1,0 +1,4 @@
+recursive-include wiki21/public *
+include wiki21/public/favicon.ico
+recursive-include wiki21/i18n *
+recursive-include wiki21/templates *

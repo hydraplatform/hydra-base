@@ -1,0 +1,33 @@
+<div xmlns="http://www.w3.org/1999/xhtml"
+       xmlns:py="http://genshi.edgewall.org/">
+<table id="${id}" class="${css_class}">
+    <thead py:if="columns">
+        <tr>
+            <th py:for="i, col in enumerate(columns)" class="col_${i}">
+            ${col.title}
+            </th>
+        </tr>
+    </thead>
+    <tbody>
+
+        <tr py:if="value"
+            py:for="i, row in enumerate(value)"
+            class="${i%2 and 'odd' or 'even'}">
+            
+            <td py:for="j, col in enumerate(columns)" class="col_${j}">
+                <py:choose test="col.title == 'actions' or col.title in xml_fields">
+                    <py:when test="True">
+                        ${Markup(col.get_field(row, displays_on='genshi'))}
+                    </py:when>
+                    <py:otherwise>
+                        ${col.get_field(row, displays_on='genshi')}
+                    </py:otherwise>
+                </py:choose>
+            </td>
+        </tr>
+    </tbody>
+</table>
+    <py:if test="not value">
+      No Records Found.
+    </py:if>
+</div>

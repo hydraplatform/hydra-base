@@ -1,0 +1,11 @@
+[toscawidgets]
+        # Use 'widgets' to point to the module where widgets should be imported
+        # from to register in the widget browser
+        widgets = sprox.widgets
+        # Use 'samples' to point to the module where widget examples
+        # should be imported from to register in the widget browser
+        # samples = tw.samples
+        # Use 'resources' to point to the module where resources
+        # should be imported from to register in the widget browser
+        #resources = sprox.widgets.resources
+       

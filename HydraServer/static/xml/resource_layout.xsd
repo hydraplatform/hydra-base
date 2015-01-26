@@ -1,0 +1,16 @@
+ <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+     <xs:element name="resource_layout">
+         <xs:complexType>
+             <xs:sequence>
+                <xs:element name="layout" minOccurs="1" maxOccurs="unbounded">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="name"  type="xs:string"/>
+                            <xs:element name="value" type="xs:string"/>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+             </xs:sequence>
+         </xs:complexType>
+     </xs:element>
+ </xs:schema>

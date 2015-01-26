@@ -46,13 +46,10 @@ The server can now be run in the commandline::
 Installing Python
 -----------------
 Several installations of python are available.
-The one we recommend is PythonXY:
-http://code.google.com/p/pythonxy/wiki/Downloads
+The one we recommend is `PythonXY http://code.google.com/p/pythonxy/wiki/Downloads`_
 
 Some of the libraries may require you to install them from source. This means
-running a setup python file in a zip file you have downloaded. To ensure you can unzip the files correctly, make sure you have an unzip program installed like:
-
-PeaZip: http://peazip.sourceforge.net/
+running a setup python file in a zip file you have downloaded. To ensure you can unzip the files correctly, make sure you have an unzip program installed like `PeaZip: http://peazip.sourceforge.net/`_
 
 .. _pip:
 
@@ -73,10 +70,19 @@ Spyne
 ******
 Spyne is the SOAP server library.
 
+*edit*: The spyne library has a small bug, which needs to be fixed in order
+to work with plugins. The fixed version is available here. To install it, you
+need to download the zip file on the right hand side of this page: https://github.com/knoxsp/spyne
+
+Open up this zip file somewhere and navigate to this directory in the command line.
+THen type 'python setup.py install' or read the Read me.
+
+If this does not work and you want to install the base version of spyne, do the
+following:
+
 In the command prompt, type:
 
 pip install spyne
-
 
 Should this fail, you must install it from source. Don't worry. It's easy.
 The source is available at: www.spyne.io
@@ -132,3 +138,46 @@ MySql Connector
 Navigate to: http://dev.mysql.com/downloads/connector/python/
 
 Click on 'Download' of the MSI installer appropriate for your windows installation.
+
+SqlAlchemy
+**********
+Try:
+pip install sqlalchemy
+
+We use sqlalchemy to provide database connections and manage the database communication.  
+
+zope.sqlalchemy
+***************
+Try:
+pip install zope.sqlalchemy
+
+The aim of this package is to unify the plethora of existing packages integrating SQLAlchemy with Zope's transaction management. As such it seeks only to provide a data manager and makes no attempt to define a zopeish way to configure engines.
+
+Pandas
+******
+Try:
+pip install pandas
+
+Pandas allows us to manipulate and store timeseries and arrays in a very efficient and flexible way.
+
+winpaths 
+********
+Try:
+pip install winpaths
+
+winpaths is a python module that retrieves the names of common Windows folders.
+
+CherryPy
+*********
+Try:
+pip install cherrypy
+
+CherryPy allows developers to build web applications in much the same way they would build any other object-oriented Python program.
+
+python-dateutil
+****************
+Try: 
+pip install python-dateutil
+
+The dateutil module provides powerful extensions to the standard datetime module.
+

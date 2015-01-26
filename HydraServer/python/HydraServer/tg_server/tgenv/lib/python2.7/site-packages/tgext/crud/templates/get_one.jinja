@@ -1,0 +1,22 @@
+{% extends "master.jinja" %}
+
+{% block master_title %}
+{{ tmpl_context.title }} - {{ model }} View
+{% endblock %}
+
+{% block master_head %}
+{% endblock %}
+
+{% block contents %}
+<div id="getting_started">
+    &nbsp;
+    <div>
+        <h1>{{ model }} Listing</h1>
+    </div>
+    <div>
+        <a href='new/'>New</a> {{ model }}
+    </div>
+    <br/>
+    {{ tmpl_context.widget()|safe }}
+</div>
+{% endblock %}

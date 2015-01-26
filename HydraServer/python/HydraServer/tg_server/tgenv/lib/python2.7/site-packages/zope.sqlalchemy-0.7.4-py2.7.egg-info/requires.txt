@@ -1,0 +1,7 @@
+setuptools
+SQLAlchemy>=0.5.1
+transaction
+zope.interface>=3.6.0
+
+[test]
+zope.testing

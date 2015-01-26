@@ -1,0 +1,41 @@
+<form xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:py="http://genshi.edgewall.org/"
+    id="${id}"
+    name="${name}"
+    action="${action}"
+    method="${method}"
+    class="${css_class}"
+    py:attrs='value_of("attrs", "")'
+>
+    <div>
+    <div py:if="defined('error_mesage')" style="border:black 1px; color:red; align:center;">${error_message}</div>
+        <div py:for="field in hidden_fields"
+             py:with="error=error_for(field)"
+             py:strip="True">
+            <span py:replace="field.display(value_for(field), **args_for(field))" />
+            <span py:if="show_children_errors and error and not field.show_error"
+                  class="fielderror" py:content="error" />
+        </div>
+    </div>
+    <table border="0" cellspacing="0" cellpadding="2" py:attrs="table_attrs">
+        <tr py:for="i, field in enumerate(fields)"
+            class="${i%2 and 'odd' or 'even'}"
+            py:with="required = [None,' required'][int(field.is_required)];
+                     error = error_for(field);
+                     label_text = field.label_text;
+                     help_text = field.help_text;" >
+            <th>
+                <label id="${field.id}.label" for="${field.id}"
+                       class="fieldlabel${required}"
+                       py:if="label_text" py:content="label_text" />
+            </th>
+            <td>
+                ${field.display(value_for(field), **args_for(field))}
+                <span class="fieldhelp" py:if="help_text" py:content="help_text" />
+                <span py:if="show_children_errors and error and not field.show_error"
+                  class="fielderror" py:content="error" />
+            </td>
+        </tr>
+    </table>
+</form>
+

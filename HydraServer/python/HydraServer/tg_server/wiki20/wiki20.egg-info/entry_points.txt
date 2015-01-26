@@ -1,0 +1,6 @@
+[gearbox.plugins]
+turbogears-devtools = tg.devtools
+
+[paste.app_factory]
+main = wiki20.config.middleware:make_app
+

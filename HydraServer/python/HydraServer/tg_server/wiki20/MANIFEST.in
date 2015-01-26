@@ -1,0 +1,4 @@
+recursive-include wiki20/public *
+include wiki20/public/favicon.ico
+recursive-include wiki20/i18n *
+recursive-include wiki20/templates *

@@ -1,0 +1,40 @@
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:py="http://genshi.edgewall.org/"
+      xmlns:xi="http://www.w3.org/2001/XInclude">
+  <xi:include href="master.html" />
+<head>
+    <title>${tmpl_context.title} - ${model} Listing</title>
+</head>
+<body class="tundra">
+    <div id="crud_leftbar">
+        <ul id="menu_items" py:if="hasattr(tmpl_context, 'menu_items')">
+            <li py:for="lower, item in sorted(tmpl_context.menu_items.items())">
+                <a href="${tmpl_context.crud_helpers.make_link(lower)}">$item</a>
+            </li>
+        </ul>
+    </div>
+    <div id="crud_content">
+      <h1>$model Listing</h1>
+      <div id="crud_btn_new">
+        <a href='${tg.url("new", params=tmpl_context.kept_params)}' class="add_link">New $model</a>
+        <span py:if="value_list" py:content="tmpl_context.paginators.value_list.pager(link=mount_point+'/')"/>
+        <div py:if="search_fields" id="crud_search">
+            <form>
+                <select id="crud_search_field" onchange="crud_search_field_changed(this);">
+                  <py:for each="field, name, selected in search_fields" py:choose="selected">
+                    <option py:when="False" value="${field}">${name}</option>
+                    <option py:otherwise="" value="${field}" selected="selected">${name}</option>
+                  </py:for>
+                </select>
+                <input id="crud_search_value" name="${current_search[0]}" type="text" placeholder="equals / contains" value="${current_search[1]}" />
+                <input type="submit" value="Search"/>
+            </form>
+        </div>
+      </div>
+      <div class="crud_table">
+        ${Markup(tmpl_context.widget(value=value_list, action=mount_point+'.json'))}
+      </div>
+    </div>
+    <div style="clear:both;"/>
+</body>
+</html>

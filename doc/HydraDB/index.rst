@@ -210,25 +210,25 @@ look in tDescriptor for data_id 1.
  * data_name: A name for this data
  * data_dimen: Dimension -- for comparison with dimension in tAttr.
  * data_hash: The hash of the datum. This hash is generated using python's hash() function, as used in hash tables. Allows for easy comparison of data.
- * locked: Flag to indicate whether this dataset has been locked by its owner.
+ * hidden: Flag to indicate whether this dataset has been hidden by its owner.
  * value: Contains the actual value. This will usually be a single value or a JSON string.
  * cr_date: Creation date
 
-tDatasetGroup
+tDatasetCollection
 ^^^^^^^^^^^^^
 
-Groups datasets into named sets for easy & convenient categorisation.
+Collections datasets into named sets for easy & convenient categorisation.
 
- * group_name: The human-readable name of the group or category
- * group_id  : Unique identifier for the group. PK.
+ * collection_name: The human-readable name of the collection or category
+ * collection_id  : Unique identifier for the collection. PK.
 
-tDatasetGroupItem
+tDatasetCollectionItem
 ^^^^^^^^^^^^^^^^^
 
-Keeps track of which piece of data is in which group.
+Keeps track of which piece of data is in which collection.
 
- * dataset_id : refers to the piece of data in tDataset that is in the group
- * group_id   : refers to the group_id in tDatasetGroup.
+ * dataset_id : refers to the piece of data in tDataset that is in the collection
+ * collection_id   : refers to the collection_id in tDatasetCollection.
 
 tTimeSeriesData
 ^^^^^^^^^^^^^^^

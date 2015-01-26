@@ -1,14 +1,19 @@
-Hydra server
-============
+Database Objects
+================
 
-Database connection
--------------------
 
 .. automodule:: db.model
-   :members:
+    :members:
+    :exclude-members: and_, case, relationship, text
 
-SOAP server
+Soap Objects
 ============
+
+.. automodule:: soap_server.hydra_complexmodels
+    :members:
+
+API functions
+=============
 
 Soap Objects
 ============
@@ -18,6 +23,7 @@ Soap Objects
 
 Projects
 --------
+
 .. automodule:: soap_server.project
    :members:
 
@@ -30,9 +36,6 @@ General remarks
 Generally speaking, a network consists of nodes and links. Each node can be
 connected to other one or several nodes through one or several links. Each link
 connects exactly two nodes. 
-
-API documentation
-*****************
 
 .. automodule:: soap_server.network
    :members:
@@ -47,12 +50,6 @@ Scenarios
 ---------
 
 .. automodule:: soap_server.scenario
-   :members:
-
-Constraints
------------
-
-.. automodule:: soap_server.constraints
    :members:
 
 User Management

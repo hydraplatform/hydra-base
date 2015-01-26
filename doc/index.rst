@@ -52,7 +52,7 @@ Tests
 .. toctree::
    :maxdepth: 1
 
-   tests/python/unittests
+   /python/unittests
 
 
 Miscellaneous

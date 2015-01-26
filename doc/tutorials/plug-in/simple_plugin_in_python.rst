@@ -1,4 +1,4 @@
-Developping a plug-in in Python
+Developing an app in Python
 ===============================
  
 .. sidebar:: Concepts introduced in this tutorial are:
@@ -11,14 +11,15 @@ Developping a plug-in in Python
        config_file
        projects
        networks
-       templates
+       attributes
        datasets
        scenarios
+       templates
        integration
    
-This tutorial shows how a simple Hydra plug-in is developed in Python. Hydra
-plug-ins connect to Hydra Platform through a `SOAP
-<http://en.wikipedia.org/wiki/SOAP>`_ interface. Developing a plug-in in any
+This tutorial shows how a simple Hydra app is developed in Python. Hydra
+apps connect to Hydra Platform through a `SOAP
+<http://en.wikipedia.org/wiki/SOAP>`_ interface. Developing a app in any
 other programming language that provides SOAP libraries should be similar to the
 code presented here.
 

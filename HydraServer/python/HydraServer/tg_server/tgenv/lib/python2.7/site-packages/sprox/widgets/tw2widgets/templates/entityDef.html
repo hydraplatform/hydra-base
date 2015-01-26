@@ -1,0 +1,13 @@
+<tr xmlns:py="http://genshi.edgewall.org/"
+    class="${w.css_class}"
+    py:attrs='w.attrs'>
+    <td py:if="hasattr(w.entity, 'key')">
+        $w.entity.key
+    </td>
+    <td py:if="hasattr(w.entity, 'type')">
+        $w.entity.type
+    </td>
+    <td py:if="not hasattr(w.entity, 'type')">
+        relation
+    </td>
+</tr>

@@ -1,0 +1,1 @@
+<span>{% if w.escape %}{{ w.value|string }}{% else %}{{ w.value|safe }}{% endif %}<input {{ w.attrs|xmlattr }}/></span>
