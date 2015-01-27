@@ -29,6 +29,7 @@ from lxml.etree import XMLParser
 from HydraException import HydraPluginError
 import requests
 import json
+import util
 
 class FixNamespace(MessagePlugin):
     """Hopefully a temporary fix for an unresolved namespace issue.
@@ -853,4 +854,75 @@ def validate_plugin_xml(plugin_xml_file_path):
         raise HydraPluginError('Plugin validation failed: ' + e.message)
 
     log.info("Plugin XML OK")
+
+def validate_template(template_file, connection=None):
+    """
+        Validate a template file against an xsd found in config.
+        Pass in a json connection to retrieve the ids for the attributes
+        if they are needed.
+    """
+
+    log.info('Validating template file (%s).' % template_file)
+
+    with open(template_file) as f:
+        xml_template = f.read()
+
+    template_xsd_path = os.path.expanduser(config.get('templates', 'template_xsd_path'))
+    log.info("Template xsd: %s",template_xsd_path)
+    xmlschema_doc = etree.parse(template_xsd_path)
+    xmlschema = etree.XMLSchema(xmlschema_doc)
+    xml_tree = etree.fromstring(xml_template)
+
+    try:
+        xmlschema.assertValid(xml_tree)
+    except etree.DocumentInvalid as e:
+        raise HydraPluginError('Template validation failed: ' + e.message)
+
+    template_dict = {'name':xml_tree.find('template_name').text,
+                     'resources' : {}
+                    }
+
+    for r in xml_tree.find('resources'):
+        resource_dict = {}
+        resource_name = r.find('name').text
+        resource_type = r.find('type').text
+        resource_dict['type'] = resource_type
+        resource_dict['name'] = resource_name
+        resource_dict['attributes'] = {}
+        for attr in r.findall("attribute"):
+            attr_dict = {}
+            attr_name = attr.find('name').text
+            attr_dict['name'] = attr_name
+            if attr.find('dimension') is not None:
+                attr_dict['dimension'] = attr.find('dimension').text
+            if attr.find('unit') is not None:
+                attr_dict['unit'] = attr.find('unit').text
+            if attr.find('is_var') is not None:
+                attr_dict['is_var'] = attr.find('is_var').text
+            if attr.find('data_type') is not None:
+                attr_dict['data_type'] = attr.find('data_type').text
+
+            try:
+                stored_attr = connection.call('get_attribute', 
+                                                   {'name':attr_name, 
+                                                    'dimension': attr_dict.get('dimension')})
+                attr_dict['id'] = stored_attr['id']
+                log.info("Attribute %s retrieved!", attr_name)
+            except Exception, e:
+                log.info("Attribute %s (%s) is not on the server", attr_name, attr_dict.get('dimension'))
+
+            restction_xml = attr.find("restrictions")
+            attr_dict['restrictions'] = util.get_restriction_as_dict(restction_xml)
+            resource_dict['attributes'][attr_name] = attr_dict
+
+        if template_dict['resources'].get(resource_type):
+            template_dict['resources'][resource_type][resource_name] = resource_dict
+        else:
+            template_dict['resources'][resource_type] = {resource_name : resource_dict}
+
+    log.info("Template OK")
+
+    return template_dict
+
+
 

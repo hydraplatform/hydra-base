@@ -551,10 +551,8 @@ def _process_incoming_data(data, user_id=None, source=None):
             db_val = _get_db_val(d.type, val)
             data_dict['value'] = db_val
 
-        metadata_dict = {}
         if d.metadata is not None:
-            for m in d.metadata:
-                metadata_dict[str(m.name)]  = str(m.value)
+            metadata_dict = json.loads(d.metadata)
         
         if user_id is not None and 'user_id' not in metadata_dict.keys():
             metadata_dict['user_id'] = str(user_id)

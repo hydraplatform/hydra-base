@@ -16,12 +16,12 @@
 from spyne.decorator import rpc
 from spyne.model.primitive import Integer, AnyDict 
 from HydraServer.soap_server.hydra_base import HydraService
-from HydraServer.soap_server.hydra_complexmodels import get_return_val
 from HydraServer.lib.data import get_dataset
 from HydraLib.HydraException import HydraError
 from HydraServer.util import get_val
 import logging
 import numpy
+import json
 log = logging.getLogger(__name__)
 
 op_map = {
@@ -119,6 +119,6 @@ def _perform_op_on_datasets(op, dataset_ids, **kwargs):
             raise HydraError("Unable to perform operation %s on values %s and %s"
                                 %(op, op_result, v))
     
-    result = get_return_val(data_type, op_result)
+    result = json.dumps(op_result)
 
     return result

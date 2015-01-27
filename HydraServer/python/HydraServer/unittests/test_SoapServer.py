@@ -20,11 +20,11 @@ import logging
 
 from HydraLib import config
 from HydraLib.dateutil import get_datetime
-from HydraLib.PluginLib import create_dict
 
 from suds.client import Client
 from suds.plugin import MessagePlugin
 import datetime
+import json
 
 global CLIENT
 CLIENT = None
@@ -614,7 +614,7 @@ class SoapServerTest(unittest.TestCase):
             unit = 'm s^-1',
             dimension = 'Speed',
             hidden = 'N',
-            value = {'param_value':val},
+            value = val,
         )
 
         scenario_attr = dict(
@@ -636,7 +636,7 @@ class SoapServerTest(unittest.TestCase):
             unit = 'm s^-1',
             dimension = 'Speed',
             hidden = 'N',
-            value = {'desc_val':val},
+            value = val,
         )
 
         scenario_attr = dict(
@@ -652,16 +652,20 @@ class SoapServerTest(unittest.TestCase):
         #A scenario attribute is a piece of data associated
         #with a resource attribute.
         #[[[1, 2, "hello"], [5, 4, 6]], [[10, 20, 30], [40, 50, 60]]]
+        t1 = datetime.datetime.now()
+        t2 = t1+datetime.timedelta(hours=1)
+        t3 = t1+datetime.timedelta(hours=2)
+        
+        val_1 = [[[1, 2, "hello"], [5, 4, 6]], [[10, 20, 30], [40, 50, 60]], [[9, 8, 7],[6, 5, 4]]]
+        val_2 = [1.0, 2.0, 3.0]
 
-        test_val_1 = create_dict([[[1, 2, "hello"], [5, 4, 6]], [[10, 20, 30], [40, 50, 60]], [[9, 8, 7],[6, 5, 4]]])
+        val_3 = [3.0, None, None]
 
-        test_val_2 = create_dict([1.0, 2.0, 3.0])
+        ts_val = {0: {t1: val_1,
+                      t2: val_2,
+                      t3: val_3}}
 
-        metadata_array = self.client.factory.create("hyd:MetadataArray")
-        metadata = self.client.factory.create("hyd:Metadata")
-        metadata.name = 'created_by'
-        metadata.value = 'Test user'
-        metadata_array.Metadata.append(metadata)
+        metadata_array = json.dumps({'created_by': 'Test user'})
 
         dataset = dict(
             id=None,
@@ -670,17 +674,7 @@ class SoapServerTest(unittest.TestCase):
             unit = 'cm^3',
             dimension = 'Volume',
             hidden = 'N',
-            value = {'ts_values' :
-            [
-                {'ts_time' : datetime.datetime.now(),
-                'ts_value' : test_val_1},
-                {'ts_time' : datetime.datetime.now()+datetime.timedelta(hours=1),
-                'ts_value' : test_val_2},
-                {'ts_time' : datetime.datetime.now()+datetime.timedelta(hours=2),
-                'ts_value' : create_dict([3.0, None, None])},
-
-            ]
-        },
+            value = json.dumps(ts_val),
             metadata = metadata_array,
         )
 
@@ -697,14 +691,9 @@ class SoapServerTest(unittest.TestCase):
         #with a resource attribute.
         #[[1, 2, 3], [4, 5, 6], [7, 8, 9]]
 
-        arr_data = create_dict([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])
-        arr= {'arr_data' : arr_data}
+        arr = json.dumps([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])
 
-        metadata_array = self.client.factory.create("hyd:MetadataArray")
-        metadata = self.client.factory.create("hyd:Metadata")
-        metadata.name = 'created_by'
-        metadata.value = 'Test user'
-        metadata_array.Metadata.append(metadata)
+        metadata_array = json.dumps({'created_by': 'Test user'})
 
         dataset = dict(
             id=None,
@@ -713,7 +702,7 @@ class SoapServerTest(unittest.TestCase):
             unit = 'bar',
             dimension = 'Pressure',
             hidden = 'N',
-            value = arr,
+            value = json.dumps(arr),
             metadata = metadata_array,
         )
 
@@ -722,35 +711,6 @@ class SoapServerTest(unittest.TestCase):
             resource_attr_id = ResourceAttr['id'],
             value = dataset,
         )
-
-        return scenario_attr
-
-    def create_eqtimeseries(self, ResourceAttr):
-        #A scenario attribute is a piece of data associated
-        #with a resource attribute.
-        #[[1, 2, 3], [4, 5, 6], [7, 8, 9]]
-        ts_val = {
-            'start_time' : datetime.datetime.now(),
-            'frequency'  : 3600.0,
-            'arr_data': create_dict([9, 210, 11]),
-        }
-
-        dataset = dict(
-            id=None,
-            type = 'eqtimeseries',
-            name = 'my equally spaced timeseries',
-            unit = 'amps',
-            dimension = 'Current',
-            hidden = 'N',
-            value = ts_val,
-        )
-
-        scenario_attr = dict(
-            attr_id = ResourceAttr['attr_id'],
-            resource_attr_id = ResourceAttr['id'],
-            value = dataset,
-        )
-
 
         return scenario_attr
 
