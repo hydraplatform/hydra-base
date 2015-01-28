@@ -166,7 +166,7 @@ class AttributeService(HydraService):
                                                         **ctx.in_header.__dict__)
         return ResourceAttr(resource_attr_dict)
 
-    @rpc(Unicode, Integer, Integer(min_occurs=0, max_occurs=1), _returns=ResourceAttr)
+    @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=ResourceAttr)
     def get_network_attributes(ctx, network_id, type_id):
         resource_attrs = attributes.get_resource_attributes(
                 'NETWORK',
