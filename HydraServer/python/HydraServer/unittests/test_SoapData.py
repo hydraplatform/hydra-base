@@ -784,7 +784,9 @@ class RetrievalTest(test_SoapServer.SoapServerTest):
         assert len(node_data) > 0
         node_id     = net.nodes.Node[1].id
         node_data = self.client.service.get_node_data(node_id, scenario_id)
+        node_data2 = self.client.service.get_node_data(node_id, scenario_id, net.nodes.Node[0].types.TypeSummary[0].id)
         assert len(node_data) > 0
+        assert len(node_data) == len(node_data2)
 
         link_id     = net.links.Link[0].id
         link_data = self.client.service.get_link_data(link_id, scenario_id)

@@ -17,7 +17,7 @@ from spyne.model.primitive import Integer, Boolean, Unicode
 from spyne.model.complex import Array as SpyneArray
 from spyne.decorator import rpc
 from hydra_complexmodels import Attr
-from hydra_complexmodels import Resource, ResourceAttr 
+from hydra_complexmodels import ResourceAttr 
 
 from hydra_base import HydraService
 
@@ -135,7 +135,7 @@ class AttributeService(HydraService):
         return success
 
 
-    @rpc(Unicode, Integer, Integer, Boolean, _returns=Resource)
+    @rpc(Unicode, Integer, Integer, Boolean, _returns=ResourceAttr)
     def add_resource_attribute(ctx,resource_type, resource_id, attr_id, is_var):
         """
             Add a resource attribute attribute to a resource.
@@ -154,7 +154,7 @@ class AttributeService(HydraService):
         return ResourceAttr(resource_attr_dict)
 
 
-    @rpc(Integer, Unicode, Integer, _returns=Resource)
+    @rpc(Integer, Unicode, Integer, _returns=ResourceAttr)
     def add_node_attrs_from_type(ctx, type_id, resource_type, resource_id):
         """
             adds all the attributes defined by a type to a node.
@@ -165,3 +165,12 @@ class AttributeService(HydraService):
                                                         resource_id,
                                                         **ctx.in_header.__dict__)
         return ResourceAttr(resource_attr_dict)
+
+    @rpc(Unicode, Integer, Integer(min_occurs=0, max_occurs=1), _returns=ResourceAttr)
+    def get_network_attributes(ctx, network_id, type_id):
+        resource_attrs = attributes.get_resource_attributes(
+                'NETWORK',
+                network_id,
+                type_id)
+
+        return [ResourceAttr(ra) for ra in resource_attrs]

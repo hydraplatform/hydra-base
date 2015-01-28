@@ -209,3 +209,33 @@ def add_node_attrs_from_type(type_id, resource_type, resource_id,**kwargs):
     DBSession.flush()
 
     return resource_i
+
+def get_resource_attributes(ref_key, ref_id, type_id=None, **kwargs):
+    """
+        Get all the resource attributes for a given resource. 
+        If type_id is specified, only
+        return the resource attributes within the type.
+    """
+
+    user_id = kwargs.get('user_id')
+    
+    resource_attrs = DBSession.query(ResourceAttr).filter(
+        ResourceAttr.ref_key == ref_key,
+        or_(
+            ResourceAttr.network_id==ref_id,
+            ResourceAttr.node_id==ref_id,
+            ResourceAttr.link_id==ref_id,
+            ResourceAttr.group_id==ref_id
+        ))
+     
+    if type_id is not None:
+        attr_ids = []
+        rs = DBSession.query(TypeAttr).filter(TypeAttr.type_id==type_id).all()
+        for r in rs:
+            attr_ids.append(r.attr_id)
+
+        resource_attr_qry = resource_attr_qry.filter(ResourceAttr.attr_id.in_(attr_ids))
+    
+    resource_attrs = resource_attr_qry.all()
+
+    return resource_attrs
