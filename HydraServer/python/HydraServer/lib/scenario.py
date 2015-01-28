@@ -805,7 +805,7 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id,**kwargs):
         attr_ids = []
         rs = DBSession.query(TypeAttr).filter(TypeAttr.type_id==type_id).all()
         for r in rs:
-            attr_ids.append(rs.attr_id)
+            attr_ids.append(r.attr_id)
 
         resource_data = DBSession.query(ResourceScenario).filter(
             ResourceScenario.dataset_id   == Dataset.dataset_id,
