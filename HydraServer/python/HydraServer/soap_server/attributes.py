@@ -67,7 +67,7 @@ class AttributeService(HydraService):
         return ret_attrs
 
     @rpc(_returns=SpyneArray(Attr))
-    def get_attributes(ctx):
+    def get_all_attributes(ctx):
         """
             Get all attributes
         """
@@ -100,6 +100,30 @@ class AttributeService(HydraService):
             return Attr(attr)
         
         return None
+
+    @rpc(SpyneArray(Attr), _returns=SpyneArray(Attr))
+    def get_attributes(ctx,attrs):
+        """
+            Get a list of attribute, by their names and dimension. Takes a list
+            of attribute objects, picks out their name & dimension, finds the appropriate
+            attribute in the DB and updates the incoming attribute with an ID.
+            The same attributes go out that came in, except this time with an ID.
+        """
+        ret_attrs = []
+        for a in attrs:
+            attr = attributes.get_attribute_by_name_and_dimension(a.name,
+                                                              a.dimen,
+                                                              **ctx.in_header.__dict__)
+            if attr:
+                a.id = attr.attr_id
+                a.cr_date = str(attr.cr_date)
+                a.name = attr.attr_name
+                a.dimen = attr.attr_dimen
+                ret_attrs.append(a)
+            else:
+                ret_attrs.append(None)
+        
+        return ret_attrs
 
     @rpc(Integer, _returns=Unicode)
     def delete_attribute(ctx, attr_id):
