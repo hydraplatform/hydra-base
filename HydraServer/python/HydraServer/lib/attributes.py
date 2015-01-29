@@ -16,7 +16,7 @@
 import logging
 log = logging.getLogger(__name__)
 
-from HydraServer.db.model import Attr, Node, Link, Network, Project, Scenario, TemplateType
+from HydraServer.db.model import Attr, Node, Link, Network, Project, Scenario, TemplateType, ResourceAttr, TypeAttr
 from HydraServer.db import DBSession
 from sqlalchemy.orm.exc import NoResultFound
 from HydraLib.HydraException import ResourceNotFoundError
@@ -219,7 +219,7 @@ def get_resource_attributes(ref_key, ref_id, type_id=None, **kwargs):
 
     user_id = kwargs.get('user_id')
     
-    resource_attrs = DBSession.query(ResourceAttr).filter(
+    resource_attr_qry = DBSession.query(ResourceAttr).filter(
         ResourceAttr.ref_key == ref_key,
         or_(
             ResourceAttr.network_id==ref_id,
