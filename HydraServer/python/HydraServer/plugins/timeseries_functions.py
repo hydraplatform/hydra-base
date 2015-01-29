@@ -34,6 +34,8 @@ op_map = {
 }
 
 class Service(HydraService):
+    __service_name__ = "TimeseriesService"
+
     @rpc(Integer(min_occurs=2, max_occurs='unbounded'), _returns=AnyDict)
     def subtract_datasets(ctx, dataset_ids):
         """

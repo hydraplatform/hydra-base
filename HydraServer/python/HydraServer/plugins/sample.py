@@ -23,6 +23,8 @@ class Service(HydraService):
     """
         An example of a server-side plug-in
     """
+    
+    __service_name__ = "SampleService"
 
     @rpc(Unicode, _returns=Unicode)
     def echo(ctx, message):
