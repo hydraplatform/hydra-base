@@ -1004,18 +1004,20 @@ def add_node(network_id, node,**kwargs):
     add_attributes(new_node, node.attributes)
 
     DBSession.flush()
-
-    res_types = []
-    res_attrs = []
-    for typesummary in node.types:
-        ra, rt = template.set_resource_type(new_node,
-                                        typesummary.id,
-                                         **kwargs)
-        res_types.append(rt)
-        res_attrs.extend(ra)
-
-    DBSession.execute(ResourceType.__table__.insert(), res_types)
-    DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
+    
+    if node.types is not None and len(node.types) > 0:
+        res_types = []
+        res_attrs = []
+        for typesummary in node.types:
+            ra, rt = template.set_resource_type(new_node,
+                                            typesummary.id,
+                                            **kwargs)
+            res_types.append(rt)
+            res_attrs.extend(ra)
+        if len(res_types) > 0:
+            DBSession.execute(ResourceType.__table__.insert(), res_types)
+        if len(res_attrs) > 0:
+            DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
 
     DBSession.refresh(new_node)
 
@@ -1128,17 +1130,20 @@ def add_link(network_id, link,**kwargs):
 
     DBSession.flush()
 
-    res_types = []
-    res_attrs = []
-    for typesummary in link.types:
-        ra, rt = template.set_resource_type(link_i,
+    if link.types is not None and len(link.types) > 0:
+        res_types = []
+        res_attrs = []
+        for typesummary in link.types:
+            ra, rt = template.set_resource_type(link_i,
                                         typesummary.id,
                                          **kwargs)
-        res_types.append(rt)
-        res_attrs.extend(ra)
+            res_types.append(rt)
+            res_attrs.extend(ra)
 
-    DBSession.execute(ResourceType.__table__.insert(), res_types)
-    DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
+        if len(res_types) > 0:
+            DBSession.execute(ResourceType.__table__.insert(), res_types)
+        if len(res_attrs) > 0:
+            DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
 
     DBSession.refresh(link_i)
 
@@ -1218,17 +1223,19 @@ def add_group(network_id, group,**kwargs):
     DBSession.flush()
 
 
-    res_types = []
-    res_attrs = []
-    for typesummary in group.types:
-        ra, rt = template.set_resource_type(res_grp_i,
+    if group.types is not None and len(group.types) > 0:
+        res_types = []
+        res_attrs = []
+        for typesummary in group.types:
+            ra, rt = template.set_resource_type(res_grp_i,
                                         typesummary.id,
                                          **kwargs)
-        res_types.append(rt)
-        res_attrs.extend(ra)
-
-    DBSession.execute(ResourceType.__table__.insert(), res_types)
-    DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
+            res_types.append(rt)
+            res_attrs.extend(ra)
+        if len(res_types) > 0:
+            DBSession.execute(ResourceType.__table__.insert(), res_types)
+        if len(res_attrs) > 0:
+            DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
 
     DBSession.refresh(res_grp_i)
 
