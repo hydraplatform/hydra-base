@@ -287,7 +287,7 @@
     </dimension>
     <dimension name="Unit price (volume)">
         <unit name="US Dollar per cubic metre" abbr="USD m^-3"     lf="1.0" cf="0.0" info=""/>
-		<unit name="US Dollar per megalitre" abbr="GBP Ml^-1"     lf="0.0001" cf="0.0" info=""/>
+		<unit name="US Dollar per megalitre" abbr="USD Ml^-1"     lf="0.0001" cf="0.0" info=""/>
         <unit name="US Dollar per acre-foot"    abbr="USD ac-ft^-1" lf="0.000810713194" cf="0.0" info=""/>
 		<unit name="Pound Sterling per cubic metre" abbr="GBP m^-3"     lf="0" cf="0.66" info=""/>
 		<unit name="Pound Sterling per megalitre" abbr="GBP Ml^-1"     lf="0" cf="0.000066" info=""/>
