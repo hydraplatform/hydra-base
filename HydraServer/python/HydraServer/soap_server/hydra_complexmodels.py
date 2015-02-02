@@ -1189,6 +1189,7 @@ class NetworkOwner(HydraComplexModel):
         self.edit       = parent.edit
         self.view       = parent.view
 
+
 class Unit(HydraComplexModel):
     """
     """
@@ -1212,3 +1213,18 @@ class Unit(HydraComplexModel):
         self.lf   = parent.lf
         self.info = parent.info
         self.dimension = parent.dimension
+
+class Dimension(HydraComplexModel):
+    """
+        A dimension, with name and units
+    """
+    _type_info = [
+        ('name', Unicode),
+        ('units', SpyneArray(Unicode)),
+    ]
+
+    def __init__(self, name, units):
+
+        self.name = name
+        self.units = units
+

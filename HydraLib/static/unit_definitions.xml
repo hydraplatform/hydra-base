@@ -274,6 +274,7 @@
     </dimension>
     <dimension name="Density">
         <unit name="kilagrams per cubic-metre" abbr="kg m^-3" lf="1.0" cf="0.0" info=""/>
+		<unit name="kilagrams per megalitre" abbr="kg Ml^-1" lf="0.0001" cf="0.0" info=""/>
     </dimension>
     <dimension name="Monetary value">
 		<unit abbr="USD" cf="0" info="" lf="1.0" name="US Dollar"/>
@@ -286,12 +287,14 @@
     </dimension>
     <dimension name="Unit price (volume)">
         <unit name="US Dollar per cubic metre" abbr="USD m^-3"     lf="1.0" cf="0.0" info=""/>
+		<unit name="US Dollar per megalitre" abbr="USD Ml^-1"     lf="0.0001" cf="0.0" info=""/>
         <unit name="US Dollar per acre-foot"    abbr="USD ac-ft^-1" lf="0.000810713194" cf="0.0" info=""/>
 		<unit name="Pound Sterling per cubic metre" abbr="GBP m^-3"     lf="0" cf="0.66" info=""/>
+		<unit name="Pound Sterling per megalitre" abbr="GBP Ml^-1"     lf="0" cf="0.000066" info=""/>
     </dimension>
     <dimension name="Unit price (mass)">
         <unit name="US Dollar per kilogram" abbr="USD kg^-1" lf="1.0" cf="0.0" info=""/>
-        <unit name="Pounds Sterling per kilogram" abbr="GBP kg^-1" lf="1.0" cf="0.66" info=""/>
+        <unit name="Pounds Sterling per kilogram" abbr="GBP kg^-1" lf="0.66" cf="0.66" info=""/>
         <unit name="US Dollar per tonne" abbr="USD t^-1" lf="0.001" cf="0.0" info=""/>
         <unit name="Pounds Sterling per tonne" abbr="GBP t^-1" lf="0.00066" cf="0.66" info=""/>
     </dimension>

@@ -855,12 +855,7 @@ def validate_plugin_xml(plugin_xml_file_path):
 
     log.info("Plugin XML OK")
 
-def validate_template(template_file, connection=None):
-    """
-        Validate a template file against an xsd found in config.
-        Pass in a json connection to retrieve the ids for the attributes
-        if they are needed.
-    """
+def validate_template(template_file, connection):
 
     log.info('Validating template file (%s).' % template_file)
 
@@ -882,6 +877,8 @@ def validate_template(template_file, connection=None):
                      'resources' : {}
                     }
 
+    attributes = []
+
     for r in xml_tree.find('resources'):
         resource_dict = {}
         resource_name = r.find('name').text
@@ -902,14 +899,7 @@ def validate_template(template_file, connection=None):
             if attr.find('data_type') is not None:
                 attr_dict['data_type'] = attr.find('data_type').text
 
-            try:
-                stored_attr = connection.call('get_attribute', 
-                                                   {'name':attr_name, 
-                                                    'dimension': attr_dict.get('dimension')})
-                attr_dict['id'] = stored_attr['id']
-                log.info("Attribute %s retrieved!", attr_name)
-            except Exception, e:
-                log.info("Attribute %s (%s) is not on the server", attr_name, attr_dict.get('dimension'))
+            attributes.append({'name': attr_name, 'dimen': attr_dict['dimension']})
 
             restction_xml = attr.find("restrictions")
             attr_dict['restrictions'] = util.get_restriction_as_dict(restction_xml)
@@ -920,9 +910,23 @@ def validate_template(template_file, connection=None):
         else:
             template_dict['resources'][resource_type] = {resource_name : resource_dict}
 
+    stored_attrs = connection.call('get_attributes', {'attrs':attributes})
+    attr_dict = {}
+    for a in stored_attrs:
+        if a:
+            attr_dict[(a['name'], a.get('dimen'))] = a['id']
+
+    log.info("Template attributes retrieved!")
+
+    for rt in template_dict['resources'].values():
+        for t in rt.values():
+            for a in t['attributes'].values():
+                a['id'] = attr_dict.get((a['name'], a.get('dimension')))
+
+    log.info("Template attributes updated with IDS")
+    
     log.info("Template OK")
 
     return template_dict
-
 
 

@@ -320,7 +320,12 @@ class ScenarioService(HydraService):
 
     @rpc(Integer, Integer, Integer, _returns=ResourceScenario)
     def set_resourcescenario_dataset(ctx, resource_attr_id, scenario_id, dataset_id):
-        
+        """
+            A short-hand way of creating a resource scenario. This function says:
+            assign this datset ID to this resource attribute in this scenario.
+            All the IDs must already exist.
+        """
+
         rs = scenario.set_rs_dataset(resource_attr_id,
                                      scenario_id,
                                      dataset_id,

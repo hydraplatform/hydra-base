@@ -801,26 +801,7 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id,**kwargs):
 
     user_id = kwargs.get('user_id')
     
-    if type_id is not None:
-        attr_ids = []
-        rs = DBSession.query(TypeAttr).filter(TypeAttr.type_id==type_id).all()
-        for r in rs:
-            attr_ids.append(rs.attr_id)
-
-        resource_data = DBSession.query(ResourceScenario).filter(
-            ResourceScenario.dataset_id   == Dataset.dataset_id,
-            ResourceAttr.resource_attr_id == ResourceScenario.resource_attr_id,
-            ResourceScenario.scenario_id == scenario_id,
-            ResourceAttr.ref_key == ref_key,
-            or_(
-                ResourceAttr.network_id==ref_id,
-                ResourceAttr.node_id==ref_id,
-                ResourceAttr.link_id==ref_id,
-                ResourceAttr.group_id==ref_id
-            ),
-            ResourceAttr.attr_id in attr_ids).options(joinedload('resourceattr')).options(joinedload_all('dataset.metadata')).distinct().all()
-    else:
-        resource_data = DBSession.query(ResourceScenario).filter(
+    resource_data_qry = DBSession.query(ResourceScenario).filter(
         ResourceScenario.dataset_id   == Dataset.dataset_id,
         ResourceAttr.resource_attr_id == ResourceScenario.resource_attr_id,
         ResourceScenario.scenario_id == scenario_id,
@@ -830,8 +811,17 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id,**kwargs):
             ResourceAttr.node_id==ref_id,
             ResourceAttr.link_id==ref_id,
             ResourceAttr.group_id==ref_id
-        )).distinct().options(joinedload('resourceattr')).options(joinedload_all('dataset.metadata')).all()
+        )).distinct().options(joinedload('resourceattr')).options(joinedload_all('dataset.metadata'))
 
+    if type_id is not None:
+        attr_ids = []
+        rs = DBSession.query(TypeAttr).filter(TypeAttr.type_id==type_id).all()
+        for r in rs:
+            attr_ids.append(r.attr_id)
+
+        resource_data_qry = resource_data_qry.filter(ResourceAttr.attr_id.in_(attr_ids))
+
+    resource_data = resource_data_qry.all()
 
     for rs in resource_data:
        if rs.dataset.hidden == 'Y':

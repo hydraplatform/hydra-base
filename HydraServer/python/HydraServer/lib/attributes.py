@@ -16,7 +16,7 @@
 import logging
 log = logging.getLogger(__name__)
 
-from HydraServer.db.model import Attr, Node, Link, Network, Project, Scenario, TemplateType
+from HydraServer.db.model import Attr, Node, Link, Network, Project, Scenario, TemplateType, ResourceAttr, TypeAttr
 from HydraServer.db import DBSession
 from sqlalchemy.orm.exc import NoResultFound
 from HydraLib.HydraException import ResourceNotFoundError
@@ -160,15 +160,15 @@ def _get_templatetype(type_id):
 
 
 
-def delete_attribute(attr_id,**kwargs):
-    """
-        Set the status of an attribute to 'X'
-    """
-    success = True
-    x = DBSession.query(Attr).filter(Attr.attr_id == attr_id).one()
-    x.status = 'X'
-    DBSession.flush()
-    return success
+#def delete_attribute(attr_id,**kwargs):
+#    """
+#        Set the status of an attribute to 'X'
+#    """
+#    success = True
+#    x = DBSession.query(Attr).filter(Attr.attr_id == attr_id).one()
+#    x.status = 'X'
+#    DBSession.flush()
+#    return success
 
 
 def add_resource_attribute(resource_type, resource_id, attr_id, is_var,**kwargs):
@@ -183,13 +183,13 @@ def add_resource_attribute(resource_type, resource_id, attr_id, is_var,**kwargs)
 
     attr_is_var = 'Y' if is_var else 'N'
 
-    resource_i.add_attribute(attr_id, attr_is_var)
+    new_ra = resource_i.add_attribute(attr_id, attr_is_var)
     DBSession.flush()
 
-    return resource_i
+    return new_ra
 
 
-def add_node_attrs_from_type(type_id, resource_type, resource_id,**kwargs):
+def add_resource_attrs_from_type(type_id, resource_type, resource_id,**kwargs):
     """
         adds all the attributes defined by a type to a node.
     """
@@ -201,11 +201,42 @@ def add_node_attrs_from_type(type_id, resource_type, resource_id,**kwargs):
     for attr in resource_i.attributes:
         attrs[attr.attr_id] = attr
 
-
+    new_resource_attrs = []
     for item in type_i.typeattrs:
         if attrs.get(item.attr_id) is None:
-            resource_i.add_attribute(item.attr_id)
+            ra = resource_i.add_attribute(item.attr_id)
+            new_resource_attrs.append(ra)
 
     DBSession.flush()
 
-    return resource_i
+    return new_resource_attrs
+
+def get_resource_attributes(ref_key, ref_id, type_id=None, **kwargs):
+    """
+        Get all the resource attributes for a given resource. 
+        If type_id is specified, only
+        return the resource attributes within the type.
+    """
+
+    user_id = kwargs.get('user_id')
+    
+    resource_attr_qry = DBSession.query(ResourceAttr).filter(
+        ResourceAttr.ref_key == ref_key,
+        or_(
+            ResourceAttr.network_id==ref_id,
+            ResourceAttr.node_id==ref_id,
+            ResourceAttr.link_id==ref_id,
+            ResourceAttr.group_id==ref_id
+        ))
+     
+    if type_id is not None:
+        attr_ids = []
+        rs = DBSession.query(TypeAttr).filter(TypeAttr.type_id==type_id).all()
+        for r in rs:
+            attr_ids.append(r.attr_id)
+
+        resource_attr_qry = resource_attr_qry.filter(ResourceAttr.attr_id.in_(attr_ids))
+    
+    resource_attrs = resource_attr_qry.all()
+
+    return resource_attrs

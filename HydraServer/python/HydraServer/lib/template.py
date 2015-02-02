@@ -1137,6 +1137,10 @@ def _validate_resource(resource, tmpl_types, resource_scenarios=[]):
             errors.append("Type %s not found on %s %s"%
                           (tmpl_types, resource_type, resource.get_name()))
 
+    ta_dict = {}
+    for ta in resource_type.typeattrs:
+        ta_dict[ta.attr_id] = ta
+
     #Make sure the resource has all the attributes specified in the tempalte
     #by checking whether the template attributes are a subset of the resource
     #attributes.
@@ -1147,11 +1151,7 @@ def _validate_resource(resource, tmpl_types, resource_scenarios=[]):
     if not type_attrs.issubset(resource_attrs):
         for ta in type_attrs.difference(resource_attrs):
             errors.append("Resource %s does not have attribute %s"%
-                          (resource.get_name(), ta.attr.attr_name))
-
-    ta_dict = {}
-    for ta in resource_type.typeattrs:
-        ta_dict[ta.attr_id] = ta
+                          (resource.get_name(), ta_dict[ta].attr.attr_name))
 
     resource_attr_ids = set([ra.resource_attr_id for ra in resource.attributes])
     #if data is included, check to make sure each dataset conforms
@@ -1209,9 +1209,9 @@ def get_network_as_xml_template(network_id,**kwargs):
         resource_name   = etree.SubElement(net_resource, "name")
         resource_name.text   = net_i.network_name
 
-        if net_i.network_layout is not None:
-            resource_layout = etree.SubElement(net_resource, "layout")
-            resource_layout.text = net_i.network_layout
+        layout = _get_layout_as_etree(net_i.network_layout)
+        if layout is not None:
+            net_resource.append(layout)
 
         for net_attr in net_i.attributes:
             _make_attr_element(net_resource, net_attr)
