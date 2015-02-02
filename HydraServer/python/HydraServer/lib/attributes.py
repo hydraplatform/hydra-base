@@ -160,15 +160,15 @@ def _get_templatetype(type_id):
 
 
 
-def delete_attribute(attr_id,**kwargs):
-    """
-        Set the status of an attribute to 'X'
-    """
-    success = True
-    x = DBSession.query(Attr).filter(Attr.attr_id == attr_id).one()
-    x.status = 'X'
-    DBSession.flush()
-    return success
+#def delete_attribute(attr_id,**kwargs):
+#    """
+#        Set the status of an attribute to 'X'
+#    """
+#    success = True
+#    x = DBSession.query(Attr).filter(Attr.attr_id == attr_id).one()
+#    x.status = 'X'
+#    DBSession.flush()
+#    return success
 
 
 def add_resource_attribute(resource_type, resource_id, attr_id, is_var,**kwargs):
@@ -183,13 +183,13 @@ def add_resource_attribute(resource_type, resource_id, attr_id, is_var,**kwargs)
 
     attr_is_var = 'Y' if is_var else 'N'
 
-    resource_i.add_attribute(attr_id, attr_is_var)
+    new_ra = resource_i.add_attribute(attr_id, attr_is_var)
     DBSession.flush()
 
-    return resource_i
+    return new_ra
 
 
-def add_node_attrs_from_type(type_id, resource_type, resource_id,**kwargs):
+def add_resource_attrs_from_type(type_id, resource_type, resource_id,**kwargs):
     """
         adds all the attributes defined by a type to a node.
     """
@@ -201,14 +201,15 @@ def add_node_attrs_from_type(type_id, resource_type, resource_id,**kwargs):
     for attr in resource_i.attributes:
         attrs[attr.attr_id] = attr
 
-
+    new_resource_attrs = []
     for item in type_i.typeattrs:
         if attrs.get(item.attr_id) is None:
-            resource_i.add_attribute(item.attr_id)
+            ra = resource_i.add_attribute(item.attr_id)
+            new_resource_attrs.append(ra)
 
     DBSession.flush()
 
-    return resource_i
+    return new_resource_attrs
 
 def get_resource_attributes(ref_key, ref_id, type_id=None, **kwargs):
     """

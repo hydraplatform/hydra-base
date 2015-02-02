@@ -18,6 +18,7 @@ from spyne.model.complex import Array as SpyneArray
 from spyne.decorator import rpc
 from hydra_complexmodels import Attr
 from hydra_complexmodels import ResourceAttr 
+from hydra_complexmodels import Network 
 
 from hydra_base import HydraService
 
@@ -125,18 +126,18 @@ class AttributeService(HydraService):
         
         return ret_attrs
 
-    @rpc(Integer, _returns=Unicode)
-    def delete_attribute(ctx, attr_id):
-        """
-            Set the status of an attribute to 'X'
-        """
-        success = 'OK'
-        attributes.delete_attribute(attr_id, **ctx.in_header.__dict__)
-        return success
+ #   @rpc(Integer, _returns=Unicode)
+ #   def delete_attribute(ctx, attr_id):
+ #       """
+ #           Set the status of an attribute to 'X'
+ #       """
+ #       success = 'OK'
+ #       attributes.delete_attribute(attr_id, **ctx.in_header.__dict__)
+ #       return success
 
 
-    @rpc(Unicode, Integer, Integer, Boolean, _returns=ResourceAttr)
-    def add_resource_attribute(ctx,resource_type, resource_id, attr_id, is_var):
+    @rpc(Integer, Integer, Unicode(pattern="['YN']", default='N'), _returns=ResourceAttr)
+    def add_network_attribute(ctx,network_id, attr_id, is_var):
         """
             Add a resource attribute attribute to a resource.
 
@@ -144,27 +145,27 @@ class AttributeService(HydraService):
             this is used in simulation to indicate that this value is expected
             to be filled in by the simulator.
         """
-        resource_attr_dict = attributes.add_resource_attribute(
-                                                       resource_type,
-                                                       resource_id,
+        new_ra = attributes.add_resource_attribute(
+                                                       'NETWORK',
+                                                       network_id,
                                                        attr_id,
                                                        is_var,
                                                        **ctx.in_header.__dict__)
 
-        return ResourceAttr(resource_attr_dict)
+        return ResourceAttr(new_ra)
 
 
-    @rpc(Integer, Unicode, Integer, _returns=ResourceAttr)
-    def add_node_attrs_from_type(ctx, type_id, resource_type, resource_id):
+    @rpc(Integer, Integer, _returns=SpyneArray(ResourceAttr))
+    def add_network_attrs_from_type(ctx, type_id, network_id):
         """
             adds all the attributes defined by a type to a node.
         """
-        resource_attr_dict = attributes.add_node_attrs_from_type(
+        new_resource_attrs = attributes.add_resource_attrs_from_type(
                                                         type_id,
-                                                        resource_type,
-                                                        resource_id,
+                                                        'NETWORK',
+                                                        network_id,
                                                         **ctx.in_header.__dict__)
-        return ResourceAttr(resource_attr_dict)
+        return [ResourceAttr(ra) for ra in new_resource_attrs]
 
     @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttr))
     def get_network_attributes(ctx, network_id, type_id):

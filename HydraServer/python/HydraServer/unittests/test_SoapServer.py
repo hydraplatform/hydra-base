@@ -128,6 +128,8 @@ class SoapServerTest(unittest.TestCase):
         if template is not None:
             return template
 
+        net_attr1 = self.create_attr("net_attr_a", dimension='Volume')
+        net_attr2 = self.create_attr("net_attr_c", dimension=None)
         link_attr_1 = self.create_attr("link_attr_a", dimension='Pressure')
         link_attr_2 = self.create_attr("link_attr_b", dimension='Speed')
         node_attr_1 = self.create_attr("node_attr_a", dimension='Volume')
@@ -142,12 +144,35 @@ class SoapServerTest(unittest.TestCase):
 
         types = self.client.factory.create('hyd:TemplateTypeArray')
         #**********************
-        #type 1           #
+        #network type         #
         #**********************
-        type1 = self.client.factory.create('hyd:TemplateType')
-        type1.name = "Test type 1"
-        type1.alias = "Test type alias"
-        type1.resource_type='NODE'
+        net_type = self.client.factory.create('hyd:TemplateType')
+        net_type.name = "Default Network"
+        net_type.alias = "Test type alias"
+        net_type.resource_type='NETWORK'
+
+        typeattrs = self.client.factory.create('hyd:TypeAttrArray')
+
+        typeattr_1 = self.client.factory.create('hyd:TypeAttr')
+        typeattr_1.attr_id = net_attr1.id
+        typeattr_1.data_restriction = {'LESSTHAN': 10, 'NUMPLACES': 1}
+        typeattr_1.unit = 'm^3'
+        typeattrs.TypeAttr.append(typeattr_1)
+
+        typeattr_2 = self.client.factory.create('hyd:TypeAttr')
+        typeattr_2.attr_id = net_attr2.id
+        typeattrs.TypeAttr.append(typeattr_2)
+
+        net_type.typeattrs = typeattrs
+
+        types.TemplateType.append(net_type)
+        #**********************
+        # node type           #
+        #**********************
+        node_type = self.client.factory.create('hyd:TemplateType')
+        node_type.name = "Default Node"
+        node_type.alias = "Test type alias"
+        node_type.resource_type='NODE'
 
         typeattrs = self.client.factory.create('hyd:TypeAttrArray')
 
@@ -166,15 +191,15 @@ class SoapServerTest(unittest.TestCase):
         typeattr_3.attr_id = node_attr_3.id
         typeattrs.TypeAttr.append(typeattr_3)
 
-        type1.typeattrs = typeattrs
+        node_type.typeattrs = typeattrs
 
-        types.TemplateType.append(type1)
+        types.TemplateType.append(node_type)
         #**********************
-        #type 2           #
+        #link type            #
         #**********************
-        type2 = self.client.factory.create('hyd:TemplateType')
-        type2.name = "Test type 2"
-        type2.resource_type='LINK'
+        link_type = self.client.factory.create('hyd:TemplateType')
+        link_type.name = "Default Link"
+        link_type.resource_type='LINK'
 
         typeattrs = self.client.factory.create('hyd:TypeAttrArray')
 
@@ -186,16 +211,16 @@ class SoapServerTest(unittest.TestCase):
         typeattr_2.attr_id = link_attr_2.id
         typeattrs.TypeAttr.append(typeattr_2)
 
-        type2.typeattrs = typeattrs
+        link_type.typeattrs = typeattrs
 
-        types.TemplateType.append(type2)
+        types.TemplateType.append(link_type)
 
         #**********************
-        #type 3           #
+        #group type           #
         #**********************
-        type3 = self.client.factory.create('hyd:TemplateType')
-        type3.name = "Test type 3"
-        type3.resource_type='GROUP'
+        group_type = self.client.factory.create('hyd:TemplateType')
+        group_type.name = "Default Group"
+        group_type.resource_type='GROUP'
 
         typeattrs = self.client.factory.create('hyd:TypeAttrArray')
 
@@ -207,9 +232,9 @@ class SoapServerTest(unittest.TestCase):
         typeattr_2.attr_id = group_attr_2.id
         typeattrs.TypeAttr.append(typeattr_2)
 
-        type3.typeattrs = typeattrs
+        group_type.typeattrs = typeattrs
 
-        types.TemplateType.append(type3)
+        types.TemplateType.append(group_type)
 
         template.types = types
 
@@ -220,11 +245,11 @@ class SoapServerTest(unittest.TestCase):
         assert new_template.id > 0, "New Template has incorrect ID!"
 
         assert len(new_template.types) == 1, "Resource types did not add correctly"
-        for t in new_template.types.TemplateType[0].typeattrs.TypeAttr:
+        for t in new_template.types.TemplateType[1].typeattrs.TypeAttr:
             assert t.attr_id in (node_attr_1.id, node_attr_2.id, node_attr_3.id);
             "Node types were not added correctly!"
 
-        for t in new_template.types.TemplateType[1].typeattrs.TypeAttr:
+        for t in new_template.types.TemplateType[2].typeattrs.TypeAttr:
             assert t.attr_id in (link_attr_1.id, link_attr_2.id);
             "Link types were not added correctly!"
 
@@ -335,8 +360,9 @@ class SoapServerTest(unittest.TestCase):
         prev_node = None
         ra_index = 2
 
-        node_type = template.types.TemplateType[0]
-        link_type = template.types.TemplateType[1]
+        network_type = template.types.TemplateType[0]
+        node_type = template.types.TemplateType[1]
+        link_type = template.types.TemplateType[2]
         for n in range(num_nodes):
             node = self.create_node(n*-1, node_name="Node %s"%(n))
 
@@ -375,10 +401,10 @@ class SoapServerTest(unittest.TestCase):
 
 
             type_summary = self.client.factory.create('hyd:TypeSummary')
-            type_summary.id = template.id
-            type_summary.name = template.name
-            type_summary.id = template.types.TemplateType[0].id
-            type_summary.name = template.types.TemplateType[0].name
+            type_summary.template_id = template.id
+            type_summary.template_name = template.name
+            type_summary.id = node_type.id
+            type_summary.name = node_type.name
 
             type_summary_arr.TypeSummary.append(type_summary)
 
@@ -416,8 +442,8 @@ class SoapServerTest(unittest.TestCase):
                 if link['id'] % 2 == 0:
                     type_summary_arr = self.client.factory.create('hyd:TypeSummaryArray')
                     type_summary = self.client.factory.create('hyd:TypeSummary')
-                    type_summary.id = template.id
-                    type_summary.name = template.name
+                    type_summary.template_id = template.id
+                    type_summary.template_name = template.name
                     type_summary.id = link_type.id
                     type_summary.name = link_type.name
 
@@ -524,6 +550,32 @@ class SoapServerTest(unittest.TestCase):
         node_array.Node = nodes
         link_array = self.client.factory.create("hyd:LinkArray")
         link_array.Link = links
+        
+        net_attr = self.create_attr("net_attr_b", dimension='Pressure')
+        net_ra_notmpl = dict(
+            ref_id  = None,
+            ref_key = 'NETWORK',
+            attr_is_var = 'N',
+            attr_id = net_attr.id,
+            id      = -1
+        )
+        net_ra_tmpl = dict(
+            ref_id  = None,
+            ref_key = 'NETWORK',
+            attr_is_var = 'N',
+            attr_id = network_type.typeattrs.TypeAttr[0].attr_id,
+            id      = -1
+        )
+        net_attrs = self.client.factory.create('hyd:ResourceAttrArray')
+        net_attrs.ResourceAttr = [net_ra_notmpl, net_ra_tmpl]
+
+        net_type_summary_arr = self.client.factory.create('hyd:TypeSummaryArray')
+        net_type_summary = self.client.factory.create('hyd:TypeSummary')
+        net_type_summary.template_id = template.id
+        net_type_summary.template_name = template.name
+        net_type_summary.id = network_type.id
+        net_type_summary.name = network_type.name
+        net_type_summary_arr.TypeSummary.append(net_type_summary)
 
         (network) = {
             'name'        : 'Network @ %s'%datetime.datetime.now(),
@@ -535,6 +587,8 @@ class SoapServerTest(unittest.TestCase):
             'scenarios'   : scenario_array,
             'resourcegroups' : group_array,
             'projection'  : map_projection,
+            'attributes'  : net_attrs,
+            'types'       : net_type_summary_arr,
         }
 
         return network

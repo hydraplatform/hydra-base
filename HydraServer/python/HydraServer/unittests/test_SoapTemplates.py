@@ -79,8 +79,8 @@ class TemplatesTest(test_SoapServer.SoapServerTest):
         #type 1           #
         #**********************
         type1 = self.client.factory.create('hyd:TemplateType')
-        type1.name = "Test type 1"
-        type1.alias = "Test type alias"
+        type1.name = "Node type"
+        type1.alias = "Node type alias"
         type1.resource_type = 'NODE'
 
         tattrs = self.client.factory.create('hyd:TypeAttrArray')
@@ -102,8 +102,8 @@ class TemplatesTest(test_SoapServer.SoapServerTest):
         #type 2           #
         #**********************
         type2 = self.client.factory.create('hyd:TemplateType')
-        type2.name = "Test type 2"
-        type2.alias = "Test type 2 alias"
+        type2.name = "Link type"
+        type2.alias = "Link type alias"
         type2.resource_type = 'LINK'
 
         tattrs = self.client.factory.create('hyd:TypeAttrArray')
@@ -166,13 +166,13 @@ class TemplatesTest(test_SoapServer.SoapServerTest):
         types = self.client.factory.create('hyd:TemplateTypeArray')
 
         type_1 = self.client.factory.create('hyd:TemplateType')
-        type_1.name = "Test type 1"
-        type_1.alias = "Test type 1 alias"
+        type_1.name = "Node type 2"
+        type_1.alias = "Node type 2 alias"
         type_1.resource_type = 'NODE'
 
         type_2 = self.client.factory.create('hyd:TemplateType')
-        type_2.name = "Test type 2"
-        type_2.alias = "Test type 2 alias"
+        type_2.name = "Link type 2"
+        type_2.alias = "Link type 2 alias"
         type_2.resource_type = 'LINK'
 
         tattrs_1 = self.client.factory.create('hyd:TypeAttrArray')
@@ -259,13 +259,14 @@ class TemplatesTest(test_SoapServer.SoapServerTest):
                                                              network.id)
         
         updated_network = self.client.service.get_network(network.id)
+        assert len(updated_network.types.TypeSummary) == 2
         
         expected_net_type = None
         for t in new_template.types.TemplateType:
             if t.resource_type == 'NETWORK':
                 expected_net_type = t.id
 
-        network_type = updated_network.types.TypeSummary[0].id
+        network_type = updated_network.types.TypeSummary[1].id
 
         assert expected_net_type == network_type
 
@@ -275,7 +276,7 @@ class TemplatesTest(test_SoapServer.SoapServerTest):
         
         network_deleted_tmpl = self.client.service.get_network(network.id)
         
-        assert network_deleted_tmpl.types is None
+        assert len(network_deleted_tmpl.types.TypeSummary) == 1
 
     def test_add_type(self):
         
@@ -562,7 +563,7 @@ class TemplatesTest(test_SoapServer.SoapServerTest):
         new_net = self.client.service.get_network(net_summary.id)
 
         for node in new_net.nodes.Node:
-            assert node.types is not None and node.types.TypeSummary[0].name == "Test type 1"; "type was not added correctly!"
+            assert node.types is not None and node.types.TypeSummary[0].name == "Node type"; "type was not added correctly!"
 
 
     def test_find_matching_resource_types(self):
@@ -679,20 +680,20 @@ class TemplatesTest(test_SoapServer.SoapServerTest):
 
         for n in network.nodes.Node:
             assert len(n.types.TypeSummary) == 1
-            assert n.types.TypeSummary[0].name == 'Test type 1'
+            assert n.types.TypeSummary[0].name == 'Default Node'
 
         self.client.service.apply_template_to_network(template.id,
                                                              network.id)
 
         network = self.client.service.get_network(network.id)
        
-        assert len(network.types.TypeSummary) == 1
-        assert network.types.TypeSummary[0].name == 'Network Type'
+        assert len(network.types.TypeSummary) == 2
+        assert network.types.TypeSummary[1].name == 'Network Type'
         for l in network.links.Link:
             if l.id in empty_links:
                 assert l.types is not None
-                assert len(n.types.TypeSummary) == 1
-                assert l.types.TypeSummary[0].name == 'Test type 2'
+                assert len(l.types.TypeSummary) == 1
+                assert l.types.TypeSummary[0].name == 'Link type'
 
         #THe assignment of the template hasn't affected the nodes
         #as they do not have the appropriate attributes.
@@ -732,7 +733,7 @@ class TemplatesTest(test_SoapServer.SoapServerTest):
 
         for n in network.nodes.Node:
             assert len(n.types.TypeSummary) == 1
-            assert n.types.TypeSummary[0].name == 'Test type 1'
+            assert n.types.TypeSummary[0].name == 'Default Node'
 
         self.client.service.apply_template_to_network(template.id,
                                                              network.id)
@@ -741,13 +742,13 @@ class TemplatesTest(test_SoapServer.SoapServerTest):
 
         network = self.client.service.get_network(network.id)
        
-        assert len(network.types.TypeSummary) == 1
-        assert network.types.TypeSummary[0].name == 'Network Type'
+        assert len(network.types.TypeSummary) == 2
+        assert network.types.TypeSummary[1].name == 'Network Type'
         for l in network.links.Link:
             if l.id in empty_links:
                 assert l.types is not None
                 assert len(n.types.TypeSummary) == 1
-                assert l.types.TypeSummary[0].name == 'Test type 2'
+                assert l.types.TypeSummary[0].name == 'Link type'
 
         for n in network.nodes.Node:
             assert len(n.types.TypeSummary) == 1
@@ -755,7 +756,7 @@ class TemplatesTest(test_SoapServer.SoapServerTest):
 
     def test_remove_template_from_network(self):
         network = self.create_network_with_data()
-        template = self.get_template()
+        template_id = network.types.TypeSummary[0].template_id
        
         #Test the links as it's easier
         empty_links = []
@@ -765,21 +766,22 @@ class TemplatesTest(test_SoapServer.SoapServerTest):
 
         for n in network.nodes.Node:
             assert len(n.types.TypeSummary) == 1
-            assert n.types.TypeSummary[0].name == 'Test type 1'
+            assert n.types.TypeSummary[0].name == "Default Node"
 
-        self.client.service.apply_template_to_network(template.id,
+        self.client.service.apply_template_to_network(template_id,
                                                              network.id)
 
-        self.client.service.remove_template_from_network(network.id, template.id, 'N')
+        self.client.service.remove_template_from_network(network.id, template_id, 'N')
 
         network_2 = self.client.service.get_network(network.id)
+
         assert network_2.types is None
         for l in network_2.links.Link:
             if l.id in empty_links:
                 assert l.types is None
 
         for n in network_2.nodes.Node:
-            assert len(n.types.TypeSummary) == 1
+            assert n.types is None
 
     def test_remove_template_and_attributes_from_network(self):
         network = self.create_network_with_data()
@@ -793,7 +795,7 @@ class TemplatesTest(test_SoapServer.SoapServerTest):
 
         for n in network.nodes.Node:
             assert len(n.types.TypeSummary) == 1
-            assert n.types.TypeSummary[0].name == 'Test type 1'
+            assert n.types.TypeSummary[0].name == 'Default Node'
 
         self.client.service.apply_template_to_network(template.id,
                                                              network.id)
@@ -802,7 +804,7 @@ class TemplatesTest(test_SoapServer.SoapServerTest):
 
         network_2 = self.client.service.get_network(network.id)
 
-        assert network_2.types is None
+        assert len(network_2.types) == 1
         
         link_attrs = []
         for tt in template['types'].TemplateType:
@@ -856,7 +858,10 @@ class TemplatesTest(test_SoapServer.SoapServerTest):
         #based on the template in these unit tests
         errors1 = self.client.service.validate_network(network['id'],
                                                        template['template_id'])
-        assert len(errors1) == 0
+        #The network should have an error, saying that the template has net_attr_c,
+        #but the network does not
+        assert len(errors1) == 1
+        assert errors1.string[0].find('net_attr_c')  > 0
 
         #Validate the network with data. Should fail as one of the attributes (node_attr_3)
         #is specified as being a 'Cost' in the template but 'Speed' is the dimension
@@ -868,9 +873,9 @@ class TemplatesTest(test_SoapServer.SoapServerTest):
                                                        scenario['id'])
 
         assert len(errors2) > 0
-        #every node should have an associated error.
-        assert len(errors2.string) == len(network['nodes'].Node * 2)
-        for err in errors2.string:
+        #every node should have an associated error, plus the network error from above
+        assert len(errors2.string) == len(network['nodes'].Node * 2)+1
+        for err in errors2.string[1:]:
             try:
                 assert err.startswith("Unit mismatch")
             except AssertionError:
