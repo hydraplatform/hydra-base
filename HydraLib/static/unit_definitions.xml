@@ -273,8 +273,8 @@
         <unit name="tonnes per year"      abbr="t yr^-1"    lf="3.16887646e-05" cf="0.0" info=""/>
     </dimension>
     <dimension name="Density">
-        <unit name="kilagrams per cubic-metre" abbr="kg m^-3" lf="1.0" cf="0.0" info=""/>
-		<unit name="kilagrams per megalitre" abbr="kg Ml^-1" lf="0.0001" cf="0.0" info=""/>
+        <unit name="kilograms per cubic-metre" abbr="kg m^-3" lf="1.0" cf="0.0" info=""/>
+		<unit name="kilograms per megalitre" abbr="kg Ml^-1" lf="0.0001" cf="0.0" info=""/>
     </dimension>
     <dimension name="Monetary value">
 		<unit abbr="USD" cf="0" info="" lf="1.0" name="US Dollar"/>
