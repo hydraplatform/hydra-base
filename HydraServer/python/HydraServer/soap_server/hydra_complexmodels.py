@@ -193,7 +193,7 @@ class Dataset(HydraComplexModel):
             self.value = parent.value
 
         metadata = {}
-        for m in parent.metadata: 
+        for m in parent.metadata:
             metadata[m.metadata_name] = m.metadata_val
         self.metadata = json.dumps(metadata)
 
@@ -215,18 +215,18 @@ class Dataset(HydraComplexModel):
         data_type = self.type
 
         if data_type == 'descriptor':
-            descriptor = json.loads(data)
+            descriptor = data
             return str(descriptor)
         elif data_type == 'timeseries':
             timeseries_pd = pd.read_json(data)
-            
-            #Epoch doesn't work here because dates before 1970 are not supported
-            #in read_json. Ridiculous.
-            ts =  timeseries_pd.to_json(date_format='iso', date_unit='ns')
+
+            #Epoch doesn't work here because dates before 1970 are not
+            # supported in read_json. Ridiculous.
+            ts = timeseries_pd.to_json(date_format='iso', date_unit='ns')
 
             return ts
         elif data_type == 'scalar':
-            scalar = json.loads(data)
+            scalar = data
             return scalar
         elif data_type == 'array':
             #check to make sure this is valid json
@@ -238,9 +238,9 @@ class Dataset(HydraComplexModel):
 
         if self.metadata is None:
             return {}
-        
+
         metadata_dict = {}
-        
+
         if type(self.metadata) == dict:
             metadata_dict = self.metadata
         else:
