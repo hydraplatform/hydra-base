@@ -16,11 +16,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import test_SoapServer
+import server
 import suds
 import datetime
 
-class LoginTest(test_SoapServer.SoapServerTest):
+class LoginTest(server.SoapServerTest):
 
     #This relies on there being a user named 'root' with an empty password.
     def test_good_login(self):
@@ -44,7 +44,7 @@ class LoginTest(test_SoapServer.SoapServerTest):
         self.login('root', '')
 
 
-#class PermissionTest(test_SoapServer.SoapServerTest):
+#class PermissionTest(server.SoapServerTest):
 #    def test_allow_add_network(self):
 #        #root is an admin user, with add_network rights.
 #        #As wit other tests, this should work fine.
@@ -59,21 +59,21 @@ class LoginTest(test_SoapServer.SoapServerTest):
 #        self.client.service.set_user_role(user.id, role.id)
 #        #Check that permission is denied.
 #        old_client = self.client
-#        new_client = test_SoapServer.connect()
+#        new_client = server.connect()
 #        self.client = new_client
 #        self.login("manager", 'password')
 #        self.assertRaises(suds.WebFault, self.create_network_with_data)
 #        self.client.service.logout("manager")
 #        self.client = old_client
 #
-class SharingTest(test_SoapServer.SoapServerTest):
+class SharingTest(server.SoapServerTest):
 
     def test_share_network(self):
 
         #One client is for the 'root' user and must remain open so it
         #can be closed correctly in the tear down. 
         old_client = self.client
-        new_client = test_SoapServer.connect()
+        new_client = server.connect()
         self.client = new_client
         self.login("UserA", 'password')
         
@@ -126,7 +126,7 @@ class SharingTest(test_SoapServer.SoapServerTest):
         #One client is for the 'root' user and must remain open so it
         #can be closed correctly in the tear down. 
         old_client = self.client
-        new_client = test_SoapServer.connect()
+        new_client = server.connect()
         self.client = new_client
         self.login("UserA", 'password')
         
@@ -164,7 +164,7 @@ class SharingTest(test_SoapServer.SoapServerTest):
         #One client is for the 'root' user and must remain open so it
         #can be closed correctly in the tear down. 
         old_client = self.client
-        new_client = test_SoapServer.connect()
+        new_client = server.connect()
         self.client = new_client
         self.login("UserA", 'password')
         
@@ -221,7 +221,7 @@ class SharingTest(test_SoapServer.SoapServerTest):
         #One client is for the 'root' user and must remain open so it
         #can be closed correctly in the tear down. 
         old_client = self.client
-        new_client = test_SoapServer.connect()
+        new_client = server.connect()
         self.client = new_client
         self.login("UserA", 'password')
         
@@ -263,7 +263,7 @@ class SharingTest(test_SoapServer.SoapServerTest):
         #One client is for the 'root' user and must remain open so it
         #can be closed correctly in the tear down. 
         old_client = self.client
-        new_client = test_SoapServer.connect()
+        new_client = server.connect()
         self.client = new_client
         self.login("UserA", 'password')
         
@@ -286,4 +286,4 @@ class SharingTest(test_SoapServer.SoapServerTest):
 
 
 if __name__ == '__main__':
-    test_SoapServer.run()
+    server.run()

@@ -16,14 +16,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import test_SoapServer
+import server
 import datetime
 import copy
 import logging
 import suds
 log = logging.getLogger(__name__)
 
-class ProjectTest(test_SoapServer.SoapServerTest):
+class ProjectTest(server.SoapServerTest):
 
     #def __init__(self):
     #    #super(ProjectTest).__init__(self)
@@ -179,4 +179,4 @@ class ProjectTest(test_SoapServer.SoapServerTest):
         assert test_scenario.resourcescenarios is None
 
 if __name__ == '__main__':
-    test_SoapServer.run()
+    server.run()

@@ -16,7 +16,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import test_SoapServer
+import server
 import datetime
 import logging
 from HydraLib.PluginLib import parse_suds_array, create_dict
@@ -25,7 +25,7 @@ from suds import WebFault
 import json
 log = logging.getLogger(__name__)
 
-class TimeSeriesTest(test_SoapServer.SoapServerTest):
+class TimeSeriesTest(server.SoapServerTest):
     def test_relative_timeseries(self):
         net = self.build_network()
 
@@ -354,7 +354,7 @@ class TimeSeriesTest(test_SoapServer.SoapServerTest):
         }
         return timeseries 
 
-class ArrayTest(test_SoapServer.SoapServerTest):
+class ArrayTest(server.SoapServerTest):
     def test_array_format(self):
         bad_net = self.build_network()
 
@@ -376,7 +376,7 @@ class ArrayTest(test_SoapServer.SoapServerTest):
                 #Get one of the datasets, make it uneven and update it.
                 self.assertRaises(WebFault, self.client.service.update_dataset,rs)
 
-class DataCollectionTest(test_SoapServer.SoapServerTest):
+class DataCollectionTest(server.SoapServerTest):
 
     def test_get_collections_like_name(self):
         collections = self.client.service.get_collections_like_name('test')
@@ -442,7 +442,7 @@ class DataCollectionTest(test_SoapServer.SoapServerTest):
         assert newly_added_collection.collection_id in [g.collection_id for g in collections.DatasetCollection]
 
 
-class SharingTest(test_SoapServer.SoapServerTest):
+class SharingTest(server.SoapServerTest):
 
     def _get_project(self):
         p = self.client.service.get_project_by_name("Unittest Project")
@@ -459,7 +459,7 @@ class SharingTest(test_SoapServer.SoapServerTest):
         #One client is for the 'root' user and must remain open so it
         #can be closed correctly in the tear down. 
         old_client = self.client
-        new_client = test_SoapServer.connect()
+        new_client = server.connect()
         self.client = new_client
 
         self.login("UserA", 'password')
@@ -538,7 +538,7 @@ class SharingTest(test_SoapServer.SoapServerTest):
         #One client is for the 'root' user and must remain open so it
         #can be closed correctly in the tear down. 
         old_client = self.client
-        new_client = test_SoapServer.connect()
+        new_client = server.connect()
         self.client = new_client
 
         self.login("UserA", 'password')
@@ -635,7 +635,7 @@ class SharingTest(test_SoapServer.SoapServerTest):
         #One client is for the 'root' user and must remain open so it
         #can be closed correctly in the tear down. 
         old_client = self.client
-        new_client = test_SoapServer.connect()
+        new_client = server.connect()
         self.client = new_client
 
         self.login("UserA", 'password')
@@ -717,7 +717,7 @@ class SharingTest(test_SoapServer.SoapServerTest):
         assert extents.min_y == 9
         assert extents.max_y == 99
 
-class RetrievalTest(test_SoapServer.SoapServerTest):
+class RetrievalTest(server.SoapServerTest):
 
     def _make_timeseries(self):
         dataset = self.client.factory.create('hyd:Dataset')
@@ -1159,7 +1159,7 @@ class RetrievalTest(test_SoapServer.SoapServerTest):
         for res_id in link_type_dataset_ids:
             assert res_id in res_dataset_ids 
 
-class FormatTest(test_SoapServer.SoapServerTest):
+class FormatTest(server.SoapServerTest):
     def test_format_array_data(self):
         net = self.create_network_with_data(num_nodes=2)
         
@@ -1228,4 +1228,4 @@ class FormatTest(test_SoapServer.SoapServerTest):
 
 
 if __name__ == '__main__':
-    test_SoapServer.run()
+    server.run()

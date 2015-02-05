@@ -16,10 +16,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import test_SoapServer
+import server
 import base64
 
-class ImageTest(test_SoapServer.SoapServerTest):
+class ImageTest(server.SoapServerTest):
 
     def test_upload(self):
         imageFile = open('hydra.jpg','rb')
@@ -62,7 +62,7 @@ class ImageTest(test_SoapServer.SoapServerTest):
         result = self.client.service.remove_image("hydra.jpg")
         assert result == 'OK', "Image was not deletd correctly!"
 
-class FileTest(test_SoapServer.SoapServerTest):
+class FileTest(server.SoapServerTest):
 
     def test_upload(self):
         file_to_upload = open('test.xlsx','rb')
@@ -101,4 +101,4 @@ class FileTest(test_SoapServer.SoapServerTest):
         assert result == 'OK', "File was not deletd correctly!"
 
 if __name__ == '__main__':
-    test_SoapServer.run()
+    server.run()

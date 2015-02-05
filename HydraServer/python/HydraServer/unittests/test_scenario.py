@@ -16,14 +16,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import test_SoapServer
+import server
 import datetime
 import copy
 import suds
 import logging
 log = logging.getLogger(__name__)
 
-class ScenarioTest(test_SoapServer.SoapServerTest):
+class ScenarioTest(server.SoapServerTest):
 
     def test_update(self):
 
@@ -742,4 +742,4 @@ class ScenarioTest(test_SoapServer.SoapServerTest):
 
 
 if __name__ == '__main__':
-    test_SoapServer.run()
+    server.run()

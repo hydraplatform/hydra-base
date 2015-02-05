@@ -16,7 +16,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import test_SoapServer
+import server
 import datetime
 import logging
 from HydraLib.PluginLib import parse_suds_array
@@ -26,7 +26,7 @@ from suds import WebFault
 from HydraLib.PluginLib import create_dict
 log = logging.getLogger(__name__)
 
-class TimeSeriesTest(test_SoapServer.SoapServerTest):
+class TimeSeriesTest(server.SoapServerTest):
     def test_subtract_timeseries(self):
         
         start = datetime.datetime.now()
@@ -131,7 +131,7 @@ class TimeSeriesTest(test_SoapServer.SoapServerTest):
         new_dataset = self.client.service.add_dataset(dataset)
         return new_dataset
 
-class ArrayTest(test_SoapServer.SoapServerTest):
+class ArrayTest(server.SoapServerTest):
     def test_subtract_arrays(self):
         
         dataset_1 = self.create_array([11.5, 12.5, 13.5])
@@ -209,7 +209,7 @@ class ArrayTest(test_SoapServer.SoapServerTest):
         new_dataset = self.client.service.add_dataset(dataset)
         return new_dataset
 
-class ScalarTest(test_SoapServer.SoapServerTest):
+class ScalarTest(server.SoapServerTest):
     def test_subtract_scalars(self):
         
         dataset_1 = self.create_scalar(11.5)
@@ -275,4 +275,4 @@ class ScalarTest(test_SoapServer.SoapServerTest):
         return new_dataset
 
 if __name__ == '__main__':
-    test_SoapServer.run()
+    server.run()

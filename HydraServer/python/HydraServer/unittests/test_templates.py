@@ -16,7 +16,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import test_SoapServer
+import server
 import datetime
 from lxml import etree
 from HydraLib import config
@@ -24,7 +24,7 @@ import logging
 from suds import WebFault
 log = logging.getLogger(__name__)
 
-class TemplatesTest(test_SoapServer.SoapServerTest):
+class TemplatesTest(server.SoapServerTest):
 
     def set_template(self, template):
         if template is None:
@@ -944,4 +944,4 @@ class TemplatesTest(test_SoapServer.SoapServerTest):
         assert len(errors_same) == 0
 
 if __name__ == '__main__':
-    test_SoapServer.run()
+    server.run()

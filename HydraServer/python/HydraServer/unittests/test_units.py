@@ -17,13 +17,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import test_SoapServer
+import server
 
 from HydraLib.util import arr_to_vector
 from HydraLib import PluginLib
 
 
-class UnitsTest(test_SoapServer.SoapServerTest):
+class UnitsTest(server.SoapServerTest):
 
     def test_get_dimensions(self):
 
@@ -236,4 +236,4 @@ class UnitsTest(test_SoapServer.SoapServerTest):
             "Unit consistency check didn't work."
 
 if __name__ == '__main__':
-    test_SoapServer.run()
+    server.run()

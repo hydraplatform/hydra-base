@@ -16,14 +16,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import test_SoapServer
+import server
 import copy
 import logging
 import suds
 import datetime
 log = logging.getLogger(__name__)
 
-class NetworkTest(test_SoapServer.SoapServerTest):
+class NetworkTest(server.SoapServerTest):
 
     def test_get_resources_of_type(self):
         """
@@ -955,4 +955,4 @@ class NetworkTest(test_SoapServer.SoapServerTest):
 
 
 if __name__ == '__main__':
-    test_SoapServer.run()
+    server.run()

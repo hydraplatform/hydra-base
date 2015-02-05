@@ -16,12 +16,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import test_SoapServer
+import server
 import logging
 from suds import WebFault
 log = logging.getLogger(__name__)
 
-class RuleTest(test_SoapServer.SoapServerTest):
+class RuleTest(server.SoapServerTest):
     def test_add_rule(self):
         net = self.create_network_with_data()
 
@@ -102,4 +102,4 @@ class RuleTest(test_SoapServer.SoapServerTest):
         self.assertRaises(WebFault, self.client.service.get_rule, new_rule.id)
 
 if __name__ == '__main__':
-    test_SoapServer.run()
+    server.run()

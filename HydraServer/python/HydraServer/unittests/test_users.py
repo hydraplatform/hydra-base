@@ -16,12 +16,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import test_SoapServer
+import server
 import suds
 import bcrypt
 import datetime
 
-class UsersTest(test_SoapServer.SoapServerTest):
+class UsersTest(server.SoapServerTest):
 
     def test_add_user(self):
         user = self.client.factory.create('hyd:User')
@@ -54,7 +54,7 @@ class UsersTest(test_SoapServer.SoapServerTest):
         new_user = self.client.service.add_user(user)
 
         old_client = self.client
-        new_client = test_SoapServer.connect()
+        new_client = server.connect()
         self.client = new_client
 
         self.login(new_user.username, user.password)
@@ -219,7 +219,7 @@ class UsersTest(test_SoapServer.SoapServerTest):
         assert len(permissions.Perm) == len(role.roleperms.RolePerm)
 
 def setup():
-    test_SoapServer.connect()
+    server.connect()
 
 if __name__ == '__main__':
-    test_SoapServer.run()
+    server.run()
