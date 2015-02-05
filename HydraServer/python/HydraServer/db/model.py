@@ -24,8 +24,6 @@ BigInteger,\
 DateTime,\
 Text
 
-from decimal import Decimal
-
 from HydraLib.HydraException import HydraError, PermissionError
 
 from sqlalchemy.orm import relationship, backref

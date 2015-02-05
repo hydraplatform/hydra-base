@@ -582,6 +582,8 @@ def get_network(network_id, summary=False, include_data='N', scenario_ids=None, 
         options(noload('scenarios')).options(noload('nodes')).options(noload('links')).options(noload('resourcegroups')).options(joinedload_all('types.templatetype.template')).one()
         net_i.attributes
 
+        net_i.check_read_permission(user_id)
+
         #Define the basic resource queries
         node_qry = DBSession.query(Node).filter(Node.network_id==network_id).options(noload('attributes')).options(joinedload_all('types.templatetype.template')).filter(Node.status=='A')
 
@@ -631,8 +633,6 @@ def get_network(network_id, summary=False, include_data='N', scenario_ids=None, 
     except NoResultFound:
         raise ResourceNotFoundError("Network (network_id=%s) not found." %
                                   network_id)
-
-    net_i.check_read_permission(user_id)
 
     scenario_ids = [s.scenario_id for s in net_i.scenarios]
 
