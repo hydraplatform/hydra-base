@@ -31,6 +31,7 @@ import logging
 from HydraLib.util import create_dict, check_array_struct
 from numpy import array, ndarray
 from HydraServer.util import generate_data_hash
+from HydraLib.HydraException import HydraError
 
 NS = "soap_server.hydra_complexmodels"
 log = logging.getLogger(__name__)
@@ -245,6 +246,15 @@ class Dataset(HydraComplexModel):
             if type(descriptor) is list:
                 descriptor = descriptor[0]
             return descriptor
+        elif data_type == 'scalar':
+            scalar = data['param_value']
+            if type(scalar) is list:
+                scalar = scalar[0]
+            try:
+                float(scalar)
+            except ValueError:
+                raise HydraError("Invalid scalar value %s"%scalar)
+            return scalar
         elif data_type == 'timeseries':
             is_soap_req=False
             # The brand new way to parse time series data:
@@ -305,11 +315,6 @@ class Dataset(HydraComplexModel):
             arr_data   = str(val)
 
             return (start_time, frequency, arr_data)
-        elif data_type == 'scalar':
-            scalar = data['param_value']
-            if type(scalar) is list:
-                scalar = scalar[0]
-            return scalar
         elif data_type == 'array':
             arr_data = data['arr_data']
             if type(arr_data) is list:
