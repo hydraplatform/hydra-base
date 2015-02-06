@@ -297,7 +297,9 @@ class ScenarioService(HydraService):
         ra_cms = []
         for ra in resource_attrs:
             res_attr_cm = ResourceAttr(ra)
-            res_attr_cm.resourcescenario = ResourceScenario(ra.resourcescenario)
+            for rs in ra.resourcescenarios:
+                if rs.scenario_id==scenario_id:
+                    res_attr_cm.resourcescenario = ResourceScenario(rs)
             ra_cms.append(res_attr_cm)
 
         return ra_cms

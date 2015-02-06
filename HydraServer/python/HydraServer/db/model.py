@@ -913,7 +913,7 @@ class ResourceScenario(Base):
 
     dataset      = relationship('Dataset', backref=backref("resourcescenarios", order_by=dataset_id))
     scenario     = relationship('Scenario', backref=backref("resourcescenarios", order_by=resource_attr_id, cascade="all, delete-orphan"))
-    resourceattr = relationship('ResourceAttr', backref=backref("resourcescenario", cascade="all, delete-orphan", uselist=False), uselist=False)
+    resourceattr = relationship('ResourceAttr', backref=backref("resourcescenarios", cascade="all, delete-orphan"), uselist=False)
 
     def get_dataset(self, user_id):
         dataset = DBSession.query(Dataset.dataset_id,
