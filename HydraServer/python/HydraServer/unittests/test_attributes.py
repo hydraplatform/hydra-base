@@ -16,11 +16,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import test_SoapServer
+import server
 import logging
 log = logging.getLogger(__name__)
 
-class AttributeTest(test_SoapServer.SoapServerTest):
+class AttributeTest(server.SoapServerTest):
     def test_get_network_attrs(self):
         net = self.create_network_with_data()
 
@@ -145,4 +145,4 @@ class AttributeTest(test_SoapServer.SoapServerTest):
         assert len(after_net_attrs) == len(before_net_attrs) + 1
 
 if __name__ == '__main__':
-    test_SoapServer.run()
+    server.run()

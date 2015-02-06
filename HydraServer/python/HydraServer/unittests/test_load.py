@@ -17,13 +17,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import test_SoapServer
+import server
 import timeit
 import logging
 log = logging.getLogger(__name__)
 import cProfile, pstats, StringIO
 
-class NetworkTest(test_SoapServer.SoapServerTest):
+class NetworkTest(server.SoapServerTest):
 
     def create_large_network(self):
         self.create_network_with_data(num_nodes=1000, ret_full_net=False)
@@ -40,11 +40,11 @@ class NetworkTest(test_SoapServer.SoapServerTest):
 if __name__ == '__main__':
   #  pr = cProfile.Profile()
   #  pr.enable()
-  #  test_SoapServer.run()
+  #  server.run()
   #  pr.disable()
   #  s = StringIO.StrinigIO()
   #  sortby = 'cumulative'
   #  ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
   #  ps.print_stats()
   #  print s.getvalue()
-    test_SoapServer.run()
+    server.run()

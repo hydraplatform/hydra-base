@@ -505,6 +505,62 @@ def assign_types_to_resources(resource_types,**kwargs):
     ret_val = [t for t in types.values()]
     return ret_val
 
+def check_type_compatibility(type_1_id, type_2_id):
+    """
+        When applying a type to a resource, it may be the case that the resource already
+        has an attribute specified in the new type, but the template which defines this
+        pre-existing attribute has a different unit specification to the new template.
+
+        This function checks for any situations where different types specify the same
+        attributes, but with different units.
+    """
+    errors = []
+
+    type_1 = DBSession.query(TemplateType).filter(TemplateType.type_id==type_1_id).options(joinedload_all('typeattrs')).one()
+    type_2 = DBSession.query(TemplateType).filter(TemplateType.type_id==type_2_id).options(joinedload_all('typeattrs')).one()
+    template_1_name = type_1.template.template_name
+    template_2_name = type_2.template.template_name
+
+    type_1_attrs=set([t.attr_id for t in type_1.typeattrs])
+    type_2_attrs=set([t.attr_id for t in type_2.typeattrs])
+
+    shared_attrs = type_1_attrs.intersection(type_2_attrs)
+
+    if len(shared_attrs) == 0:
+        return []
+
+    type_1_dict = {}
+    for t in type_1.typeattrs:
+        if t.attr_id in shared_attrs:
+            type_1_dict[t.attr_id]=t
+
+    for ta in type_2.typeattrs:
+        type_2_unit = ta.unit
+        type_1_unit = type_1_dict[ta.attr_id].unit
+
+        fmt_dict = {
+                    'template_1_name':template_1_name,
+                    'template_2_name':template_2_name,
+                    'attr_name':ta.attr.attr_name,
+                    'type_1_unit':type_1_unit,
+                    'type_2_unit':type_2_unit,
+                    'type_name' : type_1.type_name
+                }
+
+        if type_1_unit is None and type_2_unit is not None:
+            errors.append("Type %(type_name)s in template %(template_1_name)s"
+                          " stores %(attr_name)s with no units, while template"
+                          "%(template_2_name)s stores it with unit %(type_2_unit)s"%fmt_dict)
+        elif type_1_unit is not None and type_2_unit is None:
+            errors.append("Type %(type_name)s in template %(template_1_name)s"
+                          " stores %(attr_name)s in %(type_1_unit)s."
+                          " Template %(template_2_name)s stores it with no unit."%fmt_dict)
+        elif type_1_unit != type_2_unit:
+            errors.append("Type %(type_name)s in template %(template_1_name)s"
+                          " stores %(attr_name)s in %(type_1_unit)s, while"
+                          " template %(template_2_name)s stores it in %(type_2_unit)s"%fmt_dict)
+        return errors
+
 def _get_links(link_ids):
     links = []
 
@@ -686,6 +742,13 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
     for rt in resource.types:
         if rt.type_id == type_i.type_id:
             break
+        else:
+            errors = check_type_compatibility(rt.type_id, type_i.type_id)
+            if len(errors) > 0:
+                raise HydraError("Cannot apply type %s to resource as it "
+                                 "conflicts with type %s. Errors are: %s"
+                                 %(type_i.type_name, resource.get_name(), 
+                                   rt.templatetype.type_name, ','.join(errors)))
     else:
         # add type to tResourceType if it doesn't exist already
         resource_type = dict(

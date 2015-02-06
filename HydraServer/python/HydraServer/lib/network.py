@@ -29,6 +29,8 @@ from sqlalchemy.orm import noload, joinedload, joinedload_all
 from HydraServer.db import DBSession
 from sqlalchemy import func, and_, distinct
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy import func
+from sqlalchemy.orm import aliased
 from HydraLib.dateutil import timestamp_to_ordinal
 from HydraServer.util.hdb import add_attributes, add_resource_types
 
@@ -582,6 +584,8 @@ def get_network(network_id, summary=False, include_data='N', scenario_ids=None, 
         options(noload('scenarios')).options(noload('nodes')).options(noload('links')).options(noload('resourcegroups')).options(joinedload_all('types.templatetype.template')).one()
         net_i.attributes
 
+        net_i.check_read_permission(user_id)
+
         #Define the basic resource queries
         node_qry = DBSession.query(Node).filter(Node.network_id==network_id).options(noload('attributes')).options(joinedload_all('types.templatetype.template')).filter(Node.status=='A')
 
@@ -631,8 +635,6 @@ def get_network(network_id, summary=False, include_data='N', scenario_ids=None, 
     except NoResultFound:
         raise ResourceNotFoundError("Network (network_id=%s) not found." %
                                   network_id)
-
-    net_i.check_read_permission(user_id)
 
     scenario_ids = [s.scenario_id for s in net_i.scenarios]
 
@@ -1004,18 +1006,20 @@ def add_node(network_id, node,**kwargs):
     add_attributes(new_node, node.attributes)
 
     DBSession.flush()
-
-    res_types = []
-    res_attrs = []
-    for typesummary in node.types:
-        ra, rt = template.set_resource_type(new_node,
-                                        typesummary.id,
-                                         **kwargs)
-        res_types.append(rt)
-        res_attrs.extend(ra)
-
-    DBSession.execute(ResourceType.__table__.insert(), res_types)
-    DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
+    
+    if node.types is not None and len(node.types) > 0:
+        res_types = []
+        res_attrs = []
+        for typesummary in node.types:
+            ra, rt = template.set_resource_type(new_node,
+                                            typesummary.id,
+                                            **kwargs)
+            res_types.append(rt)
+            res_attrs.extend(ra)
+        if len(res_types) > 0:
+            DBSession.execute(ResourceType.__table__.insert(), res_types)
+        if len(res_attrs) > 0:
+            DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
 
     DBSession.refresh(new_node)
 
@@ -1084,7 +1088,29 @@ def set_node_status(node_id, status, **kwargs):
 
     return node_i
 
-def purge_node(node_id, purge_data,**kwargs):
+def _unique_data_qry(count=1):
+    rs = aliased(ResourceScenario)
+       
+    log.critical(count)
+    subqry=DBSession.query(rs.resource_attr_id,
+                           rs.dataset_id,
+                           func.count(rs.dataset_id).label('dataset_count')).\
+                                group_by(rs.dataset_id).\
+                                having(func.count(rs.dataset_id) == count).\
+                                subquery()
+
+    unique_data = DBSession.query(rs).\
+                        join(subqry,
+                                and_(rs.resource_attr_id==subqry.c.resource_attr_id, 
+                                rs.dataset_id==subqry.c.dataset_id)
+                            ).\
+                    filter(
+                        rs.resource_attr_id == ResourceAttr.resource_attr_id
+                    )
+    return unique_data
+
+
+def delete_node(node_id, purge_data,**kwargs):
     """
         Remove node from DB completely
         If there are attributes on the node, use purge_data to try to
@@ -1097,6 +1123,25 @@ def purge_node(node_id, purge_data,**kwargs):
         node_i = DBSession.query(Node).filter(Node.node_id == node_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Node %s not found"%(node_id))
+    
+    if purge_data == 'Y':
+        #Find the number of times a a resource and dataset combination
+        #occurs. If this equals the number of times the dataset appears, then
+        #we can say this datset is unique to this node.
+        count = DBSession.query(ResourceScenario.dataset_id).distinct(
+            ResourceScenario.resource_attr_id,
+            ResourceScenario.dataset_id).filter(ResourceScenario.resource_attr_id==ResourceAttr.resource_attr_id,
+                                               ResourceAttr.node_id==node_id).count()
+
+        node_data_qry = _unique_data_qry(count)
+        node_data_qry = node_data_qry.filter(ResourceAttr.node_id==node_id)
+        node_data = node_data_qry.all()
+
+        for node_datum in node_data:
+            log.warn("Deleting node dataset %s", node_datum.dataset_id)
+            DBSession.delete(node_datum.dataset)
+
+    log.info("Deleting node %s, id=%s", node_i.node_name, node_id)
 
     node_i.network.check_write_permission(user_id)
     DBSession.delete(node_i)
@@ -1128,17 +1173,20 @@ def add_link(network_id, link,**kwargs):
 
     DBSession.flush()
 
-    res_types = []
-    res_attrs = []
-    for typesummary in link.types:
-        ra, rt = template.set_resource_type(link_i,
+    if link.types is not None and len(link.types) > 0:
+        res_types = []
+        res_attrs = []
+        for typesummary in link.types:
+            ra, rt = template.set_resource_type(link_i,
                                         typesummary.id,
                                          **kwargs)
-        res_types.append(rt)
-        res_attrs.extend(ra)
+            res_types.append(rt)
+            res_attrs.extend(ra)
 
-    DBSession.execute(ResourceType.__table__.insert(), res_types)
-    DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
+        if len(res_types) > 0:
+            DBSession.execute(ResourceType.__table__.insert(), res_types)
+        if len(res_attrs) > 0:
+            DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
 
     DBSession.refresh(link_i)
 
@@ -1182,7 +1230,7 @@ def set_link_status(link_id, status, **kwargs):
     link_i.status = status
     DBSession.flush()
 
-def purge_link(link_id, purge_data,**kwargs):
+def delete_link(link_id, purge_data,**kwargs):
     """
         Remove link from DB completely
         If there are attributes on the link, use purge_data to try to
@@ -1194,6 +1242,26 @@ def purge_link(link_id, purge_data,**kwargs):
         link_i = DBSession.query(Link).filter(Link.link_id == link_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Link %s not found"%(link_id))
+
+    if purge_data == 'Y':
+        #Find the number of times a a resource and dataset combination
+        #occurs. If this equals the number of times the dataset appears, then
+        #we can say this datset is unique to this link.
+        count = DBSession.query(ResourceScenario.dataset_id).distinct(
+            ResourceScenario.resource_attr_id,
+            ResourceScenario.dataset_id).filter(
+                    ResourceScenario.resource_attr_id==ResourceAttr.resource_attr_id,
+                    ResourceAttr.link_id==link_id).count()
+
+        link_data_qry = _unique_data_qry(count)
+        link_data_qry = link_data_qry.filter(ResourceAttr.link_id==link_id)
+        link_data = link_data_qry.all()
+
+        for link_datum in link_data:
+            log.warn("Deleting link dataset %s", link_datum.dataset_id)
+            DBSession.delete(link_datum.dataset)
+
+    log.info("Deleting link %s, id=%s", link_i.link_name, link_id)
 
     link_i.network.check_write_permission(user_id)
     DBSession.delete(link_i)
@@ -1218,17 +1286,19 @@ def add_group(network_id, group,**kwargs):
     DBSession.flush()
 
 
-    res_types = []
-    res_attrs = []
-    for typesummary in group.types:
-        ra, rt = template.set_resource_type(res_grp_i,
+    if group.types is not None and len(group.types) > 0:
+        res_types = []
+        res_attrs = []
+        for typesummary in group.types:
+            ra, rt = template.set_resource_type(res_grp_i,
                                         typesummary.id,
                                          **kwargs)
-        res_types.append(rt)
-        res_attrs.extend(ra)
-
-    DBSession.execute(ResourceType.__table__.insert(), res_types)
-    DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
+            res_types.append(rt)
+            res_attrs.extend(ra)
+        if len(res_types) > 0:
+            DBSession.execute(ResourceType.__table__.insert(), res_types)
+        if len(res_attrs) > 0:
+            DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
 
     DBSession.refresh(res_grp_i)
 
@@ -1251,6 +1321,43 @@ def set_group_status(group_id, status, **kwargs):
     DBSession.flush()
 
     return group_i
+
+
+def delete_group(group_id, purge_data,**kwargs):
+    """
+        Remove group from DB completely
+        If there are attributes on the group, use purge_data to try to
+        delete the data. If no other resources group to this data, it
+        will be deleted.
+    """
+    user_id = kwargs.get('user_id')
+    try:
+        group_i = DBSession.query(ResourceGroup).filter(ResourceGroup.group_id == group_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError("Group %s not found"%(group_id))
+
+    if purge_data == 'Y':
+        #Find the number of times a a resource and dataset combination
+        #occurs. If this equals the number of times the dataset appears, then
+        #we can say this datset is unique to this group.
+        count = DBSession.query(ResourceScenario.dataset_id).distinct(
+            ResourceScenario.resource_attr_id,
+            ResourceScenario.dataset_id).filter(
+                    ResourceScenario.resource_attr_id==ResourceAttr.resource_attr_id,
+                    ResourceAttr.group_id==group_id).count()
+        group_data_qry = _unique_data_qry(count)
+        group_data_qry = group_data_qry.filter(ResourceAttr.group_id==group_id)
+        group_data = group_data_qry.all()
+
+        for group_datum in group_data:
+            log.warn("Deleting group dataset %s", group_datum.dataset_id)
+            DBSession.delete(group_datum.dataset)
+
+    log.info("Deleting group %s, id=%s", group_i.group_name, group_id)
+
+    group_i.network.check_write_permission(user_id)
+    DBSession.delete(group_i)
+    DBSession.flush()
 
 def get_scenarios(network_id,**kwargs):
     """
@@ -1446,7 +1553,7 @@ def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, 
                d.metadata = []
         else:
             if include_metadata == 'Y':
-                rs.resourcescenario.dataset.metadata = metadata_dict.get(d.dataset_id, [])
+                rs.dataset.metadata = metadata_dict.get(d.dataset_id, [])
 
     return resource_scenarios
 

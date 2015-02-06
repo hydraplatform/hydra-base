@@ -27,6 +27,7 @@ import pandas as pd
 import logging
 from HydraServer.util import generate_data_hash
 import json
+from HydraLib.HydraException import HydraError
 
 NS = "soap_server.hydra_complexmodels"
 log = logging.getLogger(__name__)
@@ -217,6 +218,8 @@ class Dataset(HydraComplexModel):
         if data_type == 'descriptor':
             descriptor = data
             return str(descriptor)
+        elif data_type == 'scalar':
+            return data 
         elif data_type == 'timeseries':
             timeseries_pd = pd.read_json(data)
 
@@ -225,9 +228,6 @@ class Dataset(HydraComplexModel):
             ts = timeseries_pd.to_json(date_format='iso', date_unit='ns')
 
             return ts
-        elif data_type == 'scalar':
-            scalar = data
-            return scalar
         elif data_type == 'array':
             #check to make sure this is valid json
             val = json.loads(data)

@@ -351,7 +351,7 @@ class NetworkService(HydraService):
         network.set_node_status(node_id, 'A', **ctx.in_header.__dict__)
         return 'OK'
 
-    @rpc(Integer, Boolean, _returns=Unicode)
+    @rpc(Integer, Unicode(pattern="[YN]", default='Y'), _returns=Unicode)
     def purge_node(ctx, node_id, purge_data):
         """
             Remove node from DB completely
@@ -360,7 +360,7 @@ class NetworkService(HydraService):
             will be deleted.
 
         """
-        network.purge_node(node_id, purge_data, **ctx.in_header.__dict__)
+        network.delete_node(node_id, purge_data, **ctx.in_header.__dict__)
         return 'OK'
 
     @rpc(Integer, Link, _returns=Link)
@@ -400,7 +400,7 @@ class NetworkService(HydraService):
         network.set_link_status(link_id, 'A', **ctx.in_header.__dict__)
         return 'OK'
 
-    @rpc(Integer, Boolean, _returns=Unicode)
+    @rpc(Integer, Unicode(pattern="[YN]", default='Y'), _returns=Unicode)
     def purge_link(ctx, link_id, purge_data):
         """
             Remove link from DB completely
@@ -408,7 +408,7 @@ class NetworkService(HydraService):
             delete the data. If no other resources link to this data, it
             will be deleted.
         """
-        network.purge_link(link_id, **ctx.in_header.__dict__)
+        network.delete_link(link_id, purge_data, **ctx.in_header.__dict__)
         return 'OK'
 
     @rpc(Integer, ResourceGroup, _returns=ResourceGroup)
@@ -428,6 +428,16 @@ class NetworkService(HydraService):
             Set the status of a group to 'X'
         """
         network.set_group_status(group_id, 'X', **ctx.in_header.__dict__)
+        return 'OK'
+
+    @rpc(Integer, Unicode(pattern="[YN]", default='Y'), _returns=Unicode)
+    def purge_group(ctx, group_id, purge_data):
+        """
+            Remove a resource group from the DB completely. If purge data is set 
+            to 'Y', any data that is unconnected after the removal of the group
+            will be removed also.
+        """
+        network.delete_group(group_id, purge_data, **ctx.in_header.__dict__)
         return 'OK'
 
     @rpc(Integer, _returns=Unicode)

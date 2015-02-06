@@ -16,14 +16,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import test_SoapServer
+import server
 import copy
 import logging
 import suds
 import datetime
 log = logging.getLogger(__name__)
 
-class NetworkTest(test_SoapServer.SoapServerTest):
+class NetworkTest(server.SoapServerTest):
 
     def test_get_resources_of_type(self):
         """
@@ -952,7 +952,78 @@ class NetworkTest(test_SoapServer.SoapServerTest):
             assert ra.resourcescenario is not None
             assert ra.id in link_ras
 
+    def test_purge_node(self):
+        net = self.create_network_with_data()
+        scenario_id = net.scenarios.Scenario[0].id
+        self.client.service.clone_scenario(scenario_id)
+
+        node_id_to_delete = net.nodes.Node[0].id
+
+        node_datasets = self.client.service.get_node_data(node_id_to_delete, scenario_id)
+        log.info("Deleting node %s", node_id_to_delete)
+        self.client.service.purge_node(node_id_to_delete)
+
+        updated_net = self.client.service.get_network(net.id, 'Y')
+
+        remaining_node_ids = [n.id for n in updated_net.nodes.Node]
+
+        assert node_id_to_delete not in remaining_node_ids 
+
+        for l in updated_net.links.Link:
+            assert l.node_1_id != node_id_to_delete
+            assert l.node_2_id != node_id_to_delete
+
+        for rs in node_datasets.ResourceScenario:
+            #In these tests, all timeseries are unique to their resources,
+            #so after removing the node no timeseries to which it was attached
+            #should still exist.
+            d = rs.value
+            if d.type == 'timeseries':
+                self.assertRaises(suds.WebFault, self.client.service.get_dataset, d.id)
+
+    def test_purge_link(self):
+        net = self.create_network_with_data()
+        scenario_id = net.scenarios.Scenario[0].id
+        link_id_to_delete = net.links.Link[0].id
+
+        link_datasets = self.client.service.get_link_data(link_id_to_delete, scenario_id)
+        log.info("Deleting link %s", link_id_to_delete)
+        self.client.service.purge_link(link_id_to_delete)
+
+        updated_net = self.client.service.get_network(net.id, 'Y')
+
+        remaining_link_ids = [n.id for n in updated_net.links.Link]
+
+        assert link_id_to_delete not in remaining_link_ids 
+
+        for rs in link_datasets.ResourceScenario:
+            #In these tests, all timeseries are unique to their resources,
+            #so after removing the link no timeseries to which it was attached
+            #should still exist.
+            d = rs.value
+            if d.type == 'timeseries':
+                self.assertRaises(suds.WebFault, self.client.service.get_dataset, d.id)
+  
+    def test_purge_group(self):
+        net = self.create_network_with_data()
+        scenario_id = net.scenarios.Scenario[0].id
+        group_id_to_delete = net.resourcegroups.ResourceGroup[0].id
+
+        group_datasets = self.client.service.get_resourcegroup_data(group_id_to_delete, scenario_id)
+        log.info("Deleting group %s", group_id_to_delete)
+        self.client.service.purge_group(group_id_to_delete)
+
+        updated_net = self.client.service.get_network(net.id, 'Y')
+        assert updated_net.resourcegroups is None
+
+        for rs in group_datasets.ResourceScenario:
+            #In these tests, all timeseries are unique to their resources,
+            #so after removing the group no timeseries to which it was attached
+            #should still exist.
+            d = rs.value
+            if d.type == 'timeseries':
+                self.assertRaises(suds.WebFault, self.client.service.get_dataset, d.id)
 
 
 if __name__ == '__main__':
-    test_SoapServer.run()
+    server.run()

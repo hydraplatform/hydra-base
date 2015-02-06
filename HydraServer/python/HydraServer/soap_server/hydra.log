@@ -1,3 +1,0 @@
-2014-11-13 17:27:49,358 - INFO - Using logging config at C:\Users\steve/Documents/svn/HYDRA/config/logging.conf
-2014-11-13 17:27:49,874 - INFO - Connecting to database: sqlite:///C:\Users\Public\Documents/Hydra Modeller/db/hydra.db
-2014-11-13 17:27:49,983 - INFO - Custom unit conversion file 'C:\Users\Public\Documents/Hydra Modeller/.config/hydra/unit_conversion.xml' does not exist, falling back to default file (C:\Users\steve\Documents\svn\HYDRA\HydraLib\trunk\HydraLib\static\user_units.xml).

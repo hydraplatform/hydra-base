@@ -16,14 +16,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import test_SoapServer
+import server
 from lxml import etree
 from subprocess import Popen, PIPE
 import logging
 import os
 log = logging.getLogger(__name__)
 
-class PluginsTest(test_SoapServer.SoapServerTest):
+class PluginsTest(server.SoapServerTest):
 
     def get_plugins(self):
         plugins = self.client.service.get_plugins()
@@ -125,4 +125,4 @@ class PluginsTest(test_SoapServer.SoapServerTest):
         
 
 if __name__ == '__main__':
-    test_SoapServer.run()
+    server.run()

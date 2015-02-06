@@ -305,3 +305,8 @@ class TemplateService(HydraService):
     def validate_network(ctx, network_id, template_id, scenario_id):
         errors = template.validate_network(network_id, template_id, scenario_id)
         return errors
+
+    @rpc(Integer, Integer, _returns=SpyneArray(Unicode))
+    def check_type_compatibility(ctx, type_1_id, type_2_id): 
+        errors = template.check_type_compatibility(type_1_id, type_2_id)
+        return errors

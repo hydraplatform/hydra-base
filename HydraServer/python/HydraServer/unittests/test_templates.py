@@ -16,7 +16,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import test_SoapServer
+import server
 import datetime
 from lxml import etree
 from HydraLib import config
@@ -24,7 +24,7 @@ import logging
 from suds import WebFault
 log = logging.getLogger(__name__)
 
-class TemplatesTest(test_SoapServer.SoapServerTest):
+class TemplatesTest(server.SoapServerTest):
 
     def set_template(self, template):
         if template is None:
@@ -880,7 +880,68 @@ class TemplatesTest(test_SoapServer.SoapServerTest):
                 assert err.startswith("Unit mismatch")
             except AssertionError:
                 assert err.startswith("Dimension mismatch")
+
+    def test_type_compatibility(self): 
+        """
+            Check function that thests whether two types are compatible -- the
+            overlapping attributes are specified with the same unit.
+            Change the unit associated with an attribute for types in two idencical
+            templates, and test. There should be 1 error returned.
+            THen test comparison of identical types. No errors should return.
+        """
+        template_1 = self.test_add_template()
+        template_2 = self.test_add_template()
         
+        diff_type_1_id = None
+        same_type_1_id = None
+        for typ in template_1.types.TemplateType:
+            if typ.typeattrs:
+                for ta in typ.typeattrs.TypeAttr:
+                    if ta.attr_name == 'node_attr_1':
+                        diff_type_1_id = typ.id
+                        ta.unit = "m^3"
+                    elif ta.attr_name == 'link_attr_1':
+                        same_type_1_id = typ.id
+        template_1 = self.client.service.update_template(template_1)
+
+        diff_type_2_id = None
+        same_type_2_id = None
+        for typ in template_2.types.TemplateType:
+            if typ.typeattrs:
+                for ta in typ.typeattrs.TypeAttr:
+                    if ta.attr_name == 'node_attr_1':
+                        diff_type_2_id = typ.id
+                        ta.unit = "cm^3"
+                    elif ta.attr_name == 'link_attr_1':
+                        same_type_2_id = typ.id
+        
+        #Before updating template 2, check compatibility of types, where T1 has 
+        #a unit, but t2 does not.
+        errors_diff = self.client.service.check_type_compatibility(diff_type_1_id, diff_type_2_id)
+        assert len(errors_diff) == 1
+        errors_same = self.client.service.check_type_compatibility(same_type_1_id, same_type_2_id)
+        assert len(errors_same) == 0
+
+        #Now update T2 so that the types have conflicting units.
+        template_2 = self.client.service.update_template(template_2)
+
+        errors_diff = self.client.service.check_type_compatibility(diff_type_1_id, diff_type_2_id)
+        assert len(errors_diff) == 1
+        errors_same = self.client.service.check_type_compatibility(same_type_1_id, same_type_2_id)
+        assert len(errors_same) == 0
+
+        for typ in template_1.types.TemplateType:
+            if typ.typeattrs:
+                for ta in typ.typeattrs.TypeAttr:
+                    if ta.attr_name == 'node_attr_1':
+                        ta.unit = None
+
+        #Update template 1 now so that it has no unit, but template 2 does.
+        template_1= self.client.service.update_template(template_1)
+        errors_diff = self.client.service.check_type_compatibility(diff_type_1_id, diff_type_2_id)
+        assert len(errors_diff) == 1
+        errors_same = self.client.service.check_type_compatibility(same_type_1_id, same_type_2_id)
+        assert len(errors_same) == 0
 
 if __name__ == '__main__':
-    test_SoapServer.run()
+    server.run()

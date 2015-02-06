@@ -166,6 +166,7 @@ def get_networks(project_id, include_data='N', **kwargs):
         Get all networks in a project
         Returns an array of network objects.
     """
+    log.info("Getting networks for project %s", project_id)
     user_id = kwargs.get('user_id') 
     project = _get_project(project_id)
     project.check_read_permission(user_id)
@@ -177,6 +178,7 @@ def get_networks(project_id, include_data='N', **kwargs):
             continue
         try:
             net = network.get_network(r.network_id, summary=True, include_data=include_data, **kwargs)
+            log.info("Network %s retrieved", net.network_name)
             networks.append(net)
         except PermissionError:
             log.info("Not returning network %s as user %s does not have "
