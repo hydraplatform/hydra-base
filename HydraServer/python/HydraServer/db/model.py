@@ -40,6 +40,7 @@ from sqlalchemy import UniqueConstraint, and_
 import pandas as pd
 
 import logging
+import bcrypt
 log = logging.getLogger(__name__)
 
 def get_timestamp(ordinal):
@@ -1184,6 +1185,11 @@ class Role(Base):
     roleperms = relationship('RolePerm', lazy='joined', cascade='all')
     roleusers = relationship('RoleUser', lazy='joined', cascade='all')
 
+    @property
+    def permissions(self):
+        return set([rp.perm for rp in self.roleperms])
+
+
 class RolePerm(Base):
     """
     """
@@ -1224,5 +1230,27 @@ class User(Base):
     last_edit = Column(DateTime())
     cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     roleusers = relationship('RoleUser', lazy='joined')
+
+    def validate_password(self, password):
+        if bcrypt.hashpw(password.encode('utf-8'), self.password.encode('utf-8')) == self.password.encode('utf-8'):
+            return True
+        return False
+
+    @property
+    def permissions(self):
+        """Return a set with all permissions granted to the user."""
+        perms = set()
+        for r in self.roles:
+            perms = perms | set(r.permissions)
+        return perms
+
+    @property
+    def roles(self):
+        """Return a set with all roles granted to the user."""
+        roles = []
+        for ur in self.roleusers:
+            roles.append(ur.role)
+        return set(roles)
+
 from HydraServer.db import engine
 Base.metadata.create_all(engine)
