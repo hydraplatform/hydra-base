@@ -682,7 +682,7 @@ def get_network(network_id, summary=False, include_data='N', scenario_ids=None, 
 
 def get_node(node_id,**kwargs):
     try:
-        n = DBSession.query(Node).filter(Node.node_id==node_id).one()
+        n = DBSession.query(Node).filter(Node.node_id==node_id).options(joinedload_all('attributes.attr')).one()
         return n
     except NoResultFound:
         raise ResourceNotFoundError("Node %s not found"%(node_id,))
@@ -1053,18 +1053,6 @@ def update_node(node,**kwargs):
 
     return node_i
 
-def delete_resourceattr(resource_attr_id, purge_data,**kwargs):
-    """
-        Deletes a resource attribute and all associated data.
-    """
-    try:
-        ra = DBSession.query(ResourceAttr).filter(ResourceScenario.resource_attr_id == resource_attr_id).one()
-    except NoResultFound:
-        raise ResourceNotFoundError("Resource Attribute %s not found"%(resource_attr_id))
-    DBSession.delete(ra)
-    DBSession.flush()
-    return 'OK'
-
 def set_node_status(node_id, status, **kwargs):
     """
         Set the status of a node to 'X'
@@ -1124,6 +1112,11 @@ def delete_node(node_id, purge_data,**kwargs):
     except NoResultFound:
         raise ResourceNotFoundError("Node %s not found"%(node_id))
     
+    group_items = DBSession.query(ResourceGroupItem).filter(
+                                                    ResourceGroupItem.node_id==node_id).all()
+    for gi in group_items:
+        DBSession.delete(gi)
+
     if purge_data == 'Y':
         #Find the number of times a a resource and dataset combination
         #occurs. If this equals the number of times the dataset appears, then
@@ -1243,6 +1236,11 @@ def delete_link(link_id, purge_data,**kwargs):
     except NoResultFound:
         raise ResourceNotFoundError("Link %s not found"%(link_id))
 
+    group_items = DBSession.query(ResourceGroupItem).filter(
+                                                    ResourceGroupItem.link_id==link_id).all()
+    for gi in group_items:
+        DBSession.delete(gi)
+
     if purge_data == 'Y':
         #Find the number of times a a resource and dataset combination
         #occurs. If this equals the number of times the dataset appears, then
@@ -1336,6 +1334,11 @@ def delete_group(group_id, purge_data,**kwargs):
     except NoResultFound:
         raise ResourceNotFoundError("Group %s not found"%(group_id))
 
+    group_items = DBSession.query(ResourceGroupItem).filter(
+                                                    ResourceGroupItem.group_id==group_id).all()
+    for gi in group_items:
+        DBSession.delete(gi)
+    
     if purge_data == 'Y':
         #Find the number of times a a resource and dataset combination
         #occurs. If this equals the number of times the dataset appears, then

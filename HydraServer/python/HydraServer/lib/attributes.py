@@ -16,7 +16,7 @@
 import logging
 log = logging.getLogger(__name__)
 
-from HydraServer.db.model import Attr, Node, Link, Network, Project, Scenario, TemplateType, ResourceAttr, TypeAttr
+from HydraServer.db.model import Attr, Node, Link, ResourceGroup, Network, Project, Scenario, TemplateType, ResourceAttr, TypeAttr
 from HydraServer.db import DBSession
 from sqlalchemy.orm.exc import NoResultFound
 from HydraLib.HydraException import ResourceNotFoundError
@@ -28,6 +28,8 @@ def _get_resource(ref_key, ref_id):
             return DBSession.query(Node).filter(Node.node_id == ref_id).one()
         elif ref_key == 'LINK':
             return DBSession.query(Link).filter(Link.link_id == ref_id).one()
+        if ref_key == 'GROUP':
+            return DBSession.query(ResourceGroup).filter(ResourceGroup.group_id == ref_id).one()
         elif ref_key == 'NETWORK':
             return DBSession.query(Network).filter(Network.network_id == ref_id).one()
         elif ref_key == 'SCENARIO':
@@ -158,18 +160,20 @@ def _get_templatetype(type_id):
     except NoResultFound:
         raise ResourceNotFoundError("Template Type with ID %s not found"%(type_id,))
 
-
-
-#def delete_attribute(attr_id,**kwargs):
-#    """
-#        Set the status of an attribute to 'X'
-#    """
-#    success = True
-#    x = DBSession.query(Attr).filter(Attr.attr_id == attr_id).one()
-#    x.status = 'X'
-#    DBSession.flush()
-#    return success
-
+def delete_resource_attribute(resource_attr_id, **kwargs):
+    """
+        Deletes a resource attribute and all associated data.
+    """
+    user_id = kwargs.get('user_id')
+    try:
+        ra = DBSession.query(ResourceAttr).filter(ResourceAttr.resource_attr_id == resource_attr_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError("Resource Attribute %s not found"%(resource_attr_id))
+    ra_resource = ra.get_resource()
+    ra_resource.check_write_permission(user_id)
+    DBSession.delete(ra)
+    DBSession.flush()
+    return 'OK'
 
 def add_resource_attribute(resource_type, resource_id, attr_id, is_var,**kwargs):
     """
@@ -187,7 +191,6 @@ def add_resource_attribute(resource_type, resource_id, attr_id, is_var,**kwargs)
     DBSession.flush()
 
     return new_ra
-
 
 def add_resource_attrs_from_type(type_id, resource_type, resource_id,**kwargs):
     """

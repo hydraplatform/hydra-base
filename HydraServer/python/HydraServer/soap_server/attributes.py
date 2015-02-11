@@ -13,12 +13,11 @@
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-from spyne.model.primitive import Integer, Boolean, Unicode
+from spyne.model.primitive import Integer, Unicode
 from spyne.model.complex import Array as SpyneArray
 from spyne.decorator import rpc
 from hydra_complexmodels import Attr
 from hydra_complexmodels import ResourceAttr 
-from hydra_complexmodels import Network 
 
 from hydra_base import HydraService
 
@@ -126,14 +125,37 @@ class AttributeService(HydraService):
         
         return ret_attrs
 
- #   @rpc(Integer, _returns=Unicode)
- #   def delete_attribute(ctx, attr_id):
- #       """
- #           Set the status of an attribute to 'X'
- #       """
- #       success = 'OK'
- #       attributes.delete_attribute(attr_id, **ctx.in_header.__dict__)
- #       return success
+    @rpc(Integer, Unicode, _returns=ResourceAttr)
+    def update_resource_attribute(ctx, resource_attr_id, is_var):
+        """
+            Update the 'is_var' flag on a resource attribute
+        """
+        updated_ra = attributes.update_resource_attribute(resource_attr_id,
+                                                          is_var,
+                                                          **ctx.in_header.__dict__)
+        return ResourceAttr(updated_ra)
+
+
+    @rpc(Integer, _returns=Unicode)
+    def delete_resourceattr(ctx, resource_attr_id):
+        """
+            Deletes a resource attribute and all associated data.
+        """
+        attributes.delete_resource_attribute(resource_attr_id, **ctx.in_header.__dict__)
+        return 'OK'
+
+    @rpc(Integer, _returns=Unicode)
+    def delete_resource_attribute(ctx,resource_attr_id):
+        """
+            Add a resource attribute attribute to a resource.
+
+            attr_is_var indicates whether the attribute is a variable or not --
+            this is used in simulation to indicate that this value is expected
+            to be filled in by the simulator.
+        """
+        attributes.delete_resource_attribute(resource_attr_id,                                                                       **ctx.in_header.__dict__)
+
+        return "OK" 
 
 
     @rpc(Integer, Integer, Unicode(pattern="['YN']", default='N'), _returns=ResourceAttr)
@@ -172,6 +194,127 @@ class AttributeService(HydraService):
         resource_attrs = attributes.get_resource_attributes(
                 'NETWORK',
                 network_id,
+                type_id)
+
+        return [ResourceAttr(ra) for ra in resource_attrs]
+
+
+    @rpc(Integer, Integer, Unicode(pattern="['YN']", default='N'), _returns=ResourceAttr)
+    def add_node_attribute(ctx,node_id, attr_id, is_var):
+        """
+            Add a resource attribute attribute to a resource.
+
+            attr_is_var indicates whether the attribute is a variable or not --
+            this is used in simulation to indicate that this value is expected
+            to be filled in by the simulator.
+        """
+        new_ra = attributes.add_resource_attribute(
+                                                       'NODE',
+                                                       node_id,
+                                                       attr_id,
+                                                       is_var,
+                                                       **ctx.in_header.__dict__)
+
+        return ResourceAttr(new_ra)
+
+
+    @rpc(Integer, Integer, _returns=SpyneArray(ResourceAttr))
+    def add_node_attrs_from_type(ctx, type_id, node_id):
+        """
+            adds all the attributes defined by a type to a node.
+        """
+        new_resource_attrs = attributes.add_resource_attrs_from_type(
+                                                        type_id,
+                                                        'NODE',
+                                                        node_id,
+                                                        **ctx.in_header.__dict__)
+        return [ResourceAttr(ra) for ra in new_resource_attrs]
+
+    @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttr))
+    def get_node_attributes(ctx, node_id, type_id):
+        resource_attrs = attributes.get_resource_attributes(
+                'NODE',
+                node_id,
+                type_id)
+
+        return [ResourceAttr(ra) for ra in resource_attrs]
+
+    @rpc(Integer, Integer, Unicode(pattern="['YN']", default='N'), _returns=ResourceAttr)
+    def add_link_attribute(ctx,link_id, attr_id, is_var):
+        """
+            Add a resource attribute attribute to a resource.
+
+            attr_is_var indicates whether the attribute is a variable or not --
+            this is used in simulation to indicate that this value is expected
+            to be filled in by the simulator.
+        """
+        new_ra = attributes.add_resource_attribute(
+                                                       'LINK',
+                                                       link_id,
+                                                       attr_id,
+                                                       is_var,
+                                                       **ctx.in_header.__dict__)
+
+        return ResourceAttr(new_ra)
+
+
+    @rpc(Integer, Integer, _returns=SpyneArray(ResourceAttr))
+    def add_link_attrs_from_type(ctx, type_id, link_id):
+        """
+            adds all the attributes defined by a type to a link.
+        """
+        new_resource_attrs = attributes.add_resource_attrs_from_type(
+                                                        type_id,
+                                                        'LINK',
+                                                        link_id,
+                                                        **ctx.in_header.__dict__)
+        return [ResourceAttr(ra) for ra in new_resource_attrs]
+
+    @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttr))
+    def get_link_attributes(ctx, link_id, type_id):
+        resource_attrs = attributes.get_resource_attributes(
+                'LINK',
+                link_id,
+                type_id)
+
+        return [ResourceAttr(ra) for ra in resource_attrs]
+
+    @rpc(Integer, Integer, Unicode(pattern="['YN']", default='N'), _returns=ResourceAttr)
+    def add_group_attribute(ctx,group_id, attr_id, is_var):
+        """
+            Add a resource attribute attribute to a resource.
+
+            attr_is_var indicates whether the attribute is a variable or not --
+            this is used in simulation to indicate that this value is expected
+            to be filled in by the simulator.
+        """
+        new_ra = attributes.add_resource_attribute(
+                                                       'GROUP',
+                                                       group_id,
+                                                       attr_id,
+                                                       is_var,
+                                                       **ctx.in_header.__dict__)
+
+        return ResourceAttr(new_ra)
+
+
+    @rpc(Integer, Integer, _returns=SpyneArray(ResourceAttr))
+    def add_group_attrs_from_type(ctx, type_id, group_id):
+        """
+            adds all the attributes defined by a type to a group.
+        """
+        new_resource_attrs = attributes.add_resource_attrs_from_type(
+                                                        type_id,
+                                                        'GROUP',
+                                                        group_id,
+                                                        **ctx.in_header.__dict__)
+        return [ResourceAttr(ra) for ra in new_resource_attrs]
+
+    @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttr))
+    def get_group_attributes(ctx, group_id, type_id):
+        resource_attrs = attributes.get_resource_attributes(
+                'GROUP',
+                group_id,
                 type_id)
 
         return [ResourceAttr(ra) for ra in resource_attrs]

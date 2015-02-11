@@ -325,14 +325,6 @@ class NetworkService(HydraService):
 
         return updated_node
 
-    @rpc(Integer, Boolean,  _returns=Unicode)
-    def delete_resourceattr(ctx, resource_attr_id, purge_data):
-        """
-            Deletes a resource attribute and all associated data.
-        """
-        network.delete_resourceattr(resource_attr_id, purge_data, **ctx.in_header.__dict__)
-        return 'OK'
-
 
     @rpc(Integer, _returns=Unicode)
     def delete_node(ctx, node_id):

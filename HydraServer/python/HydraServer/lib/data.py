@@ -21,6 +21,7 @@ from HydraServer.db.model import Dataset, Metadata, DatasetOwner, DatasetCollect
         DatasetCollectionItem, ResourceScenario, ResourceAttr, TypeAttr
 from HydraServer.util import generate_data_hash
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.orm import aliased
 from sqlalchemy.sql.expression import case
 from sqlalchemy import func
 from sqlalchemy import null
@@ -195,12 +196,14 @@ def search_datasets(dataset_id=None,
             dataset_qry = dataset_qry.filter(
                 func.lower(Dataset.data_name).like("%%%s%%"%dataset_name.lower())
             )
-
         if collection_name is not None:
-            dataset_qry = dataset_qry.join(DatasetCollection,
-                        and_(DatasetCollectionItem.collection_id == DatasetCollection.collection_id,
-                        func.lower(DatasetCollection.collection_name).like("%%%s%%"%collection_name.lower()))
-                        ).join(DatasetCollectionItem,and_(DatasetCollectionItem.dataset_id == Dataset.dataset_id))
+            dc = aliased(DatasetCollection)
+            dci = aliased(DatasetCollectionItem)
+            dataset_qry = dataset_qry.join(dc,
+                        func.lower(dc.collection_name).like("%%%s%%"%collection_name.lower())
+                        ).join(dci,and_(
+                            dci.collection_id == dc.collection_id,
+                            dci.dataset_id == Dataset.dataset_id))
 
         if data_type is not None:
             dataset_qry = dataset_qry.filter(
