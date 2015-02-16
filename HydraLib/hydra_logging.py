@@ -68,7 +68,7 @@ def init(level=None):
             logger = logging.getLogger()
             handler = logging.FileHandler(os.path.join(log_base_path, log_file),"a")
             handler.setLevel(logging.DEBUG)
-            formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+            formatter = logging.Formatter("%(process)s %(asctime)s - %(levelname)s - %(message)s")
             handler.setFormatter(formatter)
             logger.addHandler(handler)
             use_default=False
@@ -87,7 +87,7 @@ def init(level=None):
         'disable_existing_loggers': False,
         'formatters': {
             'hydraFormatter': {
-                'format': '%(asctime)s - %(levelname)s - %(message)s'
+                'format': '%(process)s %(asctime)s - %(levelname)s - %(message)s'
             },
         },
         'handlers': {
