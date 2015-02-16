@@ -20,7 +20,7 @@ from HydraServer.db.model import Attr, Node, Link, ResourceGroup, Network, Proje
 from HydraServer.db import DBSession
 from sqlalchemy.orm.exc import NoResultFound
 from HydraLib.HydraException import ResourceNotFoundError
-from sqlalchemy import or_
+from sqlalchemy import or_, and_
 
 def _get_resource(ref_key, ref_id):
     try:
@@ -58,7 +58,7 @@ def get_attribute_by_name_and_dimension(name, dimension,**kwargs):
     """
 
     try:
-        attr_i = DBSession.query(Attr).filter(Attr.attr_name==name, or_(Attr.attr_dimen==dimension, Attr.attr_dimen == '')).one()
+        attr_i = DBSession.query(Attr).filter(and_(Attr.attr_name==name, or_(Attr.attr_dimen==dimension, Attr.attr_dimen == ''))).one()
         log.info("Attribute retrieved")
         return attr_i
     except NoResultFound:

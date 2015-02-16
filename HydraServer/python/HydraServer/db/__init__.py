@@ -30,11 +30,10 @@ log.info("Connecting to database: %s", db_url)
 engine = create_engine(db_url) 
 from sqlalchemy.orm import sessionmaker
 
-maker = sessionmaker(autoflush=False, autocommit=False,
+maker = sessionmaker(bind=engine, autoflush=False, autocommit=False,
                      extension=ZopeTransactionExtension())
 
 DBSession = scoped_session(maker)
-DBSession.configure(bind=engine)
 
 def commit_transaction():
     try:
@@ -42,8 +41,7 @@ def commit_transaction():
     except Exception, e:
         log.critical(e)
         transaction.abort()
-    if DBSession:
-        DBSession.close()
+    DBSession.remove()
 
 def rollback_transaction():
     transaction.abort()

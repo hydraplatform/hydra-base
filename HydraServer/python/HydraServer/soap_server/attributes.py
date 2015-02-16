@@ -23,6 +23,9 @@ from hydra_base import HydraService
 
 from HydraServer.lib import attributes
 
+import logging
+log = logging.getLogger(__name__)
+
 class AttributeService(HydraService):
     """
         The attribute SOAP service
@@ -111,6 +114,7 @@ class AttributeService(HydraService):
         """
         ret_attrs = []
         for a in attrs:
+            log.info("Getting attribute %s, %s", a.name, a.dimen)
             attr = attributes.get_attribute_by_name_and_dimension(a.name,
                                                               a.dimen,
                                                               **ctx.in_header.__dict__)

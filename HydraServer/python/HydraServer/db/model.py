@@ -912,7 +912,7 @@ class ResourceGroupItem(Base):
     subgroup_id = Column(Integer(),  ForeignKey('tResourceGroup.group_id'))
 
     group_id = Column(Integer(), ForeignKey('tResourceGroup.group_id'))
-    scenario_id = Column(Integer(), ForeignKey('tScenario.scenario_id'),  nullable=False)
+    scenario_id = Column(Integer(), ForeignKey('tScenario.scenario_id'),  nullable=False, index=True)
 
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     
@@ -993,7 +993,7 @@ class Scenario(Base):
     scenario_description = Column(String(1000))
     scenario_layout = Column(Text(1000))
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
-    network_id = Column(Integer(), ForeignKey('tNetwork.network_id'))
+    network_id = Column(Integer(), ForeignKey('tNetwork.network_id'), index=True)
     start_time = Column(String(60))
     end_time = Column(String(60))
     locked = Column(String(1),  nullable=False, server_default=text(u"'N'"))
