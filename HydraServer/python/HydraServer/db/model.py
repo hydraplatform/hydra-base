@@ -22,6 +22,9 @@ String,\
 LargeBinary,\
 BigInteger,\
 DateTime,\
+TIMESTAMP,\
+BIGINT,\
+Float,\
 Text
 
 from HydraLib.HydraException import HydraError, PermissionError
@@ -40,6 +43,7 @@ from sqlalchemy import UniqueConstraint, and_
 import pandas as pd
 
 import logging
+import bcrypt
 log = logging.getLogger(__name__)
 
 def get_timestamp(ordinal):
@@ -65,15 +69,15 @@ class Dataset(Base):
     dataset_id = Column(Integer(), primary_key=True, index=True, nullable=False)
     data_type = Column(String(60),  nullable=False)
     data_units = Column(String(60))
-    data_dimen = Column(String(60), server_default=text(u'dimensionless'))
+    data_dimen = Column(String(60), server_default='dimensionless')
     data_name = Column(String(60),  nullable=False)
-    data_hash = Column(BigInteger(),  nullable=False, unique=True)
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    data_hash = Column(BIGINT(),  nullable=False, unique=True)
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     created_by = Column(Integer(), ForeignKey('tUser.user_id'))
     hidden = Column(String(1),  nullable=False, server_default=text(u"'N'"))
 
-    start_time = Column(String(),  nullable=True)
-    frequency = Column(String(),  nullable=True)
+    start_time = Column(String(60),  nullable=True)
+    frequency = Column(String(10),  nullable=True)
     value = Column('value', LargeBinary(),  nullable=True)
 
     useruser = relationship('User', backref=backref("datasets", order_by=dataset_id))
@@ -256,7 +260,7 @@ class DatasetCollection(Base):
 
     collection_id = Column(Integer(), primary_key=True, nullable=False)
     collection_name = Column(String(60),  nullable=False)
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
 class DatasetCollectionItem(Base):
     """
@@ -266,7 +270,7 @@ class DatasetCollectionItem(Base):
 
     collection_id = Column(Integer(), ForeignKey('tDatasetCollection.collection_id'), primary_key=True, nullable=False)
     dataset_id = Column(Integer(), ForeignKey('tDataset.dataset_id'), primary_key=True, nullable=False)
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     collection = relationship('DatasetCollection', backref=backref("items", order_by=dataset_id, cascade="all, delete-orphan"))
     dataset = relationship('Dataset', backref=backref("collectionitems", order_by=dataset_id))
@@ -303,7 +307,7 @@ class Attr(Base):
     attr_id = Column(Integer(), primary_key=True, nullable=False)
     attr_name = Column(String(60),  nullable=False)
     attr_dimen = Column(String(60))
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
 class AttrMap(Base):
     """
@@ -325,7 +329,7 @@ class Template(Base):
 
     template_id = Column(Integer(), primary_key=True, nullable=False)
     template_name = Column(String(60),  nullable=False, unique=True)
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     layout = Column(Text(1000))
 
 class TemplateType(Base):
@@ -343,7 +347,7 @@ class TemplateType(Base):
     resource_type = Column(String(60))
     alias = Column(String(100))
     layout = Column(Text(1000))
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     template = relationship('Template', backref=backref("templatetypes", order_by=type_id, cascade="all, delete-orphan"))
 
@@ -360,7 +364,7 @@ class TypeAttr(Base):
     data_type          = Column(String(60))
     data_restriction   = Column(Text(1000))
     unit               = Column(String(60))
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     attr = relationship('Attr')
     templatetype = relationship('TemplateType',  backref=backref("typeattrs", order_by=attr_id, cascade="all, delete-orphan"))
@@ -391,7 +395,7 @@ class ResourceAttr(Base):
     link_id     = Column(Integer(),  ForeignKey('tLink.link_id'), index=True, nullable=True)
     group_id    = Column(Integer(),  ForeignKey('tResourceGroup.group_id'), index=True, nullable=True)
     attr_is_var = Column(String(1),  nullable=False, server_default=text(u"'N'"))
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     attr = relationship('Attr')
     project = relationship('Project', backref=backref('attributes', uselist=True, cascade="all, delete-orphan"), uselist=False)
@@ -446,7 +450,7 @@ class ResourceType(Base):
     node_id     = Column(Integer(),  ForeignKey('tNode.node_id'), nullable=True)
     link_id     = Column(Integer(),  ForeignKey('tLink.link_id'), nullable=True)
     group_id    = Column(Integer(),  ForeignKey('tResourceGroup.group_id'), nullable=True)
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
 
     templatetype = relationship('TemplateType', backref=backref('resourcetypes', uselist=True, cascade="all, delete-orphan"))
@@ -499,7 +503,7 @@ class Project(Base):
     project_name = Column(String(60),  nullable=False, unique=True)
     project_description = Column(String(1000))
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     created_by = Column(Integer(), ForeignKey('tUser.user_id'))
 
     user = relationship('User', backref=backref("projects", order_by=project_id))
@@ -600,7 +604,7 @@ class Network(Base):
     network_layout = Column(Text(1000))
     project_id = Column(Integer(), ForeignKey('tProject.project_id'),  nullable=False)
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     projection = Column(String(1000))
     created_by = Column(Integer(), ForeignKey('tUser.user_id'))
 
@@ -769,7 +773,7 @@ class Link(Base):
     link_name = Column(String(60))
     link_description = Column(String(1000))
     link_layout = Column(Text(1000))
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     network = relationship('Network', backref=backref("links", order_by=network_id, cascade="all, delete-orphan"), lazy='joined')
     node_a = relationship('Node', foreign_keys=[node_1_id], backref=backref("links_to", order_by=link_id, cascade="all, delete-orphan"))
@@ -788,6 +792,19 @@ class Link(Base):
 
         return attr
 
+    def check_read_permission(self, user_id):
+        """
+            Check whether this user can read this link 
+        """
+        self.network.check_read_permission(user_id)
+
+    def check_write_permission(self, user_id):
+        """
+            Check whether this user can write this link 
+        """
+
+        self.network.check_write_permission(user_id)
+
 class Node(Base):
     """
     """
@@ -803,10 +820,10 @@ class Node(Base):
     node_description = Column(String(1000))
     node_name = Column(String(60),  nullable=False)
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
-    node_x = Column(Numeric(asdecimal=True))
-    node_y = Column(Numeric(asdecimal=True))
+    node_x = Column(Float(precision=10, asdecimal=True))
+    node_y = Column(Float(precision=10, asdecimal=True))
     node_layout = Column(Text(1000))
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     network = relationship('Network', backref=backref("nodes", order_by=network_id, cascade="all, delete-orphan"), lazy='joined')
 
@@ -823,6 +840,19 @@ class Node(Base):
 
         return attr
 
+    def check_read_permission(self, user_id):
+        """
+            Check whether this user can read this node
+        """
+        self.network.check_read_permission(user_id)
+
+    def check_write_permission(self, user_id):
+        """
+            Check whether this user can write this node
+        """
+
+        self.network.check_write_permission(user_id)
+
 class ResourceGroup(Base):
     """
     """
@@ -837,7 +867,7 @@ class ResourceGroup(Base):
     group_name = Column(String(60),  nullable=False)
     group_description = Column(String(1000))
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     network_id = Column(Integer(), ForeignKey('tNetwork.network_id'),  nullable=False)
 
     network = relationship('Network', backref=backref("resourcegroups", order_by=group_id, cascade="all, delete-orphan"), lazy='joined')
@@ -855,6 +885,19 @@ class ResourceGroup(Base):
 
         return attr
 
+    def check_read_permission(self, user_id):
+        """
+            Check whether this user can read this group 
+        """
+        self.network.check_read_permission(user_id)
+
+    def check_write_permission(self, user_id):
+        """
+            Check whether this user can write this group
+        """
+
+        self.network.check_write_permission(user_id)
+
 class ResourceGroupItem(Base):
     """
     """
@@ -869,15 +912,17 @@ class ResourceGroupItem(Base):
     subgroup_id = Column(Integer(),  ForeignKey('tResourceGroup.group_id'))
 
     group_id = Column(Integer(), ForeignKey('tResourceGroup.group_id'))
-    scenario_id = Column(Integer(), ForeignKey('tScenario.scenario_id'),  nullable=False)
+    scenario_id = Column(Integer(), ForeignKey('tScenario.scenario_id'),  nullable=False, index=True)
 
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     
     group = relationship('ResourceGroup', foreign_keys=[group_id], backref=backref("items", order_by=group_id))
     scenario = relationship('Scenario', backref=backref("resourcegroupitems", order_by=item_id, cascade="all, delete-orphan"))
 
-    node = relationship('Node')
-    link = relationship('Link')
+    #These need to have backrefs to allow the deletion of networks & projects
+    #--There needs to be a connection between the items & the resources to allow it
+    node = relationship('Node', backref=backref("resourcegroupitems", order_by=item_id, cascade="all, delete-orphan"))
+    link = relationship('Link', backref=backref("resourcegroupitems", order_by=item_id, cascade="all, delete-orphan"))
     subgroup = relationship('ResourceGroup', foreign_keys=[subgroup_id])
 
 
@@ -909,7 +954,7 @@ class ResourceScenario(Base):
     scenario_id = Column(Integer(), ForeignKey('tScenario.scenario_id'), primary_key=True, nullable=False, index=True)
     resource_attr_id = Column(Integer(), ForeignKey('tResourceAttr.resource_attr_id'), primary_key=True, nullable=False, index=True)
     source           = Column(String(60))
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     dataset      = relationship('Dataset', backref=backref("resourcescenarios", order_by=dataset_id))
     scenario     = relationship('Scenario', backref=backref("resourcescenarios", order_by=resource_attr_id, cascade="all, delete-orphan"))
@@ -948,12 +993,12 @@ class Scenario(Base):
     scenario_description = Column(String(1000))
     scenario_layout = Column(Text(1000))
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
-    network_id = Column(Integer(), ForeignKey('tNetwork.network_id'))
-    start_time = Column(String())
-    end_time = Column(String())
+    network_id = Column(Integer(), ForeignKey('tNetwork.network_id'), index=True)
+    start_time = Column(String(60))
+    end_time = Column(String(60))
     locked = Column(String(1),  nullable=False, server_default=text(u"'N'"))
     time_step = Column(String(60))
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     created_by = Column(Integer(), ForeignKey('tUser.user_id'))
 
     network = relationship('Network', backref=backref("scenarios", order_by=scenario_id))
@@ -1002,7 +1047,7 @@ class Rule(Base):
     rule_name = Column(String(60), nullable=False)
     rule_description = Column(String(1000), nullable=False)
 
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     ref_key = Column(String(60),  nullable=False, index=True)
 
 
@@ -1035,7 +1080,7 @@ class Note(Base):
 
     created_by = Column(Integer(), ForeignKey('tUser.user_id'))
 
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     scenario_id = Column(Integer(), ForeignKey('tScenario.scenario_id'),  index=True, nullable=True)
     project_id = Column(Integer(), ForeignKey('tProject.project_id'),  index=True, nullable=True)
 
@@ -1119,7 +1164,7 @@ class ProjectOwner(Base):
 
     user_id = Column(Integer(), ForeignKey('tUser.user_id'), primary_key=True, nullable=False)
     project_id = Column(Integer(), ForeignKey('tProject.project_id'), primary_key=True, nullable=False)
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     view = Column(String(1),  nullable=False)
     edit = Column(String(1),  nullable=False)
     share = Column(String(1),  nullable=False)
@@ -1135,7 +1180,7 @@ class NetworkOwner(Base):
 
     user_id = Column(Integer(), ForeignKey('tUser.user_id'), primary_key=True, nullable=False)
     network_id = Column(Integer(), ForeignKey('tNetwork.network_id'), primary_key=True, nullable=False)
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     view = Column(String(1),  nullable=False)
     edit = Column(String(1),  nullable=False)
     share = Column(String(1),  nullable=False)
@@ -1151,7 +1196,7 @@ class DatasetOwner(Base):
 
     user_id = Column(Integer(), ForeignKey('tUser.user_id'), primary_key=True, nullable=False)
     dataset_id = Column(Integer(), ForeignKey('tDataset.dataset_id'), primary_key=True, nullable=False)
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     view = Column(String(1),  nullable=False)
     edit = Column(String(1),  nullable=False)
     share = Column(String(1),  nullable=False)
@@ -1168,7 +1213,7 @@ class Perm(Base):
     perm_id = Column(Integer(), primary_key=True, nullable=False)
     perm_code = Column(String(60),  nullable=False)
     perm_name = Column(String(60),  nullable=False)
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     roleperms = relationship('RolePerm', lazy='joined')
 
 class Role(Base):
@@ -1180,9 +1225,14 @@ class Role(Base):
     role_id = Column(Integer(), primary_key=True, nullable=False)
     role_code = Column(String(60),  nullable=False)
     role_name = Column(String(60),  nullable=False)
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     roleperms = relationship('RolePerm', lazy='joined', cascade='all')
     roleusers = relationship('RoleUser', lazy='joined', cascade='all')
+
+    @property
+    def permissions(self):
+        return set([rp.perm for rp in self.roleperms])
+
 
 class RolePerm(Base):
     """
@@ -1192,7 +1242,7 @@ class RolePerm(Base):
 
     perm_id = Column(Integer(), ForeignKey('tPerm.perm_id'), primary_key=True, nullable=False)
     role_id = Column(Integer(), ForeignKey('tRole.role_id'), primary_key=True, nullable=False)
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     perm = relationship('Perm', lazy='joined')
     role = relationship('Role', lazy='joined')
@@ -1205,7 +1255,7 @@ class RoleUser(Base):
 
     user_id = Column(Integer(), ForeignKey('tUser.user_id'), primary_key=True, nullable=False)
     role_id = Column(Integer(), ForeignKey('tRole.role_id'), primary_key=True, nullable=False)
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     user = relationship('User', lazy='joined')
     role = relationship('Role', lazy='joined')
@@ -1220,9 +1270,31 @@ class User(Base):
     username = Column(String(60),  nullable=False, unique=True)
     password = Column(String(1000),  nullable=False)
     display_name = Column(String(60),  nullable=False, server_default=text(u"''"))
-    last_login = Column(DateTime())
-    last_edit = Column(DateTime())
-    cr_date = Column(DateTime(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    last_login = Column(TIMESTAMP())
+    last_edit = Column(TIMESTAMP())
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     roleusers = relationship('RoleUser', lazy='joined')
+
+    def validate_password(self, password):
+        if bcrypt.hashpw(password.encode('utf-8'), self.password.encode('utf-8')) == self.password.encode('utf-8'):
+            return True
+        return False
+
+    @property
+    def permissions(self):
+        """Return a set with all permissions granted to the user."""
+        perms = set()
+        for r in self.roles:
+            perms = perms | set(r.permissions)
+        return perms
+
+    @property
+    def roles(self):
+        """Return a set with all roles granted to the user."""
+        roles = []
+        for ur in self.roleusers:
+            roles.append(ur.role)
+        return set(roles)
+
 from HydraServer.db import engine
 Base.metadata.create_all(engine)

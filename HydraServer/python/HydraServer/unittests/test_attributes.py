@@ -144,5 +144,38 @@ class AttributeTest(server.SoapServerTest):
 
         assert len(after_net_attrs) == len(before_net_attrs) + 1
 
+    def test_add_node_attribute(self):
+        network = self.create_network_with_data()
+        node = network.nodes.Node[0]
+        new_attr = self.create_attr("new node attr", dimension=None)
+        self.client.service.add_node_attribute(node.id, new_attr.id, 'Y')
+        node_attributes = self.client.service.get_node_attributes(node.id)
+        network_attr_ids = []
+        for ra in node_attributes.ResourceAttr:
+            network_attr_ids.append(ra.attr_id)
+        assert new_attr.id in network_attr_ids
+
+    def test_add_link_attribute(self):
+        network = self.create_network_with_data()
+        link = network.links.Link[0]
+        new_attr = self.create_attr("new link attr", dimension=None)
+        self.client.service.add_link_attribute(link.id, new_attr.id, 'Y')
+        link_attributes = self.client.service.get_link_attributes(link.id)
+        network_attr_ids = []
+        for ra in link_attributes.ResourceAttr:
+            network_attr_ids.append(ra.attr_id)
+        assert new_attr.id in network_attr_ids
+
+    def test_add_group_attribute(self):
+        network = self.create_network_with_data()
+        group = network.resourcegroups.ResourceGroup[0]
+        new_attr = self.create_attr("new group attr", dimension=None)
+        self.client.service.add_group_attribute(group.id, new_attr.id, 'Y')
+        group_attrs = self.client.service.get_group_attributes(group.id)
+        network_attr_ids = []
+        for ra in group_attrs.ResourceAttr:
+            network_attr_ids.append(ra.attr_id)
+        assert new_attr.id in network_attr_ids
+
 if __name__ == '__main__':
     server.run()

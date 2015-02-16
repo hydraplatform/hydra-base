@@ -24,18 +24,32 @@ from HydraServer.util.permissions import check_perm
 import template
 from HydraServer.db.model import Project, Network, Scenario, Node, Link, ResourceGroup,\
         ResourceAttr, ResourceType, ResourceGroupItem, Dataset, Metadata, DatasetOwner,\
-        ResourceScenario, TemplateType, TypeAttr
+        ResourceScenario, TemplateType, TypeAttr, Template
 from sqlalchemy.orm import noload, joinedload, joinedload_all
 from HydraServer.db import DBSession
-from sqlalchemy import func, and_, distinct
+from sqlalchemy import func, and_, or_, distinct
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy import func
 from sqlalchemy.orm import aliased
 from HydraLib.dateutil import timestamp_to_ordinal
 from HydraServer.util.hdb import add_attributes, add_resource_types
 
 log = logging.getLogger(__name__)
 
+class dictobj(dict):
+    def __init__(self, obj_dict, extras={}):
+        for k, v in extras.items():
+            self[k] = v
+            setattr(self, k, v)
+
+        for k, v in obj_dict.items():
+            self[k] = v
+            setattr(self, k, v)
+
+    def __getattr__(self, name):
+        return self.get(name, None)
+
+    def __setattr__(self, name, value):
+        self[name] = value
 
 def _update_attributes(resource_i, attributes):
     if attributes is None:
@@ -514,54 +528,381 @@ def _get_all_resource_attributes(network_id, template_id=None):
         Return these attributes as a dictionary, keyed on type (NODE, LINK, GROUP)
         then by ID of the node or link.
     """
-    all_node_attribute_qry = DBSession.query(ResourceAttr).join(Node).filter(Node.network_id==network_id)
+    base_qry = DBSession.query(ResourceAttr.resource_attr_id.label('resource_attr_id'),
+                               ResourceAttr.ref_key.label('ref_key'),
+                               ResourceAttr.cr_date.label('cr_date'),
+                               ResourceAttr.attr_is_var.label('attr_is_var'),
+                               ResourceAttr.node_id.label('node_id'),
+                               ResourceAttr.link_id.label('link_id'),
+                               ResourceAttr.group_id.label('group_id'),
+                               ResourceAttr.network_id.label('network_id'),
+                               ResourceAttr.attr_id.label('attr_id'),
+                              )
+    
 
-    all_link_attribute_qry = DBSession.query(ResourceAttr).join(Link).filter(Link.network_id==network_id)
+    all_node_attribute_qry = base_qry.join(Node).filter(Node.network_id==network_id)
 
-    all_group_attribute_qry = DBSession.query(ResourceAttr).join(ResourceGroup).filter(ResourceGroup.network_id==network_id)
+    all_link_attribute_qry = base_qry.join(Link).filter(Link.network_id==network_id)
+
+    all_group_attribute_qry = base_qry.join(ResourceGroup).filter(ResourceGroup.network_id==network_id)
+    network_attribute_qry = base_qry.filter(ResourceAttr.network_id==network_id)
+
+
     #Filter the group attributes by template
     if template_id is not None:
         all_node_attribute_qry = all_node_attribute_qry.join(ResourceType).join(TemplateType).join(TypeAttr).filter(TemplateType.template_id==template_id).filter(ResourceAttr.attr_id==TypeAttr.attr_id)
         all_link_attribute_qry = all_link_attribute_qry.join(ResourceType).join(TemplateType).join(TypeAttr).filter(TemplateType.template_id==template_id).filter(ResourceAttr.attr_id==TypeAttr.attr_id)
         all_group_attribute_qry = all_group_attribute_qry.join(ResourceType).join(TemplateType).join(TypeAttr).filter(TemplateType.template_id==template_id).filter(ResourceAttr.attr_id==TypeAttr.attr_id)
+        network_attribute_qry = network_attribute_qry.join(ResourceType, ResourceAttr.network_id==ResourceType.network_id).join(TemplateType).join(TypeAttr).filter(TemplateType.template_id==template_id).filter(ResourceAttr.attr_id==TypeAttr.attr_id)
 
-    logging.info("Getting node attributes")
-    all_node_attributes = all_node_attribute_qry.all()
-    logging.info("Getting link attributes")
-    all_link_attributes = all_link_attribute_qry.all()
-    logging.info("Getting group attributes")
-    all_group_attributes = all_group_attribute_qry.all()
+    x = time.time()
+    logging.info("Getting all attributes using execute")
+    attribute_qry = all_node_attribute_qry.union(all_link_attribute_qry, all_group_attribute_qry, network_attribute_qry)
+    all_attributes = DBSession.execute(attribute_qry.statement).fetchall()
+    log.info("%s attrs retrieved in %s", len(all_attributes), time.time()-x)
 
     logging.info("Attributes retrieved. Processing results...")
-    node_attr_dict = dict()
-    for node_attr in all_node_attributes:
-        if node_attr.node_id in node_attr_dict.keys():
-            node_attr_dict[node_attr.node_id].append(node_attr)
-        else:
-            node_attr_dict[node_attr.node_id] = [node_attr]
-
+    x = time.time()
+    node_attr_dict = dict() 
     link_attr_dict = dict()
-    for link_attr in all_link_attributes:
-        if link_attr.link_id in link_attr_dict.keys():
-            link_attr_dict[link_attr.link_id].append(link_attr)
-        else:
-            link_attr_dict[link_attr.link_id] = [link_attr]
-
     group_attr_dict = dict()
-    for group_attr in all_group_attributes:
-        if group_attr.group_id in group_attr_dict.keys():
-            group_attr_dict[group_attr.group_id].append(group_attr)
-        else:
-            group_attr_dict[group_attr.group_id] = [group_attr]
+    network_attr_dict = dict()
+
+    for attr in all_attributes:
+        if attr.ref_key == 'NODE':
+            nodeattr = node_attr_dict.get(attr.node_id, [])
+            nodeattr.append(attr)
+            node_attr_dict[attr.node_id] = nodeattr
+        elif attr.ref_key == 'LINK':
+            linkattr = link_attr_dict.get(attr.link_id, [])
+            linkattr.append(attr)
+            link_attr_dict[attr.link_id] = linkattr
+        elif attr.ref_key == 'GROUP':
+            groupattr = group_attr_dict.get(attr.group_id, [])
+            groupattr.append(attr)
+            group_attr_dict[attr.group_id] = groupattr
+        elif attr.ref_key == 'NETWORK':
+            networkattr = network_attr_dict.get(attr.network_id, [])
+            networkattr.append(attr)
+            network_attr_dict[attr.network_id] = networkattr
 
     all_attributes = {
         'NODE' : node_attr_dict,
         'LINK' : link_attr_dict,
         'GROUP': group_attr_dict,
+        'NETWORK': network_attr_dict,
     }
 
-    logging.info("Attributes processed.")
+    logging.info("Attributes processed in %s", time.time()-x)
     return all_attributes
+
+def _get_all_templates(network_id, template_id):
+    """
+        Get all the templates for the nodes, links and groups of a network.
+        Return these templates as a dictionary, keyed on type (NODE, LINK, GROUP)
+        then by ID of the node or link.
+    """
+    base_qry = DBSession.query(
+                               ResourceType.ref_key.label('ref_key'),
+                               ResourceType.node_id.label('node_id'),
+                               ResourceType.link_id.label('link_id'),
+                               ResourceType.group_id.label('group_id'),
+                               ResourceType.network_id.label('network_id'),
+                               Template.template_name.label('template_name'),
+                               Template.template_id.label('template_id'),
+                               TemplateType.type_id.label('type_id'),
+                               TemplateType.type_name.label('type_name'),
+                              ).filter(TemplateType.type_id==ResourceType.type_id,
+                                       Template.template_id==TemplateType.template_id)
+    
+
+    all_node_type_qry = base_qry.filter(Node.node_id==ResourceType.node_id,
+                                        Node.network_id==network_id)
+
+    all_link_type_qry = base_qry.filter(Link.link_id==ResourceType.link_id,
+                                        Link.network_id==network_id)
+
+    all_group_type_qry = base_qry.filter(ResourceGroup.group_id==ResourceType.group_id,
+                                         ResourceGroup.network_id==network_id)
+
+    network_type_qry = base_qry.filter(ResourceType.network_id==network_id)
+
+    #Filter the group attributes by template
+    if template_id is not None:
+        all_node_type_qry = all_node_type_qry.filter(Template.template_id==template_id)
+        all_link_type_qry = all_link_type_qry.filter(Template.template_id==template_id)
+        all_group_type_qry = all_group_type_qry.filter(Template.template_id==template_id)
+
+    x = time.time()
+    logging.info("Getting all types")
+    type_qry = all_node_type_qry.union(all_link_type_qry, all_group_type_qry, network_type_qry)
+    all_types = DBSession.execute(type_qry.statement).fetchall()
+    log.info("%s types retrieved in %s", len(all_types), time.time()-x)
+
+
+    logging.info("Attributes retrieved. Processing results...")
+    x = time.time()
+    node_type_dict = dict() 
+    link_type_dict = dict()
+    group_type_dict = dict()
+    network_type_dict = dict()
+
+    for t in all_types:
+
+        resourcetype = dictobj({'type_id':t.type_id})
+        resourcetype.templatetype = dictobj(t)
+        rttemplate = dictobj({'template_name':t.template_name})
+        resourcetype.templatetype.template =rttemplate 
+
+        if t.ref_key == 'NODE':
+            nodetype = node_type_dict.get(t.node_id, [])
+            nodetype.append(resourcetype)
+            node_type_dict[t.node_id] = nodetype 
+        elif t.ref_key == 'LINK':
+            linktype = link_type_dict.get(t.link_id, [])
+            linktype.append(resourcetype)
+            link_type_dict[t.link_id] = linktype
+        elif t.ref_key == 'GROUP':
+            grouptype = group_type_dict.get(t.group_id, [])
+            grouptype.append(resourcetype)
+            group_type_dict[t.group_id] = grouptype
+        elif t.ref_key == 'NETWORK':
+            nettype = network_type_dict.get(t.network_id, [])
+            nettype.append(resourcetype)
+            network_type_dict[t.network_id] = nettype
+
+
+    all_types = {
+        'NODE' : node_type_dict,
+        'LINK' : link_type_dict,
+        'GROUP': group_type_dict,
+        'NETWORK': network_type_dict,
+    }
+
+    logging.info("Attributes processed in %s", time.time()-x)
+    return all_types
+
+
+def _get_all_group_items(network_id):
+    """
+        Get all the resource group items in the network, across all scenarios
+        returns a dictionary of dict objects, keyed on scenario_id
+    """
+    base_qry = DBSession.query(ResourceGroupItem) 
+
+    item_qry = base_qry.join(Scenario).filter(Scenario.network_id==network_id)
+
+    x = time.time()
+    logging.info("Getting all items")
+    all_items = DBSession.execute(item_qry.statement).fetchall()
+    log.info("%s groups jointly retrieved in %s", len(all_items), time.time()-x)
+
+
+    logging.info("items retrieved. Processing results...")
+    x = time.time()
+    item_dict = dict() 
+    for item in all_items:
+
+        items = item_dict.get(item.scenario_id, [])
+        items.append(item)
+        item_dict[item.scenario_id] = items 
+
+    logging.info("items processed in %s", time.time()-x)
+
+    return item_dict
+
+def _get_all_resourcescenarios(network_id, user_id):
+    """
+        Get all the resource scenarios in a network, across all scenarios
+        returns a dictionary of dict objects, keyed on scenario_id
+    """ 
+
+    rs_qry = DBSession.query(
+                Dataset.data_type,
+                Dataset.data_units,
+                Dataset.data_dimen,
+                Dataset.data_name,
+                Dataset.data_hash,
+                Dataset.cr_date,
+                Dataset.created_by,
+                Dataset.hidden,
+                Dataset.start_time,
+                Dataset.frequency,
+                Dataset.value,
+                ResourceScenario.dataset_id,
+                ResourceScenario.scenario_id,
+                ResourceScenario.resource_attr_id,
+                ResourceScenario.source,
+                ResourceAttr.attr_id,
+    ).outerjoin(DatasetOwner, and_(DatasetOwner.dataset_id==Dataset.dataset_id, DatasetOwner.user_id==user_id)).filter(
+                or_(Dataset.hidden=='N', DatasetOwner.user_id != None),
+                ResourceAttr.resource_attr_id == ResourceScenario.resource_attr_id,
+                Scenario.scenario_id==ResourceScenario.scenario_id,
+                Scenario.network_id==network_id,
+                Dataset.dataset_id==ResourceScenario.dataset_id)
+
+    x = time.time()
+    logging.info("Getting all resource scenarios")
+    all_rs = DBSession.execute(rs_qry.statement).fetchall()
+    log.info("%s resource scenarios retrieved in %s", len(all_rs), time.time()-x)
+
+
+    logging.info("resource scenarios retrieved. Processing results...")
+    x = time.time()
+    rs_dict = dict() 
+    for rs in all_rs:
+        rs_obj = dictobj(rs)
+        rs_attr = dictobj({'attr_id':rs.attr_id})
+        rs_dataset = dictobj({
+            'dataset_id':rs.dataset_id,
+            'data_type' : rs.data_type,
+            'data_units':rs.data_units,
+            'data_dimen':rs.data_dimen,
+            'data_name':rs.data_name,
+            'data_hash':rs.data_hash,
+            'cr_date':rs.cr_date,
+            'created_by':rs.created_by,
+            'hidden':rs.hidden,
+            'start_date':rs.start_time,
+            'frequency':rs.frequency,
+            'value':rs.value,
+            'metadata':[],
+        })
+        rs_obj.resourceattr = rs_attr
+        rs_obj.dataset = rs_dataset
+
+        scenario_rs = rs_dict.get(rs.scenario_id, [])
+        scenario_rs.append(rs_obj)
+        rs_dict[rs.scenario_id] = scenario_rs 
+
+    logging.info("resource scenarios processed in %s", time.time()-x)
+
+    return rs_dict
+
+
+def _get_metadata(network_id, user_id):
+    """
+        Get all the metadata in a network, across all scenarios
+        returns a dictionary of dict objects, keyed on dataset ID 
+    """
+    
+    dataset_qry = DBSession.query(
+                Dataset
+    ).outerjoin(DatasetOwner, and_(DatasetOwner.dataset_id==Dataset.dataset_id, DatasetOwner.user_id==user_id)).filter(
+                or_(Dataset.hidden=='N', DatasetOwner.user_id != None),
+                Scenario.scenario_id==ResourceScenario.scenario_id,
+                Scenario.network_id==network_id,
+                Dataset.dataset_id==ResourceScenario.dataset_id).distinct().subquery()
+
+    rs_qry = DBSession.query(
+                Metadata
+    ).join(dataset_qry, Metadata.dataset_id==dataset_qry.c.dataset_id)
+
+    x = time.time()
+    logging.info("Getting all matadata")
+    all_metadata = DBSession.execute(rs_qry.statement).fetchall()
+    log.info("%s metadata jointly retrieved in %s",len(all_metadata), time.time()-x)
+
+    logging.info("metadata retrieved. Processing results...")
+    x = time.time()
+    metadata_dict = dict() 
+    for m in all_metadata:
+        metadata = metadata_dict.get(m.dataset_id, [])
+        metadata.append(m)
+        metadata_dict[m.dataset_id] = metadata
+
+    logging.info("metadata processed in %s", time.time()-x)
+
+    return metadata_dict
+
+def _get_nodes(network_id, template_id=None):
+    """
+        Get all the nodes in a network
+    """
+    extras = {'types':[], 'attributes':[]}
+
+    node_qry = DBSession.query(Node).filter(
+                        Node.network_id==network_id,
+                        Node.status=='A').options(noload('network'))
+    if template_id is not None:
+        node_qry = node_qry.filter(ResourceType.node_id==Node.node_id, TemplateType.type_id==ResourceType.type_id, TemplateType.template_id==template_id)
+    node_res = DBSession.execute(node_qry.statement).fetchall()
+    
+    nodes = []
+    for n in node_res:
+        nodes.append(dictobj(n, extras))
+
+    return nodes
+
+def _get_links(network_id, template_id=None):
+    """
+        Get all the links in a network
+    """
+    extras = {'types':[], 'attributes':[]}
+    link_qry = DBSession.query(Link).filter(
+                                        Link.network_id==network_id,
+                                        Link.status=='A').options(noload('network'))
+    if template_id is not None:
+        link_qry = link_qry.filter(ResourceType.link_id==Link.link_id, TemplateType.type_id==ResourceType.type_id, TemplateType.template_id==template_id)
+
+    link_res = DBSession.execute(link_qry.statement).fetchall()
+
+    links = []
+    for l in link_res:
+        links.append(dictobj(l, extras))
+
+    return links
+    
+def _get_groups(network_id, template_id=None):
+    """
+        Get all the resource groups in a network
+    """
+    extras = {'types':[], 'attributes':[]}
+    group_qry = DBSession.query(ResourceGroup).filter(
+                                        ResourceGroup.network_id==network_id,
+                                        ResourceGroup.status=='A').options(noload('network'))
+    if template_id is not None:
+        group_qry = group_qry.filter(ResourceType.group_id==ResourceGroup.group_id, TemplateType.type_id==ResourceType.type_id, TemplateType.template_id==template_id)
+
+    group_res = DBSession.execute(group_qry.statement).fetchall()
+    groups = []
+    for g in group_res:
+        groups.append(dictobj(g, extras))
+
+    return groups
+
+
+def _get_scenarios(network_id, include_data, user_id, scenario_ids=None):
+    """
+        Get all the scenarios in a network
+    """
+    scen_qry = DBSession.query(Scenario).filter(
+                    Scenario.network_id == network_id).options(
+                        noload('network')).filter(
+                        Scenario.status == 'A')
+
+    if scenario_ids:
+        logging.info("Filtering by scenario_ids %s",scenario_ids)
+        scen_qry = scen_qry.filter(Scenario.scenario_id.in_(scenario_ids))
+    extras = {'resourcescenarios': [], 'resourcegroupitems': []}
+    scens = [dictobj(s,extras) for s in DBSession.execute(scen_qry.statement).fetchall()]
+    
+    all_resource_group_items = _get_all_group_items(network_id)
+
+    if include_data == 'Y':
+        all_rs = _get_all_resourcescenarios(network_id, user_id)
+        metadata = _get_metadata(network_id, user_id)
+
+    for s in scens:
+        s.resourcegroupitems = all_resource_group_items.get(s.scenario_id, [])
+
+        if include_data == 'Y':
+            s.resourcescenarios  = all_rs.get(s.scenario_id, [])
+    
+            for rs in s.resourcescenarios:
+                rs.dataset.metadata = metadata.get(rs.dataset_id, [])
+
+    return scens
 
 def get_network(network_id, summary=False, include_data='N', scenario_ids=None, template_id=None, **kwargs):
     """
@@ -578,111 +919,64 @@ def get_network(network_id, summary=False, include_data='N', scenario_ids=None, 
     """
     log.debug("getting network %s"%network_id)
     user_id = kwargs.get('user_id')
+   
     try:
         log.debug("Querying Network %s", network_id)
-        net_i = DBSession.query(Network).filter(Network.network_id == network_id).\
-        options(noload('scenarios')).options(noload('nodes')).options(noload('links')).options(noload('resourcegroups')).options(joinedload_all('types.templatetype.template')).one()
-        net_i.attributes
-
+        net_i = DBSession.query(Network).filter(
+                                Network.network_id == network_id).options(
+                                noload('scenarios')).options(
+                                noload('nodes')).options(
+                                noload('links')).options(
+                                noload('types')).options(
+                                noload('attributes')).options(
+                                noload('resourcegroups')).one()
+        
         net_i.check_read_permission(user_id)
+        
+        net = dictobj(net_i.__dict__)
 
-        #Define the basic resource queries
-        node_qry = DBSession.query(Node).filter(Node.network_id==network_id).options(noload('attributes')).options(joinedload_all('types.templatetype.template')).filter(Node.status=='A')
-
-        link_qry = DBSession.query(Link).filter(Link.network_id==network_id).options(noload('attributes')).options(joinedload_all('types.templatetype.template')).filter(Link.status=='A')
-
-        group_qry = DBSession.query(ResourceGroup).filter(ResourceGroup.network_id==network_id).options(noload('attributes')).options(joinedload_all('types.templatetype.template')).filter(ResourceGroup.status=='A')
-        #Perform any required filtering on the resources
-        if template_id is not None:
-            node_qry = node_qry.join(ResourceType).join(TemplateType).filter(TemplateType.template_id==template_id)
-            link_qry = link_qry.join(ResourceType).join(TemplateType).filter(TemplateType.template_id==template_id)
-            group_qry = group_qry.join(ResourceType).join(TemplateType).filter(TemplateType.template_id==template_id)
-
-        log.debug("Nodes...")
-        net_i.nodes = node_qry.all()
-        log.debug("Links...")
-        net_i.links = link_qry.all()
-        log.debug("Groups...")
-        net_i.resourcegroups = group_qry.all()
+        net.nodes          = _get_nodes(network_id, template_id=template_id)
+        net.links          = _get_links(network_id, template_id=template_id) 
+        net.resourcegroups = _get_groups(network_id, template_id=template_id)
 
         if summary is False:
-            log.debug("Attributes...")
             all_attributes = _get_all_resource_attributes(network_id, template_id)
-            log.debug("Setting attributes")
-            for node in net_i.nodes:
+            log.info("Setting attributes")
+            net.attributes = all_attributes['NETWORK'].get(network_id, [])
+            for node in net.nodes:
                 node.attributes = all_attributes['NODE'].get(node.node_id, [])
             log.info("Node attributes set")
-            for link in net_i.links:
+            for link in net.links:
                 link.attributes = all_attributes['LINK'].get(link.link_id, [])
             log.info("Link attributes set")
-            for group in net_i.resourcegroups:
+            for group in net.resourcegroups:
                 group.attributes = all_attributes['GROUP'].get(group.group_id, [])
             log.info("Group attributes set")
+    
 
-        log.debug("Network Retrieved")
+        log.info("Setting types")
+        all_types = _get_all_templates(network_id, template_id)
+        net.types = all_types['NETWORK'].get(network_id, [])
+        for node in net.nodes:
+            node.types = all_types['NODE'].get(node.node_id, [])
+        for link in net.links:
+            link.types = all_types['LINK'].get(link.link_id, [])
+        for group in net.resourcegroups:
+            group.types = all_types['GROUP'].get(group.group_id, [])
 
-        scen_qry = DBSession.query(Scenario).filter(Scenario.network_id == net_i.network_id).options(joinedload(Scenario.resourcescenarios)).options(joinedload('resourcescenarios.resourceattr')).options(noload('resourcescenarios.dataset')).options(joinedload('resourcegroupitems')).filter(Scenario.status == 'A')
-        if scenario_ids:
-            logging.info("Filtering by scenario_ids %s",scenario_ids)
-            scen_qry = scen_qry.join(Network.scenarios).filter(Scenario.scenario_id.in_(scenario_ids))
-        if include_data == 'N':
-            scen_qry = scen_qry.options(noload('resourcescenarios').noload('dataset'))
+        log.info("Getting scenarios")
 
-        log.debug("Querying Scenarios")
-        scens = scen_qry.all()
-        log.debug("Scenarios Retrieved")
-        net_i.scenarios = scens
+        net.scenarios = _get_scenarios(network_id, include_data, user_id, scenario_ids)
+
     except NoResultFound:
         raise ResourceNotFoundError("Network (network_id=%s) not found." %
                                   network_id)
 
-    scenario_ids = [s.scenario_id for s in net_i.scenarios]
-
-    if include_data == 'N' or summary is True:
-        return net_i
-    log.debug("Getting datasets")
-    if len(scenario_ids) > 0:
-        datasets = DBSession.query(Dataset).join(ResourceScenario, ResourceScenario.dataset_id==Dataset.dataset_id).outerjoin(DatasetOwner,
-                                and_(DatasetOwner.dataset_id==Dataset.dataset_id,
-                                DatasetOwner.user_id==user_id)).filter(ResourceScenario.scenario_id.in_(scenario_ids)).options(noload('metadata')).options(joinedload('owners')).all()
-    else:
-        datasets = []
-
-
-    log.debug("Dataset query done")
-    dataset_dict = {}
-    for dataset in datasets:
-        DBSession.expunge(dataset)
-        dataset_dict[dataset.dataset_id] = dataset
-    log.debug("Getting Metadata")
-    metadata = data._get_metadata(dataset_dict.keys())
-    metadata_dict = {}
-    for m in metadata:
-        if metadata_dict.get(m.dataset_id):
-            metadata_dict[m.dataset_id].append(m)
-        else:
-            metadata_dict[m.dataset_id] = [m]
-    log.debug("Metadata Retrieved")
-
-    for dataset_id, dataset in dataset_dict.items():
-        if dataset.hidden == 'N' or (dataset.hidden == 'Y' and dataset.check_user(user_id)):
-            dataset.metadata = metadata_dict.get(dataset.dataset_id, [])
-        else:
-            dataset.value = None
-            dataset.start_time = None
-            dataset.frequency = None
-            dataset.metadata = []
-
-    log.debug("Datasets Retrieved")
-    for s in net_i.scenarios:
-        for rs in s.resourcescenarios:
-            rs.dataset = dataset_dict[rs.dataset_id]
-    DBSession.expunge_all()
-    return net_i
+    return net
 
 def get_node(node_id,**kwargs):
     try:
-        n = DBSession.query(Node).filter(Node.node_id==node_id).one()
+        n = DBSession.query(Node).filter(Node.node_id==node_id).options(joinedload_all('attributes.attr')).one()
         return n
     except NoResultFound:
         raise ResourceNotFoundError("Node %s not found"%(node_id,))
@@ -1053,18 +1347,6 @@ def update_node(node,**kwargs):
 
     return node_i
 
-def delete_resourceattr(resource_attr_id, purge_data,**kwargs):
-    """
-        Deletes a resource attribute and all associated data.
-    """
-    try:
-        ra = DBSession.query(ResourceAttr).filter(ResourceScenario.resource_attr_id == resource_attr_id).one()
-    except NoResultFound:
-        raise ResourceNotFoundError("Resource Attribute %s not found"%(resource_attr_id))
-    DBSession.delete(ra)
-    DBSession.flush()
-    return 'OK'
-
 def set_node_status(node_id, status, **kwargs):
     """
         Set the status of a node to 'X'
@@ -1124,6 +1406,11 @@ def delete_node(node_id, purge_data,**kwargs):
     except NoResultFound:
         raise ResourceNotFoundError("Node %s not found"%(node_id))
     
+    group_items = DBSession.query(ResourceGroupItem).filter(
+                                                    ResourceGroupItem.node_id==node_id).all()
+    for gi in group_items:
+        DBSession.delete(gi)
+
     if purge_data == 'Y':
         #Find the number of times a a resource and dataset combination
         #occurs. If this equals the number of times the dataset appears, then
@@ -1138,7 +1425,7 @@ def delete_node(node_id, purge_data,**kwargs):
         node_data = node_data_qry.all()
 
         for node_datum in node_data:
-            log.warn("Deleting node dataset %s", node_datum.dataset_id)
+            log.info("Deleting node dataset %s", node_datum.dataset_id)
             DBSession.delete(node_datum.dataset)
 
     log.info("Deleting node %s, id=%s", node_i.node_name, node_id)
@@ -1243,6 +1530,11 @@ def delete_link(link_id, purge_data,**kwargs):
     except NoResultFound:
         raise ResourceNotFoundError("Link %s not found"%(link_id))
 
+    group_items = DBSession.query(ResourceGroupItem).filter(
+                                                    ResourceGroupItem.link_id==link_id).all()
+    for gi in group_items:
+        DBSession.delete(gi)
+
     if purge_data == 'Y':
         #Find the number of times a a resource and dataset combination
         #occurs. If this equals the number of times the dataset appears, then
@@ -1336,6 +1628,11 @@ def delete_group(group_id, purge_data,**kwargs):
     except NoResultFound:
         raise ResourceNotFoundError("Group %s not found"%(group_id))
 
+    group_items = DBSession.query(ResourceGroupItem).filter(
+                                                    ResourceGroupItem.group_id==group_id).all()
+    for gi in group_items:
+        DBSession.delete(gi)
+    
     if purge_data == 'Y':
         #Find the number of times a a resource and dataset combination
         #occurs. If this equals the number of times the dataset appears, then

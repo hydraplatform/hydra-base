@@ -19,7 +19,6 @@ from HydraLib import config
 from zope.sqlalchemy import ZopeTransactionExtension
 
 import transaction
-from sqlalchemy.pool import StaticPool
 import logging
 log = logging.getLogger(__name__)
 
@@ -28,16 +27,13 @@ DeclarativeBase = declarative_base()
 
 db_url = config.get('mysqld', 'url')
 log.info("Connecting to database: %s", db_url)
-engine = create_engine(db_url, connect_args={'check_same_thread':False},
-                    poolclass=StaticPool) 
+engine = create_engine(db_url) 
 from sqlalchemy.orm import sessionmaker
-session = sessionmaker()
 
-maker = sessionmaker(autoflush=False, autocommit=False,
+maker = sessionmaker(bind=engine, autoflush=False, autocommit=False,
                      extension=ZopeTransactionExtension())
 
 DBSession = scoped_session(maker)
-DBSession.configure(bind=engine)
 
 def commit_transaction():
     try:
@@ -45,8 +41,7 @@ def commit_transaction():
     except Exception, e:
         log.critical(e)
         transaction.abort()
-    if DBSession:
-        DBSession.close()
+    DBSession.remove()
 
 def rollback_transaction():
     transaction.abort()

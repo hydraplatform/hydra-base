@@ -102,7 +102,6 @@ from HydraServer.db import commit_transaction, rollback_transaction
 log = logging.getLogger(__name__)
 
 def _on_method_call(ctx):
-
     if ctx.function == AuthenticationService.login:
         return
     
@@ -122,12 +121,6 @@ def _on_method_call(ctx):
 
     ctx.in_header.user_id  = sess_info[0]
     ctx.in_header.username = sess_info[1]
-
-  #  mod = __import__(ctx.function.func_globals['__name__'], fromlist=[ctx.service_class.get_service_name()])
-  #  reload(mod)
-  #  ctx.service_class = getattr(mod, ctx.service_class.get_service_name())
-  #  ctx.function      = getattr(ctx.service_class, ctx.function.func_name)
-  #  set_session_db(session_db)
 
 def _on_method_context_closed(ctx):
     commit_transaction()
@@ -227,13 +220,11 @@ class HydraServer():
         log.info("plugin_xsd_path %s",config.get('plugin', 'plugin_xsd_path'))
         log.info("log_config_path %s",config.get('logging_conf', 'log_config_path'))
         
-
-
         port = config.getint('hydra_server', 'port', 12345)
         domain = config.get('hydra_server', 'domain', '127.0.0.1')
         
         spyne.const.xml_ns.DEFAULT_NS = 'soap_server.hydra_complexmodels'
-        cp_wsgi_application = CherryPyWSGIServer((domain,port), root, numthreads=2)
+        cp_wsgi_application = CherryPyWSGIServer((domain,port), root, numthreads=1)
 
         log.info("listening to http://%s:%s/soap", domain, port)
         log.info("wsdl is at: http://%s:%s/soap/?wsdl", domain, port)

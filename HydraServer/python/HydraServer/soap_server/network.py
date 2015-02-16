@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-from spyne.model.primitive import Unicode, Integer, Boolean
+from spyne.model.primitive import Unicode, Integer
 from spyne.model.complex import Array as SpyneArray
 from spyne.decorator import rpc
 from hydra_complexmodels import Network,\
@@ -30,6 +30,7 @@ from HydraServer.lib import network, scenario
 from hydra_base import HydraService
 import datetime
 import logging
+import json
 log = logging.getLogger(__name__)
 
 class NetworkService(HydraService):
@@ -76,6 +77,21 @@ class NetworkService(HydraService):
                                    **ctx.in_header.__dict__)
         ret_net = Network(net, True if summary=='Y' else False)
         return ret_net
+
+    @rpc(Integer,
+         _returns=Unicode)
+    def get_network_as_json(ctx, network_id):
+        """
+            Return a whole network as a complex model.
+        """
+        net  = network.get_network(network_id,
+                                   False,
+                                   'Y',
+                                   [],
+                                   None,
+                                   **ctx.in_header.__dict__)
+
+        return json.dumps(str(net))
 
     @rpc(Integer, Unicode, _returns=Network)
     def get_network_by_name(ctx, project_id, network_name):
@@ -324,14 +340,6 @@ class NetworkService(HydraService):
         updated_node = Node(node_dict)
 
         return updated_node
-
-    @rpc(Integer, Boolean,  _returns=Unicode)
-    def delete_resourceattr(ctx, resource_attr_id, purge_data):
-        """
-            Deletes a resource attribute and all associated data.
-        """
-        network.delete_resourceattr(resource_attr_id, purge_data, **ctx.in_header.__dict__)
-        return 'OK'
 
 
     @rpc(Integer, _returns=Unicode)

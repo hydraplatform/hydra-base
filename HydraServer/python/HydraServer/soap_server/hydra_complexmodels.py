@@ -363,7 +363,7 @@ class ResourceAttr(HydraComplexModel):
         elif parent.ref_key == 'LINK':
             self.ref_id = parent.link_id
         elif parent.ref_key == 'GROUP':
-            parent.ref_id = parent.group_id
+            self.ref_id = parent.group_id
 
         self.attr_is_var = parent.attr_is_var
         #This should be set externally as it is not related to its parent.
@@ -662,10 +662,10 @@ class ResourceGroupItem(HydraComplexModel):
         super(ResourceGroupItem, self).__init__()
         if parent is None:
             return
-        self.id = parent.item_id
+        self.id       = parent.item_id
         self.group_id = parent.group_id
-        self.ref_key = parent.ref_key
-        self.cr_date     = str(parent.cr_date)
+        self.ref_key  = parent.ref_key
+        self.cr_date  = str(parent.cr_date)
         if self.ref_key == 'NODE':
             self.ref_id = parent.node_id
         elif self.ref_key == 'LINK':
