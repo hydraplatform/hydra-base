@@ -224,7 +224,7 @@ class HydraServer():
         domain = config.get('hydra_server', 'domain', '127.0.0.1')
         
         spyne.const.xml_ns.DEFAULT_NS = 'soap_server.hydra_complexmodels'
-        cp_wsgi_application = CherryPyWSGIServer((domain,port), root, numthreads=1)
+        cp_wsgi_application = CherryPyWSGIServer((domain,port), application, numthreads=1)
 
         log.info("listening to http://%s:%s/soap", domain, port)
         log.info("wsdl is at: http://%s:%s/soap/?wsdl", domain, port)
@@ -239,13 +239,13 @@ soap_application = s.create_soap_application()
 json_application = s.create_json_application()
 http_application = s.create_http_application()
 
-root = WsgiMounter({
+application = WsgiMounter({
     'soap': soap_application,
     'json': json_application,
     'http': http_application,
 })
 
-for server in root.mounts.values():
+for server in application.mounts.values():
     server.max_content_length = 100 * 0x100000 # 10 MB
 
 #To kill this process, use this command:
