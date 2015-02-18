@@ -220,109 +220,112 @@ class Dataset(HydraComplexModel):
         """
             Turn the value of an incoming dataset into a hydra-friendly value.
         """
+        try:
+            #attr_data.value is a dictionary,
+            #but the keys have namespaces which must be stripped.
+            data = str(self.value)
+            if data.find('{%s}'%NS) >= 0:
+                data = data.replace('{%s}'%NS, '')
 
-        #attr_data.value is a dictionary,
-        #but the keys have namespaces which must be stripped.
-        data = str(self.value)
-        if data.find('{%s}'%NS) >= 0:
-            data = data.replace('{%s}'%NS, '')
+            data = eval(data)
+            log.debug("Parsing %s", data)
 
-        data = eval(data)
-        log.debug("Parsing %s", data)
+            if data is None:
+                log.warn("Cannot parse dataset. No value specified.")
+                return None
 
-        if data is None:
-            log.warn("Cannot parse dataset. No value specified.")
-            return None
+            data_type = self.type
 
-        data_type = self.type
+            val_names = data.keys()
+            value = []
+            for name in val_names:
+                value.append(data[name])
 
-        val_names = data.keys()
-        value = []
-        for name in val_names:
-            value.append(data[name])
-
-        if data_type == 'descriptor':
-            descriptor = data['desc_val'];
-            if type(descriptor) is list:
-                descriptor = descriptor[0]
-            return descriptor
-        elif data_type == 'scalar':
-            scalar = data['param_value']
-            if type(scalar) is list:
-                scalar = scalar[0]
-            try:
-                float(scalar)
-            except ValueError:
-                raise HydraError("Invalid scalar value %s"%scalar)
-            return scalar
-        elif data_type == 'timeseries':
-            is_soap_req=False
-            # The brand new way to parse time series data:
-            ts = []
-
-            timestamps = []
-            values = []
-            for ts_val in data['ts_values']:
-                #The value is a list, so must get index 0
-                timestamp = ts_val['ts_time']
-                if type(timestamp) is list:
-                    timestamp = timestamp[0]
-                    is_soap_req = True
+            if data_type == 'descriptor':
+                descriptor = data['desc_val'];
+                if type(descriptor) is list:
+                    descriptor = descriptor[0]
+                return descriptor
+            elif data_type == 'scalar':
+                scalar = data['param_value']
+                if type(scalar) is list:
+                    scalar = scalar[0]
                 try:
-                    timestamp = get_datetime(timestamp)
+                    float(scalar)
                 except ValueError:
-                    log.warn("Unrecognised timestamp format: %s", timestamp)
+                    raise HydraError("Invalid scalar value %s"%scalar)
+                return scalar
+            elif data_type == 'timeseries':
+                is_soap_req=False
+                # The brand new way to parse time series data:
+                ts = []
 
-                # Check if we have received a seasonal time series first
-                arr_data = ts_val['ts_value']
-                if is_soap_req:
+                timestamps = []
+                values = []
+                for ts_val in data['ts_values']:
+                    #The value is a list, so must get index 0
+                    timestamp = ts_val['ts_time']
+                    if type(timestamp) is list:
+                        timestamp = timestamp[0]
+                        is_soap_req = True
+                    try:
+                        timestamp = get_datetime(timestamp)
+                    except ValueError:
+                        log.warn("Unrecognised timestamp format: %s", timestamp)
+
+                    # Check if we have received a seasonal time series first
+                    arr_data = ts_val['ts_value']
+                    if is_soap_req:
+                        arr_data = arr_data[0]
+                    try:
+                        arr_data = dict(arr_data)
+                        try:
+                            ts_value = eval(arr_data)
+                        except:
+                            ts_value = self.parse_array(arr_data)
+                    except:
+                        try:
+                            ts_value = float(arr_data)
+                        except:
+                            ts_value = arr_data
+                    timestamps.append(timestamp)
+                    values.append(ts_value)
+
+                timeseries_pd = pd.DataFrame(values, index=pd.Series(timestamps))
+                #Epoch doesn't work here because dates before 1970 are not supported
+                #in read_json. Ridiculous.
+                ts =  timeseries_pd.to_json(date_format='iso', date_unit='ns')
+                return ts
+            elif data_type == 'eqtimeseries':
+                start_time = data['start_time']
+                frequency  = data['frequency']
+                arr_data   = data['arr_data']
+                if type(start_time) is list:
+                    start_time = start_time[0]
+                    frequency = frequency[0]
                     arr_data = arr_data[0]
+                start_time = timestamp_to_ordinal(start_time)
+
+                log.info(arr_data)
                 try:
-                    arr_data = dict(arr_data)
-                    try:
-                        ts_value = eval(arr_data)
-                    except:
-                        ts_value = self.parse_array(arr_data)
+                    val = eval(arr_data)
                 except:
-                    try:
-                        ts_value = float(arr_data)
-                    except:
-                        ts_value = arr_data
-                timestamps.append(timestamp)
-                values.append(ts_value)
+                    val = self.parse_array(arr_data)
 
-            timeseries_pd = pd.DataFrame(values, index=pd.Series(timestamps))
-            #Epoch doesn't work here because dates before 1970 are not supported
-            #in read_json. Ridiculous.
-            ts =  timeseries_pd.to_json(date_format='iso', date_unit='ns')
-            return ts
-        elif data_type == 'eqtimeseries':
-            start_time = data['start_time']
-            frequency  = data['frequency']
-            arr_data   = data['arr_data']
-            if type(start_time) is list:
-                start_time = start_time[0]
-                frequency = frequency[0]
-                arr_data = arr_data[0]
-            start_time = timestamp_to_ordinal(start_time)
+                arr_data   = str(val)
 
-            log.info(arr_data)
-            try:
-                val = eval(arr_data)
-            except:
-                val = self.parse_array(arr_data)
-
-            arr_data   = str(val)
-
-            return (start_time, frequency, arr_data)
-        elif data_type == 'array':
-            arr_data = data['arr_data']
-            if type(arr_data) is list:
-                arr_data = arr_data[0]
-            if type(arr_data) == dict:
-                val = self.parse_array(arr_data)
-            else:
-                val = eval(arr_data)
+                return (start_time, frequency, arr_data)
+            elif data_type == 'array':
+                arr_data = data['arr_data']
+                if type(arr_data) is list:
+                    arr_data = arr_data[0]
+                if type(arr_data) == dict:
+                    val = self.parse_array(arr_data)
+                else:
+                    val = eval(arr_data)
+        except Exception, e:
+            log.exception(e)
+            raise HydraError("Error parsing value %s: %s"%(value, e))
 
             return str(val)
 
