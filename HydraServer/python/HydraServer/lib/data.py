@@ -439,13 +439,14 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
 
     existing_data = _get_existing_data(new_data.keys())
     log.info("Existing data retrieved.")
-    
+
     #The list of dataset IDS to be returned.
     hash_id_map = {}
     new_datasets = []
     metadata         = {}
     #This is what gets returned.
     for d in bulk_data:
+        log.info(d.data_hash)
         dataset_dict = new_data[d.data_hash]
         current_hash = d.data_hash
 

@@ -18,50 +18,17 @@
 import unittest
 import logging
 
-from HydraLib import config
 from HydraLib.dateutil import get_datetime
 from HydraLib.PluginLib import create_dict
 
-from suds.client import Client
-from suds.plugin import MessagePlugin
 import datetime
+from HydraLib import PluginLib
 
 global CLIENT
 CLIENT = None
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.ERROR)
-class FixNamespace(MessagePlugin):
-    def marshalled(self, context):
-        self.fix_ns(context.envelope)
-
-    def fix_ns(self, element):
-        if element.prefix == 'xs':
-            element.prefix = 'ns0'
-
-        for e in element.getChildren():
-            self.fix_ns(e)
-
-def connect():
-    port = config.getint('hydra_server', 'port')
-    domain = config.get('hydra_server', 'domain')
-    path = config.get('hydra_server', 'path')
-    if path:
-        if path[0] == '/':
-            path = path[1:]
-        url = 'http://%s:%s/%s?wsdl' % (domain, port, path)
-    else:
-        url = 'http://%s:%s?wsdl' % (domain, port)
-
-    client = Client(url, plugins=[FixNamespace()])
-
-    cache = client.options.cache
-    cache.setduration(days=10)
-
-    client.add_prefix('hyd', 'soap_server.hydra_complexmodels')
-    global CLIENT
-    CLIENT = client
-    return client
 
 class SoapServerTest(unittest.TestCase):
 
@@ -73,11 +40,9 @@ class SoapServerTest(unittest.TestCase):
         #shutil.rmtree(os.path.join(tmp(), 'suds'), True)
         global CLIENT
         if CLIENT is None:
-            connect()
+            CLIENT = PluginLib.connect(app_name='Unit Test')
 
         self.client = CLIENT
-
-        self.login('root', '')
 
         self.create_user("UserA")
         self.create_user("UserB")
@@ -88,15 +53,6 @@ class SoapServerTest(unittest.TestCase):
     def tearDown(self):
         log.debug("Tearing down")
         self.logout('root')
-
-    def login(self, username, password):
-        login_response = self.client.service.login(username, password)
-
-        token = self.client.factory.create('RequestHeader')
-        token.session_id = login_response.session_id
-        token.app_name = "Unit Test"
-
-        self.client.set_options(cache=None, soapheaders=token)
 
     def logout(self, username):
         msg = self.client.service.logout(username)

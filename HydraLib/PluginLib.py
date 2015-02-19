@@ -29,6 +29,7 @@ from lxml.etree import XMLParser
 from HydraException import HydraPluginError
 import requests
 import json
+import time
 
 class FixNamespace(MessagePlugin):
     """Hopefully a temporary fix for an unresolved namespace issue.
@@ -478,6 +479,7 @@ def _get_protocol(url):
 class JsonConnection(object):
     url = None
     session_id = None
+    cookie = None
 
     def __init__(self, url=None):
         if url is None:
@@ -494,14 +496,16 @@ class JsonConnection(object):
         log.info("Setting URL %s", self.url)
 
     def call(self, func, args):
+        start_time = time.time()
         log.info("Calling: %s"%(func))
         call = {func:args}
         headers = {
                     'Content-Type': 'application/json',
-                    'session_id'  : self.session_id,
-                    'app_name'    : 'Import CSV'
+                    'app_name'    : 'Import CSV',
                 }
-        r = requests.post(self.url, data=json.dumps(call), headers=headers)
+        
+        cookie = {'beaker.session.id':self.session_id}
+        r = requests.post(self.url, data=json.dumps(call), headers=headers, cookies=cookie)
         if not r.ok:
             try:
                 resp = json.loads(r.content)
@@ -513,9 +517,13 @@ class JsonConnection(object):
                     err = "An unknown server has occurred."
             raise HydraPluginError(err)
 
+        if self.session_id is None:
+            self.session_id = r.cookies['beaker.session.id']
+            log.info(self.session_id)
+
         ret_obj = json.loads(r.content, object_hook=object_hook)
 
-        log.info('done')
+        log.info('done (%s)'%(time.time() -start_time,))
 
         return ret_obj
 
@@ -526,12 +534,10 @@ class JsonConnection(object):
         if password is None:
             password = config.get('hydra_client', 'password')
         login_params = {'username':username, 'password':password}
-
-        resp = self.call('login', login_params)
-        #set variables for use in request headers
-        self.session_id = resp.session_id
-        log.info("Session ID=%s", self.session_id)
-        return self.session_id
+        
+        #No need to return anything as the 'call' function sets the session ID
+        #automatically
+        self.call('login', login_params)
 
 def connect(**kwargs):
     """Establish a connection to the specified server. If the URL of the server
@@ -553,18 +559,23 @@ def connect(**kwargs):
     cache = cli.options.cache
     cache.setduration(days=10)
 
-    token = cli.factory.create('RequestHeader')
     if session_id is None:
         user = config.get('hydra_client', 'user')
         passwd = config.get('hydra_client', 'password')
-        login_response = cli.service.login(user, passwd)
-        token.user_id  = login_response.user_id
-        session_id     = login_response.session_id
-        token.username = user
+        cli.service.login(user, passwd)
+    else:
+        log.info(session_id)
+        cj = requests.cookies.cookiejar_from_dict({'beaker.session.id':session_id})
+        cli.options.transport.cookiejar = cj 
 
-    token.session_id = session_id
-    cli.set_options(soapheaders=token)
+    sess_id = cli.options.transport.cookiejar.__dict__['_cookies']['127.0.0.1']['/']['beaker.session.id'].value
+
+    log.warn(sess_id)
     cli.add_prefix('hyd', 'soap_server.hydra_complexmodels')
+    if kwargs.get('app_name'):
+        token = cli.factory.create('RequestHeader')
+        token.app_name = kwargs['app_name']
+        cli.set_options(cache=None, soapheaders=token)
 
     return cli
 
