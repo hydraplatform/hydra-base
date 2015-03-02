@@ -480,11 +480,12 @@ class JsonConnection(object):
     url = None
     session_id = None
 
-    def __init__(self, url=None):
+    def __init__(self, url=None, app_name=None):
         if url is None:
-            port = config.getint('hydra_server', 'port', 8080)
-            domain = config.get('hydra_server', 'domain', '127.0.0.1')
-            self.url = "http://%s:%s/json"%(domain, port)
+            port = config.getint('hydra_client', 'port', 80)
+            domain = config.get('hydra_client', 'domain', '127.0.0.1')
+            path = config.get('hydra_client', 'path', 'json')
+            self.url = "%s:%s/%s" % (domain, port, path)
         else:
             log.info("Using user-defined URL: %s", url)
             port = _get_port(url)
@@ -493,6 +494,7 @@ class JsonConnection(object):
             protocol = _get_protocol(url)
             self.url = "%s://%s:%s%s/json"%(protocol,hostname,port,path)
         log.info("Setting URL %s", self.url)
+        self.app_name = app_name
 
     def call(self, func, args):
         log.info("Calling: %s"%(func))
@@ -500,7 +502,7 @@ class JsonConnection(object):
         headers = {
                     'Content-Type': 'application/json',
                     'session_id'  : self.session_id,
-                    'app_name'    : 'Import CSV'
+                    'app_name'    : self.app_name,
                 }
         r = requests.post(self.url, data=json.dumps(call), headers=headers)
         if not r.ok:
@@ -924,7 +926,7 @@ def validate_template(template_file, connection):
                 a['id'] = attr_dict.get((a['name'], a.get('dimension')))
 
     log.info("Template attributes updated with IDS")
-    
+
     log.info("Template OK")
 
     return template_dict
