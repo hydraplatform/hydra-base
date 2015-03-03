@@ -327,7 +327,7 @@ class Dataset(HydraComplexModel):
             log.exception(e)
             raise HydraError("Error parsing value %s: %s"%(value, e))
 
-            return str(val)
+        return str(val)
 
 
     def parse_array(self, arr):
