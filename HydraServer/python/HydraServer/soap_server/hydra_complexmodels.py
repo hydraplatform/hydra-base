@@ -202,37 +202,37 @@ class Dataset(HydraComplexModel):
         """
             Turn the value of an incoming dataset into a hydra-friendly value.
         """
+        try:
+            #attr_data.value is a dictionary,
+            #but the keys have namespaces which must be stripped.
 
-        #attr_data.value is a dictionary,
-        #but the keys have namespaces which must be stripped.
-        data = str(self.value)
+            log.debug("Parsing %s", self.value)
 
-        log.debug("Parsing %s", data)
+            if self.value is None:
+                log.warn("Cannot parse dataset. No value specified.")
+                return None
+            
+            data = str(self.value)
 
-        if data is None:
-            log.warn("Cannot parse dataset. No value specified.")
-            return None
+            if self.type == 'descriptor':
+                return data 
+            elif self.type == 'scalar':
+                return data
+            elif self.type == 'timeseries':
+                timeseries_pd = pd.read_json(data)
 
-        data_type = self.type
+                #Epoch doesn't work here because dates before 1970 are not
+                # supported in read_json. Ridiculous.
+                ts = timeseries_pd.to_json(date_format='iso', date_unit='ns')
 
-        if data_type == 'descriptor':
-            descriptor = data
-            return str(descriptor)
-        elif data_type == 'scalar':
-            return data 
-        elif data_type == 'timeseries':
-            timeseries_pd = pd.read_json(data)
-
-            #Epoch doesn't work here because dates before 1970 are not
-            # supported in read_json. Ridiculous.
-            ts = timeseries_pd.to_json(date_format='iso', date_unit='ns')
-
-            return ts
-        elif data_type == 'array':
-            #check to make sure this is valid json
-            val = json.loads(data)
-
-            return json.dumps(val)
+                return ts
+            elif self.type == 'array':
+                #check to make sure this is valid json
+                val = json.loads(data)
+                return json.dumps(data)
+        except Exception, e:
+            log.exception(e)
+            raise HydraError("Error parsing value %s: %s"%(self.value, e))
 
     def get_metadata_as_dict(self, user_id=None, source=None):
 
