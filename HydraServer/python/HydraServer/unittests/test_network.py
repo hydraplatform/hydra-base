@@ -928,6 +928,11 @@ class NetworkTest(server.SoapServerTest):
             for ra in link.attributes.ResourceAttr:
                 link_ras.append(ra.id)
 
+        group_ras = []
+        for group in net.resourcegroups.ResourceGroup:
+            for ra in group.attributes.ResourceAttr:
+                group_ras.append(ra.id)
+
 
         new_node_ras = self.client.service.get_all_node_data(net.id, s.id)
         for ra in new_node_ras.ResourceAttr:
@@ -951,6 +956,17 @@ class NetworkTest(server.SoapServerTest):
         for ra in new_link_ras.ResourceAttr:
             assert ra.resourcescenario is not None
             assert ra.id in link_ras
+
+        new_group_ras = self.client.service.get_all_group_data(net.id, s.id)
+        for ra in new_group_ras.ResourceAttr:
+            assert ra.resourcescenario is not None
+            assert ra.id in group_ras
+
+        group_id_filter = [net.resourcegroups.ResourceGroup[0].id]
+        new_group_ras = self.client.service.get_all_group_data(net.id, s.id, group_id_filter)
+        for ra in new_group_ras.ResourceAttr:
+            assert ra.resourcescenario is not None
+            assert ra.id in group_ras
 
     def test_purge_node(self):
         net = self.create_network_with_data()
