@@ -27,6 +27,7 @@ import pandas as pd
 import logging
 from HydraServer.util import generate_data_hash
 import json
+import zlib
 from HydraLib.HydraException import HydraError
 
 NS = "soap_server.hydra_complexmodels"
@@ -157,7 +158,7 @@ class ResourceData(HydraComplexModel):
         for m in ra.metadata:
             self.metadata[m.metadata_name] = m.metadata_val
 
-        self.metadata = json.dumps(self.metadata)
+        self.dataset_metadata = json.dumps(self.metadata)
 
 class Dataset(HydraComplexModel):
     """
@@ -190,8 +191,12 @@ class Dataset(HydraComplexModel):
         self.dimension = parent.data_dimen
         self.unit      = parent.data_units
         self.value = None
+
         if parent.value is not None:
-            self.value = parent.value
+            try:
+                self.value = zlib.decompress(parent.value)
+            except:
+                self.value = parent.value
 
         metadata = {}
         for m in parent.metadata:
@@ -225,11 +230,11 @@ class Dataset(HydraComplexModel):
                 # supported in read_json. Ridiculous.
                 ts = timeseries_pd.to_json(date_format='iso', date_unit='ns')
 
-                return ts
+                return zlib.compress(ts)
             elif self.type == 'array':
                 #check to make sure this is valid json
-                val = json.loads(data)
-                return json.dumps(data)
+                json.loads(data)
+                return zlib.compress(data)
         except Exception, e:
             log.exception(e)
             raise HydraError("Error parsing value %s: %s"%(self.value, e))

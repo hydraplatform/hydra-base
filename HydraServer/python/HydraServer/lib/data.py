@@ -559,14 +559,8 @@ def _process_incoming_data(data, user_id=None, source=None):
         else:
             data_dict['data_dimen'] = d.dimension
 
-        if d.type == 'eqtimeseries':
-            st, f, v = _get_db_val(d.type, val)
-            data_dict['start_time'] = st
-            data_dict['frequency']  = f
-            data_dict['value']      = v
-        else:
-            db_val = _get_db_val(d.type, val)
-            data_dict['value'] = db_val
+        db_val = _get_db_val(d.type, val)
+        data_dict['value'] = db_val
 
         if d.metadata is not None:
             metadata_dict = json.loads(d.metadata)
@@ -586,12 +580,10 @@ def _process_incoming_data(data, user_id=None, source=None):
     return datasets
 
 def _get_db_val(data_type, val):
-    if data_type in ('descriptor','scalar','array'):
+    if data_type in ('descriptor','scalar'):
         return str(val)
-    elif data_type == 'eqtimeseries':
-        return (str(val[0]), str(val[1]), str(val[2]))
-    elif data_type == 'timeseries':
-        return val 
+    elif data_type in ('timeseries', 'array'):
+        return val
     else:
         raise HydraError("Invalid data type %s"%(data_type,))
 
@@ -657,7 +649,10 @@ def _get_existing_data(hashes):
     return hash_dict
 
 def _get_datasets(dataset_ids):
-
+    """
+        Get all the datasets in a list of dataset IDS. This must be done in chunks of 999,
+        as sqlite can only handle 'in' with < 1000 elements.
+    """
 
     dataset_dict = {}
 

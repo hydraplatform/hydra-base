@@ -628,10 +628,9 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
 
     start_time = None
     frequency  = None
-    if dataset.type == 'eqtimeseries':
-        start_time, frequency, value = dataset.parse_value()
-    else:
-        value = dataset.parse_value()
+
+    value = dataset.parse_value()
+
     log.info("Assigning %s to resource attribute: %s", value, ra_id)
 
     if value is None:
@@ -717,11 +716,8 @@ def add_data_to_attribute(scenario_id, resource_attr_id, dataset,**kwargs):
 
     start_time = None
     frequency  = None
-    if dataset.type == 'eqtimeseries':
-        start_time, frequency, value = dataset.parse_value()
-    else:
-        value = dataset.parse_value()
 
+    value = dataset.parse_value()
 
     dataset_metadata = dataset.get_metadata_as_dict(user_id=kwargs.get('user_id'),
                                                     source=kwargs.get('source'))

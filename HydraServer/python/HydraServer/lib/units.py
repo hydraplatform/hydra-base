@@ -130,8 +130,6 @@ def convert_dataset(dataset_id, to_unit,**kwargs):
                 newvec = hydra_units.convert(vecdata, old_unit, to_unit)
                 newarr = vector_to_arr(newvec, dim)
                 new_val.append(ts_time, newarr)
-        elif dataset_type == 'eqtimeseries':
-            pass
         elif dataset_type == 'descriptor':
             raise HydraError('Cannot convert descriptor.')
         

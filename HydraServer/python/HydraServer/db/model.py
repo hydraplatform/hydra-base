@@ -121,12 +121,10 @@ class Dataset(Base):
         return val
 
     def set_val(self, data_type, val):
-        if data_type in ('descriptor','scalar','array'):
+        if data_type in ('descriptor','scalar'):
             self.value = str(val)
-        elif data_type == 'eqtimeseries':
-            self.start_time = str(val[0])
-            self.frequency  = str(val[1])
-            self.value      = str(val[2])
+        elif data_type == 'array':
+            self.value = zlib.compress(val)
         elif data_type == 'timeseries':
             if type(val) == list:
                 test_val_keys = []
@@ -145,7 +143,8 @@ class Dataset(Base):
                 timeseries_pd = pd.DataFrame(test_vals, index=pd.Series(test_val_keys))
                 #Epoch doesn't work here because dates before 1970 are not supported
                 #in read_json. Ridiculous.
-                self.value =  timeseries_pd.to_json(date_format='iso', date_unit='ns')
+                json_value =  timeseries_pd.to_json(date_format='iso', date_unit='ns')
+                self.value = zlib.compress(json_value)
             else:
                 self.value = val
         else:

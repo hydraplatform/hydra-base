@@ -3,6 +3,7 @@ log = logging.getLogger(__name__)
 
 from decimal import Decimal
 import pandas as pd
+import zlib
 
 def generate_data_hash(dataset_dict):
 
@@ -10,12 +11,13 @@ def generate_data_hash(dataset_dict):
     if d.get('metadata') is None:
         d['metadata'] = {}
 
-    hash_string = "%s %s %s %s %s, %s"%(d['data_name'],
-                                    d['data_units'],
-                                    d['data_dimen'],
-                                    d['data_type'],
-                                    d['value'],
-                                    d['metadata'])
+    hash_string = "%s %s %s %s %s %s"%(
+                                str(d['data_name']),
+                                str(d['data_units']),
+                                str(d['data_dimen']),
+                                str(d['data_type']),
+                                d['value'],
+                                d['metadata'])
 
     log.debug("Generating data hash from: %s", hash_string)
 
@@ -43,15 +45,24 @@ def get_val(dataset, timestamp=None):
 
     """
     if dataset.data_type == 'array':
-        return eval(dataset.value)
+        try:
+            json.loads(dataset.value)
+        except ValueError:
+            #Didn't work? Maybe because it was compressed.
+            val = zlib.decompress(dataset.value)
+            return json.loads(val)
     elif dataset.data_type == 'descriptor':
         return str(dataset.value)
-    elif dataset.data_type == 'eqtimeseries':
-        return (dataset.start_time, dataset.frequency, eval(dataset.value))
     elif dataset.data_type == 'scalar':
         return Decimal(str(dataset.value))
     elif dataset.data_type == 'timeseries':
-        timeseries = pd.read_json(dataset.value)
+        try:
+            timeseries = pd.read_json(dataset.value)
+        except ValueError:
+            #Didn't work? Maybe because it was compressed.
+            val = zlib.decompress(dataset.value)
+            timeseries = pd.read_json(val)
+
         if timestamp is None:
             return timeseries
         else:
