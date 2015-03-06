@@ -688,7 +688,7 @@ class NetworkService(HydraService):
         return_ras = []
         for grouprs in group_resourcescenarios:
             ra = ResourceAttr(grouprs.resourceattr)
-            ra.resourcescenario = ResourceScenario(grouprs.resourcescenario, ra.attr_id)
+            ra.resourcescenario = ResourceScenario(grouprs, ra.attr_id)
             return_ras.append(ra)
 
         return return_ras
