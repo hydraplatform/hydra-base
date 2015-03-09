@@ -863,3 +863,14 @@ def get_attribute_datasests(attr_id, scenario_id, **kwargs):
             ).all()
 
     return ras
+
+def get_resourcegroupitems(group_id, scenario_id, **kwargs):
+
+    """
+        Get all the items in a group, in a scenario.
+    """
+
+    rgi = DBSession.query(ResourceGroupItem).\
+                filter(ResourceGroupItem.group_id==group_id).\
+                filter(ResourceGroupItem.scenario_id==scenario_id).all()
+    return rgi

@@ -885,6 +885,16 @@ class ResourceGroup(Base):
 
         return attr
 
+    def get_items(self, scenario_id):
+        """
+            Get all the items in this group, in the given scenario
+        """
+        items = DBSession.query(ResourceGroupItem)\
+                .filter(ResourceGroupItem.group_id==self.group_id).\
+                filter(ResourceGroupItem.scenario_id==scenario_id).all()
+
+        return items
+
     def check_read_permission(self, user_id):
         """
             Check whether this user can read this group 

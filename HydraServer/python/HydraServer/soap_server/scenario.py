@@ -21,6 +21,7 @@ from hydra_complexmodels import Scenario,\
         Dataset,\
         ResourceAttr,\
         AttributeData,\
+        ResourceGroupItem,\
         ScenarioDiff
 
 import logging
@@ -335,3 +336,8 @@ class ScenarioService(HydraService):
         
         return ResourceScenario(rs)
         
+    @rpc(Integer, Integer, _returns=SpyneArray(ResourceGroupItem))
+    def get_resourcegroupitems(ctx, group_id, scenario_id):
+        items = scenario.get_resourcegroupitems(group_id, scenario_id, **ctx.in_header.__dict__)
+
+        return [ResourceGroupItem(rgi) for rgi in items]
