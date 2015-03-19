@@ -1,6 +1,9 @@
+#vim meta files
+*.swp
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
-*.py[cod]
+*.pyc
 
 # C extensions
 *.so
@@ -10,7 +13,6 @@ __pycache__/
 env/
 build/
 develop-eggs/
-dist/
 downloads/
 eggs/
 lib64/
