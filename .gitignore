@@ -14,14 +14,15 @@ env/
 build/
 develop-eggs/
 downloads/
-eggs/
 lib64/
 parts/
 sdist/
 var/
 *.egg-info/
 .installed.cfg
-*.egg
+HydraPlugins/WaterML/ImportWML/dist/
+HydraPlugins/CSVplugin/ExportCSV/dist/
+HydraPlugins/CSVplugin/ImportCSV/dist/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
