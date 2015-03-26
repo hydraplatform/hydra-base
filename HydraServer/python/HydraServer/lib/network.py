@@ -1018,7 +1018,12 @@ def network_exists(project_id, network_name,**kwargs):
     except NoResultFound:
         return 'N'
 
-def update_network(network,**kwargs):
+def update_network(network,
+    update_nodes=True,
+    update_links=True,
+    update_groups=True,
+    update_scenarios=True,
+    **kwargs):
     """
         Update an entire network
     """
@@ -1043,7 +1048,7 @@ def update_network(network,**kwargs):
     #Maps temporary node_ids to real node_ids
     node_id_map = dict()
     
-    if network.nodes is not None:
+    if network.nodes is not None and update_nodes is True:
         log.info("Updating nodes")
         t0 = time.time()
         #First add all the nodes
@@ -1073,7 +1078,7 @@ def update_network(network,**kwargs):
         log.info("Updating nodes took %s", time.time() - t0)
 
     link_id_map = dict()
-    if network.links is not None:
+    if network.links is not None and update_links is True:
         log.info("Updating links")
         t0 = time.time()
         link_id_map = dict([(l.link_id, l) for l in net_i.links])
@@ -1105,7 +1110,7 @@ def update_network(network,**kwargs):
 
     group_id_map = dict()
     #Next all the groups
-    if network.resourcegroups is not None:
+    if network.resourcegroups is not None and update_groups is True:
         log.info("Updating groups")
         t0 = time.time()
         group_id_map = dict([(g.group_id, g) for g in net_i.resourcegroups])
@@ -1131,7 +1136,7 @@ def update_network(network,**kwargs):
         log.info("Updating groups took %s", time.time() - t0)
 
     errors = []
-    if network.scenarios is not None:
+    if network.scenarios is not None and update_scenarios is True:
         for s in network.scenarios:
             add_scenario = False
             if s.id is not None:

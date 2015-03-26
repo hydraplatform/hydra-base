@@ -59,14 +59,24 @@ class ScenarioService(HydraService):
         else:
             return Scenario(new_scen, summary=False)
 
-    @rpc(Scenario, Unicode(pattern="['YN']", default='N'), _returns=Scenario)
-    def update_scenario(ctx, scen, return_summary):
+    @rpc(Scenario, 
+        Unicode(pattern="['YN']", default='Y'), 
+        Unicode(pattern="['YN']", default='Y'),
+        Unicode(pattern="['YN']", default='N'), _returns=Scenario)
+    def update_scenario(ctx, scen, update_data, update_groups, return_summary):
         """
             Update a single scenario
             as all resources already exist, there is no need to worry
             about negative IDS
         """
-        updated_scen = scenario.update_scenario(scen, **ctx.in_header.__dict__)
+        upd_data = True if update_data == 'Y' else False
+        upd_grp  = True if update_groups =='Y' else False  
+
+        updated_scen = scenario.update_scenario(scen,
+                                                update_data=upd_data,
+                                                update_groups=upd_grp,
+                                                **ctx.in_header.__dict__)
+        
         if return_summary=='Y':
             return Scenario(updated_scen, summary=True)
         else:
