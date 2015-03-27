@@ -65,6 +65,7 @@ from HydraServer.soap_server.hydra_base import AuthenticationService,\
 import HydraServer.plugins 
 from HydraServer.soap_server.sharing import SharingService
 from spyne.util.wsgi_wrapper import WsgiMounter
+import socket
 
 from beaker.middleware import SessionMiddleware
 
@@ -219,7 +220,9 @@ class HydraServer():
         
         port = config.getint('hydra_server', 'port', 12345)
         domain = config.get('hydra_server', 'domain', '127.0.0.1')
-        
+       
+        check_port_available(domain, port)
+
         spyne.const.xml_ns.DEFAULT_NS = 'soap_server.hydra_complexmodels'
         cp_wsgi_application = CherryPyWSGIServer((domain,port), application)
 
@@ -229,6 +232,18 @@ class HydraServer():
             cp_wsgi_application.start()
         except KeyboardInterrupt:
             cp_wsgi_application.stop()
+
+def check_port_available(domain, port):
+    """
+        Given a domain and port, check to see whether that combination is available
+        for hydra to use.
+    """
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    result = sock.connect_ex((domain,port))
+    if result == 0:
+        raise HydraError("Something else is already running on port %s"%port)
+    else:
+        log.info("Port %s is available", port)
 
 # These few lines are needed by mod_wsgi to turn the server into a WSGI script.
 s = HydraServer()
