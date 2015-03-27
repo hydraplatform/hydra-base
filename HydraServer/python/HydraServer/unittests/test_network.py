@@ -746,6 +746,9 @@ class NetworkTest(server.SoapServerTest):
                     attrs_with_data.append(ra.id)
         assert len(attrs_with_data) > 0
 
+        group_items = self.client.service.get_resourcegroupitems(n.id, s.id)
+        assert len(group_items) > 0
+
     def test_cleanup_network(self):
         network = self.test_add_node()
 

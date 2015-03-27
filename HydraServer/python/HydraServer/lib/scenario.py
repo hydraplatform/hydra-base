@@ -193,7 +193,7 @@ def add_scenario(network_id, scenario,**kwargs):
     DBSession.flush()
     return scen
 
-def update_scenario(scenario,**kwargs):
+def update_scenario(scenario,update_data=True,update_groups=True,**kwargs):
     """
         Update a single scenario
         as all resources already exist, there is no need to worry
@@ -219,38 +219,41 @@ def update_scenario(scenario,**kwargs):
     if scenario.resourcegroupitems == None:
         scenario.resourcegroupitems = []
 
-    datasets = [rs.value for rs in scenario.resourcescenarios]
-    updated_datasets = data._bulk_insert_data(datasets, user_id, kwargs.get('app_name')) 
+    if update_data is True:
 
-    for i, r_scen in enumerate(scenario.resourcescenarios):
-        _update_resourcescenario(scen, r_scen, dataset=updated_datasets[i], user_id=user_id, source=kwargs.get('app_name'))
+        datasets = [rs.value for rs in scenario.resourcescenarios]
+        updated_datasets = data._bulk_insert_data(datasets, user_id, kwargs.get('app_name')) 
 
-    #Get all the exiting resource group items for this scenario.
-    #THen process all the items sent to this handler.
-    #Any in the DB that are not passed in here are removed.
-    for group_item in scenario.resourcegroupitems:
+        for i, r_scen in enumerate(scenario.resourcescenarios):
+            _update_resourcescenario(scen, r_scen, dataset=updated_datasets[i], user_id=user_id, source=kwargs.get('app_name'))
 
-        if group_item.id and group_item.id > 0:
-            try:
-                group_item_i = DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.item_id==group_item.id).one()
-            except NoResultFound:
-                raise ResourceNotFoundError("ResourceGroupItem %s not found" % (group_item.id))
+    if update_groups is True:
+        #Get all the exiting resource group items for this scenario.
+        #THen process all the items sent to this handler.
+        #Any in the DB that are not passed in here are removed.
+        for group_item in scenario.resourcegroupitems:
 
-        else:
-            group_item_i = ResourceGroupItem()
-            group_item_i.group_id = group_item.group_id
+            if group_item.id and group_item.id > 0:
+                try:
+                    group_item_i = DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.item_id==group_item.id).one()
+                except NoResultFound:
+                    raise ResourceNotFoundError("ResourceGroupItem %s not found" % (group_item.id))
 
-        ref_key = group_item.ref_key
-        group_item_i.ref_key = ref_key
-        if ref_key == 'NODE':
-            group_item_i.node_id =group_item.ref_id
-        elif ref_key == 'LINK':
-            group_item_i.link_id =group_item.ref_id
-        elif ref_key == 'GROUP':
-            group_item_i.subgroup_id =group_item.ref_id
+            else:
+                group_item_i = ResourceGroupItem()
+                group_item_i.group_id = group_item.group_id
 
-        if group_item.id is None or group_item.id < 0:
-            scenario.resourcegroupitems.append(group_item_i)
+            ref_key = group_item.ref_key
+            group_item_i.ref_key = ref_key
+            if ref_key == 'NODE':
+                group_item_i.node_id =group_item.ref_id
+            elif ref_key == 'LINK':
+                group_item_i.link_id =group_item.ref_id
+            elif ref_key == 'GROUP':
+                group_item_i.subgroup_id =group_item.ref_id
+
+            if group_item.id is None or group_item.id < 0:
+                scen.resourcegroupitems.append(group_item_i)
     DBSession.flush()
     return scen
 
@@ -859,3 +862,14 @@ def get_attribute_datasests(attr_id, scenario_id, **kwargs):
             ).all()
 
     return ras
+
+def get_resourcegroupitems(group_id, scenario_id, **kwargs):
+
+    """
+        Get all the items in a group, in a scenario.
+    """
+
+    rgi = DBSession.query(ResourceGroupItem).\
+                filter(ResourceGroupItem.group_id==group_id).\
+                filter(ResourceGroupItem.scenario_id==scenario_id).all()
+    return rgi

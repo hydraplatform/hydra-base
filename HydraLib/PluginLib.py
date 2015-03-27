@@ -930,5 +930,3 @@ def validate_template(template_file, connection):
     log.info("Template OK")
 
     return template_dict
-
-

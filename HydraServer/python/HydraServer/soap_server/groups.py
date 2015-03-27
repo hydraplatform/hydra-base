@@ -56,7 +56,7 @@ class ResourceGroupService(HydraService):
         return ResourceGroup(group_i)
 
 
-    @rpc(ResourceGroupItem, Integer, _returns=Scenario)
+    @rpc(ResourceGroupItem, Integer, _returns=ResourceGroupItem)
     def add_resourcegroupitem(ctx, group_item, scenario_id):
         group_item_i = resourcegroups.add_resourcegroupitem(group_item,
                                                             scenario_id,

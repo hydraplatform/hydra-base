@@ -113,12 +113,27 @@ class NetworkService(HydraService):
 
         return net_exists
 
-    @rpc(Network, _returns=Network)
-    def update_network(ctx, net):
+    @rpc(Network, 
+        Unicode(pattern="['YN']", default='Y'),
+        Unicode(pattern="['YN']", default='Y'),
+        Unicode(pattern="['YN']", default='Y'),
+        Unicode(pattern="['YN']", default='Y'),
+        _returns=Network)
+    def update_network(ctx, net, update_nodes, update_links, update_groups, update_scenarios):
         """
             Update an entire network
         """
-        net = network.update_network(net, **ctx.in_header.__dict__)
+        upd_nodes = True if update_nodes == 'Y' else False
+        upd_links = True if update_links == 'Y' else False
+        upd_groups = True if update_groups == 'Y' else False
+        upd_scenarios = True if update_scenarios == 'Y' else False
+
+        net = network.update_network(net,
+                                     upd_nodes,
+                                     upd_links,
+                                     upd_groups,
+                                     upd_scenarios,
+                                     **ctx.in_header.__dict__)
         return Network(net, summary=True)
 
     @rpc(Integer, Integer(min_occurs=0), _returns=Node)
