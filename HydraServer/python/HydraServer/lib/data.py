@@ -165,7 +165,40 @@ def search_datasets(dataset_id=None,
         datasets in the DB (that the user is allowe to see)
         will be returned.
     """
-    
+   
+ 
+    log.info("Searching datasets: \ndatset_id: %s,\n"
+                                  "datset_name: %s,\n" 
+                                  "collection_name: %s,\n"
+                                  "data_type: %s,\n"
+                                  "dimension: %s,\n"
+                                  "unit: %s,\n"
+                                  "scenario_id: %s,\n"
+                                  "metadata_name: %s,\n"
+                                  "metadata_val: %s,\n"
+                                  "attr_id: %s,\n"
+                                  "type_id: %s,\n"
+                                  "unconnected: %s,\n"
+                                  "inc_metadata: %s,\n"
+                                  "inc_val: %s,\n"
+                                  "page_start: %s,\n"
+                                  "page_size: %s" % (dataset_id,
+                dataset_name,
+                collection_name,
+                data_type,
+                dimension,
+                unit,
+                scenario_id,
+                metadata_name,
+                metadata_val,
+                attr_id,
+                type_id,
+                unconnected,
+                inc_metadata,
+                inc_val,
+                page_start,
+                page_size))
+
     if page_size is None:
         page_size = config.get('SEARCH', 'page_size', 2000)
 
