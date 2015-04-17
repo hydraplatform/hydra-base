@@ -144,27 +144,88 @@ class DataService(HydraService):
 
     @rpc(_returns=SpyneArray(DatasetCollection))
     def get_all_dataset_collections(ctx):
-
+        """
+            Get all the dataset collections available. 
+        """
         dataset_colns = data.get_all_dataset_collections(**ctx.in_header.__dict__)
         all_colns = []
         for d_g in dataset_colns:
             all_colns.append(DatasetCollection(d_g))
         return all_colns
 
+
+    @rpc(Integer, Integer, _returns=Unicode)
+    def add_dataset_to_collection(ctx, dataset_id, collection_id):
+        """
+            Add a single dataset to a dataset collection.
+        """
+
+        data.add_dataset_to_collection(dataset_id,
+                                       collection_id,
+                                       **ctx.in_header.__dict__)
+        return 'OK'
+
+    @rpc(SpyneArray(Integer), Integer, _returns=Unicode)
+    def add_datasets_to_collection(ctx, dataset_ids, collection_id):
+        """
+            Add multiple datasets to a dataset collection.
+        """
+        data.add_datasets_to_collection(dataset_ids,
+                                        collection_id,
+                                        **ctx.in_header.__dict__)
+        return 'OK'
+
+    @rpc(Integer, Integer, _returns=Unicode)
+    def remove_dataset_from_collection(ctx, dataset_id, collection_id):
+        """
+            Remove a single dataset to a dataset collection.
+        """
+        data.remove_dataset_from_collection(dataset_id,
+                                             collection_id,
+                                             **ctx.in_header.__dict__)
+        return 'OK'
+
+    @rpc(Integer, Integer, _returns=Unicode(pattern='[YN]'))
+    def check_dataset_in_collection(ctx, dataset_id, collection_id):
+        """
+            Check whether a dataset is contained inside a collection
+        """
+        
+        result = data.check_dataset_in_collection(dataset_id,
+                                         collection_id,
+                                         **ctx.in_header.__dict__)
+        return result
+
     @rpc(Integer, _returns=DatasetCollection)
     def get_dataset_collection(ctx, collection_id):
+        """
+            Get a single dataset collection, by ID.
+            :param Collection ID.
+        """
 
-        dataset_coln_i = data.get_dataset_collection(collection_id, **ctx.in_header.__dict__)
+        dataset_coln_i = data.get_dataset_collection(collection_id,
+                                                     **ctx.in_header.__dict__)
         return DatasetCollection(dataset_coln_i)
 
     @rpc(Unicode, _returns=DatasetCollection)
     def get_dataset_collection_by_name(ctx, collection_name):
-
-        dataset_coln_i = data.get_dataset_collection_by_name(collection_name, **ctx.in_header.__dict__)
+        """
+            Get all the dataset collections with the provided name.
+            :param A collection name.
+        """
+        dataset_coln_i = data.get_dataset_collection_by_name(collection_name,
+                                                             **ctx.in_header.__dict__)
         return DatasetCollection(dataset_coln_i)
 
     @rpc(DatasetCollection, _returns=DatasetCollection)
     def add_dataset_collection(ctx, collection):
+        """
+            Add a dataset collection:
+            The name of the collection does NOT need to be unique, so be careful
+            with the naming to ensure the collection is searchable later.
+
+            :param DatasetCollection object, containing a list of DatasetCollectionItem objects
+        """
 
         dataset_coln_i = data.add_dataset_collection(collection, **ctx.in_header.__dict__)
 
@@ -174,7 +235,8 @@ class DataService(HydraService):
     @rpc(Unicode, _returns=SpyneArray(DatasetCollection))
     def get_collections_like_name(ctx, collection_name):
         """
-            Get all the datasets from the collection with the specified name
+            Get all the dataset collections with a name like the specified name
+            :param The collection name to search for.
         """
         collections = data.get_collections_like_name(collection_name, **ctx.in_header.__dict__)
         ret_collections = [DatasetCollection(g) for g in collections]

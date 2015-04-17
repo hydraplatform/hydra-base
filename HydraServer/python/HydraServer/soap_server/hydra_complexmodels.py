@@ -600,8 +600,8 @@ class Array(HydraComplexModel):
 
 class DatasetCollection(HydraComplexModel):
     _type_info = [
-        ('collection_name', Unicode(default=None)),
-        ('collection_id'  , Integer(default=None)),
+        ('name', Unicode(default=None)),
+        ('id'  , Integer(default=None)),
         ('dataset_ids',   SpyneArray(Integer)),
         ('cr_date',       Unicode(default=None)),
     ]
@@ -610,8 +610,8 @@ class DatasetCollection(HydraComplexModel):
         super(DatasetCollection, self).__init__()
         if  parent is None:
             return
-        self.collection_name = parent.collection_name
-        self.collection_id   = parent.collection_id
+        self.name = parent.collection_name
+        self.id   = parent.collection_id
         self.dataset_ids = [d.dataset_id for d in parent.items]
         self.cr_date = str(parent.cr_date)
 

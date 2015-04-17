@@ -693,6 +693,99 @@ def get_all_dataset_collections(**kwargs):
 
     return all_collections
 
+def _get_collection(collection_id):
+    """
+        Get a dataset collection by ID
+        :param collection ID
+    """
+    try:
+        collection = DBSession.query(DatasetCollection).filter(DatasetCollection.collection_id==collection_id).one()
+        return collection
+    except NoResultFound:
+        raise ResourceNotFoundError("No dataset collection found with id %s"%collection_id)
+
+def _get_collection_item(collection_id, dataset_id):
+    """
+        Get a single dataset collection entry by collection ID and dataset ID
+        :param collection ID
+        :param dataset ID
+    """
+    collection_item = DBSession.query(DatasetCollectionItem).\
+            filter(DatasetCollectionItem.collection_id==collection_id, 
+                   DatasetCollectionItem.dataset_id==dataset_id).first()
+    return collection_item
+
+def add_dataset_to_collection(dataset_id, collection_id, **kwargs):
+    """
+        Add a single dataset to a dataset collection.
+    """
+    _get_collection(collection_id)
+    collection_item = _get_collection_item(collection_id, dataset_id)
+    if collection_item is not None:
+        raise HydraError("Dataset Collection %s already contains dataset %s", collection_id, dataset_id)
+
+    new_item = DatasetCollectionItem()
+    new_item.dataset_id=dataset_id
+    new_item.collection_id=collection_id
+
+    DBSession.add(new_item)
+    DBSession.flush()
+
+    return 'OK'
+
+
+def add_datasets_to_collection(dataset_ids, collection_id, **kwargs):
+    """
+        Add multiple datasets to a dataset collection.
+    """
+    _get_collection(collection_id)
+
+    for dataset_id in dataset_ids:
+        collection_item = _get_collection_item(collection_id, dataset_id)
+        if collection_item is not None:
+            raise HydraError("Dataset Collection %s already contains dataset %s", collection_id, dataset_id)
+    
+        new_item = DatasetCollectionItem()
+        new_item.dataset_id=dataset_id
+        new_item.collection_id=collection_id
+
+        DBSession.add(new_item)
+
+    DBSession.flush()
+    return 'OK'
+
+def remove_dataset_from_collection(dataset_id, collection_id, **kwargs):
+    """
+        Add a single dataset to a dataset collection.
+    """
+    _get_collection(collection_id)
+    collection_item = _get_collection_item(collection_id, dataset_id)
+    if collection_item is None:
+        raise HydraError("Dataset %s is not in collection %s.",
+                                                    dataset_id, 
+                                                    collection_id)
+    DBSession.delete(collection_item)
+    DBSession.flush()
+
+    return 'OK'
+
+
+def check_dataset_in_collection(dataset_id, collection_id, **kwargs):
+    """
+        Check whether a dataset is contained inside a collection
+        :param dataset ID
+        :param collection ID
+        :returns 'Y' or 'N'
+    """
+    
+    _get_collection(collection_id)
+    collection_item = _get_collection_item(collection_id, dataset_id)
+    if collection_item is None:
+        return 'N'
+    else:
+        return 'Y'
+
+
 
 def get_dataset_collection(collection_id,**kwargs):
     try:
@@ -712,7 +805,7 @@ def get_dataset_collection_by_name(collection_name,**kwargs):
 
 def add_dataset_collection(collection,**kwargs):
 
-    coln_i = DatasetCollection(collection_name=collection.collection_name)
+    coln_i = DatasetCollection(collection_name=collection.name)
 
     for dataset_id in collection.dataset_ids:
         datasetitem = DatasetCollectionItem(dataset_id=dataset_id)
