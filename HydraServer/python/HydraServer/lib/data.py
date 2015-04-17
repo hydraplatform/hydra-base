@@ -32,6 +32,9 @@ import pandas as pd
 from HydraLib.HydraException import HydraError, ResourceNotFoundError
 from sqlalchemy import and_, or_
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.sql.expression import literal_column
+from sqlalchemy import distinct
+
 from HydraLib.util import create_dict
 from decimal import Decimal
 import copy
@@ -289,10 +292,17 @@ def search_datasets(dataset_id=None,
                 TypeAttr, and_(TypeAttr.attr_id==ResourceAttr.attr_id, TypeAttr.type_id==type_id))
 
         if unconnected == 'Y':
+            stmt = DBSession.query(distinct(ResourceScenario.dataset_id).label('dataset_id'), 
+                                literal_column("0").label('col')).subquery()
             dataset_qry = dataset_qry.outerjoin(
-                ResourceScenario, ResourceScenario.dataset_id == Dataset.dataset_id)
-            dataset_qry = dataset_qry.filter(ResourceScenario.scenario_id == None)
-
+                stmt, stmt.c.dataset_id == Dataset.dataset_id)
+            dataset_qry = dataset_qry.filter(stmt.c.col == None)
+        elif unconnected == 'N':
+            #The dataset has to be connected to something
+            stmt = DBSession.query(distinct(ResourceScenario.dataset_id).label('dataset_id'), 
+                                literal_column("0").label('col')).subquery()
+            dataset_qry = dataset_qry.join(
+                stmt, stmt.c.dataset_id == Dataset.dataset_id)
         if metadata_name is not None and metadata_val is not None:
             dataset_qry = dataset_qry.join(Metadata,
                                 and_(Metadata.dataset_id == Dataset.dataset_id, 
@@ -313,8 +323,10 @@ def search_datasets(dataset_id=None,
                                 and_(DatasetOwner.dataset_id==Dataset.dataset_id, 
                                 DatasetOwner.user_id==user_id))
 
-    dataset_qry = dataset_qry.filter(or_(Dataset.hidden=='N', (DatasetOwner.user_id is not None and Dataset.hidden=='Y')))
+    dataset_qry = dataset_qry.filter(or_(Dataset.hidden=='N', and_(DatasetOwner.user_id is not None, Dataset.hidden=='Y')))
 
+    log.info(str(dataset_qry))
+    
     datasets = dataset_qry.all()
     
     log.info("Retrieved %s datasets", len(datasets))
