@@ -308,6 +308,12 @@ def clone_scenario(scenario_id,**kwargs):
         new_rs = ResourceScenario()
         new_rs.resource_attr_id = rs.resource_attr_id
         new_rs.dataset_id       = rs.dataset_id
+        
+        if kwargs.get('app_name') is None:
+            new_rs.source           = rs.source
+        else:
+            new_rs.source = kwargs['app_name']
+
         cloned_scen.resourcescenarios.append(new_rs)
 
     for resourcegroupitem_i in scen_i.resourcegroupitems:
