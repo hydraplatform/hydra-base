@@ -43,9 +43,9 @@ class FixNamespace(MessagePlugin):
             self.fix_ns(e)
 
 def connect():
-    port = config.getint('hydra_server', 'port')
-    domain = config.get('hydra_server', 'domain')
-    path = config.get('hydra_server', 'path')
+    port = config.getint('hydra_server', 'port', '8080')
+    domain = config.get('hydra_server', 'domain', 'localhost')
+    path = config.get('hydra_server', 'soap_path', 'soap')
     if path:
         if path[0] == '/':
             path = path[1:]
