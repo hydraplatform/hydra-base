@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-from spyne.model.primitive import Integer, Unicode
+from spyne.model.primitive import Integer32, Unicode
 from spyne.model.complex import Array as SpyneArray
 from spyne.decorator import rpc
 from hydra_complexmodels import Rule
@@ -27,7 +27,7 @@ class RuleService(HydraService):
         The data SOAP service
     """
 
-    @rpc(Integer, _returns=SpyneArray(Rule))
+    @rpc(Integer32, _returns=SpyneArray(Rule))
     def get_rules(ctx, scenario_id):
         """
             Get all the rules in a scenario
@@ -35,7 +35,7 @@ class RuleService(HydraService):
         scenario_rules = rules.get_rules(scenario_id, **ctx.in_header.__dict__)
         return [Rule(r) for r in scenario_rules]
 
-    @rpc(Integer, _returns=Rule)
+    @rpc(Integer32, _returns=Rule)
     def get_rule(ctx, rule_id):
         """
             Get an individual role by its ID.
@@ -43,7 +43,7 @@ class RuleService(HydraService):
         rule_i = rules.get_rule(rule_id, **ctx.in_header.__dict__)
         return Rule(rule_i)
 
-    @rpc(Integer, Rule, _returns=Rule)
+    @rpc(Integer32, Rule, _returns=Rule)
     def add_rule(ctx, scenario_id, rule):
         """
             Add a rule to a given scenario
@@ -59,7 +59,7 @@ class RuleService(HydraService):
         rule_i = rules.update_rule(rule, **ctx.in_header.__dict__)
         return Rule(rule_i)
 
-    @rpc(Integer, _returns=Unicode)
+    @rpc(Integer32, _returns=Unicode)
     def delete_rule(ctx, rule_id):
         """
             Set the status of a rule to inactive, so it will be excluded when
@@ -68,7 +68,7 @@ class RuleService(HydraService):
         rules.delete_rule(rule_id, **ctx.in_header.__dict__)
         return 'OK'
    
-    @rpc(Integer, _returns=Unicode)
+    @rpc(Integer32, _returns=Unicode)
     def activate_rule(ctx, rule_id):
         """
             Set the status of a rule to active, so it will be included when
@@ -77,7 +77,7 @@ class RuleService(HydraService):
         rules.activate_rule(rule_id, **ctx.in_header.__dict__)
         return 'OK'
 
-    @rpc(Integer, _returns=Unicode)
+    @rpc(Integer32, _returns=Unicode)
     def purge_rule(ctx, rule_id):
         """
             Remove a rule permanently

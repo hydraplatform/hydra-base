@@ -14,7 +14,7 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 from spyne.decorator import rpc
-from spyne.model.primitive import Integer, Unicode 
+from spyne.model.primitive import Integer32, Unicode 
 from spyne.model.complex import Array as SpyneArray
 from hydra_complexmodels import Project,\
 ProjectSummary,\
@@ -49,7 +49,7 @@ class ProjectService(HydraService):
         return Project(proj_i)
 
 
-    @rpc(Integer, _returns=Project)
+    @rpc(Integer32, _returns=Project)
     def get_project(ctx, project_id):
         """
             get a project complexmodel
@@ -67,7 +67,7 @@ class ProjectService(HydraService):
 
         return Project(proj_dict)
 
-    @rpc(Integer, _returns=SpyneArray(ProjectSummary))
+    @rpc(Integer32, _returns=SpyneArray(ProjectSummary))
     def get_projects(ctx, user_id):
         """
             get a project complexmodel
@@ -79,7 +79,7 @@ class ProjectService(HydraService):
         return projects
 
 
-    @rpc(Integer, _returns=Unicode)
+    @rpc(Integer32, _returns=Unicode)
     def delete_project(ctx, project_id):
         """
             Set the status of a project to 'X'
@@ -87,7 +87,7 @@ class ProjectService(HydraService):
         project_lib.set_project_status(project_id, 'X',  **ctx.in_header.__dict__)
         return 'OK' 
 
-    @rpc(Integer, _returns=Unicode)
+    @rpc(Integer32, _returns=Unicode)
     def purge_project(ctx, project_id):
         """
             Set the status of a project to 'X'
@@ -95,7 +95,7 @@ class ProjectService(HydraService):
         project_lib.delete_project(project_id,  **ctx.in_header.__dict__)
         return 'OK' 
 
-    @rpc(Integer, Unicode(pattern="[YN]", default='Y'), _returns=SpyneArray(Network))
+    @rpc(Integer32, Unicode(pattern="[YN]", default='Y'), _returns=SpyneArray(Network))
     def get_networks(ctx, project_id, include_data):
         """
             Get all networks in a project
@@ -105,7 +105,7 @@ class ProjectService(HydraService):
         networks = [Network(n, summary=True) for n in net_dicts]
         return networks
 
-    @rpc(Integer, _returns=Project)
+    @rpc(Integer32, _returns=Project)
     def get_network_project(ctx, network_id):
         """
             Get the project of a specified network

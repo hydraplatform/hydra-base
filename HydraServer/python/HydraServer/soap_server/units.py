@@ -16,7 +16,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from spyne.model.primitive import Unicode, Boolean, Decimal, Integer
+from spyne.model.primitive import Unicode, Boolean, Decimal, Integer32
 from spyne.model.complex import Array as SpyneArray
 from spyne.decorator import rpc
 from spyne.util.dictdoc import get_object_as_dict
@@ -105,7 +105,7 @@ class UnitService(HydraService):
         """
         return units.convert_units(values, unit1, unit2, **ctx.in_header.__dict__)
 
-    @rpc(Integer, Unicode, _returns=Integer)
+    @rpc(Integer32, Unicode, _returns=Integer32)
     def convert_dataset(ctx, dataset_id, to_unit):
         """Convert a whole dataset (specified by 'dataset_id' to new unit
         ('to_unit').

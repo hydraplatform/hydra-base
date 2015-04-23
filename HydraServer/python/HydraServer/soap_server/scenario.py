@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-from spyne.model.primitive import Integer, Integer32, Unicode
+from spyne.model.primitive import Integer32, Unicode
 from spyne.model.complex import Array as SpyneArray
 from spyne.decorator import rpc
 from hydra_complexmodels import Scenario,\
@@ -36,7 +36,7 @@ class ScenarioService(HydraService):
         about negative IDS
     """
 
-    @rpc(Integer, Unicode(pattern="['YN']", default='N'), _returns=Scenario)
+    @rpc(Integer32, Unicode(pattern="['YN']", default='N'), _returns=Scenario)
     def get_scenario(ctx, scenario_id, return_summary):
         """
             Get the specified scenario
@@ -48,7 +48,7 @@ class ScenarioService(HydraService):
         else:
             return Scenario(scen, summary=False)
 
-    @rpc(Integer, Scenario, Unicode(pattern="['YN']", default='N'), _returns=Scenario)
+    @rpc(Integer32, Scenario, Unicode(pattern="['YN']", default='N'), _returns=Scenario)
     def add_scenario(ctx, network_id, scen, return_summary):
         """
             Add a scenario to a specified network.
@@ -82,7 +82,7 @@ class ScenarioService(HydraService):
         else:
             return Scenario(updated_scen, summary=False)
 
-    @rpc(Integer, _returns=Unicode)
+    @rpc(Integer32, _returns=Unicode)
     def purge_scenario(ctx, scenario_id):
         """
             Set the status of a scenario to 'X'.
@@ -90,7 +90,7 @@ class ScenarioService(HydraService):
 
         return scenario.purge_scenario(scenario_id, **ctx.in_header.__dict__)
 
-    @rpc(Integer, _returns=Unicode)
+    @rpc(Integer32, _returns=Unicode)
     def delete_scenario(ctx, scenario_id):
         """
             Set the status of a scenario to 'X'.
@@ -98,7 +98,7 @@ class ScenarioService(HydraService):
 
         return scenario.set_scenario_status(scenario_id, 'X', **ctx.in_header.__dict__)
 
-    @rpc(Integer, _returns=Unicode)
+    @rpc(Integer32, _returns=Unicode)
     def activate_scenario(ctx, scenario_id):
         """
             Set the status of a scenario to 'X'.
@@ -107,14 +107,14 @@ class ScenarioService(HydraService):
         return scenario.set_scenario_status(scenario_id, 'A', **ctx.in_header.__dict__)
 
 
-    @rpc(Integer, _returns=Scenario)
+    @rpc(Integer32, _returns=Scenario)
     def clone_scenario(ctx, scenario_id):
 
         cloned_scen = scenario.clone_scenario(scenario_id, **ctx.in_header.__dict__)
 
         return Scenario(cloned_scen)
 
-    @rpc(Integer, Integer, _returns=ScenarioDiff)
+    @rpc(Integer32, Integer32, _returns=ScenarioDiff)
     def compare_scenarios(ctx, scenario_id_1, scenario_id_2):
         scenariodiff = scenario.compare_scenarios(scenario_id_1,
                                                   scenario_id_2,
@@ -123,17 +123,17 @@ class ScenarioService(HydraService):
         return ScenarioDiff(scenariodiff)
 
 
-    @rpc(Integer, _returns=Unicode)
+    @rpc(Integer32, _returns=Unicode)
     def lock_scenario(ctx, scenario_id):
         result = scenario.lock_scenario(scenario_id, **ctx.in_header.__dict__)
         return result
 
-    @rpc(Integer, _returns=Unicode)
+    @rpc(Integer32, _returns=Unicode)
     def unlock_scenario(ctx, scenario_id):
         result = scenario.unlock_scenario(scenario_id, **ctx.in_header.__dict__)
         return result
 
-    @rpc(Integer, _returns=SpyneArray(Scenario))
+    @rpc(Integer32, _returns=SpyneArray(Scenario))
     def get_dataset_scenarios(ctx, dataset_id):
         """
             Get all the scenarios attached to a dataset
@@ -144,7 +144,7 @@ class ScenarioService(HydraService):
 
         return [Scenario(s, summary=True) for s in scenarios]
 
-    @rpc(Integer, SpyneArray(ResourceScenario), _returns=SpyneArray(ResourceScenario))
+    @rpc(Integer32, SpyneArray(ResourceScenario), _returns=SpyneArray(ResourceScenario))
     def update_resourcedata(ctx,scenario_id, resource_scenarios):
         """
             Update the data associated with a scenario.
@@ -171,7 +171,7 @@ class ScenarioService(HydraService):
 
         return 'OK'
 
-    @rpc(Integer, ResourceScenario, _returns=Unicode)
+    @rpc(Integer32, ResourceScenario, _returns=Unicode)
     def delete_resourcedata(ctx,scenario_id, resource_scenario):
         """
             Remove the data associated with a resource in a scenario.
@@ -182,7 +182,7 @@ class ScenarioService(HydraService):
                                          **ctx.in_header.__dict__)
         return success
 
-    @rpc(Integer, Integer, Dataset, _returns=ResourceScenario)
+    @rpc(Integer32, Integer32, Dataset, _returns=ResourceScenario)
     def add_data_to_attribute(ctx, scenario_id, resource_attr_id, dataset):
         """
                 Add data to a resource scenario outside of a network update
@@ -194,14 +194,14 @@ class ScenarioService(HydraService):
         x = ResourceScenario(new_rs)
         return x
 
-    @rpc(Integer, _returns=SpyneArray(Dataset))
+    @rpc(Integer32, _returns=SpyneArray(Dataset))
     def get_scenario_data(ctx, scenario_id):
         scenario_data = scenario.get_scenario_data(scenario_id,
                                                    **ctx.in_header.__dict__)
         data_cm = [Dataset(d) for d in scenario_data]
         return data_cm
 
-    @rpc(Integer, Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceScenario))
+    @rpc(Integer32, Integer32, Integer32(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceScenario))
     def get_node_data(ctx, node_id, scenario_id, type_id):
         """
             Get all the resource scenarios for a given node 
@@ -219,7 +219,7 @@ class ScenarioService(HydraService):
         ret_data = [ResourceScenario(rs) for rs in node_data]
         return ret_data 
 
-    @rpc(Integer, Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceScenario))
+    @rpc(Integer32, Integer32, Integer32(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceScenario))
     def get_link_data(ctx, link_id, scenario_id, type_id):
         """
             Get all the resource scenarios for a given link 
@@ -237,7 +237,7 @@ class ScenarioService(HydraService):
         ret_data = [ResourceScenario(rs) for rs in link_data]
         return ret_data
 
-    @rpc(Integer, Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceScenario))
+    @rpc(Integer32, Integer32, Integer32(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceScenario))
     def get_network_data(ctx, network_id, scenario_id, type_id):
         """
             Get all the resource scenarios for a given network 
@@ -254,7 +254,7 @@ class ScenarioService(HydraService):
         ret_data = [ResourceScenario(rs) for rs in network_data]
         return ret_data
 
-    @rpc(Integer, Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceScenario))
+    @rpc(Integer32, Integer32, Integer32(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceScenario))
     def get_resourcegroup_data(ctx, resourcegroup_id, scenario_id, type_id):
         """
             Get all the resource scenarios for a given resourcegroup 
@@ -271,7 +271,7 @@ class ScenarioService(HydraService):
         ret_data = [ResourceScenario(rs) for rs in group_data]
         return ret_data
 
-    @rpc(SpyneArray(Integer), SpyneArray(Integer), _returns=AttributeData)
+    @rpc(SpyneArray(Integer32), SpyneArray(Integer32), _returns=AttributeData)
     def get_node_attribute_data(ctx, node_ids, attr_ids):
         """
             Get the data for multiple attributes on multiple nodes
@@ -294,7 +294,7 @@ class ScenarioService(HydraService):
 
         return ret_obj
 
-    @rpc(Integer, Integer, _returns=SpyneArray(ResourceAttr))
+    @rpc(Integer32, Integer32, _returns=SpyneArray(ResourceAttr))
     def get_attribute_datasets(ctx, attr_id, scenario_id):
         """
             Get all the datasets from resource attributes with the given attribute
@@ -315,7 +315,7 @@ class ScenarioService(HydraService):
 
         return ra_cms
 
-    @rpc(Integer(min_occurs=1, max_occurs='unbounded'), Integer, Integer, _returns=SpyneArray(ResourceScenario))
+    @rpc(Integer32(min_occurs=1, max_occurs='unbounded'), Integer32, Integer32, _returns=SpyneArray(ResourceScenario))
     def copy_data_from_scenario(ctx, resource_attr_ids, source_scenario_id, target_scenario_id):
         """
             Copy the datasets from a source scenario into the equivalent resource scenarios
@@ -331,7 +331,7 @@ class ScenarioService(HydraService):
 
         return ret_resourcescenarios 
 
-    @rpc(Integer, Integer, Integer, _returns=ResourceScenario)
+    @rpc(Integer32, Integer32, Integer32, _returns=ResourceScenario)
     def set_resourcescenario_dataset(ctx, resource_attr_id, scenario_id, dataset_id):
         """
             A short-hand way of creating a resource scenario. This function says:
@@ -346,7 +346,7 @@ class ScenarioService(HydraService):
         
         return ResourceScenario(rs)
         
-    @rpc(Integer, Integer, _returns=SpyneArray(ResourceGroupItem))
+    @rpc(Integer32, Integer32, _returns=SpyneArray(ResourceGroupItem))
     def get_resourcegroupitems(ctx, group_id, scenario_id):
         items = scenario.get_resourcegroupitems(group_id, scenario_id, **ctx.in_header.__dict__)
 

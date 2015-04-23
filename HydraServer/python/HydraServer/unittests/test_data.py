@@ -400,12 +400,12 @@ class DataCollectionTest(server.SoapServerTest):
 
         collection = self.client.factory.create('ns1:DatasetCollection')
 
-        grp_dataset_ids = self.client.factory.create("integerArray")
+        grp_dataset_ids = self.client.factory.create("intArray")
         dataset_id = scenario_data.Dataset[0].id
-        grp_dataset_ids.integer.append(dataset_id)
+        grp_dataset_ids.int.append(dataset_id)
         for d in scenario_data.Dataset:
             if d.type == 'timeseries' and d.id != dataset_id:
-                grp_dataset_ids.integer.append(d.id)
+                grp_dataset_ids.int.append(d.id)
                 break
 
         collection.dataset_ids = grp_dataset_ids 
@@ -414,7 +414,7 @@ class DataCollectionTest(server.SoapServerTest):
         newly_added_collection = self.client.service.add_dataset_collection(collection)
 
         assert newly_added_collection.id is not None, "Dataset collection does not have an ID!"
-        assert len(newly_added_collection.dataset_ids.integer) == 2, "Dataset collection does not have any items!"  
+        assert len(newly_added_collection.dataset_ids.int) == 2, "Dataset collection does not have any items!"  
 
     def test_get_all_collections(self):
         
@@ -426,12 +426,12 @@ class DataCollectionTest(server.SoapServerTest):
 
         collection = self.client.factory.create('ns1:DatasetCollection')
 
-        grp_dataset_ids = self.client.factory.create("integerArray")
+        grp_dataset_ids = self.client.factory.create("intArray")
         dataset_id = scenario_data.Dataset[0].id
-        grp_dataset_ids.integer.append(dataset_id)
+        grp_dataset_ids.int.append(dataset_id)
         for d in scenario_data.Dataset:
             if d.type == 'timeseries' and d.id != dataset_id:
-                grp_dataset_ids.integer.append(d.id)
+                grp_dataset_ids.int.append(d.id)
                 break
 
         collection.dataset_ids = grp_dataset_ids 
@@ -451,12 +451,12 @@ class DataCollectionTest(server.SoapServerTest):
 
         collection = self.client.factory.create('ns1:DatasetCollection')
 
-        grp_dataset_ids = self.client.factory.create("integerArray")
+        grp_dataset_ids = self.client.factory.create("intArray")
         dataset_id = scenario_data.Dataset[0].id
-        grp_dataset_ids.integer.append(dataset_id)
+        grp_dataset_ids.int.append(dataset_id)
         for d in scenario_data.Dataset:
             if d.type == 'timeseries' and d.id != dataset_id:
-                grp_dataset_ids.integer.append(d.id)
+                grp_dataset_ids.int.append(d.id)
                 break
         
         dataset_id_to_add = None
@@ -471,7 +471,7 @@ class DataCollectionTest(server.SoapServerTest):
         newly_added_collection = self.client.service.add_dataset_collection(collection)
         
         previous_dataset_ids = []
-        for d_id in newly_added_collection.dataset_ids.integer:
+        for d_id in newly_added_collection.dataset_ids.int:
             previous_dataset_ids.append(d_id)
         
         #This acts as a test for the 'check_dataset_in_collection' code
@@ -486,7 +486,7 @@ class DataCollectionTest(server.SoapServerTest):
         updated_collection = self.client.service.get_dataset_collection(newly_added_collection.id)
         
         new_dataset_ids = []
-        for d_id in updated_collection.dataset_ids.integer:
+        for d_id in updated_collection.dataset_ids.int:
             new_dataset_ids.append(d_id)
         
         assert set(new_dataset_ids) - set(previous_dataset_ids) == set([dataset_id_to_add])
@@ -503,18 +503,18 @@ class DataCollectionTest(server.SoapServerTest):
 
         collection = self.client.factory.create('ns1:DatasetCollection')
 
-        grp_dataset_ids = self.client.factory.create("integerArray")
+        grp_dataset_ids = self.client.factory.create("intArray")
         dataset_id = scenario_data.Dataset[0].id
-        grp_dataset_ids.integer.append(dataset_id)
+        grp_dataset_ids.int.append(dataset_id)
         for d in scenario_data.Dataset:
             if d.type == 'timeseries' and d.id != dataset_id:
-                grp_dataset_ids.integer.append(d.id)
+                grp_dataset_ids.int.append(d.id)
                 break
         
-        dataset_ids_to_add = self.client.factory.create("integerArray")
+        dataset_ids_to_add = self.client.factory.create("intArray")
         for d in scenario_data.Dataset:
             if d.type == 'array' and d.id != dataset_id:
-                dataset_ids_to_add.integer.append(d.id)
+                dataset_ids_to_add.int.append(d.id)
 
         collection.dataset_ids = grp_dataset_ids 
         collection.name  = 'test soap collection %s'%(datetime.datetime.now())
@@ -522,7 +522,7 @@ class DataCollectionTest(server.SoapServerTest):
         newly_added_collection = self.client.service.add_dataset_collection(collection)
         
         previous_dataset_ids = []
-        for d_id in newly_added_collection.dataset_ids.integer:
+        for d_id in newly_added_collection.dataset_ids.int:
             previous_dataset_ids.append(d_id)
         
         self.client.service.add_datasets_to_collection(dataset_ids_to_add, newly_added_collection.id)
@@ -530,10 +530,10 @@ class DataCollectionTest(server.SoapServerTest):
         updated_collection = self.client.service.get_dataset_collection(newly_added_collection.id)
         
         new_dataset_ids = []
-        for d_id in updated_collection.dataset_ids.integer:
+        for d_id in updated_collection.dataset_ids.int:
             new_dataset_ids.append(d_id)
         
-        assert set(new_dataset_ids) - set(previous_dataset_ids) == set(dataset_ids_to_add.integer)
+        assert set(new_dataset_ids) - set(previous_dataset_ids) == set(dataset_ids_to_add.int)
         
 
     def test_remove_dataset_from_collection(self):
@@ -546,12 +546,12 @@ class DataCollectionTest(server.SoapServerTest):
 
         collection = self.client.factory.create('ns1:DatasetCollection')
 
-        grp_dataset_ids = self.client.factory.create("integerArray")
+        grp_dataset_ids = self.client.factory.create("intArray")
         dataset_id = scenario_data.Dataset[0].id
-        grp_dataset_ids.integer.append(dataset_id)
+        grp_dataset_ids.int.append(dataset_id)
         for d in scenario_data.Dataset:
             if d.type == 'timeseries' and d.id != dataset_id:
-                grp_dataset_ids.integer.append(d.id)
+                grp_dataset_ids.int.append(d.id)
                 break
         
         collection.dataset_ids = grp_dataset_ids 
@@ -560,7 +560,7 @@ class DataCollectionTest(server.SoapServerTest):
         newly_added_collection = self.client.service.add_dataset_collection(collection)
         
         previous_dataset_ids = []
-        for d_id in newly_added_collection.dataset_ids.integer:
+        for d_id in newly_added_collection.dataset_ids.int:
             previous_dataset_ids.append(d_id)
         
         self.client.service.remove_dataset_from_collection(dataset_id, newly_added_collection.id)
@@ -568,7 +568,7 @@ class DataCollectionTest(server.SoapServerTest):
         updated_collection = self.client.service.get_dataset_collection(newly_added_collection.id)
         
         new_dataset_ids = []
-        for d_id in updated_collection.dataset_ids.integer:
+        for d_id in updated_collection.dataset_ids.int:
             new_dataset_ids.append(d_id)
         
         assert set(previous_dataset_ids) - set(new_dataset_ids) == set([dataset_id])
@@ -929,10 +929,10 @@ class RetrievalTest(server.SoapServerTest):
     def test_get_node_attribute_data(self):
         net = self.create_network_with_data()
         nodes = net.nodes.Node
-        nodearray = self.client.factory.create("integerArray")
-        nodearray.integer = [n.id for n in nodes]
-        attrarray = self.client.factory.create("integerArray")
-        attrarray.integer = [nodes[0].attributes.ResourceAttr[0].attr_id]
+        nodearray = self.client.factory.create("intArray")
+        nodearray.int = [n.id for n in nodes]
+        attrarray = self.client.factory.create("intArray")
+        attrarray.int = [nodes[0].attributes.ResourceAttr[0].attr_id]
 
         attr_data = self.client.service.get_node_attribute_data(nodearray, attrarray)
         #Check something has been returned 
@@ -1067,17 +1067,17 @@ class RetrievalTest(server.SoapServerTest):
         datasets.Dataset.append(ts_2)
 
         dataset_ids = self.client.service.bulk_insert_data(datasets)
-        array['id'] = dataset_ids.integer[0]
-        scalar['id'] = dataset_ids.integer[1]
-        descriptor['id'] = dataset_ids.integer[2]
-        ts_1['id'] = dataset_ids.integer[3]
-        ts_2['id'] = dataset_ids.integer[4]
+        array['id'] = dataset_ids.int[0]
+        scalar['id'] = dataset_ids.int[1]
+        descriptor['id'] = dataset_ids.int[2]
+        ts_1['id'] = dataset_ids.int[3]
+        ts_2['id'] = dataset_ids.int[4]
 
         #create a dataset collection and put one timeseries into it.
 
-        grp_dataset_ids = self.client.factory.create("integerArray")
-        grp_dataset_ids.integer.append(ts_1['id'])
-        grp_dataset_ids.integer.append(ts_2['id'])
+        grp_dataset_ids = self.client.factory.create("intArray")
+        grp_dataset_ids.int.append(ts_1['id'])
+        grp_dataset_ids.int.append(ts_2['id'])
 
         collection = dict(
             dataset_ids = grp_dataset_ids,

@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-from spyne.model.primitive import Integer, Unicode
+from spyne.model.primitive import Integer32, Unicode
 from spyne.model.complex import Array as SpyneArray
 from spyne.decorator import rpc
 from hydra_complexmodels import User,\
@@ -33,7 +33,7 @@ class UserService(HydraService):
         The user soap service
     """
 
-    @rpc(Integer, _returns=Unicode)
+    @rpc(Integer32, _returns=Unicode)
     def get_username(ctx, uid):
         """
             Add a new user.
@@ -65,7 +65,7 @@ class UserService(HydraService):
         return User(user_i)
 
 
-    @rpc(Integer, Unicode, _returns=User)
+    @rpc(Integer32, Unicode, _returns=User)
     def update_user_password(ctx, user_id, new_password):
         """
             Update a user's password
@@ -87,7 +87,7 @@ class UserService(HydraService):
         
         return None
 
-    @rpc(Integer, _returns=Unicode)
+    @rpc(Integer32, _returns=Unicode)
     def delete_user(ctx, user_id):
         """
             Delete a user.
@@ -105,7 +105,7 @@ class UserService(HydraService):
         role_i = users.add_role(role, **ctx.in_header.__dict__)
         return Role(role_i)
 
-    @rpc(Integer, _returns=Unicode)
+    @rpc(Integer32, _returns=Unicode)
     def delete_role(ctx, role_id):
         """
             Delete a role.
@@ -122,7 +122,7 @@ class UserService(HydraService):
         perm_i = users.add_perm(perm, **ctx.in_header.__dict__)
         return Perm(perm_i)
 
-    @rpc(Integer, _returns=Unicode)
+    @rpc(Integer32, _returns=Unicode)
     def delete_perm(ctx, perm_id):
         """
             Delete a permission
@@ -131,7 +131,7 @@ class UserService(HydraService):
         users.delete_perm(perm_id)
         return success
 
-    @rpc(Integer, Integer, _returns=Role)
+    @rpc(Integer32, Integer32, _returns=Role)
     def set_user_role(ctx, user_id, role_id):
         role_i = users.set_user_role(user_id,
                                      role_id,
@@ -139,20 +139,20 @@ class UserService(HydraService):
 
         return Role(role_i)
 
-    @rpc(Integer, Integer, _returns=Unicode)
+    @rpc(Integer32, Integer32, _returns=Unicode)
     def delete_user_role(ctx, user_id, role_id):
         success = 'OK'
         users.delete_user_role(user_id, role_id, **ctx.in_header.__dict__)
         return success
 
-    @rpc(Integer, Integer, _returns=Role)
+    @rpc(Integer32, Integer32, _returns=Role)
     def set_role_perm(ctx, role_id, perm_id):
         role_i = users.set_role_perm(role_id,
                                      perm_id,
                                      **ctx.in_header.__dict__)
         return Role(role_i)
 
-    @rpc(Integer, Integer, _returns=Unicode)
+    @rpc(Integer32, Integer32, _returns=Unicode)
     def delete_role_perm(ctx, role_id, perm_id):
         success = 'OK'
         users.delete_role_perm(role_id, perm_id, **ctx.in_header.__dict__)
@@ -197,7 +197,7 @@ class UserService(HydraService):
         all_role_cms   = [Role(r) for r in all_role_dicts]
         return all_role_cms
 
-    @rpc(Integer, _returns=Role)
+    @rpc(Integer32, _returns=Role)
     def get_role(ctx, role_id):
         """
             Get a role by its ID.
@@ -224,7 +224,7 @@ class UserService(HydraService):
         roles = users.get_user_roles(user_id, **ctx.in_header.__dict__)
         return [Role(r) for r in roles]
 
-    @rpc(Integer, _returns=Perm)
+    @rpc(Integer32, _returns=Perm)
     def get_perm(ctx, perm_id):
         """
             Get all permissions

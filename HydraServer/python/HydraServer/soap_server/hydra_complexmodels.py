@@ -15,7 +15,7 @@
 #
 from spyne.model.complex import Array as SpyneArray, ComplexModel
 from spyne.model.primitive import Unicode
-from spyne.model.primitive import Integer
+from spyne.model.primitive import Integer32
 from spyne.model.primitive import Decimal
 from spyne.model.primitive import Float
 from spyne.model.primitive import DateTime
@@ -65,7 +65,7 @@ class LoginResponse(HydraComplexModel):
     __namespace__ = 'soap_server.hydra_complexmodels'
     _type_info = [
         ('session_id', Unicode(min_occurs=1)),
-        ('user_id',    Integer(min_occurs=1)),
+        ('user_id',    Integer32(min_occurs=1)),
     ]
 
 class Metadata(HydraComplexModel):
@@ -180,14 +180,14 @@ class Dataset(HydraComplexModel):
     """
     """
     _type_info = [
-        ('id',               Integer(min_occurs=0, default=None)),
+        ('id',               Integer32(min_occurs=0, default=None)),
         ('type',             Unicode),
         ('dimension',        Unicode(min_occurs=0, default='dimensionless')),
         ('unit',             Unicode(min_occurs=1, default=None)),
         ('name',             Unicode(min_occurs=1, default=None)),
         ('value',            AnyDict(min_occurs=1, default=None)),
         ('hidden',           Unicode(min_occurs=0, default='N', pattern="[YN]")),
-        ('created_by',       Integer(min_occurs=0, default=None)),
+        ('created_by',       Integer32(min_occurs=0, default=None)),
         ('cr_date',          Unicode(min_occurs=0, default=None)),
         ('metadata',         SpyneArray(Metadata, default=None)),
     ]
@@ -501,7 +501,7 @@ class TimeSeries(HydraComplexModel):
     _type_info = [
         ('ts_values', SpyneArray(TimeSeriesData)),
         ('frequency', Unicode(default=None)),
-        ('periods',   Integer(default=None)),
+        ('periods',   Integer32(default=None)),
     ]
 
     def __init__(self, val=None):
@@ -601,8 +601,8 @@ class Array(HydraComplexModel):
 class DatasetCollection(HydraComplexModel):
     _type_info = [
         ('name', Unicode(default=None)),
-        ('id'  , Integer(default=None)),
-        ('dataset_ids',   SpyneArray(Integer)),
+        ('id'  , Integer32(default=None)),
+        ('dataset_ids',   SpyneArray(Integer32)),
         ('cr_date',       Unicode(default=None)),
     ]
 
@@ -619,7 +619,7 @@ class Attr(HydraComplexModel):
     """
     """
     _type_info = [
-        ('id', Integer(default=None)),
+        ('id', Integer32(default=None)),
         ('name', Unicode(default=None)),
         ('dimen', Unicode(default=None)),
         ('cr_date', Unicode(default=None)),
@@ -638,8 +638,8 @@ class ResourceScenario(HydraComplexModel):
     """
     """
     _type_info = [
-        ('resource_attr_id', Integer(default=None)),
-        ('attr_id',          Integer(default=None)),
+        ('resource_attr_id', Integer32(default=None)),
+        ('attr_id',          Integer32(default=None)),
         ('value',            Dataset),
         ('source',           Unicode),
         ('cr_date',       Unicode(default=None)),
@@ -660,9 +660,9 @@ class ResourceAttr(HydraComplexModel):
     """
     """
     _type_info = [
-        ('id',      Integer(min_occurs=0, default=None)),
-        ('attr_id', Integer(default=None)),
-        ('ref_id',  Integer(min_occurs=0, default=None)),
+        ('id',      Integer32(min_occurs=0, default=None)),
+        ('attr_id', Integer32(default=None)),
+        ('ref_id',  Integer32(min_occurs=0, default=None)),
         ('ref_key', Unicode(min_occurs=0, default=None)),
         ('attr_is_var', Unicode(min_occurs=0, default='N')),
         ('resourcescenario', ResourceScenario),
@@ -696,21 +696,21 @@ class ResourceTypeDef(HydraComplexModel):
     """
     _type_info = [
         ('ref_key', Unicode(default=None)),
-        ('ref_id',  Integer(default=None)),
-        ('type_id', Integer(default=None)),
+        ('ref_id',  Integer32(default=None)),
+        ('type_id', Integer32(default=None)),
     ]
 
 class TypeAttr(HydraComplexModel):
     """
     """
     _type_info = [
-        ('attr_id',            Integer(min_occurs=1, max_occurs=1)),
+        ('attr_id',            Integer32(min_occurs=1, max_occurs=1)),
         ('attr_name',          Unicode(default=None)),
-        ('type_id',            Integer(default=None)),
+        ('type_id',            Integer32(default=None)),
         ('data_type',          Unicode(default=None)),
         ('dimension',          Unicode(default=None)),
         ('unit',               Unicode(default=None)),
-        ('default_dataset_id', Integer(default=None)),
+        ('default_dataset_id', Integer32(default=None)),
         ('data_restriction',   AnyDict(default=None)),
         ('is_var',             Unicode(default=None)),
         ('cr_date',            Unicode(default=None)),
@@ -747,12 +747,12 @@ class TemplateType(HydraComplexModel):
     """
     """
     _type_info = [
-        ('id',          Integer(default=None)),
+        ('id',          Integer32(default=None)),
         ('name',        Unicode(default=None)),
         ('resource_type', Unicode(values=['GROUP', 'NODE', 'LINK', 'NETWORK'], default=None)),
         ('alias',       Unicode(default=None)),
         ('layout',      AnyDict(min_occurs=0, max_occurs=1, default=None)),
-        ('template_id', Integer(min_occurs=1, default=None)),
+        ('template_id', Integer32(min_occurs=1, default=None)),
         ('typeattrs',   SpyneArray(TypeAttr)),
         ('cr_date',     Unicode(default=None)),
     ]
@@ -783,7 +783,7 @@ class Template(HydraComplexModel):
     """
     """
     _type_info = [
-        ('id',        Integer(default=None)),
+        ('id',        Integer32(default=None)),
         ('name',      Unicode(default=None)),
         ('layout',    AnyDict(min_occurs=0, max_occurs=1, default=None)),
         ('types',     SpyneArray(TemplateType)),
@@ -813,9 +813,9 @@ class TypeSummary(HydraComplexModel):
     """
     _type_info = [
         ('name',    Unicode),
-        ('id',      Integer),
+        ('id',      Integer32),
         ('template_name', Unicode),
-        ('template_id', Integer),
+        ('template_id', Integer32),
     ]
 
     def __init__(self, parent=None):
@@ -845,7 +845,7 @@ class ResourceSummary(HydraComplexModel):
     """
     _type_info = [
         ('ref_key', Unicode(default=None)),
-        ('id',  Integer(default=None)),
+        ('id',  Integer32(default=None)),
         ('name',        Unicode(default=None)),
         ('description', Unicode(min_occurs=1, default="")),
         ('attributes',  SpyneArray(ResourceAttr)),
@@ -880,7 +880,7 @@ class Node(Resource):
     """
     """
     _type_info = [
-        ('id',          Integer(default=None)),
+        ('id',          Integer32(default=None)),
         ('name',        Unicode(default=None)),
         ('description', Unicode(min_occurs=1, default="")),
         ('layout',      AnyDict(min_occurs=0, max_occurs=1, default=None)),
@@ -920,12 +920,12 @@ class Link(Resource):
     """
     """
     _type_info = [
-        ('id',          Integer(default=None)),
+        ('id',          Integer32(default=None)),
         ('name',        Unicode(default=None)),
         ('description', Unicode(min_occurs=1, default="")),
         ('layout',      AnyDict(min_occurs=0, max_occurs=1, default=None)),
-        ('node_1_id',   Integer(default=None)),
-        ('node_2_id',   Integer(default=None)),
+        ('node_1_id',   Integer32(default=None)),
+        ('node_2_id',   Integer32(default=None)),
         ('status',      Unicode(default='A', pattern="[AX]")),
         ('attributes',  SpyneArray(ResourceAttr)),
         ('types',       SpyneArray(TypeSummary)),
@@ -972,10 +972,10 @@ class ResourceGroupItem(HydraComplexModel):
     """
     """
     _type_info = [
-        ('id',       Integer(default=None)),
-        ('ref_id',   Integer(default=None)),
+        ('id',       Integer32(default=None)),
+        ('ref_id',   Integer32(default=None)),
         ('ref_key',  Unicode(default=None)),
-        ('group_id', Integer(default=None)),
+        ('group_id', Integer32(default=None)),
         ('cr_date',     Unicode(default=None)),
     ]
 
@@ -998,8 +998,8 @@ class ResourceGroup(HydraComplexModel):
     """
     """
     _type_info = [
-        ('id',          Integer(default=None)),
-        ('network_id',  Integer(default=None)),
+        ('id',          Integer32(default=None)),
+        ('network_id',  Integer32(default=None)),
         ('name',        Unicode(default=None)),
         ('description', Unicode(min_occurs=1, default="")),
         ('status',      Unicode(default='A', pattern="[AX]")),
@@ -1030,16 +1030,16 @@ class Scenario(Resource):
     """
     """
     _type_info = [
-        ('id',                   Integer(default=None)),
+        ('id',                   Integer32(default=None)),
         ('name',                 Unicode(default=None)),
         ('description',          Unicode(min_occurs=1, default="")),
-        ('network_id',           Integer(default=None)),
+        ('network_id',           Integer32(default=None)),
         ('layout',               AnyDict(min_occurs=0, max_occurs=1, default=None)),
         ('status',               Unicode(default='A', pattern="[AX]")),
         ('locked',               Unicode(default='N', pattern="[YN]")),
         ('start_time',           Unicode(default=None)),
         ('end_time',             Unicode(default=None)),
-        ('created_by',           Integer(default=None)),
+        ('created_by',           Integer32(default=None)),
         ('cr_date',              Unicode(default=None)),
         ('time_step',            Unicode(default=None)),
         ('resourcescenarios',    SpyneArray(ResourceScenario, default=None)),
@@ -1079,12 +1079,12 @@ class Rule(HydraComplexModel):
     """
     """
     _type_info = [
-        ('id', Integer),
+        ('id', Integer32),
         ('name', Unicode),
         ('description', Unicode),
-        ('scenario_id', Integer),
+        ('scenario_id', Integer32),
         ('ref_key', Unicode),
-        ('ref_id', Integer),
+        ('ref_id', Integer32),
         ('text', Unicode),
         ('cr_date', Unicode(default=None)),
     ]
@@ -1115,11 +1115,11 @@ class Note(HydraComplexModel):
     """
     """
     _type_info = [
-        ('id', Integer),
+        ('id', Integer32),
         ('ref_key', Unicode),
-        ('ref_id', Integer),
+        ('ref_id', Integer32),
         ('text', Unicode),
-        ('created_by', Integer),
+        ('created_by', Integer32),
         ('cr_date', Unicode),
     ]
 
@@ -1169,7 +1169,7 @@ class ResourceScenarioDiff(HydraComplexModel):
     """
     """
     _type_info = [
-        ('resource_attr_id',     Integer(default=None)),
+        ('resource_attr_id',     Integer32(default=None)),
         ('scenario_1_dataset',   Dataset),
         ('scenario_2_dataset',   Dataset),
     ]
@@ -1206,11 +1206,11 @@ class Network(Resource):
     """
     """
     _type_info = [
-        ('project_id',          Integer(default=None)),
-        ('id',                  Integer(default=None)),
+        ('project_id',          Integer32(default=None)),
+        ('id',                  Integer32(default=None)),
         ('name',                Unicode(default=None)),
         ('description',         Unicode(min_occurs=1, default=None)),
-        ('created_by',          Integer(default=None)),
+        ('created_by',          Integer32(default=None)),
         ('cr_date',             Unicode(default=None)),
         ('layout',              AnyDict(min_occurs=0, max_occurs=1, default=None)),
         ('status',              Unicode(default='A', pattern="[AX]")),
@@ -1253,7 +1253,7 @@ class NetworkExtents(HydraComplexModel):
     """
     """
     _type_info = [
-        ('network_id', Integer(default=None)),
+        ('network_id', Integer32(default=None)),
         ('min_x',      Decimal(default=0)),
         ('min_y',      Decimal(default=0)),
         ('max_x',      Decimal(default=0)),
@@ -1276,12 +1276,12 @@ class Project(Resource):
     """
     """
     _type_info = [
-        ('id',          Integer(default=None)),
+        ('id',          Integer32(default=None)),
         ('name',        Unicode(default=None)),
         ('description', Unicode(default=None)),
         ('status',      Unicode(default='A', pattern="[AX]")),
         ('cr_date',     Unicode(default=None)),
-        ('created_by',  Integer(default=None)),
+        ('created_by',  Integer32(default=None)),
         ('attributes',  SpyneArray(ResourceAttr)),
         ('attribute_data', SpyneArray(ResourceScenario)),
     ]
@@ -1305,11 +1305,11 @@ class ProjectSummary(Resource):
     """
     """
     _type_info = [
-        ('id',          Integer(default=None)),
+        ('id',          Integer32(default=None)),
         ('name',        Unicode(default=None)),
         ('description', Unicode(default=None)),
         ('cr_date',     Unicode(default=None)),
-        ('created_by',  Integer(default=None)),
+        ('created_by',  Integer32(default=None)),
     ]
 
     def __init__(self, parent=None):
@@ -1327,7 +1327,7 @@ class User(HydraComplexModel):
     """
     """
     _type_info = [
-        ('id',  Integer),
+        ('id',  Integer32),
         ('username', Unicode(default=None)),
         ('display_name', Unicode(default=None)),
         ('password', Unicode(default=None)),
@@ -1348,7 +1348,7 @@ class Perm(HydraComplexModel):
     """
     """
     _type_info = [
-        ('id',   Integer),
+        ('id',   Integer32),
         ('name', Unicode),
         ('code', Unicode),
     ]
@@ -1367,7 +1367,7 @@ class RoleUser(HydraComplexModel):
     """
     """
     _type_info = [
-        ('user_id',  Integer),
+        ('user_id',  Integer32),
     ]
     def __init__(self, parent=None):
         super(RoleUser, self).__init__()
@@ -1381,7 +1381,7 @@ class RolePerm(HydraComplexModel):
     """
     """
     _type_info = [
-        ('perm_id',   Integer),
+        ('perm_id',   Integer32),
     ]
 
     def __init__(self, parent=None):
@@ -1396,7 +1396,7 @@ class Role(HydraComplexModel):
     """
     """
     _type_info = [
-        ('id',     Integer),
+        ('id',     Integer32),
         ('name',   Unicode),
         ('code',   Unicode),
         ('roleperms', SpyneArray(RolePerm)),
@@ -1457,8 +1457,8 @@ class ProjectOwner(HydraComplexModel):
     """
     """
     _type_info = [
-        ('project_id',   Integer),
-        ('user_id',  Integer),
+        ('project_id',   Integer32),
+        ('user_id',  Integer32),
         ('edit',     Unicode),
         ('view',     Unicode)
     ]
@@ -1476,8 +1476,8 @@ class DatasetOwner(HydraComplexModel):
     """
     """
     _type_info = [
-        ('dataset_id',   Integer),
-        ('user_id',  Integer),
+        ('dataset_id',   Integer32),
+        ('user_id',  Integer32),
         ('edit',     Unicode),
         ('view',     Unicode)
     ]
@@ -1495,8 +1495,8 @@ class NetworkOwner(HydraComplexModel):
     """
     """
     _type_info = [
-        ('network_id',   Integer),
-        ('user_id',  Integer),
+        ('network_id',   Integer32),
+        ('user_id',  Integer32),
         ('edit',     Unicode),
         ('view',     Unicode)
     ]

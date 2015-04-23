@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-from spyne.model.primitive import Unicode, Integer
+from spyne.model.primitive import Unicode, Integer32
 from spyne.model.binary import ByteArray
 from spyne.decorator import rpc
 from hydra_base import HydraService
@@ -50,7 +50,7 @@ class FileService(HydraService):
         The network SOAP service.
     """
 
-    @rpc(Unicode, Integer, Unicode, ByteArray, _returns=Unicode)
+    @rpc(Unicode, Integer32, Unicode, ByteArray, _returns=Unicode)
     def add_file(ctx, resource_type, resource_id, name, file):
         static.add_file(resource_type,
                         resource_id,
@@ -60,7 +60,7 @@ class FileService(HydraService):
 
         return 'OK'
 
-    @rpc(Unicode,Integer,Unicode, _returns=ByteArray)
+    @rpc(Unicode,Integer32,Unicode, _returns=ByteArray)
     def get_file(ctx, resource_type, resource_id, name):
         encoded_file = static.get_file(resource_type,
                                        resource_id,
@@ -69,7 +69,7 @@ class FileService(HydraService):
 
         return encoded_file
 
-    @rpc(Unicode,Integer, Unicode, _returns=Unicode)
+    @rpc(Unicode,Integer32, Unicode, _returns=Unicode)
     def remove_file(ctx, resource_type, resource_id, name):
         static.remove_file(resource_type,
                            resource_id,

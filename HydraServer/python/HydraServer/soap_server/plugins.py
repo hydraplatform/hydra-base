@@ -14,7 +14,7 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 from spyne.model.complex import Array as SpyneArray
-from spyne.model.primitive import Unicode, Integer
+from spyne.model.primitive import Unicode, Integer32
 from hydra_complexmodels import Plugin
 from spyne.decorator import rpc
 from hydra_base import HydraService
@@ -47,7 +47,7 @@ class PluginService(HydraService):
         return pid
 
        
-    @rpc(Unicode, Integer, _returns=Unicode)
+    @rpc(Unicode, Integer32, _returns=Unicode)
     def check_plugin_status(ctx, plugin_name, pid):
         status = plugins.check_plugin_status(plugin_name,
                                              pid,

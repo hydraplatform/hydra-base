@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-from spyne.model.primitive import Integer, Unicode
+from spyne.model.primitive import Integer32, Unicode
 from spyne.decorator import rpc
 from hydra_complexmodels import ResourceGroup,\
     ResourceGroupItem,\
@@ -26,7 +26,7 @@ class ResourceGroupService(HydraService):
         The resource group soap service
     """
 
-    @rpc(ResourceGroup, Integer, _returns=ResourceGroup)
+    @rpc(ResourceGroup, Integer32, _returns=ResourceGroup)
     def add_resourcegroup(ctx, group, network_id):
         """
             Add a new group to a network.
@@ -36,7 +36,7 @@ class ResourceGroupService(HydraService):
                                                    **ctx.in_header.__dict__)
         return ResourceGroup(group_i)
 
-    @rpc(Integer, _returns=Unicode)
+    @rpc(Integer32, _returns=Unicode)
     def delete_resourcegroup(ctx, group_id):
         """
             Add a new group to a scenario.
@@ -56,14 +56,14 @@ class ResourceGroupService(HydraService):
         return ResourceGroup(group_i)
 
 
-    @rpc(ResourceGroupItem, Integer, _returns=ResourceGroupItem)
+    @rpc(ResourceGroupItem, Integer32, _returns=ResourceGroupItem)
     def add_resourcegroupitem(ctx, group_item, scenario_id):
         group_item_i = resourcegroups.add_resourcegroupitem(group_item,
                                                             scenario_id,
                                                             **ctx.in_header.__dict__)
         return ResourceGroupItem(group_item_i)
 
-    @rpc(Integer, _returns=Unicode)
+    @rpc(Integer32, _returns=Unicode)
     def delete_resourcegroupitem(ctx, item_id):
         resourcegroups.delete_resourcegroupitem(item_id,
                                                   **ctx.in_header.__dict__)
