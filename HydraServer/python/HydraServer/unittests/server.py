@@ -42,16 +42,17 @@ class FixNamespace(MessagePlugin):
         for e in element.getChildren():
             self.fix_ns(e)
 
-def connect():
-    port = config.getint('hydra_server', 'port', '8080')
-    domain = config.get('hydra_server', 'domain', 'localhost')
-    path = config.get('hydra_server', 'soap_path', 'soap')
-    if path:
-        if path[0] == '/':
-            path = path[1:]
-        url = 'http://%s:%s/%s?wsdl' % (domain, port, path)
-    else:
-        url = 'http://%s:%s?wsdl' % (domain, port)
+def connect(url=None):
+    if url is None:
+        port = config.getint('hydra_server', 'port', '8080')
+        domain = config.get('hydra_server', 'domain', 'localhost')
+        path = config.get('hydra_server', 'soap_path', 'soap')
+        if path:
+            if path[0] == '/':
+                path = path[1:]
+            url = 'http://%s:%s/%s?wsdl' % (domain, port, path)
+        else:
+            url = 'http://%s:%s?wsdl' % (domain, port)
 
     client = Client(url, plugins=[FixNamespace()])
 
@@ -64,7 +65,7 @@ def connect():
     return client
 
 class SoapServerTest(unittest.TestCase):
-
+    url = None
     def setUp(self):
         logging.getLogger('suds').setLevel(logging.ERROR)
         logging.getLogger('suds.client').setLevel(logging.CRITICAL)
@@ -73,7 +74,7 @@ class SoapServerTest(unittest.TestCase):
         #shutil.rmtree(os.path.join(tmp(), 'suds'), True)
         global CLIENT
         if CLIENT is None:
-            connect()
+            connect(self.url)
 
         self.client = CLIENT
 
@@ -91,9 +92,10 @@ class SoapServerTest(unittest.TestCase):
 
     def login(self, username, password):
         login_response = self.client.service.login(username, password)
-
+        #If connecting to the cookie-based server, the response is just "OK"
         token = self.client.factory.create('RequestHeader')
-        token.session_id = login_response.session_id
+        if login_response != "OK":
+            token.session_id = login_response.session_id
         token.app_name = "Unit Test"
 
         self.client.set_options(cache=None, soapheaders=token)
