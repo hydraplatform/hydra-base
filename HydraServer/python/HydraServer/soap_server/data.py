@@ -165,7 +165,7 @@ class DataService(HydraService):
                                        **ctx.in_header.__dict__)
         return 'OK'
 
-    @rpc(SpyneArray(Integer), Integer, _returns=Unicode)
+    @rpc(SpyneArray(Integer32), Integer, _returns=Unicode)
     def add_datasets_to_collection(ctx, dataset_ids, collection_id):
         """
             Add multiple datasets to a dataset collection.
