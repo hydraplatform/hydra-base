@@ -719,8 +719,8 @@ def add_data_to_attribute(scenario_id, resource_attr_id, dataset,**kwargs):
                                 ResourceScenario.scenario_id==scenario_id,
                                 ResourceScenario.resource_attr_id==resource_attr_id).one()
     except NoResultFound:
-        raise ResourceNotFoundError("Resource Attr %s not found in scenario %s")\
-                                            %(scenario_id, resource_attr_id)
+        raise ResourceNotFoundError("Resource Attr %s not found in scenario %s"\
+                                            %(scenario_id, resource_attr_id))
 
     data_type = dataset.type.lower()
 
