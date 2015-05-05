@@ -352,7 +352,7 @@ class ScenarioTest(server.SoapServerTest):
 
         new_datasets = self.client.service.bulk_insert_data(data)
 
-        assert len(new_datasets.int) == 2, "Data was not added correctly!"
+        assert len(new_datasets.integer) == 2, "Data was not added correctly!"
 
 
     def test_clone(self):

@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-from spyne.model.primitive import Integer32, Unicode
+from spyne.model.primitive import Integer, Unicode
 from spyne.model.complex import Array as SpyneArray
 from spyne.decorator import rpc
 from hydra_complexmodels import Attr
@@ -79,7 +79,7 @@ class AttributeService(HydraService):
         ret_attrs = [Attr(attr) for attr in attrs]
         return ret_attrs
 
-    @rpc(Integer32, _returns=Attr)
+    @rpc(Integer, _returns=Attr)
     def get_attribute_by_id(ctx, ID):
         """
             Get a specific attribute by its ID.
@@ -129,7 +129,7 @@ class AttributeService(HydraService):
         
         return ret_attrs
 
-    @rpc(Integer32, Unicode, _returns=ResourceAttr)
+    @rpc(Integer, Unicode, _returns=ResourceAttr)
     def update_resource_attribute(ctx, resource_attr_id, is_var):
         """
             Update the 'is_var' flag on a resource attribute
@@ -140,7 +140,7 @@ class AttributeService(HydraService):
         return ResourceAttr(updated_ra)
 
 
-    @rpc(Integer32, _returns=Unicode)
+    @rpc(Integer, _returns=Unicode)
     def delete_resourceattr(ctx, resource_attr_id):
         """
             Deletes a resource attribute and all associated data.
@@ -148,7 +148,7 @@ class AttributeService(HydraService):
         attributes.delete_resource_attribute(resource_attr_id, **ctx.in_header.__dict__)
         return 'OK'
 
-    @rpc(Integer32, _returns=Unicode)
+    @rpc(Integer, _returns=Unicode)
     def delete_resource_attribute(ctx,resource_attr_id):
         """
             Add a resource attribute attribute to a resource.
@@ -162,7 +162,7 @@ class AttributeService(HydraService):
         return "OK" 
 
 
-    @rpc(Integer32, Integer32, Unicode(pattern="['YN']", default='N'), _returns=ResourceAttr)
+    @rpc(Integer, Integer, Unicode(pattern="['YN']", default='N'), _returns=ResourceAttr)
     def add_network_attribute(ctx,network_id, attr_id, is_var):
         """
             Add a resource attribute attribute to a resource.
@@ -181,7 +181,7 @@ class AttributeService(HydraService):
         return ResourceAttr(new_ra)
 
 
-    @rpc(Integer32, Integer32, _returns=SpyneArray(ResourceAttr))
+    @rpc(Integer, Integer, _returns=SpyneArray(ResourceAttr))
     def add_network_attrs_from_type(ctx, type_id, network_id):
         """
             adds all the attributes defined by a type to a node.
@@ -193,7 +193,7 @@ class AttributeService(HydraService):
                                                         **ctx.in_header.__dict__)
         return [ResourceAttr(ra) for ra in new_resource_attrs]
 
-    @rpc(Integer32, Integer32(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttr))
+    @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttr))
     def get_network_attributes(ctx, network_id, type_id):
         resource_attrs = attributes.get_resource_attributes(
                 'NETWORK',
@@ -203,7 +203,7 @@ class AttributeService(HydraService):
         return [ResourceAttr(ra) for ra in resource_attrs]
 
 
-    @rpc(Integer32, Integer32, Unicode(pattern="['YN']", default='N'), _returns=ResourceAttr)
+    @rpc(Integer, Integer, Unicode(pattern="['YN']", default='N'), _returns=ResourceAttr)
     def add_node_attribute(ctx,node_id, attr_id, is_var):
         """
             Add a resource attribute attribute to a resource.
@@ -222,7 +222,7 @@ class AttributeService(HydraService):
         return ResourceAttr(new_ra)
 
 
-    @rpc(Integer32, Integer32, _returns=SpyneArray(ResourceAttr))
+    @rpc(Integer, Integer, _returns=SpyneArray(ResourceAttr))
     def add_node_attrs_from_type(ctx, type_id, node_id):
         """
             adds all the attributes defined by a type to a node.
@@ -234,7 +234,7 @@ class AttributeService(HydraService):
                                                         **ctx.in_header.__dict__)
         return [ResourceAttr(ra) for ra in new_resource_attrs]
 
-    @rpc(Integer32, Integer32(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttr))
+    @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttr))
     def get_node_attributes(ctx, node_id, type_id):
         resource_attrs = attributes.get_resource_attributes(
                 'NODE',
@@ -243,7 +243,7 @@ class AttributeService(HydraService):
 
         return [ResourceAttr(ra) for ra in resource_attrs]
 
-    @rpc(Integer32, Integer32, Unicode(pattern="['YN']", default='N'), _returns=ResourceAttr)
+    @rpc(Integer, Integer, Unicode(pattern="['YN']", default='N'), _returns=ResourceAttr)
     def add_link_attribute(ctx,link_id, attr_id, is_var):
         """
             Add a resource attribute attribute to a resource.
@@ -262,7 +262,7 @@ class AttributeService(HydraService):
         return ResourceAttr(new_ra)
 
 
-    @rpc(Integer32, Integer32, _returns=SpyneArray(ResourceAttr))
+    @rpc(Integer, Integer, _returns=SpyneArray(ResourceAttr))
     def add_link_attrs_from_type(ctx, type_id, link_id):
         """
             adds all the attributes defined by a type to a link.
@@ -274,7 +274,7 @@ class AttributeService(HydraService):
                                                         **ctx.in_header.__dict__)
         return [ResourceAttr(ra) for ra in new_resource_attrs]
 
-    @rpc(Integer32, Integer32(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttr))
+    @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttr))
     def get_link_attributes(ctx, link_id, type_id):
         resource_attrs = attributes.get_resource_attributes(
                 'LINK',
@@ -283,7 +283,7 @@ class AttributeService(HydraService):
 
         return [ResourceAttr(ra) for ra in resource_attrs]
 
-    @rpc(Integer32, Integer32, Unicode(pattern="['YN']", default='N'), _returns=ResourceAttr)
+    @rpc(Integer, Integer, Unicode(pattern="['YN']", default='N'), _returns=ResourceAttr)
     def add_group_attribute(ctx,group_id, attr_id, is_var):
         """
             Add a resource attribute attribute to a resource.
@@ -302,7 +302,7 @@ class AttributeService(HydraService):
         return ResourceAttr(new_ra)
 
 
-    @rpc(Integer32, Integer32, _returns=SpyneArray(ResourceAttr))
+    @rpc(Integer, Integer, _returns=SpyneArray(ResourceAttr))
     def add_group_attrs_from_type(ctx, type_id, group_id):
         """
             adds all the attributes defined by a type to a group.
@@ -314,7 +314,7 @@ class AttributeService(HydraService):
                                                         **ctx.in_header.__dict__)
         return [ResourceAttr(ra) for ra in new_resource_attrs]
 
-    @rpc(Integer32, Integer32(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttr))
+    @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttr))
     def get_group_attributes(ctx, group_id, type_id):
         resource_attrs = attributes.get_resource_attributes(
                 'GROUP',

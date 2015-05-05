@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-from spyne.model.primitive import Integer32, Unicode
+from spyne.model.primitive import Integer, Unicode
 from spyne.model.complex import Array as SpyneArray
 from spyne.decorator import rpc
 from hydra_complexmodels import Note
@@ -43,49 +43,49 @@ class NoteService(HydraService):
         The data SOAP service
     """
 
-    @rpc(Integer32, _returns=SpyneArray(Note))
+    @rpc(Integer, _returns=SpyneArray(Note))
     def get_scenario_notes(ctx, scenario_id):
         """
             Get all the notes for a scenario
         """
         return _get_resource_notes('SCENARIO', scenario_id)
 
-    @rpc(Integer32, _returns=SpyneArray(Note))
+    @rpc(Integer, _returns=SpyneArray(Note))
     def get_network_notes(ctx, network_id):
         """
             Get all the notes for a network
         """
         return _get_resource_notes('NETWORK', network_id)
 
-    @rpc(Integer32, _returns=SpyneArray(Note))
+    @rpc(Integer, _returns=SpyneArray(Note))
     def get_node_notes(ctx, node_id):
         """
             Get all the notes for a node
         """
         return _get_resource_notes('NODE', node_id)
 
-    @rpc(Integer32, _returns=SpyneArray(Note))
+    @rpc(Integer, _returns=SpyneArray(Note))
     def get_link_notes(ctx, link_id):
         """
             Get all the notes for a link 
         """
         return _get_resource_notes('LINK', link_id)
 
-    @rpc(Integer32, _returns=SpyneArray(Note))
+    @rpc(Integer, _returns=SpyneArray(Note))
     def get_resourcegroup_notes(ctx, group_id):
         """
             Get all the notes for a resource_group
         """
         return _get_resource_notes('GROUP', group_id)
 
-    @rpc(Integer32, _returns=SpyneArray(Note))
+    @rpc(Integer, _returns=SpyneArray(Note))
     def get_project_notes(ctx, project_id):
         """
             Get all the notes for a project
         """
         return _get_resource_notes('PROJECT', project_id)
 
-    @rpc(Integer32, _returns=Note)
+    @rpc(Integer, _returns=Note)
     def get_note(ctx, note_id):
         """
             Get an individual role by its ID.
@@ -93,42 +93,42 @@ class NoteService(HydraService):
         note_i = notes.get_note(note_id, **ctx.in_header.__dict__)
         return Note(note_i)
 
-    @rpc(Integer32, Note, _returns=Note)
+    @rpc(Integer, Note, _returns=Note)
     def add_scenario_note(ctx, scenario_id, note):
         """
             Add a note to a given scenario
         """
         return _add_note('SCENARIO', scenario_id, note, **ctx.in_header.__dict__)
 
-    @rpc(Integer32, Note, _returns=Note)
+    @rpc(Integer, Note, _returns=Note)
     def add_network_note(ctx, network_id, note):
         """
             Add a note to a given network
         """
         return _add_note('NETWORK', network_id, note, **ctx.in_header.__dict__)
 
-    @rpc(Integer32, Note, _returns=Note)
+    @rpc(Integer, Note, _returns=Note)
     def add_project_note(ctx, project_id, note):
         """
             Add a note to a given project
         """
         return _add_note('PROJECT', project_id, note, **ctx.in_header.__dict__)
 
-    @rpc(Integer32, Note, _returns=Note)
+    @rpc(Integer, Note, _returns=Note)
     def add_node_note(ctx, node_id, note):
         """
             Add a note to a given node
         """
         return _add_note('NODE', node_id, note, **ctx.in_header.__dict__)
 
-    @rpc(Integer32, Note, _returns=Note)
+    @rpc(Integer, Note, _returns=Note)
     def add_link_note(ctx, link_id, note):
         """
             Add a note to a given link
         """
         return _add_note('LINK', link_id, note, **ctx.in_header.__dict__)
 
-    @rpc(Integer32, Note, _returns=Note)
+    @rpc(Integer, Note, _returns=Note)
     def add_resourcegroup_note(ctx, group_id, note):
         """
             Add a note to a given resourcegroup
@@ -143,7 +143,7 @@ class NoteService(HydraService):
         note_i = notes.update_note(note, **ctx.in_header.__dict__)
         return Note(note_i)
 
-    @rpc(Integer32, _returns=Unicode)
+    @rpc(Integer, _returns=Unicode)
     def purge_note(ctx, note_id):
         """
             Remove a note permanently

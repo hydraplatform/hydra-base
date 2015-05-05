@@ -14,7 +14,7 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 from spyne.model.complex import Array as SpyneArray
-from spyne.model.primitive import String, Integer32, Unicode
+from spyne.model.primitive import String, Integer, Unicode
 from spyne.decorator import rpc
 from hydra_complexmodels import Template,\
 TemplateType,\
@@ -44,7 +44,7 @@ class TemplateService(HydraService):
 
         return Template(tmpl_i)
 
-    @rpc(String, Integer32, _returns=SpyneArray(TypeSummary))
+    @rpc(String, Integer, _returns=SpyneArray(TypeSummary))
     def get_matching_resource_types(ctx, resource_type, resource_id):
         """
             Get the possible types of a resource by checking its attributes
@@ -74,7 +74,7 @@ class TemplateService(HydraService):
         return ret_val
 
 
-    @rpc(Integer32, String, Integer32, _returns=TypeSummary)
+    @rpc(Integer, String, Integer, _returns=TypeSummary)
     def assign_type_to_resource(ctx, type_id, resource_type, resource_id):
         """Assign new type to a resource. This function checks if the necessary
         attributes are present and adds them if needed. Non existing attributes
@@ -94,7 +94,7 @@ class TemplateService(HydraService):
 
         return ret_type 
 
-    @rpc(Integer32, Integer32, _returns=Unicode)
+    @rpc(Integer, Integer, _returns=Unicode)
     def apply_template_to_network(ctx, template_id, network_id):
         """
             Given a template and a network, try to match up and assign
@@ -105,7 +105,7 @@ class TemplateService(HydraService):
                                            **ctx.in_header.__dict__)
         return 'OK'
     
-    @rpc(Integer32, Integer32, Unicode(pattern="[YN]", default='N'), _returns=Unicode)
+    @rpc(Integer, Integer, Unicode(pattern="[YN]", default='N'), _returns=Unicode)
     def remove_template_from_network(ctx, network_id, template_id, remove_attrs):
         """
             Given a template and a network, try to match up and assign
@@ -118,7 +118,7 @@ class TemplateService(HydraService):
         return 'OK'
 
 
-    @rpc(Integer32, String, Integer32, _returns=String)
+    @rpc(Integer, String, Integer, _returns=String)
     def remove_type_from_resource(ctx,  type_id, resource_type, resource_id):
         """
 
@@ -151,7 +151,7 @@ class TemplateService(HydraService):
         return Template(tmpl_i)
 
 
-    @rpc(Integer32, _returns=Template)
+    @rpc(Integer, _returns=Template)
     def delete_template(ctx, template_id):
         """
             Update template and a type and typeattrs.
@@ -170,7 +170,7 @@ class TemplateService(HydraService):
 
         return ret_templates
 
-    @rpc(Integer32, Integer32, _returns=Unicode)
+    @rpc(Integer, Integer, _returns=Unicode)
     def remove_attr_from_type(ctx, type_id, attr_id):
         """
 
@@ -182,7 +182,7 @@ class TemplateService(HydraService):
                                        **ctx.in_header.__dict__)
         return success
 
-    @rpc(Integer32, _returns=Template)
+    @rpc(Integer, _returns=Template)
     def get_template(ctx, template_id):
         """
             Get a specific resource template template, either by ID or name.
@@ -229,7 +229,7 @@ class TemplateService(HydraService):
                                               **ctx.in_header.__dict__)
         return TemplateType(type_i)
 
-    @rpc(Integer32, _returns=Template)
+    @rpc(Integer, _returns=Template)
     def delete_templatetype(ctx, type_id):
         """
             Update template and a type and typeattrs.
@@ -238,7 +238,7 @@ class TemplateService(HydraService):
                                            **ctx.in_header.__dict__)
         return 'OK'
 
-    @rpc(Integer32, _returns=TemplateType)
+    @rpc(Integer, _returns=TemplateType)
     def get_templatetype(ctx, type_id):
         """
             Get a specific resource type by ID.
@@ -248,7 +248,7 @@ class TemplateService(HydraService):
         templatetype = TemplateType(type_i)
         return templatetype
 
-    @rpc(Integer32, String, _returns=TemplateType)
+    @rpc(Integer, String, _returns=TemplateType)
     def get_templatetype_by_name(ctx, template_id, type_name):
         """
             Get a specific resource type by name.
@@ -283,7 +283,7 @@ class TemplateService(HydraService):
                                  **ctx.in_header.__dict__)
         return success
 
-    @rpc(Integer32, _returns=Unicode)
+    @rpc(Integer, _returns=Unicode)
     def get_network_as_xml_template(ctx, network_id):
         """
             Turn an existing network into an xml template
@@ -296,17 +296,17 @@ class TemplateService(HydraService):
 
         return template_xml
 
-    @rpc(Integer32, Integer32, Integer32, _returns=Unicode)
+    @rpc(Integer, Integer, Integer, _returns=Unicode)
     def validate_attr(ctx, resource_attr_id, scenario_id, type_id):
         template.validate_attr(resource_attr_id, scenario_id, type_id)
         return 'OK'
 
-    @rpc(Integer32, Integer32, Integer32(min_occurs=0, max_occurs=1), _returns=SpyneArray(Unicode))
+    @rpc(Integer, Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(Unicode))
     def validate_network(ctx, network_id, template_id, scenario_id):
         errors = template.validate_network(network_id, template_id, scenario_id)
         return errors
 
-    @rpc(Integer32, Integer32, _returns=SpyneArray(Unicode))
+    @rpc(Integer, Integer, _returns=SpyneArray(Unicode))
     def check_type_compatibility(ctx, type_1_id, type_2_id): 
         errors = template.check_type_compatibility(type_1_id, type_2_id)
         return errors

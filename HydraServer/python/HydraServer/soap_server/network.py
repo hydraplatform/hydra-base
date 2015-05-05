@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-from spyne.model.primitive import Unicode, Integer32
+from spyne.model.primitive import Unicode, Integer
 from spyne.model.complex import Array as SpyneArray
 from spyne.decorator import rpc
 from hydra_complexmodels import Network,\
@@ -59,10 +59,10 @@ class NetworkService(HydraService):
         ret_net = Network(net, summary=True)
         return ret_net
 
-    @rpc(Integer32,
+    @rpc(Integer,
          Unicode(pattern="[YN]", default='Y'),
-         Integer32(),
-         SpyneArray(Integer32()),
+         Integer(),
+         SpyneArray(Integer()),
          Unicode(pattern="[YN]", default='N'),
          _returns=Network)
     def get_network(ctx, network_id, include_data, template_id, scenario_ids, summary):
@@ -78,7 +78,7 @@ class NetworkService(HydraService):
         ret_net = Network(net, True if summary=='Y' else False)
         return ret_net
 
-    @rpc(Integer32,
+    @rpc(Integer,
          _returns=Unicode)
     def get_network_as_json(ctx, network_id):
         """
@@ -93,7 +93,7 @@ class NetworkService(HydraService):
 
         return json.dumps(str(net))
 
-    @rpc(Integer32, Unicode, _returns=Network)
+    @rpc(Integer, Unicode, _returns=Network)
     def get_network_by_name(ctx, project_id, network_name):
         """
         Return a whole network as a complex model.
@@ -103,7 +103,7 @@ class NetworkService(HydraService):
 
         return Network(net)
 
-    @rpc(Integer32, Unicode, _returns=Unicode)
+    @rpc(Integer, Unicode, _returns=Unicode)
     def network_exists(ctx, project_id, network_name):
         """
         Return a whole network as a complex model.
@@ -136,7 +136,7 @@ class NetworkService(HydraService):
                                      **ctx.in_header.__dict__)
         return Network(net, summary=True)
 
-    @rpc(Integer32, Integer32(min_occurs=0), _returns=Node)
+    @rpc(Integer, Integer(min_occurs=0), _returns=Node)
     def get_node(ctx, node_id, scenario_id):
         """
             Get a node using the node_id.
@@ -162,7 +162,7 @@ class NetworkService(HydraService):
             ret_node = Node(node)
             return ret_node
 
-    @rpc(Integer32, Integer32, _returns=Link)
+    @rpc(Integer, Integer, _returns=Link)
     def get_link(ctx, link_id, scenario_id):
         link = network.get_link(link_id, **ctx.in_header.__dict__)
 
@@ -182,7 +182,7 @@ class NetworkService(HydraService):
             ret_link = Link(link)
             return ret_link
 
-    @rpc(Integer32, Integer32, _returns=ResourceGroup)
+    @rpc(Integer, Integer, _returns=ResourceGroup)
     def get_resourcegroup(ctx, group_id, scenario_id):
         group = network.get_resourcegroup(group_id, **ctx.in_header.__dict__)
 
@@ -202,7 +202,7 @@ class NetworkService(HydraService):
             ret_group = ResourceGroup(group)
             return ret_group
 
-    @rpc(Integer32, _returns=Unicode)
+    @rpc(Integer, _returns=Unicode)
     def delete_network(ctx, network_id):
         """
         Set status of network for delete or un-delete
@@ -211,7 +211,7 @@ class NetworkService(HydraService):
         network.set_network_status(network_id, 'X', **ctx.in_header.__dict__)
         return 'OK'
 
-    @rpc(Integer32, _returns=Unicode)
+    @rpc(Integer, _returns=Unicode)
     def activate_network(ctx, network_id):
         """
         Deletes a network. This does not remove the network from the DB. It
@@ -222,7 +222,7 @@ class NetworkService(HydraService):
         network.set_network_status(network_id, 'A', **ctx.in_header.__dict__)
         return 'OK'
 
-    @rpc(Integer32, _returns=NetworkExtents)
+    @rpc(Integer, _returns=NetworkExtents)
     def get_network_extents(ctx, network_id):
         """
         Given a network, return its maximum extents.
@@ -244,7 +244,7 @@ class NetworkService(HydraService):
 
         return ne
 
-    @rpc(Integer32, Node, _returns=Node)
+    @rpc(Integer, Node, _returns=Node)
     def add_node(ctx, network_id, node):
 
         """
@@ -278,7 +278,7 @@ class NetworkService(HydraService):
         return new_node
 
 
-    @rpc(Integer32,  SpyneArray(Node), _returns=SpyneArray(Node))
+    @rpc(Integer,  SpyneArray(Node), _returns=SpyneArray(Node))
     def add_nodes(ctx, network_id, nodes):
 
         """
@@ -295,7 +295,7 @@ class NetworkService(HydraService):
 
         return new_nodes
 
-    @rpc(Integer32,  SpyneArray(Link), _returns=SpyneArray(Link))
+    @rpc(Integer,  SpyneArray(Link), _returns=SpyneArray(Link))
     def add_links(ctx, network_id, links):
 
         """
@@ -357,7 +357,7 @@ class NetworkService(HydraService):
         return updated_node
 
 
-    @rpc(Integer32, _returns=Unicode)
+    @rpc(Integer, _returns=Unicode)
     def delete_node(ctx, node_id):
         """
             Set the status of a node to 'X'
@@ -365,7 +365,7 @@ class NetworkService(HydraService):
         #check_perm('edit_topology')
         network.set_node_status(node_id, 'X', **ctx.in_header.__dict__)
         return 'OK'
-    @rpc(Integer32, _returns=Unicode)
+    @rpc(Integer, _returns=Unicode)
     def activate_node(ctx, node_id):
         """
             Set the status of a node to 'A'
@@ -374,7 +374,7 @@ class NetworkService(HydraService):
         network.set_node_status(node_id, 'A', **ctx.in_header.__dict__)
         return 'OK'
 
-    @rpc(Integer32, Unicode(pattern="[YN]", default='Y'), _returns=Unicode)
+    @rpc(Integer, Unicode(pattern="[YN]", default='Y'), _returns=Unicode)
     def purge_node(ctx, node_id, purge_data):
         """
             Remove node from DB completely
@@ -386,7 +386,7 @@ class NetworkService(HydraService):
         network.delete_node(node_id, purge_data, **ctx.in_header.__dict__)
         return 'OK'
 
-    @rpc(Integer32, Link, _returns=Link)
+    @rpc(Integer, Link, _returns=Link)
     def add_link(ctx, network_id, link):
         """
             Add a link to a network
@@ -407,7 +407,7 @@ class NetworkService(HydraService):
 
         return updated_link
 
-    @rpc(Integer32, _returns=Unicode)
+    @rpc(Integer, _returns=Unicode)
     def delete_link(ctx, link_id):
         """
             Set the status of a link to 'X'
@@ -415,7 +415,7 @@ class NetworkService(HydraService):
         network.set_link_status(link_id, 'X', **ctx.in_header.__dict__)
         return 'OK'
 
-    @rpc(Integer32, _returns=Unicode)
+    @rpc(Integer, _returns=Unicode)
     def activate_link(ctx, link_id):
         """
             Set the status of a link to 'X'
@@ -423,7 +423,7 @@ class NetworkService(HydraService):
         network.set_link_status(link_id, 'A', **ctx.in_header.__dict__)
         return 'OK'
 
-    @rpc(Integer32, Unicode(pattern="[YN]", default='Y'), _returns=Unicode)
+    @rpc(Integer, Unicode(pattern="[YN]", default='Y'), _returns=Unicode)
     def purge_link(ctx, link_id, purge_data):
         """
             Remove link from DB completely
@@ -434,7 +434,7 @@ class NetworkService(HydraService):
         network.delete_link(link_id, purge_data, **ctx.in_header.__dict__)
         return 'OK'
 
-    @rpc(Integer32, ResourceGroup, _returns=ResourceGroup)
+    @rpc(Integer, ResourceGroup, _returns=ResourceGroup)
     def add_group(ctx, network_id, group):
         """
             Add a resourcegroup to a network
@@ -445,7 +445,7 @@ class NetworkService(HydraService):
 
         return new_group
 
-    @rpc(Integer32, _returns=Unicode)
+    @rpc(Integer, _returns=Unicode)
     def delete_group(ctx, group_id):
         """
             Set the status of a group to 'X'
@@ -453,7 +453,7 @@ class NetworkService(HydraService):
         network.set_group_status(group_id, 'X', **ctx.in_header.__dict__)
         return 'OK'
 
-    @rpc(Integer32, Unicode(pattern="[YN]", default='Y'), _returns=Unicode)
+    @rpc(Integer, Unicode(pattern="[YN]", default='Y'), _returns=Unicode)
     def purge_group(ctx, group_id, purge_data):
         """
             Remove a resource group from the DB completely. If purge data is set 
@@ -463,7 +463,7 @@ class NetworkService(HydraService):
         network.delete_group(group_id, purge_data, **ctx.in_header.__dict__)
         return 'OK'
 
-    @rpc(Integer32, _returns=Unicode)
+    @rpc(Integer, _returns=Unicode)
     def activate_group(ctx, group_id):
         """
             Set the status of a group to 'A'
@@ -472,7 +472,7 @@ class NetworkService(HydraService):
         return 'OK'
 
 
-    @rpc(Integer32, _returns=SpyneArray(Scenario))
+    @rpc(Integer, _returns=SpyneArray(Scenario))
     def get_scenarios(ctx, network_id):
         """
             Get all the scenarios in a given network.
@@ -487,14 +487,14 @@ class NetworkService(HydraService):
 
         return scenarios
 
-    @rpc(Integer32, _returns=SpyneArray(Integer32))
+    @rpc(Integer, _returns=SpyneArray(Integer))
     def validate_network_topology(ctx, network_id):
         """
             Check for the presence of orphan nodes in a network.
         """
         return network.validate_network_topology(network_id, **ctx.in_header.__dict__)
 
-    @rpc(Integer32, Integer32, _returns=SpyneArray(ResourceSummary))
+    @rpc(Integer, Integer, _returns=SpyneArray(ResourceSummary))
     def get_resources_of_type(ctx, network_id, type_id):
         """
             Return a list of Nodes, Links or ResourceGroups
@@ -516,7 +516,7 @@ class NetworkService(HydraService):
 
         return resources
 
-    @rpc(Integer32, _returns=Unicode)
+    @rpc(Integer, _returns=Unicode)
     def clean_up_network(ctx, network_id):
         """
             Purge all nodes, links, groups and scenarios from a network which
@@ -524,7 +524,7 @@ class NetworkService(HydraService):
         """
         return network.clean_up_network(network_id, **ctx.in_header.__dict__)
 
-    @rpc(Integer32, Integer32, Integer32(max_occurs="unbounded"), Unicode(pattern="['YN']", default='N'), _returns=SpyneArray(ResourceAttr))
+    @rpc(Integer, Integer, Integer(max_occurs="unbounded"), Unicode(pattern="['YN']", default='N'), _returns=SpyneArray(ResourceAttr))
     def get_all_node_data(ctx, network_id, scenario_id, node_ids, include_metadata):
         """
             Return all the attributes for all the nodes in a given network and a
@@ -550,7 +550,7 @@ class NetworkService(HydraService):
 
         return return_ras
 
-    @rpc(Integer32, Integer32, Integer32(max_occurs="unbounded"), Unicode(pattern="['YN']", default='N'), _returns=SpyneArray(ResourceData))
+    @rpc(Integer, Integer, Integer(max_occurs="unbounded"), Unicode(pattern="['YN']", default='N'), _returns=SpyneArray(ResourceData))
     def test_get_all_node_data(ctx, network_id, scenario_id, node_ids, include_metadata):
         """
         Return all the attributes for all the nodes in a given network and a
@@ -635,7 +635,7 @@ class NetworkService(HydraService):
 
         return return_ras
 
-    @rpc(Integer32, Integer32, Integer32(max_occurs="unbounded"), Unicode(pattern="['YN']", default='N'), _returns=SpyneArray(ResourceData))
+    @rpc(Integer, Integer, Integer(max_occurs="unbounded"), Unicode(pattern="['YN']", default='N'), _returns=SpyneArray(ResourceData))
     def test_get_all_link_data(ctx, network_id, scenario_id, link_ids, include_metadata):
         """
         Return all the attributes for all the nodes in a given network and a
@@ -665,7 +665,7 @@ class NetworkService(HydraService):
         return return_ras
 
 
-    @rpc(Integer32, Integer32, Integer32(max_occurs="unbounded"), Unicode(pattern="['YN']", default='N'), _returns=SpyneArray(ResourceAttr))
+    @rpc(Integer, Integer, Integer(max_occurs="unbounded"), Unicode(pattern="['YN']", default='N'), _returns=SpyneArray(ResourceAttr))
     def get_all_link_data(ctx, network_id, scenario_id, link_ids, include_metadata):
         """
             Return all the attributes for all the links in a given network and a
@@ -690,7 +690,7 @@ class NetworkService(HydraService):
 
         return return_ras
 
-    @rpc(Integer32, Integer32, Integer32(max_occurs="unbounded"), Unicode(pattern="['YN']", default='N'), _returns=SpyneArray(ResourceAttr))
+    @rpc(Integer, Integer, Integer(max_occurs="unbounded"), Unicode(pattern="['YN']", default='N'), _returns=SpyneArray(ResourceAttr))
     def get_all_group_data(ctx, network_id, scenario_id, group_ids, include_metadata):
         """
             Return all the attributes for all the groups in a given network and a

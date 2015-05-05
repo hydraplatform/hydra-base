@@ -112,8 +112,8 @@ class NetworkTest(server.SoapServerTest):
         for s in full_network.scenarios.Scenario:
             assert s.resourcescenarios is None
 
-        scen_ids = self.client.factory.create("intArray")
-        scen_ids.int.append(scenario_id)
+        scen_ids = self.client.factory.create("integerArray")
+        scen_ids.integer.append(scenario_id)
         partial_network = self.client.service.get_network(new_scenario.network_id, 'Y', None, scen_ids)
 
         assert len(partial_network.scenarios.Scenario) == 1
@@ -816,7 +816,7 @@ class NetworkTest(server.SoapServerTest):
         network = self.client.service.add_network(network)
 
         result = self.client.service.validate_network_topology(network.id)
-        assert len(result.int) == 1#This means orphan nodes are present
+        assert len(result.integer) == 1#This means orphan nodes are present
 
     def test_consistency_of_update(self):
         """

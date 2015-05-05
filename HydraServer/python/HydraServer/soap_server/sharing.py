@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-from spyne.model.primitive import String, Integer32
+from spyne.model.primitive import String, Integer
 from spyne.decorator import rpc
 from hydra_base import HydraService
 from HydraServer.lib import sharing
@@ -24,7 +24,7 @@ class SharingService(HydraService):
         The network SOAP service.
     """
 
-    @rpc(Integer32, String(max_occurs='unbounded'), 
+    @rpc(Integer, String(max_occurs='unbounded'), 
          String(pattern="[YN]"), String(pattern="[YN]", default='Y'), _returns=String())
     def share_network(ctx, network_id, usernames, read_only, share):
         """
@@ -45,7 +45,7 @@ class SharingService(HydraService):
 
         return 'OK'
 
-    @rpc(Integer32, String(max_occurs='unbounded'),
+    @rpc(Integer, String(max_occurs='unbounded'),
          String(pattern="[YN]"), String(pattern="[YN]"), _returns=String)
     def share_project(ctx, project_id, usernames, read_only, share):
         """
@@ -65,7 +65,7 @@ class SharingService(HydraService):
                               **ctx.in_header.__dict__)
         return "OK"
 
-    @rpc(Integer32, String(max_occurs="unbounded"), 
+    @rpc(Integer, String(max_occurs="unbounded"), 
          String(pattern="[YN]"), String(pattern="[YN]"), String(pattern="[YN]"),
          _returns=String)
     def set_project_permission(ctx, project_id, usernames, read, write, share):
@@ -84,7 +84,7 @@ class SharingService(HydraService):
                                        share,
                                        **ctx.in_header.__dict__)
 
-    @rpc(Integer32, String(max_occurs="unbounded"), 
+    @rpc(Integer, String(max_occurs="unbounded"), 
          String(pattern="[YN]"), String(pattern="[YN]"), String(pattern="[YN]"),
          _returns=String)
     def set_network_permission(ctx, network_id, usernames, read, write, share):
@@ -104,7 +104,7 @@ class SharingService(HydraService):
 
         return "OK"
 
-    @rpc(Integer32, String(max_occurs="unbounded"),
+    @rpc(Integer, String(max_occurs="unbounded"),
          String(pattern="[YN]"), String(pattern="[YN]"), String(pattern="[YN]"),
          _returns=String)
     def hide_dataset(ctx, dataset_id, exceptions, read, write, share):
@@ -125,7 +125,7 @@ class SharingService(HydraService):
 
         return "OK"
 
-    @rpc(Integer32,
+    @rpc(Integer,
          _returns=String)
     def unhide_dataset(ctx, dataset_id):
         """

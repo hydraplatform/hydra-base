@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-from spyne.model.primitive import Integer32, Boolean, Unicode, AnyDict, Decimal
+from spyne.model.primitive import Integer, Integer32, Boolean, Unicode, AnyDict, Decimal
 from spyne.model.complex import Array as SpyneArray
 from spyne.decorator import rpc
 from hydra_complexmodels import Descriptor,\
@@ -62,7 +62,7 @@ class DataService(HydraService):
         ret_datasets = [Dataset(d) for d in datasets]
         return ret_datasets
 
-    @rpc(Integer32, _returns=Dataset)
+    @rpc(Integer, _returns=Dataset)
     def get_dataset(ctx, dataset_id):
         """
             Get a single dataset, by ID
@@ -70,12 +70,12 @@ class DataService(HydraService):
         dataset_i = data.get_dataset(dataset_id, **ctx.in_header.__dict__)
         return Dataset(dataset_i)
 
-    @rpc(Integer32, Unicode, Unicode, Unicode, Unicode, Unicode,
-         Integer32, Unicode, Unicode,
-         Integer32, Integer32, Unicode,
+    @rpc(Integer, Unicode, Unicode, Unicode, Unicode, Unicode,
+         Integer, Unicode, Unicode,
+         Integer, Integer, Unicode,
          Unicode(pattern='[YN]', default='N'), #include metadata flag
          Unicode(pattern='[YN]', default='N'), # include value flag
-         Integer32(default=0),Integer32(default=2000), #start, size page flags
+         Integer(default=0),Integer(default=2000), #start, size page flags
          _returns=SpyneArray(Dataset))
     def search_datasets(ctx, dataset_id,
                 name,
@@ -120,7 +120,7 @@ class DataService(HydraService):
 
         return cm_datasets
 
-    @rpc(Integer32(max_occurs="unbounded"), _returns=SpyneArray(Metadata))
+    @rpc(Integer(max_occurs="unbounded"), _returns=SpyneArray(Metadata))
     def get_metadata(ctx, dataset_ids):
         """
             Get the metadata for a dataset or list of datasets
@@ -133,7 +133,7 @@ class DataService(HydraService):
 
         return [Metadata(m) for m in metadata]
 
-    @rpc(SpyneArray(Dataset), _returns=SpyneArray(Integer32))
+    @rpc(SpyneArray(Dataset), _returns=SpyneArray(Integer))
     def bulk_insert_data(ctx, bulk_data):
         """
             Insert sereral pieces of data at once.
@@ -154,7 +154,7 @@ class DataService(HydraService):
         return all_colns
 
 
-    @rpc(Integer32, Integer32, _returns=Unicode)
+    @rpc(Integer, Integer, _returns=Unicode)
     def add_dataset_to_collection(ctx, dataset_id, collection_id):
         """
             Add a single dataset to a dataset collection.
@@ -165,7 +165,7 @@ class DataService(HydraService):
                                        **ctx.in_header.__dict__)
         return 'OK'
 
-    @rpc(SpyneArray(Integer32), Integer32, _returns=Unicode)
+    @rpc(SpyneArray(Integer), Integer, _returns=Unicode)
     def add_datasets_to_collection(ctx, dataset_ids, collection_id):
         """
             Add multiple datasets to a dataset collection.
@@ -175,7 +175,7 @@ class DataService(HydraService):
                                         **ctx.in_header.__dict__)
         return 'OK'
 
-    @rpc(Integer32, Integer32, _returns=Unicode)
+    @rpc(Integer, Integer, _returns=Unicode)
     def remove_dataset_from_collection(ctx, dataset_id, collection_id):
         """
             Remove a single dataset to a dataset collection.
@@ -185,7 +185,7 @@ class DataService(HydraService):
                                              **ctx.in_header.__dict__)
         return 'OK'
 
-    @rpc(Integer32, Integer32, _returns=Unicode(pattern='[YN]'))
+    @rpc(Integer, Integer, _returns=Unicode(pattern='[YN]'))
     def check_dataset_in_collection(ctx, dataset_id, collection_id):
         """
             Check whether a dataset is contained inside a collection
@@ -196,7 +196,7 @@ class DataService(HydraService):
                                          **ctx.in_header.__dict__)
         return result
 
-    @rpc(Integer32, _returns=DatasetCollection)
+    @rpc(Integer, _returns=DatasetCollection)
     def get_dataset_collection(ctx, collection_id):
         """
             Get a single dataset collection, by ID.
@@ -242,7 +242,7 @@ class DataService(HydraService):
         ret_collections = [DatasetCollection(g) for g in collections]
         return ret_collections
 
-    @rpc(Integer32, _returns=SpyneArray(Dataset))
+    @rpc(Integer, _returns=SpyneArray(Dataset))
     def get_collection_datasets(ctx, collection_id):
         """
             Get all the datasets from the collection with the specified name
@@ -275,7 +275,7 @@ class DataService(HydraService):
         return Dataset(updated_dataset)
 
 
-    @rpc(Integer32, _returns=Boolean)
+    @rpc(Integer, _returns=Boolean)
     def delete_dataset(ctx, dataset_id):
         """
             Removes a piece of data from the DB.
@@ -305,7 +305,7 @@ class DataService(HydraService):
     def echo_array(ctx, x):
         return x
 
-    @rpc(Integer32, Unicode(min_occurs=0, max_occurs='unbounded'), _returns=AnyDict)
+    @rpc(Integer, Unicode(min_occurs=0, max_occurs='unbounded'), _returns=AnyDict)
     def get_val_at_time(ctx, dataset_id, timestamps):
         return data.get_val_at_time(dataset_id, 
                                     timestamps,
@@ -318,7 +318,7 @@ class DataService(HydraService):
                                     **ctx.in_header.__dict__)
         return result
 
-    @rpc(Integer32,Unicode,Unicode,Unicode(values=['seconds', 'minutes', 'hours', 'days', 'months']), Decimal(default=1),_returns=AnyDict)
+    @rpc(Integer,Unicode,Unicode,Unicode(values=['seconds', 'minutes', 'hours', 'days', 'months']), Decimal(default=1),_returns=AnyDict)
     def get_vals_between_times(ctx, dataset_id, start_time, end_time, timestep, increment):
         return data.get_vals_between_times(dataset_id, 
                                            start_time, 
