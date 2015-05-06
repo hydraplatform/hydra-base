@@ -1,4 +1,0 @@
-recursive-include example/public *
-include example/public/favicon.ico
-recursive-include example/i18n *
-recursive-include example/templates *

@@ -386,7 +386,7 @@ class DataCollectionTest(server.SoapServerTest):
     def test_get_collection_datasets(self):
         collections = self.client.service.get_collections_like_name('test')
         
-        datasets = self.client.service.get_collection_datasets(collections.DatasetCollection[-1].collection_id)
+        datasets = self.client.service.get_collection_datasets(collections.DatasetCollection[-1].id)
  
         assert len(datasets) > 0, "Datasets were not retrieved correctly!"
 
@@ -409,11 +409,11 @@ class DataCollectionTest(server.SoapServerTest):
                 break
 
         collection.dataset_ids = grp_dataset_ids 
-        collection.collection_name  = 'test soap collection %s'%(datetime.datetime.now())
+        collection.name  = 'test soap collection %s'%(datetime.datetime.now())
 
         newly_added_collection = self.client.service.add_dataset_collection(collection)
 
-        assert newly_added_collection.collection_id is not None, "Dataset collection does not have an ID!"
+        assert newly_added_collection.id is not None, "Dataset collection does not have an ID!"
         assert len(newly_added_collection.dataset_ids.integer) == 2, "Dataset collection does not have any items!"  
 
     def test_get_all_collections(self):
@@ -435,13 +435,144 @@ class DataCollectionTest(server.SoapServerTest):
                 break
 
         collection.dataset_ids = grp_dataset_ids 
-        collection.collection_name  = 'test soap collection %s'%(datetime.datetime.now())
+        collection.name  = 'test soap collection %s'%(datetime.datetime.now())
 
         newly_added_collection = self.client.service.add_dataset_collection(collection)
         collections = self.client.service.get_all_dataset_collections(collection)
-        assert newly_added_collection.collection_id in [g.collection_id for g in collections.DatasetCollection]
+        assert newly_added_collection.id in [g.id for g in collections.DatasetCollection]
+
+    def test_add_dataset_to_collection(self):
+        
+        network = self.create_network_with_data(ret_full_net = False)
+
+        scenario_id = network.scenarios.Scenario[0].id
+        
+        scenario_data = self.client.service.get_scenario_data(scenario_id)
+
+        collection = self.client.factory.create('ns1:DatasetCollection')
+
+        grp_dataset_ids = self.client.factory.create("integerArray")
+        dataset_id = scenario_data.Dataset[0].id
+        grp_dataset_ids.integer.append(dataset_id)
+        for d in scenario_data.Dataset:
+            if d.type == 'timeseries' and d.id != dataset_id:
+                grp_dataset_ids.integer.append(d.id)
+                break
+        
+        dataset_id_to_add = None
+        for d in scenario_data.Dataset:
+            if d.type == 'array' and d.id != dataset_id:
+                dataset_id_to_add = d.id
+                break
+
+        collection.dataset_ids = grp_dataset_ids 
+        collection.name  = 'test soap collection %s'%(datetime.datetime.now())
+
+        newly_added_collection = self.client.service.add_dataset_collection(collection)
+        
+        previous_dataset_ids = []
+        for d_id in newly_added_collection.dataset_ids.integer:
+            previous_dataset_ids.append(d_id)
+        
+        #This acts as a test for the 'check_dataset_in_collection' code
+        assert self.client.service.check_dataset_in_collection(dataset_id_to_add, newly_added_collection.id) == 'N'
+        assert self.client.service.check_dataset_in_collection(99999, newly_added_collection.id) == 'N'
+        self.assertRaises(WebFault, self.client.service.check_dataset_in_collection, 99999, 99999)
+
+        self.client.service.add_dataset_to_collection(dataset_id_to_add, newly_added_collection.id)
+        
+        assert self.client.service.check_dataset_in_collection(dataset_id_to_add, newly_added_collection.id) == 'Y'
+        
+        updated_collection = self.client.service.get_dataset_collection(newly_added_collection.id)
+        
+        new_dataset_ids = []
+        for d_id in updated_collection.dataset_ids.integer:
+            new_dataset_ids.append(d_id)
+        
+        assert set(new_dataset_ids) - set(previous_dataset_ids) == set([dataset_id_to_add])
+        
 
 
+    def test_add_datasets_to_collection(self):
+        
+        network = self.create_network_with_data(ret_full_net = False)
+
+        scenario_id = network.scenarios.Scenario[0].id
+        
+        scenario_data = self.client.service.get_scenario_data(scenario_id)
+
+        collection = self.client.factory.create('ns1:DatasetCollection')
+
+        grp_dataset_ids = self.client.factory.create("integerArray")
+        dataset_id = scenario_data.Dataset[0].id
+        grp_dataset_ids.integer.append(dataset_id)
+        for d in scenario_data.Dataset:
+            if d.type == 'timeseries' and d.id != dataset_id:
+                grp_dataset_ids.integer.append(d.id)
+                break
+        
+        dataset_ids_to_add = self.client.factory.create("integerArray")
+        for d in scenario_data.Dataset:
+            if d.type == 'array' and d.id != dataset_id:
+                dataset_ids_to_add.integer.append(d.id)
+
+        collection.dataset_ids = grp_dataset_ids 
+        collection.name  = 'test soap collection %s'%(datetime.datetime.now())
+
+        newly_added_collection = self.client.service.add_dataset_collection(collection)
+        
+        previous_dataset_ids = []
+        for d_id in newly_added_collection.dataset_ids.integer:
+            previous_dataset_ids.append(d_id)
+        
+        self.client.service.add_datasets_to_collection(dataset_ids_to_add, newly_added_collection.id)
+        
+        updated_collection = self.client.service.get_dataset_collection(newly_added_collection.id)
+        
+        new_dataset_ids = []
+        for d_id in updated_collection.dataset_ids.integer:
+            new_dataset_ids.append(d_id)
+        
+        assert set(new_dataset_ids) - set(previous_dataset_ids) == set(dataset_ids_to_add.integer)
+        
+
+    def test_remove_dataset_from_collection(self):
+        
+        network = self.create_network_with_data(ret_full_net = False)
+
+        scenario_id = network.scenarios.Scenario[0].id
+        
+        scenario_data = self.client.service.get_scenario_data(scenario_id)
+
+        collection = self.client.factory.create('ns1:DatasetCollection')
+
+        grp_dataset_ids = self.client.factory.create("integerArray")
+        dataset_id = scenario_data.Dataset[0].id
+        grp_dataset_ids.integer.append(dataset_id)
+        for d in scenario_data.Dataset:
+            if d.type == 'timeseries' and d.id != dataset_id:
+                grp_dataset_ids.integer.append(d.id)
+                break
+        
+        collection.dataset_ids = grp_dataset_ids 
+        collection.name  = 'test soap collection %s'%(datetime.datetime.now())
+
+        newly_added_collection = self.client.service.add_dataset_collection(collection)
+        
+        previous_dataset_ids = []
+        for d_id in newly_added_collection.dataset_ids.integer:
+            previous_dataset_ids.append(d_id)
+        
+        self.client.service.remove_dataset_from_collection(dataset_id, newly_added_collection.id)
+        
+        updated_collection = self.client.service.get_dataset_collection(newly_added_collection.id)
+        
+        new_dataset_ids = []
+        for d_id in updated_collection.dataset_ids.integer:
+            new_dataset_ids.append(d_id)
+        
+        assert set(previous_dataset_ids) - set(new_dataset_ids) == set([dataset_id])
+        
 class SharingTest(server.SoapServerTest):
 
     def _get_project(self):
@@ -950,11 +1081,11 @@ class RetrievalTest(server.SoapServerTest):
 
         collection = dict(
             dataset_ids = grp_dataset_ids,
-            collection_name  = 'timeseries collection %s'%(datetime.datetime.now())
+            name  = 'timeseries collection %s'%(datetime.datetime.now())
         )
 
         timeseries_collection = self.client.service.add_dataset_collection(collection)
-        collection_name = timeseries_collection.collection_name
+        collection_name = timeseries_collection.name
 
         #search for datset with ID
 

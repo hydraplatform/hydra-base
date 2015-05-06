@@ -485,7 +485,7 @@ class JsonConnection(object):
         if url is None:
             port = config.getint('hydra_client', 'port', 80)
             domain = config.get('hydra_client', 'domain', '127.0.0.1')
-            path = config.get('hydra_client', 'path', 'json')
+            path = config.get('hydra_client', 'json_path', 'json')
             self.url = "%s:%s/%s" % (domain, port, path)
         else:
             log.info("Using user-defined URL: %s", url)

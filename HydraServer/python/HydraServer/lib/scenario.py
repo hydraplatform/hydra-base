@@ -308,6 +308,12 @@ def clone_scenario(scenario_id,**kwargs):
         new_rs = ResourceScenario()
         new_rs.resource_attr_id = rs.resource_attr_id
         new_rs.dataset_id       = rs.dataset_id
+        
+        if kwargs.get('app_name') is None:
+            new_rs.source           = rs.source
+        else:
+            new_rs.source = kwargs['app_name']
+
         cloned_scen.resourcescenarios.append(new_rs)
 
     for resourcegroupitem_i in scen_i.resourcegroupitems:
@@ -702,19 +708,25 @@ def assign_value(rs, data_type, val,
 
 def add_data_to_attribute(scenario_id, resource_attr_id, dataset,**kwargs):
     """
-            Add data to a resource scenario outside of a network update
+        Add data to a resource scenario outside of a network update
     """
     user_id = kwargs.get('user_id')
 
     _check_can_edit_scenario(scenario_id, user_id)
 
+    scenario_i = _get_scenario(scenario_id)
+
     try:
         r_scen_i = DBSession.query(ResourceScenario).filter(
                                 ResourceScenario.scenario_id==scenario_id,
                                 ResourceScenario.resource_attr_id==resource_attr_id).one()
+        log.info("Existing resource scenario found for %s in scenario %s", resource_attr_id, scenario_id)
     except NoResultFound:
-        raise ResourceNotFoundError("Resource Attr %s not found in scenario %s")\
-                                            %(scenario_id, resource_attr_id)
+        log.info("No existing resource scenarios found for %s in scenario %s. Adding a new one.", resource_attr_id, scenario_id)
+        r_scen_i = ResourceScenario()
+        r_scen_i.scenario_id      = scenario_id
+        r_scen_i.resource_attr_id = resource_attr_id
+        scenario_i.resourcescenarios.append(r_scen_i)
 
     data_type = dataset.type.lower()
 

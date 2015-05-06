@@ -32,6 +32,9 @@ import pandas as pd
 from HydraLib.HydraException import HydraError, ResourceNotFoundError
 from sqlalchemy import and_, or_
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.sql.expression import literal_column
+from sqlalchemy import distinct
+
 from HydraLib.util import create_dict
 from decimal import Decimal
 import copy
@@ -165,7 +168,40 @@ def search_datasets(dataset_id=None,
         datasets in the DB (that the user is allowe to see)
         will be returned.
     """
-    
+   
+ 
+    log.info("Searching datasets: \ndatset_id: %s,\n"
+                                  "datset_name: %s,\n" 
+                                  "collection_name: %s,\n"
+                                  "data_type: %s,\n"
+                                  "dimension: %s,\n"
+                                  "unit: %s,\n"
+                                  "scenario_id: %s,\n"
+                                  "metadata_name: %s,\n"
+                                  "metadata_val: %s,\n"
+                                  "attr_id: %s,\n"
+                                  "type_id: %s,\n"
+                                  "unconnected: %s,\n"
+                                  "inc_metadata: %s,\n"
+                                  "inc_val: %s,\n"
+                                  "page_start: %s,\n"
+                                  "page_size: %s" % (dataset_id,
+                dataset_name,
+                collection_name,
+                data_type,
+                dimension,
+                unit,
+                scenario_id,
+                metadata_name,
+                metadata_val,
+                attr_id,
+                type_id,
+                unconnected,
+                inc_metadata,
+                inc_val,
+                page_start,
+                page_size))
+
     if page_size is None:
         page_size = config.get('SEARCH', 'page_size', 2000)
 
@@ -256,10 +292,17 @@ def search_datasets(dataset_id=None,
                 TypeAttr, and_(TypeAttr.attr_id==ResourceAttr.attr_id, TypeAttr.type_id==type_id))
 
         if unconnected == 'Y':
+            stmt = DBSession.query(distinct(ResourceScenario.dataset_id).label('dataset_id'), 
+                                literal_column("0").label('col')).subquery()
             dataset_qry = dataset_qry.outerjoin(
-                ResourceScenario, ResourceScenario.dataset_id == Dataset.dataset_id)
-            dataset_qry = dataset_qry.filter(ResourceScenario.scenario_id == None)
-
+                stmt, stmt.c.dataset_id == Dataset.dataset_id)
+            dataset_qry = dataset_qry.filter(stmt.c.col == None)
+        elif unconnected == 'N':
+            #The dataset has to be connected to something
+            stmt = DBSession.query(distinct(ResourceScenario.dataset_id).label('dataset_id'), 
+                                literal_column("0").label('col')).subquery()
+            dataset_qry = dataset_qry.join(
+                stmt, stmt.c.dataset_id == Dataset.dataset_id)
         if metadata_name is not None and metadata_val is not None:
             dataset_qry = dataset_qry.join(Metadata,
                                 and_(Metadata.dataset_id == Dataset.dataset_id, 
@@ -280,8 +323,10 @@ def search_datasets(dataset_id=None,
                                 and_(DatasetOwner.dataset_id==Dataset.dataset_id, 
                                 DatasetOwner.user_id==user_id))
 
-    dataset_qry = dataset_qry.filter(or_(Dataset.hidden=='N', (DatasetOwner.user_id is not None and Dataset.hidden=='Y')))
+    dataset_qry = dataset_qry.filter(or_(Dataset.hidden=='N', and_(DatasetOwner.user_id is not None, Dataset.hidden=='Y')))
 
+    log.info(str(dataset_qry))
+    
     datasets = dataset_qry.all()
     
     log.info("Retrieved %s datasets", len(datasets))
@@ -694,6 +739,99 @@ def get_all_dataset_collections(**kwargs):
 
     return all_collections
 
+def _get_collection(collection_id):
+    """
+        Get a dataset collection by ID
+        :param collection ID
+    """
+    try:
+        collection = DBSession.query(DatasetCollection).filter(DatasetCollection.collection_id==collection_id).one()
+        return collection
+    except NoResultFound:
+        raise ResourceNotFoundError("No dataset collection found with id %s"%collection_id)
+
+def _get_collection_item(collection_id, dataset_id):
+    """
+        Get a single dataset collection entry by collection ID and dataset ID
+        :param collection ID
+        :param dataset ID
+    """
+    collection_item = DBSession.query(DatasetCollectionItem).\
+            filter(DatasetCollectionItem.collection_id==collection_id, 
+                   DatasetCollectionItem.dataset_id==dataset_id).first()
+    return collection_item
+
+def add_dataset_to_collection(dataset_id, collection_id, **kwargs):
+    """
+        Add a single dataset to a dataset collection.
+    """
+    _get_collection(collection_id)
+    collection_item = _get_collection_item(collection_id, dataset_id)
+    if collection_item is not None:
+        raise HydraError("Dataset Collection %s already contains dataset %s", collection_id, dataset_id)
+
+    new_item = DatasetCollectionItem()
+    new_item.dataset_id=dataset_id
+    new_item.collection_id=collection_id
+
+    DBSession.add(new_item)
+    DBSession.flush()
+
+    return 'OK'
+
+
+def add_datasets_to_collection(dataset_ids, collection_id, **kwargs):
+    """
+        Add multiple datasets to a dataset collection.
+    """
+    _get_collection(collection_id)
+
+    for dataset_id in dataset_ids:
+        collection_item = _get_collection_item(collection_id, dataset_id)
+        if collection_item is not None:
+            raise HydraError("Dataset Collection %s already contains dataset %s", collection_id, dataset_id)
+    
+        new_item = DatasetCollectionItem()
+        new_item.dataset_id=dataset_id
+        new_item.collection_id=collection_id
+
+        DBSession.add(new_item)
+
+    DBSession.flush()
+    return 'OK'
+
+def remove_dataset_from_collection(dataset_id, collection_id, **kwargs):
+    """
+        Add a single dataset to a dataset collection.
+    """
+    _get_collection(collection_id)
+    collection_item = _get_collection_item(collection_id, dataset_id)
+    if collection_item is None:
+        raise HydraError("Dataset %s is not in collection %s.",
+                                                    dataset_id, 
+                                                    collection_id)
+    DBSession.delete(collection_item)
+    DBSession.flush()
+
+    return 'OK'
+
+
+def check_dataset_in_collection(dataset_id, collection_id, **kwargs):
+    """
+        Check whether a dataset is contained inside a collection
+        :param dataset ID
+        :param collection ID
+        :returns 'Y' or 'N'
+    """
+    
+    _get_collection(collection_id)
+    collection_item = _get_collection_item(collection_id, dataset_id)
+    if collection_item is None:
+        return 'N'
+    else:
+        return 'Y'
+
+
 
 def get_dataset_collection(collection_id,**kwargs):
     try:
@@ -713,7 +851,7 @@ def get_dataset_collection_by_name(collection_name,**kwargs):
 
 def add_dataset_collection(collection,**kwargs):
 
-    coln_i = DatasetCollection(collection_name=collection.collection_name)
+    coln_i = DatasetCollection(collection_name=collection.name)
 
     for dataset_id in collection.dataset_ids:
         datasetitem = DatasetCollectionItem(dataset_id=dataset_id)
