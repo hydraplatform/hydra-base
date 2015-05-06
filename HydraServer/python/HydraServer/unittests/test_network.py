@@ -502,6 +502,7 @@ class NetworkTest(server.SoapServerTest):
 
         node_to_update = network.nodes.Node[0]
         node_to_update.name = "Updated Node Name"
+        node_to_update.layout      = {'app': ["Unit Test1", "Unit Test2"]}
 
         new_node = self.client.service.update_node(node_to_update)
 
@@ -511,6 +512,8 @@ class NetworkTest(server.SoapServerTest):
         for n in new_network.nodes.Node:
             if n.id == node_to_update.id:
                 updated_node = n
+        assert updated_node.layout is not None
+        assert updated_node.layout['app']  == ["Unit Test1", "Unit Test2"]
         assert updated_node.name == "Updated Node Name"
 
     def test_delete_node(self):
@@ -550,6 +553,7 @@ class NetworkTest(server.SoapServerTest):
 
         link_to_update = network.links.Link[0]
         link_to_update.name = "Updated link Name"
+        link_to_update.layout      = {'app': ["Unit Test1", "Unit Test2"]}
 
         new_link = self.client.service.update_link(link_to_update)
 
@@ -559,6 +563,8 @@ class NetworkTest(server.SoapServerTest):
         for l in new_network.links.Link:
             if l.id == link_to_update.id:
                 updated_link = l
+        assert updated_link.layout is not None
+        assert updated_link.layout['app']  == ["Unit Test1", "Unit Test2"]
         assert updated_link.name == "Updated link Name"
 
     def test_delete_link(self):

@@ -50,7 +50,6 @@ class ScenarioTest(server.SoapServerTest):
 
         new_resource_scenario = self.client.service.add_data_to_attribute(scenario_id, resource_attr_id, dataset)
 
-
         assert new_resource_scenario.value.value.desc_val == 'I am an updated test!', "Value was not updated correctly!!"
 
     def test_add_scenario(self):
@@ -740,6 +739,37 @@ class ScenarioTest(server.SoapServerTest):
             if rs.resource_attr_id == resource_attr_id:
                 assert rs.value.value.desc_val == 'I am an updated test!'
 
+    def test_add_data_to_attribute(self):
+
+        network =  self.create_network_with_data()
+       
+        empty_ra = network.links.Link[0].attributes.ResourceAttr[-1]
+
+        scenario = network.scenarios.Scenario[0]
+        scenario_id = scenario.id
+
+        resource_scenario = scenario.resourcescenarios.ResourceScenario[0]
+        resource_attr_id = resource_scenario.resource_attr_id
+
+        dataset = self.client.factory.create('ns1:Dataset')
+       
+        dataset = self.client.factory.create('ns1:Dataset')
+        dataset.type = 'descriptor'
+        dataset.name = 'Max Capacity'
+        dataset.unit = 'metres / second'
+        dataset.dimension = 'number of units per time unit'
+        
+        descriptor = self.client.factory.create('ns1:Descriptor')
+        descriptor.desc_val = 'I am an updated test!'
+
+        dataset.value = descriptor
+
+        updated_resource_scenario = self.client.service.add_data_to_attribute(scenario_id, resource_attr_id, dataset)
+
+        new_resource_scenario = self.client.service.add_data_to_attribute(scenario_id, empty_ra.id, dataset)
+
+        assert updated_resource_scenario.value.value.desc_val == 'I am an updated test!', "Value was not updated correctly!!"
+        assert new_resource_scenario.value.value.desc_val == 'I am an updated test!', "Value was not updated correctly!!"
 
 if __name__ == '__main__':
     server.run()

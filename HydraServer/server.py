@@ -221,7 +221,7 @@ class HydraServer():
         log.info("plugin_xsd_path %s",config.get('plugin', 'plugin_xsd_path'))
         log.info("log_config_path %s",config.get('logging_conf', 'log_config_path'))
         
-        port = config.getint('hydra_server', 'port', 12345)
+        port = config.getint('hydra_server', 'port', 8080)
         domain = config.get('hydra_server', 'domain', '127.0.0.1')
        
         check_port_available(domain, port)
@@ -229,7 +229,7 @@ class HydraServer():
         spyne.const.xml_ns.DEFAULT_NS = 'soap_server.hydra_complexmodels'
         cp_wsgi_application = CherryPyWSGIServer((domain,port), application, numthreads=1)
 
-        log.info("listening to http://%s:%s/soap", domain, port)
+        log.info("listening to http://%s:%s", domain, port)
         log.info("wsdl is at: http://%s:%s/soap/?wsdl", domain, port)
         try:
             cp_wsgi_application.start()
@@ -255,9 +255,9 @@ json_application = s.create_json_application()
 http_application = s.create_http_application()
 
 application = WsgiMounter({
-    'soap': soap_application,
-    'json': json_application,
-    'http': http_application,
+    config.get('hydra_server', 'soap_path', 'soap'): soap_application,
+    config.get('hydra_server', 'json_path', 'json'): json_application,
+    config.get('hydra_server', 'http_path', 'http'): http_application,
 })
 
 for server in application.mounts.values():

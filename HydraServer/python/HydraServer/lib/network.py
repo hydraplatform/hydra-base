@@ -1344,6 +1344,7 @@ def update_node(node,**kwargs):
     node_i.node_x    = node.x
     node_i.node_y    = node.y
     node_i.node_description = node.description
+    node_i.node_layout      = node.get_layout()
 
     _update_attributes(node_i, node.attributes)
 
@@ -1500,6 +1501,7 @@ def update_link(link,**kwargs):
     link_i.node_1_id = link.node_1_id
     link_i.node_2_id = link.node_2_id
     link_i.link_description = link.description
+    link_i.link_layout = link.get_layout()
 
     add_attributes(link_i, link.attributes)
     add_resource_types(link_i, link.types)
