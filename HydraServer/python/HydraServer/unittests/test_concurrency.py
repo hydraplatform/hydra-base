@@ -53,7 +53,8 @@ class ConcurrencyTest(server.SoapServerTest):
         token.app_name = "Unit Test"
 
         client.set_options(cache=None, soapheaders=token)
-        util.create_network_with_data(client, new_proj=True)
+        n = util.create_network_with_data(client, new_proj=True)
+        util.get_network(n.id)
 
         client.service.logout(user)
 

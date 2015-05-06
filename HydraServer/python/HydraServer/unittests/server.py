@@ -18,10 +18,6 @@
 import unittest
 import logging
 
-from HydraLib.dateutil import get_datetime
-from HydraLib.PluginLib import create_dict
-
-import datetime
 import util
 
 global CLIENT
