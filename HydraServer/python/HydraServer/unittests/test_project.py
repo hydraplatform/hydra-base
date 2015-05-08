@@ -24,11 +24,9 @@ import suds
 log = logging.getLogger(__name__)
 
 class ProjectTest(server.SoapServerTest):
-
-    #def __init__(self):
-    #    #super(ProjectTest).__init__(self)
-    #    pass
-
+    """
+        Test for working with projects in Hydra
+    """
 
     def add_attributes(self, proj):
         #Create some attributes, which we can then use to put data on our nodes

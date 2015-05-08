@@ -21,6 +21,9 @@ import suds
 import datetime
 
 class LoginTest(server.SoapServerTest):
+    """
+        Test for logins & logouts etc.
+    """
 
     #This relies on there being a user named 'root' with an empty password.
     def test_good_login(self):

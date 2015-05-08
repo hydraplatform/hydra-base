@@ -1,0 +1,71 @@
+ <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+     <xs:element name="plugin_info">
+         <xs:complexType>
+             <xs:sequence>
+                <xs:element name="plugin_name" type="xs:string"/>
+                <xs:element name="plugin_dir" type="xs:string"/>
+                <xs:element name="plugin_description" type="xs:string"/>
+                <xs:element name="plugin_epilog" type="xs:string"/>
+                <xs:element name="smallicon" type="xs:string"/>
+                <xs:element name="largeicon" type="xs:string"/>
+                <xs:element name="mandatory_args">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="arg" minOccurs="0" maxOccurs="unbounded">
+                                <xs:complexType>
+                                    <xs:sequence>
+                                        <xs:choice maxOccurs="unbounded">
+                                            <xs:element name="name" type="xs:string"/>
+                                            <xs:element name="switch" type="xs:string"/>
+                                            <xs:element name="multiple" type="xs:string"/>
+											<xs:element name="allownew" type="xs:string"/>
+                                            <xs:element name="argtype" type="xs:string"/>
+                                            <xs:element name="help" type="xs:string"/>
+                                        </xs:choice>
+                                    </xs:sequence>
+                                </xs:complexType>
+                            </xs:element>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+               <xs:element name="non_mandatory_args">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="arg" minOccurs="0" maxOccurs="unbounded">
+                                <xs:complexType>
+                                    <xs:sequence>
+                                        <xs:choice maxOccurs="unbounded">
+                                            <xs:element name="name" type="xs:string"/>
+                                            <xs:element name="switch" type="xs:string"/>
+                                            <xs:element name="multiple" type="xs:string"/>
+											<xs:element name="allownew" type="xs:string"/>
+                                            <xs:element name="argtype" type="xs:string"/>
+                                            <xs:element name="help" type="xs:string"/>
+                                        </xs:choice>
+                                    </xs:sequence>
+                                </xs:complexType>
+                            </xs:element>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element> 
+                <xs:element name="switches">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="arg" minOccurs="0" maxOccurs="unbounded">
+                                <xs:complexType>
+                                    <xs:sequence>
+                                        <xs:choice maxOccurs="unbounded">
+                                            <xs:element name="name" type="xs:string"/>
+                                            <xs:element name="switch" type="xs:string"/>
+                                            <xs:element name="help" type="xs:string"/>
+                                        </xs:choice>
+                                    </xs:sequence>
+                                </xs:complexType>
+                            </xs:element>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+             </xs:sequence>
+         </xs:complexType>
+     </xs:element>
+ </xs:schema>

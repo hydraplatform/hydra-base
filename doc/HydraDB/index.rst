@@ -215,7 +215,7 @@ look in tDescriptor for data_id 1.
  * cr_date: Creation date
 
 tDatasetCollection
-^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^
 
 Collections datasets into named sets for easy & convenient categorisation.
 
@@ -223,7 +223,7 @@ Collections datasets into named sets for easy & convenient categorisation.
  * collection_id  : Unique identifier for the collection. PK.
 
 tDatasetCollectionItem
-^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^
 
 Keeps track of which piece of data is in which collection.
 

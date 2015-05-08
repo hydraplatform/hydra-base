@@ -21,6 +21,9 @@ import logging
 log = logging.getLogger(__name__)
 
 class AttributeTest(server.SoapServerTest):
+    """
+        Test for attribute-based functionality
+    """
     def test_get_network_attrs(self):
         net = self.create_network_with_data()
 

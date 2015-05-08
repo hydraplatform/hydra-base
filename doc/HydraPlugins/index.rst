@@ -10,7 +10,6 @@ Core plug-ins
    importcsv
    exportcsv
    importwml
-   GAMS
 
 
 

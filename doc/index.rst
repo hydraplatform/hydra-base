@@ -52,7 +52,7 @@ Tests
 .. toctree::
    :maxdepth: 1
 
-   /python/unittests
+   HydraServer/unittests
 
 
 Miscellaneous

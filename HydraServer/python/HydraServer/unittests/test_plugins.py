@@ -24,7 +24,9 @@ import os
 log = logging.getLogger(__name__)
 
 class PluginsTest(server.SoapServerTest):
-
+    """
+        Test which runs a number of plugins 
+    """
     def get_plugins(self):
         plugins = self.client.service.get_plugins()
 

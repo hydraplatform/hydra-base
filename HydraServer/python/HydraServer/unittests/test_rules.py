@@ -22,6 +22,10 @@ from suds import WebFault
 log = logging.getLogger(__name__)
 
 class RuleTest(server.SoapServerTest):
+    """
+        Test for rules
+    """
+
     def test_add_rule(self):
         net = self.create_network_with_data()
 

@@ -26,7 +26,13 @@ import json
 log = logging.getLogger(__name__)
 
 class TimeSeriesTest(server.SoapServerTest):
+    """
+        Test for timeseries-based functionality
+    """
     def test_relative_timeseries(self):
+        """
+            Test for relative timeseries for example, x number of hours from hour 0.
+        """
         net = self.build_network()
 
         relative_ts = self.create_relative_timeseries()

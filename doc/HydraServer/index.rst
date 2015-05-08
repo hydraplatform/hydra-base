@@ -1,14 +1,14 @@
 Database Objects
 ================
 
-.. automodule:: db.model
+.. automodule:: HydraServer.db.model
     :members:
     :exclude-members: and_, case, relationship, text
 
 Soap Objects
 ============
 
-.. automodule:: soap_server.hydra_complexmodels
+.. automodule:: HydraServer.soap_server.hydra_complexmodels
     :members:
 
 API functions
@@ -17,7 +17,7 @@ API functions
 Projects
 --------
 
-.. automodule:: soap_server.project
+.. automodule:: HydraServer.soap_server.project
    :members:
 
 Networks (Inc nodes & links)
@@ -30,47 +30,47 @@ Generally speaking, a network consists of nodes and links. Each node can be
 connected to other one or several nodes through one or several links. Each link
 connects exactly two nodes. 
 
-.. automodule:: soap_server.network
+.. automodule:: HydraServer.soap_server.network
    :members:
 
 Attributes
 ----------
 
-.. automodule:: soap_server.attributes
+.. automodule:: HydraServer.soap_server.attributes
    :members:
 
 Scenarios
 ---------
 
-.. automodule:: soap_server.scenario
+.. automodule:: HydraServer.soap_server.scenario
    :members:
 
 User Management
 ---------------
 
-.. automodule:: soap_server.users
+.. automodule:: HydraServer.soap_server.users
    :members:
 
 Plugins
 -------
 
-.. automodule:: soap_server.plugins
+.. automodule:: HydraServer.soap_server.plugins
    :members:
 
 Resource Templates
 ------------------
 
-.. automodule:: soap_server.template
+.. automodule:: HydraServer.soap_server.template
    :members:
 
 Units and Dimensions
 --------------------
 
-.. automodule:: soap_server.units
+.. automodule:: HydraServer.soap_server.units
    :members:
 
 Static Files
 ------------
 
-.. automodule:: soap_server.static
+.. automodule:: HydraServer.soap_server.static
    :members:

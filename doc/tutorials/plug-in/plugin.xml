@@ -1,0 +1,131 @@
+<plugin_info>
+    <plugin_name>Import CSV Plugin</plugin_name>
+    <plugin_dir>ImportCSV.exe</plugin_dir>
+    <plugin_description>Import a network saved in a set of CSV files into Hydra.</plugin_description>
+    <plugin_epilog>
+        Written by Philipp Meier philipp@diemeiers.ch
+        (c) Copyright 2013, University College London.
+        For more information visit www.hydra-network.com
+    </plugin_epilog>
+    <smallicon>icon16.png</smallicon>
+    <largeicon>icon32.png</largeicon>
+    <mandatory_args>
+        <arg>
+            <name>nodes</name>
+            <switch>-n</switch>
+            <multiple>Y</multiple>
+            <argtype>file</argtype>
+            <help>One or multiple files containing nodes and
+                        attributes.</help>
+        </arg>
+        <arg>
+            <name>links</name>
+            <switch>-l</switch>
+            <multiple>Y</multiple>
+            <argtype>file</argtype>
+            <help>One or multiple files containing information
+                        on links.</help>
+        </arg>
+    </mandatory_args>
+   <non_mandatory_args>
+       <arg>
+           <name>project</name>
+           <switch>-p</switch>
+           <multiple>N</multiple>
+           <argtype>string</argtype>
+           <help>The ID of an existing project. If no project is
+                        specified or if the ID provided does not belong to an
+                        existing project, a new one will be created.</help>
+        </arg>
+        <arg>
+           <name>scenario</name>
+           <switch>-s</switch>
+           <multiple>N</multiple>
+           <argtype>string</argtype>
+           <help>Specify the name of the scenario created by the
+                        import function. Every import creates a new scenario.
+                        If no name is provided a default name will be assigned.</help>
+        </arg>
+        <arg>
+           <name>network_id</name>
+           <switch>-i</switch>
+           <multiple>N</multiple>
+           <argtype>string</argtype>
+           <help>The ID of an existing network. If no network_id is
+               specified, a new network will be created. If a network
+               id is specified, the network will be updated and a new scenario
+               created for the data.
+           </help>
+        </arg>
+        <arg>
+           <name>network</name>
+           <switch>-t</switch>
+           <multiple>N</multiple>
+           <argtype>string</argtype>
+           <help>Specify the file containing network
+                        information. If no file is specified, a new network
+                        will be created using default values.</help>
+        </arg>
+        <arg>
+           <name>timezone</name>
+           <switch>-z</switch>
+           <multiple>N</multiple>
+           <argtype>string</argtype>
+           <help>Specify a timezone as a string following the
+                        Area/Location pattern (e.g. Europe/London). This
+                        timezone will be used for all timeseries data that is
+                        imported. If you don't specify a timezone, it defaults
+                        to UTC.</help>
+        </arg>
+        <arg>
+            <name>groups</name>
+            <switch>-g</switch>
+            <multiple>Y</multiple>
+            <argtype>file</argtype>
+            <help>One or multiple files containing information
+                        on groups.</help>
+        </arg>
+        <arg>
+            <name>group_members</name>
+            <switch>-k</switch>
+            <multiple>Y</multiple>
+            <argtype>file</argtype>
+            <help>One or multiple files containing information on the members of the
+            groups specified in the -g argument.</help>
+        </arg>
+        <arg>
+            <name>template</name>
+            <switch>-m</switch>
+            <multiple>N</multiple>
+            <argtype>file</argtype>
+            <help>One XML containing the template appropriate 
+                to the network bing imported.</help>
+        </arg>
+        <arg>
+            <name>server_url</name>
+            <switch>-u</switch>
+            <multiple>N</multiple>
+            <argtype>string</argtype>
+            <help>Specify the URL of the server to which this
+                        plug-in connects.</help>
+        </arg>
+        <arg>
+            <name>session_id</name>
+            <switch>-c</switch>
+            <multiple>N</multiple>
+            <argtype>string</argtype>
+            <help>Specify the session ID for the connection. If not specified,
+            the plugin will try to connect based on the credentials it finds in config</help>
+        </arg>
+    </non_mandatory_args> 
+    <switches>
+        <arg>
+            <switch>-x</switch>
+            <name>expand-filenames</name>
+            <help>If the import function encounters something
+                        that looks like a filename, it tries to read the file.
+                        It also tries to guess if it contains a number, a
+                        descriptor, an array or a time series.</help>
+        </arg>
+    </switches>
+ </plugin_info>

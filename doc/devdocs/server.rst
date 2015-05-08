@@ -46,10 +46,12 @@ The server can now be run in the commandline::
 Installing Python
 -----------------
 Several installations of python are available.
-The one we recommend is `PythonXY http://code.google.com/p/pythonxy/wiki/Downloads`_
+The one we recommend is PythonXY_
+
+.. _PythonXY: http://code.google.com/p/pythonxy/wiki/Downloads
 
 Some of the libraries may require you to install them from source. This means
-running a setup python file in a zip file you have downloaded. To ensure you can unzip the files correctly, make sure you have an unzip program installed like `PeaZip: http://peazip.sourceforge.net/`_
+running a setup python file in a zip file you have downloaded. To ensure you can unzip the files correctly, make sure you have an unzip program installed like `PeaZip <http://peazip.sourceforge.net/>`_
 
 For the moment, we recommend installing the 32 bit version of python, even
 if your operating system is 64 bit. This ensures maximum compatability, particularly
@@ -61,9 +63,11 @@ Additional Libraries
 --------------------
 First off, you need to install Pip. This is a tool which downloads and installs python libraries for you.
 
-- Navigate to: http://www.lfd.uci.edu/~gohlke/pythonlibs/
+- Navigate to pythonlibs_
 - Search for Pip
 - Download and install this exe: pip-2.4.1.win32-py2.7.exe
+
+.. _pythonlibs: http://www.lfd.uci.edu/~gohlke/pythonlibs/
 
 To use Pip, open the command prompt.
 
@@ -197,6 +201,6 @@ lxml
 Lxml is an efficient library for parsing XML content.
 
 pywin32:
-*******
+********
 If you plan on building the server into an exe, you will need this:
 http://sourceforge.net/projects/pywin32/

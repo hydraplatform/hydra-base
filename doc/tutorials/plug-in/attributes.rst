@@ -1,3 +1,5 @@
+.. _attributes:
+
 Attributes
 ==========
 As well as having a topological structure (nodes connected by links), a network
@@ -9,12 +11,14 @@ and daily throughput of water measured in megalitres per second.
 An *Attr* in hydra is the definition of an attribute which can be assigned
 to a resource.
 Attributes are then linked to resources (nodes or links) using ``ResourceAttributes``. 
-ResourceAttributes can then be linked to a specific value through a scenario (see scenario_).
+ResourceAttributes can then be linked to a specific value through a scenario (see :ref:`scenarios`).
 
 An attribute is uniquely identified by its name and dimension.
 
 Before resources can be given attributes, the Attributes must be defined.
-::
+
+.. code-block:: python
+
     attr = client.factory.create('hyd:Attr')
     attr.name = "Daily Throughput"
     attr.dimension = "Volumetric flow rate"
@@ -32,7 +36,8 @@ to be defined (see above). Next, the node(s) needs to be linked to the attribute
 This can be done when creating the network for the first time or retrospectively.
 This example shows Daily Throughput from above being assigned to a node before the network
 is added:
-::
+
+.. code-block:: python
 
     #Create the project
     ...
@@ -62,7 +67,9 @@ is added:
 
 There are a few interesting things to investigate here. For example, what is
 `ref key` and why do we need to define it?
-::
+
+.. code-block:: python
+
     node1_throughput.ref_key = 'NODE'
 
 A ResourceAttr is a general object which can be applied to several different
@@ -72,7 +79,9 @@ used. This is particularly interesting later, where many attributes can be loade
 from the server at once, so knowing which one points where is necessary.
 
 Next, what is `attr_is_var`?
-::
+
+.. code-block:: python
+
     node1_throughpyt.attr_is_var = 'N'
 
 This indicates whether data should be assigned to this resource attr or not. If
@@ -89,7 +98,9 @@ At this stage, the 'cost' attribute is calculated in the app and these attribute
 can be filled in.
 
 Finally, why is the id -1?
-::
+
+.. code-block:: python
+
     node1_throughput.id = -1
 
 **Negative IDs** are the way Hydra deals with objects referencing each other but
