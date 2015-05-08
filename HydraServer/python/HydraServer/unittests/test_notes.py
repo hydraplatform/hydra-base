@@ -23,7 +23,12 @@ from suds import WebFault
 log = logging.getLogger(__name__)
 
 class NoteTest(server.SoapServerTest):
+    """
+        Test for notes in Hydra
+    """
     def test_add_note(self):
+        """
+        """
         net = self.create_network_with_data()
 
         s = net['scenarios'].Scenario[0]

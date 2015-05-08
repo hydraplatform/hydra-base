@@ -28,6 +28,10 @@ log.setLevel(logging.ERROR)
 url = "http://ec2-54-229-95-247.eu-west-1.compute.amazonaws.com/hydra-server/soap/?wsdl"
 
 class ConcurrencyTest(server.SoapServerTest):
+    """
+        Test for concurrency in Hydra
+    """
+
     def setUp(self):
         self.url = url
         super(ConcurrencyTest, self).setUp()

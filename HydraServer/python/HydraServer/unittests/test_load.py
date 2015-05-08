@@ -24,6 +24,9 @@ log = logging.getLogger(__name__)
 import cProfile, pstats, StringIO
 
 class NetworkTest(server.SoapServerTest):
+    """
+        Test for large loads (adding a large network).
+    """
 
     def create_large_network(self):
         self.create_network_with_data(num_nodes=1000, ret_full_net=False)

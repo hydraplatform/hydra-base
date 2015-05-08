@@ -1,0 +1,113 @@
+<template_definition>
+    <template_name>Test XML Template</template_name>
+        <layout>
+        <item>
+            <name>groups</name>
+            <value>
+                <groups>
+                    <group>
+                        <name>Hydrological Boundaries</name>
+                        <description>Hydrological Boundary Units</description>
+                        <displayname>Hydrological</displayname>
+                        <subgroups>
+                            <subgroup>
+                                <name>Flow Boundaries</name>
+                                <description>Hydrological Boundary Units</description>
+                            </subgroup>
+                        </subgroups>
+                    </group>
+                    <group>
+                        <name>Weirs</name>
+                        <description>All types of weir</description>
+                        <displayname>Weir</displayname>
+                        <subgroups>
+                            <subgroup>
+                                <name>SC Weir</name>
+                                <description>Sharp crested weir</description>
+                            </subgroup>
+                            <subgroup>
+                                <name>RN Weir</name>           
+                                <description>Round nosed weir</description>
+                            </subgroup>
+                            <subgroup>
+                                <name>Gen Weir</name>
+                                <description>General weir</description>
+                            </subgroup>
+                        </subgroups>
+                    </group>
+                </groups>
+            </value>
+        </item>
+    </layout>
+    <resources>
+        <resource>
+            <type>NODE</type>
+            <name>Reservoir</name>
+            <alias>Reservoir</alias>
+            <layout>
+                <item>
+                    <name>color</name>
+                    <value>red</value>
+                </item>
+                <item>
+                    <name>shapefile</name>
+                    <value>blah.shp</value>
+                </item>
+            </layout>
+            <attribute>
+                <name>Min Capacity</name>
+                <!--<dimension>Volume</dimension>-->
+                <unit>m^3</unit>
+                <is_var>Y</is_var>
+                <data_type>scalar</data_type>
+            </attribute>
+            <attribute>
+                <name>Max Capacity</name>
+                <dimension>Volume</dimension>
+                <default>
+                    <value>100</value>
+                    <unit>m^3</unit>
+                 </default>
+                <data_type>scalar</data_type>
+            </attribute>
+            <attribute>
+                <name>Throughput</name>
+                <dimension>Volumetric flow rate</dimension>
+                <default>
+                    <value>100</value>
+                    <unit>m^3 s^-1</unit>
+                 </default>
+                <data_type>scalar</data_type>
+            </attribute>
+        </resource>
+        <resource>
+            <type>NODE</type>
+            <name>Desalination Plant</name>
+            <alias>Desalination Plant</alias>
+            <attribute>
+                <name>Min Capacity</name>
+                <dimension>Volume</dimension>
+                <default>
+                    <value>0</value>
+                    <unit>cm^3</unit>
+                 </default>
+            </attribute>
+            <attribute>
+                <name>Inflow</name>
+                <dimension>Volumetric flow rate</dimension>
+                <default>
+                    <value>100</value>
+                    <unit>m^3 s^-1</unit>
+                 </default>
+            </attribute>
+            <attribute>
+                <name>Energy Price</name>
+                <dimension>energy price</dimension>
+                <default>
+                    <value>1.25</value>
+                    <unit>USD kJ^-1</unit>
+                 </default>
+            </attribute>
+        </resource>
+    </resources>
+</template_definition>

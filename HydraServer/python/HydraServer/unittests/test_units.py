@@ -24,7 +24,9 @@ from HydraLib import PluginLib
 
 
 class UnitsTest(server.SoapServerTest):
-
+    """
+        Test for working with units.
+    """
     def test_get_dimensions(self):
 
         dimension_list = self.client.service.get_dimensions()

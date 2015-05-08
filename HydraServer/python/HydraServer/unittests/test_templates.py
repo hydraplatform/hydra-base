@@ -25,7 +25,9 @@ from suds import WebFault
 log = logging.getLogger(__name__)
 
 class TemplatesTest(server.SoapServerTest):
-
+    """
+        Test for templates
+    """
     def set_template(self, template):
         if template is None:
             self.template = self.test_add_template()

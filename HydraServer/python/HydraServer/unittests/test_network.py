@@ -24,6 +24,9 @@ import datetime
 log = logging.getLogger(__name__)
 
 class NetworkTest(server.SoapServerTest):
+    """
+        Test for network-based functionality
+    """
 
     def test_get_resources_of_type(self):
         """
@@ -823,10 +826,9 @@ class NetworkTest(server.SoapServerTest):
             Test to ensure that updating a network which has not changed
             does not cause any changes to the network.
             Procedure:
-                1: Create a network.
-                2: Immediately update the network without changing it.
-                3: Check that the original network and the updated network
-                   are identical.
+            1 Create a network.
+            2 Immediately update the network without changing it.
+            3 Check that the original network and the updated network are identical.
         """
         net = self.create_network_with_data()
 
