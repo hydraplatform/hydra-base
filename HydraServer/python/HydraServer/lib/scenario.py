@@ -281,7 +281,10 @@ def purge_scenario(scenario_id, **kwargs):
     return 'OK' 
 
 def clone_scenario(scenario_id,**kwargs):
+
     scen_i = _get_scenario(scenario_id)
+
+    log.info("cloning scenario %s", scen_i.scenario_name)
 
     cloned_name = "%s (clone)"%(scen_i.scenario_name)
 
@@ -294,6 +297,8 @@ def clone_scenario(scenario_id,**kwargs):
     if num_cloned_scenarios > 0:
         cloned_name = cloned_name + " %s"%(num_cloned_scenarios)
 
+    log.info("Cloned scenario name is %s", cloned_name)
+
     cloned_scen = Scenario()
     cloned_scen.network_id           = scen_i.network_id
     cloned_scen.scenario_name        = cloned_name 
@@ -303,6 +308,8 @@ def clone_scenario(scenario_id,**kwargs):
     cloned_scen.start_time           = scen_i.start_time
     cloned_scen.end_time             = scen_i.end_time
     cloned_scen.time_step            = scen_i.time_step
+
+    log.info("New scenario created")
 
     for rs in scen_i.resourcescenarios:
         new_rs = ResourceScenario()
@@ -316,6 +323,8 @@ def clone_scenario(scenario_id,**kwargs):
 
         cloned_scen.resourcescenarios.append(new_rs)
 
+    log.info("ResourceScenarios cloned")
+
     for resourcegroupitem_i in scen_i.resourcegroupitems:
         new_resourcegroupitem_i = ResourceGroupItem()
         new_resourcegroupitem_i.ref_key     = resourcegroupitem_i.ref_key
@@ -324,9 +333,12 @@ def clone_scenario(scenario_id,**kwargs):
         new_resourcegroupitem_i.subgroup_id      = resourcegroupitem_i.subgroup_id
         new_resourcegroupitem_i.group_id    = resourcegroupitem_i.group_id
         cloned_scen.resourcegroupitems.append(new_resourcegroupitem_i)
+    log.info("Resource group items cloned.")
 
     DBSession.add(cloned_scen)
     DBSession.flush()
+
+    log.info("Cloning finished.")
 
     return cloned_scen
 
