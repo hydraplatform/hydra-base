@@ -475,6 +475,9 @@ def _get_protocol(url):
     else:
         return 'http'
 
+class RequestError(HydraPluginError):
+    pass
+
 class JsonConnection(object):
     url = None
     session_id = None
@@ -513,7 +516,7 @@ class JsonConnection(object):
                     err = r.content
                 else:
                     err = "An unknown server has occurred."
-            raise HydraPluginError(err)
+            raise RequestError(err)
 
         ret_obj = json.loads(r.content, object_hook=object_hook)
 
