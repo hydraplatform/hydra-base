@@ -571,6 +571,13 @@ def update_resourcedata(scenario_id, resource_scenarios,**kwargs):
         Update the data associated with a scenario.
         Data missing from the resource scenario will not be removed
         from the scenario. Use the remove_resourcedata for this task.
+
+        If the resource scenario does not exist, it will be created.
+        If the value of the resource scenario is specified as being None, the
+        resource scenario will be deleted.
+        If the value of the resource scenario does not exist, it will be created.
+        If the both the resource scenario and value already exist, the resource scenario
+        will be updated with the ID of the dataset.
     """
     user_id = kwargs.get('user_id')
     res = None
