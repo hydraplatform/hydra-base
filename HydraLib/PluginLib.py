@@ -26,6 +26,7 @@ log = logging.getLogger(__name__)
 from lxml import objectify
 from lxml import etree
 from lxml.etree import XMLParser
+from lxml.etree import XMLSyntaxError, ParseError
 from HydraException import HydraPluginError
 import requests
 import json
@@ -476,6 +477,9 @@ def _get_protocol(url):
     else:
         return 'http'
 
+class RequestError(HydraPluginError):
+    pass
+
 class JsonConnection(object):
     url = None
     session_id = None
@@ -517,7 +521,7 @@ class JsonConnection(object):
                     err = r.content
                 else:
                     err = "An unknown server has occurred."
-            raise HydraPluginError(err)
+            raise RequestError(err)
 
         if self.session_id is None:
             self.session_id = r.cookies['beaker.session.id']
@@ -857,6 +861,10 @@ def validate_plugin_xml(plugin_xml_file_path):
         xmlschema_doc = etree.parse(plugin_xsd_path)
         xmlschema = etree.XMLSchema(xmlschema_doc)
         xml_tree = etree.fromstring(plugin_xml)
+    except XMLSyntaxError, e:
+        raise HydraPluginError("There is an error in your XML syntax: %s"%e)
+    except ParseError, e:
+        raise HydraPluginError("There is an error in your XML: %s"%e)
     except:
         raise HydraPluginError("Couldn't find xsd to validate plugin.xml! Please check config.")
 

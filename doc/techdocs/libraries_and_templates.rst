@@ -1,3 +1,5 @@
+.. _libraries_and_templates:
+
 Libraries and templates
 =======================
 

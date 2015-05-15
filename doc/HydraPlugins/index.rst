@@ -1,8 +1,8 @@
-Hydra plug-ins
-==============
+Hydra Apps 
+==========
 
-Core plug-ins
--------------
+Current Apps
+------------
 
 .. toctree::
    :maxdepth: 2
@@ -13,10 +13,17 @@ Core plug-ins
 
 
 
-Plugin development
-------------------
+App development
+---------------
 
 .. toctree::
    :maxdepth: 2
 
-   tutorial
+   tutorial_json
+   tutorial_soap
+   tutorial_xml
+   projects
+   networks
+   attributes
+   datasets
+   scenarios
