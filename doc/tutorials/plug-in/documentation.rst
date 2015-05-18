@@ -1,11 +1,14 @@
 Documentation
 =============
 A very important aspect of plugins is documenation, saying what the plugin does and how it works. The convention we use here is shown below. This formatted using 
-the `sphinx <http://sphinx-doc.org/>`_ convention, so that it can be converted to HTML easily.
+the `restructured text <http://docutils.sourceforge.net/rst.html>`_ convention, so that it can be converted to HTML easily.
 Note how the table boundaries all line up.
 
 This should be the very first lines in your file, after ``#!/usr/bin/env python``
 and any licensing details.
+
+As an example of this in action, and how useful it is, see :ref:`importcsv` which
+was created from this approach.
 
 ::
 
