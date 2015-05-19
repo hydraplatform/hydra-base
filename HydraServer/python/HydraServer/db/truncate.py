@@ -81,7 +81,7 @@ def truncate_all_audit_tables():
         else:
             tables[table_name] = table
 
-    for t in tables.keys():
+    for t in tables:
        table       = tables[t]
        audit_table = audit_tables.get("%s_aud"%(t))
        if audit_table is None:

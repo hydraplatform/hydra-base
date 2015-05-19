@@ -517,10 +517,10 @@ class DataCollectionTest(server.SoapServerTest):
                 grp_dataset_ids.integer.append(d.id)
                 break
         
-        dataset_ids_to_add = self.client.factory.create("integerArray")
+        dataset_ids_to_add = self.client.factory.create("intArray")
         for d in scenario_data.Dataset:
             if d.type == 'array' and d.id != dataset_id:
-                dataset_ids_to_add.integer.append(d.id)
+                dataset_ids_to_add.int.append(d.id)
 
         collection.dataset_ids = grp_dataset_ids 
         collection.name  = 'test soap collection %s'%(datetime.datetime.now())
@@ -539,7 +539,7 @@ class DataCollectionTest(server.SoapServerTest):
         for d_id in updated_collection.dataset_ids.integer:
             new_dataset_ids.append(d_id)
         
-        assert set(new_dataset_ids) - set(previous_dataset_ids) == set(dataset_ids_to_add.integer)
+        assert set(new_dataset_ids) - set(previous_dataset_ids) == set(dataset_ids_to_add.int)
         
 
     def test_remove_dataset_from_collection(self):

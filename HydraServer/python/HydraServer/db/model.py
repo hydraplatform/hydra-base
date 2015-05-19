@@ -95,7 +95,7 @@ class Dataset(Base):
         existing_metadata = []
         for m in self.metadata:
             existing_metadata.append(m.metadata_name)
-            if m.metadata_name in metadata_dict.keys():
+            if m.metadata_name in metadata_dict:
                 if m.metadata_val != metadata_dict[m.metadata_name]:
                     m.metadata_val = metadata_dict[m.metadata_name]
 

@@ -711,7 +711,7 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
     for attr in resource.attributes:
         existing_attr_ids.append(attr.attr_id)
 
-    if type_id in types.keys():
+    if type_id in types:
         type_i = types[type_id]
     else:
         type_i = DBSession.query(TemplateType).filter(TemplateType.type_id==type_id).options(joinedload_all('typeattrs')).one()
@@ -1186,14 +1186,12 @@ def _validate_resource(resource, tmpl_types, resource_scenarios=[]):
     errors = []
     resource_type = None 
     
-    type_ids = tmpl_types.keys()
-    
     #No validation required if the link has no type.
     if len(resource.types) == 0:
         return []
 
     for rt in resource.types:
-        if rt.type_id in type_ids:
+        if tmpl_types.get(rt.type_id) is not None:
                 resource_type = tmpl_types[rt.type_id]
                 break
         else:

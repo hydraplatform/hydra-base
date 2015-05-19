@@ -26,6 +26,9 @@ CLIENT = None
 log = logging.getLogger(__name__)
 log.setLevel(logging.ERROR)
 
+def connect():
+    return util.connect()
+
 class SoapServerTest(unittest.TestCase):
     url = None
     def setUp(self):
@@ -47,16 +50,15 @@ class SoapServerTest(unittest.TestCase):
         self.create_user("UserC")
         self.project_id = self.create_project().id
 
-
     def tearDown(self):
         log.debug("Tearing down")
         self.logout('root')
 
     def login(self, username, password):
-        util.login(self.client, username, password)
+        return util.login(self.client, username, password)
 
     def logout(self, username):
-        util.logout(self.client, username)
+        return util.logout(self.client, username)
 
     def create_user(self, name):
         return util.create_user(self.client, name)
@@ -75,14 +77,14 @@ class SoapServerTest(unittest.TestCase):
     def create_attr(self, name="Test attribute", dimension="dimensionless"):
         return util.create_attr(self.client, name, dimension)
 
-    def build_network(self, project_id=None, num_nodes=10, new_proj=False,
+    def build_network(self, project_id=None, num_nodes=10, new_proj=True,
                       map_projection='EPSG:4326'):
         return util.build_network(self.client, project_id, num_nodes, new_proj, map_projection)
 
     def create_network_with_data(self, project_id=None, num_nodes=10,
                                  ret_full_net=True, new_proj=False,
                                  map_projection='EPSG:4326'):
-        if project_id is None:
+        if project_id is None and new_proj is False:
             project_id = self.project_id
         return util.create_network_with_data(self.client, project_id, num_nodes,ret_full_net, new_proj,map_projection)
 

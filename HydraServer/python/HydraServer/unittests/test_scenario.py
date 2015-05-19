@@ -158,7 +158,8 @@ class ScenarioTest(server.SoapServerTest):
 
         assert dataset_scenarios.Scenario[0].id == scenario.id
         
-        new_scenario = self.client.service.clone_scenario(scenario.id)
+        clone = self.client.service.clone_scenario(scenario.id)
+        new_scenario = self.client.service.get_scenario(clone.id)
 
         dataset_scenarios = self.client.service.get_dataset_scenarios(dataset_id_to_check)
 
@@ -264,7 +265,8 @@ class ScenarioTest(server.SoapServerTest):
         """
         network1 = self.create_network_with_data()
         scenario1_to_update = network1.scenarios.Scenario[0] 
-        scenario2_to_update = self.client.service.clone_scenario(network1.scenarios.Scenario[0].id)
+        clone = self.client.service.clone_scenario(network1.scenarios.Scenario[0].id)
+        scenario2_to_update = self.client.service.get_scenario(clone.id)
 
         #Identify 2 nodes to play around with -- the first and last in the list.
         node1 = network1.nodes.Node[0]
@@ -367,7 +369,8 @@ class ScenarioTest(server.SoapServerTest):
         scenario = network.scenarios.Scenario[0]
         scenario_id = scenario.id
 
-        new_scenario = self.client.service.clone_scenario(scenario_id)
+        clone = self.client.service.clone_scenario(scenario_id)
+        new_scenario = self.client.service.get_scenario(clone.id)
 
 
         updated_network = self.client.service.get_network(new_scenario.network_id)
@@ -409,7 +412,8 @@ class ScenarioTest(server.SoapServerTest):
         scenario = network.scenarios.Scenario[0]
         scenario_id = scenario.id
 
-        new_scenario = self.client.service.clone_scenario(scenario_id)
+        clone = self.client.service.clone_scenario(scenario_id)
+        new_scenario = self.client.service.get_scenario(clone.id)
 
     #    self.create_constraint(network, constant=4)
 
@@ -520,7 +524,8 @@ class ScenarioTest(server.SoapServerTest):
         scenario_id = scenario_to_lock.id
         
         log.info('Cloning scenario %s'%scenario_id)
-        unlocked_scenario = self.client.service.clone_scenario(scenario_id)
+        clone = self.client.service.clone_scenario(scenario_id)
+        unlocked_scenario = self.client.service.get_scenario(clone.id)
         
         log.info("Locking scenario")
         self.client.service.lock_scenario(scenario_id)
@@ -669,7 +674,8 @@ class ScenarioTest(server.SoapServerTest):
         scenario = network.scenarios.Scenario[0]
         source_scenario_id = scenario.id
 
-        cloned_scenario = self.client.service.clone_scenario(source_scenario_id)
+        clone = self.client.service.clone_scenario(source_scenario_id)
+        cloned_scenario = self.client.service.get_scenario(clone.id)
 
         resource_scenario = cloned_scenario.resourcescenarios.ResourceScenario[0]
         resource_attr_id = resource_scenario.resource_attr_id
@@ -711,7 +717,8 @@ class ScenarioTest(server.SoapServerTest):
         scenario = network.scenarios.Scenario[0]
         source_scenario_id = scenario.id
 
-        cloned_scenario = self.client.service.clone_scenario(source_scenario_id)
+        clone = self.client.service.clone_scenario(source_scenario_id)
+        cloned_scenario = self.client.service.get_scenario(clone.id)
 
         resource_scenario = cloned_scenario.resourcescenarios.ResourceScenario[0]
         resource_attr_id = resource_scenario.resource_attr_id
