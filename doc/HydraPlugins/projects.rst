@@ -1,3 +1,5 @@
+.. _projects:
+
 Working with projects
 =====================
 A project is the most fundamental structure in Hydra. Without
@@ -13,7 +15,9 @@ thing one would do in Hydra.
 Creating a project
 ------------------
 Creating an empty project is very simple..
-::
+
+.. code-block:: python
+
     #create a new project object
     proj      = self.client.factory.create('hyd:Project')
     #give your project a name
@@ -26,7 +30,9 @@ Accessing projects
 Once a project has been created, a user can access it using ``get_project`` and
 passing the project ID. The user must be logged in in order to access their
 project.
-::
+
+.. code-block:: python
+
     #...connect..
     project_id = 1232
     proj = client.service.get_project(project_id)
@@ -41,25 +47,29 @@ If a user no longer has any need for their project, they can delete it.
 ``deleting`` does not remove the project from the databaset. To do this, 
 the user must ``purge`` the database. **WARNING** As a project is the top of the
 hierarchy, purging it will purge ALL its networks!
-::
+
+.. code-block:: python
+
     #...connect...
 
     project_id = 1232
-    my_projects = delete_project(my_user_id)
+    my_projects = client.service.delete_project(my_user_id)
 
     #..or..
     #WARNING: This will remove a project and ALL the networks inside it!
-    my_projects = purge_project(my_user_id)
+    my_projects = client.service.purge_project(my_user_id)
 
 Sharing projects
 ----------------
 It is not uncommon for multiple people to be working on the same project. To
-factilitate this, the owner of a project can share the project with other users.
+facilitate this, the owner of a project can share the project with other users.
 The owner can control whether the sharee can only see the project, see and edit
 the project or see, edit and share the project. To avoid sharing getting out of control, only the creator (owner) of a project has control over the re-share
 permission. In other words, if user A shares with user B, who shares with 
 user C, user C cannot share with anyone.
-::
+
+.. code-block:: python
+
     my_user_id = 1
     my_friends_user_id = 2
 

@@ -20,6 +20,9 @@ import server
 import base64
 
 class ImageTest(server.SoapServerTest):
+    """
+        Tests for the basic image storage in hydra
+    """
 
     def test_upload(self):
         imageFile = open('hydra.jpg','rb')

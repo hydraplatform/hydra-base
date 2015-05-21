@@ -1,3 +1,5 @@
+.. _scenarios:
+
 Working with scenarios
 ======================
 
@@ -18,11 +20,13 @@ resources (nodes and links) and data are not directly linked.
 
 Creating a scenario
 *******************
-Scenarios can be created as part of network creation (see networks_ for details
+Scenarios can be created as part of network creation (see :ref:`networks` for details
 on how to create a network).
 
 Scenarios are added to a network in the samee way as nodes and links
-::
+
+.. code-block:: python
+
     #Create a project
     ...
     #Define a basic network
@@ -48,8 +52,10 @@ of the nodes and links in the network. This is done using 'ResourceScenario' obj
 These are simply objects which link Datasets with ResourceAttrs.
 
 First, we must create some data:
-::
-    dataset = client.factory.create('hyd:Dataset)
+
+.. code-block:: python
+
+    dataset = client.factory.create('hyd:Dataset')
     dataset.type = 'scalar' #This says that this dataset is a number
     dataset.name = 'Observed flow at hydro electric plant'
     dataset.unit = 'Ml day^-1' # Megalitres per day

@@ -24,6 +24,9 @@ import datetime
 log = logging.getLogger(__name__)
 
 class NetworkTest(server.SoapServerTest):
+    """
+        Test for network-based functionality
+    """
 
     def test_get_resources_of_type(self):
         """
@@ -71,9 +74,9 @@ class NetworkTest(server.SoapServerTest):
         #of the 4 links returned, ensure the two attributes are on each one.
         for l in net.links.Link:
             if l.types is not None:
-                assert len(l.attributes.ResourceAttr) == 2
+                assert len(l.attributes.ResourceAttr) == 3
             else:
-                assert len(l.attributes.ResourceAttr) == 2
+                assert len(l.attributes.ResourceAttr) == 3
         assert len(net.resourcegroups.ResourceGroup) == 1
 
         template_id = net.nodes.Node[0].types.TypeSummary[0].template_id
@@ -92,7 +95,7 @@ class NetworkTest(server.SoapServerTest):
         assert len(filtered_net.links.Link) == 4
         #of the 4 links returned, ensure the two attributes are on each one.
         for l in filtered_net.links.Link:
-            assert len(l.attributes.ResourceAttr) == 2
+            assert len(l.attributes.ResourceAttr) == 3
         assert filtered_net.resourcegroups is None
 
     def test_get_network(self):
@@ -105,7 +108,8 @@ class NetworkTest(server.SoapServerTest):
         net = self.create_network_with_data(map_projection='EPSG:21781')
         scenario_id = net.scenarios.Scenario[0].id
 
-        new_scenario = self.client.service.clone_scenario(scenario_id)
+        clone = self.client.service.clone_scenario(scenario_id)
+        new_scenario = self.client.service.get_scenario(clone.id)
 
         full_network = self.client.service.get_network(new_scenario.network_id, 'N')
 
@@ -823,10 +827,9 @@ class NetworkTest(server.SoapServerTest):
             Test to ensure that updating a network which has not changed
             does not cause any changes to the network.
             Procedure:
-                1: Create a network.
-                2: Immediately update the network without changing it.
-                3: Check that the original network and the updated network
-                   are identical.
+            1 Create a network.
+            2 Immediately update the network without changing it.
+            3 Check that the original network and the updated network are identical.
         """
         net = self.create_network_with_data()
 

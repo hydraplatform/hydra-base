@@ -21,12 +21,13 @@ import datetime
 import logging
 from HydraLib.PluginLib import parse_suds_array
 from decimal import Decimal
-from HydraLib.util import parse_array
-from suds import WebFault
 from HydraLib.PluginLib import create_dict
 log = logging.getLogger(__name__)
 
 class TimeSeriesTest(server.SoapServerTest):
+    """
+        Test for working with timeseries
+    """
     def test_subtract_timeseries(self):
         
         start = datetime.datetime.now()

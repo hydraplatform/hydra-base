@@ -294,9 +294,9 @@ def create_attr(client, name="Test attribute", dimension="dimensionless"):
         attr = client.service.add_attribute(attr)
     return attr
 
-def build_network(client, project_id=None, num_nodes=10, new_proj=False,
+def build_network(client, project_id=None, num_nodes=10, new_proj=True,
                   map_projection='EPSG:4326'):
-    log.critical(project_id)
+
     start = datetime.datetime.now()
     if project_id is None:
         proj_name = None
@@ -601,6 +601,14 @@ def create_network_with_data(client, project_id=None, num_nodes=10,
         return response_net
     else:
        return response_network_summary
+
+def get_network(client, network_id=None):
+    """
+        Get a network with all data.
+    """
+    network=client.service.get_network(network_id)
+    return network
+
 
 
 def check_network(client, request_net, response_net):

@@ -47,7 +47,7 @@ class HydraDocument(JsonDocument):
         req = ctx.transport.req
 
         ctx.in_header_doc = {}
-        for r in req.keys():
+        for r in req:
             if r.find('HTTP') == 0:
                 key = r[5:].lower()
                 val = [req[r].lower()]

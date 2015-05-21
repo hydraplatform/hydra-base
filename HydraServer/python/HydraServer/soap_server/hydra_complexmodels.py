@@ -89,25 +89,27 @@ class ResourceData(HydraComplexModel):
             Depending on what the dataset_type is, this can be a decimal value, a freeform
             string or a JSON string.
             For a timeseries for example, the datasset_value looks like:
-            '{
-                "H1" : {\n
-                        "2014/09/04 16:46:12:00":1,\n
-                        "2014/09/05 16:46:12:00":2,\n
-                        "2014/09/06 16:46:12:00":3,\n
-                        "2014/09/07 16:46:12:00":4},\n
+            ::
 
-                "H2" : {\n
-                        "2014/09/04 16:46:12:00":10,\n
-                        "2014/09/05 16:46:12:00":20,\n
-                        "2014/09/06 16:46:12:00":30,\n
-                        "2014/09/07 16:46:12:00":40},\n
+             '{
+                 "H1" : {\n
+                         "2014/09/04 16:46:12:00":1,\n
+                         "2014/09/05 16:46:12:00":2,\n
+                         "2014/09/06 16:46:12:00":3,\n
+                         "2014/09/07 16:46:12:00":4},\n
 
-                "H3" :  {\n
-                        "2014/09/04 16:46:12:00":100,\n
-                        "2014/09/05 16:46:12:00":200,\n
-                        "2014/09/06 16:46:12:00":300,\n
-                        "2014/09/07 16:46:12:00":400}\n
-            }'
+                 "H2" : {\n
+                         "2014/09/04 16:46:12:00":10,\n
+                         "2014/09/05 16:46:12:00":20,\n
+                         "2014/09/06 16:46:12:00":30,\n
+                         "2014/09/07 16:46:12:00":40},\n
+
+                 "H3" :  {\n
+                         "2014/09/04 16:46:12:00":100,\n
+                         "2014/09/05 16:46:12:00":200,\n
+                         "2014/09/06 16:46:12:00":300,\n
+                         "2014/09/07 16:46:12:00":400}\n
+             }'
 
     """
     _type_info = [
@@ -253,10 +255,11 @@ class Dataset(HydraComplexModel):
 
         #These should be set on all datasests by default, but we don't
         #want to enforce this rigidly
-        if user_id is not None and 'user_id' not in metadata_dict.keys():
+        metadata_keys = [m.lower() for m in metadata_dict]
+        if user_id is not None and 'user_id' not in metadata_keys:
             metadata_dict['user_id'] = str(user_id)
 
-        if source is not None and 'source' not in metadata_dict.keys():
+        if source is not None and 'source' not in metadata_keys:
             metadata_dict['source'] = str(source)
 
         return metadata_dict

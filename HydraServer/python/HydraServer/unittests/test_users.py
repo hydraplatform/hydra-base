@@ -22,6 +22,9 @@ import bcrypt
 import datetime
 
 class UsersTest(server.SoapServerTest):
+    """
+        Test for working with units 
+    """
 
     def test_add_user(self):
         user = self.client.factory.create('hyd:User')

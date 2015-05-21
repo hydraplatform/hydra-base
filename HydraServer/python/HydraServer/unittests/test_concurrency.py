@@ -28,6 +28,10 @@ log.setLevel(logging.ERROR)
 url = "http://ec2-54-229-95-247.eu-west-1.compute.amazonaws.com/hydra-server/soap/?wsdl"
 
 class ConcurrencyTest(server.SoapServerTest):
+    """
+        Test for concurrency in Hydra
+    """
+
     def setUp(self):
         self.url = url
         super(ConcurrencyTest, self).setUp()
@@ -53,7 +57,8 @@ class ConcurrencyTest(server.SoapServerTest):
         token.app_name = "Unit Test"
 
         client.set_options(cache=None, soapheaders=token)
-        util.create_network_with_data(client, new_proj=True)
+        n = util.create_network_with_data(client, new_proj=True)
+        util.get_network(n.id)
 
         client.service.logout(user)
 

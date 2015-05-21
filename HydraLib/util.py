@@ -114,11 +114,17 @@ def create_sub_dict(arr):
 def parse_array(arr):
     """
         Take a dictionary and turn it into an array as follows:
-        {'array': ['item' : [1, 2, 3]}]} -> [1, 2, 3]
-        {'array' :[
-            {'array': [ 'item' : [1, 2, 3]} ]}
-            {'array': [ 'item' : [1, 2, 3]} ]} 
-        ]} -> [[1, 2, 3], [4, 5, 6]]
+        ::
+
+         {'array': ['item' : [1, 2, 3]}]} -> [1, 2, 3]
+        
+        Or for a more complex array:
+        ::
+
+         {'array' :[
+             {'array': [ 'item' : [1, 2, 3]} ]}
+             {'array': [ 'item' : [1, 2, 3]} ]} 
+         ]} -> [[1, 2, 3], [4, 5, 6]]
     """
     ret_arr = []
     if arr.get('array'):
@@ -188,6 +194,8 @@ def _get_val(val):
 def get_restriction_as_dict(restriction_xml):
     """
     turn:
+    ::
+
             <restrictions>
                 <restriction>
                     <type>MAXLEN</type>
@@ -198,11 +206,15 @@ def get_restriction_as_dict(restriction_xml):
                     <value><item>4</item></value>
                 </restriction> 
             </restrictions>
+
     into:
+    ::
+
         {
             'MAXLEN' : 3,
             'SUMTO' : 4
         }
+
     """
     restriction_dict = {}
     if restriction_xml is None:

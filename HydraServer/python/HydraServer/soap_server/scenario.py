@@ -112,7 +112,7 @@ class ScenarioService(HydraService):
 
         cloned_scen = scenario.clone_scenario(scenario_id, **ctx.in_header.__dict__)
 
-        return Scenario(cloned_scen)
+        return Scenario(cloned_scen, summary=True)
 
     @rpc(Integer, Integer, _returns=ScenarioDiff)
     def compare_scenarios(ctx, scenario_id_1, scenario_id_2):
