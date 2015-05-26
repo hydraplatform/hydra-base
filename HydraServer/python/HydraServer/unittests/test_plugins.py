@@ -23,6 +23,35 @@ import logging
 import os
 log = logging.getLogger(__name__)
 
+
+class ServerPluginsTest(server.SoapServerTest):
+    """
+        Tests for server-side plugins.
+    """
+    def call_advanced_dataset_search(self):
+        """
+            Call the advanced dataset retrieval function.
+        """
+
+        network = self.create_network_with_data()
+
+        scenario = network.scenarios.Scenario[0] 
+        clone = self.client.service.clone_scenario(scenario.id)
+        node_ids = [n.id for n in network.nodes.Node]
+        scenario_ids = [scenario.id, clone.id]
+        attr_ids = [a.attr_id for a in network.nodes.Node[0].attributes.ResourceAttr]
+
+        result_matrix = self.client.service.get_node_dataset_matrix(node_ids,
+                                                                    attr_ids,
+                                                                    scenario_ids)
+
+        for nd in result_matrix[0]:
+            for n in nd.nodes.MatrixResourceData:
+                for a in n.attributes.MatrixResourceAttribute:
+                    if not hasattr(a,  'dataset'):
+                        print a
+
+
 class PluginsTest(server.SoapServerTest):
     """
         Test which runs a number of plugins 
