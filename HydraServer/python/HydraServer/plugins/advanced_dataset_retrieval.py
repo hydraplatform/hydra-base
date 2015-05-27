@@ -21,7 +21,7 @@ from HydraServer.soap_server.hydra_complexmodels import Dataset, HydraComplexMod
 from HydraServer.soap_server.hydra_base import HydraService
 
 from HydraServer.db import DBSession
-from HydraServer.db.model import ResourceAttr, ResourceScenario, Scenario
+from HydraServer.db.model import ResourceAttr, ResourceScenario, Scenario, Node, Link
 
 from sqlalchemy.orm import joinedload
 
@@ -57,6 +57,25 @@ def _get_resource_attributes(ref_key, resource_ids, attribute_ids):
         qry = qry.filter(ResourceAttr.link_id.in_(resource_ids))
 
     return qry.all()
+
+def _get_nodes(node_ids):
+
+    qry = DBSession.query(Node).filter(
+                        Node.node_id.in_(node_ids),
+                        Node.status == 'A',
+                    )
+
+    return qry.all()
+
+def _get_links(link_ids):
+
+    qry = DBSession.query(Link).filter(
+                        Link.link_id.in_(link_ids),
+                    )
+
+    return qry.all()
+
+
 
 class MatrixResourceAttribute(HydraComplexModel):
     _type_info = [
@@ -104,6 +123,64 @@ class NodeDatasetMatrix(HydraComplexModel):
            node_data.append(node)
         self.nodes = node_data
 
+class LinkDatasetMatrix(HydraComplexModel):
+    _type_info = [
+        ('scenario_id', Integer32(min_occurs=1)),
+        ('links'  , SpyneArray(MatrixResourceData)),
+    ]
+
+    def __init__(self, scenario_id=None, links=None):
+        super(LinkDatasetMatrix, self).__init__()
+        if scenario_id is None:
+            return
+        self.scenario_id = scenario_id
+        link_data = []
+        for link_id, attributes in links.items():
+           link = MatrixResourceData(link_id, attributes)
+           link_data.append(link)
+        self.links = link_data
+
+
+def get_attr_dict(ref_key, scenario_ids, resource_ids, attribute_ids, resource_rs, resource_attr_rs, data_rs):
+    scenario_data = {}
+    for rs in data_rs:
+        data_in_scenario = scenario_data.get(rs.scenario_id, {})
+        data_in_scenario[rs.resource_attr_id] = rs.dataset
+        scenario_data[rs.scenario_id] = data_in_scenario
+
+    #For each node, make a list of its attr_ids.
+    all_resource_attrs = {}
+
+    #first, get the keys for the resource dict by iterating over the nodes or links
+    #This ensures that nodes / links with no attributes are still taken into account
+    for r in resource_rs:
+        key = r.node_id if ref_key == 'NODE' else r.link_id
+        all_resource_attrs[key] = {}
+
+    for ra in resource_attr_rs:
+        key = ra.node_id if ref_key == 'NODE' else ra.link_id
+        r_attrs = all_resource_attrs.get(key, {})
+
+        r_attrs[ra.attr_id] = ra.resource_attr_id
+        all_resource_attrs[key] = r_attrs
+
+    resource_attr_dict = {}
+    for s_id in scenario_ids:
+        resource_attr_dict[s_id] = {}
+        for resource_id in resource_ids:
+            resource_attr_dict[s_id][resource_id] = {}
+            for attr_id in attribute_ids:
+                if attr_id in all_resource_attrs[resource_id]:
+                    #This should be searching in ra_data_map by resource_attr_id,
+                    #which is accessed at existing_node_attrs[node_id][attr_id]
+                    resource_attr_dict[s_id][resource_id][attr_id] = \
+                            scenario_data[s_id].get(
+                                                all_resource_attrs[resource_id][attr_id]
+                                                   )
+                else:
+                    resource_attr_dict[s_id][resource_id][attr_id] = None
+    return resource_attr_dict
+
 
 class Service(HydraService):
     __service_name__ = "AdvancedDatasetRetrievalService"
@@ -127,43 +204,47 @@ class Service(HydraService):
         if len(node_ids) == 0:
             raise HydraError("No resources specified")
 
+        nodes = _get_nodes(node_ids)
+
         resource_attrs = _get_resource_attributes('NODE', node_ids, attribute_ids)
 
         data = _get_data('NODE', node_ids, attribute_ids, scenario_ids) 
-       
-        #group the data by scenario
-        scenario_data = {}
-        for rs in data:
-            data_in_scenario = scenario_data.get(rs.scenario_id, {})
-            data_in_scenario[rs.resource_attr_id] = rs.dataset
-            scenario_data[rs.scenario_id] = data_in_scenario
-
-        #For each node, make a list of its attr_ids.
-        all_node_attrs = {}
-        for ra in resource_attrs:
-            node_attrs = all_node_attrs.get(ra.node_id, {})
-            node_attrs[ra.attr_id] = ra.resource_attr_id
-            all_node_attrs[ra.node_id] = node_attrs
-
-        node_attr_dict = {}
-        for s_id in scenario_ids:
-            node_attr_dict[s_id] = {}
-            for node_id in node_ids:
-                node_attr_dict[s_id][node_id] = {}
-                for attr_id in attribute_ids:
-                    if attr_id in all_node_attrs[node_id]:
-                        #This should be searching in ra_data_map by resource_attr_id,
-                        #which is accessed at existing_node_attrs[node_id][attr_id]
-                        node_attr_dict[s_id][node_id][attr_id] = \
-                                scenario_data[s_id].get(
-                                                    all_node_attrs[node_id][attr_id]
-                                                       )
-                    else:
-                        node_attr_dict[s_id][node_id][attr_id] = None
         
+        #group the data by scenario
+        node_attr_dict = get_attr_dict('NODE', scenario_ids, node_ids, attribute_ids, nodes, resource_attrs, data)
+                
         returned_matrix = [NodeDatasetMatrix(scenario_id, data) for scenario_id, data in node_attr_dict.items()]
 
         return returned_matrix 
 
+    @rpc(Integer32(min_occurs=1, max_occurs='unbounded'),
+         Integer32(min_occurs=1, max_occurs='unbounded'),
+         Integer32(min_occurs=1, max_occurs='unbounded'),
+         _returns=SpyneArray(LinkDatasetMatrix))
+    def get_link_dataset_matrix(ctx, link_ids, attribute_ids, scenario_ids):
+        """
+            Given a list of resources, attributes and scenarios return a matrix
+            of datasets. If a resource doesn't have an attribute, return None.
+            If a resource has an attribute but no dataset, return None.
 
+        """
+
+        if len(scenario_ids) == 0:
+            raise HydraError("No scenarios specified!")
+        if len(attribute_ids) == 0:
+            raise HydraError("No attributes specified!")
+        if len(link_ids) == 0:
+            raise HydraError("No resources specified")
+
+        links = _get_links(link_ids)
+
+        resource_attrs = _get_resource_attributes('LINK', link_ids, attribute_ids)
+
+        data = _get_data('LINK', link_ids, attribute_ids, scenario_ids) 
+       
+        link_attr_dict = get_attr_dict('LINK', scenario_ids, link_ids, attribute_ids, links, resource_attrs, data)
+        
+        returned_matrix = [LinkDatasetMatrix(scenario_id, data) for scenario_id, data in link_attr_dict.items()]
+
+        return returned_matrix 
 

@@ -38,6 +38,7 @@ class ServerPluginsTest(server.SoapServerTest):
         scenario = network.scenarios.Scenario[0] 
         clone = self.client.service.clone_scenario(scenario.id)
         node_ids = [n.id for n in network.nodes.Node]
+        link_ids = [l.id for l in network.links.Link]
         scenario_ids = [scenario.id, clone.id]
         attr_ids = [a.attr_id for a in network.nodes.Node[0].attributes.ResourceAttr]
 
@@ -48,6 +49,16 @@ class ServerPluginsTest(server.SoapServerTest):
         for nd in result_matrix[0]:
             for n in nd.nodes.MatrixResourceData:
                 for a in n.attributes.MatrixResourceAttribute:
+                    if not hasattr(a,  'dataset'):
+                        print a
+
+        result_matrix = self.client.service.get_link_dataset_matrix(link_ids,
+                                                                    attr_ids,
+                                                                    scenario_ids)
+
+        for nd in result_matrix[0]:
+            for l in nd.links.MatrixResourceData:
+                for a in l.attributes.MatrixResourceAttribute:
                     if not hasattr(a,  'dataset'):
                         print a
 
