@@ -16,11 +16,12 @@
 import logging
 log = logging.getLogger(__name__)
 
-from HydraServer.db.model import Attr, Node, Link, ResourceGroup, Network, Project, Scenario, TemplateType, ResourceAttr, TypeAttr
+from HydraServer.db.model import Attr, Node, Link, ResourceGroup, Network, Project, Scenario, TemplateType, ResourceAttr, TypeAttr, ResourceAttrMap
 from HydraServer.db import DBSession
 from sqlalchemy.orm.exc import NoResultFound
 from HydraLib.HydraException import ResourceNotFoundError
 from sqlalchemy import or_, and_
+from sqlalchemy.orm import aliased
 
 def _get_resource(ref_key, ref_id):
     try:
@@ -243,3 +244,130 @@ def get_resource_attributes(ref_key, ref_id, type_id=None, **kwargs):
     resource_attrs = resource_attr_qry.all()
 
     return resource_attrs
+
+def get_resource_attribute(resource_attr_id, **kwargs):
+    """
+        Get a specific resource attribte, by ID
+        If type_id is Gspecified, only
+        return the resource attributes within the type.
+    """
+
+    resource_attr_qry = DBSession.query(ResourceAttr).filter(
+        ResourceAttr.resource_attr_id == resource_attr_id,
+        )
+     
+    resource_attr = resource_attr_qry.first()
+
+    if resource_attr is None:
+        raise ResourceNotFoundError("Resource attribute %s does not exist", resource_attr_id)
+
+    return resource_attr
+    
+def set_attribute_mapping(resource_attr_a, resource_attr_b, **kwargs):
+    """
+        Define one resource attribute from one network as being the same as
+        that from another network.
+    """
+    user_id = kwargs.get('user_id')
+    ra_1 = get_resource_attribute(resource_attr_a)
+    ra_2 = get_resource_attribute(resource_attr_b)
+
+    mapping = ResourceAttrMap(resource_attr_id_a = resource_attr_a,
+                             resource_attr_id_b  = resource_attr_b,
+                             network_a_id     = ra_1.get_network().network_id,
+                             network_b_id     = ra_2.get_network().network_id )
+    
+    DBSession.add(mapping)
+
+    return mapping
+def get_mappings_in_network(network_id, network_2_id=None, **kwargs):
+    """
+        Get all the resource attribute mappings in a network. If another network
+        is specified, only return the mappings between the two networks.
+    """
+    qry = DBSession.query(ResourceAttrMap).filter(or_(ResourceAttrMap.network_a_id == network_id, ResourceAttrMap.network_b_id == network_id))
+
+    if network_2_id is not None:
+        qry = qry.filter(or_(ResourceAttrMap.network_a_id==network_2_id, ResourceAttrMap.network_b_id==network_2_id))
+
+    return qry.all()
+
+def get_node_mappings(node_id, node_2_id=None, **kwargs):
+    """
+        Get all the resource attribute mappings in a network. If another network
+        is specified, only return the mappings between the two networks.
+    """
+    qry = DBSession.query(ResourceAttrMap).filter(
+        or_(
+            and_(
+                ResourceAttrMap.resource_attr_id_a == ResourceAttr.resource_attr_id,
+                ResourceAttr.node_id == node_id), 
+            and_(
+                ResourceAttrMap.resource_attr_id_b == ResourceAttr.resource_attr_id,
+                ResourceAttr.node_id == node_id)))
+
+    if node_2_id is not None:
+        aliased_ra = aliased(ResourceAttr, name="ra2")
+        qry = qry.filter(or_(
+            and_(
+                ResourceAttrMap.resource_attr_id_a == aliased_ra.resource_attr_id,
+                aliased_ra.node_id == node_2_id), 
+            and_(
+                ResourceAttrMap.resource_attr_id_b == aliased_ra.resource_attr_id,
+                aliased_ra.node_id == node_2_id)))
+    
+    return qry.all()
+
+def get_link_mappings(link_id, link_2_id=None, **kwargs):
+    """
+        Get all the resource attribute mappings in a network. If another network
+        is specified, only return the mappings between the two networks.
+    """
+    qry = DBSession.query(ResourceAttrMap).filter(
+        or_(
+            and_(
+                ResourceAttrMap.resource_attr_id_a == ResourceAttr.resource_attr_id,
+                ResourceAttr.link_id == link_id), 
+            and_(
+                ResourceAttrMap.resource_attr_id_b == ResourceAttr.resource_attr_id,
+                ResourceAttr.link_id == link_id)))
+
+    if link_2_id is not None:
+        aliased_ra = aliased(ResourceAttr, name="ra2")
+        qry = qry.filter(or_(
+            and_(
+                ResourceAttrMap.resource_attr_id_a == aliased_ra.resource_attr_id,
+                aliased_ra.link_id == link_2_id), 
+            and_(
+                ResourceAttrMap.resource_attr_id_b == aliased_ra.resource_attr_id,
+                aliased_ra.link_id == link_2_id)))
+    
+    return qry.all()
+
+
+def get_network_mappings(network_id, network_2_id=None, **kwargs):
+    """
+        Get all the mappings of network resource attributes, NOT ALL THE MAPPINGS
+        WITHIN A NETWORK. For that, ``use get_mappings_in_network``. If another network
+        is specified, only return the mappings between the two networks.
+    """
+    qry = DBSession.query(ResourceAttrMap).filter(
+        or_(
+            and_(
+                ResourceAttrMap.resource_attr_id_a == ResourceAttr.resource_attr_id,
+                ResourceAttr.network_id == network_id), 
+            and_(
+                ResourceAttrMap.resource_attr_id_b == ResourceAttr.resource_attr_id,
+                ResourceAttr.network_id == network_id)))
+
+    if network_2_id is not None:
+        aliased_ra = aliased(ResourceAttr, name="ra2")
+        qry = qry.filter(or_(
+            and_(
+                ResourceAttrMap.resource_attr_id_a == aliased_ra.resource_attr_id,
+                aliased_ra.network_id == network_2_id), 
+            and_(
+                ResourceAttrMap.resource_attr_id_b == aliased_ra.resource_attr_id,
+                aliased_ra.network_id == network_2_id)))
+    
+    return qry.all()

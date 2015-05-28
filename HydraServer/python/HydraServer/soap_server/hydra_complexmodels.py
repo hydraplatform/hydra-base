@@ -694,6 +694,35 @@ class ResourceAttr(HydraComplexModel):
         #This should be set externally as it is not related to its parent.
         self.resourcescenario = None
 
+class ResourceAttrMap(HydraComplexModel):
+    _type_info = [
+        ('resource_attr_id_a', Integer(default=None)),
+        ('resource_attr_id_b', Integer(default=None)),
+        ('ref_key_a'         , Unicode(default=None)),
+        ('ref_key_b'         , Unicode(default=None)),
+        ('ref_id_a'          , Integer(default=None)),
+        ('ref_id_b'          , Integer(default=None)),
+        ('network_a_id'      , Integer(default=None)),
+        ('network_b_id'      , Integer(default=None)),
+    ]
+
+    def __init__(self, parent=None):
+        super(ResourceAttrMap, self).__init__()
+        if  parent is None:
+            return
+
+        self.resource_attr_id_a = parent.resource_attr_id_a
+        self.resource_attr_id_b = parent.resource_attr_id_b
+
+        self.ref_key_a = parent.resourceattr_a.ref_key
+        self.ref_id_a  = parent.resourceattr_a.get_resource_id()
+
+        self.ref_key_b = parent.resourceattr_b.ref_key
+        self.ref_id_b  = parent.resourceattr_b.get_resource_id()
+
+        self.network_a_id = parent.network_a_id
+        self.network_b_id = parent.network_b_id
+
 
 class ResourceTypeDef(HydraComplexModel):
     """

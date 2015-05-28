@@ -351,3 +351,21 @@ class ScenarioService(HydraService):
         items = scenario.get_resourcegroupitems(group_id, scenario_id, **ctx.in_header.__dict__)
 
         return [ResourceGroupItem(rgi) for rgi in items]
+
+    @rpc(Integer, Integer, Integer, Integer, _returns=ResourceScenario)
+    def update_value_from_mapping(ctx, source_resource_attr_id,
+                                  target_resource_attr_id,
+                                  source_scenario_id,
+                                  target_scenario_id):
+
+        updated_rs = scenario.update_value_from_mapping(
+                                        source_resource_attr_id,
+                                        target_resource_attr_id,
+                                        source_scenario_id,
+                                        target_scenario_id,
+                                        **ctx.in_header.__dict__)
+
+        if updated_rs is not None:
+            return ResourceScenario(updated_rs)
+        else:
+            return None

@@ -23,13 +23,14 @@ from HydraServer.db.model import Scenario,\
         ResourceAttr,\
         NetworkOwner,\
         Dataset,\
-        Attr
+        Attr,\
+        ResourceAttrMap
 
 import units as hydra_units
 
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy import or_
-from sqlalchemy.orm import joinedload_all, joinedload
+from sqlalchemy import or_, and_
+from sqlalchemy.orm import joinedload_all, joinedload, aliased
 import data
 from HydraLib.dateutil import timestamp_to_ordinal
 from collections import namedtuple
@@ -908,3 +909,56 @@ def get_resourcegroupitems(group_id, scenario_id, **kwargs):
                 filter(ResourceGroupItem.group_id==group_id).\
                 filter(ResourceGroupItem.scenario_id==scenario_id).all()
     return rgi
+
+def update_value_from_mapping(source_resource_attr_id, target_resource_attr_id, source_scenario_id, target_scenario_id, **kwargs):
+    """
+        Using a resource attribute mapping, take the value from the source and apply
+        it to the target. Both source and target scenarios must be specified (and therefor
+        must exist).
+    """
+    rm = aliased(ResourceAttrMap, name='rm')
+    #Check the mapping exists.
+    mapping = DBSession.query(rm).filter(
+        or_(
+            and_(
+                rm.resource_attr_id_a == source_resource_attr_id, 
+                rm.resource_attr_id_b == target_resource_attr_id
+            ),
+            and_(
+                rm.resource_attr_id_a == target_resource_attr_id,
+                rm.resource_attr_id_b == source_resource_attr_id
+            )
+        )
+    ).first()
+
+    if mapping is None:
+        raise ResourceNotFoundError("Mapping between %s and %s not found"%
+                                    (source_resource_attr_id,
+                                     target_resource_attr_id))
+
+    #check scenarios exist
+    s1 = _get_scenario(source_scenario_id)
+    s2 = _get_scenario(target_scenario_id)
+
+    rs1 = DBSession.query(ResourceScenario).filter(ResourceScenario.resource_attr_id == source_resource_attr_id, ResourceScenario.scenario_id == source_scenario_id).first()
+    rs2 = DBSession.query(ResourceScenario).filter(ResourceScenario.resource_attr_id == target_resource_attr_id, ResourceScenario.scenario_id == target_scenario_id).first()
+    
+    #3 possibilities worth considering:
+    #1: Both RS exist, so update the target RS
+    #2: Target RS does not exist, so create it with the dastaset from RS1
+    #3: Source RS does not exist, so it must be removed from the target scenario if it exists
+    if rs1 is not None:
+        if rs2 is not None:
+            rs2.dataset_id = rs1.dataset_id
+        else:
+            rs2 = ResourceScenario(resource_attr_id=target_resource_attr_id, scenario_id=target_scenario_id, dataset_id=rs1.dataset_id)
+            DBSession.add(rs2)
+        return rs2 
+    else:
+        if rs2 is not None:
+            DBSession.delete(rs2)
+        return None
+    DBSession.flush()
+
+    
+

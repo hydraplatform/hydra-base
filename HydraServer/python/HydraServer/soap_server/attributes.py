@@ -18,6 +18,7 @@ from spyne.model.complex import Array as SpyneArray
 from spyne.decorator import rpc
 from hydra_complexmodels import Attr
 from hydra_complexmodels import ResourceAttr 
+from hydra_complexmodels import ResourceAttrMap 
 
 from hydra_base import HydraService
 
@@ -316,9 +317,49 @@ class AttributeService(HydraService):
 
     @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttr))
     def get_group_attributes(ctx, group_id, type_id):
+        """
+            Get the resource attributes of a resource group.
+        """
         resource_attrs = attributes.get_resource_attributes(
                 'GROUP',
                 group_id,
-                type_id)
+                type_id,
+                **ctx.in_header.__dict__)
 
         return [ResourceAttr(ra) for ra in resource_attrs]
+    
+    @rpc(Integer, Integer, _returns=Unicode)
+    def set_attribute_mapping(ctx, resource_attr_a, resource_attr_b):
+        """
+            Define one resource attribute from one network as being the same as
+            that from another network.
+        """
+        attributes.set_attribute_mapping(resource_attr_a, resource_attr_b, **ctx.in_header.__dict__)
+        
+        return 'OK'
+
+    @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttrMap))
+    def get_mappings_in_network(ctx, network_id, network_2_id):
+        """
+            Get all the resource attribute mappings in a network. If another network
+            is specified, only return the mappings between the two networks.
+        """
+        mapping_rs = attributes.get_mappings_in_network(network_id, network_2_id, **ctx.in_header.__dict__)
+       
+        mappings = [ResourceAttrMap(m) for m in mapping_rs]
+        return mappings
+
+    @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttrMap))
+    def get_node_mappings(ctx, node_id, node_2_id):
+        """
+           Get the mappings for all the attributes of a given node. If a second node
+           is specified, return only the mappings between these nodes..
+        """
+        mapping_rs = attributes.get_node_mappings(node_id, node_2_id, **ctx.in_header.__dict__)
+       
+        mappings = [ResourceAttrMap(m) for m in mapping_rs]
+        return mappings
+
+
+
+

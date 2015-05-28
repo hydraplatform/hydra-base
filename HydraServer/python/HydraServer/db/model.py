@@ -321,6 +321,24 @@ class AttrMap(Base):
     attr_a = relationship("Attr", foreign_keys=[attr_id_a], backref=backref('maps_to', order_by=attr_id_a))
     attr_b = relationship("Attr", foreign_keys=[attr_id_b], backref=backref('maps_from', order_by=attr_id_b))
 
+
+class ResourceAttrMap(Base):
+    """
+    """
+
+    __tablename__='tResourceAttrMap'
+
+    network_a_id       = Column(Integer(), ForeignKey('tNetwork.network_id'), primary_key=True, nullable=False)
+    network_b_id       = Column(Integer(), ForeignKey('tNetwork.network_id'), primary_key=True, nullable=False)
+    resource_attr_id_a = Column(Integer(), ForeignKey('tResourceAttr.resource_attr_id'), primary_key=True, nullable=False)
+    resource_attr_id_b = Column(Integer(), ForeignKey('tResourceAttr.resource_attr_id'), primary_key=True, nullable=False)
+
+    resourceattr_a = relationship("ResourceAttr", foreign_keys=[resource_attr_id_a])
+    resourceattr_b = relationship("ResourceAttr", foreign_keys=[resource_attr_id_b])
+
+    network_a = relationship("Network", foreign_keys=[network_a_id])
+    network_b = relationship("Network", foreign_keys=[network_b_id])
+
 class Template(Base):
     """
     """
@@ -404,6 +422,22 @@ class ResourceAttr(Base):
     link = relationship('Link', backref=backref('attributes', uselist=True, cascade="all, delete-orphan"), uselist=False)
     resourcegroup = relationship('ResourceGroup', backref=backref('attributes', uselist=True, cascade="all, delete-orphan"), uselist=False)
 
+
+    def get_network(self):
+        """
+         Get the network that this resource attribute is in.
+        """
+        ref_key = self.ref_key
+        if ref_key == 'NETWORK':
+            return self.network
+        elif ref_key == 'NODE':
+            return self.node.network
+        elif ref_key == 'LINK':
+            return self.link.network
+        elif ref_key == 'GROUP':
+            return self.group.network
+        elif ref_key == 'PROJECT':
+            return None
 
     def get_resource(self):
         ref_key = self.ref_key
