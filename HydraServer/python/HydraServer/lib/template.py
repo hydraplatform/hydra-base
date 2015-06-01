@@ -140,6 +140,9 @@ def parse_typeattr(type_i, attribute):
 
     _check_dimension(typeattr_i)
 
+    if attribute.find('description') is not None:
+        typeattr_i.description = attribute.find('description').text
+
     if attribute.find('is_var') is not None:
         typeattr_i.attr_is_var = attribute.find('is_var').text
 
@@ -902,15 +905,16 @@ def update_templatetype(templatetype,**kwargs):
         New typeattrs will be added. typeattrs not sent will be ignored.
         To delete typeattrs, call delete_typeattr
     """
-    tmpltype = DBSession.query(TemplateType).filter(TemplateType.type_id == templatetype.id).one()
 
-    _update_templatetype(templatetype, tmpltype)
+    tmpltype_i = DBSession.query(TemplateType).filter(TemplateType.type_id == templatetype.id).one()
+
+    _update_templatetype(templatetype, tmpltype_i)
 
     DBSession.flush()
 
-    return tmpltype
+    return tmpltype_i
 
-def _add_typeattr(typeattr, existing_ta = None):
+def _set_typeattr(typeattr, existing_ta = None):
     """
         Add or updsate a type attribute.
         If an existing type attribute is provided, then update.
@@ -941,6 +945,7 @@ def _add_typeattr(typeattr, existing_ta = None):
     ta.type_id = typeattr.type_id
     ta.data_type = typeattr.data_type
     ta.default_dataset_id = typeattr.default_dataset_id
+    ta.description        = typeattr.description
     ta.attr_is_var        = typeattr.is_var
     ta.data_restriction = _parse_data_restriction(typeattr.data_restriction)
 
@@ -970,33 +975,34 @@ def _update_templatetype(templatetype, existing_tt=None):
     """
     if existing_tt is None:
         if templatetype.id is not None:
-            tmpltype = DBSession.query(TemplateType).filter(TemplateType.type_id == templatetype.id).one()
+            tmpltype_i = DBSession.query(TemplateType).filter(TemplateType.type_id == templatetype.id).one()
         else:
-            tmpltype = TemplateType()
+            tmpltype_i = TemplateType()
     else:
-        tmpltype = existing_tt
+        tmpltype_i = existing_tt
     
-    tmpltype.template_id = templatetype.template_id
-    tmpltype.type_name  = templatetype.name
-    tmpltype.alias      = templatetype.alias
-    tmpltype.layout     = templatetype.layout
-    tmpltype.resource_type = templatetype.resource_type
+    tmpltype_i.template_id = templatetype.template_id
+    tmpltype_i.type_name  = templatetype.name
+    tmpltype_i.alias      = templatetype.alias
+    tmpltype_i.layout     = templatetype.layout
+    tmpltype_i.resource_type = templatetype.resource_type
+    
+    ta_dict = {}
+    for t in tmpltype_i.typeattrs:
+        ta_dict[t.attr_id] = t
 
     if templatetype.typeattrs is not None:
         for typeattr in templatetype.typeattrs:
-            for typeattr_i in tmpltype.typeattrs:
-                if typeattr_i.attr_id == typeattr.attr_id:
-                    ta = _add_typeattr(typeattr, typeattr_i)
-                    break
+            if typeattr.attr_id in ta_dict:
+                ta = _set_typeattr(typeattr, ta_dict[typeattr.attr_id])
             else:
-
-                ta = _add_typeattr(typeattr)
-                tmpltype.typeattrs.append(ta)
+                ta = _set_typeattr(typeattr)
+                tmpltype_i.typeattrs.append(ta)
 
     if existing_tt is None:
-        DBSession.add(tmpltype)
+        DBSession.add(tmpltype_i)
 
-    return tmpltype
+    return tmpltype_i 
 
 def delete_templatetype(type_id,**kwargs):
     """
@@ -1036,7 +1042,7 @@ def add_typeattr(typeattr,**kwargs):
         Add an typeattr to an existing type.
     """
     
-    ta = _add_typeattr(typeattr)
+    ta = _set_typeattr(typeattr)
     
     DBSession.flush()
 

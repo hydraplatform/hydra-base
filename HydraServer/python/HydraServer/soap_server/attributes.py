@@ -43,10 +43,30 @@ class AttributeService(HydraService):
                 id = 1020
                 name = "Test Attr"
                 dimen = "very big"
+                description = "I am a very big attribute"
             }
 
         """
         attr = attributes.add_attribute(attr, **ctx.in_header.__dict__)
+        return Attr(attr)
+
+    @rpc(Attr, _returns=Attr)
+    def update_attribute(ctx, attr):
+        """
+        Update a generic attribute, which can then be used in creating
+        a resource attribute, and put into a type.
+
+        .. code-block:: python
+
+            (Attr){
+                id = 1020
+                name = "Test Attr"
+                dimen = "very big"
+                description = "I am a very big attribute"
+            }
+
+        """
+        attr = attributes.update_attribute(attr, **ctx.in_header.__dict__)
         return Attr(attr)
 
     @rpc(SpyneArray(Attr), _returns=SpyneArray(Attr))
@@ -61,6 +81,7 @@ class AttributeService(HydraService):
                 id = 1020
                 name = "Test Attr"
                 dimen = "very big"
+                description = "I am a very big attribute"
             }
 
         """
@@ -123,6 +144,7 @@ class AttributeService(HydraService):
                 a.cr_date = str(attr.cr_date)
                 a.name = attr.attr_name
                 a.dimen = attr.attr_dimen
+                a.description = attr.attr_description
                 ret_attrs.append(a)
             else:
                 ret_attrs.append(None)
@@ -322,3 +344,17 @@ class AttributeService(HydraService):
                 type_id)
 
         return [ResourceAttr(ra) for ra in resource_attrs]
+
+    @rpc(Integer, _returns=Unicode)
+    def check_attr_dimension(ctx, attr_id):
+        """
+            Check that the dimension of the resource attribute data is consistent
+            with the definition of the attribute.
+            If the attribute says 'volume', make sure every dataset connected
+            with this attribute via a resource attribute also has a dimension
+            of 'volume'.
+        """
+
+        attributes.check_attr_dimension(attr_id, **ctx.in_header.__dict__)
+
+        return 'OK'
