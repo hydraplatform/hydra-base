@@ -178,7 +178,7 @@ class Dataset(HydraComplexModel):
         ('metadata',         Unicode(min_occurs=0, default=None)),
     ]
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, metadata=True):
         super(Dataset, self).__init__()
         if  parent is None:
             return
@@ -200,10 +200,11 @@ class Dataset(HydraComplexModel):
             except:
                 self.value = parent.value
 
-        metadata = {}
-        for m in parent.metadata:
-            metadata[m.metadata_name] = m.metadata_val
-        self.metadata = json.dumps(metadata)
+        if metadata is True:
+            metadata = {}
+            for m in parent.metadata:
+                metadata[m.metadata_name] = m.metadata_val
+            self.metadata = json.dumps(metadata)
 
     def parse_value(self):
         """
