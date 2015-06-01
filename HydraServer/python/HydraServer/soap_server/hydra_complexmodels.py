@@ -194,7 +194,7 @@ class Dataset(HydraComplexModel):
         ('metadata',         SpyneArray(Metadata, default=None)),
     ]
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, metadata=True):
         super(Dataset, self).__init__()
         if  parent is None:
             return
@@ -213,9 +213,10 @@ class Dataset(HydraComplexModel):
             self.value = get_return_val(parent.data_type, parent.value, parent.start_time, parent.frequency)
 
         metadata = []
-        for m in parent.metadata:
-            complex_m = Metadata(m)
-            metadata.append(complex_m)
+        if metadata is True:
+            for m in parent.metadata:
+                complex_m = Metadata(m)
+                metadata.append(complex_m)
         self.metadata = metadata
 
     def parse_value(self):
@@ -380,10 +381,11 @@ class Dataset(HydraComplexModel):
 
         #These should be set on all datasests by default, but we don't
         #want to enforce this rigidly
-        if user_id is not None and 'user_id' not in metadata_dict.keys():
+        metadata_keys = [m.lower() for m in metadata_dict]
+        if user_id is not None and 'user_id' not in metadata_keys:
             metadata_dict['user_id'] = str(user_id)
 
-        if source is not None and 'source' not in metadata_dict.keys():
+        if source is not None and 'source' not in metadata_keys:
             metadata_dict['source'] = str(source)
 
         return metadata_dict

@@ -292,7 +292,7 @@ def create_attr(client, name="Test attribute", dimension="dimensionless"):
         attr = client.service.add_attribute(attr)
     return attr
 
-def build_network(client, project_id=None, num_nodes=10, new_proj=False,
+def build_network(client, project_id=None, num_nodes=10, new_proj=True,
                   map_projection='EPSG:4326'):
 
     start = datetime.datetime.now()

@@ -407,7 +407,9 @@ def add_network(network,**kwargs):
 
     insert_start = datetime.datetime.now()
 
-    proj_i = DBSession.query(Project).filter(Project.project_id == network.project_id).one()
+    proj_i = DBSession.query(Project).filter(Project.project_id == network.project_id).first()
+    if proj_i is None:
+        raise HydraError("Project ID is none. A project ID must be specified on the Network")
 
     existing_net = DBSession.query(Network).filter(Network.project_id == network.project_id, Network.network_name==network.name).first()
     if existing_net is not None:

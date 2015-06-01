@@ -19,16 +19,18 @@ log = logging.getLogger(__name__)
 import os
 import glob
 import importlib
-modules = glob.glob(os.path.dirname(__file__)+"/*.py")
-mods = []
-for f in modules:
-    if not os.path.basename(f).startswith('_'):
-        mods.append(os.path.basename(f)[:-3])
-
-__all__ = mods
-
-services = []
-for x in __all__:
-    y = importlib.import_module("HydraServer.plugins.%s"%x)
-    services.append(y.Service)
+import advanced_dataset_retrieval
+services = [advanced_dataset_retrieval.Service]
+#modules = glob.glob(os.path.dirname(__file__)+"/*.py")
+#mods = []
+#for f in modules:
+#    if not os.path.basename(f).startswith('_'):
+#        mods.append(os.path.basename(f)[:-3])
+#
+#__all__ = mods
+#
+#services = []
+#for x in __all__:
+#    y = importlib.import_module("HydraServer.plugins.%s"%x)
+#    services.append(y.Service)
 

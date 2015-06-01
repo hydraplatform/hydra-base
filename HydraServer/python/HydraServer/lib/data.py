@@ -619,7 +619,7 @@ def _process_incoming_data(data, user_id=None, source=None):
             for m in d.metadata:
                 metadata_dict[str(m.name)]  = str(m.value)
         
-        metadata_keys = [k.lower() for k in metadata_dict.keys()]
+        metadata_keys = [k.lower() for k in metadata_dict]
         if user_id is not None and 'user_id' not in metadata_keys:
             metadata_dict['user_id'] = str(user_id)
         if source is not None and 'source' not in metadata_keys:

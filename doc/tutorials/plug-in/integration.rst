@@ -16,30 +16,95 @@ Hydra Modeller uses a plugin XML file to describe the required inputs to the
 plugin as well as the icon it will use when displaying the button in the user
 interface.
 
-The basic structure is:
+The main information in the XML file is as follows:
+ - The plugin name
+ - The plugin location (the location of the exe)
+ - The plugin description
+ - The epilog
+ - Icons (large (32x32px) and small (16x16 px))
+ - Mandatory arguments
+ - Non-Mandatory arguments
+ - Switches
+
+For each argument, there are the following details. They should be familiar from
+the arguments we defined in the plugin:
+
+ - The name that will be displayed in the UI (human readable)
+ - The switch (in our plugin, these would be '-n' and '-s')
+ - The argtype (string, integer etc. There are a few wildcards such as 'network', 'scenario' and 'template' which allow the UI to provide a drop-down rather than asking the
+   user to remember the ID of the network they are working on!
+ - The help is a string of text that is displayed when the user  clicks on the argument in the UI
+
+The Export JSON file is below in full. Notice that there is 1 switch defined.
+This is here purely to show what a switch would look like and does not have
+any reference to the code we have looked at until now.
 
 .. code-block:: xml
 
  <plugin_info>
-     <plugin_name>SuperPlugin</plugin_name>
-     <plugin_dir>.</plugin_dir>
-     <plugin_description/>My plugin</plugin_description>
-     <plugin_epilog/></plugin_epilog>
-     <smallicon/>icon16.png</smallicon>
-     <largeicon/>icon32.png</largeicon>
+     <plugin_name>Export JSON</plugin_name>
+     <plugin_dir>ExportCSV.exe</plugin_dir>
+     <plugin_description>Export a network saved in Hydra to a JSON file.</plugin_description>
+     <plugin_epilog>
+         Written by Stephen Knox stephen.knox@manchester.ac.uk
+         (c) Copyright 20135, University of Manchester.
+         For more information visit www.hydra-network.com
+     </plugin_epilog>
+     <smallicon>icon16.png</smallicon>
+     <largeicon>icon32.png</largeicon>
      <mandatory_args>
-        <arg></arg>
-        ...
-    </mandatory_args>
-     <non_mandatory_args>
-        <arg></arg>
-        ...
-    </non_mandatory_args>
+         <arg>
+             <name>Network ID</name>
+             <switch>-n</switch>
+             <multiple>N</multiple>
+             <argtype>network</argtype>
+             <help>The ID of the network to be exported</help>
+         </arg>
+     </mandatory_args>
+    <non_mandatory_args>
+        <arg>
+            <name>Scenario ID</name>
+            <switch>-s</switch>
+            <multiple>N</multiple>
+            <argtype>scenario</argtype>
+            <help>The ID of the scenario to be exported. If no
+                  scenario is specified, all scenarios in the network will be
+                  exported.
+             </help>
+         </arg>
+        <arg>
+            <name>Target Dir</name>
+            <switch>-d</switch>
+            <multiple>N</multiple>
+            <argtype>string</argtype>
+            <help>The directory / folder you wish the file to export to. This defaults
+            to the Desktop.</help>
+         </arg>
+         <arg>
+             <name>Server URL</name>
+             <switch>-u</switch>
+             <multiple>N</multiple>
+             <argtype>string</argtype>
+             <help>The URL of the server to which this
+                         plug-in connects.</help>
+         </arg>
+         <arg>
+             <name>Session ID</name>
+             <switch>-c</switch>
+             <multiple>N</multiple>
+             <argtype>string</argtype>
+             <help>The session ID for the connection. If not specified,
+             the plugin will try to connect based on the credentials it finds in config</help>
+         </arg>
+     </non_mandatory_args> 
      <switches>
-        <arg></arg>
-        ...
-    </switches>
- </plugin_info>
+         <arg>
+             <name>Export as XML</name>
+             <switch>-x</switch>
+             <help>Export as an XML file instead of a JSON file.</help>
+         </arg>
+     </switches>
+  </plugin_info>
 
 
 All arguments are defined inside an `<arg></arg>` tag, and must define 
@@ -62,43 +127,6 @@ An example of a full `<arg>` tag might be:
     <help>One or multiple files containing nodes and
                 attributes.</help>
  </arg>
-
-A sample plugin.xml might look like
-
-.. code-block:: xml
-
- <plugin_info>
-    <plugin_name>My Plugin</plugin_name>
-    <plugin_dir>MyPlugin.exe</plugin_dir>
-    <plugin_description>Do some stuff to a hydra network.</plugin_description>
-    <plugin_epilog>
-        Written by Stephen Knox (c) Copyright 2015, University College London.
-    </plugin_epilog>
-    <smallicon>icon16.png</smallicon>
-    <largeicon>icon32.png</largeicon>
-    <mandatory_args>
-        <arg>
-            <name>nodes</name>
-            <switch>-n</switch>
-            <multiple>Y</multiple>
-            <argtype>file</argtype>
-            <help>One or multiple files containing nodes and
-                        attributes.</help>
-        </arg>
-   <non_mandatory_args>
-    ...
-    </non_mandatory_args> 
-    <switches>
-        <arg>
-            <name></name>
-            <switch>-x</switch>
-            <help>If the import function encounters something
-                        that looks like a filename, it tries to read the file.
-                        It also tries to guess if it contains a number, a
-                        descriptor, an array or a time series.</help>
-        </arg>
-    </switches>
- </plugin_info>
 
 There are 3 types of category these args can be put into within the plugin xml. *mandatory*,  *non-mandatory* and *switches*.
 
@@ -130,8 +158,8 @@ should be used::
  MyPlugin
    --> templates (optional)
       --> template.xml
-   --> MyPlugin
-      --> myplugin.exe
+   --> ExportJSON
+      --> ExportJSON.exe
       --> plugin.xml
       --> icon.png
 
@@ -142,14 +170,16 @@ and export, for example)::
    --> templates (optional)
       --> template.xml
    --> plugins
-      --> MyImportPlugin
-        --> myimportplugin.exe
+      --> ExportJSON
+        --> ExportJSON.exe
         --> plugin.xml
-        --> icon.png
-      --> MyExportPlugin
-        --> myexportplugin.exe
+        --> icon32.png
+        --> icon16.png
+      --> ImportJSON 
+        --> ImportJSON.exe
         --> plugin.xml
-        --> icon.png
+        --> icon32.png
+        --> icon16.png
 
 .. _session_and_url:
 

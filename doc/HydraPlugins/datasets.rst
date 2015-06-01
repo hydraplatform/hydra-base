@@ -2,6 +2,13 @@
 
 Working with datasets
 =====================
+
+In Hydra, a dataset is not directly connected to a network or scenario. It lives
+on its own, separately from everything else and can be managed independently.
+While datasets can be added or removed `through` the use of scenarios, that is
+merely for convenience. Datasets are separate and as such can be added, 
+updated, deleted individually. In this section, we explain how this is done.
+
 Hydra supports 4 types of values: Scalars (numbers), Descriptors (Strings of text),
 Time series (a series of time-value pairs) and Arrays (a list of numbers or strings or
 a combination of both).
@@ -24,8 +31,7 @@ Two un-editable properties of an existing dataset are:
 
 These are created automatically by Hydra and cannot be changed.
 
-A new dataset in the client, might look like (this example is taken from a module using the SUDS
-python library):
+A new dataset in the client, might look like this:
 
 .. code-block:: python
 
@@ -48,6 +54,36 @@ For a given `val`, the values for the 4 data types should look like:
 - **scalar**     : `{param_value: val}`
 - **array**      : `{arr_data: }`
 - **timeseries** : `{ts_values: val}`
+
+
+Adding the dataset is as simple as calling ``add_dataset``:
+
+.. code-block:: python
+
+    self.client.add_dataset(dataset)
+
+Searching for Datasets
+----------------------
+As datasets can live in Hydra indepenently of networks, we provide a facility
+to search for them, through the ``search_datasets`` function.
+
+For example, if I know what some time ago, I added a timeseries with units of
+of litres, I put these criteria into the search:
+
+.. code-block:: python 
+
+    self.client.service.search_datasets(units='l', data_type='timeseries')
+
+This search will return the first 2000 timeseries matching this criteria. If there
+are more and you still can't find your dataset, either change the ``page_start``
+or ``page_size`` or both:
+
+.. code-block:: python
+
+    self.client.service.search_datasets(units='l', data_type='timeseries',
+                                         page_size=3000, page_start=1999)
+
+This search will return the 3000 results after result 1999.
 
 .. _scalarsanddescriptors:
 
@@ -146,6 +182,60 @@ Note that the final ts_value is a string, demonstrating that any form of value c
 The array frormat described in :ref:`array_format` can also be a used in a ts_value element.
 
 
+Timeseries JSON format
+----------------------
+A series of timestamps and values (which can be single values or multi-dimensional arrays).
+
+Using single values...
+::
+    
+    {
+        '0':
+            {
+                '2014-09-09 12:00:00': 12.10,
+                '2014-09-09 13:00:00': 13.20,
+                '2014-09-09 14:00:00': 14.40,
+            }
+    }
+
+But why the '0' at the beginning?
+How about we look at an array structure...
+::
+
+    {
+        '0': 
+            {
+                '2014-09-09 12:00:00': 12.10,
+                '2014-09-09 13:00:00': 13.20,
+                '2014-09-09 14:00:00': 14.40,
+            },
+        '1': 
+            {
+                '2014-09-09 12:00:00': 22.10,
+                '2014-09-09 13:00:00': 33.20,
+                '2014-09-09 14:00:00': 44.40,
+            }
+    }
+
+And we can make it even more interesting by not using numbers, but tags.
+::
+
+    {
+        'OBSERVER1': 
+            {
+                '2014-09-09 12:00:00': 12.10,
+                '2014-09-09 13:00:00': 13.20,
+                '2014-09-09 14:00:00': 14.40,
+            },
+        'OBSERVER2': 
+            {
+                '2014-09-09 12:00:00': 22.10,
+                '2014-09-09 13:00:00': 33.20,
+                '2014-09-09 14:00:00': 44.40,
+            }
+    }
+
+
 Metadata
 --------
 
@@ -168,3 +258,6 @@ A dataset takes a list of these pairs.
             {'name':'observed_by', 'value':'Stephen Knox'},
             {'name':'observed_at', 'value':'Niagara Falls'}
         ]
+
+Dataset Collections
+-------------------
