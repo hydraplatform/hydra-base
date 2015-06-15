@@ -280,6 +280,46 @@ def set_attribute_mapping(resource_attr_a, resource_attr_b, **kwargs):
     DBSession.add(mapping)
 
     return mapping
+
+def delete_attribute_mapping(resource_attr_a, resource_attr_b, **kwargs):
+    """
+        Define one resource attribute from one network as being the same as
+        that from another network.
+    """
+    user_id = kwargs.get('user_id')
+
+    rm = aliased(ResourceAttrMap, name='rm')
+    
+    log.info("Trying to delete attribute map. %s -> %s", resource_attr_a, resource_attr_b)
+    mapping = DBSession.query(rm).filter(
+                             rm.resource_attr_id_a == resource_attr_a,
+                             rm.resource_attr_id_b == resource_attr_b).first()
+
+    if mapping is not None:
+        log.info("Deleting attribute map. %s -> %s", resource_attr_a, resource_attr_b)
+        DBSession.delete(mapping)
+        DBSession.flush()
+
+    return 'OK'
+
+def delete_mappings_in_network(network_id, network_2_id=None, **kwargs):
+    """
+        Delete all the resource attribute mappings in a network. If another network
+        is specified, only delete the mappings between the two networks.
+    """
+    qry = DBSession.query(ResourceAttrMap).filter(or_(ResourceAttrMap.network_a_id == network_id, ResourceAttrMap.network_b_id == network_id))
+
+    if network_2_id is not None:
+        qry = qry.filter(or_(ResourceAttrMap.network_a_id==network_2_id, ResourceAttrMap.network_b_id==network_2_id))
+
+    mappings = qry.all()
+
+    for m in mappings:
+        DBSession.delete(m)
+    DBSession.flush()
+
+    return 'OK'
+
 def get_mappings_in_network(network_id, network_2_id=None, **kwargs):
     """
         Get all the resource attribute mappings in a network. If another network

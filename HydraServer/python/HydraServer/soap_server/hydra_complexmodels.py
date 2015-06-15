@@ -698,10 +698,14 @@ class ResourceAttrMap(HydraComplexModel):
     _type_info = [
         ('resource_attr_id_a', Integer(default=None)),
         ('resource_attr_id_b', Integer(default=None)),
+        ('attr_a_name'       , Unicode(default=None)),
+        ('attr_b_name'       , Unicode(default=None)),
         ('ref_key_a'         , Unicode(default=None)),
         ('ref_key_b'         , Unicode(default=None)),
         ('ref_id_a'          , Integer(default=None)),
         ('ref_id_b'          , Integer(default=None)),
+        ('resource_a_name'   , Unicode(default=None)),
+        ('resource_b_name'   , Unicode(default=None)),
         ('network_a_id'      , Integer(default=None)),
         ('network_b_id'      , Integer(default=None)),
     ]
@@ -716,9 +720,13 @@ class ResourceAttrMap(HydraComplexModel):
 
         self.ref_key_a = parent.resourceattr_a.ref_key
         self.ref_id_a  = parent.resourceattr_a.get_resource_id()
+        self.attr_a_name = parent.resourceattr_a.attr.attr_name
+        self.resource_a_name = parent.resourceattr_a.get_resource().get_name()
 
         self.ref_key_b = parent.resourceattr_b.ref_key
         self.ref_id_b  = parent.resourceattr_b.get_resource_id()
+        self.attr_b_name = parent.resourceattr_b.attr.attr_name
+        self.resource_b_name = parent.resourceattr_b.get_resource().get_name()
 
         self.network_a_id = parent.network_a_id
         self.network_b_id = parent.network_b_id

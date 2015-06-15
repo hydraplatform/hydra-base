@@ -180,6 +180,7 @@ class AttributeTest(server.SoapServerTest):
             network_attr_ids.append(ra.attr_id)
         assert new_attr.id in network_attr_ids
 
+class AttributeMapTest(server.SoapServerTest):
     def test_set_attribute_mapping(self):
         net1 = self.create_network_with_data()
         net2 = self.create_network_with_data()
@@ -228,7 +229,14 @@ class AttributeTest(server.SoapServerTest):
         updated_rs = self.client.service.update_value_from_mapping(attr_1.id, attr_2.id, s1.id, s2.id)
     
         assert str(updated_rs.value) == str(rs_to_update_from.value)
-        
+       
+        log.info("Deleting %s -> %s", attr_1.id, attr_2.id)
+        self.client.service.delete_attribute_mapping(attr_1.id, attr_2.id)
+        all_mappings_1 = self.client.service.get_mappings_in_network(net1.id)
+        assert len(all_mappings_1[0]) == 1
+        self.client.service.delete_mappings_in_network(net1.id)
+        all_mappings_1 = self.client.service.get_mappings_in_network(net1.id)
+        assert len(all_mappings_1) == 0
 
 
 if __name__ == '__main__':

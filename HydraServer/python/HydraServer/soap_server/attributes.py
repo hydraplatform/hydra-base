@@ -338,6 +338,16 @@ class AttributeService(HydraService):
         
         return 'OK'
 
+    @rpc(Integer, Integer, _returns=Unicode)
+    def delete_attribute_mapping(ctx, resource_attr_a, resource_attr_b):
+        """
+            Define one resource attribute from one network as being the same as
+            that from another network.
+        """
+        attributes.delete_attribute_mapping(resource_attr_a, resource_attr_b, **ctx.in_header.__dict__)
+        
+        return 'OK'
+
     @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttrMap))
     def get_mappings_in_network(ctx, network_id, network_2_id):
         """
@@ -348,6 +358,16 @@ class AttributeService(HydraService):
        
         mappings = [ResourceAttrMap(m) for m in mapping_rs]
         return mappings
+
+    @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=Unicode)
+    def delete_mappings_in_network(ctx, network_id, network_2_id):
+        """
+            Delete all the resource attribute mappings in a network. If another network
+            is specified, only delete the mappings between the two networks.
+        """
+        attributes.delete_mappings_in_network(network_id, network_2_id, **ctx.in_header.__dict__)
+       
+        return 'OK' 
 
     @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttrMap))
     def get_node_mappings(ctx, node_id, node_2_id):
