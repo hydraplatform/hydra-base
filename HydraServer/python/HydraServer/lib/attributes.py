@@ -52,7 +52,7 @@ def get_attribute_by_id(attr_id, **kwargs):
     except NoResultFound:
         return None
 
-def get_attribute_by_name_and_dimension(name, dimension,**kwargs):
+def get_attribute_by_name_and_dimension(name, dimension='dimensionless',**kwargs):
     """
         Get a specific attribute by its name.
     """
@@ -146,6 +146,9 @@ def add_attributes(attrs,**kwargs):
     attrs_to_add = []
     existing_attrs = []
     for potential_new_attr in attrs:
+        if potential_new_attr.dimen is None:
+            potential_new_attr.dimen = 'dimensionless'
+
         if attr_dict.get((potential_new_attr.name, potential_new_attr.dimen)) is None:
             attrs_to_add.append(potential_new_attr)
         else:

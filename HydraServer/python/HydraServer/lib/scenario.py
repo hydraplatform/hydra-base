@@ -145,7 +145,7 @@ def add_scenario(network_id, scenario,**kwargs):
     scen = Scenario()
     scen.scenario_name        = scenario.name
     scen.scenario_description = scenario.description
-    scen.scenario_layout      = scenario.get_layout()
+    scen.layout               = scenario.get_layout()
     scen.network_id           = network_id
     scen.created_by           = user_id
     scen.start_time           = str(timestamp_to_ordinal(scenario.start_time)) if scenario.start_time else None
@@ -209,7 +209,7 @@ def update_scenario(scenario,update_data=True,update_groups=True,**kwargs):
     
     scen.scenario_name        = scenario.name
     scen.scenario_description = scenario.description
-    scen.scenario_layout      = scenario.get_layout()
+    scen.layout               = scenario.get_layout()
     scen.start_time           = str(timestamp_to_ordinal(scenario.start_time)) if scenario.start_time else None
     scen.end_time             = str(timestamp_to_ordinal(scenario.end_time)) if scenario.end_time else None
     scen.time_step            = scenario.time_step

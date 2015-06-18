@@ -107,6 +107,9 @@ def parse_attribute(attribute):
     elif attribute.find('unit') is not None:
         dimension = units.get_dimension(attribute.find('unit').text)
 
+    if dimension is None:
+        dimension = 'dimensionless'
+
     name      = attribute.find('name').text
     
     attr = _get_attr_by_name_and_dimension(name, dimension)
@@ -806,7 +809,8 @@ def add_template(template,**kwargs):
     """
     tmpl = Template()
     tmpl.template_name = template.name
-    tmpl.layout        = str(template.layout)
+    if template.layout:
+        tmpl.layout        = str(template.layout)
 
     DBSession.add(tmpl)
 
@@ -824,7 +828,8 @@ def update_template(template,**kwargs):
     """
     tmpl = DBSession.query(Template).filter(Template.template_id==template.id).one()
     tmpl.template_name = template.name
-    tmpl.layout        = str(template.layout)
+    if template.layout is not None:
+        tmpl.layout        = str(template.layout)
     if template.types is not None:
         for templatetype in template.types:
             if templatetype.id is not None:
@@ -1264,7 +1269,7 @@ def get_network_as_xml_template(network_id,**kwargs):
 
     template_name = etree.SubElement(template_xml, "template_name")
     template_name.text = "TemplateType from Network %s"%(net_i.network_name)
-    layout = _get_layout_as_etree(net_i.network_layout)
+    layout = _get_layout_as_etree(net_i.layout)
 
     resources = etree.SubElement(template_xml, "resources")
     if net_i.attributes:
@@ -1276,7 +1281,7 @@ def get_network_as_xml_template(network_id,**kwargs):
         resource_name   = etree.SubElement(net_resource, "name")
         resource_name.text   = net_i.network_name
 
-        layout = _get_layout_as_etree(net_i.network_layout)
+        layout = _get_layout_as_etree(net_i.layout)
         if layout is not None:
             net_resource.append(layout)
 
@@ -1299,7 +1304,7 @@ def get_network_as_xml_template(network_id,**kwargs):
             resource_name   = etree.SubElement(node_resource, "name")
             resource_name.text   = node_i.node_name
 
-            layout = _get_layout_as_etree(node_i.node_layout)
+            layout = _get_layout_as_etree(node_i.layout)
 
             if layout is not None:
                 node_resource.append(layout)
@@ -1322,7 +1327,7 @@ def get_network_as_xml_template(network_id,**kwargs):
             resource_name   = etree.SubElement(link_resource, "name")
             resource_name.text   = link_i.link_name
 
-            layout = _get_layout_as_etree(link_i.link_layout)
+            layout = _get_layout_as_etree(link_i.layout)
 
             if layout is not None:
                 link_resource.append(layout)
@@ -1345,7 +1350,7 @@ def get_network_as_xml_template(network_id,**kwargs):
             resource_name   = etree.SubElement(group_resource, "name")
             resource_name.text   = group_i.group_name
 
-           # layout = _get_layout_as_etree(group_i.group_layout)
+           # layout = _get_layout_as_etree(group_i.layout)
 
            # if layout is not None:
            #     group_resource.append(layout)
@@ -1415,7 +1420,7 @@ def get_layout_as_dict(layout_tree):
         if value == '':
             children = val_element.getchildren()
             value = etree.tostring(children[0], pretty_print=True)
-        layout_dict[name] = [value]
+        layout_dict[name] = value
     return layout_dict
 
 def _get_layout_as_etree(layout_dict):

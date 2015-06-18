@@ -59,6 +59,15 @@ ref_id_map = {
 class HydraComplexModel(ComplexModel):
     __namespace__ = 'soap_server.hydra_complexmodels'
 
+    def get_outgoing_layout(self, resource_layout):
+        layout = {}
+        if resource_layout not in (None, ""):
+            db_layout    = eval(resource_layout)
+            for k, v in db_layout.items():
+                layout[k] = v
+
+        return layout
+
 class LoginResponse(HydraComplexModel):
     """
     """
@@ -184,7 +193,7 @@ class Dataset(HydraComplexModel):
     _type_info = [
         ('id',               Integer(min_occurs=0, default=None)),
         ('type',             Unicode),
-        ('dimension',        Unicode(min_occurs=0, default='dimensionless')),
+        ('dimension',        Unicode(min_occurs=1, default='dimensionless')),
         ('unit',             Unicode(min_occurs=1, default=None)),
         ('name',             Unicode(min_occurs=1, default=None)),
         ('value',            AnyDict(min_occurs=1, default=None)),
@@ -775,10 +784,7 @@ class TemplateType(HydraComplexModel):
         self.alias     = parent.alias
         self.resource_type = parent.resource_type
         self.cr_date = str(parent.cr_date)
-        if parent.layout is not None:
-            self.layout    = eval(parent.layout)
-        else:
-            self.layout = {}
+        self.layout = self.get_outgoing_layout(parent.layout)
         self.template_id  = parent.template_id
 
         typeattrs = []
@@ -806,10 +812,7 @@ class Template(HydraComplexModel):
         self.name   = parent.template_name
         self.id     = parent.template_id
         self.cr_date = str(parent.cr_date)
-        if parent.layout is not None:
-            self.layout    = eval(parent.layout)
-        else:
-            self.layout = {}
+        self.layout = self.get_outgoing_layout(parent.layout)
 
         types = []
         for templatetype in parent.templatetypes:
@@ -913,10 +916,7 @@ class Node(Resource):
         self.y = parent.node_y
         self.description = parent.node_description
         self.cr_date = str(parent.cr_date)
-        if parent.node_layout not in (None, ""):
-            self.layout    = eval(parent.node_layout)
-        else:
-            self.layout = {}
+        self.layout = self.get_outgoing_layout(parent.layout)
         self.status = parent.status
         if summary is False:
             self.attributes = [ResourceAttr(a) for a in parent.attributes]
@@ -953,11 +953,7 @@ class Link(Resource):
         self.node_2_id = parent.node_2_id
         self.description = parent.link_description
         self.cr_date = str(parent.cr_date)
-
-        if parent.link_layout not in (None, "") :
-            self.layout    = eval(parent.link_layout)
-        else:
-            self.layout = {}
+        self.layout = self.get_outgoing_layout(parent.layout)
         self.status    = parent.status
         if summary is False:
 
@@ -1062,12 +1058,7 @@ class Scenario(Resource):
         self.id = parent.scenario_id
         self.name = parent.scenario_name
         self.description = parent.scenario_description
-
-        if parent.scenario_layout not in (None, ""):
-            self.layout    = eval(parent.scenario_layout)
-        else:
-            self.layout = {}
-
+        self.layout = self.get_outgoing_layout(parent.layout)
         self.network_id = parent.network_id
         self.status = parent.status
         self.locked = parent.locked
@@ -1242,10 +1233,7 @@ class Network(Resource):
         self.description = parent.network_description
         self.created_by  = parent.created_by
         self.cr_date     = str(parent.cr_date)
-        if parent.network_layout not in (None, ""):
-            self.layout    = eval(parent.network_layout)
-        else:
-            self.layout = {}
+        self.layout = self.get_outgoing_layout(parent.layout)
         self.status      = parent.status
         self.scenarios   = [Scenario(s, summary) for s in parent.scenarios]
         self.nodes       = [Node(n, summary) for n in parent.nodes]
