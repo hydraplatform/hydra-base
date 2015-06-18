@@ -86,6 +86,7 @@
             <alias>Desalination Plant</alias>
             <attribute>
                 <name>Min Capacity</name>
+                <description>Minimum capacity of water</description>
                 <dimension>Volume</dimension>
                 <default>
                     <value>0</value>
@@ -94,6 +95,7 @@
             </attribute>
             <attribute>
                 <name>Inflow</name>
+                <description>Inflow into something</description>
                 <dimension>Volumetric flow rate</dimension>
                 <default>
                     <value>100</value>
@@ -102,6 +104,7 @@
             </attribute>
             <attribute>
                 <name>Energy Price</name>
+                <description>Standard energy price</description>
                 <dimension>energy price</dimension>
                 <default>
                     <value>1.25</value>

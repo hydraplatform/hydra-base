@@ -178,7 +178,7 @@ class Dataset(HydraComplexModel):
         ('metadata',         Unicode(min_occurs=0, default=None)),
     ]
 
-    def __init__(self, parent=None, metadata=True):
+    def __init__(self, parent=None, include_metadata=True):
         super(Dataset, self).__init__()
         if  parent is None:
             return
@@ -200,7 +200,7 @@ class Dataset(HydraComplexModel):
             except:
                 self.value = parent.value
 
-        if metadata is True:
+        if include_metadata is True:
             metadata = {}
             for m in parent.metadata:
                 metadata[m.metadata_name] = m.metadata_val
@@ -310,6 +310,7 @@ class Attr(HydraComplexModel):
         ('id', Integer(default=None)),
         ('name', Unicode(default=None)),
         ('dimen', Unicode(default=None)),
+        ('description', Unicode(default=None)),
         ('cr_date', Unicode(default=None)),
     ]
 
@@ -320,6 +321,7 @@ class Attr(HydraComplexModel):
         self.id = parent.attr_id
         self.name = parent.attr_name
         self.dimen = parent.attr_dimen
+        self.description = parent.attr_description
         self.cr_date = str(parent.cr_date)
 
 class ResourceScenario(HydraComplexModel):
@@ -401,6 +403,7 @@ class TypeAttr(HydraComplexModel):
         ('default_dataset_id', Integer(default=None)),
         ('data_restriction',   AnyDict(default=None)),
         ('is_var',             Unicode(default=None)),
+        ('description',        Unicode(default=None)),
         ('cr_date',            Unicode(default=None)),
     ]
 
@@ -422,6 +425,7 @@ class TypeAttr(HydraComplexModel):
         self.data_type = parent.data_type
         self.unit      = parent.unit
         self.default_dataset_id = self.default_dataset_id
+        self.description = parent.description
         self.cr_date = str(parent.cr_date)
         if parent.data_restriction is not None:
             self.data_restriction = eval(parent.data_restriction)

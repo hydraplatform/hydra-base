@@ -303,9 +303,10 @@ class Attr(Base):
         UniqueConstraint('attr_name', 'attr_dimen', name="unique name dimension"),
     )
 
-    attr_id = Column(Integer(), primary_key=True, nullable=False)
-    attr_name = Column(String(60),  nullable=False)
-    attr_dimen = Column(String(60))
+    attr_id           = Column(Integer(), primary_key=True, nullable=False)
+    attr_name         = Column(String(60),  nullable=False)
+    attr_dimen        = Column(String(60))
+    attr_description  = Column(String(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
 class AttrMap(Base):
@@ -363,6 +364,7 @@ class TypeAttr(Base):
     data_type          = Column(String(60))
     data_restriction   = Column(Text(1000))
     unit               = Column(String(60))
+    description        = Column(Text(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     attr = relationship('Attr')

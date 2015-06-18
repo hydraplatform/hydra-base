@@ -91,7 +91,7 @@ class MatrixResourceAttribute(HydraComplexModel):
         if dataset is None:
             self.dataset  = None
         else:
-            self.dataset = Dataset(dataset, metadata=False)
+            self.dataset = Dataset(dataset, include_metadata=False)
 
 class MatrixResourceData(HydraComplexModel):
     _type_info = [

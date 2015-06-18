@@ -16,10 +16,10 @@
 import logging
 log = logging.getLogger(__name__)
 
-from HydraServer.db.model import Attr, Node, Link, ResourceGroup, Network, Project, Scenario, TemplateType, ResourceAttr, TypeAttr
+from HydraServer.db.model import Attr, Node, Link, ResourceGroup, Network, Project, Scenario, TemplateType, ResourceAttr, TypeAttr, ResourceScenario, Dataset
 from HydraServer.db import DBSession
 from sqlalchemy.orm.exc import NoResultFound
-from HydraLib.HydraException import ResourceNotFoundError
+from HydraLib.HydraException import HydraError, ResourceNotFoundError
 from sqlalchemy import or_, and_
 
 def _get_resource(ref_key, ref_id):
@@ -85,9 +85,36 @@ def add_attribute(attr,**kwargs):
         log.info("Attr already exists")
     except NoResultFound:
         attr_i = Attr(attr_name = attr.name, attr_dimen = attr.dimen)
+        attr_i.attr_description = attr.description
         DBSession.add(attr_i)
         DBSession.flush()
         log.info("New attr added")
+    return attr_i
+
+def update_attribute(attr,**kwargs):
+    """
+    Add a generic attribute, which can then be used in creating
+    a resource attribute, and put into a type.
+
+    .. code-block:: python
+
+        (Attr){
+            id = 1020
+            name = "Test Attr"
+            dimen = "very big"
+        }
+
+    """
+    log.debug("Adding attribute: %s", attr.name)
+    attr_i = _get_attr(Attr.attr_id)
+    attr_i.attr_name = attr.name
+    attr_i.attr_dimen = attr.dimension
+    attr_i.attr_description = attr.description
+
+    #Make sure an update hasn't caused an inconsistency.
+    check_attr_dimension(attr_i.attr_id)
+
+    DBSession.flush()
     return attr_i
 
 def add_attributes(attrs,**kwargs):
@@ -123,11 +150,13 @@ def add_attributes(attrs,**kwargs):
             attrs_to_add.append(potential_new_attr)
         else:
             existing_attrs.append(attr_dict.get((potential_new_attr.name, potential_new_attr.dimen)))
+
     new_attrs = []
     for attr in attrs_to_add:
         attr_i = Attr()
         attr_i.attr_name = attr.name
         attr_i.attr_dimen = attr.dimen
+        attr_i.attr_description = attr.description
         DBSession.add(attr_i)
         new_attrs.append(attr_i)
 
@@ -243,3 +272,26 @@ def get_resource_attributes(ref_key, ref_id, type_id=None, **kwargs):
     resource_attrs = resource_attr_qry.all()
 
     return resource_attrs
+
+def check_attr_dimension(attr_id, **kwargs):
+    """
+        Check that the dimension of the resource attribute data is consistent
+        with the definition of the attribute.
+        If the attribute says 'volume', make sure every dataset connected
+        with this attribute via a resource attribute also has a dimension
+        of 'volume'.
+    """
+    attr_i = _get_attr(attr_id)
+
+    datasets = DBSession.query(Dataset).filter(Dataset.dataset_id==ResourceScenario.dataset_id,
+                                               ResourceScenario.resource_attr_id == ResourceAttr.resource_attr_id,
+                                               ResourceAttr.attr_id == attr_id).all()
+    bad_datasets = []
+    for d in datasets:
+        if d.data_dimen != attr_i.attr_dimen:
+            bad_datasets.append(d.dataset_id)
+   
+    if len(bad_datasets) > 0:
+        raise HydraError("Datasets %s have a different dimension to attribute %s"%(bad_datasets, attr_id))
+    
+    return 'OK'

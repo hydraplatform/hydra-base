@@ -39,9 +39,12 @@ class AttributeTest(server.SoapServerTest):
         attr = self.client.service.get_attribute(name, "Volumetric flow rate")
         if attr is None:
             attr = {'name'  : name,
-                    'dimen' : dimension
+                    'dimen' : dimension,
+                    'description' : "Attribute description",
                    }
             attr = self.client.service.add_attribute(attr)
+
+            assert attr.description == "Attribute description"
             
         return attr
 
@@ -52,11 +55,13 @@ class AttributeTest(server.SoapServerTest):
         dimension = "Volumetric flow rate"
         attrs = self.client.factory.create('hyd:AttrArray')
         attr1 = {'name'  : name1,
-                'dimen' : dimension
+                'dimen' : dimension,
+                'description' : "Attribute 1 from a test of adding multiple attributes",
                 }
         attrs.Attr.append(attr1)
         attr2 = {'name' : name2,
-                 'dimen' : dimension
+                 'dimen' : dimension,
+                'description' : "Attribute 2 from a test of adding multiple attributes",
                 }
         attrs.Attr.append(attr2)
 
@@ -70,6 +75,10 @@ class AttributeTest(server.SoapServerTest):
             assert len(attrs.Attr) == 2
             for a in attrs.Attr:
                 assert a.id is not None
+
+        assert attrs.Attr[0].description ==  "Attribute 1 from a test of adding multiple attributes"
+        assert attrs.Attr[1].description ==  "Attribute 2 from a test of adding multiple attributes"
+
         return attrs.Attr
 
     def test_get_all_attributes(self):
@@ -88,12 +97,14 @@ class AttributeTest(server.SoapServerTest):
         retrieved_attr = self.client.service.get_attribute_by_id(existing_attr.id)
         assert existing_attr.name == retrieved_attr.name
         assert existing_attr.dimen == retrieved_attr.dimen
+        assert existing_attr.description == retrieved_attr.description
 
     def test_get_attribute(self):
         existing_attr = self.test_add_attribute()
         retrieved_attr = self.client.service.get_attribute(existing_attr.name,
                                                            existing_attr.dimen)
         assert existing_attr.id == retrieved_attr.id
+        assert existing_attr.description == retrieved_attr.description
 
     def test_get_attributes(self):
         existing_attrs = self.test_add_attributes()
@@ -102,17 +113,18 @@ class AttributeTest(server.SoapServerTest):
         dimension = existing_attrs[0].dimen 
         attrs = self.client.factory.create('hyd:AttrArray')
         attr1 = {'name'  : name1,
-                'dimen' : dimension
+                'dimen' : dimension,
                 }
         attrs.Attr.append(attr1)
         attr2 = {'name' : name2,
-                 'dimen' : dimension
+                 'dimen' : dimension,
                 }
         attrs.Attr.append(attr2)
 
         attrs = self.client.service.get_attributes(attrs)
         assert attrs.Attr[0].id == existing_attrs[0].id
         assert attrs.Attr[1].id == existing_attrs[1].id
+        assert attrs.Attr[1].description == existing_attrs[1].description
 
 #    def test_delete_attribute(self):
 #        attr = self.create_attr("attr_to_delete", "Volume")
