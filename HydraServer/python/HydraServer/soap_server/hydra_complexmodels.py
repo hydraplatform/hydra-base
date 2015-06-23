@@ -1341,6 +1341,7 @@ class ProjectSummary(Resource):
         ('id',          Integer(default=None)),
         ('name',        Unicode(default=None)),
         ('description', Unicode(default=None)),
+        ('status',      Unicode(default=None)),
         ('cr_date',     Unicode(default=None)),
         ('created_by',  Integer(default=None)),
     ]
@@ -1355,6 +1356,7 @@ class ProjectSummary(Resource):
         self.description = parent.project_description
         self.cr_date = str(parent.cr_date)
         self.created_by = parent.created_by
+        self.summary    = parent.summary
 
 class User(HydraComplexModel):
     """
