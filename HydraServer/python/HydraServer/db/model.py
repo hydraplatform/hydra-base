@@ -305,7 +305,7 @@ class Attr(Base):
 
     attr_id           = Column(Integer(), primary_key=True, nullable=False)
     attr_name         = Column(String(60),  nullable=False)
-    attr_dimen        = Column(String(60))
+    attr_dimen        = Column(String(60), server_default=text('dimensionless'))
     attr_description  = Column(String(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
@@ -320,6 +320,24 @@ class AttrMap(Base):
 
     attr_a = relationship("Attr", foreign_keys=[attr_id_a], backref=backref('maps_to', order_by=attr_id_a))
     attr_b = relationship("Attr", foreign_keys=[attr_id_b], backref=backref('maps_from', order_by=attr_id_b))
+
+
+class ResourceAttrMap(Base):
+    """
+    """
+
+    __tablename__='tResourceAttrMap'
+
+    network_a_id       = Column(Integer(), ForeignKey('tNetwork.network_id'), primary_key=True, nullable=False)
+    network_b_id       = Column(Integer(), ForeignKey('tNetwork.network_id'), primary_key=True, nullable=False)
+    resource_attr_id_a = Column(Integer(), ForeignKey('tResourceAttr.resource_attr_id'), primary_key=True, nullable=False)
+    resource_attr_id_b = Column(Integer(), ForeignKey('tResourceAttr.resource_attr_id'), primary_key=True, nullable=False)
+
+    resourceattr_a = relationship("ResourceAttr", foreign_keys=[resource_attr_id_a])
+    resourceattr_b = relationship("ResourceAttr", foreign_keys=[resource_attr_id_b])
+
+    network_a = relationship("Network", foreign_keys=[network_a_id])
+    network_b = relationship("Network", foreign_keys=[network_b_id])
 
 class Template(Base):
     """
@@ -405,6 +423,22 @@ class ResourceAttr(Base):
     link = relationship('Link', backref=backref('attributes', uselist=True, cascade="all, delete-orphan"), uselist=False)
     resourcegroup = relationship('ResourceGroup', backref=backref('attributes', uselist=True, cascade="all, delete-orphan"), uselist=False)
 
+
+    def get_network(self):
+        """
+         Get the network that this resource attribute is in.
+        """
+        ref_key = self.ref_key
+        if ref_key == 'NETWORK':
+            return self.network
+        elif ref_key == 'NODE':
+            return self.node.network
+        elif ref_key == 'LINK':
+            return self.link.network
+        elif ref_key == 'GROUP':
+            return self.group.network
+        elif ref_key == 'PROJECT':
+            return None
 
     def get_resource(self):
         ref_key = self.ref_key
@@ -602,7 +636,7 @@ class Network(Base):
     network_id = Column(Integer(), primary_key=True, nullable=False)
     network_name = Column(String(60),  nullable=False)
     network_description = Column(String(1000))
-    network_layout = Column(Text(1000))
+    layout = Column(Text(1000))
     project_id = Column(Integer(), ForeignKey('tProject.project_id'),  nullable=False)
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
@@ -638,7 +672,7 @@ class Network(Base):
         l = Link()
         l.link_name        = name
         l.link_description = desc
-        l.link_layout      = str(layout)
+        l.layout           = str(layout) if layout is not None else None
         l.node_a           = node_1
         l.node_b           = node_2
 
@@ -661,7 +695,7 @@ class Network(Base):
         node = Node()
         node.node_name        = name
         node.node_description = desc
-        node.node_layout      = str(layout)
+        node.layout           = str(layout) if layout is not None else None
         node.node_x           = node_x
         node.node_y           = node_y
 
@@ -773,7 +807,7 @@ class Link(Base):
     node_2_id = Column(Integer(), ForeignKey('tNode.node_id'), nullable=False)
     link_name = Column(String(60))
     link_description = Column(String(1000))
-    link_layout = Column(Text(1000))
+    layout = Column(Text(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     network = relationship('Network', backref=backref("links", order_by=network_id, cascade="all, delete-orphan"), lazy='joined')
@@ -823,7 +857,7 @@ class Node(Base):
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     node_x = Column(Float(precision=10, asdecimal=True))
     node_y = Column(Float(precision=10, asdecimal=True))
-    node_layout = Column(Text(1000))
+    layout = Column(Text(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     network = relationship('Network', backref=backref("nodes", order_by=network_id, cascade="all, delete-orphan"), lazy='joined')
@@ -1002,7 +1036,7 @@ class Scenario(Base):
     scenario_id = Column(Integer(), primary_key=True, index=True, nullable=False)
     scenario_name = Column(String(60),  nullable=False)
     scenario_description = Column(String(1000))
-    scenario_layout = Column(Text(1000))
+    layout = Column(Text(1000))
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     network_id = Column(Integer(), ForeignKey('tNetwork.network_id'), index=True)
     start_time = Column(String(60))

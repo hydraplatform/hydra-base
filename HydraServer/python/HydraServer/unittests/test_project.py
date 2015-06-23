@@ -155,6 +155,8 @@ class ProjectTest(server.SoapServerTest):
 
         assert len(projects.ProjectSummary) > 0, "Projects for user were not retrieved."
 
+        assert projects.ProjectSummary[0].status == 'A'
+
     def test_get_networks(self):
         
         proj = self.create_project('Project with multiple networks @ %s'%(datetime.datetime.now()))

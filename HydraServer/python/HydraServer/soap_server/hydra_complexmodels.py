@@ -56,6 +56,15 @@ ref_id_map = {
 class HydraComplexModel(ComplexModel):
     __namespace__ = 'soap_server.hydra_complexmodels'
 
+    def get_outgoing_layout(self, resource_layout):
+        layout = {}
+        if resource_layout not in (None, ""):
+            db_layout    = eval(resource_layout)
+            for k, v in db_layout.items():
+                layout[k] = v
+
+        return layout
+
 class LoginResponse(HydraComplexModel):
     """
     """
@@ -168,7 +177,7 @@ class Dataset(HydraComplexModel):
     _type_info = [
         ('id',               Integer(min_occurs=0, default=None)),
         ('type',             Unicode),
-        ('dimension',        Unicode(min_occurs=0, default='dimensionless')),
+        ('dimension',        Unicode(min_occurs=1, default='dimensionless')),
         ('unit',             Unicode(min_occurs=1, default=None)),
         ('name',             Unicode(min_occurs=1, default=None)),
         ('value',            Unicode(min_occurs=1, default=None)),
@@ -380,6 +389,43 @@ class ResourceAttr(HydraComplexModel):
         #This should be set externally as it is not related to its parent.
         self.resourcescenario = None
 
+class ResourceAttrMap(HydraComplexModel):
+    _type_info = [
+        ('resource_attr_id_a', Integer(default=None)),
+        ('resource_attr_id_b', Integer(default=None)),
+        ('attr_a_name'       , Unicode(default=None)),
+        ('attr_b_name'       , Unicode(default=None)),
+        ('ref_key_a'         , Unicode(default=None)),
+        ('ref_key_b'         , Unicode(default=None)),
+        ('ref_id_a'          , Integer(default=None)),
+        ('ref_id_b'          , Integer(default=None)),
+        ('resource_a_name'   , Unicode(default=None)),
+        ('resource_b_name'   , Unicode(default=None)),
+        ('network_a_id'      , Integer(default=None)),
+        ('network_b_id'      , Integer(default=None)),
+    ]
+
+    def __init__(self, parent=None):
+        super(ResourceAttrMap, self).__init__()
+        if  parent is None:
+            return
+
+        self.resource_attr_id_a = parent.resource_attr_id_a
+        self.resource_attr_id_b = parent.resource_attr_id_b
+
+        self.ref_key_a = parent.resourceattr_a.ref_key
+        self.ref_id_a  = parent.resourceattr_a.get_resource_id()
+        self.attr_a_name = parent.resourceattr_a.attr.attr_name
+        self.resource_a_name = parent.resourceattr_a.get_resource().get_name()
+
+        self.ref_key_b = parent.resourceattr_b.ref_key
+        self.ref_id_b  = parent.resourceattr_b.get_resource_id()
+        self.attr_b_name = parent.resourceattr_b.attr.attr_name
+        self.resource_b_name = parent.resourceattr_b.get_resource().get_name()
+
+        self.network_a_id = parent.network_a_id
+        self.network_b_id = parent.network_b_id
+
 
 class ResourceTypeDef(HydraComplexModel):
     """
@@ -459,10 +505,7 @@ class TemplateType(HydraComplexModel):
         self.alias     = parent.alias
         self.resource_type = parent.resource_type
         self.cr_date = str(parent.cr_date)
-        if parent.layout is not None:
-            self.layout    = eval(parent.layout)
-        else:
-            self.layout = {}
+        self.layout = self.get_outgoing_layout(parent.layout)
         self.template_id  = parent.template_id
 
         typeattrs = []
@@ -490,10 +533,7 @@ class Template(HydraComplexModel):
         self.name   = parent.template_name
         self.id     = parent.template_id
         self.cr_date = str(parent.cr_date)
-        if parent.layout is not None:
-            self.layout    = eval(parent.layout)
-        else:
-            self.layout = {}
+        self.layout = self.get_outgoing_layout(parent.layout)
 
         types = []
         for templatetype in parent.templatetypes:
@@ -597,10 +637,7 @@ class Node(Resource):
         self.y = parent.node_y
         self.description = parent.node_description
         self.cr_date = str(parent.cr_date)
-        if parent.node_layout not in (None, ""):
-            self.layout    = eval(parent.node_layout)
-        else:
-            self.layout = {}
+        self.layout = self.get_outgoing_layout(parent.layout)
         self.status = parent.status
         if summary is False:
             self.attributes = [ResourceAttr(a) for a in parent.attributes]
@@ -637,11 +674,7 @@ class Link(Resource):
         self.node_2_id = parent.node_2_id
         self.description = parent.link_description
         self.cr_date = str(parent.cr_date)
-
-        if parent.link_layout not in (None, "") :
-            self.layout    = eval(parent.link_layout)
-        else:
-            self.layout = {}
+        self.layout = self.get_outgoing_layout(parent.layout)
         self.status    = parent.status
         if summary is False:
 
@@ -746,12 +779,7 @@ class Scenario(Resource):
         self.id = parent.scenario_id
         self.name = parent.scenario_name
         self.description = parent.scenario_description
-
-        if parent.scenario_layout not in (None, ""):
-            self.layout    = eval(parent.scenario_layout)
-        else:
-            self.layout = {}
-
+        self.layout = self.get_outgoing_layout(parent.layout)
         self.network_id = parent.network_id
         self.status = parent.status
         self.locked = parent.locked
@@ -926,10 +954,7 @@ class Network(Resource):
         self.description = parent.network_description
         self.created_by  = parent.created_by
         self.cr_date     = str(parent.cr_date)
-        if parent.network_layout not in (None, ""):
-            self.layout    = eval(parent.network_layout)
-        else:
-            self.layout = {}
+        self.layout = self.get_outgoing_layout(parent.layout)
         self.status      = parent.status
         self.scenarios   = [Scenario(s, summary) for s in parent.scenarios]
         self.nodes       = [Node(n, summary) for n in parent.nodes]
@@ -1000,6 +1025,7 @@ class ProjectSummary(Resource):
         ('id',          Integer(default=None)),
         ('name',        Unicode(default=None)),
         ('description', Unicode(default=None)),
+        ('status',      Unicode(default=None)),
         ('cr_date',     Unicode(default=None)),
         ('created_by',  Integer(default=None)),
     ]
@@ -1014,6 +1040,7 @@ class ProjectSummary(Resource):
         self.description = parent.project_description
         self.cr_date = str(parent.cr_date)
         self.created_by = parent.created_by
+        self.summary    = parent.summary
 
 class User(HydraComplexModel):
     """

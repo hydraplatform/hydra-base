@@ -229,7 +229,7 @@ def _add_nodes_to_database(net_i, nodes):
         node_dict = {'network_id'   : net_i.network_id,
                     'node_name' : node.name,
                      'node_description': node.description,
-                     'node_layout'     : node.get_layout(),
+                     'layout'     : node.get_layout(),
                      'node_x'     : node.x,
                      'node_y'     : node.y,
                     }
@@ -285,7 +285,7 @@ def _add_links_to_database(net_i, links, node_id_map):
         link_dicts.append({'network_id' : net_i.network_id,
                            'link_name' : link.name,
                            'link_description' : link.description,
-                           'link_layout' : link.get_layout(),
+                           'layout' : link.get_layout(),
                            'node_1_id' : node_1.node_id,
                            'node_2_id' : node_2.node_id
                           })
@@ -425,7 +425,7 @@ def add_network(network,**kwargs):
     net_i.projection          = network.projection
 
     if network.layout is not None:
-        net_i.network_layout = network.get_layout()
+        net_i.layout = network.get_layout()
 
     network.network_id = net_i.network_id
     DBSession.add(net_i)
@@ -464,7 +464,7 @@ def add_network(network,**kwargs):
             scen = Scenario()
             scen.scenario_name        = s.name
             scen.scenario_description = s.description
-            scen.scenario_layout      = s.get_layout()
+            scen.layout               = s.get_layout()
             scen.start_time           = str(timestamp_to_ordinal(s.start_time)) if s.start_time else None
             scen.end_time             = str(timestamp_to_ordinal(s.end_time)) if s.end_time else None
             scen.time_step            = s.time_step
@@ -613,6 +613,7 @@ def _get_all_templates(network_id, template_id):
                                Template.template_name.label('template_name'),
                                Template.template_id.label('template_id'),
                                TemplateType.type_id.label('type_id'),
+                               TemplateType.layout.label('layout'),
                                TemplateType.type_name.label('type_name'),
                               ).filter(TemplateType.type_id==ResourceType.type_id,
                                        Template.template_id==TemplateType.template_id)
@@ -1041,7 +1042,7 @@ def update_network(network,
     net_i.project_id          = network.project_id
     net_i.network_name        = network.name
     net_i.network_description = network.description
-    net_i.network_layout      = network.get_layout()
+    net_i.layout              = network.get_layout()
 
     all_resource_attrs = {}
     all_resource_attrs.update(_update_attributes(net_i, network.attributes))
@@ -1346,7 +1347,7 @@ def update_node(node,**kwargs):
     node_i.node_x    = node.x
     node_i.node_y    = node.y
     node_i.node_description = node.description
-    node_i.node_layout      = node.get_layout()
+    node_i.layout           = node.get_layout()
 
     _update_attributes(node_i, node.attributes)
 
@@ -1503,7 +1504,7 @@ def update_link(link,**kwargs):
     link_i.node_1_id = link.node_1_id
     link_i.node_2_id = link.node_2_id
     link_i.link_description = link.description
-    link_i.link_layout = link.get_layout()
+    link_i.layout           = link.get_layout()
 
     add_attributes(link_i, link.attributes)
     add_resource_types(link_i, link.types)

@@ -192,5 +192,64 @@ class AttributeTest(server.SoapServerTest):
             network_attr_ids.append(ra.attr_id)
         assert new_attr.id in network_attr_ids
 
+class AttributeMapTest(server.SoapServerTest):
+    def test_set_attribute_mapping(self):
+        net1 = self.create_network_with_data()
+        net2 = self.create_network_with_data()
+        net3 = self.create_network_with_data()
+
+        s1 = net1.scenarios.Scenario[0]
+        s2 = net2.scenarios.Scenario[0]
+
+        node_1 = net1.nodes.Node[0]
+        node_2 = net2.nodes.Node[0]
+        node_3 = net3.nodes.Node[0]
+
+        attr_1 = node_1.attributes.ResourceAttr[0]
+        attr_2 = node_2.attributes.ResourceAttr[0]
+        attr_3 = node_3.attributes.ResourceAttr[0]
+
+        rs_to_update_from = None
+        for rs in s1.resourcescenarios.ResourceScenario:
+            if rs.resource_attr_id == attr_1.id:
+                rs_to_update_from = rs
+
+
+        rs_to_change = None
+        for rs in s2.resourcescenarios.ResourceScenario:
+            if rs.resource_attr_id == attr_2.id:
+                rs_to_change = rs
+
+        self.client.service.set_attribute_mapping(attr_1.id, attr_2.id)
+        self.client.service.set_attribute_mapping(attr_1.id, attr_3.id)
+        
+        all_mappings_1 = self.client.service.get_mappings_in_network(net1.id)
+        all_mappings_2 = self.client.service.get_mappings_in_network(net2.id, net2.id)
+        #print all_mappings_1 
+        #print all_mappings_2 
+        assert len(all_mappings_1[0]) == 2
+        assert len(all_mappings_2[0]) == 1
+
+        node_mappings_1 = self.client.service.get_node_mappings(node_1.id)
+        node_mappings_2 = self.client.service.get_node_mappings(node_1.id, node_2.id)
+        #print "*"*100
+        #print node_mappings_1 
+        #print node_mappings_2 
+        assert len(node_mappings_1[0]) == 2
+        assert len(node_mappings_2[0]) == 1
+       
+        updated_rs = self.client.service.update_value_from_mapping(attr_1.id, attr_2.id, s1.id, s2.id)
+    
+        assert str(updated_rs.value) == str(rs_to_update_from.value)
+       
+        log.info("Deleting %s -> %s", attr_1.id, attr_2.id)
+        self.client.service.delete_attribute_mapping(attr_1.id, attr_2.id)
+        all_mappings_1 = self.client.service.get_mappings_in_network(net1.id)
+        assert len(all_mappings_1[0]) == 1
+        self.client.service.delete_mappings_in_network(net1.id)
+        all_mappings_1 = self.client.service.get_mappings_in_network(net1.id)
+        assert len(all_mappings_1) == 0
+
+
 if __name__ == '__main__':
     server.run()
