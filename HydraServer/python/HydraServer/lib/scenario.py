@@ -940,25 +940,31 @@ def update_value_from_mapping(source_resource_attr_id, target_resource_attr_id, 
     s1 = _get_scenario(source_scenario_id)
     s2 = _get_scenario(target_scenario_id)
 
-    rs1 = DBSession.query(ResourceScenario).filter(ResourceScenario.resource_attr_id == source_resource_attr_id, ResourceScenario.scenario_id == source_scenario_id).first()
-    rs2 = DBSession.query(ResourceScenario).filter(ResourceScenario.resource_attr_id == target_resource_attr_id, ResourceScenario.scenario_id == target_scenario_id).first()
+    rs = aliased(ResourceScenario, name='rs')
+    rs1 = DBSession.query(rs).filter(rs.resource_attr_id == source_resource_attr_id,
+                                    rs.scenario_id == source_scenario_id).first()
+    rs2 = DBSession.query(rs).filter(rs.resource_attr_id == target_resource_attr_id,
+                                    rs.scenario_id == target_scenario_id).first()
     
     #3 possibilities worth considering:
     #1: Both RS exist, so update the target RS
     #2: Target RS does not exist, so create it with the dastaset from RS1
     #3: Source RS does not exist, so it must be removed from the target scenario if it exists
+    return_value = None#Either return null or return a new or updated resource scenario
     if rs1 is not None:
         if rs2 is not None:
             rs2.dataset_id = rs1.dataset_id
         else:
             rs2 = ResourceScenario(resource_attr_id=target_resource_attr_id, scenario_id=target_scenario_id, dataset_id=rs1.dataset_id)
             DBSession.add(rs2)
-        return rs2 
+        DBSession.flush()
+        return_value = rs2
     else:
         if rs2 is not None:
             DBSession.delete(rs2)
-        return None
+
     DBSession.flush()
+    return return_value
 
     
 
