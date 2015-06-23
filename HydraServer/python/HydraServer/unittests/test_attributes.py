@@ -206,8 +206,8 @@ class AttributeMapTest(server.SoapServerTest):
         node_3 = net3.nodes.Node[0]
 
         attr_1 = node_1.attributes.ResourceAttr[0]
-        attr_2 = node_2.attributes.ResourceAttr[0]
-        attr_3 = node_3.attributes.ResourceAttr[0]
+        attr_2 = node_2.attributes.ResourceAttr[1]
+        attr_3 = node_3.attributes.ResourceAttr[2]
 
         rs_to_update_from = None
         for rs in s1.resourcescenarios.ResourceScenario:
