@@ -223,13 +223,17 @@ class Dataset(HydraComplexModel):
             #attr_data.value is a dictionary,
             #but the keys have namespaces which must be stripped.
 
-            log.debug("Parsing %s", self.value)
 
             if self.value is None:
                 log.warn("Cannot parse dataset. No value specified.")
                 return None
             
             data = str(self.value)
+
+            if len(data) > 100:
+                log.debug("Parsing %s", data[0:100])
+            else:
+                log.debug("Parsing %s", data)
 
             if self.type == 'descriptor':
                 return data 

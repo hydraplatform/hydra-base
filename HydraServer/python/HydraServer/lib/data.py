@@ -516,7 +516,7 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
             hash_id_map[current_hash] = dataset_dict
             metadata[current_hash] = dataset_dict['metadata']
 
-    log.debug("Isolating new data", get_timing(start_time))
+    log.debug("Isolating new data %s", get_timing(start_time))
     #Isolate only the new datasets and insert them
     new_data_for_insert = []
     #keep track of the datasets that are to be inserted to avoid duplicate
