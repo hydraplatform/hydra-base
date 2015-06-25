@@ -599,7 +599,7 @@ def _process_incoming_data(data, user_id=None, source=None):
         }
 
         # Assign dimension if necessary
-        if d.unit is not None and d.dimension is None:
+        if d.unit is not None and d.dimension in (None, 'dimensionless'):
             data_dict['data_dimen'] = hydra_units.get_dimension(d.unit)
         else:
             data_dict['data_dimen'] = d.dimension
