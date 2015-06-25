@@ -103,14 +103,14 @@ def _get_attr_by_name_and_dimension(name, dimension):
 def parse_attribute(attribute):
 
     if attribute.find('dimension') is not None:
-        dimension = attribute.find('dimension').text
+        dimension = attribute.find('dimension').text.strip()
     elif attribute.find('unit') is not None:
-        dimension = units.get_dimension(attribute.find('unit').text)
+        dimension = units.get_dimension(attribute.find('unit').text.strip())
 
-    if dimension is None:
+    if dimension is None or dimension.lower() in ('dimensionless', ''):
         dimension = 'dimensionless'
 
-    name      = attribute.find('name').text
+    name      = attribute.find('name').text.strip()
     
     attr = _get_attr_by_name_and_dimension(name, dimension)
 
