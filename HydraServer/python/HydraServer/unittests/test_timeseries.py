@@ -19,9 +19,8 @@
 import server
 import datetime
 import logging
-from HydraLib.PluginLib import parse_suds_array
 from decimal import Decimal
-from HydraLib.PluginLib import create_dict
+import json
 log = logging.getLogger(__name__)
 
 class TimeSeriesTest(server.SoapServerTest):
@@ -39,10 +38,15 @@ class TimeSeriesTest(server.SoapServerTest):
         dataset_2 = self.create_timeseries(timesteps, 10, 1)
 
         sub_result = self.client.service.subtract_datasets([dataset_1.id, dataset_2.id])
-
-        assert parse_suds_array(sub_result.ts_values[0].ts_value) == 0
-        assert parse_suds_array(sub_result.ts_values[1].ts_value) == 1
-        assert parse_suds_array(sub_result.ts_values[2].ts_value) == 2
+        expected = {
+            start.strftime(self.fmt) : 0.0,
+            timedelta_1.strftime(self.fmt) : 1.0,
+            timedelta_2.strftime(self.fmt) : 2.0,
+        }
+       
+        result_dict = json.loads(sub_result)
+        for k, v in expected.items():
+            assert result_dict.values()[0][k] == v
 
     def test_add_timeseries(self):
         
@@ -55,10 +59,16 @@ class TimeSeriesTest(server.SoapServerTest):
         dataset_2 = self.create_timeseries(timesteps, 10, 1)
 
         sub_result = self.client.service.add_datasets([dataset_1.id, dataset_2.id])
+       
+        expected = {
+            start.strftime(self.fmt) : 20,
+            timedelta_1.strftime(self.fmt) : 23,
+            timedelta_2.strftime(self.fmt) : 26,
+        }
 
-        assert parse_suds_array(sub_result.ts_values[0].ts_value) == 20
-        assert parse_suds_array(sub_result.ts_values[1].ts_value) == 23
-        assert parse_suds_array(sub_result.ts_values[2].ts_value) == 26
+        result_dict = json.loads(sub_result)
+        for k, v in expected.items():
+            assert result_dict.values()[0][k] == v
 
     def test_multiply_timeseries(self):
         
@@ -72,9 +82,15 @@ class TimeSeriesTest(server.SoapServerTest):
 
         sub_result = self.client.service.multiply_datasets([dataset_1.id, dataset_2.id])
 
-        assert parse_suds_array(sub_result.ts_values[0].ts_value) == 100
-        assert parse_suds_array(sub_result.ts_values[1].ts_value) == 132
-        assert parse_suds_array(sub_result.ts_values[2].ts_value) == 168
+        expected = {
+            start.strftime(self.fmt) : 100,
+            timedelta_1.strftime(self.fmt) : 132,
+            timedelta_2.strftime(self.fmt) : 168,
+        }
+
+        result_dict = json.loads(sub_result)
+        for k, v in expected.items():
+            assert result_dict.values()[0][k] == v
 
     def test_divide_timeseries(self):
         
@@ -88,34 +104,31 @@ class TimeSeriesTest(server.SoapServerTest):
 
         sub_result = self.client.service.divide_datasets([dataset_1.id, dataset_2.id])
         
-        res1 = parse_suds_array(sub_result.ts_values[0].ts_value)
-        res2 = parse_suds_array(sub_result.ts_values[1].ts_value)
-        res3 = parse_suds_array(sub_result.ts_values[2].ts_value)
-        
         threeplaces = Decimal('0.001')
-        assert Decimal(res1).quantize(threeplaces) == Decimal(1).quantize(threeplaces)
-        assert Decimal(res2).quantize(threeplaces) == Decimal('1.090909091').quantize(threeplaces)
-        assert Decimal(res3).quantize(threeplaces) == Decimal('1.166666667').quantize(threeplaces)
+        expected = {
+            start.strftime(self.fmt) : Decimal(1).quantize(threeplaces),
+            timedelta_1.strftime(self.fmt) : Decimal('1.090909091').quantize(threeplaces),
+            timedelta_2.strftime(self.fmt) : Decimal('1.166666667').quantize(threeplaces),
+        }
+
+        result_dict = json.loads(sub_result)
+        for k, v in expected.items():
+            assert Decimal(result_dict.values()[0][k]).quantize(threeplaces) == v
 
 
 
     def create_timeseries(self, timesteps, start_val, step=1):
         #A scenario attribute is a piece of data associated
         #with a resource attribute.
+        
 
-        metadata_array = self.client.factory.create("hyd:MetadataArray")
-        metadata = self.client.factory.create("hyd:Metadata")
-        metadata.name = 'created_by'
-        metadata.value = 'Test user'
-        metadata_array.Metadata.append(metadata)
+        metadata = {'created_by': 'Test user'}
 
-
-        value = []
+        value = {}
         curr_val = start_val
         for timestep in timesteps:
-            time_val = {'ts_time': timestep, 'ts_value': curr_val}
+            value[timestep.strftime(self.fmt)] = curr_val
             curr_val = curr_val + step
-            value.append(time_val)
 
         dataset = dict(
             id=None,
@@ -124,9 +137,8 @@ class TimeSeriesTest(server.SoapServerTest):
             unit = 'cm^3',
             dimension = 'Volume',
             hidden = 'N',
-            value = {'ts_values' : value
-        },
-            metadata = metadata_array, 
+            value = json.dumps({"0.0":value}),
+            metadata = json.dumps(metadata), 
         )
 
         new_dataset = self.client.service.add_dataset(dataset)
@@ -139,11 +151,11 @@ class ArrayTest(server.SoapServerTest):
         dataset_2 = self.create_array([1.5, 2.5, 3.5])
         dataset_3 = self.create_array([1, 2, 3])
 
-        sub_result = self.client.service.subtract_datasets([dataset_1.id, dataset_2.id, dataset_3.id])
+        sub_result = json.loads(self.client.service.subtract_datasets([dataset_1.id, dataset_2.id, dataset_3.id]))
 
-        assert parse_suds_array(sub_result.arr_data)[0] == 9
-        assert parse_suds_array(sub_result.arr_data)[1] == 8
-        assert parse_suds_array(sub_result.arr_data)[2] == 7
+        assert sub_result[0] == 9
+        assert sub_result[1] == 8
+        assert sub_result[2] == 7
 
     def test_add_arrays(self):
         
@@ -151,11 +163,11 @@ class ArrayTest(server.SoapServerTest):
         dataset_2 = self.create_array([1.5, 2.5, 3.5])
         dataset_3 = self.create_array([1, 2, 3])
 
-        sub_result = self.client.service.add_datasets([dataset_1.id, dataset_2.id, dataset_3.id])
+        sub_result = json.loads(self.client.service.add_datasets([dataset_1.id, dataset_2.id, dataset_3.id]))
 
-        assert parse_suds_array(sub_result.arr_data)[0] == 14
-        assert parse_suds_array(sub_result.arr_data)[1] == 17
-        assert parse_suds_array(sub_result.arr_data)[2] == 20
+        assert sub_result[0] == 14
+        assert sub_result[1] == 17
+        assert sub_result[2] == 20
  
     def test_multiply_arrays(self):
         
@@ -163,11 +175,11 @@ class ArrayTest(server.SoapServerTest):
         dataset_2 = self.create_array([1.5, 2.5, 3.5])
         dataset_3 = self.create_array([1, 2, 3])
 
-        sub_result = self.client.service.multiply_datasets([dataset_1.id, dataset_2.id, dataset_3.id])
+        sub_result = json.loads(self.client.service.multiply_datasets([dataset_1.id, dataset_2.id, dataset_3.id]))
 
-        assert parse_suds_array(sub_result.arr_data)[0] == 17.25
-        assert parse_suds_array(sub_result.arr_data)[1] == 62.5
-        assert parse_suds_array(sub_result.arr_data)[2] == 141.75
+        assert sub_result[0] == 17.25
+        assert sub_result[1] == 62.5
+        assert sub_result[2] == 141.75
 
     def test_divide_arrays(self):
         
@@ -175,11 +187,11 @@ class ArrayTest(server.SoapServerTest):
         dataset_2 = self.create_array([1.5, 2.5, 3.5])
         dataset_3 = self.create_array([1, 2, 3])
 
-        sub_result = self.client.service.divide_datasets([dataset_1.id, dataset_2.id, dataset_3.id])
+        sub_result = json.loads(self.client.service.divide_datasets([dataset_1.id, dataset_2.id, dataset_3.id]))
 
-        res1 = parse_suds_array(sub_result.arr_data)[0]
-        res2 = parse_suds_array(sub_result.arr_data)[1]
-        res3 = parse_suds_array(sub_result.arr_data)[2]
+        res1 = sub_result[0]
+        res2 = sub_result[1]
+        res3 = sub_result[2]
         threeplaces = Decimal('0.001')
         assert Decimal(res1).quantize(threeplaces) == Decimal(7.666666667).quantize(threeplaces)
         assert Decimal(res2).quantize(threeplaces) == Decimal('2.5').quantize(threeplaces)
@@ -189,11 +201,7 @@ class ArrayTest(server.SoapServerTest):
         #A scenario attribute is a piece of data associated
         #with a resource attribute.
 
-        metadata_array = self.client.factory.create("hyd:MetadataArray")
-        metadata = self.client.factory.create("hyd:Metadata")
-        metadata.name = 'created_by'
-        metadata.value = 'Test user'
-        metadata_array.Metadata.append(metadata)
+        metadata = {'created_by': 'Test user'}
 
         dataset = dict(
             id=None,
@@ -202,9 +210,8 @@ class ArrayTest(server.SoapServerTest):
             unit = 'cm^3',
             dimension = 'Volume',
             hidden = 'N',
-            value = {'arr_data' : create_dict(arr)
-        },
-            metadata = metadata_array, 
+            value = json.dumps(arr),
+            metadata = json.dumps(metadata), 
         )
 
         new_dataset = self.client.service.add_dataset(dataset)
@@ -217,9 +224,9 @@ class ScalarTest(server.SoapServerTest):
         dataset_2 = self.create_scalar(1.5)
         dataset_3 = self.create_scalar(1)
 
-        sub_result = self.client.service.subtract_datasets([dataset_1.id, dataset_2.id, dataset_3.id])
+        sub_result = json.loads(self.client.service.subtract_datasets([dataset_1.id, dataset_2.id, dataset_3.id]))
 
-        assert float(sub_result.param_value) == 9
+        assert float(sub_result) == 9
 
     def test_add_scalars(self):
         
@@ -227,8 +234,8 @@ class ScalarTest(server.SoapServerTest):
         dataset_2 = self.create_scalar(1.5)
         dataset_3 = self.create_scalar(1)
 
-        sub_result = self.client.service.add_datasets([dataset_1.id, dataset_2.id, dataset_3.id])
-        assert float(sub_result.param_value) == 14
+        sub_result = json.loads(self.client.service.add_datasets([dataset_1.id, dataset_2.id, dataset_3.id]))
+        assert float(sub_result) == 14
  
     def test_multiply_scalars(self):
         
@@ -236,9 +243,9 @@ class ScalarTest(server.SoapServerTest):
         dataset_2 = self.create_scalar(1.5)
         dataset_3 = self.create_scalar(1)
 
-        sub_result = self.client.service.multiply_datasets([dataset_1.id, dataset_2.id, dataset_3.id])
+        sub_result = json.loads(self.client.service.multiply_datasets([dataset_1.id, dataset_2.id, dataset_3.id]))
 
-        assert float(sub_result.param_value) == 17.25
+        assert float(sub_result) == 17.25
 
     def test_divide_scalars(self):
         
@@ -246,20 +253,16 @@ class ScalarTest(server.SoapServerTest):
         dataset_2 = self.create_scalar(1.5)
         dataset_3 = self.create_scalar(1)
 
-        sub_result = self.client.service.divide_datasets([dataset_1.id, dataset_2.id, dataset_3.id])
+        sub_result = json.loads(self.client.service.divide_datasets([dataset_1.id, dataset_2.id, dataset_3.id]))
 
-        res1 = sub_result.param_value 
+        res1 = sub_result
         threeplaces = Decimal('0.001')
         assert Decimal(res1).quantize(threeplaces) == Decimal(7.666666667).quantize(threeplaces)
     def create_scalar(self, value):
         #A scenario attribute is a piece of data associated
         #with a resource attribute.
 
-        metadata_array = self.client.factory.create("hyd:MetadataArray")
-        metadata = self.client.factory.create("hyd:Metadata")
-        metadata.name = 'created_by'
-        metadata.value = 'Test user'
-        metadata_array.Metadata.append(metadata)
+        metadata = {'created_by': 'Test user'}
 
         dataset = dict(
             id=None,
@@ -268,8 +271,8 @@ class ScalarTest(server.SoapServerTest):
             unit = 'cm^3',
             dimension = 'Volume',
             hidden = 'N',
-            value = {'param_value':value},
-            metadata = metadata_array, 
+            value = value,
+            metadata = json.dumps(metadata), 
         )
 
         new_dataset = self.client.service.add_dataset(dataset)

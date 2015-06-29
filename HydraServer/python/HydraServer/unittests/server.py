@@ -17,7 +17,7 @@
 # -*- coding: utf-8 -*-
 import unittest
 import logging
-
+from HydraLib import config
 import util
 
 global CLIENT
@@ -49,6 +49,8 @@ class SoapServerTest(unittest.TestCase):
         self.create_user("UserB")
         self.create_user("UserC")
         self.project_id = self.create_project().id
+
+        self.fmt = config.get('DEFAULT', 'datetime_format', "%Y-%m-%dT%H:%M:%S.%f000Z")
 
     def tearDown(self):
         log.debug("Tearing down")

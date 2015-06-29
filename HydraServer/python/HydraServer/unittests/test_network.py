@@ -854,7 +854,10 @@ class NetworkTest(server.SoapServerTest):
                             for rs0 in s0.resourcescenarios.ResourceScenario:
                                 for rs1 in s1.resourcescenarios.ResourceScenario:
                                     if rs0.resource_attr_id == rs1.resource_attr_id:
+                                        #Leave these logging in as they are used to test
+                                        #whether dataset updates work correctly
                                         #logging.info("%s vs %s",rs0.value, rs1.value)
+                                        #logging.info(rs0.value.value==rs1.value.value)
                                         assert str(rs0.value) == str(rs1.value)
             else:
                 if str(a) != str(b):

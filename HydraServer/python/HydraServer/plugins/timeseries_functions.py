@@ -14,7 +14,7 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 from spyne.decorator import rpc
-from spyne.model.primitive import Integer, AnyDict 
+from spyne.model.primitive import Integer, Unicode, AnyDict 
 from HydraServer.soap_server.hydra_base import HydraService
 from HydraServer.lib.data import get_dataset
 from HydraLib.HydraException import HydraError
@@ -36,7 +36,7 @@ op_map = {
 class Service(HydraService):
     __service_name__ = "TimeseriesService"
 
-    @rpc(Integer(min_occurs=2, max_occurs='unbounded'), _returns=AnyDict)
+    @rpc(Integer(min_occurs=2, max_occurs='unbounded'), _returns=Unicode)
     def subtract_datasets(ctx, dataset_ids):
         """
             Subtract the value of dataset[1] from the value of dataset[0].
@@ -50,7 +50,7 @@ class Service(HydraService):
         """
         return _perform_op_on_datasets('subtract', dataset_ids, **ctx.in_header.__dict__)
 
-    @rpc(Integer(min_occurs=2, max_occurs='unbounded'), _returns=AnyDict)
+    @rpc(Integer(min_occurs=2, max_occurs='unbounded'), _returns=Unicode)
     def add_datasets(ctx, dataset_ids):
         """
             Add the value of dataset[0] to the value of dataset[1] etc.
@@ -63,7 +63,7 @@ class Service(HydraService):
         """
         return _perform_op_on_datasets('add', dataset_ids, **ctx.in_header.__dict__)
 
-    @rpc(Integer(min_occurs=2, max_occurs='unbounded'), _returns=AnyDict)
+    @rpc(Integer(min_occurs=2, max_occurs='unbounded'), _returns=Unicode)
     def multiply_datasets(ctx, dataset_ids):
         """
             Multiply the value of dataset[0] by the value of dataset[1] and the result
@@ -77,7 +77,7 @@ class Service(HydraService):
         """
         return _perform_op_on_datasets('multiply', dataset_ids, **ctx.in_header.__dict__)
 
-    @rpc(Integer(min_occurs=2, max_occurs='unbounded'), _returns=AnyDict)
+    @rpc(Integer(min_occurs=2, max_occurs='unbounded'), _returns=Unicode)
     def divide_datasets(ctx, dataset_ids):
         """
             Divide the value of dataset[0] by the value of dataset[1], the
@@ -120,7 +120,10 @@ def _perform_op_on_datasets(op, dataset_ids, **kwargs):
         except:
             raise HydraError("Unable to perform operation %s on values %s and %s"
                                 %(op, op_result, v))
-    
-    result = json.dumps(op_result)
 
-    return result
+    if data_type == 'timeseries':
+        return op_result.to_json(date_format='iso', date_unit='ns')
+    elif data_type == 'array':
+        return json.dumps(list(op_result))
+    else:
+        return json.dumps(str(op_result))

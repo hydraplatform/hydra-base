@@ -20,7 +20,7 @@
 import server
 
 from HydraLib.util import arr_to_vector
-from HydraLib import PluginLib
+import json
 
 
 class UnitsTest(server.SoapServerTest):
@@ -40,11 +40,11 @@ class UnitsTest(server.SoapServerTest):
         assert unit_list is not None and len(unit_list) != 0, \
             "Could not get a list of units"
 
-    def test_get_dimension(self):
+    def test_get_unit_dimension(self):
 
         testdim = 'Length'
         testunit = 'km'
-        resultdim = self.client.service.get_dimension(testunit)
+        resultdim = self.client.service.get_unit_dimension(testunit)
         assert testdim == resultdim, \
             "Getting dimension for 'kilometers' didn't work."
 
@@ -219,8 +219,8 @@ class UnitsTest(server.SoapServerTest):
         new_dataset = self.client.service.get_dataset(newid)
         new_val = new_dataset.value
 
-        new_val = arr_to_vector(PluginLib.parse_suds_array(new_val.arr_data))
-        old_val = arr_to_vector(PluginLib.parse_suds_array(old_val.arr_data))
+        new_val = arr_to_vector(json.loads(new_val))
+        old_val = arr_to_vector(json.loads(old_val))
 
         old_val_conv = [i * 100000 / 133.322 for i in old_val]
 

@@ -30,7 +30,7 @@ from HydraServer.db import DBSession
 from sqlalchemy import func, and_, or_, distinct
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import aliased
-from HydraLib.dateutil import timestamp_to_ordinal
+from HydraLib.hydra_dateutil import timestamp_to_ordinal
 from HydraServer.util.hdb import add_attributes, add_resource_types
 
 log = logging.getLogger(__name__)

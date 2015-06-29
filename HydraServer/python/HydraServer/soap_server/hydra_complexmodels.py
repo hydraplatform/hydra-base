@@ -20,7 +20,7 @@ from spyne.model.primitive import Decimal
 from spyne.model.primitive import AnyDict
 from spyne.model.primitive import Double
 from decimal import Decimal as Dec
-from HydraLib.dateutil import get_datetime,\
+from HydraLib.hydra_dateutil import get_datetime,\
         timestamp_to_ordinal,\
         ordinal_to_timestamp
 import pandas as pd
@@ -28,6 +28,7 @@ import logging
 from HydraServer.util import generate_data_hash
 import json
 import zlib
+from HydraLib import config
 from HydraLib.HydraException import HydraError
 
 NS = "soap_server.hydra_complexmodels"
@@ -184,7 +185,7 @@ class Dataset(HydraComplexModel):
         ('hidden',           Unicode(min_occurs=0, default='N', pattern="[YN]")),
         ('created_by',       Integer(min_occurs=0, default=None)),
         ('cr_date',          Unicode(min_occurs=0, default=None)),
-        ('metadata',         Unicode(min_occurs=0, default=None)),
+        ('metadata',         Unicode(min_occurs=0, default='{}')),
     ]
 
     def __init__(self, parent=None, include_metadata=True):
@@ -245,12 +246,17 @@ class Dataset(HydraComplexModel):
                 #Epoch doesn't work here because dates before 1970 are not
                 # supported in read_json. Ridiculous.
                 ts = timeseries_pd.to_json(date_format='iso', date_unit='ns')
-
-                return zlib.compress(ts)
+                if len(data) > config.get('DATA', 'compression_threshold', 1000):
+                    return zlib.compress(ts)
+                else:
+                    return ts
             elif self.type == 'array':
                 #check to make sure this is valid json
                 json.loads(data)
-                return zlib.compress(data)
+                if len(data) > config.get('DATA', 'compression_threshold', 1000):
+                    return zlib.compress(data)
+                else:
+                    return data
         except Exception, e:
             log.exception(e)
             raise HydraError("Error parsing value %s: %s"%(self.value, e))

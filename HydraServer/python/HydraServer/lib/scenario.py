@@ -32,7 +32,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import joinedload_all, joinedload, aliased
 import data
-from HydraLib.dateutil import timestamp_to_ordinal
+from HydraLib.hydra_dateutil import timestamp_to_ordinal
 from collections import namedtuple
 from copy import deepcopy
 
@@ -224,7 +224,6 @@ def update_scenario(scenario,update_data=True,update_groups=True,**kwargs):
 
         datasets = [rs.value for rs in scenario.resourcescenarios]
         updated_datasets = data._bulk_insert_data(datasets, user_id, kwargs.get('app_name')) 
-
         for i, r_scen in enumerate(scenario.resourcescenarios):
             _update_resourcescenario(scen, r_scen, dataset=updated_datasets[i], user_id=user_id, source=kwargs.get('app_name'))
 
@@ -675,7 +674,7 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
     # None to achieve consistency in the DB.
     if data_unit is not None and dimension is None or \
             data_unit is not None and len(dimension) == 0:
-        dimension = hydra_units.get_dimension(data_unit)
+        dimension = hydra_units.get_unit_dimension(data_unit)
     else:
         if dimension is None or len(dimension) == 0:
             dimension = None

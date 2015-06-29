@@ -35,13 +35,14 @@ def _check_dimension(typeattr, unit=None):
         Alternatively, pass in a unit manually to check against the dimension
         of the type attribute
     """
+
     if unit is None:
         unit = typeattr.unit
- 
+
     dimension = typeattr.get_attr().attr_dimen
 
     if unit is not None and dimension is not None:
-        unit_dimen = units.get_dimension(unit)
+        unit_dimen = units.get_unit_dimension(unit)
 
         if unit_dimen.lower() != dimension.lower():
             raise HydraError("Unit %s has dimension %s, but attribute has dimension %s"%
@@ -105,10 +106,14 @@ def parse_attribute(attribute):
     if attribute.find('dimension') is not None:
         dimension = attribute.find('dimension').text
         if dimension is not None:
-            dimension = dimension.strip()
+            dimension = units.get_dimension(dimension.strip())
+
+            if dimension is None:
+                raise HydraError("Dimension %s does not exist."%dimension)
+
     elif attribute.find('unit') is not None:
         if attribute.find('unit').text is not None:
-            dimension = units.get_dimension(attribute.find('unit').text)
+            dimension = units.get_unit_dimension(attribute.find('unit').text)
 
     if dimension is None or dimension.lower() in ('dimensionless', ''):
         dimension = 'dimensionless'
@@ -165,7 +170,7 @@ def parse_typeattr(type_i, attribute):
         dimension = None
         if unit is not None:
             _check_dimension(typeattr_i, unit)
-            dimension = units.get_dimension(unit)
+            dimension = units.get_unit_dimension(unit)
 
         if unit is not None and typeattr_i.unit is not None:
             if unit != typeattr_i.unit:

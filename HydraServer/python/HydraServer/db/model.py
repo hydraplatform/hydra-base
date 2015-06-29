@@ -31,7 +31,7 @@ from HydraLib.HydraException import HydraError, PermissionError
 
 from sqlalchemy.orm import relationship, backref
 
-from HydraLib.dateutil import ordinal_to_timestamp, get_datetime
+from HydraLib.hydra_dateutil import ordinal_to_timestamp, get_datetime
 
 from HydraServer.db import DeclarativeBase as Base, DBSession
 
@@ -41,6 +41,10 @@ from sqlalchemy.sql.expression import case
 from sqlalchemy import UniqueConstraint, and_
 
 import pandas as pd
+
+import json
+import zlib
+from HydraLib import config
 
 import logging
 import bcrypt
@@ -124,7 +128,13 @@ class Dataset(Base):
         if data_type in ('descriptor','scalar'):
             self.value = str(val)
         elif data_type == 'array':
-            self.value = zlib.compress(val)
+            if type(val) != str:
+                val = json.dumps(val)
+
+            if len(val) > config.get('DATA', 'compression_threshold', 1000):
+                self.value = zlib.compress(val)
+            else:
+                self.value = val
         elif data_type == 'timeseries':
             if type(val) == list:
                 test_val_keys = []
@@ -144,7 +154,10 @@ class Dataset(Base):
                 #Epoch doesn't work here because dates before 1970 are not supported
                 #in read_json. Ridiculous.
                 json_value =  timeseries_pd.to_json(date_format='iso', date_unit='ns')
-                self.value = zlib.compress(json_value)
+                if len(json_value) > config.get('DATA', 'compression_threshold', 1000):
+                    self.value = zlib.compress(json_value)
+                else:
+                    self.value = json_value 
             else:
                 self.value = val
         else:

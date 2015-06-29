@@ -18,8 +18,7 @@
 import logging
 
 from HydraLib import config
-from HydraLib.dateutil import get_datetime
-
+from HydraLib.hydra_dateutil import get_datetime
 import json
 
 from suds.client import Client
@@ -628,23 +627,30 @@ def check_network(client, request_net, response_net):
     s = request_net['scenarios'].Scenario[0]
     for rs0 in s['resourcescenarios'].ResourceScenario:
         if rs0['value']['type'] == 'timeseries':
-            val = rs0['value']['value']
-            for v in val['ts_values']:
-                before_times.append(v['ts_time'])
+            val = json.loads(rs0['value']['value'])
+            before_ts_times = val.values()[0].keys()
+            before_times = []
+            for t in before_ts_times:
+                try:
+                    before_times.append(get_datetime(t))
+                except:
+                    before_times.append(t)
 
     after_times = []
     s = response_net.scenarios.Scenario[0]
     for rs0 in s.resourcescenarios.ResourceScenario:
         if rs0.value.type == 'timeseries':
-            val = rs0.value.value
-            for v in val['ts_values']:
-                after_times.append(v['ts_time'])
+            val = json.loads(rs0.value.value)
+            after_ts_times = val.values()[0].keys()
+            after_times = []
+            for t in after_ts_times:
+                try:
+                    after_times.append(get_datetime(t))
+                except:
+                    after_times.append(t)
+
     for d in after_times:
-        try:
-            time = get_datetime(d)
-        except:
-            time = eval(d)
-        assert time in before_times, "%s is incorrect"%(d)
+        assert d in before_times, "%s is incorrect"%(d)
 
 
 def create_scalar(client, ResourceAttr, val=1.234):
@@ -696,18 +702,20 @@ def create_timeseries(client, ResourceAttr):
     #with a resource attribute.
     #[[[1, 2, "hello"], [5, 4, 6]], [[10, 20, 30], [40, 50, 60]]]
 
+    fmt = config.get('DEFAULT', 'datetime_format', "%Y-%m-%dT%H:%M:%S.%f000Z")
+
     t1 = datetime.datetime.now()
     t2 = t1+datetime.timedelta(hours=1)
     t3 = t1+datetime.timedelta(hours=2)
-    
+ 
     val_1 = [[[1, 2, "hello"], [5, 4, 6]], [[10, 20, 30], [40, 50, 60]], [[9, 8, 7],[6, 5, 4]]]
     val_2 = [1.0, 2.0, 3.0]
 
     val_3 = [3.0, None, None]
 
-    ts_val = {0: {t1: val_1,
-                  t2: val_2,
-                  t3: val_3}}
+    ts_val = {"index": {t1.strftime(fmt): val_1,
+                  t2.strftime(fmt): val_2,
+                  t3.strftime(fmt): val_3}}
 
     metadata_array = json.dumps({'created_by': 'Test user'})
 
@@ -746,7 +754,7 @@ def create_array(client, ResourceAttr):
         unit = 'bar',
         dimension = 'Pressure',
         hidden = 'N',
-        value = json.dumps(arr),
+        value = arr,
         metadata = metadata_array,
     )
 

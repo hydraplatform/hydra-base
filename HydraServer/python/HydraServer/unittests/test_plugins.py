@@ -162,7 +162,7 @@ class PluginsTest(server.SoapServerTest):
         assert updated_tree.find('errors').getchildren() == []
         assert updated_tree.find('warnings').getchildren() == []
 
-        Popen("rm -r network_*", shell=True)
+        #Popen("rm -r network_*", shell=True)
 
         
 

@@ -4,6 +4,7 @@ log = logging.getLogger(__name__)
 from decimal import Decimal
 import pandas as pd
 import zlib
+import json
 
 def generate_data_hash(dataset_dict):
 
@@ -46,7 +47,7 @@ def get_val(dataset, timestamp=None):
     """
     if dataset.data_type == 'array':
         try:
-            json.loads(dataset.value)
+            return json.loads(dataset.value)
         except ValueError:
             #Didn't work? Maybe because it was compressed.
             val = zlib.decompress(dataset.value)
@@ -57,10 +58,12 @@ def get_val(dataset, timestamp=None):
         return Decimal(str(dataset.value))
     elif dataset.data_type == 'timeseries':
         try:
-            timeseries = pd.read_json(dataset.value)
-        except ValueError:
+            val = dataset.value.replace('XXXX', '1900')
+            timeseries = pd.read_json(val)
+        except (ValueError, TypeError), e:
             #Didn't work? Maybe because it was compressed.
             val = zlib.decompress(dataset.value)
+            val = val.replace('XXXX', '1900')
             timeseries = pd.read_json(val)
 
         if timestamp is None:
@@ -103,7 +106,7 @@ def get_val(dataset, timestamp=None):
                         ret_val = pandas_ts.loc[timestamp].values.tolist()
                 else:
                     if type(timestamp) is list and len(timestamp) == 1:
-                        ret_val = pandas_ts.loc[timestamp[0]][0]
+                        ret_val = pandas_ts.loc[timestamp[0]].loc[0]
                     else:
                         ret_val = pandas_ts.loc[timestamp][0].values.tolist()
 
