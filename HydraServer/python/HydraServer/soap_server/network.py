@@ -550,8 +550,8 @@ class NetworkService(HydraService):
 
         return return_ras
 
-    @rpc(Integer, Integer, Integer(max_occurs="unbounded"), Unicode(pattern="['YN']", default='N'), _returns=SpyneArray(ResourceData))
-    def test_get_all_node_data(ctx, network_id, scenario_id, node_ids, include_metadata):
+    @rpc(Integer, Unicode(pattern="['YN']", default='N'), Unicode(pattern="['YN']", default='N'), Integer(min_occurs=0, max_occurs=1), Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceData))
+    def get_all_resource_data(ctx, scenario_id, include_values, include_metadata, page_start, page_end):
         """
         Return all the attributes for all the nodes in a given network and a
         given scenario.
@@ -620,50 +620,23 @@ class NetworkService(HydraService):
         """
         start = datetime.datetime.now()
 
-        node_resourceattrs = network.test_get_attributes_for_resource(network_id, scenario_id, 'NODE', node_ids, include_metadata)
+        node_resourcedata = network.get_all_resource_data(scenario_id,
+                                                          include_metadata=include_metadata,
+                                                          page_start=page_start,
+                                                          page_end=page_end)
 
         log.info("Qry done in %s", (datetime.datetime.now() - start))
 
         start = datetime.datetime.now()
 
         return_ras = []
-        for nodeattr in node_resourceattrs:
-            ra = ResourceData(nodeattr)
+        for nodeattr in node_resourcedata:
+            ra = ResourceData(nodeattr, include_values)
             return_ras.append(ra)
 
-        log.info("Test Return vals built in %s", (datetime.datetime.now() - start))
+        log.info("Return data found in %s", (datetime.datetime.now() - start))
 
         return return_ras
-
-    @rpc(Integer, Integer, Integer(max_occurs="unbounded"), Unicode(pattern="['YN']", default='N'), _returns=SpyneArray(ResourceData))
-    def test_get_all_link_data(ctx, network_id, scenario_id, link_ids, include_metadata):
-        """
-        Return all the attributes for all the nodes in a given network and a
-        given scenario.
-
-        :returns: An array of soap_server.hydra_complexmodels.ResourceData
-
-        For documentation on how array and timeseries data should look, see documentation
-        for get_all_node_data.
-
-        """
-        start = datetime.datetime.now()
-
-        node_resourceattrs = network.test_get_attributes_for_resource(network_id, scenario_id, 'LINK', link_ids, include_metadata)
-
-        log.info("Qry done in %s", (datetime.datetime.now() - start))
-
-        start = datetime.datetime.now()
-
-        return_ras = []
-        for linkattr in node_resourceattrs:
-            ra = ResourceData(linkattr)
-            return_ras.append(ra)
-
-        log.info("Test Return vals built in %s", (datetime.datetime.now() - start))
-
-        return return_ras
-
 
     @rpc(Integer, Integer, Integer(max_occurs="unbounded"), Unicode(pattern="['YN']", default='N'), _returns=SpyneArray(ResourceAttr))
     def get_all_link_data(ctx, network_id, scenario_id, link_ids, include_metadata):

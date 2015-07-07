@@ -128,6 +128,7 @@ class ResourceData(HydraComplexModel):
         ('resource_attr_id',   Unicode(default=None)),
         ('ref_id',             Unicode(default=None)),
         ('ref_key',            Unicode(default=None)),
+        ('ref_name',           Unicode(default=None)),
         ('attr_is_var',        Unicode(default=None)),
         ('dataset_id',         Unicode(default=None)),
         ('dataset_type',       Unicode(default=None)),
@@ -140,7 +141,7 @@ class ResourceData(HydraComplexModel):
         ('dataset_metadata',   Unicode(default=None)),
     ]
 
-    def __init__(self, resourceattr=None):
+    def __init__(self, resourceattr=None, include_value='N'):
 
         super(ResourceData, self).__init__()
         if  resourceattr is None:
@@ -152,6 +153,7 @@ class ResourceData(HydraComplexModel):
         self.resource_attr_id = str(ra.resource_attr_id)
         self.ref_key = str(ra.ref_key)
         self.ref_id  = str(getattr(ra, ref_id_map[self.ref_key]))
+        self.ref_name  = ra.ref_name
 
         self.source = ra.source
         self.scenario_id = str(ra.scenario_id)
@@ -164,13 +166,15 @@ class ResourceData(HydraComplexModel):
         self.dataset_dimension = ra.data_dimen
         self.dataset_unit      = ra.data_units
         self.dataset_frequency = ra.frequency
-        self.dataset_value     = ra.value
+        if include_value=='Y':
+            self.dataset_value     = ra.value
 
-        self.metadata = {}
-        for m in ra.metadata:
-            self.metadata[m.metadata_name] = m.metadata_val
+        if ra.metadata:
+            self.metadata = {}
+            for m in ra.metadata:
+                self.metadata[m.metadata_name] = m.metadata_val
 
-        self.dataset_metadata = json.dumps(self.metadata)
+            self.dataset_metadata = json.dumps(self.metadata)
 
 class Dataset(HydraComplexModel):
     """
