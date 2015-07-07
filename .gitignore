@@ -56,3 +56,6 @@ target/
 
 Service References/
 Debug/
+
+HydraPlugins/JSONPlugin/ExportJSON/dist/
+HydraPlugins/JSONPlugin/ImportJSON/dist/
