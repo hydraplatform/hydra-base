@@ -854,7 +854,10 @@ class NetworkTest(server.SoapServerTest):
                             for rs0 in s0.resourcescenarios.ResourceScenario:
                                 for rs1 in s1.resourcescenarios.ResourceScenario:
                                     if rs0.resource_attr_id == rs1.resource_attr_id:
+                                        #Leave these logging in as they are used to test
+                                        #whether dataset updates work correctly
                                         #logging.info("%s vs %s",rs0.value, rs1.value)
+                                        #logging.info(rs0.value.value==rs1.value.value)
                                         assert str(rs0.value) == str(rs1.value)
             else:
                 if str(a) != str(b):
@@ -979,6 +982,34 @@ class NetworkTest(server.SoapServerTest):
         for ra in new_group_ras.ResourceAttr:
             assert ra.resourcescenario is not None
             assert ra.id in group_ras
+
+    def test_get_resource_data(self):
+        net = self.create_network_with_data()
+        s = net.scenarios.Scenario[0]
+
+        all_ras = []
+        for node in net.nodes.Node:
+            for ra in node.attributes.ResourceAttr:
+                all_ras.append(ra.id)
+
+        for link in net.links.Link:
+            for ra in link.attributes.ResourceAttr:
+                all_ras.append(ra.id)
+
+        for group in net.resourcegroups.ResourceGroup:
+            for ra in group.attributes.ResourceAttr:
+                all_ras.append(ra.id)
+
+
+        all_resource_data = self.client.service.get_all_resource_data(s.id)
+        for ra in all_resource_data.ResourceData:
+            assert int(ra.resource_attr_id) in all_ras 
+
+        truncated_resource_data = self.client.service.get_all_resource_data(s.id, include_values='Y', include_metadata='Y', page_start=0, page_end=1)
+        assert len(truncated_resource_data.ResourceData) == 1
+
+
+
 
     def test_purge_node(self):
         net = self.create_network_with_data()

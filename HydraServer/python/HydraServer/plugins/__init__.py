@@ -20,7 +20,8 @@ import os
 import glob
 import importlib
 import advanced_dataset_retrieval
-services = [advanced_dataset_retrieval.Service]
+import timeseries_functions
+services = [advanced_dataset_retrieval.Service, timeseries_functions.Service]
 #modules = glob.glob(os.path.dirname(__file__)+"/*.py")
 #mods = []
 #for f in modules:

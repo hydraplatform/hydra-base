@@ -35,13 +35,14 @@ def _check_dimension(typeattr, unit=None):
         Alternatively, pass in a unit manually to check against the dimension
         of the type attribute
     """
+
     if unit is None:
         unit = typeattr.unit
- 
+
     dimension = typeattr.get_attr().attr_dimen
 
     if unit is not None and dimension is not None:
-        unit_dimen = units.get_dimension(unit)
+        unit_dimen = units.get_unit_dimension(unit)
 
         if unit_dimen.lower() != dimension.lower():
             raise HydraError("Unit %s has dimension %s, but attribute has dimension %s"%
@@ -104,10 +105,20 @@ def parse_attribute(attribute):
 
     if attribute.find('dimension') is not None:
         dimension = attribute.find('dimension').text
-    elif attribute.find('unit') is not None:
-        dimension = units.get_dimension(attribute.find('unit').text)
+        if dimension is not None:
+            dimension = units.get_dimension(dimension.strip())
 
-    name      = attribute.find('name').text
+            if dimension is None:
+                raise HydraError("Dimension %s does not exist."%dimension)
+
+    elif attribute.find('unit') is not None:
+        if attribute.find('unit').text is not None:
+            dimension = units.get_unit_dimension(attribute.find('unit').text)
+
+    if dimension is None or dimension.lower() in ('dimensionless', ''):
+        dimension = 'dimensionless'
+
+    name      = attribute.find('name').text.strip()
     
     attr = _get_attr_by_name_and_dimension(name, dimension)
 
@@ -140,6 +151,9 @@ def parse_typeattr(type_i, attribute):
 
     _check_dimension(typeattr_i)
 
+    if attribute.find('description') is not None:
+        typeattr_i.description = attribute.find('description').text
+
     if attribute.find('is_var') is not None:
         typeattr_i.attr_is_var = attribute.find('is_var').text
 
@@ -156,7 +170,7 @@ def parse_typeattr(type_i, attribute):
         dimension = None
         if unit is not None:
             _check_dimension(typeattr_i, unit)
-            dimension = units.get_dimension(unit)
+            dimension = units.get_unit_dimension(unit)
 
         if unit is not None and typeattr_i.unit is not None:
             if unit != typeattr_i.unit:
@@ -803,7 +817,8 @@ def add_template(template,**kwargs):
     """
     tmpl = Template()
     tmpl.template_name = template.name
-    tmpl.layout        = str(template.layout)
+    if template.layout:
+        tmpl.layout        = str(template.layout)
 
     DBSession.add(tmpl)
 
@@ -821,7 +836,8 @@ def update_template(template,**kwargs):
     """
     tmpl = DBSession.query(Template).filter(Template.template_id==template.id).one()
     tmpl.template_name = template.name
-    tmpl.layout        = str(template.layout)
+    if template.layout is not None:
+        tmpl.layout        = str(template.layout)
     if template.types is not None:
         for templatetype in template.types:
             if templatetype.id is not None:
@@ -902,15 +918,16 @@ def update_templatetype(templatetype,**kwargs):
         New typeattrs will be added. typeattrs not sent will be ignored.
         To delete typeattrs, call delete_typeattr
     """
-    tmpltype = DBSession.query(TemplateType).filter(TemplateType.type_id == templatetype.id).one()
 
-    _update_templatetype(templatetype, tmpltype)
+    tmpltype_i = DBSession.query(TemplateType).filter(TemplateType.type_id == templatetype.id).one()
+
+    _update_templatetype(templatetype, tmpltype_i)
 
     DBSession.flush()
 
-    return tmpltype
+    return tmpltype_i
 
-def _add_typeattr(typeattr, existing_ta = None):
+def _set_typeattr(typeattr, existing_ta = None):
     """
         Add or updsate a type attribute.
         If an existing type attribute is provided, then update.
@@ -941,6 +958,7 @@ def _add_typeattr(typeattr, existing_ta = None):
     ta.type_id = typeattr.type_id
     ta.data_type = typeattr.data_type
     ta.default_dataset_id = typeattr.default_dataset_id
+    ta.description        = typeattr.description
     ta.attr_is_var        = typeattr.is_var
     ta.data_restriction = _parse_data_restriction(typeattr.data_restriction)
 
@@ -970,33 +988,34 @@ def _update_templatetype(templatetype, existing_tt=None):
     """
     if existing_tt is None:
         if templatetype.id is not None:
-            tmpltype = DBSession.query(TemplateType).filter(TemplateType.type_id == templatetype.id).one()
+            tmpltype_i = DBSession.query(TemplateType).filter(TemplateType.type_id == templatetype.id).one()
         else:
-            tmpltype = TemplateType()
+            tmpltype_i = TemplateType()
     else:
-        tmpltype = existing_tt
+        tmpltype_i = existing_tt
     
-    tmpltype.template_id = templatetype.template_id
-    tmpltype.type_name  = templatetype.name
-    tmpltype.alias      = templatetype.alias
-    tmpltype.layout     = templatetype.layout
-    tmpltype.resource_type = templatetype.resource_type
+    tmpltype_i.template_id = templatetype.template_id
+    tmpltype_i.type_name  = templatetype.name
+    tmpltype_i.alias      = templatetype.alias
+    tmpltype_i.layout     = templatetype.layout
+    tmpltype_i.resource_type = templatetype.resource_type
+    
+    ta_dict = {}
+    for t in tmpltype_i.typeattrs:
+        ta_dict[t.attr_id] = t
 
     if templatetype.typeattrs is not None:
         for typeattr in templatetype.typeattrs:
-            for typeattr_i in tmpltype.typeattrs:
-                if typeattr_i.attr_id == typeattr.attr_id:
-                    ta = _add_typeattr(typeattr, typeattr_i)
-                    break
+            if typeattr.attr_id in ta_dict:
+                ta = _set_typeattr(typeattr, ta_dict[typeattr.attr_id])
             else:
-
-                ta = _add_typeattr(typeattr)
-                tmpltype.typeattrs.append(ta)
+                ta = _set_typeattr(typeattr)
+                tmpltype_i.typeattrs.append(ta)
 
     if existing_tt is None:
-        DBSession.add(tmpltype)
+        DBSession.add(tmpltype_i)
 
-    return tmpltype
+    return tmpltype_i 
 
 def delete_templatetype(type_id,**kwargs):
     """
@@ -1036,7 +1055,7 @@ def add_typeattr(typeattr,**kwargs):
         Add an typeattr to an existing type.
     """
     
-    ta = _add_typeattr(typeattr)
+    ta = _set_typeattr(typeattr)
     
     DBSession.flush()
 
@@ -1258,7 +1277,7 @@ def get_network_as_xml_template(network_id,**kwargs):
 
     template_name = etree.SubElement(template_xml, "template_name")
     template_name.text = "TemplateType from Network %s"%(net_i.network_name)
-    layout = _get_layout_as_etree(net_i.network_layout)
+    layout = _get_layout_as_etree(net_i.layout)
 
     resources = etree.SubElement(template_xml, "resources")
     if net_i.attributes:
@@ -1270,7 +1289,7 @@ def get_network_as_xml_template(network_id,**kwargs):
         resource_name   = etree.SubElement(net_resource, "name")
         resource_name.text   = net_i.network_name
 
-        layout = _get_layout_as_etree(net_i.network_layout)
+        layout = _get_layout_as_etree(net_i.layout)
         if layout is not None:
             net_resource.append(layout)
 
@@ -1293,7 +1312,7 @@ def get_network_as_xml_template(network_id,**kwargs):
             resource_name   = etree.SubElement(node_resource, "name")
             resource_name.text   = node_i.node_name
 
-            layout = _get_layout_as_etree(node_i.node_layout)
+            layout = _get_layout_as_etree(node_i.layout)
 
             if layout is not None:
                 node_resource.append(layout)
@@ -1316,7 +1335,7 @@ def get_network_as_xml_template(network_id,**kwargs):
             resource_name   = etree.SubElement(link_resource, "name")
             resource_name.text   = link_i.link_name
 
-            layout = _get_layout_as_etree(link_i.link_layout)
+            layout = _get_layout_as_etree(link_i.layout)
 
             if layout is not None:
                 link_resource.append(layout)
@@ -1339,7 +1358,7 @@ def get_network_as_xml_template(network_id,**kwargs):
             resource_name   = etree.SubElement(group_resource, "name")
             resource_name.text   = group_i.group_name
 
-           # layout = _get_layout_as_etree(group_i.group_layout)
+           # layout = _get_layout_as_etree(group_i.layout)
 
            # if layout is not None:
            #     group_resource.append(layout)
@@ -1409,7 +1428,7 @@ def get_layout_as_dict(layout_tree):
         if value == '':
             children = val_element.getchildren()
             value = etree.tostring(children[0], pretty_print=True)
-        layout_dict[name] = [value]
+        layout_dict[name] = value
     return layout_dict
 
 def _get_layout_as_etree(layout_dict):

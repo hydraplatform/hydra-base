@@ -113,7 +113,7 @@ class UnitService(HydraService):
         return units.convert_dataset(dataset_id, to_unit, **ctx.in_header.__dict__)
 
     @rpc(Unicode, _returns=Unicode)
-    def get_dimension(ctx, unit1):
+    def get_unit_dimension(ctx, unit1):
         """Get the corresponding physical dimension for a given unit.
 
         Example::
@@ -122,7 +122,7 @@ class UnitService(HydraService):
             >>> cli.service.get_dimension('m')
             Length
         """
-        dim = units.get_dimension(unit1, **ctx.in_header.__dict__)
+        dim = units.get_unit_dimension(unit1, **ctx.in_header.__dict__)
 
         return dim
 

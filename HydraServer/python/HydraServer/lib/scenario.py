@@ -23,15 +23,16 @@ from HydraServer.db.model import Scenario,\
         ResourceAttr,\
         NetworkOwner,\
         Dataset,\
-        Attr
+        Attr,\
+        ResourceAttrMap
 
 import units as hydra_units
 
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy import or_
-from sqlalchemy.orm import joinedload_all, joinedload
+from sqlalchemy import or_, and_
+from sqlalchemy.orm import joinedload_all, joinedload, aliased
 import data
-from HydraLib.dateutil import timestamp_to_ordinal
+from HydraLib.hydra_dateutil import timestamp_to_ordinal
 from collections import namedtuple
 from copy import deepcopy
 
@@ -145,7 +146,7 @@ def add_scenario(network_id, scenario,**kwargs):
     scen = Scenario()
     scen.scenario_name        = scenario.name
     scen.scenario_description = scenario.description
-    scen.scenario_layout      = scenario.get_layout()
+    scen.layout               = scenario.get_layout()
     scen.network_id           = network_id
     scen.created_by           = user_id
     scen.start_time           = str(timestamp_to_ordinal(scenario.start_time)) if scenario.start_time else None
@@ -209,7 +210,7 @@ def update_scenario(scenario,update_data=True,update_groups=True,**kwargs):
     
     scen.scenario_name        = scenario.name
     scen.scenario_description = scenario.description
-    scen.scenario_layout      = scenario.get_layout()
+    scen.layout               = scenario.get_layout()
     scen.start_time           = str(timestamp_to_ordinal(scenario.start_time)) if scenario.start_time else None
     scen.end_time             = str(timestamp_to_ordinal(scenario.end_time)) if scenario.end_time else None
     scen.time_step            = scenario.time_step
@@ -223,7 +224,6 @@ def update_scenario(scenario,update_data=True,update_groups=True,**kwargs):
 
         datasets = [rs.value for rs in scenario.resourcescenarios]
         updated_datasets = data._bulk_insert_data(datasets, user_id, kwargs.get('app_name')) 
-
         for i, r_scen in enumerate(scenario.resourcescenarios):
             _update_resourcescenario(scen, r_scen, dataset=updated_datasets[i], user_id=user_id, source=kwargs.get('app_name'))
 
@@ -656,10 +656,9 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
 
     start_time = None
     frequency  = None
-    if dataset.type == 'eqtimeseries':
-        start_time, frequency, value = dataset.parse_value()
-    else:
-        value = dataset.parse_value()
+
+    value = dataset.parse_value()
+
     log.info("Assigning %s to resource attribute: %s", value, ra_id)
 
     if value is None:
@@ -675,7 +674,7 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
     # None to achieve consistency in the DB.
     if data_unit is not None and dimension is None or \
             data_unit is not None and len(dimension) == 0:
-        dimension = hydra_units.get_dimension(data_unit)
+        dimension = hydra_units.get_unit_dimension(data_unit)
     else:
         if dimension is None or len(dimension) == 0:
             dimension = None
@@ -751,11 +750,8 @@ def add_data_to_attribute(scenario_id, resource_attr_id, dataset,**kwargs):
 
     start_time = None
     frequency  = None
-    if dataset.type == 'eqtimeseries':
-        start_time, frequency, value = dataset.parse_value()
-    else:
-        value = dataset.parse_value()
 
+    value = dataset.parse_value()
 
     dataset_metadata = dataset.get_metadata_as_dict(user_id=kwargs.get('user_id'),
                                                     source=kwargs.get('source'))
@@ -908,3 +904,65 @@ def get_resourcegroupitems(group_id, scenario_id, **kwargs):
                 filter(ResourceGroupItem.group_id==group_id).\
                 filter(ResourceGroupItem.scenario_id==scenario_id).all()
     return rgi
+
+def update_value_from_mapping(source_resource_attr_id, target_resource_attr_id, source_scenario_id, target_scenario_id, **kwargs):
+    """
+        Using a resource attribute mapping, take the value from the source and apply
+        it to the target. Both source and target scenarios must be specified (and therefor
+        must exist).
+    """
+    rm = aliased(ResourceAttrMap, name='rm')
+    #Check the mapping exists.
+    mapping = DBSession.query(rm).filter(
+        or_(
+            and_(
+                rm.resource_attr_id_a == source_resource_attr_id, 
+                rm.resource_attr_id_b == target_resource_attr_id
+            ),
+            and_(
+                rm.resource_attr_id_a == target_resource_attr_id,
+                rm.resource_attr_id_b == source_resource_attr_id
+            )
+        )
+    ).first()
+
+    if mapping is None:
+        raise ResourceNotFoundError("Mapping between %s and %s not found"%
+                                    (source_resource_attr_id,
+                                     target_resource_attr_id))
+
+    #check scenarios exist
+    s1 = _get_scenario(source_scenario_id)
+    s2 = _get_scenario(target_scenario_id)
+
+    rs = aliased(ResourceScenario, name='rs')
+    rs1 = DBSession.query(rs).filter(rs.resource_attr_id == source_resource_attr_id,
+                                    rs.scenario_id == source_scenario_id).first()
+    rs2 = DBSession.query(rs).filter(rs.resource_attr_id == target_resource_attr_id,
+                                    rs.scenario_id == target_scenario_id).first()
+    
+    #3 possibilities worth considering:
+    #1: Both RS exist, so update the target RS
+    #2: Target RS does not exist, so create it with the dastaset from RS1
+    #3: Source RS does not exist, so it must be removed from the target scenario if it exists
+    return_value = None#Either return null or return a new or updated resource scenario
+    if rs1 is not None:
+        if rs2 is not None:
+            log.info("Destination Resource Scenario exists. Updating dastaset ID")
+            rs2.dataset_id = rs1.dataset_id
+        else:
+            log.info("Destination has no data, so making a new Resource Scenario")
+            rs2 = ResourceScenario(resource_attr_id=target_resource_attr_id, scenario_id=target_scenario_id, dataset_id=rs1.dataset_id)
+            DBSession.add(rs2)
+        DBSession.flush()
+        return_value = rs2
+    else:
+        log.info("Source Resource Scenario does not exist. Deleting destination Resource Scenario")
+        if rs2 is not None:
+            DBSession.delete(rs2)
+
+    DBSession.flush()
+    return return_value
+
+    
+

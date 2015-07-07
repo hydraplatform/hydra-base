@@ -31,7 +31,7 @@ from HydraLib.HydraException import HydraError, PermissionError
 
 from sqlalchemy.orm import relationship, backref
 
-from HydraLib.dateutil import ordinal_to_timestamp, get_datetime
+from HydraLib.hydra_dateutil import ordinal_to_timestamp, get_datetime
 
 from HydraServer.db import DeclarativeBase as Base, DBSession
 
@@ -41,6 +41,10 @@ from sqlalchemy.sql.expression import case
 from sqlalchemy import UniqueConstraint, and_
 
 import pandas as pd
+
+import json
+import zlib
+from HydraLib import config
 
 import logging
 import bcrypt
@@ -121,12 +125,16 @@ class Dataset(Base):
         return val
 
     def set_val(self, data_type, val):
-        if data_type in ('descriptor','scalar','array'):
+        if data_type in ('descriptor','scalar'):
             self.value = str(val)
-        elif data_type == 'eqtimeseries':
-            self.start_time = str(val[0])
-            self.frequency  = str(val[1])
-            self.value      = str(val[2])
+        elif data_type == 'array':
+            if type(val) != str:
+                val = json.dumps(val)
+
+            if len(val) > config.get('DATA', 'compression_threshold', 1000):
+                self.value = zlib.compress(val)
+            else:
+                self.value = val
         elif data_type == 'timeseries':
             if type(val) == list:
                 test_val_keys = []
@@ -145,7 +153,11 @@ class Dataset(Base):
                 timeseries_pd = pd.DataFrame(test_vals, index=pd.Series(test_val_keys))
                 #Epoch doesn't work here because dates before 1970 are not supported
                 #in read_json. Ridiculous.
-                self.value =  timeseries_pd.to_json(date_format='iso', date_unit='ns')
+                json_value =  timeseries_pd.to_json(date_format='iso', date_unit='ns')
+                if len(json_value) > config.get('DATA', 'compression_threshold', 1000):
+                    self.value = zlib.compress(json_value)
+                else:
+                    self.value = json_value 
             else:
                 self.value = val
         else:
@@ -304,9 +316,10 @@ class Attr(Base):
         UniqueConstraint('attr_name', 'attr_dimen', name="unique name dimension"),
     )
 
-    attr_id = Column(Integer(), primary_key=True, nullable=False)
-    attr_name = Column(String(60),  nullable=False)
-    attr_dimen = Column(String(60))
+    attr_id           = Column(Integer(), primary_key=True, nullable=False)
+    attr_name         = Column(String(60),  nullable=False)
+    attr_dimen        = Column(String(60), server_default=text('dimensionless'))
+    attr_description  = Column(String(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
 class AttrMap(Base):
@@ -320,6 +333,24 @@ class AttrMap(Base):
 
     attr_a = relationship("Attr", foreign_keys=[attr_id_a], backref=backref('maps_to', order_by=attr_id_a))
     attr_b = relationship("Attr", foreign_keys=[attr_id_b], backref=backref('maps_from', order_by=attr_id_b))
+
+
+class ResourceAttrMap(Base):
+    """
+    """
+
+    __tablename__='tResourceAttrMap'
+
+    network_a_id       = Column(Integer(), ForeignKey('tNetwork.network_id'), primary_key=True, nullable=False)
+    network_b_id       = Column(Integer(), ForeignKey('tNetwork.network_id'), primary_key=True, nullable=False)
+    resource_attr_id_a = Column(Integer(), ForeignKey('tResourceAttr.resource_attr_id'), primary_key=True, nullable=False)
+    resource_attr_id_b = Column(Integer(), ForeignKey('tResourceAttr.resource_attr_id'), primary_key=True, nullable=False)
+
+    resourceattr_a = relationship("ResourceAttr", foreign_keys=[resource_attr_id_a])
+    resourceattr_b = relationship("ResourceAttr", foreign_keys=[resource_attr_id_b])
+
+    network_a = relationship("Network", foreign_keys=[network_a_id])
+    network_b = relationship("Network", foreign_keys=[network_b_id])
 
 class Template(Base):
     """
@@ -364,6 +395,7 @@ class TypeAttr(Base):
     data_type          = Column(String(60))
     data_restriction   = Column(Text(1000))
     unit               = Column(String(60))
+    description        = Column(Text(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     attr = relationship('Attr')
@@ -404,6 +436,22 @@ class ResourceAttr(Base):
     link = relationship('Link', backref=backref('attributes', uselist=True, cascade="all, delete-orphan"), uselist=False)
     resourcegroup = relationship('ResourceGroup', backref=backref('attributes', uselist=True, cascade="all, delete-orphan"), uselist=False)
 
+
+    def get_network(self):
+        """
+         Get the network that this resource attribute is in.
+        """
+        ref_key = self.ref_key
+        if ref_key == 'NETWORK':
+            return self.network
+        elif ref_key == 'NODE':
+            return self.node.network
+        elif ref_key == 'LINK':
+            return self.link.network
+        elif ref_key == 'GROUP':
+            return self.group.network
+        elif ref_key == 'PROJECT':
+            return None
 
     def get_resource(self):
         ref_key = self.ref_key
@@ -601,7 +649,7 @@ class Network(Base):
     network_id = Column(Integer(), primary_key=True, nullable=False)
     network_name = Column(String(60),  nullable=False)
     network_description = Column(String(1000))
-    network_layout = Column(Text(1000))
+    layout = Column(Text(1000))
     project_id = Column(Integer(), ForeignKey('tProject.project_id'),  nullable=False)
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
@@ -637,7 +685,7 @@ class Network(Base):
         l = Link()
         l.link_name        = name
         l.link_description = desc
-        l.link_layout      = str(layout)
+        l.layout           = str(layout) if layout is not None else None
         l.node_a           = node_1
         l.node_b           = node_2
 
@@ -660,7 +708,7 @@ class Network(Base):
         node = Node()
         node.node_name        = name
         node.node_description = desc
-        node.node_layout      = str(layout)
+        node.layout           = str(layout) if layout is not None else None
         node.node_x           = node_x
         node.node_y           = node_y
 
@@ -772,7 +820,7 @@ class Link(Base):
     node_2_id = Column(Integer(), ForeignKey('tNode.node_id'), nullable=False)
     link_name = Column(String(60))
     link_description = Column(String(1000))
-    link_layout = Column(Text(1000))
+    layout = Column(Text(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     network = relationship('Network', backref=backref("links", order_by=network_id, cascade="all, delete-orphan"), lazy='joined')
@@ -822,7 +870,7 @@ class Node(Base):
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     node_x = Column(Float(precision=10, asdecimal=True))
     node_y = Column(Float(precision=10, asdecimal=True))
-    node_layout = Column(Text(1000))
+    layout = Column(Text(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     network = relationship('Network', backref=backref("nodes", order_by=network_id, cascade="all, delete-orphan"), lazy='joined')
@@ -1001,7 +1049,7 @@ class Scenario(Base):
     scenario_id = Column(Integer(), primary_key=True, index=True, nullable=False)
     scenario_name = Column(String(60),  nullable=False)
     scenario_description = Column(String(1000))
-    scenario_layout = Column(Text(1000))
+    layout = Column(Text(1000))
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     network_id = Column(Integer(), ForeignKey('tNetwork.network_id'), index=True)
     start_time = Column(String(60))

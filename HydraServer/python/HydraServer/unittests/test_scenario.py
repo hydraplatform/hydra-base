@@ -21,6 +21,7 @@ import datetime
 import copy
 import suds
 import logging
+import json
 log = logging.getLogger(__name__)
 
 class ScenarioTest(server.SoapServerTest):
@@ -43,14 +44,11 @@ class ScenarioTest(server.SoapServerTest):
         dataset.unit = 'metres / second'
         dataset.dimension = 'number of units per time unit'
         
-        descriptor = self.client.factory.create('ns1:Descriptor')
-        descriptor.desc_val = 'I am an updated test!'
-
-        dataset.value = descriptor
+        dataset.value = 'I am an updated test!'
 
         new_resource_scenario = self.client.service.add_data_to_attribute(scenario_id, resource_attr_id, dataset)
 
-        assert new_resource_scenario.value.value.desc_val == 'I am an updated test!', "Value was not updated correctly!!"
+        assert new_resource_scenario.value.value == 'I am an updated test!', "Value was not updated correctly!!"
 
     def test_add_scenario(self):
         """
@@ -137,7 +135,7 @@ class ScenarioTest(server.SoapServerTest):
 
         for data in updated_scenario.resourcescenarios.ResourceScenario: 
             if data.attr_id == descriptor['attr_id']:
-                assert data.value.value.desc_val == descriptor['value']['value']['desc_val']
+                assert data.value.value == descriptor['value']['value']
 
     def test_get_dataset_scenarios(self):
         """
@@ -210,7 +208,7 @@ class ScenarioTest(server.SoapServerTest):
 
         for rs in new_resourcescenarios.ResourceScenario: 
             if rs.resource_attr_id == descriptor['resource_attr_id']:
-                assert rs.value.value.desc_val == descriptor['value']['value']['desc_val']
+                assert rs.value.value == descriptor['value']['value']
 
         updated_scenario = self.client.service.get_scenario(scenario.id)
 
@@ -254,7 +252,7 @@ class ScenarioTest(server.SoapServerTest):
 
         for new_val in new_node_data.ResourceAttr:
             if new_val.resourcescenario.value.value == updated_val:
-                assert new_val.name == 'I am an updated dataset name'
+                assert new_val.resourcescenario.value.name == 'I am an updated dataset name'
 
     def test_bulk_update_resourcedata(self):
         """
@@ -324,18 +322,22 @@ class ScenarioTest(server.SoapServerTest):
         dataset1.unit = 'feet cubed'
         dataset1.dimension = 'cubic capacity'
 
-        dataset1.value = {'ts_values':
-            [
-                {
-                    'ts_time' : datetime.datetime.now(),
-                    'ts_value' : str([1, 2, 3, 4, 5]),
-                },
-                {
-                    'ts_time' : datetime.datetime.now() + datetime.timedelta(hours=1),
-                    'ts_value' : str([2, 3, 4, 5, 6]),
-                }
-            ],
-        }
+        t1 = datetime.datetime.now()
+        t2 = t1+datetime.timedelta(hours=1)
+        t3 = t1+datetime.timedelta(hours=2)
+
+        t1 = t1.strftime(self.fmt)
+        t2 = t2.strftime(self.fmt)
+        t3 = t3.strftime(self.fmt)
+        
+        val_1 = 1.234
+        val_2 = 2.345
+        val_3 = 3.456
+
+        ts_val = json.dumps({0: {t1: val_1,
+                      t2: val_2,
+                      t3: val_3}})
+        dataset1.value = ts_val 
         data.Dataset.append(dataset1)
 
         dataset2 = self.client.factory.create('ns1:Dataset')
@@ -344,10 +346,7 @@ class ScenarioTest(server.SoapServerTest):
         dataset2.unit = 'metres / second'
         dataset2.dimension = 'number of units per time unit'
         
-        descriptor = self.client.factory.create('ns1:Descriptor')
-        descriptor.desc_val = 'I am an updated test!'
-
-        dataset2.value = descriptor
+        dataset2.value ='I am an updated test!' 
 
         data.Dataset.append(dataset2)
 
@@ -428,10 +427,7 @@ class ScenarioTest(server.SoapServerTest):
         dataset.unit = 'metres / second'
         dataset.dimension = 'number of units per time unit'
  
-        descriptor = self.client.factory.create('ns1:Descriptor')
-        descriptor.desc_val = 'I am an updated test!'
-
-        dataset.value = descriptor
+        dataset.value ='I am an updated test!' 
 
         self.client.service.add_data_to_attribute(scenario_id, resource_attr_id, dataset)
 
@@ -542,10 +538,7 @@ class ScenarioTest(server.SoapServerTest):
         dataset.unit = 'metres / second'
         dataset.dimension = 'number of units per time unit'
  
-        descriptor = self.client.factory.create('ns1:Descriptor')
-        descriptor.desc_val = 'I am an updated test!'
-
-        dataset.value = descriptor
+        dataset.value = 'I am an updated test!' 
 
         
         locked_resource_scenarios = []
@@ -686,10 +679,8 @@ class ScenarioTest(server.SoapServerTest):
         dataset.unit = 'metres / second'
         dataset.dimension = 'number of units per time unit'
  
-        descriptor = self.client.factory.create('ns1:Descriptor')
-        descriptor.desc_val = 'I am an updated test!'
-
-        dataset.value = descriptor
+        dataset.value = 'I am an updated test!'
+ 
 
         self.client.service.add_data_to_attribute(source_scenario_id, resource_attr_id, dataset)
 
@@ -728,11 +719,8 @@ class ScenarioTest(server.SoapServerTest):
         dataset.name = 'Max Capacity'
         dataset.unit = 'metres / second'
         dataset.dimension = 'number of units per time unit'
- 
-        descriptor = self.client.factory.create('ns1:Descriptor')
-        descriptor.desc_val = 'I am an updated test!'
 
-        dataset.value = descriptor
+        dataset.value = 'I am an updated test!' 
 
         new_ds = self.client.service.add_dataset(dataset)
 
@@ -744,7 +732,7 @@ class ScenarioTest(server.SoapServerTest):
         scenario_rs = updated_scenario.resourcescenarios.ResourceScenario
         for rs in scenario_rs:
             if rs.resource_attr_id == resource_attr_id:
-                assert rs.value.value.desc_val == 'I am an updated test!'
+                assert rs.value.value == 'I am an updated test!'
 
     def test_add_data_to_attribute(self):
 
@@ -766,17 +754,14 @@ class ScenarioTest(server.SoapServerTest):
         dataset.unit = 'metres / second'
         dataset.dimension = 'number of units per time unit'
         
-        descriptor = self.client.factory.create('ns1:Descriptor')
-        descriptor.desc_val = 'I am an updated test!'
-
-        dataset.value = descriptor
+        dataset.value = 'I am an updated test!'
 
         updated_resource_scenario = self.client.service.add_data_to_attribute(scenario_id, resource_attr_id, dataset)
 
         new_resource_scenario = self.client.service.add_data_to_attribute(scenario_id, empty_ra.id, dataset)
 
-        assert updated_resource_scenario.value.value.desc_val == 'I am an updated test!', "Value was not updated correctly!!"
-        assert new_resource_scenario.value.value.desc_val == 'I am an updated test!', "Value was not updated correctly!!"
+        assert updated_resource_scenario.value.value == 'I am an updated test!', "Value was not updated correctly!!"
+        assert new_resource_scenario.value.value == 'I am an updated test!', "Value was not updated correctly!!"
 
 if __name__ == '__main__':
     server.run()

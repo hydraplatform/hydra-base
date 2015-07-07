@@ -20,7 +20,7 @@ from operator import mul
 from HydraException import HydraError
 import numpy as np
 import pandas as pd
-from dateutil import get_datetime
+from hydra_dateutil import get_datetime
 log = logging.getLogger(__name__)
 
 def array_dim(arr):

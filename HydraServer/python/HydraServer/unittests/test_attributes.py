@@ -39,9 +39,12 @@ class AttributeTest(server.SoapServerTest):
         attr = self.client.service.get_attribute(name, "Volumetric flow rate")
         if attr is None:
             attr = {'name'  : name,
-                    'dimen' : dimension
+                    'dimen' : dimension,
+                    'description' : "Attribute description",
                    }
             attr = self.client.service.add_attribute(attr)
+
+            assert attr.description == "Attribute description"
             
         return attr
 
@@ -52,11 +55,13 @@ class AttributeTest(server.SoapServerTest):
         dimension = "Volumetric flow rate"
         attrs = self.client.factory.create('hyd:AttrArray')
         attr1 = {'name'  : name1,
-                'dimen' : dimension
+                'dimen' : dimension,
+                'description' : "Attribute 1 from a test of adding multiple attributes",
                 }
         attrs.Attr.append(attr1)
         attr2 = {'name' : name2,
-                 'dimen' : dimension
+                 'dimen' : dimension,
+                'description' : "Attribute 2 from a test of adding multiple attributes",
                 }
         attrs.Attr.append(attr2)
 
@@ -70,6 +75,10 @@ class AttributeTest(server.SoapServerTest):
             assert len(attrs.Attr) == 2
             for a in attrs.Attr:
                 assert a.id is not None
+
+        assert attrs.Attr[0].description ==  "Attribute 1 from a test of adding multiple attributes"
+        assert attrs.Attr[1].description ==  "Attribute 2 from a test of adding multiple attributes"
+
         return attrs.Attr
 
     def test_get_all_attributes(self):
@@ -88,12 +97,14 @@ class AttributeTest(server.SoapServerTest):
         retrieved_attr = self.client.service.get_attribute_by_id(existing_attr.id)
         assert existing_attr.name == retrieved_attr.name
         assert existing_attr.dimen == retrieved_attr.dimen
+        assert existing_attr.description == retrieved_attr.description
 
     def test_get_attribute(self):
         existing_attr = self.test_add_attribute()
         retrieved_attr = self.client.service.get_attribute(existing_attr.name,
                                                            existing_attr.dimen)
         assert existing_attr.id == retrieved_attr.id
+        assert existing_attr.description == retrieved_attr.description
 
     def test_get_attributes(self):
         existing_attrs = self.test_add_attributes()
@@ -102,17 +113,18 @@ class AttributeTest(server.SoapServerTest):
         dimension = existing_attrs[0].dimen 
         attrs = self.client.factory.create('hyd:AttrArray')
         attr1 = {'name'  : name1,
-                'dimen' : dimension
+                'dimen' : dimension,
                 }
         attrs.Attr.append(attr1)
         attr2 = {'name' : name2,
-                 'dimen' : dimension
+                 'dimen' : dimension,
                 }
         attrs.Attr.append(attr2)
 
         attrs = self.client.service.get_attributes(attrs)
         assert attrs.Attr[0].id == existing_attrs[0].id
         assert attrs.Attr[1].id == existing_attrs[1].id
+        assert attrs.Attr[1].description == existing_attrs[1].description
 
 #    def test_delete_attribute(self):
 #        attr = self.create_attr("attr_to_delete", "Volume")
@@ -179,6 +191,65 @@ class AttributeTest(server.SoapServerTest):
         for ra in group_attrs.ResourceAttr:
             network_attr_ids.append(ra.attr_id)
         assert new_attr.id in network_attr_ids
+
+class AttributeMapTest(server.SoapServerTest):
+    def test_set_attribute_mapping(self):
+        net1 = self.create_network_with_data()
+        net2 = self.create_network_with_data()
+        net3 = self.create_network_with_data()
+
+        s1 = net1.scenarios.Scenario[0]
+        s2 = net2.scenarios.Scenario[0]
+
+        node_1 = net1.nodes.Node[0]
+        node_2 = net2.nodes.Node[0]
+        node_3 = net3.nodes.Node[0]
+
+        attr_1 = node_1.attributes.ResourceAttr[0]
+        attr_2 = node_2.attributes.ResourceAttr[1]
+        attr_3 = node_3.attributes.ResourceAttr[2]
+
+        rs_to_update_from = None
+        for rs in s1.resourcescenarios.ResourceScenario:
+            if rs.resource_attr_id == attr_1.id:
+                rs_to_update_from = rs
+
+
+        rs_to_change = None
+        for rs in s2.resourcescenarios.ResourceScenario:
+            if rs.resource_attr_id == attr_2.id:
+                rs_to_change = rs
+
+        self.client.service.set_attribute_mapping(attr_1.id, attr_2.id)
+        self.client.service.set_attribute_mapping(attr_1.id, attr_3.id)
+        
+        all_mappings_1 = self.client.service.get_mappings_in_network(net1.id)
+        all_mappings_2 = self.client.service.get_mappings_in_network(net2.id, net2.id)
+        #print all_mappings_1 
+        #print all_mappings_2 
+        assert len(all_mappings_1[0]) == 2
+        assert len(all_mappings_2[0]) == 1
+
+        node_mappings_1 = self.client.service.get_node_mappings(node_1.id)
+        node_mappings_2 = self.client.service.get_node_mappings(node_1.id, node_2.id)
+        #print "*"*100
+        #print node_mappings_1 
+        #print node_mappings_2 
+        assert len(node_mappings_1[0]) == 2
+        assert len(node_mappings_2[0]) == 1
+       
+        updated_rs = self.client.service.update_value_from_mapping(attr_1.id, attr_2.id, s1.id, s2.id)
+    
+        assert str(updated_rs.value) == str(rs_to_update_from.value)
+       
+        log.info("Deleting %s -> %s", attr_1.id, attr_2.id)
+        self.client.service.delete_attribute_mapping(attr_1.id, attr_2.id)
+        all_mappings_1 = self.client.service.get_mappings_in_network(net1.id)
+        assert len(all_mappings_1[0]) == 1
+        self.client.service.delete_mappings_in_network(net1.id)
+        all_mappings_1 = self.client.service.get_mappings_in_network(net1.id)
+        assert len(all_mappings_1) == 0
+
 
 if __name__ == '__main__':
     server.run()

@@ -29,6 +29,18 @@ global hydra_units
 hydra_units = units.Units()
 
 
+def get_dimension(dimension,**kwargs):
+    """Get a dimension"""
+
+    dimension_name_map = {}
+
+    dimension_names = hydra_units.dimensions.keys()
+    for d in dimension_names:
+        dimension_name_map[d.lower().replace(" ", "")] = d
+
+    return dimension_name_map.get(dimension.lower().replace(" ", ""))
+
+
 def add_dimension(dimension,**kwargs):
     """Add a physical dimensions (such as ``Volume`` or ``Speed``) to the
     servers list of dimensions. If the dimension already exists, nothing is
@@ -130,8 +142,6 @@ def convert_dataset(dataset_id, to_unit,**kwargs):
                 newvec = hydra_units.convert(vecdata, old_unit, to_unit)
                 newarr = vector_to_arr(newvec, dim)
                 new_val.append(ts_time, newarr)
-        elif dataset_type == 'eqtimeseries':
-            pass
         elif dataset_type == 'descriptor':
             raise HydraError('Cannot convert descriptor.')
         
@@ -159,7 +169,7 @@ def convert_dataset(dataset_id, to_unit,**kwargs):
     else:
         raise HydraError('Dataset has no units.')
 
-def get_dimension(unit1,**kwargs):
+def get_unit_dimension(unit1,**kwargs):
     """Get the corresponding physical dimension for a given unit.
 
     Example::

@@ -19,12 +19,33 @@ from datetime import datetime, timedelta
 import logging
 from decimal import Decimal, ROUND_HALF_UP
 
+from dateutil.parser import parse
+
+
 log = logging.getLogger(__name__)
 
 #"2013-08-13 15:55:43.468886Z"
 FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
+
 def get_datetime(timestamp):
+    """
+        Turn a string timestamp into a date time. First tries to use dateutil.
+        Failing that it tries to guess the time format and converts it manually
+        using stfptime.
+
+        @returns: A timezone unaware timestamp.
+    """
+    #First try to use date util. Failing that, continue
+    try:
+        parsed_dt = parse(timestamp)
+        if parsed_dt.tzinfo is None:
+            return parsed_dt
+        else:
+
+            return parsed_dt.replace(tzinfo=None)
+    except:
+        pass
 
     if isinstance(timestamp, datetime):
         return timestamp
@@ -173,7 +194,7 @@ def guess_timefmt(datestr):
                      ['%d', '%m', 'XXXX'],
                      ['%d', '%b', 'XXXX']]
 
-    timeformats = ['%H:%M:%S.%f', '%H:%M:%S', '%H:%M']
+    timeformats = ['%H:%M:%S.%f', '%H:%M:%S', '%H:%M', '%H:%M:%S.%f000Z', '%H:%M:%S.%fZ']
 
     # Check if a time is indicated or not
     for timefmt in timeformats:

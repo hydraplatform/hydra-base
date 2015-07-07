@@ -100,7 +100,7 @@ class ProjectTest(server.SoapServerTest):
 
         rs_to_check = updated_project.attribute_data.ResourceScenario[0]
         assert rs_to_check.value.type == 'descriptor' and \
-               rs_to_check.value.value.desc_val == 'just project desscriptor', \
+               rs_to_check.value.value == 'just project desscriptor', \
                "There is an inconsistency with the attributes."
 
     def test_load(self):
@@ -154,6 +154,8 @@ class ProjectTest(server.SoapServerTest):
         projects = self.client.service.get_projects()
 
         assert len(projects.ProjectSummary) > 0, "Projects for user were not retrieved."
+
+        assert projects.ProjectSummary[0].status == 'A'
 
     def test_get_networks(self):
         

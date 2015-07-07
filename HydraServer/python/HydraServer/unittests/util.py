@@ -18,11 +18,12 @@
 import logging
 
 from HydraLib import config
-from HydraLib.dateutil import get_datetime
-from HydraLib.PluginLib import create_dict
+from HydraLib.hydra_dateutil import get_datetime
+import json
 
 from suds.client import Client
 from suds.plugin import MessagePlugin
+
 import datetime
 
 log = logging.getLogger(__name__)
@@ -626,23 +627,30 @@ def check_network(client, request_net, response_net):
     s = request_net['scenarios'].Scenario[0]
     for rs0 in s['resourcescenarios'].ResourceScenario:
         if rs0['value']['type'] == 'timeseries':
-            val = rs0['value']['value']
-            for v in val['ts_values']:
-                before_times.append(v['ts_time'])
+            val = json.loads(rs0['value']['value'])
+            before_ts_times = val.values()[0].keys()
+            before_times = []
+            for t in before_ts_times:
+                try:
+                    before_times.append(get_datetime(t))
+                except:
+                    before_times.append(t)
 
     after_times = []
     s = response_net.scenarios.Scenario[0]
     for rs0 in s.resourcescenarios.ResourceScenario:
         if rs0.value.type == 'timeseries':
-            val = rs0.value.value
-            for v in val['ts_values']:
-                after_times.append(v['ts_time'])
+            val = json.loads(rs0.value.value)
+            after_ts_times = val.values()[0].keys()
+            after_times = []
+            for t in after_ts_times:
+                try:
+                    after_times.append(get_datetime(t))
+                except:
+                    after_times.append(t)
+
     for d in after_times:
-        try:
-            time = get_datetime(d)
-        except:
-            time = eval(d)
-        assert time in before_times, "%s is incorrect"%(d)
+        assert d in before_times, "%s is incorrect"%(d)
 
 
 def create_scalar(client, ResourceAttr, val=1.234):
@@ -655,7 +663,7 @@ def create_scalar(client, ResourceAttr, val=1.234):
         unit = 'm s^-1',
         dimension = 'Speed',
         hidden = 'N',
-        value = {'param_value':val},
+        value = val,
     )
 
     scenario_attr = dict(
@@ -677,7 +685,7 @@ def create_descriptor(client, ResourceAttr, val="test"):
         unit = 'm s^-1',
         dimension = 'Speed',
         hidden = 'N',
-        value = {'desc_val':val},
+        value = val,
     )
 
     scenario_attr = dict(
@@ -694,15 +702,22 @@ def create_timeseries(client, ResourceAttr):
     #with a resource attribute.
     #[[[1, 2, "hello"], [5, 4, 6]], [[10, 20, 30], [40, 50, 60]]]
 
-    test_val_1 = create_dict([[[1, 2, "hello"], [5, 4, 6]], [[10, 20, 30], [40, 50, 60]], [[9, 8, 7],[6, 5, 4]]])
+    fmt = config.get('DEFAULT', 'datetime_format', "%Y-%m-%dT%H:%M:%S.%f000Z")
 
-    test_val_2 = create_dict([1.0, 2.0, 3.0])
+    t1 = datetime.datetime.now()
+    t2 = t1+datetime.timedelta(hours=1)
+    t3 = t1+datetime.timedelta(hours=2)
+ 
+    val_1 = [[[1, 2, "hello"], [5, 4, 6]], [[10, 20, 30], [40, 50, 60]], [[9, 8, 7],[6, 5, 4]]]
+    val_2 = [1.0, 2.0, 3.0]
 
-    metadata_array = client.factory.create("hyd:MetadataArray")
-    metadata = client.factory.create("hyd:Metadata")
-    metadata.name = 'created_by'
-    metadata.value = 'Test user'
-    metadata_array.Metadata.append(metadata)
+    val_3 = [3.0, None, None]
+
+    ts_val = {"index": {t1.strftime(fmt): val_1,
+                  t2.strftime(fmt): val_2,
+                  t3.strftime(fmt): val_3}}
+
+    metadata_array = json.dumps({'created_by': 'Test user'})
 
     dataset = dict(
         id=None,
@@ -711,17 +726,7 @@ def create_timeseries(client, ResourceAttr):
         unit = 'cm^3',
         dimension = 'Volume',
         hidden = 'N',
-        value = {'ts_values' :
-        [
-            {'ts_time' : datetime.datetime.now(),
-            'ts_value' : test_val_1},
-            {'ts_time' : datetime.datetime.now()+datetime.timedelta(hours=1),
-            'ts_value' : test_val_2},
-            {'ts_time' : datetime.datetime.now()+datetime.timedelta(hours=2),
-            'ts_value' : create_dict([3.0, None, None])},
-
-        ]
-    },
+        value = json.dumps(ts_val),
         metadata = metadata_array,
     )
 
@@ -738,14 +743,9 @@ def create_array(client, ResourceAttr):
     #with a resource attribute.
     #[[1, 2, 3], [4, 5, 6], [7, 8, 9]]
 
-    arr_data = create_dict([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])
-    arr= {'arr_data' : arr_data}
+    arr = json.dumps([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])
 
-    metadata_array = client.factory.create("hyd:MetadataArray")
-    metadata = client.factory.create("hyd:Metadata")
-    metadata.name = 'created_by'
-    metadata.value = 'Test user'
-    metadata_array.Metadata.append(metadata)
+    metadata_array = json.dumps({'created_by': 'Test user'})
 
     dataset = dict(
         id=None,

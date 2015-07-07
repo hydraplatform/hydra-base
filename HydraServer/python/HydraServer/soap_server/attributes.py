@@ -18,6 +18,7 @@ from spyne.model.complex import Array as SpyneArray
 from spyne.decorator import rpc
 from hydra_complexmodels import Attr
 from hydra_complexmodels import ResourceAttr 
+from hydra_complexmodels import ResourceAttrMap 
 
 from hydra_base import HydraService
 
@@ -43,10 +44,30 @@ class AttributeService(HydraService):
                 id = 1020
                 name = "Test Attr"
                 dimen = "very big"
+                description = "I am a very big attribute"
             }
 
         """
         attr = attributes.add_attribute(attr, **ctx.in_header.__dict__)
+        return Attr(attr)
+
+    @rpc(Attr, _returns=Attr)
+    def update_attribute(ctx, attr):
+        """
+        Update a generic attribute, which can then be used in creating
+        a resource attribute, and put into a type.
+
+        .. code-block:: python
+
+            (Attr){
+                id = 1020
+                name = "Test Attr"
+                dimen = "very big"
+                description = "I am a very big attribute"
+            }
+
+        """
+        attr = attributes.update_attribute(attr, **ctx.in_header.__dict__)
         return Attr(attr)
 
     @rpc(SpyneArray(Attr), _returns=SpyneArray(Attr))
@@ -61,6 +82,7 @@ class AttributeService(HydraService):
                 id = 1020
                 name = "Test Attr"
                 dimen = "very big"
+                description = "I am a very big attribute"
             }
 
         """
@@ -123,6 +145,7 @@ class AttributeService(HydraService):
                 a.cr_date = str(attr.cr_date)
                 a.name = attr.attr_name
                 a.dimen = attr.attr_dimen
+                a.description = attr.attr_description
                 ret_attrs.append(a)
             else:
                 ret_attrs.append(None)
@@ -316,9 +339,79 @@ class AttributeService(HydraService):
 
     @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttr))
     def get_group_attributes(ctx, group_id, type_id):
+        """
+            Get the resource attributes of a resource group.
+        """
         resource_attrs = attributes.get_resource_attributes(
                 'GROUP',
                 group_id,
-                type_id)
+                type_id,
+                **ctx.in_header.__dict__)
 
         return [ResourceAttr(ra) for ra in resource_attrs]
+
+    @rpc(Integer, _returns=Unicode)
+    def check_attr_dimension(ctx, attr_id):
+        """
+            Check that the dimension of the resource attribute data is consistent
+            with the definition of the attribute.
+            If the attribute says 'volume', make sure every dataset connected
+            with this attribute via a resource attribute also has a dimension
+            of 'volume'.
+        """
+
+        attributes.check_attr_dimension(attr_id, **ctx.in_header.__dict__)
+
+        return 'OK'
+    
+    @rpc(Integer, Integer, _returns=Unicode)
+    def set_attribute_mapping(ctx, resource_attr_a, resource_attr_b):
+        """
+            Define one resource attribute from one network as being the same as
+            that from another network.
+        """
+        attributes.set_attribute_mapping(resource_attr_a, resource_attr_b, **ctx.in_header.__dict__)
+        
+        return 'OK'
+
+    @rpc(Integer, Integer, _returns=Unicode)
+    def delete_attribute_mapping(ctx, resource_attr_a, resource_attr_b):
+        """
+            Define one resource attribute from one network as being the same as
+            that from another network.
+        """
+        attributes.delete_attribute_mapping(resource_attr_a, resource_attr_b, **ctx.in_header.__dict__)
+        
+        return 'OK'
+
+    @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttrMap))
+    def get_mappings_in_network(ctx, network_id, network_2_id):
+        """
+            Get all the resource attribute mappings in a network. If another network
+            is specified, only return the mappings between the two networks.
+        """
+        mapping_rs = attributes.get_mappings_in_network(network_id, network_2_id, **ctx.in_header.__dict__)
+       
+        mappings = [ResourceAttrMap(m) for m in mapping_rs]
+        return mappings
+
+    @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=Unicode)
+    def delete_mappings_in_network(ctx, network_id, network_2_id):
+        """
+            Delete all the resource attribute mappings in a network. If another network
+            is specified, only delete the mappings between the two networks.
+        """
+        attributes.delete_mappings_in_network(network_id, network_2_id, **ctx.in_header.__dict__)
+       
+        return 'OK' 
+
+    @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttrMap))
+    def get_node_mappings(ctx, node_id, node_2_id):
+        """
+           Get the mappings for all the attributes of a given node. If a second node
+           is specified, return only the mappings between these nodes..
+        """
+        mapping_rs = attributes.get_node_mappings(node_id, node_2_id, **ctx.in_header.__dict__)
+       
+        mappings = [ResourceAttrMap(m) for m in mapping_rs]
+        return mappings

@@ -15,7 +15,7 @@
 #
 import datetime
 import sys
-from HydraLib.dateutil import get_datetime
+from HydraLib.hydra_dateutil import get_datetime
 import logging
 from HydraServer.db.model import Dataset, Metadata, DatasetOwner, DatasetCollection,\
         DatasetCollectionItem, ResourceScenario, ResourceAttr, TypeAttr
@@ -424,7 +424,7 @@ def add_dataset(data_type, val, units, dimension, metadata={}, name="", user_id=
 
     # Assign dimension if necessary
     if units is not None and dimension is None:
-        dimension = hydra_units.get_dimension(units)
+        dimension = hydra_units.get_unit_dimension(units)
 
     d.data_type  = data_type
     d.data_units = units
@@ -483,6 +483,7 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
     log.info("Incoming data processed in %s", (get_timing(start_time)))
 
     existing_data = _get_existing_data(new_data.keys())
+
     log.info("Existing data retrieved.")
 
     #The list of dataset IDS to be returned.
@@ -517,7 +518,7 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
             hash_id_map[current_hash] = dataset_dict
             metadata[current_hash] = dataset_dict['metadata']
 
-    log.debug("Isolating new data", get_timing(start_time))
+    log.debug("Isolating new data %s", get_timing(start_time))
     #Isolate only the new datasets and insert them
     new_data_for_insert = []
     #keep track of the datasets that are to be inserted to avoid duplicate
@@ -600,46 +601,37 @@ def _process_incoming_data(data, user_id=None, source=None):
         }
 
         # Assign dimension if necessary
-        if d.unit is not None and d.dimension is None:
-            data_dict['data_dimen'] = hydra_units.get_dimension(d.unit)
+        if d.unit is not None and d.dimension in (None, 'dimensionless'):
+            data_dict['data_dimen'] = hydra_units.get_unit_dimension(d.unit)
         else:
             data_dict['data_dimen'] = d.dimension
 
-        if d.type == 'eqtimeseries':
-            st, f, v = _get_db_val(d.type, val)
-            data_dict['start_time'] = st
-            data_dict['frequency']  = f
-            data_dict['value']      = v
-        else:
-            db_val = _get_db_val(d.type, val)
-            data_dict['value'] = db_val
+        db_val = _get_db_val(d.type, val)
+        data_dict['value'] = db_val
 
-        metadata_dict = {}
         if d.metadata is not None:
-            for m in d.metadata:
-                metadata_dict[str(m.name)]  = str(m.value)
+            metadata_dict = json.loads(d.metadata)
         
         metadata_keys = [k.lower() for k in metadata_dict]
         if user_id is not None and 'user_id' not in metadata_keys:
-            metadata_dict['user_id'] = str(user_id)
+            metadata_dict[u'user_id'] = unicode(user_id)
         if source is not None and 'source' not in metadata_keys:
-            metadata_dict['source'] = str(source)
+            metadata_dict[u'source'] = unicode(source)
 
         data_dict['metadata'] = metadata_dict
 
         d.data_hash = generate_data_hash(data_dict)
+       
         data_dict['data_hash'] = d.data_hash
         datasets[d.data_hash] = data_dict 
 
     return datasets
 
 def _get_db_val(data_type, val):
-    if data_type in ('descriptor','scalar','array'):
+    if data_type in ('descriptor','scalar'):
         return str(val)
-    elif data_type == 'eqtimeseries':
-        return (str(val[0]), str(val[1]), str(val[2]))
-    elif data_type == 'timeseries':
-        return val 
+    elif data_type in ('timeseries', 'array'):
+        return val
     else:
         raise HydraError("Invalid data type %s"%(data_type,))
 
@@ -705,7 +697,10 @@ def _get_existing_data(hashes):
     return hash_dict
 
 def _get_datasets(dataset_ids):
-
+    """
+        Get all the datasets in a list of dataset IDS. This must be done in chunks of 999,
+        as sqlite can only handle 'in' with < 1000 elements.
+    """
 
     dataset_dict = {}
 
@@ -894,10 +889,12 @@ def get_val_at_time(dataset_id, timestamps,**kwargs):
     dataset_i = DBSession.query(Dataset).filter(Dataset.dataset_id==dataset_id).one()
     #for time in t:
     #    data.append(td.get_val(timestamp=time))
+  
     data = dataset_i.get_val(timestamp=t)
-    if type(data) is list:
-        data = create_dict(data)
-    dataset = {'data': data}
+    if data is not None:
+        dataset = {'data': json.dumps(data)}
+    else:
+        dataset = {'data': None}
 
     return dataset
 
@@ -970,15 +967,18 @@ def get_vals_between_times(dataset_id, start_time, end_time, timestep,increment,
     td = DBSession.query(Dataset).filter(Dataset.dataset_id==dataset_id).one()
     log.debug("Number of times to fetch: %s", len(times))
     data = td.get_val(timestamp=times)
-
+   
     data_to_return = []
     if type(data) is list:
         for d in data:
-            data_to_return.append(create_dict(list(d)))
+            if d is not None:
+                data_to_return.append(list(d))
+    elif data is None:
+        data_to_return = []
     else:
         data_to_return.append(data)
 
-    dataset = {'data' : data_to_return}
+    dataset = {'data' : json.dumps(data_to_return)}
 
     return dataset
 

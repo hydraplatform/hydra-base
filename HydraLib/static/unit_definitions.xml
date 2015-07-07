@@ -312,7 +312,7 @@
         <unit name="Pound Sterling per month"  abbr="GBP mon^-1"  lf="2.50975e-07" cf="0.0" info=""/>
         <unit name="Pound Sterling per year"   abbr="GBP yr^-1"   lf="2.091458464e-08" cf="0.0" info=""/>
     </dimension>
-    <dimension name="Dimensionless">
+    <dimension name="dimensionless">
 		<unit abbr="date" cf="0" info="" lf="1" name="No unit"/>
         <unit abbr="-" cf="0" info="" lf="1" name="No unit"/>
         <unit abbr="%" cf="0" info="" lf="0.01" name="Percent"/>

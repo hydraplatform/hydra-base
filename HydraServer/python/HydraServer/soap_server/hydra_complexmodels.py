@@ -17,20 +17,18 @@ from spyne.model.complex import Array as SpyneArray, ComplexModel
 from spyne.model.primitive import Unicode
 from spyne.model.primitive import Integer
 from spyne.model.primitive import Decimal
-from spyne.model.primitive import Float
-from spyne.model.primitive import DateTime
 from spyne.model.primitive import AnyDict
 from spyne.model.primitive import Double
 from decimal import Decimal as Dec
-from HydraLib.dateutil import get_datetime,\
+from HydraLib.hydra_dateutil import get_datetime,\
         timestamp_to_ordinal,\
         ordinal_to_timestamp
 import pandas as pd
-from pandas.tseries.index import DatetimeIndex
 import logging
-from HydraLib.util import create_dict, check_array_struct
-from numpy import array, ndarray
 from HydraServer.util import generate_data_hash
+import json
+import zlib
+from HydraLib import config
 from HydraLib.HydraException import HydraError
 
 NS = "soap_server.hydra_complexmodels"
@@ -59,6 +57,15 @@ ref_id_map = {
 class HydraComplexModel(ComplexModel):
     __namespace__ = 'soap_server.hydra_complexmodels'
 
+    def get_outgoing_layout(self, resource_layout):
+        layout = {}
+        if resource_layout not in (None, ""):
+            db_layout    = eval(resource_layout)
+            for k, v in db_layout.items():
+                layout[k] = v
+
+        return layout
+
 class LoginResponse(HydraComplexModel):
     """
     """
@@ -67,20 +74,6 @@ class LoginResponse(HydraComplexModel):
         ('session_id', Unicode(min_occurs=1)),
         ('user_id',    Integer(min_occurs=1)),
     ]
-
-class Metadata(HydraComplexModel):
-    """
-    """
-    _type_info = [
-        ('name'  , Unicode(min_occurs=1, default=None)),
-        ('value' , Unicode(min_occurs=1, default=None)),
-    ]
-
-    def __init__(self, parent=None):
-        if parent is None:
-            return
-        self.name    = parent.metadata_name
-        self.value   = parent.metadata_val
 
 class ResourceData(HydraComplexModel):
     """
@@ -135,6 +128,7 @@ class ResourceData(HydraComplexModel):
         ('resource_attr_id',   Unicode(default=None)),
         ('ref_id',             Unicode(default=None)),
         ('ref_key',            Unicode(default=None)),
+        ('ref_name',           Unicode(default=None)),
         ('attr_is_var',        Unicode(default=None)),
         ('dataset_id',         Unicode(default=None)),
         ('dataset_type',       Unicode(default=None)),
@@ -144,10 +138,10 @@ class ResourceData(HydraComplexModel):
         ('dataset_value',      Unicode(default=None)),
         ('dataset_frequency',  Unicode(default=None)),
         ('dataset_hidden',     Unicode(default=None)),
-        ('dataset_metadata',   AnyDict(default=None)),
+        ('dataset_metadata',   Unicode(default=None)),
     ]
 
-    def __init__(self, resourceattr=None):
+    def __init__(self, resourceattr=None, include_value='N'):
 
         super(ResourceData, self).__init__()
         if  resourceattr is None:
@@ -159,6 +153,7 @@ class ResourceData(HydraComplexModel):
         self.resource_attr_id = str(ra.resource_attr_id)
         self.ref_key = str(ra.ref_key)
         self.ref_id  = str(getattr(ra, ref_id_map[self.ref_key]))
+        self.ref_name  = ra.ref_name
 
         self.source = ra.source
         self.scenario_id = str(ra.scenario_id)
@@ -171,12 +166,15 @@ class ResourceData(HydraComplexModel):
         self.dataset_dimension = ra.data_dimen
         self.dataset_unit      = ra.data_units
         self.dataset_frequency = ra.frequency
-        self.dataset_value     = ra.value
+        if include_value=='Y':
+            self.dataset_value     = ra.value
 
-        if hasattr(ra, 'metadata'):
+        if ra.metadata:
             self.metadata = {}
             for m in ra.metadata:
                 self.metadata[m.metadata_name] = m.metadata_val
+
+            self.dataset_metadata = json.dumps(self.metadata)
 
 class Dataset(HydraComplexModel):
     """
@@ -184,17 +182,17 @@ class Dataset(HydraComplexModel):
     _type_info = [
         ('id',               Integer(min_occurs=0, default=None)),
         ('type',             Unicode),
-        ('dimension',        Unicode(min_occurs=0, default='dimensionless')),
+        ('dimension',        Unicode(min_occurs=1, default='dimensionless')),
         ('unit',             Unicode(min_occurs=1, default=None)),
         ('name',             Unicode(min_occurs=1, default=None)),
-        ('value',            AnyDict(min_occurs=1, default=None)),
+        ('value',            Unicode(min_occurs=1, default=None)),
         ('hidden',           Unicode(min_occurs=0, default='N', pattern="[YN]")),
         ('created_by',       Integer(min_occurs=0, default=None)),
         ('cr_date',          Unicode(min_occurs=0, default=None)),
-        ('metadata',         SpyneArray(Metadata, default=None)),
+        ('metadata',         Unicode(min_occurs=0, default='{}')),
     ]
 
-    def __init__(self, parent=None, metadata=True):
+    def __init__(self, parent=None, include_metadata=True):
         super(Dataset, self).__init__()
         if  parent is None:
             return
@@ -209,15 +207,18 @@ class Dataset(HydraComplexModel):
         self.dimension = parent.data_dimen
         self.unit      = parent.data_units
         self.value = None
-        if parent.value is not None:
-            self.value = get_return_val(parent.data_type, parent.value, parent.start_time, parent.frequency)
 
-        metadata = []
-        if metadata is True:
+        if parent.value is not None:
+            try:
+                self.value = zlib.decompress(parent.value)
+            except:
+                self.value = parent.value
+
+        if include_metadata is True:
+            metadata = {}
             for m in parent.metadata:
-                complex_m = Metadata(m)
-                metadata.append(complex_m)
-        self.metadata = metadata
+                metadata[m.metadata_name] = m.metadata_val
+            self.metadata = json.dumps(metadata)
 
     def parse_value(self):
         """
@@ -226,149 +227,43 @@ class Dataset(HydraComplexModel):
         try:
             #attr_data.value is a dictionary,
             #but the keys have namespaces which must be stripped.
-            data = str(self.value)
-            if data.find('{%s}'%NS) >= 0:
-                data = data.replace('{%s}'%NS, '')
 
-            data = eval(data)
-            log.debug("Parsing %s", data)
 
-            if data is None:
+            if self.value is None:
                 log.warn("Cannot parse dataset. No value specified.")
                 return None
+            
+            data = str(self.value)
 
-            data_type = self.type
+            if len(data) > 100:
+                log.debug("Parsing %s", data[0:100])
+            else:
+                log.debug("Parsing %s", data)
 
-            val_names = data.keys()
-            value = []
-            for name in val_names:
-                value.append(data[name])
+            if self.type == 'descriptor':
+                return data 
+            elif self.type == 'scalar':
+                return data
+            elif self.type == 'timeseries':
+                timeseries_pd = pd.read_json(data)
 
-            if data_type == 'descriptor':
-                descriptor = data['desc_val'];
-                if type(descriptor) is list:
-                    descriptor = descriptor[0]
-                return descriptor
-            elif data_type == 'scalar':
-                scalar = data['param_value']
-                if type(scalar) is list:
-                    scalar = scalar[0]
-                try:
-                    float(scalar)
-                except ValueError:
-                    raise HydraError("Invalid scalar value %s"%scalar)
-                return scalar
-            elif data_type == 'timeseries':
-                is_soap_req=False
-                # The brand new way to parse time series data:
-                ts = []
-
-                timestamps = []
-                values = []
-                for ts_val in data['ts_values']:
-                    #The value is a list, so must get index 0
-                    timestamp = ts_val['ts_time']
-                    if type(timestamp) is list:
-                        timestamp = timestamp[0]
-                        is_soap_req = True
-                    try:
-                        timestamp = get_datetime(timestamp)
-                    except ValueError:
-                        log.warn("Unrecognised timestamp format: %s", timestamp)
-
-                    # Check if we have received a seasonal time series first
-                    arr_data = ts_val['ts_value']
-                    if is_soap_req:
-                        arr_data = arr_data[0]
-                    try:
-                        arr_data = dict(arr_data)
-                        try:
-                            ts_value = eval(arr_data)
-                        except:
-                            ts_value = self.parse_array(arr_data)
-                    except:
-                        try:
-                            ts_value = float(arr_data)
-                        except:
-                            ts_value = arr_data
-                    timestamps.append(timestamp)
-                    values.append(ts_value)
-
-                timeseries_pd = pd.DataFrame(values, index=pd.Series(timestamps))
-                #Epoch doesn't work here because dates before 1970 are not supported
-                #in read_json. Ridiculous.
-                ts =  timeseries_pd.to_json(date_format='iso', date_unit='ns')
-                return ts
-            elif data_type == 'eqtimeseries':
-                start_time = data['start_time']
-                frequency  = data['frequency']
-                arr_data   = data['arr_data']
-                if type(start_time) is list:
-                    start_time = start_time[0]
-                    frequency = frequency[0]
-                    arr_data = arr_data[0]
-                start_time = timestamp_to_ordinal(start_time)
-
-                log.info(arr_data)
-                try:
-                    val = eval(arr_data)
-                except:
-                    val = self.parse_array(arr_data)
-
-                arr_data   = str(val)
-
-                return (start_time, frequency, arr_data)
-            elif data_type == 'array':
-                arr_data = data['arr_data']
-                if type(arr_data) is list:
-                    arr_data = arr_data[0]
-                if type(arr_data) == dict:
-                    val = self.parse_array(arr_data)
+                #Epoch doesn't work here because dates before 1970 are not
+                # supported in read_json. Ridiculous.
+                ts = timeseries_pd.to_json(date_format='iso', date_unit='ns')
+                if len(data) > config.get('DATA', 'compression_threshold', 1000):
+                    return zlib.compress(ts)
                 else:
-                    val = eval(arr_data)
+                    return ts
+            elif self.type == 'array':
+                #check to make sure this is valid json
+                json.loads(data)
+                if len(data) > config.get('DATA', 'compression_threshold', 1000):
+                    return zlib.compress(data)
+                else:
+                    return data
         except Exception, e:
             log.exception(e)
-            raise HydraError("Error parsing value %s: %s"%(value, e))
-
-        return str(val)
-
-
-    def parse_array(self, arr):
-        """
-            Take a list of nested dictionaries and return a python list containing
-            a single value, a string or sub lists.
-        """
-        ret_arr = []
-        arr_data = arr.get('array', None)
-        if arr_data is not None:
-            if len(arr_data) == 1:
-                if arr_data[0].get('item'):
-                    for v in arr_data[0].get('item'):
-
-                        #an empty dict is the equivalent to receiving null
-                        if v == {}:
-                            v = ''
-
-                        try:
-                            ret_arr.append(eval(v))
-                        except:
-                            ret_arr.append(v)
-                else:
-                    ret_arr = self.parse_array(arr_data[0])
-            else:
-                for sub_val in arr_data:
-                    if sub_val.get('array'):
-                        ret_arr.append(self.parse_array(sub_val))
-                    elif sub_val.get('item'):
-                        item_arr = []
-                        for v in sub_val.get('item'):
-                            try:
-                                item_arr.append(float(v))
-                            except:
-                                item_arr.append(v)
-                        ret_arr.append(item_arr)
-        check_array_struct(ret_arr)
-        return ret_arr
+            raise HydraError("Error parsing value %s: %s"%(self.value, e))
 
     def get_metadata_as_dict(self, user_id=None, source=None):
 
@@ -376,8 +271,11 @@ class Dataset(HydraComplexModel):
             return {}
 
         metadata_dict = {}
-        for m in self.metadata:
-            metadata_dict[str(m.name)] = str(m.value)
+
+        if type(self.metadata) == dict:
+            metadata_dict = self.metadata
+        else:
+            metadata_dict = json.loads(self.metadata)
 
         #These should be set on all datasests by default, but we don't
         #want to enforce this rigidly
@@ -393,15 +291,10 @@ class Dataset(HydraComplexModel):
     def get_hash(self, val, metadata):
 
         if metadata is None:
-            metadata = self.get_metadata_as_dict()
+            metadata = self.get_metadata()
 
         if val is None:
-            start_time = None
-            frequency  = None
-            if self.type == 'eqtimeseries':
-                start_time, frequency, value = self.parse_value()
-            else:
-                value = self.parse_value()
+            value = self.parse_value()
         else:
             value = val
 
@@ -415,192 +308,6 @@ class Dataset(HydraComplexModel):
         data_hash = generate_data_hash(dataset_dict)
 
         return data_hash
-
-def get_return_val(data_type, value, start_time=None, frequency=None):
-    if data_type == 'descriptor':
-        ret_value = {'desc_val': [value]}
-    elif data_type == 'array':
-        ret_value = Array(value)
-    elif data_type == 'scalar':
-        ret_value = {'param_value': [float(value)]}
-    elif data_type == 'timeseries':
-        ret_value = TimeSeries(value)
-    elif data_type == 'eqtimeseries':
-        ret_value = EqTimeSeries(start_time, frequency, value)
-    if type(ret_value) is not dict:
-        ret_value = ret_value.__dict__
-    return ret_value
-
-class Descriptor(HydraComplexModel):
-    _type_info = [
-        ('desc_val', Unicode),
-    ]
-
-    def __init__(self, val=None):
-        super(Descriptor, self).__init__()
-        if  val is None:
-            return
-        self.desc_val = [val]
-
-class TimeSeriesData(HydraComplexModel):
-    _type_info = [
-        #('ts_time', DateTime),
-        ('ts_time', Unicode),
-        ('ts_value', AnyDict),
-    ]
-
-    def __init__(self, val=None):
-        super(TimeSeriesData, self).__init__()
-        if  val is None:
-            return
-
-        self.ts_time  = [val.ts_time]
-
-        try:
-            ts_val = eval(val.ts_value)
-        except:
-            ts_val = val.ts_value
-
-        if type(ts_val) is list:
-            self.ts_value = [create_dict(ts_val)]
-        else:
-            self.ts_value = [ts_val]
-
-def _make_timeseries(val):
-    log.debug("Creating timeseries complexmodels")
-
-    if  val is None or len(val) == 0:
-        return {}
-
-    ts_vals = []
-    timeseries = pd.read_json(val)
-    for t in timeseries.index:
-        ts_val = timeseries.loc[t].values
-        ts_data = {}
-        try:
-            ts_data['ts_time'] = [str(get_datetime(t.to_pydatetime()))]
-        except AttributeError:
-            try:
-                ts_data['ts_time'] = [eval(t)]
-            except:
-                ts_data['ts_time'] = [t]
-        try:
-            ts_val = list(ts_val)
-            ts_data['ts_value'] = [create_dict(ts_val)]
-        except:
-            ts_data['ts_value'] = [ts_val]
-        ts_vals.append(ts_data)
-    freq = None
-    if type(timeseries.index) == DatetimeIndex:
-        freq = [timeseries.index.inferred_freq]
-        ts = {'periods'   : [len(timeseries.index)],
-              'frequency' : freq,
-              'ts_values' : ts_vals,
-         }
-
-    return ts
-
-
-class TimeSeries(HydraComplexModel):
-    _type_info = [
-        ('ts_values', SpyneArray(TimeSeriesData)),
-        ('frequency', Unicode(default=None)),
-        ('periods',   Integer(default=None)),
-    ]
-
-    def __init__(self, val=None):
-        super(TimeSeries, self).__init__()
-        if  val is None or len(val) == 0:
-            return
-
-        #If not read yet, read value into a pandas dataframe
-        if type(val) == str:
-            timeseries = pd.read_json(val)
-        else:
-            timeseries = val
-
-        ts_vals = []
-        for ts in timeseries.index:
-            ts_val = timeseries.loc[ts].values
-            ts_data = {}
-            try:
-                ts_data['ts_time'] = [str(get_datetime(ts.to_pydatetime()))]
-            except AttributeError:
-                try:
-                    ts_data['ts_time'] = [eval(ts)]
-                except:
-                    ts_data['ts_time'] = [ts]
-            try:
-                ts_val_list = list(ts_val)
-                ts_val_eval = eval(str(ts_val_list))
-                ts_data['ts_value'] = [create_dict(ts_val_eval)]
-            except:
-                ts_data['ts_value'] = [ts_val]
-            ts_vals.append(ts_data)
-
-        if type(timeseries.index) == DatetimeIndex:
-            self.frequency = [timeseries.index.inferred_freq]
-        self.periods = [len(timeseries.index)]
-        self.ts_values = ts_vals
-        log.debug("Timeseries complexmodels created")
-
-class EqTimeSeries(HydraComplexModel):
-
-    """
-        An equally spaced timeseries value.
-        Frequency is stored in seconds
-        Value must be an array.
-    """
-    _type_info = [
-        ('start_time', DateTime),
-        ('frequency', Decimal),
-        ('arr_data',  AnyDict),
-    ]
-    def __init__(self, start_time=None, frequency=None, val=None):
-        super(EqTimeSeries, self).__init__()
-        if  val is None:
-            return
-
-        self.start_time = [ordinal_to_timestamp(Dec(start_time))]
-        self.frequency  = [Dec(frequency)]
-        self.arr_data   = [create_dict(eval(val))]
-
-class Scalar(HydraComplexModel):
-    _type_info = [
-        ('param_value', Float),
-    ]
-
-    def __init__(self, val=None):
-        super(Scalar, self).__init__()
-        if  val is None:
-            return
-        self.param_value = [val]
-
-class Array(HydraComplexModel):
-    _type_info = [
-        ('arr_data', AnyDict),
-    ]
-
-    def __init__(self, val=None):
-        """
-            A 1-D array looks like: {'arr_data': {'array':[{'item': [1, 2, 3]}]}
-            This function takes an array like: [1, 2, 3] or "[1, 2, 3]" and converts it into the correct format.
-        """
-
-        super(Array, self).__init__()
-        if  val is None:
-            return
-        try:
-           val = eval(val)
-        except:
-            pass
-        if type(val) is list:
-            self.arr_data = [create_dict(val)]
-        elif type(val) in (array, ndarray):
-            val = list(val)
-            self.arr_data = [create_dict(val)]
-        else:
-            self.arr_data = [val]
 
 class DatasetCollection(HydraComplexModel):
     _type_info = [
@@ -626,6 +333,7 @@ class Attr(HydraComplexModel):
         ('id', Integer(default=None)),
         ('name', Unicode(default=None)),
         ('dimen', Unicode(default=None)),
+        ('description', Unicode(default=None)),
         ('cr_date', Unicode(default=None)),
     ]
 
@@ -636,6 +344,7 @@ class Attr(HydraComplexModel):
         self.id = parent.attr_id
         self.name = parent.attr_name
         self.dimen = parent.attr_dimen
+        self.description = parent.attr_description
         self.cr_date = str(parent.cr_date)
 
 class ResourceScenario(HydraComplexModel):
@@ -694,6 +403,43 @@ class ResourceAttr(HydraComplexModel):
         #This should be set externally as it is not related to its parent.
         self.resourcescenario = None
 
+class ResourceAttrMap(HydraComplexModel):
+    _type_info = [
+        ('resource_attr_id_a', Integer(default=None)),
+        ('resource_attr_id_b', Integer(default=None)),
+        ('attr_a_name'       , Unicode(default=None)),
+        ('attr_b_name'       , Unicode(default=None)),
+        ('ref_key_a'         , Unicode(default=None)),
+        ('ref_key_b'         , Unicode(default=None)),
+        ('ref_id_a'          , Integer(default=None)),
+        ('ref_id_b'          , Integer(default=None)),
+        ('resource_a_name'   , Unicode(default=None)),
+        ('resource_b_name'   , Unicode(default=None)),
+        ('network_a_id'      , Integer(default=None)),
+        ('network_b_id'      , Integer(default=None)),
+    ]
+
+    def __init__(self, parent=None):
+        super(ResourceAttrMap, self).__init__()
+        if  parent is None:
+            return
+
+        self.resource_attr_id_a = parent.resource_attr_id_a
+        self.resource_attr_id_b = parent.resource_attr_id_b
+
+        self.ref_key_a = parent.resourceattr_a.ref_key
+        self.ref_id_a  = parent.resourceattr_a.get_resource_id()
+        self.attr_a_name = parent.resourceattr_a.attr.attr_name
+        self.resource_a_name = parent.resourceattr_a.get_resource().get_name()
+
+        self.ref_key_b = parent.resourceattr_b.ref_key
+        self.ref_id_b  = parent.resourceattr_b.get_resource_id()
+        self.attr_b_name = parent.resourceattr_b.attr.attr_name
+        self.resource_b_name = parent.resourceattr_b.get_resource().get_name()
+
+        self.network_a_id = parent.network_a_id
+        self.network_b_id = parent.network_b_id
+
 
 class ResourceTypeDef(HydraComplexModel):
     """
@@ -717,6 +463,7 @@ class TypeAttr(HydraComplexModel):
         ('default_dataset_id', Integer(default=None)),
         ('data_restriction',   AnyDict(default=None)),
         ('is_var',             Unicode(default=None)),
+        ('description',        Unicode(default=None)),
         ('cr_date',            Unicode(default=None)),
     ]
 
@@ -738,6 +485,7 @@ class TypeAttr(HydraComplexModel):
         self.data_type = parent.data_type
         self.unit      = parent.unit
         self.default_dataset_id = self.default_dataset_id
+        self.description = parent.description
         self.cr_date = str(parent.cr_date)
         if parent.data_restriction is not None:
             self.data_restriction = eval(parent.data_restriction)
@@ -771,10 +519,7 @@ class TemplateType(HydraComplexModel):
         self.alias     = parent.alias
         self.resource_type = parent.resource_type
         self.cr_date = str(parent.cr_date)
-        if parent.layout is not None:
-            self.layout    = eval(parent.layout)
-        else:
-            self.layout = {}
+        self.layout = self.get_outgoing_layout(parent.layout)
         self.template_id  = parent.template_id
 
         typeattrs = []
@@ -802,10 +547,7 @@ class Template(HydraComplexModel):
         self.name   = parent.template_name
         self.id     = parent.template_id
         self.cr_date = str(parent.cr_date)
-        if parent.layout is not None:
-            self.layout    = eval(parent.layout)
-        else:
-            self.layout = {}
+        self.layout = self.get_outgoing_layout(parent.layout)
 
         types = []
         for templatetype in parent.templatetypes:
@@ -909,10 +651,7 @@ class Node(Resource):
         self.y = parent.node_y
         self.description = parent.node_description
         self.cr_date = str(parent.cr_date)
-        if parent.node_layout not in (None, ""):
-            self.layout    = eval(parent.node_layout)
-        else:
-            self.layout = {}
+        self.layout = self.get_outgoing_layout(parent.layout)
         self.status = parent.status
         if summary is False:
             self.attributes = [ResourceAttr(a) for a in parent.attributes]
@@ -949,11 +688,7 @@ class Link(Resource):
         self.node_2_id = parent.node_2_id
         self.description = parent.link_description
         self.cr_date = str(parent.cr_date)
-
-        if parent.link_layout not in (None, "") :
-            self.layout    = eval(parent.link_layout)
-        else:
-            self.layout = {}
+        self.layout = self.get_outgoing_layout(parent.layout)
         self.status    = parent.status
         if summary is False:
 
@@ -1058,12 +793,7 @@ class Scenario(Resource):
         self.id = parent.scenario_id
         self.name = parent.scenario_name
         self.description = parent.scenario_description
-
-        if parent.scenario_layout not in (None, ""):
-            self.layout    = eval(parent.scenario_layout)
-        else:
-            self.layout = {}
-
+        self.layout = self.get_outgoing_layout(parent.layout)
         self.network_id = parent.network_id
         self.status = parent.status
         self.locked = parent.locked
@@ -1238,10 +968,7 @@ class Network(Resource):
         self.description = parent.network_description
         self.created_by  = parent.created_by
         self.cr_date     = str(parent.cr_date)
-        if parent.network_layout not in (None, ""):
-            self.layout    = eval(parent.network_layout)
-        else:
-            self.layout = {}
+        self.layout = self.get_outgoing_layout(parent.layout)
         self.status      = parent.status
         self.scenarios   = [Scenario(s, summary) for s in parent.scenarios]
         self.nodes       = [Node(n, summary) for n in parent.nodes]
@@ -1312,6 +1039,7 @@ class ProjectSummary(Resource):
         ('id',          Integer(default=None)),
         ('name',        Unicode(default=None)),
         ('description', Unicode(default=None)),
+        ('status',      Unicode(default=None)),
         ('cr_date',     Unicode(default=None)),
         ('created_by',  Integer(default=None)),
     ]
@@ -1326,6 +1054,7 @@ class ProjectSummary(Resource):
         self.description = parent.project_description
         self.cr_date = str(parent.cr_date)
         self.created_by = parent.created_by
+        self.summary    = parent.summary
 
 class User(HydraComplexModel):
     """

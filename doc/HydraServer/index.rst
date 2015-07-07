@@ -14,6 +14,12 @@ Soap Objects
 API functions
 =============
 
+Soap Objects
+============
+
+.. automodule:: soap_server.hydra_complexmodels
+   :members:
+
 Projects
 --------
 

@@ -3,6 +3,8 @@ log = logging.getLogger(__name__)
 
 from decimal import Decimal
 import pandas as pd
+import zlib
+import json
 
 def generate_data_hash(dataset_dict):
 
@@ -10,12 +12,13 @@ def generate_data_hash(dataset_dict):
     if d.get('metadata') is None:
         d['metadata'] = {}
 
-    hash_string = "%s %s %s %s %s, %s"%(d['data_name'],
-                                    d['data_units'],
-                                    d['data_dimen'],
-                                    d['data_type'],
-                                    d['value'],
-                                    d['metadata'])
+    hash_string = "%s %s %s %s %s %s"%(
+                                str(d['data_name']),
+                                str(d['data_units']),
+                                str(d['data_dimen']),
+                                str(d['data_type']),
+                                d['value'],
+                                d['metadata'])
 
     log.debug("Generating data hash from: %s", hash_string)
 
@@ -43,15 +46,26 @@ def get_val(dataset, timestamp=None):
 
     """
     if dataset.data_type == 'array':
-        return eval(dataset.value)
+        try:
+            return json.loads(dataset.value)
+        except ValueError:
+            #Didn't work? Maybe because it was compressed.
+            val = zlib.decompress(dataset.value)
+            return json.loads(val)
     elif dataset.data_type == 'descriptor':
         return str(dataset.value)
-    elif dataset.data_type == 'eqtimeseries':
-        return (dataset.start_time, dataset.frequency, eval(dataset.value))
     elif dataset.data_type == 'scalar':
         return Decimal(str(dataset.value))
     elif dataset.data_type == 'timeseries':
-        timeseries = pd.read_json(dataset.value)
+        try:
+            val = dataset.value.replace('XXXX', '1900')
+            timeseries = pd.read_json(val)
+        except (ValueError, TypeError), e:
+            #Didn't work? Maybe because it was compressed.
+            val = zlib.decompress(dataset.value)
+            val = val.replace('XXXX', '1900')
+            timeseries = pd.read_json(val)
+
         if timestamp is None:
             return timeseries
         else:
@@ -91,10 +105,11 @@ def get_val(dataset, timestamp=None):
                     else:
                         ret_val = pandas_ts.loc[timestamp].values.tolist()
                 else:
+                    col_name = pandas_ts.loc[timestamp].columns[0]
                     if type(timestamp) is list and len(timestamp) == 1:
-                        ret_val = pandas_ts.loc[timestamp[0]][0]
+                        ret_val = pandas_ts.loc[timestamp[0]].loc[col_name]
                     else:
-                        ret_val = pandas_ts.loc[timestamp][0].values.tolist()
+                        ret_val = pandas_ts.loc[timestamp][col_name].values.tolist()
 
                 return ret_val
 

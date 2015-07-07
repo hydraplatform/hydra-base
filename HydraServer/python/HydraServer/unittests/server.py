@@ -17,7 +17,7 @@
 # -*- coding: utf-8 -*-
 import unittest
 import logging
-
+from HydraLib import config
 import util
 
 global CLIENT
@@ -47,6 +47,8 @@ class SoapServerTest(unittest.TestCase):
         self.create_user("UserB")
         self.create_user("UserC")
         self.project_id = self.create_project().id
+
+        self.fmt = config.get('DEFAULT', 'datetime_format', "%Y-%m-%dT%H:%M:%S.%f000Z")
 
     def tearDown(self):
         log.debug("Tearing down")
@@ -90,6 +92,7 @@ class SoapServerTest(unittest.TestCase):
         return util.check_network(self.client, request_net, response_net)
 
     def create_scalar(self, ResourceAttr, val=1.234):
+
         return util.create_scalar(self.client, ResourceAttr, val)
 
     def create_descriptor(self, ResourceAttr, val="test"):
@@ -108,6 +111,7 @@ class SoapServerTest(unittest.TestCase):
         #A scenario attribute is a piece of data associated
         #with a resource attribute.
         #[[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+
         return util.create_array(self.client, ResourceAttr)
 
 def run():
