@@ -948,13 +948,16 @@ def update_value_from_mapping(source_resource_attr_id, target_resource_attr_id, 
     return_value = None#Either return null or return a new or updated resource scenario
     if rs1 is not None:
         if rs2 is not None:
+            log.info("Destination Resource Scenario exists. Updating dastaset ID")
             rs2.dataset_id = rs1.dataset_id
         else:
+            log.info("Destination has no data, so making a new Resource Scenario")
             rs2 = ResourceScenario(resource_attr_id=target_resource_attr_id, scenario_id=target_scenario_id, dataset_id=rs1.dataset_id)
             DBSession.add(rs2)
         DBSession.flush()
         return_value = rs2
     else:
+        log.info("Source Resource Scenario does not exist. Deleting destination Resource Scenario")
         if rs2 is not None:
             DBSession.delete(rs2)
 
