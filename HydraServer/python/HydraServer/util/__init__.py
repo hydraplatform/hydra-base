@@ -105,10 +105,11 @@ def get_val(dataset, timestamp=None):
                     else:
                         ret_val = pandas_ts.loc[timestamp].values.tolist()
                 else:
+                    col_name = pandas_ts.loc[timestamp].columns[0]
                     if type(timestamp) is list and len(timestamp) == 1:
-                        ret_val = pandas_ts.loc[timestamp[0]].loc[0]
+                        ret_val = pandas_ts.loc[timestamp[0]].loc[col_name]
                     else:
-                        ret_val = pandas_ts.loc[timestamp][0].values.tolist()
+                        ret_val = pandas_ts.loc[timestamp][col_name].values.tolist()
 
                 return ret_val
 

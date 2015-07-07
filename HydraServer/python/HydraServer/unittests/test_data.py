@@ -238,8 +238,8 @@ class TimeSeriesTest(server.SoapServerTest):
                 val_to_query = d.value
                 break
 
-        val_a = json.loads(val_to_query.value)['0.0'].values()[0]
-        val_b = json.loads(val_to_query.value)['0.0'].values()[1]
+        val_a = json.loads(val_to_query.value)['index'].values()[0]
+        val_b = json.loads(val_to_query.value)['index'].values()[1]
 
         now = datetime.datetime.now()
 
