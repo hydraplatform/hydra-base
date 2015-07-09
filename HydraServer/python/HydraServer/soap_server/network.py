@@ -620,6 +620,7 @@ class NetworkService(HydraService):
         """
         start = datetime.datetime.now()
 
+        log.info("Getting all resource data for scenario %s", scenario_id)
         node_resourcedata = network.get_all_resource_data(scenario_id,
                                                           include_metadata=include_metadata,
                                                           page_start=page_start,
@@ -634,7 +635,7 @@ class NetworkService(HydraService):
             ra = ResourceData(nodeattr, include_values)
             return_ras.append(ra)
 
-        log.info("Return data found in %s", (datetime.datetime.now() - start))
+        log.info("%s return data found in %s", len(return_ras), (datetime.datetime.now() - start))
 
         return return_ras
 

@@ -1913,7 +1913,7 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
     elif page_start is not None and page_end is not None:
         all_resource_data = all_resource_data[page_start:page_end]
 
-    log.info("Data retrieved")
+    log.info("%s datasets retrieved", len(all_resource_data))
 
     if include_metadata == 'Y':
         metadata_qry = DBSession.query(distinct(Metadata.dataset_id).label('dataset_id'),
@@ -1951,5 +1951,7 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
                 ra.metadata = metadata_dict.get(ra.dataset_id, [])
 
     DBSession.expunge_all()
+
+    log.info("Returning %s datasets", len(all_resource_data))
 
     return all_resource_data 
