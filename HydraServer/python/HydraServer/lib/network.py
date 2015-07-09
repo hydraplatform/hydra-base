@@ -23,7 +23,7 @@ import time
 from HydraServer.util.permissions import check_perm
 import template
 from HydraServer.db.model import Project, Network, Scenario, Node, Link, ResourceGroup,\
-        ResourceAttr, ResourceType, ResourceGroupItem, Dataset, Metadata, DatasetOwner,\
+        ResourceAttr, Attr, ResourceType, ResourceGroupItem, Dataset, Metadata, DatasetOwner,\
         ResourceScenario, TemplateType, TypeAttr, Template
 from sqlalchemy.orm import noload, joinedload, joinedload_all
 from HydraServer.db import DBSession
@@ -1874,6 +1874,7 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
 
     rs_qry = DBSession.query(
                ResourceAttr.attr_id,
+               Attr.attr_name,
                ResourceAttr.resource_attr_id,
                ResourceAttr.ref_key,
                ResourceAttr.network_id,
@@ -1900,6 +1901,7 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
                ]).label('ref_name'),
               ).join(ResourceScenario)\
                 .join(Dataset).\
+                join(Attr, ResourceAttr.attr_id==Attr.attr_id).\
                 outerjoin(Node, ResourceAttr.node_id==Node.node_id).\
                 outerjoin(Link, ResourceAttr.link_id==Link.link_id).\
                 outerjoin(ResourceGroup, ResourceAttr.group_id==ResourceGroup.group_id).\

@@ -124,6 +124,7 @@ class ResourceData(HydraComplexModel):
     """
     _type_info = [
         ('attr_id',            Unicode(default=None)),
+        ('attr_name',          Unicode(default=None)),
         ('scenario_id',        Unicode(default=None)),
         ('resource_attr_id',   Unicode(default=None)),
         ('ref_id',             Unicode(default=None)),
@@ -150,6 +151,7 @@ class ResourceData(HydraComplexModel):
         ra = resourceattr
 
         self.attr_id = str(ra.attr_id)
+        self.attr_name = ra.attr_name
         self.resource_attr_id = str(ra.resource_attr_id)
         self.ref_key = str(ra.ref_key)
         self.ref_id  = str(getattr(ra, ref_id_map[self.ref_key]))
@@ -167,7 +169,10 @@ class ResourceData(HydraComplexModel):
         self.dataset_unit      = ra.data_units
         self.dataset_frequency = ra.frequency
         if include_value=='Y':
-            self.dataset_value     = ra.value
+            try:
+                self.dataset_value = zlib.decompress(ra.value)
+            except:
+                self.dataset_value = ra.value
 
         if ra.metadata:
             self.metadata = {}
