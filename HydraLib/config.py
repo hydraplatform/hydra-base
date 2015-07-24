@@ -51,7 +51,7 @@ def load_config():
 
     if os.name == 'nt':
         import winpaths
-        userfiles = glob.glob(os.path.expanduser('~') + '/AppData/Local/hydra.ini')
+        userfiles = glob.glob(os.path.expanduser('~') + '/.hydra/hydra.ini')
         sysfiles = glob.glob(winpaths.get_common_documents() + '/Hydra/hydra.ini')
     
     config = ConfigParser.ConfigParser(allow_no_value=True)
