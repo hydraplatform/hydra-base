@@ -306,7 +306,7 @@ class DataService(HydraService):
                                            increment,
                                            **ctx.in_header.__dict__)
 
-    @rpc(Unicode, returns=Unicode)
+    @rpc(Unicode, _returns=Unicode)
     def check_json(ctx, json_string):
         try:
             data.check_json(json_string)
