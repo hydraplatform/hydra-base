@@ -1060,6 +1060,7 @@ class ProjectSummary(Resource):
         self.cr_date = str(parent.cr_date)
         self.created_by = parent.created_by
         self.summary    = parent.summary
+        self.status     = parent.status
 
 class User(HydraComplexModel):
     """
