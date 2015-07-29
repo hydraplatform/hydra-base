@@ -23,14 +23,20 @@ import os
 import logging
 
 log = logging.getLogger(__name__)
-from lxml import objectify
+
 from lxml import etree
-from lxml.etree import XMLParser
 from lxml.etree import XMLSyntaxError, ParseError
+
 from HydraException import HydraPluginError
+from hydra_dateutil import get_datetime, get_time_period 
+from datetime import timedelta
+from dateutil.relativedelta import relativedelta
+from units import Units
+
 import requests
 import json
 import util
+import re
 
 class FixNamespace(MessagePlugin):
     """Hopefully a temporary fix for an unresolved namespace issue.
@@ -44,344 +50,6 @@ class FixNamespace(MessagePlugin):
 
         for e in element.getChildren():
             self.fix_ns(e)
-
-class HydraResource(object):
-    """A prototype for Hydra resources. It supports attributes and groups
-    object types by template. This allows to export group nodes by object
-    type based on the template used.
-    """
-    def __init__(self):
-        self.name = None
-        self.ID = None
-        self.attributes = []
-        self.groups = []
-        self.template = dict()
-        self.template[None] = []
-
-    def add_attribute(self, attr, res_attr, res_scen):
-        attribute = HydraAttribute(attr, res_attr, res_scen)
-
-        self.attributes.append(attribute)
-
-    def delete_attribute(self, attribute):
-        idx = self.attributes.index(attribute)
-        del self.attributes[idx]
-
-    def get_attribute(self, attr_name=None, attr_id=None):
-
-        if attr_name is not None:
-            return self._get_attr_by_name(attr_name)
-        elif attr_id is not None:
-            return self._get_attr_by_id(attr_id)
-
-    def set_type(self, types):
-        if types is not None:
-            for obj_type in types:
-                # Add resource type to template dictionary
-                if obj_type.template_id not in self.template.keys():
-                    self.template[obj_type.template_id] = []
-                self.template[obj_type.template_id].append(obj_type.name)
-                # Add resource type to default entry holding all resource types
-                if obj_type.name not in self.template[None]:
-                    self.template[None].append(obj_type.name)
-
-    def group(self, group_id):
-        self.groups.append(group_id)
-        #attr = self._get_attr_by_name(group_attr)
-        #if attr is not None:
-        #    group = attr.value.__getitem__(0)
-        #    self.groups.append(group)
-        #    # The attribute is used for grouping and will not be exported
-        #    self.delete_attribute(attr)
-
-    def _get_attr_by_name(self, attr_name):
-        for attr in self.attributes:
-            if attr.name == attr_name:
-                return attr
-
-    def _get_attr_by_id(self, attr_id):
-        for attr in self.attributes:
-            if attr.attr_id == attr_id:
-                return attr
-
-
-class HydraNetwork(HydraResource):
-    """
-    """
-
-    description = None
-    scenario_id = None
-    nodes = []
-    links = []
-    groups = []
-    node_groups = []
-    link_groups = []
-
-    def load(self, soap_net, soap_attrs):
-
-        # load network
-        resource_scenarios = dict()
-        for res_scen in \
-                soap_net.scenarios[0].resourcescenarios:
-            resource_scenarios.update({res_scen.resource_attr_id: res_scen})
-        attributes = dict()
-        for attr in soap_attrs:
-            attributes.update({attr.id: attr})
-
-        self.name = soap_net.name
-        self.ID = soap_net.id
-        self.description = soap_net.description
-        self.scenario_id = soap_net.scenarios[0].id
-        self.set_type(soap_net.types)
-
-        if soap_net.attributes is not None:
-            for res_attr in soap_net.attributes:
-                self.add_attribute(attributes[res_attr.attr_id],
-                                    res_attr,
-                                    resource_scenarios.get(res_attr.id))
-
-        # build dictionary of group members:
-        if soap_net.scenarios[0].resourcegroupitems is not None:
-            groupitems = \
-                soap_net.scenarios[0].resourcegroupitems
-        else:
-            groupitems = []
-
-        nodegroups = dict()
-        linkgroups = dict()
-        groupgroups = dict()
-        log.info("Loading group items")
-        for groupitem in groupitems:
-            if groupitem.ref_key == 'NODE':
-                if groupitem.ref_id not in nodegroups.keys():
-                    nodegroups.update({groupitem.ref_id: [groupitem.group_id]})
-                else:
-                    nodegroups[groupitem.ref_id].append(groupitem.group_id)
-            elif groupitem.ref_key == 'LINK':
-                if groupitem.ref_id not in linkgroups.keys():
-                    linkgroups.update({groupitem.ref_id: [groupitem.group_id]})
-                else:
-                    linkgroups[groupitem.ref_id].append(groupitem.group_id)
-            elif groupitem.ref_key == 'GROUP':
-                if groupitem.ref_id not in groupgroups.keys():
-                    groupgroups.update({groupitem.ref_id: [groupitem.group_id]})
-                else:
-                    groupgroups[groupitem.ref_id].append(groupitem.group_id)
-        log.info("Loading groups")
-        # load groups
-        if soap_net.resourcegroups is not None:
-            for resgroup in soap_net.resourcegroups:
-                new_group = HydraResource()
-                new_group.ID = resgroup.id
-                new_group.name = resgroup.name
-                if resgroup.attributes is not None:
-                    for res_attr in resgroup.attributes:
-                        new_group.add_attribute(attributes[res_attr.attr_id],
-                                                res_attr,
-                                                resource_scenarios.get(res_attr.id))
-                new_group.set_type(resgroup.types)
-                if new_group.ID in groupgroups.keys():
-                    new_group.group(groupgroups[new_group.ID])
-                self.add_group(new_group)
-                del new_group
-        log.info("Loading nodes")
-        # load nodes
-        for node in soap_net.nodes:
-            new_node = HydraResource()
-            new_node.ID = node.id
-            new_node.name = node.name
-            if node.attributes is not None:
-                for res_attr in node.attributes:
-                    new_node.add_attribute(attributes[res_attr.attr_id],
-                                            res_attr,
-                                            resource_scenarios.get(res_attr.id))
-
-            new_node.set_type(node.types)
-            if new_node.ID in nodegroups.keys():
-                for gid in nodegroups[new_node.ID]:
-                    new_node.group(gid)
-            self.add_node(new_node)
-            del new_node
-
-        # load links
-        log.info("Loading links")
-        for link in soap_net.links:
-            new_link = HydraResource()
-            new_link.ID = link.id
-            new_link.name = link.name
-            new_link.from_node = self.get_node(node_id=link.node_1_id).name
-            new_link.to_node = self.get_node(node_id=link.node_2_id).name
-            if link.attributes is not None:
-                for res_attr in link.attributes:
-                    new_link.add_attribute(attributes[res_attr.attr_id],
-                                            res_attr,
-                                            resource_scenarios.get(res_attr.id))
-            new_link.set_type(link.types)
-            if new_link.ID in linkgroups.keys():
-                new_link.group(linkgroups[new_link.ID])
-            self.add_link(new_link)
-            del new_link
-
-    def add_node(self, node):
-        self.nodes.append(node)
-
-    def delete_node(self, node):
-        pass
-
-    def get_node(self, node_name=None, node_id=None, node_type=None, group=None):
-        if node_name is not None:
-            return self._get_node_by_name(node_name)
-        elif node_id is not None:
-            return self._get_node_by_id(node_id)
-        elif node_type is not None:
-            return self._get_nodes_by_type(node_type)
-        elif group is not None:
-            return self._get_nodes_by_group(group)
-
-    def add_link(self, link):
-        self.links.append(link)
-
-    def delete_link(self, link):
-        pass
-
-    def get_link(self, link_name=None, link_id=None, link_type=None, group=None):
-        if link_name is not None:
-            return self._get_link_by_name(link_name)
-        elif link_id is not None:
-            return self._get_link_by_id(link_id)
-        elif link_type is not None:
-            return self._get_links_by_type(link_type)
-        elif group is not None:
-            return self._get_links_by_group(group)
-
-    def add_group(self, group):
-        self.groups.append(group)
-
-    def delete_group(self, group):
-        pass
-
-    def get_group(self, **kwargs):
-        if kwargs.get('group_name') is not None:
-            return self._get_group_by_name(kwargs.get('group_name'))
-        elif kwargs.get('group_id') is not None:
-            return self._get_group_by_id(kwargs.get('group_id'))
-        elif kwargs.get('group_type') is not None:
-            return self._get_groups_by_type(kwargs.get('group_type'))
-        elif kwargs.get('group') is not None:
-            return self._get_groups_by_group(kwargs.get('group'))
-
-    def get_node_types(self, template_id=None):
-        node_types = []
-        for node in self.nodes:
-            for n_type in node.template[template_id]:
-                if n_type not in node_types:
-                    node_types.append(n_type)
-        return node_types
-
-    def get_link_types(self, template_id=None):
-        link_types = []
-        for link in self.links:
-            for l_type in link.template[template_id]:
-                if l_type not in link_types:
-                    link_types.append(l_type)
-        return link_types
-
-    def _get_node_by_name(self, name):
-        for node in self.nodes:
-            if node.name == name:
-                return node
-
-    def _get_node_by_id(self, ID):
-        for node in self.nodes:
-            if node.ID == ID:
-                return node
-
-    def _get_nodes_by_type(self, node_type):
-        nodes = []
-        for node in self.nodes:
-            if node_type in node.template[None]:
-                nodes.append(node)
-        return nodes
-
-    def _get_nodes_by_group(self, node_group):
-        nodes = []
-        for node in self.nodes:
-            if node_group in node.groups:
-                nodes.append(node)
-        return nodes
-
-    def _get_link_by_name(self, name):
-        for link in self.links:
-            if link.name == name:
-                return link
-
-    def _get_link_by_id(self, ID):
-        for link in self.links:
-            if link.ID == ID:
-                return link
-
-    def _get_links_by_type(self, link_type):
-        links = []
-        for link in self.links:
-            if link_type in link.template[None]:
-                links.append(link)
-        return links
-
-    def _get_links_by_group(self, link_group):
-        links = []
-        for link in self.links:
-            if link_group in link.groups:
-                links.append(link)
-        return links
-
-    def _get_group_by_name(self, name):
-        for group in self.groups:
-            if group.name == name:
-                return group
-
-    def _get_group_by_id(self, ID):
-        for group in self.groups:
-            if group.ID == ID:
-                return group
-
-    def _get_groups_by_type(self, group_type):
-        groups = []
-        for group in self.groups:
-            if group_type in group.template[None]:
-                groups.append(group)
-        return groups
-
-    def _get_groups_by_group(self, group_group):
-        groups = []
-        for group in self.groups:
-            if group_group in group.groups:
-                groups.append(group)
-        return groups
-
-
-class HydraAttribute(object):
-
-    name = None
-
-    attr_id = None
-    resource_attr_id = None
-    is_var = False
-
-    dataset_id = None
-    dataset_type = ''
-
-    value = None
-
-    def __init__(self, attr, res_attr, res_scen):
-        self.name = attr.name
-        self.attr_id = attr.id
-        self.resource_attr_id = res_attr.id
-        if res_attr.attr_is_var == 'Y':
-            self.is_var = True
-        if res_scen is not None:
-            self.dataset_id = res_scen.value.id
-            self.dataset_type = res_scen.value.type
-            self.value = res_scen.value.value
 
 class JSONObject(dict):
     def __init__(self, obj_dict):
@@ -480,11 +148,82 @@ def _get_protocol(url):
 class RequestError(HydraPluginError):
     pass
 
-class JsonConnection(object):
-    url = None
-    session_id = None
+class JSONPlugin(object):
+    def connect(self, args):
+        self.session_id = args.session_id
+        self.server_url = args.server_url
+        self.app_name = self.__class__.__bases__[0].__name__
+        
+        self.connection = JsonConnection(self.server_url, self.session_id, self.app_name)
 
-    def __init__(self, url=None, app_name=None):
+        if self.session_id is None:
+            self.session_id = self.connection.login()
+
+        self.units = Units()
+
+    def parse_time_step(self, time_step, target='s'):
+        """
+            Read in the time step and convert it to seconds.
+        """
+        log.info("Parsing time step %s", time_step)
+        # export numerical value from string using regex
+        value = re.findall(r'\d+', time_step)[0]
+        valuelen = len(value)
+
+        try:
+            value = float(value)
+        except:
+            HydraPluginError("Unable to extract number of time steps (%s) from time step %s"%(value, time_step))
+
+        units = time_step[valuelen:].strip()
+
+        period = get_time_period(units)
+
+        converted_time_step = self.units.convert(value, period, target)
+
+        return float(converted_time_step), value, units
+
+    def get_time_axis(self, start_time, end_time, time_step, time_axis=None):
+        """
+            Create a list of datetimes based on an start time, end time and time step.
+            If such a list is already passed in, then this is not necessary.
+
+            Often either the start_time, end_time, time_step is passed into an app
+            or the time_axis is passed in directly. This function returns a time_axis
+            in both situations.
+        """
+        if time_axis is not None:
+            return time_axis
+
+        else:
+            if start_time is None:
+                raise HydraPluginError("A start time must be specified")
+            if end_time is None:
+                raise HydraPluginError("And end time must be specified")
+            if time_step is None:
+                raise HydraPluginError("A time-step must be specified")
+
+            start_date = get_datetime(start_time)
+            end_date   = get_datetime(end_time)
+            delta_t, value, units = self.parse_time_step(time_step)
+            
+            time_axis = [start_date]
+            
+            value=int(value)
+            while start_date <end_date:
+                #Months and years are a special case, so treat them differently
+                if(units.lower()== "mon"):
+                    start_date=start_date+relativedelta(months=value)
+                elif (units.lower()== "yr"):
+                    start_date=start_date+relativedelta(years=value)
+                else:
+                    start_date += timedelta(seconds=delta_t)
+                time_axis.append(start_date)
+            return time_axis
+
+class JsonConnection(object):
+
+    def __init__(self, url=None, session_id=None, app_name=None):
         if url is None:
             port = config.getint('hydra_client', 'port', 80)
             domain = config.get('hydra_client', 'domain', '127.0.0.1')
@@ -503,6 +242,8 @@ class JsonConnection(object):
             self.url = "%s://%s:%s%s/json"%(protocol,hostname,port,path)
         log.info("Setting URL %s", self.url)
         self.app_name = app_name
+
+        self.session_id = session_id
 
     def call(self, func, args):
         log.info("Calling: %s"%(func))
@@ -530,7 +271,6 @@ class JsonConnection(object):
 
         return ret_obj
 
-
     def login(self, username=None, password=None):
         if username is None:
             username = config.get('hydra_client', 'user')
@@ -541,58 +281,76 @@ class JsonConnection(object):
         resp = self.call('login', login_params)
         #set variables for use in request headers
         self.session_id = resp.session_id
+
         log.info("Session ID=%s", self.session_id)
+
         return self.session_id
 
-def connect(**kwargs):
-    """Establish a connection to the specified server. If the URL of the server
-    is not specified as an argument of this function, the URL defined in the
-    configuration file is used."""
 
-    # Parse keyword arguments
-    url = kwargs.get('url')
-    if url is None:
-        url = config.get('hydra_server', 'url')
+class SOAPPlugin(object):
+    def connect(self, args):
+        self.session_id = args.session_id
+        self.server_url = args.server_url
+        self.app_name = self.__class__.__bases__[0].__name__
+        
+        self.connection = SoapConnection(self.server_url, self.session_id, self.app_name)
+        self.service = self.connection.client.service
+        self.factory = self.connection.client.factory
 
-    session_id = kwargs.get('session_id')
+        if self.session_is is None:
+            self.session_id = self.connection.login()
 
-    retxml = kwargs.get('retxml', False)
+        self.units = Units()
 
-    # Connect
-    logging.info("Connecting to : %s",url)
-    cli = Client(url, timeout=3600, plugins=[FixNamespace()], retxml=retxml)
-    cache = cli.options.cache
-    cache.setduration(days=10)
+class SoapConnection(object):
 
-    token = cli.factory.create('RequestHeader')
-    if session_id is None:
-        user = config.get('hydra_client', 'user')
-        passwd = config.get('hydra_client', 'password')
-        login_response = cli.service.login(user, passwd)
-        token.user_id  = login_response.user_id
-        session_id     = login_response.session_id
-        token.username = user
+    def __init__(self, url=None, session_id=None, app_name=None):
+        if url is None:
+            port = config.getint('hydra_client', 'port', 80)
+            domain = config.get('hydra_client', 'domain', '127.0.0.1')
+            path = config.get('hydra_client', 'json_path', 'json')
+            #The domain may or may not specify the protocol, so do a check.
+            if domain.find('http') == -1:
+                self.url = "http://%s:%s/%s" % (domain, port, path)
+            else:
+                self.url = "%s:%s/%s" % (domain, port, path)
+        else:
+            log.info("Using user-defined URL: %s", url)
+            port = _get_port(url)
+            hostname = _get_hostname(url)
+            path = _get_path(url)
+            protocol = _get_protocol(url)
+            self.url = "%s://%s:%s%s/json"%(protocol,hostname,port,path)
+        log.info("Setting URL %s", self.url)
+        
+        self.app_name = app_name
+        self.session_id = session_id
+        self.retxml = False
+        self.client = Client(self.url, timeout=3600, plugins=[FixNamespace()], retxml=self.retxml)
+        self.client.add_prefix('hyd', 'soap_server.hydra_complexmodels')
 
-    token.session_id = session_id
-    cli.set_options(soapheaders=token)
-    cli.add_prefix('hyd', 'soap_server.hydra_complexmodels')
+        cache = self.client.options.cache
+        cache.setduration(days=10)
 
-    return cli
+    def login(self):
+        """Establish a connection to the specified server. If the URL of the server
+        is not specified as an argument of this function, the URL defined in the
+        configuration file is used."""
 
-def build_response(xml_string):
-    parser = XMLParser(remove_blank_text=True, huge_tree=True)
-    parser.set_element_class_lookup(objectify.ObjectifyElementClassLookup())
-    objectify.set_default_parser(parser)
-    etree_obj = etree.fromstring(xml_string)
-    resp = etree_obj.getchildren()[0].getchildren()[0]
-    res  = resp.getchildren()[0]
-    dict_resp = get_as_dict(res)[1]
-    #import pudb; pudb.set_trace()
-    obj = objectify.fromstring(xml_string)
-    resp = obj.Body.getchildren()[0]
-    res  = resp.getchildren()[0]
+        # Connect
+        token = self.client.factory.create('RequestHeader')
+        if self.session_id is None:
+            user = config.get('hydra_client', 'user')
+            passwd = config.get('hydra_client', 'password')
+            login_response = self.client.service.login(user, passwd)
+            token.user_id  = login_response.user_id
+            session_id     = login_response.session_id
+            token.username = user
 
-    return res
+        token.session_id = session_id
+        self.client.set_options(soapheaders=token)
+
+        return session_id
 
 def get_as_dict(element):
     return element.tag[element.tag.find('}')+1:], \
@@ -617,6 +375,12 @@ def temp_ids(n=-1):
 
 def create_xml_response(plugin_name, network_id, scenario_ids,
                         errors=[], warnings=[], message=None, files=[]):
+    """
+        Build the XML string required at the end of each plugin, describing
+        the errors, warnings, messages and outputed files, if any of these
+        are relevant.
+    """
+    
     xml_string = """<plugin_result>
     <message>%(message)s</message>
     <plugin_name>%(plugin_name)s</plugin_name>
@@ -653,23 +417,6 @@ def create_xml_response(plugin_name, network_id, scenario_ids,
     )
 
     return xml_string
-
-
-def write_xml_result(plugin_name, xml_string, file_path=None):
-    if file_path is None:
-        file_path = config.get('plugin', 'result_file')
-
-    home = os.path.expanduser('~')
-
-    output_file = os.path.join(home, file_path, plugin_name)
-
-    f = open(output_file, 'a')
-
-    output_string = "%%%s%%%s%%%s%%" % (os.getpid(), xml_string, os.getpid())
-
-    f.write(output_string)
-
-    f.close()
 
 
 def set_resource_types(client, xml_template, network,
@@ -751,77 +498,6 @@ def set_resource_types(client, xml_template, network,
 
     client.service.assign_types_to_resources(args)
     return warnings
-
-def parse_suds_array(arr):
-    """
-        Take a list of nested suds any types and return a python list containing
-        a single value, a string or sub lists.
-    """
-    ret_arr = []
-    if hasattr(arr, 'array'):
-        sub_arr = arr.array
-        if type(sub_arr) is list:
-            for s in sub_arr:
-                ret_arr.append(parse_suds_array(s))
-        else:
-            return parse_suds_array(sub_arr)
-    elif hasattr(arr, 'item'):
-        if type(arr.item) is list:
-            for x in arr.item:
-                try:
-                    val = float(x)
-                except:
-                    val = str(x)
-                ret_arr.append(val)
-            return ret_arr
-        else:
-            return eval(str(arr.item))
-    else:
-        raise ValueError("Something has gone wrong parsing an array.")
-    return ret_arr
-
-def create_dict(arr):
-    if type(arr) is not list:
-        return arr
-    return {'array': [create_sub_dict(arr)]}
-
-def array_dict_to_list(arrdict):
-    """Convert an array dict created by 'create_dict()' to a nested list."""
-    if 'array' in arrdict.keys():
-        arr = []
-        for arrdata in arrdict['array']:
-            arr.append(array_dict_to_list(arrdata))
-    elif'arr_data' in arrdict.keys():
-        arr = []
-        for arrdata in arrdict['arr_data']:
-            arr.append(array_dict_to_list(arrdata))
-    elif 'item' in arrdict.keys():
-        arr = arrdict['item']
-
-    return arr
-
-def create_sub_dict(arr):
-    if arr is None:
-        return None
-
-    #Either the array contains sub-arrays or values
-    vals = None
-    sub_arrays = []
-    for sub_val in arr:
-        if type(sub_val) is list:
-            sub_dict = create_sub_dict(sub_val)
-            sub_arrays.append(sub_dict)
-        else:
-            #if any of the elements of the array is NOT a list,
-            #then there are no sub arrays
-            vals = arr
-            break
-
-    if vals:
-        return {'item': vals}
-
-    if sub_arrays:
-        return {'array': sub_arrays}
 
 def write_progress(x, y):
     """

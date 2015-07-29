@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 # (c) Copyright 2013, 2014, University of Manchester
 #
 # HydraPlatform is free software: you can redistribute it and/or modify
@@ -13,12 +15,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-# -*- coding: utf-8 -*-
-
 from datetime import datetime, timedelta
 import logging
 from decimal import Decimal, ROUND_HALF_UP
-
 from dateutil.parser import parse
 
 
@@ -27,6 +26,79 @@ log = logging.getLogger(__name__)
 #"2013-08-13 15:55:43.468886Z"
 FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
+"""
+    A mapping from commonly used time periods to the appropriate hydra-compatible
+    time period abbreviation
+"""
+time_map = {
+    'picosecond'  : 'ps',
+    'picoseconds' : 'ps',
+    'picosec'     : 'ps',
+    'picosecs'    : 'ps',
+    'ps'          : 'ps',
+
+    'nanosecond'  : 'ns',
+    'nanoseconds' : 'ns',
+    'nanosecs'    : 'ns',
+    'nanosec'     : 'ns',
+    'ns'          : 'ns',
+
+    'microsecond'  : 'ms',
+    'microseconds' : 'ms',
+    'microsec'     : 'ms',
+    'microsecs'    : 'ms',
+    'ms'           : 'ms',
+
+    'millisecond'   : '탎',
+    'milliseconds'  : '탎',
+    'millisec'      : '탎',
+    'millisecs'     : '탎',
+    '탎'            : '탎',
+
+    'second'  : 's',
+    'seconds' : 's',
+    'sec'     : 's',
+    'secs'    : 's',
+    's'       : 's',
+    
+    'minute'  : 'min',
+    'minutes' : 'min',
+    'min'     : 'min',
+    'mins'    : 'min',
+    'm'       : 'min',
+
+    'h'     : 'h',
+    'hour'  : 'h',
+    'hours' : 'h',
+
+    'd'    : 'day',
+    'day'  : 'day',
+    'days' : 'day',
+
+    'mon'    : 'mon',
+    'month'  : 'mon',
+    'months' : 'mon',
+    'mons'   : 'mon',
+
+    'y'    : 'yr',
+    'yr'   : 'yr',
+    'year' : 'yr',
+    'years': 'yr',
+    'yrs'  : 'yr',
+}
+
+
+def get_time_period(period_name):
+    """
+        Given a time period name, fetch the hydra-compatible time
+        abbreviation.
+    """
+    time_abbreviation = time_map.get(period_name.lower())
+
+    if time_abbreviation is None:
+        raise Exception("Symbol %s not recognised as a time period"%period_name)
+
+    return time_abbreviation
 
 def get_datetime(timestamp):
     """
