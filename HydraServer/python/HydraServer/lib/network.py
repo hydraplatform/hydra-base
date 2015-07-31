@@ -1882,6 +1882,7 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
                ResourceAttr.link_id,
                ResourceAttr.group_id,
                ResourceAttr.project_id,
+               ResourceAttr.attr_is_var,
                ResourceScenario.scenario_id,
                ResourceScenario.source,
                Dataset.dataset_id,

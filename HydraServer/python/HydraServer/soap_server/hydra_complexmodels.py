@@ -152,6 +152,7 @@ class ResourceData(HydraComplexModel):
 
         self.attr_id = str(ra.attr_id)
         self.attr_name = ra.attr_name
+        self.attr_is_var = ra.attr_is_var
         self.resource_attr_id = str(ra.resource_attr_id)
         self.ref_key = str(ra.ref_key)
         self.ref_id  = str(getattr(ra, ref_id_map[self.ref_key]))
