@@ -24,7 +24,7 @@ hydra_logging.init()
 
 log = logging.getLogger(__name__)
 
-log.info(" \n\n\n ")
+log.info(" \n ")
 
 log.info("CONFIG localfiles %s found in %s", len(config.localfiles), config.localfile)
 
@@ -34,7 +34,7 @@ log.info("CONFIG userfiles %s found in %s", len(config.userfiles), config.userfi
 
 log.info("CONFIG sysfiles %s found in %s", len(config.sysfiles), config.sysfile)
 
-if len(config.sysfiles) + len(config.repofiles) + len(config.userfiles) + len(config.sysfiles):
+if len(config.sysfiles) + len(config.repofiles) + len(config.userfiles) + len(config.sysfiles) == 0:
     log.critical("No config found. Please put your ini file into one of the files listed beside CONFIG above.")
 
-log.info(" \n\n\n ")
+log.info(" \n ")
