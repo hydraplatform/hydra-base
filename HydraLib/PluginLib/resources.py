@@ -1,6 +1,6 @@
 # (c) Copyright 2013, 2014, University of Manchester
 #
-# HydraPlatform is free software: you can redistribute it and/or modify
+# HydraLib is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
@@ -15,8 +15,11 @@
 #
 # -*- coding: utf-8 -*-
 
+__all__ = ['HydraResource', 'HydraNetwork', 'HydraAttribute', 'temp_ids']
+
 import logging
 log = logging.getLogger(__name__)
+
 
 class HydraResource(object):
     """A prototype for Hydra resources. It supports attributes and groups
@@ -110,8 +113,8 @@ class HydraNetwork(HydraResource):
         if soap_net.attributes is not None:
             for res_attr in soap_net.attributes:
                 self.add_attribute(attributes[res_attr.attr_id],
-                                    res_attr,
-                                    resource_scenarios.get(res_attr.id))
+                                   res_attr,
+                                   resource_scenarios.get(res_attr.id))
 
         # build dictionary of group members:
         if soap_net.scenarios[0].resourcegroupitems is not None:
@@ -137,7 +140,8 @@ class HydraNetwork(HydraResource):
                     linkgroups[groupitem.ref_id].append(groupitem.group_id)
             elif groupitem.ref_key == 'GROUP':
                 if groupitem.ref_id not in groupgroups:
-                    groupgroups.update({groupitem.ref_id: [groupitem.group_id]})
+                    groupgroups.update({groupitem.ref_id:
+                                        [groupitem.group_id]})
                 else:
                     groupgroups[groupitem.ref_id].append(groupitem.group_id)
         log.info("Loading groups")
@@ -150,8 +154,7 @@ class HydraNetwork(HydraResource):
                 if resgroup.attributes is not None:
                     for res_attr in resgroup.attributes:
                         new_group.add_attribute(attributes[res_attr.attr_id],
-                                                res_attr,
-                                                resource_scenarios.get(res_attr.id))
+                            res_attr, resource_scenarios.get(res_attr.id))
                 new_group.set_type(resgroup.types)
                 if new_group.ID in groupgroups.keys():
                     new_group.group(groupgroups[new_group.ID])
@@ -166,8 +169,8 @@ class HydraNetwork(HydraResource):
             if node.attributes is not None:
                 for res_attr in node.attributes:
                     new_node.add_attribute(attributes[res_attr.attr_id],
-                                            res_attr,
-                                            resource_scenarios.get(res_attr.id))
+                                           res_attr,
+                                           resource_scenarios.get(res_attr.id))
 
             new_node.set_type(node.types)
             if new_node.ID in nodegroups.keys():
@@ -187,8 +190,8 @@ class HydraNetwork(HydraResource):
             if link.attributes is not None:
                 for res_attr in link.attributes:
                     new_link.add_attribute(attributes[res_attr.attr_id],
-                                            res_attr,
-                                            resource_scenarios.get(res_attr.id))
+                                           res_attr,
+                                           resource_scenarios.get(res_attr.id))
             new_link.set_type(link.types)
             if new_link.ID in linkgroups.keys():
                 new_link.group(linkgroups[new_link.ID])
@@ -201,7 +204,8 @@ class HydraNetwork(HydraResource):
     def delete_node(self, node):
         pass
 
-    def get_node(self, node_name=None, node_id=None, node_type=None, group=None):
+    def get_node(self, node_name=None, node_id=None, node_type=None,
+                 group=None):
         if node_name is not None:
             return self._get_node_by_name(node_name)
         elif node_id is not None:
@@ -217,7 +221,8 @@ class HydraNetwork(HydraResource):
     def delete_link(self, link):
         pass
 
-    def get_link(self, link_name=None, link_id=None, link_type=None, group=None):
+    def get_link(self, link_name=None, link_id=None, link_type=None,
+                 group=None):
         if link_name is not None:
             return self._get_link_by_name(link_name)
         elif link_id is not None:
@@ -357,3 +362,19 @@ class HydraAttribute(object):
             self.value = res_scen.value.value
 
 
+def temp_ids(n=-1):
+    """
+    Create an iterator for temporary IDs for nodes, links and other entities
+    that need them. You need to initialise the temporary id first and call the
+    next element using the ``.next()`` function::
+
+        temp_node_id = PluginLib.temp_ids()
+
+        # Create a node
+        # ...
+
+        Node.id = temp_node_id.next()
+    """
+    while True:
+        yield n
+        n -= 1
