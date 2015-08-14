@@ -19,5 +19,6 @@ from resources import *
 from connection import *
 from exception import *
 from output import *
+from templates import *
 
 from HydraLib.HydraException import HydraPluginError
