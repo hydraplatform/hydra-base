@@ -19,6 +19,7 @@ from datetime import datetime, timedelta
 import logging
 from decimal import Decimal, ROUND_HALF_UP
 from dateutil.parser import parse
+from HydraLib import config
 
 
 log = logging.getLogger(__name__)
@@ -141,10 +142,6 @@ def get_datetime(timestamp):
         else:
             raise e
 
-    if timestamp[0:4] == 'XXXX':
-        # Do seasonal time series stuff...
-        timestamp = timestamp.replace('XXXX', '1900')
-
     return ts_time
 
 
@@ -200,10 +197,12 @@ def date_to_string(date, seasonal=False):
     ``seasonal`` is set to ``True``, this function will generate a string
     recognised by Hydra as seasonal time stamp.
     """
+
+    seasonal_key = config.get('DEFAULT', 'seasonal_key', 9999)
     if seasonal:
-        FORMAT = 'XXXX-%m-%d %H:%M:%S.%f'
+        FORMAT = seasonal_key+'-%m-%dT%H:%M:%S.%f'
     else:
-        FORMAT = '%Y-%m-%d %H:%M:%S.%f'
+        FORMAT = '%Y-%m-%dT%H:%M:%S.%f'
     return date.strftime(FORMAT)
 
 
@@ -226,7 +225,8 @@ def guess_timefmt(datestr):
     ================= ============== ===============
 
     These formats can also be used for seasonal (yearly recurring) time series.
-    The year needs to be replaced by ``XXXX``.
+    The year needs to be replaced by ``9999`` or another configurable year
+    representing the seasonal year..
 
     The following formats are recognised depending on your locale setting.
     There is no guarantee that this will work.
@@ -252,6 +252,9 @@ def guess_timefmt(datestr):
           use a date format that contains commas.
     """
 
+
+    seasonal_key = str(config.get('DEFAULT', 'seasonal_key', 9999))
+
     #replace 'T' with space to handle ISO times.
     if datestr.find('T') > 0:
         dt_delim = 'T'
@@ -262,9 +265,9 @@ def guess_timefmt(datestr):
     formatstrings = [['%Y', '%m', '%d'],
                      ['%d', '%m', '%Y'],
                      ['%d', '%b', '%Y'],
-                     ['XXXX', '%m', '%d'],
-                     ['%d', '%m', 'XXXX'],
-                     ['%d', '%b', 'XXXX']]
+                     [seasonal_key, '%m', '%d'],
+                     ['%d', '%m', seasonal_key],
+                     ['%d', '%b', seasonal_key]]
 
     timeformats = ['%H:%M:%S.%f', '%H:%M:%S', '%H:%M', '%H:%M:%S.%f000Z', '%H:%M:%S.%fZ']
 
@@ -297,7 +300,7 @@ def guess_timefmt(datestr):
                     pass
 
     # Check for other formats:
-    custom_formats = ['%m/%d/%Y', '%b %d %Y', '%B %d %Y', '%m/%d/XXXX']
+    custom_formats = ['%m/%d/%Y', '%b %d %Y', '%B %d %Y', '%m/%d/'+seasonal_key]
 
     for fmt in custom_formats:
         if usetime:
