@@ -35,6 +35,7 @@ from HydraServer.util.hdb import add_attributes, add_resource_types
 
 from sqlalchemy import case
 from sqlalchemy.sql import null, literal_column
+import zlib
 
 log = logging.getLogger(__name__)
 
@@ -542,7 +543,8 @@ def _get_all_resource_attributes(network_id, template_id=None):
                                ResourceAttr.group_id.label('group_id'),
                                ResourceAttr.network_id.label('network_id'),
                                ResourceAttr.attr_id.label('attr_id'),
-                              )
+                               Attr.attr_name.label('attr_name'),
+                              ).filter(Attr.attr_id==ResourceAttr.attr_id)
     
 
     all_node_attribute_qry = base_qry.join(Node).filter(Node.network_id==network_id)
@@ -759,6 +761,13 @@ def _get_all_resourcescenarios(network_id, user_id):
     for rs in all_rs:
         rs_obj = dictobj(rs)
         rs_attr = dictobj({'attr_id':rs.attr_id})
+
+        value = rs.value
+        try:
+            value = zlib.decompress(value)
+        except:
+            pass
+
         rs_dataset = dictobj({
             'dataset_id':rs.dataset_id,
             'data_type' : rs.data_type,
@@ -771,7 +780,7 @@ def _get_all_resourcescenarios(network_id, user_id):
             'hidden':rs.hidden,
             'start_date':rs.start_time,
             'frequency':rs.frequency,
-            'value':rs.value,
+            'value':value,
             'metadata':[],
         })
         rs_obj.resourceattr = rs_attr

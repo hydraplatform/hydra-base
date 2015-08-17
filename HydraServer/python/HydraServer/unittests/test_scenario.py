@@ -222,7 +222,7 @@ class ScenarioTest(server.SoapServerTest):
                     assert str(u_rs.value) == str(rs.value)
                     break
 
-    def test_update_resourcedata2(self):
+    def test_get_all_resource_data(self):
         """
             Test to check leng's questions about this not working correctly.
         """
