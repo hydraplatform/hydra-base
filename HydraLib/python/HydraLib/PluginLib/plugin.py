@@ -25,7 +25,7 @@ from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 
 from HydraLib.units import Units
-from hydra_dateutil import get_time_period, get_datetime
+from HydraLib.hydra_dateutil import get_time_period, get_datetime
 from HydraLib.HydraException import HydraPluginError
 
 from connection import JsonConnection

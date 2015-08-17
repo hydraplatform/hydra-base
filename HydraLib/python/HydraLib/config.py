@@ -64,7 +64,7 @@ def load_config():
     localfile = os.getcwd() + '/hydra.ini'
     localfiles = glob.glob(localfile)
 
-    repofile = modulepath + '/../config/hydra.ini'
+    repofile = modulepath + '/../../../config/hydra.ini'
     repofiles = glob.glob(repofile)
 
     if os.name == 'nt':
