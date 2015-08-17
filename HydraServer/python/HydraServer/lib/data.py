@@ -54,7 +54,6 @@ NS = "soap_server.hydra_complexmodels"
 log = logging.getLogger(__name__)
 
 def get_dataset(dataset_id,**kwargs):
-    pt
     """
         Get a single dataset, by ID
     """
