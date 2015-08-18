@@ -79,7 +79,12 @@ class JSONPlugin(object):
             time_axis in both situations.
         """
         if time_axis is not None:
-            return time_axis
+            actual_dates_axis = []
+            for t in time_axis:
+                #If the user has entered the time_axis with commas, remove them.
+                t = t.replace(',', '').strip()
+                actual_dates_axis.append(get_datetime(t))
+            return actual_dates_axis 
 
         else:
             if start_time is None:
