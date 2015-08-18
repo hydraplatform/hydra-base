@@ -221,7 +221,7 @@ def guess_timefmt(datestr):
     ``DD-MM-YYYY``    21-04-2002     %d-%m-%Y
     ``DD.MM.YYYY``    21.04.2002     %d.%m.%Y
     ``DD MM YYYY``    21 04 2002     %d %m %Y
-    ``MM/DD/YYYY``    04/21/2002     %m/%d/%Y
+    ``DD/MM/YYYY``    21/04/2002     %d/%m/%Y
     ================= ============== ===============
 
     These formats can also be used for seasonal (yearly recurring) time series.
@@ -300,7 +300,7 @@ def guess_timefmt(datestr):
                     pass
 
     # Check for other formats:
-    custom_formats = ['%m/%d/%Y', '%b %d %Y', '%B %d %Y', '%m/%d/'+seasonal_key]
+    custom_formats = ['%d/%m/%Y', '%b %d %Y', '%B %d %Y', '%d/%m/'+seasonal_key]
 
     for fmt in custom_formats:
         if usetime:
