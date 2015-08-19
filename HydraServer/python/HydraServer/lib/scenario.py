@@ -35,6 +35,7 @@ import data
 from HydraLib.hydra_dateutil import timestamp_to_ordinal
 from collections import namedtuple
 from copy import deepcopy
+import zlib
 
 log = logging.getLogger(__name__)
 
@@ -697,10 +698,10 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
 def assign_value(rs, data_type, val,
                  units, name, dimension, metadata={}, data_hash=None, user_id=None, source=None):
     """
-        Insert or update a piece of data in a scenario. the 'new' flag
-        indicates that the data is new, thus allowing us to avoid unnecessary
-        queries for non-existant data. If this flag is not True, a check
-        will be performed in the DB for its existance.
+        Insert or update a piece of data in a scenario. 
+        If the dataset is being shared by other scenarios, a new dataset is inserted.
+        If the dataset is ONLY being usesd by the scenario in question, the dataset
+        is updated to avoid unnecessary duplication.
     """
 
     if rs.scenario.locked == 'Y':
@@ -854,7 +855,12 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id,**kwargs):
     resource_data = resource_data_qry.all()
 
     for rs in resource_data:
-       if rs.dataset.hidden == 'Y':
+        try:
+            rs.dataset.value = zlib.decompress(rs.dataset.value)
+        except:
+            pass
+
+        if rs.dataset.hidden == 'Y':
            try:
                 rs.dataset.check_read_permission(user_id)
            except:

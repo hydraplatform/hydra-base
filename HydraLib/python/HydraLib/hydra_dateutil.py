@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 # (c) Copyright 2013, 2014, University of Manchester
 #
 # HydraPlatform is free software: you can redistribute it and/or modify
@@ -13,13 +15,11 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-# -*- coding: utf-8 -*-
-
 from datetime import datetime, timedelta
 import logging
 from decimal import Decimal, ROUND_HALF_UP
-
 from dateutil.parser import parse
+from HydraLib import config
 
 
 log = logging.getLogger(__name__)
@@ -27,6 +27,79 @@ log = logging.getLogger(__name__)
 #"2013-08-13 15:55:43.468886Z"
 FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
+"""
+    A mapping from commonly used time periods to the appropriate hydra-compatible
+    time period abbreviation
+"""
+time_map = {
+    'picosecond'  : 'ps',
+    'picoseconds' : 'ps',
+    'picosec'     : 'ps',
+    'picosecs'    : 'ps',
+    'ps'          : 'ps',
+
+    'nanosecond'  : 'ns',
+    'nanoseconds' : 'ns',
+    'nanosecs'    : 'ns',
+    'nanosec'     : 'ns',
+    'ns'          : 'ns',
+
+    'microsecond'  : 'ms',
+    'microseconds' : 'ms',
+    'microsec'     : 'ms',
+    'microsecs'    : 'ms',
+    'ms'           : 'ms',
+
+    'millisecond'   : '탎',
+    'milliseconds'  : '탎',
+    'millisec'      : '탎',
+    'millisecs'     : '탎',
+    '탎'            : '탎',
+
+    'second'  : 's',
+    'seconds' : 's',
+    'sec'     : 's',
+    'secs'    : 's',
+    's'       : 's',
+    
+    'minute'  : 'min',
+    'minutes' : 'min',
+    'min'     : 'min',
+    'mins'    : 'min',
+    'm'       : 'min',
+
+    'h'     : 'h',
+    'hour'  : 'h',
+    'hours' : 'h',
+
+    'd'    : 'day',
+    'day'  : 'day',
+    'days' : 'day',
+
+    'mon'    : 'mon',
+    'month'  : 'mon',
+    'months' : 'mon',
+    'mons'   : 'mon',
+
+    'y'    : 'yr',
+    'yr'   : 'yr',
+    'year' : 'yr',
+    'years': 'yr',
+    'yrs'  : 'yr',
+}
+
+
+def get_time_period(period_name):
+    """
+        Given a time period name, fetch the hydra-compatible time
+        abbreviation.
+    """
+    time_abbreviation = time_map.get(period_name.lower())
+
+    if time_abbreviation is None:
+        raise Exception("Symbol %s not recognised as a time period"%period_name)
+
+    return time_abbreviation
 
 def get_datetime(timestamp):
     """
@@ -68,10 +141,6 @@ def get_datetime(timestamp):
             ts_time -= tzoffset
         else:
             raise e
-
-    if timestamp[0:4] == 'XXXX':
-        # Do seasonal time series stuff...
-        timestamp = timestamp.replace('XXXX', '1900')
 
     return ts_time
 
@@ -128,10 +197,12 @@ def date_to_string(date, seasonal=False):
     ``seasonal`` is set to ``True``, this function will generate a string
     recognised by Hydra as seasonal time stamp.
     """
+
+    seasonal_key = config.get('DEFAULT', 'seasonal_key', 9999)
     if seasonal:
-        FORMAT = 'XXXX-%m-%d %H:%M:%S.%f'
+        FORMAT = seasonal_key+'-%m-%dT%H:%M:%S.%f'
     else:
-        FORMAT = '%Y-%m-%d %H:%M:%S.%f'
+        FORMAT = '%Y-%m-%dT%H:%M:%S.%f'
     return date.strftime(FORMAT)
 
 
@@ -150,11 +221,12 @@ def guess_timefmt(datestr):
     ``DD-MM-YYYY``    21-04-2002     %d-%m-%Y
     ``DD.MM.YYYY``    21.04.2002     %d.%m.%Y
     ``DD MM YYYY``    21 04 2002     %d %m %Y
-    ``MM/DD/YYYY``    04/21/2002     %m/%d/%Y
+    ``DD/MM/YYYY``    21/04/2002     %d/%m/%Y
     ================= ============== ===============
 
     These formats can also be used for seasonal (yearly recurring) time series.
-    The year needs to be replaced by ``XXXX``.
+    The year needs to be replaced by ``9999`` or another configurable year
+    representing the seasonal year..
 
     The following formats are recognised depending on your locale setting.
     There is no guarantee that this will work.
@@ -180,6 +252,9 @@ def guess_timefmt(datestr):
           use a date format that contains commas.
     """
 
+
+    seasonal_key = str(config.get('DEFAULT', 'seasonal_key', 9999))
+
     #replace 'T' with space to handle ISO times.
     if datestr.find('T') > 0:
         dt_delim = 'T'
@@ -190,9 +265,9 @@ def guess_timefmt(datestr):
     formatstrings = [['%Y', '%m', '%d'],
                      ['%d', '%m', '%Y'],
                      ['%d', '%b', '%Y'],
-                     ['XXXX', '%m', '%d'],
-                     ['%d', '%m', 'XXXX'],
-                     ['%d', '%b', 'XXXX']]
+                     [seasonal_key, '%m', '%d'],
+                     ['%d', '%m', seasonal_key],
+                     ['%d', '%b', seasonal_key]]
 
     timeformats = ['%H:%M:%S.%f', '%H:%M:%S', '%H:%M', '%H:%M:%S.%f000Z', '%H:%M:%S.%fZ']
 
@@ -225,7 +300,7 @@ def guess_timefmt(datestr):
                     pass
 
     # Check for other formats:
-    custom_formats = ['%m/%d/%Y', '%b %d %Y', '%B %d %Y', '%m/%d/XXXX']
+    custom_formats = ['%d/%m/%Y', '%b %d %Y', '%B %d %Y', '%d/%m/'+seasonal_key]
 
     for fmt in custom_formats:
         if usetime:

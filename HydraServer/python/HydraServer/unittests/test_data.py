@@ -145,12 +145,12 @@ class TimeSeriesTest(server.SoapServerTest):
             val_to_query.id,
             datetime.datetime(2000, 10, 10, 00, 00, 00)
            )
-
+        
         local_val = json.loads(val_to_query.value).values()[0]
-        assert json.loads(jan_val.data) == local_val['XXXX-01-01']
-        assert json.loads(feb_val.data) == local_val['XXXX-02-01']
-        assert json.loads(mar_val.data) == local_val['XXXX-03-01']
-        assert json.loads(oct_val.data) == local_val['XXXX-03-01']
+        assert json.loads(jan_val.data) == local_val['9999-01-01']
+        assert json.loads(feb_val.data) == local_val['9999-02-01']
+        assert json.loads(mar_val.data) == local_val['9999-03-01']
+        assert json.loads(oct_val.data) == local_val['9999-03-01']
         
         start_time = datetime.datetime(2000, 07, 10, 00, 00, 00)
         vals = self.client.service.get_vals_between_times(
@@ -161,11 +161,10 @@ class TimeSeriesTest(server.SoapServerTest):
             1,
             )
 
-        dataset_vals = val_a.values()
         data = json.loads(vals.data)
+        original_val = local_val['9999-03-01']
         assert len(data) == 76
         for val in data:
-            original_val = dataset_vals[2]
             assert original_val == val
 
 
@@ -207,12 +206,12 @@ class TimeSeriesTest(server.SoapServerTest):
 
         return_val = json.loads(seasonal_vals['dataset_%s'%val_to_query.id])
 
-        dataset_vals = val_a['0.0'].values()
+        dataset_vals = val_a['0.0']
 
-        assert return_val[str(qry_times[0])] == dataset_vals[0]
-        assert return_val[str(qry_times[1])] == dataset_vals[1]
-        assert return_val[str(qry_times[2])] == dataset_vals[2]
-        assert return_val[str(qry_times[3])] == dataset_vals[2]
+        assert return_val[str(qry_times[0])] == dataset_vals['9999-01-01']
+        assert return_val[str(qry_times[1])] == dataset_vals['9999-02-01']
+        assert return_val[str(qry_times[2])] == dataset_vals['9999-03-01']
+        assert return_val[str(qry_times[3])] == dataset_vals['9999-03-01']
         
         start_time = datetime.datetime(2000, 07, 10, 00, 00, 00)
         vals = self.client.service.get_vals_between_times(
@@ -224,9 +223,9 @@ class TimeSeriesTest(server.SoapServerTest):
             )
 
         data = json.loads(vals.data)
+        original_val = dataset_vals['9999-03-01']
         assert len(data) == 76
         for val in data:
-            original_val = dataset_vals[2]
             assert original_val == val
 
     def test_get_data_between_times(self):
@@ -285,9 +284,9 @@ class TimeSeriesTest(server.SoapServerTest):
             Create a timeseries which has relative timesteps:
             1, 2, 3 as opposed to timestamps
         """
-        t1 ='XXXX-01-01' 
-        t2 ='XXXX-02-01' 
-        t3 ='XXXX-03-01' 
+        t1 ='9999-01-01' 
+        t2 ='9999-02-01' 
+        t3 ='9999-03-01' 
         val_1 = [[[1, 2, "hello"], [5, 4, 6]], [[10, 20, 30], [40, 50, 60]], [[9,8,7],[6,5,4]]] 
 
         val_2 = ["1.0", "2.0", "3.0"]

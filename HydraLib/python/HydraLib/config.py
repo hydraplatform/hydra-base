@@ -22,6 +22,15 @@ import logging
 global CONFIG
 CONFIG = None
 
+global localfiles
+global localfile
+global repofile
+global repofiles
+global userfile
+global userfiles
+global sysfile
+global sysfiles
+
 def load_config():
     """Load a config file. This function looks for a config (*.ini) file in the
     following order::
@@ -37,24 +46,41 @@ def load_config():
     the svn repository.  (2) Will be be provided as soon as an installable
     distribution is available. (1) will usually be written individually by
     every user."""
-
+    global localfiles
+    global localfile
+    global repofile
+    global repofiles
+    global userfile
+    global userfiles
+    global sysfile
+    global sysfiles
     global CONFIG
     logging.basicConfig(level='INFO')
-    #TODO: Check for the operating system we are running, provide search paths
-    #      for Windows machines.
+    
+    config = ConfigParser.ConfigParser(allow_no_value=True)
+    
     modulepath = os.path.dirname(os.path.abspath(__file__))
 
-    localfiles = glob.glob(os.getcwd() + '/hydra.ini')
-    userfiles = glob.glob(os.path.expanduser('~') + '/.config/hydra/hydra.ini')
-    sysfiles = glob.glob('/etc/hydra/hydra.ini')
-    repofiles = glob.glob(modulepath + '/../config/hydra.ini')
+    localfile = os.getcwd() + '/hydra.ini'
+    localfiles = glob.glob(localfile)
+
+    repofile = modulepath + '/../../../config/hydra.ini'
+    repofiles = glob.glob(repofile)
 
     if os.name == 'nt':
         import winpaths
-        userfiles = glob.glob(os.path.expanduser('~') + '/AppData/Local/hydra.ini')
-        sysfiles = glob.glob(winpaths.get_common_documents() + '/Hydra/hydra.ini')
-    
-    config = ConfigParser.ConfigParser(allow_no_value=True)
+        userfile = os.path.expanduser('~') + '/AppData/Local/hydra.ini'
+        userfiles = glob.glob(userfile)
+
+        sysfile = winpaths.get_common_documents() + '/Hydra/hydra.ini'
+        sysfiles = glob.glob(sysfile)
+    else:
+        userfile = os.path.expanduser('~') + '/.config/hydra/hydra.ini'
+        userfiles = glob.glob(userfile)
+
+        sysfile = '/etc/hydra/hydra.ini'
+        sysfiles = glob.glob(sysfile)
+
 
     for ini_file in repofiles:
         logging.info("Repofile: %s"%ini_file)

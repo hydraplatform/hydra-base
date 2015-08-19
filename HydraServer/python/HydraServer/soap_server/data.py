@@ -66,6 +66,15 @@ class DataService(HydraService):
         dataset_i = data.get_dataset(dataset_id, **ctx.in_header.__dict__)
         return Dataset(dataset_i)
 
+    @rpc(Integer, _returns=Dataset)
+    def clone_dataset(ctx, dataset_id):
+        """
+            Clone a single dataset, by ID
+        """
+        dataset_i = data.clone_dataset(dataset_id, **ctx.in_header.__dict__)
+        return Dataset(dataset_i)
+
+
     @rpc(Integer, Unicode, Unicode, Unicode, Unicode, Unicode,
          Integer, Unicode, Unicode,
          Integer, Integer, Unicode,
@@ -306,7 +315,7 @@ class DataService(HydraService):
                                            increment,
                                            **ctx.in_header.__dict__)
 
-    @rpc(Unicode, returns=Unicode)
+    @rpc(Unicode, _returns=Unicode)
     def check_json(ctx, json_string):
         try:
             data.check_json(json_string)

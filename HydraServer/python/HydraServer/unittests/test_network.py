@@ -1001,7 +1001,8 @@ class NetworkTest(server.SoapServerTest):
                 all_ras.append(ra.id)
 
 
-        all_resource_data = self.client.service.get_all_resource_data(s.id)
+        all_resource_data = self.client.service.get_all_resource_data(s.id, include_values='Y')
+        log.info(all_resource_data.ResourceData[0])
         for ra in all_resource_data.ResourceData:
             assert int(ra.resource_attr_id) in all_ras 
 

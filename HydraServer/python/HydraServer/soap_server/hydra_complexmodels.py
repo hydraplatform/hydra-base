@@ -124,6 +124,7 @@ class ResourceData(HydraComplexModel):
     """
     _type_info = [
         ('attr_id',            Unicode(default=None)),
+        ('attr_name',          Unicode(default=None)),
         ('scenario_id',        Unicode(default=None)),
         ('resource_attr_id',   Unicode(default=None)),
         ('ref_id',             Unicode(default=None)),
@@ -150,6 +151,8 @@ class ResourceData(HydraComplexModel):
         ra = resourceattr
 
         self.attr_id = str(ra.attr_id)
+        self.attr_name = ra.attr_name
+        self.attr_is_var = ra.attr_is_var
         self.resource_attr_id = str(ra.resource_attr_id)
         self.ref_key = str(ra.ref_key)
         self.ref_id  = str(getattr(ra, ref_id_map[self.ref_key]))
@@ -167,7 +170,10 @@ class ResourceData(HydraComplexModel):
         self.dataset_unit      = ra.data_units
         self.dataset_frequency = ra.frequency
         if include_value=='Y':
-            self.dataset_value     = ra.value
+            try:
+                self.dataset_value = zlib.decompress(ra.value)
+            except:
+                self.dataset_value = ra.value
 
         if ra.metadata:
             self.metadata = {}
@@ -250,14 +256,14 @@ class Dataset(HydraComplexModel):
                 #Epoch doesn't work here because dates before 1970 are not
                 # supported in read_json. Ridiculous.
                 ts = timeseries_pd.to_json(date_format='iso', date_unit='ns')
-                if len(data) > config.get('DATA', 'compression_threshold', 1000):
+                if len(data) > int(config.get('db', 'compression_threshold', 1000)):
                     return zlib.compress(ts)
                 else:
                     return ts
             elif self.type == 'array':
                 #check to make sure this is valid json
                 json.loads(data)
-                if len(data) > config.get('DATA', 'compression_threshold', 1000):
+                if len(data) > int(config.get('db', 'compression_threshold', 1000)):
                     return zlib.compress(data)
                 else:
                     return data
@@ -1055,6 +1061,7 @@ class ProjectSummary(Resource):
         self.cr_date = str(parent.cr_date)
         self.created_by = parent.created_by
         self.summary    = parent.summary
+        self.status     = parent.status
 
 class User(HydraComplexModel):
     """
