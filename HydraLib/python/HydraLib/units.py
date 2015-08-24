@@ -51,23 +51,32 @@ class Units(object):
     unit_info = dict()
 
     def __init__(self):
-        default_user_file = \
+        default_user_file_location = os.path.realpath(\
             os.path.join(os.path.dirname(os.path.realpath(__file__)),
                          '../../'
                          'static',
-                         'user_units.xml')
-        try:
-            builtin_unitfile = \
+                         'user_units.xml'))
+
+        user_unitfile = config.get("unit_conversion",
+                                       "user_file",
+                                       default_user_file_location)
+
+        #If the user unit file doesn't exist, create it.
+        if not os.path.exists(user_unitfile):
+            open(user_unitfile, 'a').close()
+
+        default_builtin_unitfile_location = \
                 os.path.join(os.path.dirname(os.path.realpath(__file__)),
                             '../../'
                              'static',
                              'unit_definitions.xml')
-            user_unitfile = config.get('unit conversion', 'file')
-        except NoSectionError:
-            user_unitfile = None
+            
+        builtin_unitfile = config.get("unit_conversion",
+                                       "default_file",
+                                       default_builtin_unitfile_location)
 
-        if user_unitfile is None:
-            user_unitfile = default_user_file
+        log.info("Default unitfile: %s", builtin_unitfile)
+        log.info("User unitfile: %s", user_unitfile)
 
         with open(builtin_unitfile) as f:
             self.unittree = etree.parse(f).getroot()
@@ -75,15 +84,12 @@ class Units(object):
         for element in self.unittree:
             self.static_dimensions.append(element.get('name'))
 
-        try:
-            with open(user_unitfile) as f:
-                self.usertree = etree.parse(f).getroot()
-        except IOError:
-            log.info(("Custom unit conversion file '%s' does not "
-                          + "exist, falling back to default file (%s).")
-                         % (user_unitfile, default_user_file))
-            with open(default_user_file) as f:
-                self.usertree = etree.parse(f).getroot()
+        with open(user_unitfile) as f:
+            self.usertree = etree.parse(f).getroot()
+      
+        with open(builtin_unitfile) as f:
+            self.usertree = etree.parse(f).getroot()
+      
         for element in self.usertree:
             self.unittree.append(deepcopy(element))
             self.userdimensions.append(element.get('name'))
