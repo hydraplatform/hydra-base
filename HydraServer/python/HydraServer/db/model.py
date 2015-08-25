@@ -369,7 +369,7 @@ class TemplateType(Base):
 
     __tablename__='tTemplateType'
     __table_args__ = (
-        UniqueConstraint('template_id', 'type_name', name="unique type name"),
+        UniqueConstraint('template_id', 'type_name', 'resource_type', name="unique type name"),
     )
 
     type_id = Column(Integer(), primary_key=True, nullable=False)
