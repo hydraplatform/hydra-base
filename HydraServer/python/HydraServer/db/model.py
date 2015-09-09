@@ -396,6 +396,7 @@ class TypeAttr(Base):
     data_restriction   = Column(Text(1000))
     unit               = Column(String(60))
     description        = Column(Text(1000))
+    properties         = Column(Text(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     attr = relationship('Attr')
@@ -963,9 +964,9 @@ class ResourceGroupItem(Base):
     __tablename__='tResourceGroupItem'
 
     __table_args__ = (
-        UniqueConstraint('group_id', 'node_id', name='node_group_1'),
-        UniqueConstraint('group_id', 'link_id',  name = 'link_group_1'),
-        UniqueConstraint('group_id', 'subgroup_id', name = 'subgroup_group_1'),
+        UniqueConstraint('group_id', 'node_id', 'scenario_id', name='node_group_1'),
+        UniqueConstraint('group_id', 'link_id', 'scenario_id',  name = 'link_group_1'),
+        UniqueConstraint('group_id', 'subgroup_id', 'scenario_id', name = 'subgroup_group_1'),
     )
 
     item_id = Column(Integer(), primary_key=True, nullable=False)

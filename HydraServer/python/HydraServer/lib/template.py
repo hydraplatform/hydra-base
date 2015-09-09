@@ -154,6 +154,10 @@ def parse_typeattr(type_i, attribute):
     if attribute.find('description') is not None:
         typeattr_i.description = attribute.find('description').text
 
+    if attribute.find('properties') is not None:
+        properties_string = get_layout_as_dict(attribute.find('properties'))
+        typeattr_i.properties = str(properties_string) 
+
     if attribute.find('is_var') is not None:
         typeattr_i.attr_is_var = attribute.find('is_var').text
 
@@ -959,7 +963,11 @@ def _set_typeattr(typeattr, existing_ta = None):
     ta.data_type = typeattr.data_type
     ta.default_dataset_id = typeattr.default_dataset_id
     ta.description        = typeattr.description
+    
+    ta.properties         = typeattr.get_properties()
+    
     ta.attr_is_var        = typeattr.is_var
+
     ta.data_restriction = _parse_data_restriction(typeattr.data_restriction)
 
     if typeattr.dimension is not None and typeattr.attr_id is not None:
@@ -997,7 +1005,8 @@ def _update_templatetype(templatetype, existing_tt=None):
     tmpltype_i.template_id = templatetype.template_id
     tmpltype_i.type_name  = templatetype.name
     tmpltype_i.alias      = templatetype.alias
-    tmpltype_i.layout     = templatetype.layout
+    if templatetype.layout is not None:
+        tmpltype_i.layout     = str(templatetype.layout)
     tmpltype_i.resource_type = templatetype.resource_type
     
     ta_dict = {}

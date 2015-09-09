@@ -20,9 +20,7 @@ from spyne.model.primitive import Decimal
 from spyne.model.primitive import AnyDict
 from spyne.model.primitive import Double
 from decimal import Decimal as Dec
-from HydraLib.hydra_dateutil import get_datetime,\
-        timestamp_to_ordinal,\
-        ordinal_to_timestamp
+from HydraLib.hydra_dateutil import ordinal_to_timestamp
 import pandas as pd
 import logging
 from HydraServer.util import generate_data_hash
@@ -470,6 +468,7 @@ class TypeAttr(HydraComplexModel):
         ('data_restriction',   AnyDict(default=None)),
         ('is_var',             Unicode(default=None)),
         ('description',        Unicode(default=None)),
+        ('properties',         AnyDict(default=None)),
         ('cr_date',            Unicode(default=None)),
     ]
 
@@ -492,14 +491,16 @@ class TypeAttr(HydraComplexModel):
         self.unit      = parent.unit
         self.default_dataset_id = self.default_dataset_id
         self.description = parent.description
+        self.properties = self.get_outgoing_layout(parent.properties)
         self.cr_date = str(parent.cr_date)
-        if parent.data_restriction is not None:
-            self.data_restriction = eval(parent.data_restriction)
-            for k, v in self.data_restriction.items():
-                self.data_restriction[k] = [v]
-        else:
-            self.data_restriction = {}
+        self.data_restriction = self.get_outgoing_layout(parent.data_restriction)
         self.is_var = parent.attr_is_var
+
+    def get_properties(self):
+        if hasattr(self, 'properties') and self.properties is not None:
+            return str(self.properties).replace('{%s}'%NS, '')
+        else:
+            return None
 
 class TemplateType(HydraComplexModel):
     """
