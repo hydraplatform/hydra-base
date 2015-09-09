@@ -95,14 +95,13 @@ class GroupTest(server.SoapServerTest):
 
         scenario = network.scenarios.Scenario[0]
 
-        group    = network.resourcegroups.ResourceGroup[0]
+        group    = network.resourcegroups.ResourceGroup[-1]
         node_id = network.nodes.Node[0].id
 
         item = self.client.factory.create('hyd:ResourceGroupItem')
         item.ref_key = 'NODE'
         item.ref_id  = node_id
         item.group_id = group.id
-
 
         new_item = self.client.service.add_resourcegroupitem(item, scenario.id)
 

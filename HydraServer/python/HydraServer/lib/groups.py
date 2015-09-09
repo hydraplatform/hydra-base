@@ -107,7 +107,7 @@ def add_resourcegroupitem(group_item, scenario_id,**kwargs):
     elif group_item.ref_key == 'LINK':
         group_item_i.link_id = group_item.ref_id
     elif group_item.ref_key == 'GROUP':
-        group_item_i.group_id = group_item.ref_id
+        group_item_i.subgroup_id = group_item.ref_id
         
 
     DBSession.add(group_item_i)

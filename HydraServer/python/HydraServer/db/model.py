@@ -962,6 +962,12 @@ class ResourceGroupItem(Base):
 
     __tablename__='tResourceGroupItem'
 
+    __table_args__ = (
+        UniqueConstraint('group_id', 'node_id', name='node_group_1'),
+        UniqueConstraint('group_id', 'link_id',  name = 'link_group_1'),
+        UniqueConstraint('group_id', 'subgroup_id', name = 'subgroup_group_1'),
+    )
+
     item_id = Column(Integer(), primary_key=True, nullable=False)
     ref_key = Column(String(60),  nullable=False)
 
