@@ -83,6 +83,8 @@ class JSONPlugin(object):
             for t in time_axis:
                 #If the user has entered the time_axis with commas, remove them.
                 t = t.replace(',', '').strip()
+                if t == '':
+                    continue
                 actual_dates_axis.append(get_datetime(t))
             return actual_dates_axis 
 

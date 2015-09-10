@@ -82,6 +82,7 @@ def add_resourcegroupitem(group_item, scenario_id,**kwargs):
     if group_item.ref_key == 'NODE':
         try:
             DBSession.query(Node).filter(Node.node_id==group_item.ref_id).one()
+
         except NoResultFound:
             raise HydraError("Invalid ref ID %s for a Node group item!"%(group_item.ref_id))
     elif group_item.ref_key == 'LINK':
@@ -101,9 +102,16 @@ def add_resourcegroupitem(group_item, scenario_id,**kwargs):
     group_item_i.scenario_id = scenario_id
     group_item_i.group_id    = group_item.group_id
     group_item_i.ref_key     = group_item.ref_key
-    group_item_i.ref_id      = group_item.ref_id
+    if group_item.ref_key == 'NODE':
+        group_item_i.node_id      = group_item.ref_id
+    elif group_item.ref_key == 'LINK':
+        group_item_i.link_id = group_item.ref_id
+    elif group_item.ref_key == 'GROUP':
+        group_item_i.subgroup_id = group_item.ref_id
+        
 
     DBSession.add(group_item_i)
+    DBSession.flush()
 
     return group_item_i
 

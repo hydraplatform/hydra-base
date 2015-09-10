@@ -222,6 +222,79 @@ class ScenarioTest(server.SoapServerTest):
                     assert str(u_rs.value) == str(rs.value)
                     break
 
+    def test_update_resourcedata_consistency(self):
+        """
+            Test to ensure update_resourcedata does not update other
+            datasets that it should not.
+        """
+        network = self.create_network_with_data()
+        
+        scenario_1 = network.scenarios.Scenario[0] 
+        scenario_2 = self.client.service.clone_scenario(scenario_1.id)
+        scenario_2 = self.client.service.get_scenario(scenario_2.id)
+
+        #Identify 2 nodes to play around with -- the first and last in the list.
+        node1 = network.nodes.Node[0]
+
+        descriptor = self.create_descriptor(node1.attributes.ResourceAttr[0], 
+                                                "updated_descriptor")
+
+        rs_to_update = self._get_rs_to_update(scenario_1, descriptor)
+
+        #Update the value
+        new_resourcescenarios = self.client.service.update_resourcedata(scenario_1.id,
+                                                                        rs_to_update)
+
+        rs_1_id = None
+        updated_scenario_1 = self.client.service.get_scenario(scenario_1.id)
+        for u_rs in updated_scenario_1.resourcescenarios.ResourceScenario:
+            for rs in new_resourcescenarios.ResourceScenario:
+                if u_rs.resource_attr_id == rs.resource_attr_id:
+                    assert str(u_rs.value) == str(rs.value)
+                    rs_1_id = u_rs.value
+                    break
+
+        scalar = self.create_descriptor(node1.attributes.ResourceAttr[0], 200)
+
+        rs_to_update = self._get_rs_to_update(scenario_2, scalar)
+        
+        new_resourcescenarios = self.client.service.update_resourcedata(scenario_2.id,
+                                                                        rs_to_update)
+        rs_2_id = None
+        #Check that scenario 2 has been updated correctly.
+        updated_scenario_2 = self.client.service.get_scenario(scenario_2.id)
+        for u_rs in updated_scenario_2.resourcescenarios.ResourceScenario:
+            for rs in new_resourcescenarios.ResourceScenario:
+                if u_rs.resource_attr_id == rs.resource_attr_id:
+                    rs_2_id = u_rs.value
+                    assert str(u_rs.value) == str(rs.value)
+                    break
+        log.critical("%s vs %s", rs_1_id, rs_2_id)
+        #Check that this change has not affected scenario 1
+        for u_rs in updated_scenario_1.resourcescenarios.ResourceScenario:
+            for rs in new_resourcescenarios.ResourceScenario:
+                if u_rs.resource_attr_id == rs.resource_attr_id:
+                    assert str(u_rs.value) != str(rs.value)
+                    break
+
+    def _get_rs_to_update(self, scenario, rs):
+        """
+            Given a scenario, fetch all the RS which match the attribute ID
+            of the rs passed in. These will be updated in an update call.
+        """
+        rs_to_update = self.client.factory.create('ns1:ResourceScenarioArray')
+        updated_dataset_id = None
+        for resourcescenario in scenario.resourcescenarios.ResourceScenario:
+            ra_id = resourcescenario.resource_attr_id
+            if ra_id == rs['resource_attr_id']:
+                updated_dataset_id = resourcescenario.value['id']
+                resourcescenario.value = rs['value']
+                rs_to_update.ResourceScenario.append(resourcescenario)
+
+        assert updated_dataset_id is not None
+
+        return rs_to_update
+
     def test_get_all_resource_data(self):
         """
             Test to check leng's questions about this not working correctly.

@@ -78,6 +78,12 @@
                     <unit>m^3 s^-1</unit>
                  </default>
                 <data_type>scalar</data_type>
+                <properties>
+                    <item>
+                        <name>template_property</name>
+                        <value>Test property from template</value>
+                    </item>
+                </properties>
             </attribute>
         </resource>
         <resource>
