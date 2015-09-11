@@ -463,7 +463,7 @@ class ResourceAttr(Base):
         elif ref_key == 'LINK':
             return self.link
         elif ref_key == 'GROUP':
-            return self.group
+            return self.resourcegroup
         elif ref_key == 'PROJECT':
             return self.project
 
@@ -1043,6 +1043,7 @@ class ResourceScenario(Base):
                                     DatasetOwner.user_id==user_id)).one()
 
         return dataset
+
 
 class Scenario(Base):
     """

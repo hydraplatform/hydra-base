@@ -859,11 +859,12 @@ class TemplatesTest(server.SoapServerTest):
                 for a in n.attributes.ResourceAttr:
                     assert a.attr_id not in link_attrs
 
-    def test_validate_data(self):
+    def test_validate_attr(self):
         network = self.create_network_with_data()
         
         scenario = network.scenarios.Scenario[0]
         rs_ids = [rs.resource_attr_id for rs in scenario.resourcescenarios.ResourceScenario]
+        template_id = network.nodes.Node[0].types.TypeSummary[0].template_id
 
         for n in network.nodes.Node:
             node_type = self.client.service.get_templatetype(n.types.TypeSummary[0].id)
@@ -871,7 +872,35 @@ class TemplatesTest(server.SoapServerTest):
                 for attr in node_type.typeattrs.TypeAttr:
                     if ra.attr_id == attr.attr_id and ra.id in rs_ids and attr.data_restriction is not None:
                 #        logging.info("Validating RA %s in scenario %s", ra.id, scenario.id)
-                        self.assertRaises(WebFault, self.client.service.validate_attr, ra.id, scenario.id, None)
+                        error = self.client.service.validate_attr(ra.id, scenario.id, template_id)
+                        assert error.ValidationError.ref_kd == n.id
+
+
+    def test_validate_attrs(self):
+        network = self.create_network_with_data()
+        
+        scenario = network.scenarios.Scenario[0]
+
+        ra_ids = self.client.factory.create('intArray')
+
+        for rs in scenario.resourcescenarios.ResourceScenario:
+            ra_ids.int.append(rs.resource_attr_id)
+
+        template_id = network.nodes.Node[0].types.TypeSummary[0].template_id
+
+        errors = self.client.service.validate_attrs(ra_ids, scenario.id, template_id)
+
+        assert len(errors.ValidationError) > 0
+
+    def test_validate_scenario(self):
+        network = self.create_network_with_data()
+        
+        scenario = network.scenarios.Scenario[0]
+        template_id = network.nodes.Node[0].types.TypeSummary[0].template_id
+
+        errors = self.client.service.validate_scenario(scenario.id,template_id)
+
+        assert len(errors.ValidationError) > 0 
 
     def test_validate_network(self):
         network = self.create_network_with_data()

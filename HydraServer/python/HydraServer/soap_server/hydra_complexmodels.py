@@ -582,6 +582,42 @@ class TypeSummary(HydraComplexModel):
         self.template_name = parent.template.template_name
         self.template_id   = parent.template_id
 
+class ValidationError(HydraComplexModel):
+    """
+    """
+    _type_info = [
+        ('scenario_id',      Integer(default=None)),
+        ('ref_key',          Unicode(default=None)),
+        ('ref_id',           Integer(default=None)),
+        ('ref_name',         Unicode(default=None)),
+        ('attr_name',        Unicode(default=None)),
+        ('attr_id',          Integer(default=None)),
+        ('template_id',      Integer(default=None)),
+        ('type_id',          Integer(defult=None)),
+        ('resource_attr_id', Integer(default=None)),
+        ('dataset_id',       Integer(default=None)),
+        ('error_text',       Unicode(default=None)),
+    ]
+
+    def __init__(self, error_text, scenario_id=None,
+                 ref_key=None, ref_id=None, ref_name=None,
+                 attr_name=None, attr_id=None, 
+                 template_id=None, type_id=None,
+                 resource_attr_id=None, dataset_id=None):
+
+        super(ValidationError, self).__init__()
+    
+        self.error_text       = error_text
+        self.ref_key          = ref_key
+        self.ref_id           = ref_id
+        self.ref_name         = ref_name
+        self.attr_name        = attr_name
+        self.attr_id          = attr_id
+        self.resource_attr_id = attr_id
+        self.dataset_id       = dataset_id
+        self.template_id      = template_id
+        self.type_id          = type_id
+
 class Resource(HydraComplexModel):
     """
     """
@@ -597,8 +633,8 @@ class ResourceSummary(HydraComplexModel):
     """
     """
     _type_info = [
-        ('ref_key', Unicode(default=None)),
-        ('id',  Integer(default=None)),
+        ('ref_key',     Unicode(default=None)),
+        ('id',          Integer(default=None)),
         ('name',        Unicode(default=None)),
         ('description', Unicode(min_occurs=1, default="")),
         ('attributes',  SpyneArray(ResourceAttr)),
