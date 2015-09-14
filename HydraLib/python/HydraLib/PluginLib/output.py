@@ -113,8 +113,9 @@ def validate_plugin_xml(plugin_xml_file_path):
         raise HydraPluginError("There is an error in your XML syntax: %s" % e)
     except ParseError, e:
         raise HydraPluginError("There is an error in your XML: %s" % e)
-    except:
-        raise HydraPluginError("Couldn't find xsd to validate plugin.xml! Please check config.")
+    except Exception, e:
+        log.exception(e)
+        raise HydraPluginError("An unknown error occurred with the plugin xsd: %s"%e.message)
 
     try:
         xmlschema.assertValid(xml_tree)
