@@ -189,7 +189,6 @@ class AttributeTest(server.SoapServerTest):
 
         template_id = network.types.TypeSummary[0].template_id
 
-        import pudb; pudb.set_trace()
         node_attributes = self.client.service.get_all_node_attributes(network.id, template_id)
         
         #Check that the retrieved attributes are in the list of node attributes
