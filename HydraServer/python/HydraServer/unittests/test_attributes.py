@@ -170,6 +170,35 @@ class AttributeTest(server.SoapServerTest):
             network_attr_ids.append(ra.attr_id)
         assert new_attr.id in network_attr_ids
 
+    def test_get_all_node_attributes(self):
+        network = self.create_network_with_data()
+
+        #Get all the node attributes in the network
+        node_attr_ids = []
+        for n in network.nodes.Node:
+            for a in n.attributes.ResourceAttr:
+                node_attr_ids.append(a.id)
+
+        node_attributes = self.client.service.get_all_node_attributes(network.id)
+        
+        #Check that the retrieved attributes are in the list of node attributes
+        retrieved_ras = []
+        for n in node_attributes.ResourceAttr:
+            retrieved_ras.append(n.id)
+        assert set(node_attr_ids) == set(retrieved_ras)
+
+        template_id = network.types.TypeSummary[0].template_id
+
+        import pudb; pudb.set_trace()
+        node_attributes = self.client.service.get_all_node_attributes(network.id, template_id)
+        
+        #Check that the retrieved attributes are in the list of node attributes
+        retrieved_ras = []
+        for n in node_attributes.ResourceAttr:
+            retrieved_ras.append(n.id)
+        assert set(node_attr_ids) == set(retrieved_ras)
+        
+
     def test_add_link_attribute(self):
         network = self.create_network_with_data()
         link = network.links.Link[0]
@@ -181,6 +210,22 @@ class AttributeTest(server.SoapServerTest):
             network_attr_ids.append(ra.attr_id)
         assert new_attr.id in network_attr_ids
 
+    def test_get_all_link_attributes(self):
+        network = self.create_network_with_data()
+
+        #Get all the node attributes in the network
+        link_attr_ids = []
+        for n in network.links.Link:
+            for a in n.attributes.ResourceAttr:
+                link_attr_ids.append(a.id)
+        link_attributes = self.client.service.get_all_link_attributes(7)
+        #Check that the retrieved attributes are in the list of node attributes
+        retrieved_ras = []
+        for n in link_attributes.ResourceAttr:
+            retrieved_ras.append(n.id)
+        assert set(link_attr_ids) == set(retrieved_ras)
+
+
     def test_add_group_attribute(self):
         network = self.create_network_with_data()
         group = network.resourcegroups.ResourceGroup[0]
@@ -191,6 +236,23 @@ class AttributeTest(server.SoapServerTest):
         for ra in group_attrs.ResourceAttr:
             network_attr_ids.append(ra.attr_id)
         assert new_attr.id in network_attr_ids
+
+    def test_get_all_group_attributes(self):
+        network = self.create_network_with_data()
+
+        #Get all the node attributes in the network
+        group_attr_ids = []
+        for g in network.resourcegroups.ResourceGroup:
+            for a in g.attributes.ResourceAttr:
+                group_attr_ids.append(a.id)
+
+        group_attributes = self.client.service.get_all_group_attributes(network.id)
+        
+        #Check that the retrieved attributes are in the list of group attributes
+        retrieved_ras = []
+        for ra in group_attributes.ResourceAttr:
+            retrieved_ras.append(ra.id)
+        assert set(group_attr_ids) == set(retrieved_ras)
 
 class AttributeMapTest(server.SoapServerTest):
     def test_set_attribute_mapping(self):

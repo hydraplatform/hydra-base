@@ -259,6 +259,48 @@ def add_resource_attrs_from_type(type_id, resource_type, resource_id,**kwargs):
 
     return new_resource_attrs
 
+def get_all_resource_attributes(ref_key, network_id, template_id=None, **kwargs):
+    """
+        Get all the resource attributes for a given resource. 
+        If type_id is specified, only
+        return the resource attributes within the type.
+    """
+
+    user_id = kwargs.get('user_id')
+    
+    resource_attr_qry = DBSession.query(ResourceAttr).\
+            outerjoin(Node, Node.node_id==ResourceAttr.node_id).\
+            outerjoin(Link, Link.link_id==ResourceAttr.link_id).\
+            outerjoin(ResourceGroup, ResourceGroup.group_id==ResourceAttr.group_id).filter(
+        ResourceAttr.ref_key == ref_key,
+        or_(
+            and_(ResourceAttr.node_id != None, 
+                    ResourceAttr.node_id == Node.node_id,
+                                        Node.network_id==network_id),
+
+            and_(ResourceAttr.link_id != None,
+                    ResourceAttr.link_id == Link.link_id,
+                                        Link.network_id==network_id),
+
+            and_(ResourceAttr.group_id != None,
+                    ResourceAttr.group_id == ResourceGroup.group_id,
+                                        ResourceGroup.network_id==network_id)
+        ))
+
+    if template_id is not None:
+        attr_ids = []
+        rs = DBSession.query(TypeAttr).join(TemplateType, 
+                                            TemplateType.type_id==TypeAttr.type_id).filter(
+                                                TemplateType.template_id==template_id).all()
+        for r in rs:
+            attr_ids.append(r.attr_id)
+
+        resource_attr_qry = resource_attr_qry.filter(ResourceAttr.attr_id.in_(attr_ids))
+    
+    resource_attrs = resource_attr_qry.all()
+
+    return resource_attrs
+
 def get_resource_attributes(ref_key, ref_id, type_id=None, **kwargs):
     """
         Get all the resource attributes for a given resource. 
