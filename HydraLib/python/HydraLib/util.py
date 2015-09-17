@@ -268,7 +268,7 @@ def validate_VALUERANGE(value, restriction):
         Parameters: A Decimal value and a tuple, containing a lower and upper bound,
         both as Decimal values.
     """
-    if len(restriction != 2):
+    if len(restriction) != 2:
         raise ValidationError("Template ERROR: Only two values can be specified in a date range.")
     value = _get_val(value)
     if type(value) is list:
@@ -289,7 +289,7 @@ def validate_DATERANGE(value, restriction):
         Parameters: A timeseries in the form [(datetime, val), (datetime, val)..]
         and a tuple containing the lower and upper bound as datetime objects.
     """
-    if len(restriction != 2):
+    if len(restriction) != 2:
         raise ValidationError("Template ERROR: Only two values can be specified in a date range.")
 
     if type(value) == pd.DataFrame:
