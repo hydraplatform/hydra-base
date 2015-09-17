@@ -1054,6 +1054,7 @@ def update_network(network,
     net_i.project_id          = network.project_id
     net_i.network_name        = network.name
     net_i.network_description = network.description
+    net_i.projection          = network.projection
     net_i.layout              = network.get_layout()
 
     all_resource_attrs = {}

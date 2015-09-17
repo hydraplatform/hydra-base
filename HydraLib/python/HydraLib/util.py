@@ -153,11 +153,11 @@ def get_restriction_as_dict(restriction_xml):
             <restrictions>
                 <restriction>
                     <type>MAXLEN</type>
-                    <value><item>3</item></value>
+                    <value>3</value>
                 </restriction>
                 <restriction>
-                    <type>SUMTO</type>
-                    <value><item>4</item></value>
+                    <type>VALUERANGE</type>
+                    <value><item>1</item><item>10</item></value>
                 </restriction> 
             </restrictions>
 
@@ -166,7 +166,7 @@ def get_restriction_as_dict(restriction_xml):
 
         {
             'MAXLEN' : 3,
-            'SUMTO' : 4
+            'VALUERANGE' : [1, 10]
         }
 
     """
@@ -244,6 +244,10 @@ def validate_NUMPLACES(value, restriction):
         the value parameter must be either a single value or a 1-dimensional list.
         All the values in this list must satisfy the condition
     """
+    #Sometimes restriction values can accidentally be put in the template <item>100</items>,
+    #Making them a list, not a number. Rather than blowing up, just get value 1 from the list.
+    if type(restriction) is list:
+        restriction = restriction[0]
 
     value = _get_val(value)
     if type(value) is list:
@@ -264,6 +268,8 @@ def validate_VALUERANGE(value, restriction):
         Parameters: A Decimal value and a tuple, containing a lower and upper bound,
         both as Decimal values.
     """
+    if len(restriction != 2):
+        raise ValidationError("Template ERROR: Only two values can be specified in a date range.")
     value = _get_val(value)
     if type(value) is list:
         for subval in value:
@@ -283,6 +289,8 @@ def validate_DATERANGE(value, restriction):
         Parameters: A timeseries in the form [(datetime, val), (datetime, val)..]
         and a tuple containing the lower and upper bound as datetime objects.
     """
+    if len(restriction != 2):
+        raise ValidationError("Template ERROR: Only two values can be specified in a date range.")
 
     if type(value) == pd.DataFrame:
         dates = [get_datetime(v) for v in list(value.index)]
@@ -305,6 +313,11 @@ def validate_MAXLEN(value, restriction):
         Parameters: A list and an integer, which defines the required length of
         the list.
     """
+    #Sometimes restriction values can accidentally be put in the template <item>100</items>,
+    #Making them a list, not a number. Rather than blowing up, just get value 1 from the list.
+    if type(restriction) is list:
+        restriction = restriction[0]
+
     if len(value) > restriction:
         raise ValidationError("MAXLEN: %s"%(restriction))
 
@@ -313,6 +326,11 @@ def validate_EQUALTO(value, restriction):
         Test to ensure that a value is equal to a prescribed value.
         Parameter: Two values, which will be compared for equality.
     """
+    #Sometimes restriction values can accidentally be put in the template <item>100</items>,
+    #Making them a list, not a number. Rather than blowing up, just get value 1 from the list.
+    if type(restriction) is list:
+        restriction = restriction[0]
+
     value = _get_val(value)
     if type(value) is list:
         for subval in value:
@@ -328,6 +346,11 @@ def validate_NOTEQUALTO(value, restriction):
         Test to ensure that a value is NOT equal to a prescribed value.
         Parameter: Two values, which will be compared for non-equality.
     """
+    #Sometimes restriction values can accidentally be put in the template <item>100</items>,
+    #Making them a list, not a number. Rather than blowing up, just get value 1 from the list.
+    if type(restriction) is list:
+        restriction = restriction[0]
+
     value = _get_val(value)
     if type(value) is list:
         for subval in value:
@@ -343,6 +366,11 @@ def validate_LESSTHAN(value, restriction):
         Test to ensure that a value is less than a prescribed value.
         Parameter: Two values, which will be compared for the difference..
     """
+    #Sometimes restriction values can accidentally be put in the template <item>100</items>,
+    #Making them a list, not a number. Rather than blowing up, just get value 1 from the list.
+    if type(restriction) is list:
+        restriction = restriction[0]
+
     value = _get_val(value)
     if type(value) is list:
         for subval in value:
@@ -359,6 +387,11 @@ def validate_LESSTHANEQ(value, restriction):
         Test to ensure that a value is less than or equal to a prescribed value.
         Parameter: Two values, which will be compared for the difference..
     """
+    #Sometimes restriction values can accidentally be put in the template <item>100</items>,
+    #Making them a list, not a number. Rather than blowing up, just get value 1 from the list.
+    if type(restriction) is list:
+        restriction = restriction[0]
+
     value = _get_val(value)
     if type(value) is list:
         for subval in value:
@@ -374,6 +407,11 @@ def validate_GREATERTHAN(value, restriction):
         Test to ensure that a value is greater than a prescribed value.
         Parameter: Two values, which will be compared for the difference..
     """
+    #Sometimes restriction values can accidentally be put in the template <item>100</items>,
+    #Making them a list, not a number. Rather than blowing up, just get value 1 from the list.
+    if type(restriction) is list:
+        restriction = restriction[0]
+
     value = _get_val(value)
     if type(value) is list:
         for subval in value:
@@ -389,6 +427,11 @@ def validate_GREATERTHANEQ(value, restriction):
         Test to ensure that a value is greater than or equal to a prescribed value.
         Parameter: Two values, which will be compared for the difference..
     """
+    #Sometimes restriction values can accidentally be put in the template <item>100</items>,
+    #Making them a list, not a number. Rather than blowing up, just get value 1 from the list.
+    if type(restriction) is list:
+        restriction = restriction[0]
+
     value = _get_val(value)
     if type(value) is list:
         for subval in value:
@@ -404,13 +447,17 @@ def validate_MULTIPLEOF(value, restriction):
         Test to ensure that a value is a multiple of a specified restriction value.
         Parameters: Numeric value and an integer
     """
+    #Sometimes restriction values can accidentally be put in the template <item>100</items>,
+    #Making them a list, not a number. Rather than blowing up, just get value 1 from the list.
+    if type(restriction) is list:
+        restriction = restriction[0]
+
     value = _get_val(value)
     if type(value) is list:
         for subval in value:
             if type(subval) is tuple:
                 subval = subval[1]
             validate_MULTIPLEOF(subval, restriction)
-
     if value % restriction != 0:
         raise ValidationError("MULTIPLEOF: %s"%(restriction))
 
@@ -420,7 +467,11 @@ def validate_SUMTO(value, restriction):
         Parameters: a list of numeric values and a target to which the values
         in the list must sum
     """
-
+    #Sometimes restriction values can accidentally be put in the template <item>100</items>,
+    #Making them a list, not a number. Rather than blowing up, just get value 1 from the list.
+    if type(restriction) is list:
+        restriction = restriction[0]
+        
     value = _get_val(value, full=True)
 
     if len(value) == 0:

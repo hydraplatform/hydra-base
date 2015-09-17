@@ -51,6 +51,18 @@ class RuleService(HydraService):
         rule_i = rules.add_rule(scenario_id, rule, **ctx.in_header.__dict__)
         return Rule(rule_i)
 
+    @rpc(Integer, SpyneArray(Rule), _returns=SpyneArray(Rule))
+    def add_rules(ctx, scenario_id, rule_list):
+        """
+            Add a rule to a given scenario
+        """
+        returned_rules = []
+        for rule in rule_list:
+            rule_i = rules.add_rule(scenario_id, rule, **ctx.in_header.__dict__)
+            returned_rules.append(Rule(rule_i))
+
+        return returned_rules
+
     @rpc(Rule, _returns=Rule)
     def update_rule(ctx, rule):
         """

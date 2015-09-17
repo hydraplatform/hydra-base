@@ -48,16 +48,21 @@ def init(level=None):
     #ex: server.py logs to server.log, ImportCSV.py logs to ImportCSV.log
     #All log files should be located in the same location.
 
-    calling_file = inspect.stack()[-1][0].f_globals['__file__']
-    calling_file = os.path.split(calling_file)[1]
+    try:
+        calling_file = inspect.stack()[-1][0].f_globals['__file__']
+        calling_file = os.path.split(calling_file)[1]
 
-    log_file = "%s.log" % calling_file.split('.')[0]
-    log_base_path = config.get('logging_conf', 'log_file_dir', '.')
+        log_file = "%s.log" % calling_file.split('.')[0]
+        log_base_path = config.get('logging_conf', 'log_file_dir', '.')
 
-    if not os.path.isdir(log_base_path):
-        os.makedirs(log_base_path)
+        if not os.path.isdir(log_base_path):
+            os.makedirs(log_base_path)
 
-    log_loc = os.path.expanduser(os.path.join(log_base_path, log_file))
+        log_loc = os.path.expanduser(os.path.join(log_base_path, log_file))
+
+    except:
+        log_file = None
+        log_loc  = None
 
     use_default = False
     try:
@@ -81,7 +86,6 @@ def init(level=None):
         use_default = True
 
     if use_default is True:
-        print "Logging to %s"%log_loc
         logging_conf_dict = {
         'version': 1,
         'disable_existing_loggers': False,
@@ -96,13 +100,6 @@ def init(level=None):
                 'class':'HydraLib.hydra_logging.ColorizingStreamHandler',
                 'formatter' : 'hydraFormatter',
             },
-            'file': {
-                'level':'DEBUG',
-                'class':'logging.FileHandler',
-                'formatter' : 'hydraFormatter',
-                'filename'  : log_loc,
-                'mode'      : 'a',
-            },
         },
         'loggers': {
             '': {
@@ -112,6 +109,16 @@ def init(level=None):
             },
         }
         }
+
+        if log_loc is not None:
+            logging_conf_dict['handlers']['file'] = {
+                'level':'DEBUG',
+                'class':'logging.FileHandler',
+                'formatter' : 'hydraFormatter',
+                'filename'  : log_loc,
+                'mode'      : 'a',
+            }
+
         logging.config.dictConfig(logging_conf_dict)
 
 def shutdown():
