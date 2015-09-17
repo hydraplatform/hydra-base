@@ -183,6 +183,7 @@ class NetworkTest(server.SoapServerTest):
         network.project_id = project.id
         network.name = 'Test @ %s'%(datetime.datetime.now())
         network.description = 'A network for SOAP unit tests.'
+        network.projection = "EPSG:1234"
         network.nodes = nodes
         network.links = links
 
