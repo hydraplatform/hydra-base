@@ -198,7 +198,7 @@ def date_to_string(date, seasonal=False):
     recognised by Hydra as seasonal time stamp.
     """
 
-    seasonal_key = config.get('DEFAULT', 'seasonal_key', 9999)
+    seasonal_key = config.get('DEFAULT', 'seasonal_key', '9999')
     if seasonal:
         FORMAT = seasonal_key+'-%m-%dT%H:%M:%S.%f'
     else:
@@ -253,7 +253,7 @@ def guess_timefmt(datestr):
     """
 
 
-    seasonal_key = str(config.get('DEFAULT', 'seasonal_key', 9999))
+    seasonal_key = str(config.get('DEFAULT', 'seasonal_key', '9999'))
 
     #replace 'T' with space to handle ISO times.
     if datestr.find('T') > 0:
