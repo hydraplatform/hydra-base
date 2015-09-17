@@ -60,6 +60,9 @@ class TemplatesTest(server.SoapServerTest):
         for ta in new_tmpl.types.TemplateType[0].typeattrs.TypeAttr:
             assert ta.data_type == 'scalar'
 
+        assert new_tmpl.types.TemplateType[0].typeattrs.TypeAttr[-1].properties is not None
+        assert new_tmpl.types.TemplateType[0].typeattrs.TypeAttr[-1].properties['template_property'] == "Test property from template"
+
     def test_add_template(self):
 
         link_attr_1 = self.create_attr("link_attr_1", dimension='Pressure')
@@ -90,6 +93,7 @@ class TemplatesTest(server.SoapServerTest):
         tattr_1 = self.client.factory.create('hyd:TypeAttr')
         tattr_1.attr_id = node_attr_1.id
         tattr_1.description = "Type attribute 1 description"
+        tattr_1.properties = {'test_property': "test property add type"}  
         tattr_1.data_restriction = {'LESSTHAN': 10, 'NUMPLACES': 1}
         tattrs.TypeAttr.append(tattr_1)
 
@@ -187,6 +191,7 @@ class TemplatesTest(server.SoapServerTest):
         tattr_1.dimension = 'Pressure'
         tattr_1.unit      = 'bar'
         tattr_1.description = "typeattr description 1"
+        tattr_1.properties = {"test_property": "property value"}
         tattrs_1.TypeAttr.append(tattr_1)
 
         tattr_2 = self.client.factory.create('hyd:TypeAttr')
@@ -223,6 +228,7 @@ class TemplatesTest(server.SoapServerTest):
         tattr_3 = self.client.factory.create('hyd:TypeAttr')
         tattr_3.attr_id = attr_3.id
         tattr_3.description = "updated typeattr description 1"
+        tattr_3.properties = {"test_property_of_added_type": "property value"}
         new_template.types[0][0].typeattrs.TypeAttr.append(tattr_3)
 
         updated_template = self.client.service.update_template(new_template)
@@ -307,6 +313,7 @@ class TemplatesTest(server.SoapServerTest):
         tattr_1 = self.client.factory.create('hyd:TypeAttr')
         tattr_1.attr_id = attr_1.id
         tattr_1.description = "added type description 1"
+        tattr_1.properties = {"add_type_test_property": "property value"}
         tattrs.TypeAttr.append(tattr_1)
 
         tattr_2 = self.client.factory.create('hyd:TypeAttr')
@@ -375,6 +382,7 @@ class TemplatesTest(server.SoapServerTest):
         tattr_3 = self.client.factory.create('hyd:TypeAttr')
         tattr_3.attr_id = attr_3.id
         tattr_3.description = "Descripton of added typeattr"
+        tattr_3.properties = {"update_type_test_property": "property value"}
         new_type.typeattrs.TypeAttr.append(tattr_3)
 
         new_type.typeattrs.TypeAttr[0].description = "Updated typeattr descriptioj"
@@ -386,7 +394,8 @@ class TemplatesTest(server.SoapServerTest):
         assert new_type.id == updated_type.id, "type ids to not match!"
         assert new_type.id > 0, "New type has incorrect ID!"
         assert new_type.typeattrs.TypeAttr[0].description == "Updated typeattr descriptioj"
-
+        assert new_type.typeattrs.TypeAttr[-1].properties['update_type_test_property'] == "property value"
+ 
         assert len(updated_type.typeattrs[0]) == 3, "Template type attrs did not update correctly"
 
 
@@ -439,6 +448,7 @@ class TemplatesTest(server.SoapServerTest):
         tattr_2 = self.client.factory.create('hyd:TypeAttr')
         tattr_2.attr_id = attr_2.id
         tattr_2.description = "Description of typeattr from test_add_typeattr"
+        tattr_2.properties = {"test_property":"property value"}
         tattrs.TypeAttr.append(tattr_2)
 
         templatetype.typeattrs = tattrs
@@ -449,10 +459,13 @@ class TemplatesTest(server.SoapServerTest):
         tattr_3.attr_id = attr_3.id
         tattr_3.type_id = new_type.id
         tattr_3.description = "Description of additional typeattr from test_add_typeattr"
+        tattr_3.properties = {"add_typeattr_test_property": "property value"}
 
         updated_type = self.client.service.add_typeattr(tattr_3)
 
         assert len(updated_type.typeattrs[0]) == 3, "Resource type attr did not add correctly"
+
+        assert updated_type.typeattrs.TypeAttr[-1].properties['add_typeattr_test_property'] == "property value"
 
 
     def test_delete_typeattr(self):

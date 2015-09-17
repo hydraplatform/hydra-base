@@ -20,9 +20,7 @@ from spyne.model.primitive import Decimal
 from spyne.model.primitive import AnyDict
 from spyne.model.primitive import Double
 from decimal import Decimal as Dec
-from HydraLib.hydra_dateutil import get_datetime,\
-        timestamp_to_ordinal,\
-        ordinal_to_timestamp
+from HydraLib.hydra_dateutil import ordinal_to_timestamp
 import pandas as pd
 import logging
 from HydraServer.util import generate_data_hash
@@ -124,6 +122,7 @@ class ResourceData(HydraComplexModel):
     """
     _type_info = [
         ('attr_id',            Unicode(default=None)),
+        ('attr_name',          Unicode(default=None)),
         ('scenario_id',        Unicode(default=None)),
         ('resource_attr_id',   Unicode(default=None)),
         ('ref_id',             Unicode(default=None)),
@@ -150,6 +149,8 @@ class ResourceData(HydraComplexModel):
         ra = resourceattr
 
         self.attr_id = str(ra.attr_id)
+        self.attr_name = ra.attr_name
+        self.attr_is_var = ra.attr_is_var
         self.resource_attr_id = str(ra.resource_attr_id)
         self.ref_key = str(ra.ref_key)
         self.ref_id  = str(getattr(ra, ref_id_map[self.ref_key]))
@@ -167,7 +168,10 @@ class ResourceData(HydraComplexModel):
         self.dataset_unit      = ra.data_units
         self.dataset_frequency = ra.frequency
         if include_value=='Y':
-            self.dataset_value     = ra.value
+            try:
+                self.dataset_value = zlib.decompress(ra.value)
+            except:
+                self.dataset_value = ra.value
 
         if ra.metadata:
             self.metadata = {}
@@ -250,14 +254,14 @@ class Dataset(HydraComplexModel):
                 #Epoch doesn't work here because dates before 1970 are not
                 # supported in read_json. Ridiculous.
                 ts = timeseries_pd.to_json(date_format='iso', date_unit='ns')
-                if len(data) > config.get('DATA', 'compression_threshold', 1000):
+                if len(data) > int(config.get('db', 'compression_threshold', 1000)):
                     return zlib.compress(ts)
                 else:
                     return ts
             elif self.type == 'array':
                 #check to make sure this is valid json
                 json.loads(data)
-                if len(data) > config.get('DATA', 'compression_threshold', 1000):
+                if len(data) > int(config.get('db', 'compression_threshold', 1000)):
                     return zlib.compress(data)
                 else:
                     return data
@@ -464,6 +468,7 @@ class TypeAttr(HydraComplexModel):
         ('data_restriction',   AnyDict(default=None)),
         ('is_var',             Unicode(default=None)),
         ('description',        Unicode(default=None)),
+        ('properties',         AnyDict(default=None)),
         ('cr_date',            Unicode(default=None)),
     ]
 
@@ -486,14 +491,16 @@ class TypeAttr(HydraComplexModel):
         self.unit      = parent.unit
         self.default_dataset_id = self.default_dataset_id
         self.description = parent.description
+        self.properties = self.get_outgoing_layout(parent.properties)
         self.cr_date = str(parent.cr_date)
-        if parent.data_restriction is not None:
-            self.data_restriction = eval(parent.data_restriction)
-            for k, v in self.data_restriction.items():
-                self.data_restriction[k] = [v]
-        else:
-            self.data_restriction = {}
+        self.data_restriction = self.get_outgoing_layout(parent.data_restriction)
         self.is_var = parent.attr_is_var
+
+    def get_properties(self):
+        if hasattr(self, 'properties') and self.properties is not None:
+            return str(self.properties).replace('{%s}'%NS, '')
+        else:
+            return None
 
 class TemplateType(HydraComplexModel):
     """
@@ -1055,6 +1062,7 @@ class ProjectSummary(Resource):
         self.cr_date = str(parent.cr_date)
         self.created_by = parent.created_by
         self.summary    = parent.summary
+        self.status     = parent.status
 
 class User(HydraComplexModel):
     """

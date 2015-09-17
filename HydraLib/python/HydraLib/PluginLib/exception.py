@@ -1,6 +1,6 @@
 # (c) Copyright 2013, 2014, University of Manchester
 #
-# HydraPlatform is free software: you can redistribute it and/or modify
+# HydraLib is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
@@ -13,10 +13,12 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-import config
-if config.CONFIG is None:
-    config.load_config()
+# -*- coding: utf-8 -*-
 
-import hydra_logging
-hydra_logging.init()
+__all__ = ['RequestError']
 
+from HydraLib.HydraException import HydraPluginError
+
+
+class RequestError(HydraPluginError):
+    pass

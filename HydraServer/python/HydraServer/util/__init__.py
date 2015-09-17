@@ -5,6 +5,7 @@ from decimal import Decimal
 import pandas as pd
 import zlib
 import json
+from HydraLib import config
 
 def generate_data_hash(dataset_dict):
 
@@ -57,14 +58,18 @@ def get_val(dataset, timestamp=None):
     elif dataset.data_type == 'scalar':
         return Decimal(str(dataset.value))
     elif dataset.data_type == 'timeseries':
+
         try:
-            val = dataset.value.replace('XXXX', '1900')
-            timeseries = pd.read_json(val)
-        except (ValueError, TypeError), e:
-            #Didn't work? Maybe because it was compressed.
+            #The data might be compressed.
             val = zlib.decompress(dataset.value)
-            val = val.replace('XXXX', '1900')
-            timeseries = pd.read_json(val)
+        except Exception, e:
+            val = dataset.value
+
+        seasonal_year = config.get('DEFAULT','seasonal_year', '1678')
+        seasonal_key = config.get('DEFAULT', 'seasonal_key', '9999')
+        val = dataset.value.replace(seasonal_key, seasonal_year)
+        
+        timeseries = pd.read_json(val)
 
         if timestamp is None:
             return timeseries
@@ -72,19 +77,21 @@ def get_val(dataset, timestamp=None):
             try:
                 idx = timeseries.index
                 #Seasonal timeseries are stored in the year
-                #1900. Therefore if the timeseries is seasonal, 
+                #1678 (the lowest year pandas allows for valid times).
+                #Therefore if the timeseries is seasonal, 
                 #the request must be a seasonal request, not a 
                 #standard request
+
                 if type(idx) == pd.DatetimeIndex:
-                    if set(idx.year) == set([1900]):
+                    if set(idx.year) == set([int(seasonal_year)]):
                         if type(timestamp) == list:
                             seasonal_timestamp = []
                             for t in timestamp:
-                                t_1900 = t.replace(year=1900)
+                                t_1900 = t.replace(year=int(seasonal_year))
                                 seasonal_timestamp.append(t_1900)
                             timestamp = seasonal_timestamp
                         else:
-                            timestamp = timestamp.replace(year=1900)
+                            timestamp = timestamp.replace(year=int(seasonal_year))
 
                 pandas_ts = timeseries.reindex(timestamp, method='ffill')
 

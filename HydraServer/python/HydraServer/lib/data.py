@@ -21,7 +21,7 @@ from HydraServer.db.model import Dataset, Metadata, DatasetOwner, DatasetCollect
         DatasetCollectionItem, ResourceScenario, ResourceAttr, TypeAttr
 from HydraServer.util import generate_data_hash
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, make_transient, joinedload_all
 from sqlalchemy.sql.expression import case
 from sqlalchemy import func
 from sqlalchemy import null
@@ -29,13 +29,12 @@ from HydraServer.db import DBSession
 from HydraLib import config
 
 import pandas as pd
-from HydraLib.HydraException import HydraError, ResourceNotFoundError
+from HydraLib.HydraException import HydraError, PermissionError, ResourceNotFoundError
 from sqlalchemy import and_, or_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql.expression import literal_column
 from sqlalchemy import distinct
 
-from HydraLib.util import create_dict
 from decimal import Decimal
 import copy
 
@@ -97,6 +96,60 @@ def get_dataset(dataset_id,**kwargs):
         raise HydraError("Dataset %s does not exist."%(dataset_id))
 
     return dataset 
+
+def clone_dataset(dataset_id,**kwargs):
+    """
+        Get a single dataset, by ID
+    """
+
+    user_id = int(kwargs.get('user_id'))
+
+    if dataset_id is None:
+        return None
+
+    dataset = DBSession.query(Dataset).filter(
+            Dataset.dataset_id==dataset_id).options(joinedload_all('metadata')).first()
+
+    if dataset is None:
+        raise HydraError("Dataset %s does not exist."%(dataset_id))
+
+    if dataset is not None and dataset.created_by != user_id:
+        owner = DBSession.query(DatasetOwner).filter(
+                                DatasetOwner.dataset_id==Dataset.dataset_id, 
+                                DatasetOwner.user_id==user_id).first()
+        if owner is None:
+            raise PermissionError("User %s is not an owner of dataset %s and therefore cannot clone it."%(user_id, dataset_id))
+
+    DBSession.expunge(dataset)
+
+    make_transient(dataset)
+
+    dataset.data_name = dataset.data_name + "(Clone)"
+    dataset.dataset_id = None
+    dataset.cr_date = None
+
+    #Try to avoid duplicate metadata entries if the entry has been cloned previously
+    for m in dataset.metadata:
+        if m.metadata_name in ("clone_of", "cloned_by"):
+            del(m)
+
+    cloned_meta = Metadata()
+    cloned_meta.metadata_name = "clone_of"
+    cloned_meta.metadata_val  = str(dataset_id)
+    dataset.metadata.append(cloned_meta)
+    cloned_meta = Metadata()
+    cloned_meta.metadata_name = "cloned_by"
+    cloned_meta.metadata_val  = str(user_id)
+    dataset.metadata.append(cloned_meta)
+
+    dataset.set_hash()
+    DBSession.add(dataset)
+    DBSession.flush()
+
+    cloned_dataset = DBSession.query(Dataset).filter(
+            Dataset.dataset_id==dataset.dataset_id).first()
+
+    return cloned_dataset
 
 def get_datasets(dataset_ids,**kwargs):
     """

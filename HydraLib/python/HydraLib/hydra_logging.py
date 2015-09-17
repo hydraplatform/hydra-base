@@ -61,7 +61,7 @@ def init(level=None):
 
     use_default = False
     try:
-        config_file = os.path.expanduser(config.get('logging_conf', 'log_config_path'))
+        config_file = os.path.expanduser(config.get('logging_conf', 'log_config_path', '.'))
         #check the config file exists...
         if os.path.isfile(config_file):
             logging.config.fileConfig(config_file)
