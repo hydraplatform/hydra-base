@@ -20,6 +20,7 @@ from operator import mul
 from HydraException import HydraError
 import numpy as np
 import pandas as pd
+import re
 from hydra_dateutil import get_datetime
 log = logging.getLogger(__name__)
 
@@ -593,9 +594,10 @@ def validate_value(restriction_dict, inval):
             func(inval, restriction)
     except ValidationError, e:
         log.exception(e)
-        if len(str(inval)) > 100:
-            val = "%s..."%str(inval)[:100]
-        raise HydraError("Validation error (%s). Val %s does not conform with rule %s"                          %(restriction_type, val, e.message))
+        err_val = re.sub('\s+', ' ', str(inval)).strip()
+        if len(err_val) > 60:
+            val = "%s..."%err_val
+        raise HydraError("Validation error (%s). Val %s does not conform with rule %s"%(restriction_type, val, e.message))
     except Exception, e:
         log.exception(e)
         raise HydraError("An error occurred in validation. (%s)"%(e))
