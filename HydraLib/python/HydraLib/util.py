@@ -223,9 +223,9 @@ def validate_BOOLYN(value, restriction):
             if type(subval) is tuple:
                 subval = subval[1]
             validate_BOOLYN(subval, restriction)
-
-    if value not in ('Y', 'N'):
-        raise ValidationError("BOOLYN")
+    else:
+        if value not in ('Y', 'N'):
+            raise ValidationError("BOOLYN")
 
 
 def validate_BOOL10(value, restriction):
@@ -235,9 +235,9 @@ def validate_BOOL10(value, restriction):
             if type(subval) is tuple:
                 subval = subval[1]
             validate_BOOL10(subval, restriction)
-
-    if value not in (1, 0):
-        raise ValidationError("BOOL10")
+    else:
+        if value not in (1, 0):
+            raise ValidationError("BOOL10")
 
 def validate_NUMPLACES(value, restriction):
     """
@@ -255,12 +255,12 @@ def validate_NUMPLACES(value, restriction):
             if type(subval) is tuple:
                 subval = subval[1]
             validate_NUMPLACES(subval, restriction)
-
-    restriction = int(restriction) # Just in case..
-    dec_val = Decimal(value)
-    num_places = dec_val.as_tuple().exponent * -1 #exponent returns a negative num
-    if restriction != num_places:
-        raise ValidationError("NUMPLACES: %s"%(num_places))
+    else:
+        restriction = int(restriction) # Just in case..
+        dec_val = Decimal(value)
+        num_places = dec_val.as_tuple().exponent * -1 #exponent returns a negative num
+        if restriction != num_places:
+            raise ValidationError("NUMPLACES: %s"%(num_places))
 
 def validate_VALUERANGE(value, restriction):
     """
@@ -276,12 +276,12 @@ def validate_VALUERANGE(value, restriction):
             if type(subval) is tuple:
                 subval = subval[1]
             validate_VALUERANGE(subval, restriction)
-
-    min_val = Decimal(restriction[0])
-    max_val = Decimal(restriction[1])
-    val     = Decimal(value)
-    if val < min_val or val > max_val:
-        raise ValidationError("VALUERANGE: %s, %s"%(min_val, max_val))
+    else:
+        min_val = Decimal(restriction[0])
+        max_val = Decimal(restriction[1])
+        val     = Decimal(value)
+        if val < min_val or val > max_val:
+            raise ValidationError("VALUERANGE: %s, %s"%(min_val, max_val))
 
 def validate_DATERANGE(value, restriction):
     """
@@ -317,6 +317,8 @@ def validate_MAXLEN(value, restriction):
     #Making them a list, not a number. Rather than blowing up, just get value 1 from the list.
     if type(restriction) is list:
         restriction = restriction[0]
+    else:
+        return
 
     if len(value) > restriction:
         raise ValidationError("MAXLEN: %s"%(restriction))
@@ -337,9 +339,9 @@ def validate_EQUALTO(value, restriction):
             if type(subval) is tuple:
                 subval = subval[1]
             validate_EQUALTO(subval, restriction)
-
-    if value != restriction:
-        raise ValidationError("EQUALTO: %s"%(restriction))
+    else:
+        if value != restriction:
+            raise ValidationError("EQUALTO: %s"%(restriction))
 
 def validate_NOTEQUALTO(value, restriction):
     """
@@ -357,9 +359,9 @@ def validate_NOTEQUALTO(value, restriction):
             if type(subval) is tuple:
                 subval = subval[1]
             validate_NOTEQUALTO(subval, restriction)
-
-    if value == restriction:
-        raise ValidationError("NOTEQUALTO: %s"%(restriction))
+    else:
+        if value == restriction:
+            raise ValidationError("NOTEQUALTO: %s"%(restriction))
 
 def validate_LESSTHAN(value, restriction):
     """
@@ -377,9 +379,9 @@ def validate_LESSTHAN(value, restriction):
             if type(subval) is tuple:
                 subval = subval[1]
             validate_LESSTHAN(subval, restriction)
-
-    if value >= restriction:
-        raise ValidationError("LESSTHAN: %s"%(restriction))
+    else:
+        if value >= restriction:
+            raise ValidationError("LESSTHAN: %s"%(restriction))
 
 
 def validate_LESSTHANEQ(value, restriction):
@@ -398,9 +400,9 @@ def validate_LESSTHANEQ(value, restriction):
             if type(subval) is tuple:
                 subval = subval[1]
             validate_LESSTHANEQ(subval, restriction)
-
-    if value > restriction:
-        raise ValidationError("LESSTHANEQ: %s"%(restriction))
+    else:
+        if value > restriction:
+            raise ValidationError("LESSTHANEQ: %s"%(restriction))
 
 def validate_GREATERTHAN(value, restriction):
     """
@@ -418,9 +420,9 @@ def validate_GREATERTHAN(value, restriction):
             if type(subval) is tuple:
                 subval = subval[1]
             validate_GREATERTHAN(subval, restriction)
-
-    if value <= restriction:
-        raise ValidationError("GREATERTHAN: %s"%(restriction))
+    else:
+        if value <= restriction:
+            raise ValidationError("GREATERTHAN: %s"%(restriction))
 
 def validate_GREATERTHANEQ(value, restriction):
     """
@@ -438,9 +440,9 @@ def validate_GREATERTHANEQ(value, restriction):
             if type(subval) is tuple:
                 subval = subval[1]
             validate_GREATERTHANEQ(subval, restriction)
-
-    if value < restriction:
-        raise ValidationError("GREATERTHANEQ: %s"%(restriction))
+    else:
+        if value < restriction:
+            raise ValidationError("GREATERTHANEQ: %s"%(restriction))
 
 def validate_MULTIPLEOF(value, restriction):
     """
@@ -458,8 +460,9 @@ def validate_MULTIPLEOF(value, restriction):
             if type(subval) is tuple:
                 subval = subval[1]
             validate_MULTIPLEOF(subval, restriction)
-    if value % restriction != 0:
-        raise ValidationError("MULTIPLEOF: %s"%(restriction))
+    else:
+        if value % restriction != 0:
+            raise ValidationError("MULTIPLEOF: %s"%(restriction))
 
 def validate_SUMTO(value, restriction):
     """
@@ -533,7 +536,7 @@ def validate_EQUALTIMESTEPS(value, restriction):
         return
 
     if type(value) == pd.DataFrame:
-        if value.index[0].startswith('9999'):
+        if str(value.index[0]).startswith('9999'):
             tmp_val = value.to_json().replace('9999', '1900')
             value = pd.read_json(tmp_val)
    
