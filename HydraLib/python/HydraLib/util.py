@@ -261,7 +261,7 @@ def validate_NUMPLACES(value, restriction):
         dec_val = Decimal(value)
         num_places = dec_val.as_tuple().exponent * -1 #exponent returns a negative num
         if restriction != num_places:
-            raise ValidationError("NUMPLACES: %s"%(num_places))
+            raise ValidationError("NUMPLACES: %s"%(restriction))
 
 def validate_VALUERANGE(value, restriction):
     """
@@ -323,6 +323,26 @@ def validate_MAXLEN(value, restriction):
 
     if len(value) > restriction:
         raise ValidationError("MAXLEN: %s"%(restriction))
+
+def validate_NOTNULL(value, restriction):
+    """
+        Restriction is not used here. It is just present to be
+        in line with all the other validation functions
+
+    """
+
+    if value is None or str(value).lower == 'null':
+        raise ValidationError("NOTNULL")
+
+def validate_ISNULL(value, restriction):
+    """
+        Restriction is not used here. It is just present to be
+        in line with all the other validation functions
+
+    """
+    
+    if value is not None and str(value).lower != 'null':
+        raise ValidationError("ISNULL")
 
 def validate_EQUALTO(value, restriction):
     """
@@ -580,6 +600,8 @@ validation_func_map = dict(
     INCREASING = validate_INCREASING,
     DECREASING = validate_DECREASING,
     EQUALTIMESTEPS = validate_EQUALTIMESTEPS,
+    NOTNULL        = validate_NOTNULL,
+    ISNULL         = validate_ISNULL,
 )
 
 def validate_value(restriction_dict, inval):
