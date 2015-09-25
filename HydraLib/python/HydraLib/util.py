@@ -618,8 +618,8 @@ def validate_value(restriction_dict, inval):
         log.exception(e)
         err_val = re.sub('\s+', ' ', str(inval)).strip()
         if len(err_val) > 60:
-            val = "%s..."%err_val
-        raise HydraError("Validation error (%s). Val %s does not conform with rule %s"%(restriction_type, val, e.message))
+            err_val = "%s..."%err_val[:60]
+        raise HydraError("Validation error (%s). Val %s does not conform with rule %s"%(restriction_type, err_val, e.message))
     except Exception, e:
         log.exception(e)
         raise HydraError("An error occurred in validation. (%s)"%(e))
