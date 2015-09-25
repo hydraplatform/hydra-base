@@ -397,6 +397,30 @@ class DataCollectionTest(server.SoapServerTest):
         assert newly_added_collection.id is not None, "Dataset collection does not have an ID!"
         assert len(newly_added_collection.dataset_ids.integer) == 2, "Dataset collection does not have any items!"  
 
+        return newly_added_collection
+
+    def test_delete_collection(self):
+        #Make a collection
+        collection = self.test_add_collection()
+
+        #Get all collections and make sure this collection is present
+        all_collections_pre = self.client.service.get_all_dataset_collections(collection)
+
+        all_collection_ids_pre = [c.id for c in all_collections_pre.DatasetCollection]
+
+        assert collection.id in all_collection_ids_pre
+        
+        #Delete the collection
+        self.client.service.delete_dataset_collection(collection.id)
+
+        #Get all the collections again and make sure the deleted collection is not present
+        all_collections_post = self.client.service.get_all_dataset_collections(collection)
+        all_collection_ids_post = [c.id for c in all_collections_post.DatasetCollection]
+
+        assert collection.id not in all_collection_ids_post
+
+        self.assertRaises(WebFault, self.client.service.get_dataset_collection, collection.id)
+
     def test_get_all_collections(self):
         
         network = self.create_network_with_data(ret_full_net = False)

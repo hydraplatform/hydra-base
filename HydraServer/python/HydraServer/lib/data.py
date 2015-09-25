@@ -907,6 +907,16 @@ def add_dataset_collection(collection,**kwargs):
     DBSession.flush()
     return coln_i
 
+def delete_dataset_collection(collection_id,**kwargs):
+
+    try:
+        collection = DBSession.query(DatasetCollection).filter(DatasetCollection.collection_id==collection_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError("No dataset collection found with id %s"%collection_id)
+
+    DBSession.delete(collection)
+    DBSession.flush()
+
 def get_collections_like_name(collection_name,**kwargs):
     """
         Get all the datasets from the collection with the specified name
