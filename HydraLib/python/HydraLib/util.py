@@ -96,15 +96,27 @@ def _get_val(val, full=False):
         val = val.strip()
     except:
         pass
-    
-    try: 
-        val = int(val)
+
+    logging.debug("%s, type=%s", val, type(val))
+
+    if isinstance(val, float):
+        return val
+
+    if isinstance(val, int):
+        return val
+
+
+    if isinstance(val, np.ndarray):
+        return list(val)
+
+    try:
+        val = float(val)
         return val
     except:
         pass
 
-    try:
-        val = float(val)
+    try: 
+        val = int(val)
         return val
     except:
         pass
@@ -124,7 +136,7 @@ def _get_val(val, full=False):
                 newval.append(newv)
         val = newval
 
-    if type(val) == dict:
+    elif type(val) == dict:
         
         if full:
             return val
@@ -196,13 +208,13 @@ class ValidationError(Exception):
     pass
 
 
-def validate_ENUM(value, restriction):
+def validate_ENUM(in_value, restriction):
     """
         Test to ensure that the given value is contained in the provided list.
         the value parameter must be either a single value or a 1-dimensional list.
         All the values in this list must satisfy the ENUM
     """
-    value = _get_val(value)
+    value = _get_val(in_value)
     if type(value) is list:
         for subval in value:
             if type(subval) is tuple:
@@ -212,13 +224,13 @@ def validate_ENUM(value, restriction):
         if value not in restriction:
             raise ValidationError("ENUM : %s"%(restriction))
 
-def validate_BOOLYN(value, restriction):
+def validate_BOOLYN(in_value, restriction):
     """
         Restriction is not used here. It is just present to be
         in line with all the other validation functions
 
     """
-    value = _get_val(value)
+    value = _get_val(in_value)
     if type(value) is list:
         for subval in value:
             if type(subval) is tuple:
@@ -240,7 +252,7 @@ def validate_BOOL10(value, restriction):
         if value not in (1, 0):
             raise ValidationError("BOOL10")
 
-def validate_NUMPLACES(value, restriction):
+def validate_NUMPLACES(in_value, restriction):
     """
         the value parameter must be either a single value or a 1-dimensional list.
         All the values in this list must satisfy the condition
@@ -250,7 +262,7 @@ def validate_NUMPLACES(value, restriction):
     if type(restriction) is list:
         restriction = restriction[0]
 
-    value = _get_val(value)
+    value = _get_val(in_value)
     if type(value) is list:
         for subval in value:
             if type(subval) is tuple:
@@ -258,12 +270,12 @@ def validate_NUMPLACES(value, restriction):
             validate_NUMPLACES(subval, restriction)
     else:
         restriction = int(restriction) # Just in case..
-        dec_val = Decimal(value)
+        dec_val = Decimal(str(value))
         num_places = dec_val.as_tuple().exponent * -1 #exponent returns a negative num
         if restriction != num_places:
             raise ValidationError("NUMPLACES: %s"%(restriction))
 
-def validate_VALUERANGE(value, restriction):
+def validate_VALUERANGE(in_value, restriction):
     """
         Test to ensure that a value sits between a lower and upper bound.
         Parameters: A Decimal value and a tuple, containing a lower and upper bound,
@@ -271,7 +283,7 @@ def validate_VALUERANGE(value, restriction):
     """
     if len(restriction) != 2:
         raise ValidationError("Template ERROR: Only two values can be specified in a date range.")
-    value = _get_val(value)
+    value = _get_val(in_value)
     if type(value) is list:
         for subval in value:
             if type(subval) is tuple:
@@ -344,7 +356,7 @@ def validate_ISNULL(value, restriction):
     if value is not None and str(value).lower != 'null':
         raise ValidationError("ISNULL")
 
-def validate_EQUALTO(value, restriction):
+def validate_EQUALTO(in_value, restriction):
     """
         Test to ensure that a value is equal to a prescribed value.
         Parameter: Two values, which will be compared for equality.
@@ -354,7 +366,7 @@ def validate_EQUALTO(value, restriction):
     if type(restriction) is list:
         restriction = restriction[0]
 
-    value = _get_val(value)
+    value = _get_val(in_value)
     if type(value) is list:
         for subval in value:
             if type(subval) is tuple:
@@ -364,7 +376,7 @@ def validate_EQUALTO(value, restriction):
         if value != restriction:
             raise ValidationError("EQUALTO: %s"%(restriction))
 
-def validate_NOTEQUALTO(value, restriction):
+def validate_NOTEQUALTO(in_value, restriction):
     """
         Test to ensure that a value is NOT equal to a prescribed value.
         Parameter: Two values, which will be compared for non-equality.
@@ -374,7 +386,7 @@ def validate_NOTEQUALTO(value, restriction):
     if type(restriction) is list:
         restriction = restriction[0]
 
-    value = _get_val(value)
+    value = _get_val(in_value)
     if type(value) is list:
         for subval in value:
             if type(subval) is tuple:
@@ -384,7 +396,7 @@ def validate_NOTEQUALTO(value, restriction):
         if value == restriction:
             raise ValidationError("NOTEQUALTO: %s"%(restriction))
 
-def validate_LESSTHAN(value, restriction):
+def validate_LESSTHAN(in_value, restriction):
     """
         Test to ensure that a value is less than a prescribed value.
         Parameter: Two values, which will be compared for the difference..
@@ -394,7 +406,7 @@ def validate_LESSTHAN(value, restriction):
     if type(restriction) is list:
         restriction = restriction[0]
 
-    value = _get_val(value)
+    value = _get_val(in_value)
     if type(value) is list:
         for subval in value:
             if type(subval) is tuple:
@@ -425,7 +437,7 @@ def validate_LESSTHANEQ(value, restriction):
         if value > restriction:
             raise ValidationError("LESSTHANEQ: %s"%(restriction))
 
-def validate_GREATERTHAN(value, restriction):
+def validate_GREATERTHAN(in_value, restriction):
     """
         Test to ensure that a value is greater than a prescribed value.
         Parameter: Two values, which will be compared for the difference..
@@ -435,7 +447,7 @@ def validate_GREATERTHAN(value, restriction):
     if type(restriction) is list:
         restriction = restriction[0]
 
-    value = _get_val(value)
+    value = _get_val(in_value)
     if type(value) is list:
         for subval in value:
             if type(subval) is tuple:
@@ -465,7 +477,7 @@ def validate_GREATERTHANEQ(value, restriction):
         if value < restriction:
             raise ValidationError("GREATERTHANEQ: %s"%(restriction))
 
-def validate_MULTIPLEOF(value, restriction):
+def validate_MULTIPLEOF(in_value, restriction):
     """
         Test to ensure that a value is a multiple of a specified restriction value.
         Parameters: Numeric value and an integer
@@ -475,7 +487,7 @@ def validate_MULTIPLEOF(value, restriction):
     if type(restriction) is list:
         restriction = restriction[0]
 
-    value = _get_val(value)
+    value = _get_val(in_value)
     if type(value) is list:
         for subval in value:
             if type(subval) is tuple:
@@ -485,7 +497,7 @@ def validate_MULTIPLEOF(value, restriction):
         if value % restriction != 0:
             raise ValidationError("MULTIPLEOF: %s"%(restriction))
 
-def validate_SUMTO(value, restriction):
+def validate_SUMTO(in_value, restriction):
     """
         Test to ensure the values of a list sum to a specified value:
         Parameters: a list of numeric values and a target to which the values
@@ -496,7 +508,7 @@ def validate_SUMTO(value, restriction):
     if type(restriction) is list:
         restriction = restriction[0]
         
-    value = _get_val(value, full=True)
+    value = _get_val(in_value, full=True)
 
     if len(value) == 0:
         return
@@ -511,14 +523,14 @@ def validate_SUMTO(value, restriction):
     if sum(flat_list) != restriction:
         raise ValidationError("SUMTO: %s"%(restriction))
 
-def validate_INCREASING(value,restriction):
+def validate_INCREASING(in_value,restriction):
     """
         Test to ensure the values in a list are increasing.
         Parameters: a list of values and None. The none is there simply
         to conform with the rest of the validation routines.
     """
 
-    flat_list = _flatten_value(value)
+    flat_list = _flatten_value(in_value)
 
     previous = None
     for a in flat_list:
@@ -529,13 +541,13 @@ def validate_INCREASING(value,restriction):
             raise ValidationError("INCREASING")
         previous = a
 
-def validate_DECREASING(value,restriction):
+def validate_DECREASING(in_value,restriction):
     """
         Test to ensure the values in a list are decreasing.
         Parameters: a list of values and None. The none is there simply
         to conform with the rest of the validation routines.
     """
-    flat_list = _flatten_value(value)
+    flat_list = _flatten_value(in_value)
 
     previous = None
     for a in flat_list:
