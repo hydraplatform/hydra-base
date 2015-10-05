@@ -113,6 +113,12 @@ def validate_template(template_file, connection):
 
     log.info('Validating template file (%s).' % template_file)
 
+    #Check for duplicate attributes on a single resource and for duplicate attribute names
+    #but with different capitalisation
+    warnings = []
+    errors = []
+    attribute_names = []
+
     with open(template_file) as f:
         xml_template = f.read()
 
@@ -135,6 +141,9 @@ def validate_template(template_file, connection):
     attributes = []
 
     for r in xml_tree.find('resources'):
+        #keep track of resource attribute names to make sure there's no duplicates
+        resource_attr_names = []
+
         resource_dict = {}
         resource_name = r.find('name').text
         resource_type = r.find('type').text
@@ -145,8 +154,28 @@ def validate_template(template_file, connection):
             attr_dict = {}
             attr_name = attr.find('name').text
             attr_dict['name'] = attr_name
-            if attr.find('dimension') is not None:
-                attr_dict['dimension'] = attr.find('dimension').text
+
+            #Check for inconsistent capitalisation
+            if attr_name not in attribute_names and attr_name.lower().replace(" ", "") in attribute_names:
+                warnings.append("A similar Attribute to %s is already specified in the template. Are you sure your spelling is correct?"%(attr_name))
+            else:
+                attribute_names.append(attr_name.lower().replace(" ", ""))
+            #Check for duplicate attribute names on a resource
+            if attr_name.lower() in resource_attr_names:
+                errors.append("Attribute %s specified multiple times on resource %s"%(attr_name, resource_name))
+            else:
+                resource_attr_names.append(attr_name.lower())
+
+            attribute_names.append(attr_name)
+
+            if attr.find('dimension') is not None and attr.find('dimension').text is not None:
+                dimension = attr.find('dimension').text
+                if dimension.lower() == 'dimensionless':
+                    dimension = 'dimensionless' 
+                attr_dict['dimension'] = dimension
+            else:
+                attr_dict['dimension'] = 'dimensionless'
+
             if attr.find('unit') is not None:
                 attr_dict['unit'] = attr.find('unit').text
             if attr.find('is_var') is not None:
@@ -169,7 +198,9 @@ def validate_template(template_file, connection):
             template_dict['resources'][resource_type] = {resource_name:
                                                          resource_dict}
 
+    #Of the attributes in the template, get the ones that exist on the server
     stored_attrs = connection.call('get_attributes', {'attrs': attributes})
+
     attr_dict = {}
     for a in stored_attrs:
         if a:
@@ -186,4 +217,4 @@ def validate_template(template_file, connection):
 
     log.info("Template OK")
 
-    return template_dict
+    return template_dict, warnings, errors

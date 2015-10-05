@@ -21,7 +21,6 @@ between units and dimensions.
 
 import os
 from copy import deepcopy
-from ConfigParser import NoSectionError
 from HydraLib.HydraException import HydraError
 
 import config
@@ -343,7 +342,7 @@ def validate_resource_attributes(resource, attributes, template, check_unit=True
     if resource.get('x') is not None:
         res_type = 'NODE'
     elif resource.get('node_1_id') is not None:
-       res_type = 'LINK'
+        res_type = 'LINK'
     elif resource.get('nodes') is not None:
         res_type = 'NETWORK'
 

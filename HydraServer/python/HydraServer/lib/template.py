@@ -120,7 +120,7 @@ def parse_attribute(attribute):
 
     name      = attribute.find('name').text.strip()
     
-    attr = _get_attr_by_name_and_dimension(name, dimension)
+    attr = _get_attr_by_name_and_validate_(name, dimension)
 
     DBSession.flush()
 

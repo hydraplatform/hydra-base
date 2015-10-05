@@ -159,7 +159,7 @@ def add_attributes(attrs,**kwargs):
     attrs_to_add = []
     existing_attrs = []
     for potential_new_attr in attrs:
-        if potential_new_attr.dimen is None:
+        if potential_new_attr.dimen is None or potential_new_attr.dimen.lower() == 'dimensionless':
             potential_new_attr.dimen = 'dimensionless'
 
         if attr_dict.get((potential_new_attr.name, potential_new_attr.dimen)) is None:
