@@ -177,7 +177,7 @@ class ScenarioService(HydraService):
             Remove the data associated with a resource in a scenario.
         """
         success = 'OK'
-        scenario.delete_resourcescenario(scenario_id,
+        scenario.delete_resourcedata(scenario_id,
                                          resource_scenario,
                                          **ctx.in_header.__dict__)
         return success

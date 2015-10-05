@@ -9,7 +9,7 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
@@ -39,7 +39,7 @@ class TimeSeriesTest(server.SoapServerTest):
         for rs in s['resourcescenarios'].ResourceScenario:
             if rs['value']['type'] == 'timeseries':
                 rs['value']['value'] = relative_ts
-        
+
         new_network_summary = self.client.service.add_network(net)
         new_net = self.client.service.get_network(new_network_summary.id)
 
@@ -52,7 +52,7 @@ class TimeSeriesTest(server.SoapServerTest):
                 client_ts   = json.loads(relative_ts)['0']
                 for new_timestep in client_ts.keys():
                     assert ret_ts_dict.get(new_timestep) == client_ts[new_timestep]
-        
+
         return new_net
 
     def test_arbitrary_timeseries(self):
@@ -63,8 +63,8 @@ class TimeSeriesTest(server.SoapServerTest):
         s = net['scenarios'].Scenario[0]
         for rs in s['resourcescenarios'].ResourceScenario:
             if rs['value']['type'] == 'timeseries':
-                rs['value']['value'] =arbitrary_ts 
-        
+                rs['value']['value'] =arbitrary_ts
+
         new_network_summary = self.client.service.add_network(net)
         new_net = self.client.service.get_network(new_network_summary.id)
 
@@ -105,7 +105,7 @@ class TimeSeriesTest(server.SoapServerTest):
             'minutes',
             )
 
-        assert eval(invalid_qry.data) == [] 
+        assert eval(invalid_qry.data) == []
 
     def test_seasonal_timeseries(self):
         net = self.build_network()
@@ -116,10 +116,10 @@ class TimeSeriesTest(server.SoapServerTest):
         for rs in s['resourcescenarios'].ResourceScenario:
             if rs['value']['type'] == 'timeseries':
                 rs['value']['value'] = relative_ts
-        
+
         new_network_summary = self.client.service.add_network(net)
         new_net = self.client.service.get_network(new_network_summary.id)
-        
+
         scenario = new_net.scenarios.Scenario[0]
         val_to_query = None
         for d in scenario.resourcescenarios.ResourceScenario:
@@ -145,13 +145,13 @@ class TimeSeriesTest(server.SoapServerTest):
             val_to_query.id,
             datetime.datetime(2000, 10, 10, 00, 00, 00)
            )
-        
+
         local_val = json.loads(val_to_query.value).values()[0]
         assert json.loads(jan_val.data) == local_val['9999-01-01']
         assert json.loads(feb_val.data) == local_val['9999-02-01']
         assert json.loads(mar_val.data) == local_val['9999-03-01']
         assert json.loads(oct_val.data) == local_val['9999-03-01']
-        
+
         start_time = datetime.datetime(2000, 07, 10, 00, 00, 00)
         vals = self.client.service.get_vals_between_times(
             val_to_query.id,
@@ -178,10 +178,10 @@ class TimeSeriesTest(server.SoapServerTest):
         for rs in s['resourcescenarios'].ResourceScenario:
             if rs['value']['type'] == 'timeseries':
                 rs['value']['value'] = relative_ts
-        
+
         new_network_summary = self.client.service.add_network(net)
         new_net = self.client.service.get_network(new_network_summary.id)
-        
+
         scenario = new_net.scenarios.Scenario[0]
         val_to_query = None
         for d in scenario.resourcescenarios.ResourceScenario:
@@ -212,7 +212,7 @@ class TimeSeriesTest(server.SoapServerTest):
         assert return_val[str(qry_times[1])] == dataset_vals['9999-02-01']
         assert return_val[str(qry_times[2])] == dataset_vals['9999-03-01']
         assert return_val[str(qry_times[3])] == dataset_vals['9999-03-01']
-        
+
         start_time = datetime.datetime(2000, 07, 10, 00, 00, 00)
         vals = self.client.service.get_vals_between_times(
             val_to_query.id,
@@ -284,17 +284,17 @@ class TimeSeriesTest(server.SoapServerTest):
             Create a timeseries which has relative timesteps:
             1, 2, 3 as opposed to timestamps
         """
-        t1 ='9999-01-01' 
-        t2 ='9999-02-01' 
-        t3 ='9999-03-01' 
-        val_1 = [[[1, 2, "hello"], [5, 4, 6]], [[10, 20, 30], [40, 50, 60]], [[9,8,7],[6,5,4]]] 
+        t1 ='9999-01-01'
+        t2 ='9999-02-01'
+        t3 ='9999-03-01'
+        val_1 = [[[1, 2, "hello"], [5, 4, 6]], [[10, 20, 30], [40, 50, 60]], [[9,8,7],[6,5,4]]]
 
         val_2 = ["1.0", "2.0", "3.0"]
         val_3 = ["3.0", "", ""]
 
         timeseries = json.dumps({0:{t1:val_1, t2:val_2, t3:val_3}})
 
-        return timeseries 
+        return timeseries
 
     def create_relative_timeseries(self):
         """
@@ -314,7 +314,7 @@ class TimeSeriesTest(server.SoapServerTest):
 
         timeseries = json.dumps({0:{t1:val_1, t2:val_2, t3:val_3}})
 
-        return timeseries 
+        return timeseries
 
     def create_arbitrary_timeseries(self):
         """
@@ -330,7 +330,7 @@ class TimeSeriesTest(server.SoapServerTest):
 
         timeseries = json.dumps({0:{t1:val_1, t2:val_2, t3:val_3}})
 
-        return timeseries 
+        return timeseries
 
 #Commented out because an imbalanced array is now allowed. We may add checks
 #for this at a later date if needed, but for now we are going to leave such
@@ -343,13 +343,13 @@ class TimeSeriesTest(server.SoapServerTest):
 #        for rs in s['resourcescenarios'].ResourceScenario:
 #            if rs['value']['type'] == 'array':
 #                rs['value']['value'] = json.dumps([[1, 2] ,[3, 4, 5]])
-#        
+#
 #        self.assertRaises(WebFault, self.client.service.add_network,bad_net)
-#        
+#
 #        net = self.build_network()
 #        n = self.client.service.add_network(net)
 #        good_net = self.client.service.get_network(n.id)
-#        
+#
 #        s = good_net.scenarios.Scenario[0]
 #        for rs in s.resourcescenarios.ResourceScenario:
 #            if rs.value.type == 'array':
@@ -361,22 +361,22 @@ class DataCollectionTest(server.SoapServerTest):
 
     def test_get_collections_like_name(self):
         collections = self.client.service.get_collections_like_name('test')
- 
+
         assert len(collections) > 0; "collections were not retrieved correctly!"
-   
+
     def test_get_collection_datasets(self):
         collections = self.client.service.get_collections_like_name('test')
-        
+
         datasets = self.client.service.get_collection_datasets(collections.DatasetCollection[-1].id)
- 
+
         assert len(datasets) > 0, "Datasets were not retrieved correctly!"
 
     def test_add_collection(self):
-        
+
         network = self.create_network_with_data(ret_full_net = False)
 
         scenario_id = network.scenarios.Scenario[0].id
-        
+
         scenario_data = self.client.service.get_scenario_data(scenario_id)
 
         collection = self.client.factory.create('ns1:DatasetCollection')
@@ -389,13 +389,13 @@ class DataCollectionTest(server.SoapServerTest):
                 grp_dataset_ids.integer.append(d.id)
                 break
 
-        collection.dataset_ids = grp_dataset_ids 
+        collection.dataset_ids = grp_dataset_ids
         collection.name  = 'test soap collection %s'%(datetime.datetime.now())
 
         newly_added_collection = self.client.service.add_dataset_collection(collection)
 
         assert newly_added_collection.id is not None, "Dataset collection does not have an ID!"
-        assert len(newly_added_collection.dataset_ids.integer) == 2, "Dataset collection does not have any items!"  
+        assert len(newly_added_collection.dataset_ids.integer) == 2, "Dataset collection does not have any items!"
 
         return newly_added_collection
 
@@ -409,7 +409,7 @@ class DataCollectionTest(server.SoapServerTest):
         all_collection_ids_pre = [c.id for c in all_collections_pre.DatasetCollection]
 
         assert collection.id in all_collection_ids_pre
-        
+
         #Delete the collection
         self.client.service.delete_dataset_collection(collection.id)
 
@@ -422,11 +422,11 @@ class DataCollectionTest(server.SoapServerTest):
         self.assertRaises(WebFault, self.client.service.get_dataset_collection, collection.id)
 
     def test_get_all_collections(self):
-        
+
         network = self.create_network_with_data(ret_full_net = False)
 
         scenario_id = network.scenarios.Scenario[0].id
-        
+
         scenario_data = self.client.service.get_scenario_data(scenario_id)
 
         collection = self.client.factory.create('ns1:DatasetCollection')
@@ -439,7 +439,7 @@ class DataCollectionTest(server.SoapServerTest):
                 grp_dataset_ids.integer.append(d.id)
                 break
 
-        collection.dataset_ids = grp_dataset_ids 
+        collection.dataset_ids = grp_dataset_ids
         collection.name  = 'test soap collection %s'%(datetime.datetime.now())
 
         newly_added_collection = self.client.service.add_dataset_collection(collection)
@@ -447,11 +447,11 @@ class DataCollectionTest(server.SoapServerTest):
         assert newly_added_collection.id in [g.id for g in collections.DatasetCollection]
 
     def test_add_dataset_to_collection(self):
-        
+
         network = self.create_network_with_data(ret_full_net = False)
 
         scenario_id = network.scenarios.Scenario[0].id
-        
+
         scenario_data = self.client.service.get_scenario_data(scenario_id)
 
         collection = self.client.factory.create('ns1:DatasetCollection')
@@ -463,47 +463,47 @@ class DataCollectionTest(server.SoapServerTest):
             if d.type == 'timeseries' and d.id != dataset_id:
                 grp_dataset_ids.integer.append(d.id)
                 break
-        
+
         dataset_id_to_add = None
         for d in scenario_data.Dataset:
             if d.type == 'array' and d.id != dataset_id:
                 dataset_id_to_add = d.id
                 break
 
-        collection.dataset_ids = grp_dataset_ids 
+        collection.dataset_ids = grp_dataset_ids
         collection.name  = 'test soap collection %s'%(datetime.datetime.now())
 
         newly_added_collection = self.client.service.add_dataset_collection(collection)
-        
+
         previous_dataset_ids = []
         for d_id in newly_added_collection.dataset_ids.integer:
             previous_dataset_ids.append(d_id)
-        
+
         #This acts as a test for the 'check_dataset_in_collection' code
         assert self.client.service.check_dataset_in_collection(dataset_id_to_add, newly_added_collection.id) == 'N'
         assert self.client.service.check_dataset_in_collection(99999, newly_added_collection.id) == 'N'
         self.assertRaises(WebFault, self.client.service.check_dataset_in_collection, 99999, 99999)
 
         self.client.service.add_dataset_to_collection(dataset_id_to_add, newly_added_collection.id)
-        
+
         assert self.client.service.check_dataset_in_collection(dataset_id_to_add, newly_added_collection.id) == 'Y'
-        
+
         updated_collection = self.client.service.get_dataset_collection(newly_added_collection.id)
-        
+
         new_dataset_ids = []
         for d_id in updated_collection.dataset_ids.integer:
             new_dataset_ids.append(d_id)
-        
+
         assert set(new_dataset_ids) - set(previous_dataset_ids) == set([dataset_id_to_add])
-        
+
 
 
     def test_add_datasets_to_collection(self):
-        
+
         network = self.create_network_with_data(ret_full_net = False)
 
         scenario_id = network.scenarios.Scenario[0].id
-        
+
         scenario_data = self.client.service.get_scenario_data(scenario_id)
 
         collection = self.client.factory.create('ns1:DatasetCollection')
@@ -515,38 +515,38 @@ class DataCollectionTest(server.SoapServerTest):
             if d.type == 'timeseries' and d.id != dataset_id:
                 grp_dataset_ids.integer.append(d.id)
                 break
-        
+
         dataset_ids_to_add = self.client.factory.create("intArray")
         for d in scenario_data.Dataset:
             if d.type == 'array' and d.id != dataset_id:
                 dataset_ids_to_add.int.append(d.id)
 
-        collection.dataset_ids = grp_dataset_ids 
+        collection.dataset_ids = grp_dataset_ids
         collection.name  = 'test soap collection %s'%(datetime.datetime.now())
 
         newly_added_collection = self.client.service.add_dataset_collection(collection)
-        
+
         previous_dataset_ids = []
         for d_id in newly_added_collection.dataset_ids.integer:
             previous_dataset_ids.append(d_id)
-        
+
         self.client.service.add_datasets_to_collection(dataset_ids_to_add, newly_added_collection.id)
-        
+
         updated_collection = self.client.service.get_dataset_collection(newly_added_collection.id)
-        
+
         new_dataset_ids = []
         for d_id in updated_collection.dataset_ids.integer:
             new_dataset_ids.append(d_id)
-        
+
         assert set(new_dataset_ids) - set(previous_dataset_ids) == set(dataset_ids_to_add.int)
-        
+
 
     def test_remove_dataset_from_collection(self):
-        
+
         network = self.create_network_with_data(ret_full_net = False)
 
         scenario_id = network.scenarios.Scenario[0].id
-        
+
         scenario_data = self.client.service.get_scenario_data(scenario_id)
 
         collection = self.client.factory.create('ns1:DatasetCollection')
@@ -558,26 +558,74 @@ class DataCollectionTest(server.SoapServerTest):
             if d.type == 'timeseries' and d.id != dataset_id:
                 grp_dataset_ids.integer.append(d.id)
                 break
-        
-        collection.dataset_ids = grp_dataset_ids 
+
+        collection.dataset_ids = grp_dataset_ids
         collection.name  = 'test soap collection %s'%(datetime.datetime.now())
 
         newly_added_collection = self.client.service.add_dataset_collection(collection)
-        
+
         previous_dataset_ids = []
         for d_id in newly_added_collection.dataset_ids.integer:
             previous_dataset_ids.append(d_id)
-        
+
         self.client.service.remove_dataset_from_collection(dataset_id, newly_added_collection.id)
-        
+
         updated_collection = self.client.service.get_dataset_collection(newly_added_collection.id)
-        
+
         new_dataset_ids = []
         for d_id in updated_collection.dataset_ids.integer:
             new_dataset_ids.append(d_id)
-        
+
         assert set(previous_dataset_ids) - set(new_dataset_ids) == set([dataset_id])
-        
+
+    def test_delete_dataset_thats_in_a_collection(self):
+
+        network = self.create_network_with_data(ret_full_net = True)
+
+        scenario_id = network.scenarios.Scenario[0].id
+
+        scenario_data = self.client.service.get_scenario_data(scenario_id)
+
+        collection = self.client.factory.create('ns1:DatasetCollection')
+
+        grp_dataset_ids = self.client.factory.create("integerArray")
+        dataset_id = None
+        grp_dataset_ids.integer.append(dataset_id)
+        for d in scenario_data.Dataset:
+            if dataset_id is None and d.type == 'timeseries':
+                dataset_id = d.id
+                grp_dataset_ids.integer.append(d.id)
+
+            if d.type == 'timeseries' and d.id != dataset_id:
+                grp_dataset_ids.integer.append(d.id)
+
+        collection.dataset_ids = grp_dataset_ids
+        collection.name  = 'test soap collection %s'%(datetime.datetime.now())
+
+        newly_added_collection = self.client.service.add_dataset_collection(collection)
+
+        #Make dataset_id into an orphaned dataset.
+        for rs in network.scenarios.Scenario[0].resourcescenarios.ResourceScenario:
+            if rs.dataset_id==dataset_id:
+                self.client.service.delete_resourcedata(scenario_id, rs)
+
+        new_collection = self.client.service.get_dataset_collection(newly_added_collection.id)
+
+        new_dataset_ids = []
+        for d_id in new_collection.dataset_ids.integer:
+            new_dataset_ids.append(d_id)
+
+        assert dataset_id in new_dataset_ids
+
+        self.client.service.delete_dataset(dataset_id)
+
+        updated_collection = self.client.service.get_dataset_collection(newly_added_collection.id)
+
+        updated_dataset_ids = []
+        for d_id in updated_collection.dataset_ids.integer:
+            updated_dataset_ids.append(d_id)
+        assert dataset_id not in updated_dataset_ids
+
 class SharingTest(server.SoapServerTest):
 
     def _get_project(self):
@@ -593,20 +641,20 @@ class SharingTest(server.SoapServerTest):
         """
 
         #One client is for the 'root' user and must remain open so it
-        #can be closed correctly in the tear down. 
+        #can be closed correctly in the tear down.
         old_client = self.client
         new_client = server.connect()
         self.client = new_client
 
         self.login("UserA", 'password')
-        
+
         network_1 = self.create_network_with_data()
 
         #Let User B view network 1, but not edit it (read_only is 'Y')
         self.client.service.share_network(network_1.id, ["UserB", "UserC"], 'Y')
-        
+
         scenario = network_1.scenarios.Scenario[0]
-        
+
         data = [x.value for x in scenario.resourcescenarios.ResourceScenario]
 
         data_to_hide = data[-1].id
@@ -616,10 +664,10 @@ class SharingTest(server.SoapServerTest):
         self.client.service.logout("UserA")
 
         self.login("UserB", 'password')
-       
+
         netA = self.client.service.get_network(network_1.id)
         scenario = netA.scenarios.Scenario[0]
-        
+
         data = [x.value for x in scenario.resourcescenarios.ResourceScenario]
 
         for d in data:
@@ -637,11 +685,11 @@ class SharingTest(server.SoapServerTest):
         self.login("UserC", 'password')
         #Check user C cannot see the dataset
         netB = self.client.service.get_network(network_1.id)
-        
+
         scenario = netB.scenarios.Scenario[0]
-        
+
         data = [x.value for x in scenario.resourcescenarios.ResourceScenario]
-        
+
         for d in data:
             if d.id == data_to_hide:
                 assert d.hidden == 'Y'
@@ -660,11 +708,11 @@ class SharingTest(server.SoapServerTest):
             test_replace_hidden_data
             Test for the case where one user hides data and another
             user sets the data to something else.
-            
+
             User A Creates a network with some data
             User A Hides the timeseries created.
             User A shares network with User B
-            
+
             Check user B cannot see timeseries value
             User B creates a new timeseries, and replaces the hidden one.
             Save network.
@@ -672,15 +720,15 @@ class SharingTest(server.SoapServerTest):
         """
 
         #One client is for the 'root' user and must remain open so it
-        #can be closed correctly in the tear down. 
+        #can be closed correctly in the tear down.
         old_client = self.client
         new_client = server.connect()
         self.client = new_client
 
         self.login("UserA", 'password')
-        
+
         network_1 = self.create_network_with_data()
-        
+
         network_1 = self.client.service.get_network(network_1.id)
         #Let User B view network 1, but not edit it (read_only is 'Y')
         self.client.service.share_network(network_1.id, ["UserB", "UserC"], 'N')
@@ -699,10 +747,10 @@ class SharingTest(server.SoapServerTest):
         self.client.service.logout("UserA")
 
         self.login("UserB", 'password')
-       
+
         netA = self.client.service.get_network(network_1.id)
         scenario = netA.scenarios.Scenario[0]
-        
+
         #Find the hidden piece of data and replace it with another
         #to simulate a case of two people working on one attribute
         #where one cannot see the value of it.
@@ -755,11 +803,11 @@ class SharingTest(server.SoapServerTest):
             test_edit_hidden_data
             Test for the case where one user hides data and another
             user sets the data to something else.
-            
+
             User A Creates a network with some data
             User A Hides the timeseries created.
             User A shares network with User B
-            
+
             Check user B cannot see timeseries value
             User B sets value of timeseries to something else.
             Save network.
@@ -767,13 +815,13 @@ class SharingTest(server.SoapServerTest):
         """
 
         #One client is for the 'root' user and must remain open so it
-        #can be closed correctly in the tear down. 
+        #can be closed correctly in the tear down.
         old_client = self.client
         new_client = server.connect()
         self.client = new_client
 
         self.login("UserA", 'password')
-        
+
         network_1 = self.create_network_with_data()
 
         #Let User B view network 1, but not edit it (read_only is 'Y')
@@ -793,10 +841,10 @@ class SharingTest(server.SoapServerTest):
         self.client.service.logout("UserA")
 
         self.login("UserB", 'password')
-       
+
         netA = self.client.service.get_network(network_1.id)
         scenario = netA.scenarios.Scenario[0]
-        
+
         #Find the hidden piece of data and replace it with another
         #to simulate a case of two people working on one attribute
         #where one cannot see the value of it.
@@ -854,7 +902,7 @@ class RetrievalTest(server.SoapServerTest):
     def _make_timeseries(self):
         t1 = datetime.datetime.now()
         t2 = t1+datetime.timedelta(hours=1)
-        
+
         t1 = t1.strftime(self.fmt)
         t2 = t2.strftime(self.fmt)
 
@@ -898,7 +946,7 @@ class RetrievalTest(server.SoapServerTest):
 
         retrieved_ds = self.client.service.get_datasets(dataset_ids)
         assert retrieved_ds is not None
-        
+
         assert str(dataset_1.value) == str(retrieved_ds.Dataset[0].value)
         assert str(dataset_2.value) == str(retrieved_ds.Dataset[1].value)
 
@@ -911,7 +959,7 @@ class RetrievalTest(server.SoapServerTest):
             a select few scenarios.
         """
         net = self.create_network_with_data()
-        scenario_id = net.scenarios.Scenario[0].id       
+        scenario_id = net.scenarios.Scenario[0].id
         node_id     = net.nodes.Node[0].id
         node_data = self.client.service.get_node_data(node_id, scenario_id)
         assert len(node_data) > 0
@@ -937,7 +985,7 @@ class RetrievalTest(server.SoapServerTest):
         attrarray.integer = [nodes[0].attributes.ResourceAttr[0].attr_id]
 
         attr_data = self.client.service.get_node_attribute_data(nodearray, attrarray)
-        #Check something has been returned 
+        #Check something has been returned
         assert attr_data.resourceattrs is not None
         assert attr_data.resourcescenarios is not None
 
@@ -979,12 +1027,12 @@ class RetrievalTest(server.SoapServerTest):
             value     = 'high',
             metadata = json.dumps({}),
         )
-        
+
         return descriptor
 
     def _create_array(self):
         arr = json.dumps([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])
-       
+
         metadata = {'created_by':'Test user'}
 
         dataset = dict(
@@ -995,7 +1043,7 @@ class RetrievalTest(server.SoapServerTest):
             dimension = 'Pressure',
             hidden = 'N',
             value = arr,
-            metadata = json.dumps(metadata), 
+            metadata = json.dumps(metadata),
         )
 
         return dataset
@@ -1009,7 +1057,7 @@ class RetrievalTest(server.SoapServerTest):
         t1 = t1.strftime(self.fmt)
         t2 = t2.strftime(self.fmt)
         t3 = t3.strftime(self.fmt)
-        
+
         val_1 = 1.234
         val_2 = 2.345
         val_3 = 3.456
@@ -1029,16 +1077,16 @@ class RetrievalTest(server.SoapServerTest):
             dimension = 'Volume',
             hidden = 'N',
             value = ts_val,
-            metadata = metadata_array, 
+            metadata = metadata_array,
         )
 
-        return dataset 
+        return dataset
 
     def test_data_search(self):
         """
             Test for the 'search_datasets' function.
 
-            This function should retrieve a list of datasets given a set of 
+            This function should retrieve a list of datasets given a set of
             filters, including:
                 ID,
                 Name,
@@ -1050,17 +1098,17 @@ class RetrievalTest(server.SoapServerTest):
                 Metadata
         """
 
-       
+
         datasets = self.client.factory.create('ns1:DatasetArray')
         #create some datasets
         #Scalar, descriptor, array, 2 * timeseries
-        array = self._create_array() 
+        array = self._create_array()
         datasets.Dataset.append(array)
         scalar = self._create_scalar()
         datasets.Dataset.append(scalar)
-        descriptor = self._create_descriptor() 
+        descriptor = self._create_descriptor()
         datasets.Dataset.append(descriptor)
-        ts_1 = self._create_timeseries() 
+        ts_1 = self._create_timeseries()
         datasets.Dataset.append(ts_1)
         ts_2 = self._create_timeseries()
         datasets.Dataset.append(ts_2)
@@ -1092,7 +1140,7 @@ class RetrievalTest(server.SoapServerTest):
         assert len(res_1.Dataset) == 1
         assert res_1.Dataset[0].id == array['id']
         assert res_1.Dataset[0].name == array['name']
-        
+
         #search for dataset by name
         res_1 = self.client.service.search_datasets(name=array['name'])
         assert len(res_1.Dataset) >= 1
@@ -1183,13 +1231,13 @@ class RetrievalTest(server.SoapServerTest):
         res_1 = self.client.service.search_datasets(metadata_name='created_by', inc_metadata='Y')
         assert res_1 != ''
         for d in res_1.Dataset:
-            assert 'created_by' in json.loads(d.metadata) 
+            assert 'created_by' in json.loads(d.metadata)
 
         #search by metadata
         res_1 = self.client.service.search_datasets(metadata_name='used for', metadata_val='earch', inc_metadata='Y')
         assert res_1 != ''
         for d in res_1.Dataset:
-            assert 'is used for' in json.loads(d.metadata) 
+            assert 'is used for' in json.loads(d.metadata)
 
         res_1 = self.client.service.search_datasets(metadata_val='search', inc_metadata='Y')
         assert res_1 != ''
@@ -1224,7 +1272,7 @@ class RetrievalTest(server.SoapServerTest):
 
         #mismatching unit, dimension
         res_1 = self.client.service.search_datasets(unit='cm^3', dimension='speed')
-        assert res_1 == '' 
+        assert res_1 == ''
 
         #partial name, dimension
         res_1 = self.client.service.search_datasets(name='flow sp', dimension='speed')
@@ -1256,7 +1304,7 @@ class RetrievalTest(server.SoapServerTest):
         ds_ids = [d.id for d in res_1.Dataset]
         assert ts_1['id'] in ds_ids
         assert ts_2['id'] in ds_ids
-        
+
         attr_id = net.nodes.Node[0].attributes.ResourceAttr[0].attr_id
         attr_dataset_ids = []
         for rs in net.scenarios.Scenario[0].resourcescenarios.ResourceScenario:
@@ -1265,7 +1313,7 @@ class RetrievalTest(server.SoapServerTest):
         res_1 = self.client.service.search_datasets(attr_id=attr_id)
         res_dataset_ids = [d.id for d in res_1.Dataset]
         for res_id in attr_dataset_ids:
-            assert res_id in res_dataset_ids 
+            assert res_id in res_dataset_ids
 
         link = net.links.Link[1]
         type_id = link.types.TypeSummary[0].id
@@ -1279,7 +1327,7 @@ class RetrievalTest(server.SoapServerTest):
         assert res_1 != ''
         res_dataset_ids = [d.id for d in res_1.Dataset]
         for res_id in link_type_dataset_ids:
-            assert res_id in res_dataset_ids 
+            assert res_id in res_dataset_ids
 
 if __name__ == '__main__':
     server.run()

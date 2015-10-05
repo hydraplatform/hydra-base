@@ -236,7 +236,7 @@ class Dataset(HydraComplexModel):
             if self.value is None:
                 log.warn("Cannot parse dataset. No value specified.")
                 return None
-            
+
             data = str(self.value)
 
             if len(data) > 100:
@@ -245,7 +245,7 @@ class Dataset(HydraComplexModel):
                 log.debug("Parsing %s", data)
 
             if self.type == 'descriptor':
-                return data 
+                return data
             elif self.type == 'scalar':
                 return data
             elif self.type == 'timeseries':
@@ -357,9 +357,10 @@ class ResourceScenario(HydraComplexModel):
     _type_info = [
         ('resource_attr_id', Integer(default=None)),
         ('attr_id',          Integer(default=None)),
+        ('dataset_id',       Integer(default=None)),
         ('value',            Dataset),
         ('source',           Unicode),
-        ('cr_date',       Unicode(default=None)),
+        ('cr_date',          Unicode(default=None)),
     ]
 
     def __init__(self, parent=None, attr_id=None):
@@ -368,6 +369,7 @@ class ResourceScenario(HydraComplexModel):
             return
         self.resource_attr_id = parent.resource_attr_id
         self.attr_id          = attr_id if attr_id is not None else parent.resourceattr.attr_id
+        self.dataset_id       = parent.dataset_id
 
         self.value = Dataset(parent.dataset)
         self.source = parent.source
@@ -601,12 +603,12 @@ class ValidationError(HydraComplexModel):
 
     def __init__(self, error_text, scenario_id=None,
                  ref_key=None, ref_id=None, ref_name=None,
-                 attr_name=None, attr_id=None, 
+                 attr_name=None, attr_id=None,
                  template_id=None, type_id=None,
                  resource_attr_id=None, dataset_id=None):
 
         super(ValidationError, self).__init__()
-    
+
         self.error_text       = error_text
         self.ref_key          = ref_key
         self.ref_id           = ref_id

@@ -285,8 +285,7 @@ class DatasetCollectionItem(Base):
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     collection = relationship('DatasetCollection', backref=backref("items", order_by=dataset_id, cascade="all, delete-orphan"))
-    dataset = relationship('Dataset', backref=backref("collectionitems", order_by=dataset_id))
-
+    dataset = relationship('Dataset', backref=backref("collectionitems", order_by=dataset_id,  cascade="all, delete-orphan"))
 
 class Metadata(Base):
     """
