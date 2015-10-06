@@ -237,7 +237,18 @@ def add_resource_attribute(resource_type, resource_id, attr_id, is_var,**kwargs)
         this is used in simulation to indicate that this value is expected
         to be filled in by the simulator.
     """
+
+    attr = DBSession.query(Attr).filter(Attr.attr_id==attr_id).first()
+
+    if attr is None:
+        raise HydraError("Attribute with ID %s does not exist."%attr_id)
+
     resource_i = _get_resource(resource_type, resource_id)
+
+    for ra in resource_i.attributes:
+        if ra.attr_id == attr_id:
+            raise HydraError("Duplicate attribute. %s %s already has attribute %s"
+                             %(resource_type, resource_i.get_name(), attr.attr_name))
 
     attr_is_var = 'Y' if is_var else 'N'
 

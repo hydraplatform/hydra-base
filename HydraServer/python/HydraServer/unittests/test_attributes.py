@@ -18,6 +18,7 @@
 
 import server
 import logging
+from suds import WebFault
 log = logging.getLogger(__name__)
 
 class AttributeTest(server.SoapServerTest):
@@ -126,11 +127,6 @@ class AttributeTest(server.SoapServerTest):
         assert attrs.Attr[1].id == existing_attrs[1].id
         assert attrs.Attr[1].description == existing_attrs[1].description
 
-#    def test_delete_attribute(self):
-#        attr = self.create_attr("attr_to_delete", "Volume")
-#        self.client.service.delete_attribute(attr.id)
-#        self.assertRaises(WebFault, self.client.service.get_attribute_by_id, attr.id)
-
     def test_add_network_attribute(self):
         network = self.create_network_with_data()
         new_attr = self.create_attr("new network attr", dimension=None)
@@ -169,6 +165,19 @@ class AttributeTest(server.SoapServerTest):
         for ra in node_attributes.ResourceAttr:
             network_attr_ids.append(ra.attr_id)
         assert new_attr.id in network_attr_ids
+
+    def test_add_duplicate_node_attribute(self):
+        network = self.create_network_with_data()
+        node = network.nodes.Node[0]
+        new_attr = self.create_attr("new node attr", dimension=None)
+        self.client.service.add_node_attribute(node.id, new_attr.id, 'Y')
+        node_attributes = self.client.service.get_node_attributes(node.id)
+        network_attr_ids = []
+        for ra in node_attributes.ResourceAttr:
+            network_attr_ids.append(ra.attr_id)
+        assert new_attr.id in network_attr_ids
+        
+        self.assertRaises(WebFault, self.client.service.add_node_attribute, node.id, new_attr.id, 'Y')
 
     def test_get_all_node_attributes(self):
         network = self.create_network_with_data()
