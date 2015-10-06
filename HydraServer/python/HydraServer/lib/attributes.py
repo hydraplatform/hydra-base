@@ -1,5 +1,4 @@
-# (c) Copyright 2013, 2014, University of Manchester
-#
+#dd_
 # HydraPlatform is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
@@ -92,6 +91,11 @@ def add_attribute(attr,**kwargs):
 
     """
     log.debug("Adding attribute: %s", attr.name)
+
+    if attr.dimen is None or attr.dimen.lower() == 'dimensionless':
+        log.info("Setting 'dimesionless' on attribute %s", attr.name)
+        attr.dimen = 'dimensionless'
+
     try:
         attr_i = DBSession.query(Attr).filter(Attr.attr_name == attr.name,
                                               Attr.attr_dimen == attr.dimen).one()
@@ -118,6 +122,11 @@ def update_attribute(attr,**kwargs):
         }
 
     """
+
+    if attr.dimen is None or attr.dimen.lower() == 'dimensionless':
+        log.info("Setting 'dimesionless' on attribute %s", attr.name)
+        attr.dimen = 'dimensionless'
+
     log.debug("Adding attribute: %s", attr.name)
     attr_i = _get_attr(Attr.attr_id)
     attr_i.attr_name = attr.name
