@@ -420,6 +420,8 @@ def update_dataset(dataset_id, name, data_type, val, units, dimension, metadata=
     if dataset_id is None:
         raise HydraError("Dataset must have an ID to be updated.")
 
+    user_id = kwargs.get('user_id')
+
     dataset = DBSession.query(Dataset).filter(Dataset.dataset_id==dataset_id).one()
     #This dataset been seen before, so it may be attached
     #to other scenarios, which may be locked. If they are locked, we must
@@ -457,6 +459,15 @@ def update_dataset(dataset_id, name, data_type, val, units, dimension, metadata=
         dataset.data_dimen = dimension
         dataset.created_by = kwargs['user_id']
         dataset.data_hash  = dataset.set_hash()
+
+        #Is there a dataset in the DB already which is identical to the updated dataset?
+        existing_dataset = DBSession.query(Dataset).filter(Dataset.data_hash==dataset.data_hash).first()
+        if existing_dataset is not None and existing_dataset.check_user(user_id):
+            log.warn("An identical dataset %s has been found to dataset %s."
+                     " Deleting dataset and returning dataset %s",
+                     existing_dataset.dataset_id, dataset.dataset_id, existing_dataset.dataset_id)
+            DBSession.delete(dataset)
+            dataset = existing_dataset
 
     return dataset
 

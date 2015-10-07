@@ -579,6 +579,10 @@ def update_resourcedata(scenario_id, resource_scenarios,**kwargs):
         If the value of the resource scenario does not exist, it will be created.
         If the both the resource scenario and value already exist, the resource scenario
         will be updated with the ID of the dataset.
+
+        If the dataset being set is being changed, already exists,
+        and is only used by a single resource scenario,
+        then the dataset itself is updated, rather than a new one being created.
     """
     user_id = kwargs.get('user_id')
     res = None
@@ -692,15 +696,15 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
                  data_hash=data_hash,
                  user_id=user_id,
                  source=source)
-   
-    return r_scen_i 
+
+    return r_scen_i
 
 def assign_value(rs, data_type, val,
                  units, name, dimension, metadata={}, data_hash=None, user_id=None, source=None):
     """
-        Insert or update a piece of data in a scenario. 
-        If the dataset is being shared by other scenarios, a new dataset is inserted.
-        If the dataset is ONLY being usesd by the scenario in question, the dataset
+        Insert or update a piece of data in a scenario.
+        If the dataset is being shared by other resource scenarios, a new dataset is inserted.
+        If the dataset is ONLY being used by the resource scenario in question, the dataset
         is updated to avoid unnecessary duplication.
     """
 
@@ -708,22 +712,43 @@ def assign_value(rs, data_type, val,
         raise PermissionError("Cannot assign value. Scenario %s is locked"
                              %(rs.scenario_id))
 
+    #Check if this RS is the only RS in the DB connected to this dataset.
+    #If no results is found, the RS isn't in the DB yet, so the condition is false.
+    update_dataset = False # Default behaviour is to create a new dataset.
 
     if rs.dataset is not None:
-        
+
         #Has this dataset changed?
         if rs.dataset.data_hash == data_hash:
             return
 
-    dataset = data.add_dataset(data_type,
-                            val,
-                            units,
-                            dimension,
-                            metadata=metadata,
-                            name=name,
-                            **dict(user_id=user_id))
-    rs.dataset = dataset
-    rs.source  = source 
+        connected_rs = DBSession.query(ResourceScenario).filter(ResourceScenario.dataset_id==rs.dataset.dataset_id).all()
+        #If there's no RS found, then the incoming rs is new, so the dataset can be altered
+        #without fear of affecting something else.
+        if len(connected_rs) == 0:
+        #If it's 1, the RS exists in the DB, but it's the only one using this dataset or
+        #The RS isn't in the DB yet and the datset is being used by 1 other RS.
+            update_dataset = True
+        if len(connected_rs) == 1 :
+            if connected_rs[0].scenario_id == rs.scenario_id and connected_rs[0].resource_attr_id==rs.resource_attr_id:
+                update_dataset = True
+        else:
+            update_dataset=False
+
+    if update_dataset is True:
+        dataset = data.update_dataset(rs.dataset.dataset_id, name, data_type, val, units, dimension, metadata, **dict(user_id=user_id))
+        rs.dataset = dataset
+    else:
+
+        dataset = data.add_dataset(data_type,
+                                val,
+                                units,
+                                dimension,
+                                metadata=metadata,
+                                name=name,
+                                **dict(user_id=user_id))
+        rs.dataset = dataset
+        rs.source  = source
 
 def add_data_to_attribute(scenario_id, resource_attr_id, dataset,**kwargs):
     """
