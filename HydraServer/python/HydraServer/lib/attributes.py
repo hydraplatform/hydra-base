@@ -1,5 +1,4 @@
-# (c) Copyright 2013, 2014, University of Manchester
-#
+#dd_
 # HydraPlatform is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
@@ -92,6 +91,11 @@ def add_attribute(attr,**kwargs):
 
     """
     log.debug("Adding attribute: %s", attr.name)
+
+    if attr.dimen is None or attr.dimen.lower() == 'dimensionless':
+        log.info("Setting 'dimesionless' on attribute %s", attr.name)
+        attr.dimen = 'dimensionless'
+
     try:
         attr_i = DBSession.query(Attr).filter(Attr.attr_name == attr.name,
                                               Attr.attr_dimen == attr.dimen).one()
@@ -118,6 +122,11 @@ def update_attribute(attr,**kwargs):
         }
 
     """
+
+    if attr.dimen is None or attr.dimen.lower() == 'dimensionless':
+        log.info("Setting 'dimesionless' on attribute %s", attr.name)
+        attr.dimen = 'dimensionless'
+
     log.debug("Adding attribute: %s", attr.name)
     attr_i = _get_attr(Attr.attr_id)
     attr_i.attr_name = attr.name
@@ -228,7 +237,18 @@ def add_resource_attribute(resource_type, resource_id, attr_id, is_var,**kwargs)
         this is used in simulation to indicate that this value is expected
         to be filled in by the simulator.
     """
+
+    attr = DBSession.query(Attr).filter(Attr.attr_id==attr_id).first()
+
+    if attr is None:
+        raise HydraError("Attribute with ID %s does not exist."%attr_id)
+
     resource_i = _get_resource(resource_type, resource_id)
+
+    for ra in resource_i.attributes:
+        if ra.attr_id == attr_id:
+            raise HydraError("Duplicate attribute. %s %s already has attribute %s"
+                             %(resource_type, resource_i.get_name(), attr.attr_name))
 
     attr_is_var = 'Y' if is_var else 'N'
 

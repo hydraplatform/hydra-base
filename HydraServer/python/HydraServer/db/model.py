@@ -418,6 +418,14 @@ class ResourceAttr(Base):
 
     __tablename__='tResourceAttr'
 
+    __table_args__ = (
+        UniqueConstraint('network_id', 'attr_id', name = 'net_attr_1'),
+        UniqueConstraint('project_id', 'attr_id', name = 'proj_attr_1'),
+        UniqueConstraint('node_id',    'attr_id', name = 'node_attr_1'),
+        UniqueConstraint('link_id',    'attr_id', name = 'link_attr_1'),
+        UniqueConstraint('group_id',   'attr_id', name = 'group_attr_1'),
+    )
+
     resource_attr_id = Column(Integer(), primary_key=True, nullable=False)
     attr_id = Column(Integer(), ForeignKey('tAttr.attr_id'),  nullable=False)
     ref_key = Column(String(60),  nullable=False, index=True)
