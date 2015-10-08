@@ -307,6 +307,14 @@ class AttributeMapTest(server.SoapServerTest):
         #print node_mappings_2 
         assert len(node_mappings_1[0]) == 2
         assert len(node_mappings_2[0]) == 1
+
+        map_exists = self.client.service.check_mapping_exists(attr_1.id, attr_2.id)
+        assert map_exists == 'Y'
+        map_exists = self.client.service.check_mapping_exists(attr_2.id, attr_1.id)
+        assert map_exists == 'N'
+        map_exists = self.client.service.check_mapping_exists(attr_2.id, attr_3.id)
+        assert map_exists == 'N'
+        
        
         updated_rs = self.client.service.update_value_from_mapping(attr_1.id, attr_2.id, s1.id, s2.id)
     
