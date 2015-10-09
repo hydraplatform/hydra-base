@@ -369,7 +369,7 @@ def validate_resource_attributes(resource, attributes, template, check_unit=True
         attrs[a['id']] = a
 
     for a in tmpl_attrs.values():
-        if a.get('id'):
+        if a.get('id') is None:
             attrs[a['id']] = {'name':a['name'], 'unit':a.get('unit'), 'dimen':a.get('dimension')}
 
     if exact_match is True:
@@ -411,6 +411,12 @@ def validate_resource_attributes(resource, attributes, template, check_unit=True
             #If the dimensions or units don't match, throw an error
 
             tmpl_attr = tmpl_attrs[attr['name']]
+
+            if tmpl_attr.get('data_type') is not None:
+                if res_attr.get('data_type') is not None:
+                    if tmpl_attr.get('data_type') != res_attr.get('data_type'):
+                        errors.append("Error in data. Template says that %s on %s is a %s, but data suggests it is a %s"%
+                            (attr['name'], resource['name'], tmpl_attr.get('data_type'), res_attr.get('data_type')))
 
             attr_dimen = "dimensionless" if attr.get('dimen') is None else attr.get('dimen')
             tmpl_attr_dimen = "dimensionless" if tmpl_attr.get('dimension') is None else tmpl_attr.get('dimension')
