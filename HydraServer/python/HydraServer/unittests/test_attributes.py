@@ -328,6 +328,53 @@ class AttributeMapTest(server.SoapServerTest):
         all_mappings_1 = self.client.service.get_mappings_in_network(net1.id)
         assert len(all_mappings_1) == 0
 
+class ResourceAttributeCollectionTest(server.SoapServerTest):
+    """
+        Test for attribute-based functionality
+    """
+    def test_add_resource_attr_collection(self):
+        net = self.create_network_with_data()
+
+        net_attrs = self.client.service.get_network_attributes(net.id)
+
+        item_ids = self.client.factory.create("integerArray")
+        for ra in net_attrs.ResourceAttr:
+            item_ids.integer.append(ra.id)
+
+        
+        ra_collection = {
+            'name': 'Test RA collection',
+            'resource_attr_ids' : item_ids,
+            'layout': 'test',
+        }
+
+        new_ra_collection = self.client.service.add_resource_attr_collection(ra_collection)
+
+        assert len(new_ra_collection.resource_attr_ids.integer) == 2
+        
+        retrieved_ra_collection = self.client.service.get_resource_attr_collection(new_ra_collection.id)
+        assert len(retrieved_ra_collection.resource_attr_ids.integer) == 2
+
+        item_ids_to_remove = self.client.factory.create("integerArray")
+        item_ids_to_remove.integer.append(new_ra_collection.resource_attr_ids.integer[0])
+
+        self.client.service.remove_items_from_attr_collection(new_ra_collection.id, item_ids_to_remove)
+
+        smaller_ra_collection = self.client.service.get_resource_attr_collection(new_ra_collection.id)
+        assert len(smaller_ra_collection.resource_attr_ids.integer) == 1
+
+        item_ids_to_add = self.client.factory.create("integerArray")
+        item_ids_to_add.integer.append(new_ra_collection.resource_attr_ids.integer[0])
+
+        larger_ra_collection = self.client.service.add_items_to_attr_collection(new_ra_collection.id, item_ids_to_add)
+         
+        assert len(larger_ra_collection.resource_attr_ids.integer) == 2
+
+
+        self.client.service.delete_resource_attr_collection(new_ra_collection.id)
+
+        self.assertRaises(WebFault, self.client.service.get_resource_attr_collection, new_ra_collection.id)
+        
 
 if __name__ == '__main__':
     server.run()
