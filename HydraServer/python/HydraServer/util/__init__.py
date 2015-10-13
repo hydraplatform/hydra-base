@@ -84,14 +84,14 @@ def get_val(dataset, timestamp=None):
 
                 if type(idx) == pd.DatetimeIndex:
                     if set(idx.year) == set([int(seasonal_year)]):
-                        if type(timestamp) == list:
+                        if isinstance(timestamp,  list):
                             seasonal_timestamp = []
                             for t in timestamp:
                                 t_1900 = t.replace(year=int(seasonal_year))
                                 seasonal_timestamp.append(t_1900)
                             timestamp = seasonal_timestamp
                         else:
-                            timestamp = timestamp.replace(year=int(seasonal_year))
+                            timestamp = [timestamp.replace(year=int(seasonal_year))]
 
                 pandas_ts = timeseries.reindex(timestamp, method='ffill')
 
