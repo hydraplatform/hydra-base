@@ -369,7 +369,7 @@ def validate_resource_attributes(resource, attributes, template, check_unit=True
         attrs[a['id']] = a
 
     for a in tmpl_attrs.values():
-        if a.get('id') is None:
+        if a.get('id') is not None:
             attrs[a['id']] = {'name':a['name'], 'unit':a.get('unit'), 'dimen':a.get('dimension')}
 
     if exact_match is True:
@@ -401,7 +401,13 @@ def validate_resource_attributes(resource, attributes, template, check_unit=True
     #Check that each of the attributes specified on the resource are valid.
     for res_attr in resource['attributes']:
 
-        attr = attrs[res_attr['attr_id']]
+        attr = attrs.get(res_attr['attr_id'])
+
+        if attr is None:
+            errors.append("An attribute mismatch has occurred. Attr %s is not "
+                          "defined in the data but is present on resource %s"
+                          %(res_attr['attr_id'], resource['name']))
+            continue 
 
         #If an attribute is not specified in the template, then throw an error
         if tmpl_attrs.get(attr['name']) is None:
