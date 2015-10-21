@@ -63,12 +63,13 @@ def init(level=None):
     except:
         log_file = None
         log_loc  = None
+        log_base_path = None
 
     use_default = False
     try:
         config_file = os.path.expanduser(config.get('logging_conf', 'log_config_path', '.'))
         #check the config file exists...
-        if os.path.isfile(config_file):
+        if os.path.isfile(config_file) and log_base_path is not None:
             logging.config.fileConfig(config_file)
             logger = logging.getLogger()
             handler = logging.FileHandler(os.path.join(log_base_path, log_file),"a")
@@ -103,7 +104,7 @@ def init(level=None):
         },
         'loggers': {
             '': {
-                'handlers': ['default', 'file'],
+                'handlers': ['default'],
                 'level': 'INFO',
                 'propagate': True
             },
