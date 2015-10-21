@@ -146,9 +146,7 @@ class PluginsTest(server.SoapServerTest):
        
         #Re-import the network (this ensures that export csv worked correctly).
         network_file = "~/Desktop/network_%s/CSV_import/network.csv"%network_id
-        nodes_file = "~/Desktop/network_%s/CSV_import/nodes.csv"%network_id
-        links_file = "~/Desktop/network_%s/CSV_import/links.csv"%network_id
-        stream = Popen('python ../../../../HydraPlugins/CSVplugin/ImportCSV/ImportCSV.py -t %s -n %s -l %s -x'%(network_file, nodes_file, links_file), shell=True, stdout=PIPE)
+        stream = Popen('python ../../../../HydraPlugins/CSVplugin/ImportCSV/ImportCSV.py -t %s -x'%(network_file), shell=True, stdout=PIPE)
         stream.wait()
         updated_result_text = stream.stdout.readlines()
         xml_start = 1
@@ -162,7 +160,7 @@ class PluginsTest(server.SoapServerTest):
         assert updated_tree.find('errors').getchildren() == []
         assert updated_tree.find('warnings').getchildren() == []
 
-        Popen("rm -r network_*", shell=True)
+        Popen("rm -r ~/Desktop/network_*", shell=True)
 
         
 

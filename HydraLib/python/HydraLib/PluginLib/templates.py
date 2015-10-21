@@ -139,6 +139,10 @@ def validate_template(template_file, connection):
                      }
 
     attributes = []
+    #A list of all the unique attributes in the template
+    #A unique attribute is name & dimension.
+    #If a duplicate name is found but with an inconsistent dimension, then an error is thrown.
+    unique_attributes = {}
 
     for r in xml_tree.find('resources'):
         #keep track of resource attribute names to make sure there's no duplicates
@@ -160,6 +164,7 @@ def validate_template(template_file, connection):
                 warnings.append("A similar Attribute to %s is already specified in the template. Are you sure your spelling is correct?"%(attr_name))
             else:
                 attribute_names.append(attr_name.lower().replace(" ", ""))
+
             #Check for duplicate attribute names on a resource
             if attr_name.lower() in resource_attr_names:
                 errors.append("Attribute %s specified multiple times on resource %s"%(attr_name, resource_name))
@@ -175,6 +180,13 @@ def validate_template(template_file, connection):
                 attr_dict['dimension'] = dimension
             else:
                 attr_dict['dimension'] = 'dimensionless'
+
+            if unique_attributes.get(attr_name) is not None:
+                if unique_attributes[attr_name] != attr_dict['dimension']:
+                    errors.append("Attribute %s has been defined twice in the template with different dimensions. "
+                                  "Please make them consistent or rename one of them."%(attr_name))
+            else:
+                unique_attributes[attr_name] = attr_dict['dimension']
 
             if attr.find('unit') is not None:
                 attr_dict['unit'] = attr.find('unit').text

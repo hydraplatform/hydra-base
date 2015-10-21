@@ -369,7 +369,7 @@ def validate_resource_attributes(resource, attributes, template, check_unit=True
         attrs[a['id']] = a
 
     for a in tmpl_attrs.values():
-        if a.get('id'):
+        if a.get('id') is not None:
             attrs[a['id']] = {'name':a['name'], 'unit':a.get('unit'), 'dimen':a.get('dimension')}
 
     if exact_match is True:
@@ -401,7 +401,13 @@ def validate_resource_attributes(resource, attributes, template, check_unit=True
     #Check that each of the attributes specified on the resource are valid.
     for res_attr in resource['attributes']:
 
-        attr = attrs[res_attr['attr_id']]
+        attr = attrs.get(res_attr['attr_id'])
+
+        if attr is None:
+            errors.append("An attribute mismatch has occurred. Attr %s is not "
+                          "defined in the data but is present on resource %s"
+                          %(res_attr['attr_id'], resource['name']))
+            continue 
 
         #If an attribute is not specified in the template, then throw an error
         if tmpl_attrs.get(attr['name']) is None:
@@ -411,6 +417,12 @@ def validate_resource_attributes(resource, attributes, template, check_unit=True
             #If the dimensions or units don't match, throw an error
 
             tmpl_attr = tmpl_attrs[attr['name']]
+
+            if tmpl_attr.get('data_type') is not None:
+                if res_attr.get('data_type') is not None:
+                    if tmpl_attr.get('data_type') != res_attr.get('data_type'):
+                        errors.append("Error in data. Template says that %s on %s is a %s, but data suggests it is a %s"%
+                            (attr['name'], resource['name'], tmpl_attr.get('data_type'), res_attr.get('data_type')))
 
             attr_dimen = "dimensionless" if attr.get('dimen') is None else attr.get('dimen')
             tmpl_attr_dimen = "dimensionless" if tmpl_attr.get('dimension') is None else tmpl_attr.get('dimension')

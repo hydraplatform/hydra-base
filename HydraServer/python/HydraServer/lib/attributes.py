@@ -540,3 +540,17 @@ def get_network_mappings(network_id, network_2_id=None, **kwargs):
                 aliased_ra.network_id == network_2_id)))
     
     return qry.all()
+
+def check_attribute_mapping_exists(resource_attr_id_source, resource_attr_id_target, **kwargs):
+    """
+        Check whether an attribute mapping exists between a source and target resource attribute.
+        returns 'Y' if a mapping exists. Returns 'N' in all other cases.
+    """
+    qry = DBSession.query(ResourceAttrMap).filter(
+                ResourceAttrMap.resource_attr_id_a == resource_attr_id_source,
+                ResourceAttrMap.resource_attr_id_b == resource_attr_id_target).all()
+
+    if len(qry) > 0:
+        return 'Y'
+    else:
+        return 'N'

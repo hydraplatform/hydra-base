@@ -20,6 +20,7 @@ import logging
 from decimal import Decimal, ROUND_HALF_UP
 from dateutil.parser import parse
 from HydraLib import config
+import pandas as pd
 
 
 log = logging.getLogger(__name__)
@@ -44,17 +45,17 @@ time_map = {
     'nanosec'     : 'ns',
     'ns'          : 'ns',
 
-    'microsecond'  : 'ms',
-    'microseconds' : 'ms',
-    'microsec'     : 'ms',
-    'microsecs'    : 'ms',
-    'ms'           : 'ms',
+    'microsecond'  : '탎',
+    'microseconds' : '탎',
+    'microsec'     : '탎',
+    'microsecs'    : '탎',
+    '탎'           : '탎',
 
-    'millisecond'   : '탎',
-    'milliseconds'  : '탎',
-    'millisec'      : '탎',
-    'millisecs'     : '탎',
-    '탎'            : '탎',
+    'millisecond'   : 'ms',
+    'milliseconds'  : 'ms',
+    'millisec'      : 'ms',
+    'millisecs'     : 'ms',
+    'ms'            : 'ms',
 
     'second'  : 's',
     'seconds' : 's',
@@ -321,4 +322,60 @@ def guess_timefmt(datestr):
 
     return None
 
+def reindex_timeseries(ts_string, new_timestamps):
+    """
+        get data for timesamp
 
+        :param a JSON string, in pandas-friendly format
+        :param a timestamp or list of timestamps (datetimes)
+        :returns a pandas data frame, reindexed with the supplied timestamos or None if no data is found
+    """
+    #If a single timestamp is passed in, turn it into a list
+    #Reindexing can't work if it's not a list
+    if not isinstance(new_timestamps, list):
+        new_timestamps = [new_timestamps]
+    
+    #Convert the incoming timestamps to datetimes
+    #if they are not datetimes.
+    new_timestamps_converted = []
+    for t in new_timestamps:
+        new_timestamps_converted.append(get_datetime(t))
+
+    new_timestamps = new_timestamps_converted
+
+    seasonal_year = config.get('DEFAULT','seasonal_year', '1678')
+    seasonal_key = config.get('DEFAULT', 'seasonal_key', '9999')
+
+    ts = ts_string.replace(seasonal_key, seasonal_year)
+    
+    timeseries = pd.read_json(ts)
+
+    idx = timeseries.index
+
+    ts_timestamps = new_timestamps
+
+    #'Fix' the incoming timestamp in case it's a seasonal value
+    if type(idx) == pd.DatetimeIndex:
+        if set(idx.year) == set([int(seasonal_year)]):
+            if isinstance(new_timestamps,  list):
+                seasonal_timestamp = []
+                for t in idx:
+                    t_1900 = t.replace(year=int(seasonal_year))
+                    seasonal_timestamp.append(t_1900)
+                ts_timestamps = seasonal_timestamp
+
+    #Reindex the timeseries to reflect the requested timestamps
+    reindexed_ts = timeseries.reindex(ts_timestamps, method='ffill')
+
+    i = reindexed_ts.index
+
+    reindexed_ts.index = pd.Index(new_timestamps, names=i.names)
+
+    #If there are no values at all, just return None
+    if len(reindexed_ts.dropna()) == 0:
+        return None
+
+    #Replace all numpy NAN values with None
+    pandas_ts = reindexed_ts.where(reindexed_ts.notnull(), None)
+
+    return pandas_ts

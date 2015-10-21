@@ -447,3 +447,15 @@ class AttributeService(HydraService):
        
         mappings = [ResourceAttrMap(m) for m in mapping_rs]
         return mappings
+
+
+    @rpc(Integer, Integer, _returns=Unicode)
+    def check_mapping_exists(ctx, resource_attr_id_source, resource_attr_id_target):
+        """
+           Check whether a mapping exists between two resource attributes
+           Returns 'Y' if a mapping between the source and target exists.
+           Returns 'N' in every other case
+        """
+        is_mapped = attributes.check_attribute_mapping_exists(resource_attr_id_source, resource_attr_id_target,**ctx.in_header.__dict__)
+        
+        return is_mapped
