@@ -33,6 +33,10 @@ from connection import SoapConnection
 
 
 class JSONPlugin(object):
+
+    def __init__(self):
+        self.units = Units()
+
     def connect(self, args):
         self.session_id = args.session_id
         self.server_url = args.server_url
@@ -64,9 +68,13 @@ class JSONPlugin(object):
 
         period = get_time_period(units)
 
+        log.info("Time period is %s", period)
+
         converted_time_step = self.units.convert(value, period, target)
 
-        return float(converted_time_step), value, units
+        log.info("Time period is %s %s", converted_time_step, period)
+
+        return float(converted_time_step), value, period
 
     def get_time_axis(self, start_time, end_time, time_step, time_axis=None):
         """
@@ -86,7 +94,7 @@ class JSONPlugin(object):
                 if t == '':
                     continue
                 actual_dates_axis.append(get_datetime(t))
-            return actual_dates_axis 
+            return actual_dates_axis
 
         else:
             if start_time is None:
