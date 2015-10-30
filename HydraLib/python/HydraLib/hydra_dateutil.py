@@ -112,7 +112,7 @@ def get_datetime(timestamp):
     """
     #First try to use date util. Failing that, continue
     try:
-        parsed_dt = parse(timestamp)
+        parsed_dt = parse(timestamp, dayfirst=True)
         if parsed_dt.tzinfo is None:
             return parsed_dt
         else:
