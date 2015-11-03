@@ -266,6 +266,9 @@ def guess_timefmt(datestr):
     formatstrings = [['%Y', '%m', '%d'],
                      ['%d', '%m', '%Y'],
                      ['%d', '%b', '%Y'],
+                     ['XXXX', '%m', '%d'],
+                     ['%d', '%m', 'XXXX'],
+                     ['%d', '%b', 'XXXX'],
                      [seasonal_key, '%m', '%d'],
                      ['%d', '%m', seasonal_key],
                      ['%d', '%b', seasonal_key]]
@@ -301,7 +304,7 @@ def guess_timefmt(datestr):
                     pass
 
     # Check for other formats:
-    custom_formats = ['%d/%m/%Y', '%b %d %Y', '%B %d %Y', '%d/%m/'+seasonal_key]
+    custom_formats = ['%d/%m/%Y', '%b %d %Y', '%B %d %Y','%d/%m/XXXX', '%d/%m/'+seasonal_key]
 
     for fmt in custom_formats:
         if usetime:
