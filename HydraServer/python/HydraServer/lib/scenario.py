@@ -708,6 +708,9 @@ def assign_value(rs, data_type, val,
         is updated to avoid unnecessary duplication.
     """
 
+    log.debug("Assigning value %s to rs %s in scenario %s",
+              name, rs.resource_attr_id, rs.scenario_id)
+
     if rs.scenario.locked == 'Y':
         raise PermissionError("Cannot assign value. Scenario %s is locked"
                              %(rs.scenario_id))
@@ -720,6 +723,7 @@ def assign_value(rs, data_type, val,
 
         #Has this dataset changed?
         if rs.dataset.data_hash == data_hash:
+            log.debug("Dataset has not changed. Returning.")
             return
 
         connected_rs = DBSession.query(ResourceScenario).filter(ResourceScenario.dataset_id==rs.dataset.dataset_id).all()
@@ -729,6 +733,7 @@ def assign_value(rs, data_type, val,
         #If it's 1, the RS exists in the DB, but it's the only one using this dataset or
         #The RS isn't in the DB yet and the datset is being used by 1 other RS.
             update_dataset = True
+
         if len(connected_rs) == 1 :
             if connected_rs[0].scenario_id == rs.scenario_id and connected_rs[0].resource_attr_id==rs.resource_attr_id:
                 update_dataset = True
@@ -736,10 +741,12 @@ def assign_value(rs, data_type, val,
             update_dataset=False
 
     if update_dataset is True:
+        log.info("Updating dataset '%s'", name)
         dataset = data.update_dataset(rs.dataset.dataset_id, name, data_type, val, units, dimension, metadata, **dict(user_id=user_id))
         rs.dataset = dataset
+        rs.dataset_id = dataset.dataset_id
     else:
-
+        log.info("Creating new dataset %s in scenario %s", name, rs.scenario_id)
         dataset = data.add_dataset(data_type,
                                 val,
                                 units,

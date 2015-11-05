@@ -101,4 +101,4 @@ view_qry = select([
     Dataset.data_type,
     Dataset.value]).where(ResourceScenario.resource_attr_id==ResourceAttr.attr_id).where(ResourceAttr.attr_id==Attr.attr_id).where(ResourceScenario.dataset_id==Dataset.dataset_id)
 
-stuff_view = view("vResourceData", DeclarativeBase.metadata, view_qry)
+#stuff_view = view("vResourceData", DeclarativeBase.metadata, view_qry)
