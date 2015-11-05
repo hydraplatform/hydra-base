@@ -46,3 +46,59 @@ def commit_transaction():
 def rollback_transaction():
     transaction.abort()
 
+
+
+
+#These are for creating the resource data view (see bottom of page)
+from sqlalchemy import select
+from sqlalchemy.schema import DDLElement
+from sqlalchemy.sql import table
+from sqlalchemy.ext import compiler
+from model import ResourceAttr, ResourceScenario, Attr, Dataset
+
+class CreateView(DDLElement):
+    def __init__(self, name, selectable):
+        self.name = name
+        self.selectable = selectable
+
+class DropView(DDLElement):
+    def __init__(self, name):
+        self.name = name
+
+@compiler.compiles(CreateView)
+def compile(element, compiler, **kw):
+    return "CREATE VIEW %s AS %s" % (element.name, compiler.sql_compiler.process(element.selectable))
+
+@compiler.compiles(DropView)
+def compile(element, compiler, **kw):
+    return "DROP VIEW %s" % (element.name)
+
+def view(name, metadata, selectable):
+    t = table(name)
+
+    for c in selectable.c:
+        c._make_proxy(t)
+
+    CreateView(name, selectable).execute_at('after-create', metadata)
+    DropView(name).execute_at('before-drop', metadata)
+    return t
+
+
+view_qry = select([
+    ResourceAttr.resource_attr_id,
+    ResourceAttr.attr_id,
+    Attr.attr_name,
+    ResourceAttr.resource_attr_id,
+    ResourceAttr.network_id,
+    ResourceAttr.node_id,
+    ResourceAttr.link_id,
+    ResourceAttr.group_id,
+    ResourceScenario.scenario_id,
+    ResourceScenario.dataset_id,
+    Dataset.data_units,
+    Dataset.data_dimen,
+    Dataset.data_name,
+    Dataset.data_type,
+    Dataset.value]).where(ResourceScenario.resource_attr_id==ResourceAttr.attr_id).where(ResourceAttr.attr_id==Attr.attr_id).where(ResourceScenario.dataset_id==Dataset.dataset_id)
+
+stuff_view = view("vResourceData", DeclarativeBase.metadata, view_qry)

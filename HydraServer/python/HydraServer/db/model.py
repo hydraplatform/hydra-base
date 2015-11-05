@@ -13,15 +13,13 @@
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
+
 from sqlalchemy import Column,\
 ForeignKey,\
 text,\
 Integer,\
-Numeric,\
 String,\
 LargeBinary,\
-BigInteger,\
-DateTime,\
 TIMESTAMP,\
 BIGINT,\
 Float,\
