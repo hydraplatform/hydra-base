@@ -59,3 +59,5 @@ Debug/
 
 HydraPlugins/JSONPlugin/ExportJSON/dist/
 HydraPlugins/JSONPlugin/ImportJSON/dist/
+
+.idea/
