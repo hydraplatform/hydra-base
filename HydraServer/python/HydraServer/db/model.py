@@ -82,7 +82,7 @@ class Dataset(Base):
     frequency = Column(String(10),  nullable=True)
     value = Column('value', LargeBinary(),  nullable=True)
 
-    useruser = relationship('User', backref=backref("datasets", order_by=dataset_id))
+    user = relationship('User', backref=backref("datasets", order_by=dataset_id))
 
     def set_metadata(self, metadata_dict):
         """
