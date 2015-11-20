@@ -362,7 +362,7 @@ def reindex_timeseries(ts_string, new_timestamps):
         if set(idx.year) == set([int(seasonal_year)]):
             if isinstance(new_timestamps,  list):
                 seasonal_timestamp = []
-                for t in idx:
+                for t in ts_timestamps:
                     t_1900 = t.replace(year=int(seasonal_year))
                     seasonal_timestamp.append(t_1900)
                 ts_timestamps = seasonal_timestamp
