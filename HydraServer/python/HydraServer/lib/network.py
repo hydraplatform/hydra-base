@@ -1414,6 +1414,26 @@ def _unique_data_qry(count=1):
     return unique_data
 
 
+def purge_network(network_id, purge_data,**kwargs):
+    """
+        Remove a network from DB completely
+        Use purge_data to try to delete the data associated with only this network. 
+        If no other resources link to this data, it will be deleted.
+
+    """
+    user_id = kwargs.get('user_id')
+    try:
+        net_i = DBSession.query(Network).filter(Network.network_id == network_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError("Network %s not found"%(network_id))
+    
+    log.info("Deleting network %s, id=%s", net_i.network_name, network_id)
+
+    net_i.check_write_permission(user_id)
+    DBSession.delete(net_i)
+    DBSession.flush()
+    return 'OK'
+
 def delete_node(node_id, purge_data,**kwargs):
     """
         Remove node from DB completely

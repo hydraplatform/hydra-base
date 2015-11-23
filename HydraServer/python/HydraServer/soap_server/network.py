@@ -211,6 +211,15 @@ class NetworkService(HydraService):
         network.set_network_status(network_id, 'X', **ctx.in_header.__dict__)
         return 'OK'
 
+    @rpc(Integer, Unicode(pattern="[YN]", default='Y'), _returns=Unicode)
+    def purge_network(ctx, network_id, purge_data):
+        """
+        Remove a network from hydra platform completely.
+        """
+        #check_perm('delete_network')
+        network.purge_network(network_id, purge_data, **ctx.in_header.__dict__)
+        return 'OK'
+
     @rpc(Integer, _returns=Unicode)
     def activate_network(ctx, network_id):
         """
