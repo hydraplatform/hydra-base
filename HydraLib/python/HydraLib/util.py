@@ -20,6 +20,7 @@ from operator import mul
 from HydraException import HydraError
 import numpy as np
 import pandas as pd
+import re
 from hydra_dateutil import get_datetime
 log = logging.getLogger(__name__)
 
@@ -85,78 +86,28 @@ def vector_to_arr(vec, dim):
 
         return array
 
-def create_dict(arr):
-    return {'array': [create_sub_dict(arr)]}
-
-def create_sub_dict(arr):
-    if arr is None:
-        return None 
-
-    #Either the array contains sub-arrays or values
-    vals = None
-    sub_arrays = []
-    for sub_val in arr:
-        if type(sub_val) is list:
-            sub_dict = create_sub_dict(sub_val)
-            sub_arrays.append(sub_dict)
-        else:
-            #if any of the elements of the array is NOT a list,
-            #then there are no sub arrays
-            vals = arr 
-            break
-
-    if vals:
-        return {'item': vals}
-
-    if sub_arrays:
-        return {'array': sub_arrays}
-
-def parse_array(arr):
+def _get_val(val, full=False):
     """
-        Take a dictionary and turn it into an array as follows:
-        ::
-
-         {'array': ['item' : [1, 2, 3]}]} -> [1, 2, 3]
-        
-        Or for a more complex array:
-        ::
-
-         {'array' :[
-             {'array': [ 'item' : [1, 2, 3]} ]}
-             {'array': [ 'item' : [1, 2, 3]} ]} 
-         ]} -> [[1, 2, 3], [4, 5, 6]]
+        Get the value(s) of a dataset as a single value or as 1-d list of 
+        values. In the special case of timeseries, when a check is for time-based
+        criteria, you can return the entire timeseries. 
     """
-    ret_arr = []
-    if arr.get('array'):
-        sub_arr = arr['array']
-        if len(sub_arr) > 1:
-            for s in sub_arr:
-                ret_arr.append(parse_array(s))
-        else:
-            return parse_array(sub_arr[0])
-    elif arr.get('item'):
-        for x in arr['item']:
-            try:
-                val = float(x)
-            except:
-                val = str(x)
-            ret_arr.append(val)
-        return ret_arr
-    else:
-        raise ValueError("Something has gone wrong parsing an array.")
-    return ret_arr
-
-def _get_val(val):
     try:
         val = val.strip()
     except:
         pass
-    
-    try: 
-        val = int(val)
+
+    logging.debug("%s, type=%s", val, type(val))
+
+    if isinstance(val, float):
         return val
-    except:
-        pass
+
+    if isinstance(val, int):
+        return val
+
+
+    if isinstance(val, np.ndarray):
+        return list(val)
 
     try:
         val = float(val)
@@ -164,26 +115,42 @@ def _get_val(val):
     except:
         pass
 
-  #  try:
-  #      val = get_datetime(val)
-  #  except:
-  #      pass
+    try: 
+        val = int(val)
+        return val
+    except:
+        pass
 
-    if type(val) == dict:
+    if type(val) == pd.DataFrame:
+        
+        if full:
+            return val
+        
         newval = []
-        if val.get('ts_values'):
-            for ts_val in val['ts_values']:
-                t = get_datetime(ts_val['ts_time'])
-                v = _get_val(ts_val['ts_value'])
-                newval.append((t, v))
-        if val.get('arr_data'):
-            arr = val['arr_data']
-            for arr_val in arr:
-                v = _get_val(arr_val)
-                newval.append(v)
+        values = val.values
+        for v in values:
+            newv = _get_val(v)
+            if type(newv) == list:
+                newval.extend(newv)
+            else:
+                newval.append(newv)
         val = newval
 
-    elif type(val) == list:
+    elif type(val) == dict:
+        
+        if full:
+            return val
+
+        newval = []
+        for v in val.values():
+            newv = _get_val(v)
+            if type(newv) == list:
+                newval.extend(newv)
+            else:
+                newval.append(newv)
+        val = newval
+
+    elif type(val) == list or type(val) == np.ndarray:
         newval = []
         for arr_val in val:
             v = _get_val(arr_val)
@@ -199,11 +166,11 @@ def get_restriction_as_dict(restriction_xml):
             <restrictions>
                 <restriction>
                     <type>MAXLEN</type>
-                    <value><item>3</item></value>
+                    <value>3</value>
                 </restriction>
                 <restriction>
-                    <type>SUMTO</type>
-                    <value><item>4</item></value>
+                    <type>VALUERANGE</type>
+                    <value><item>1</item><item>10</item></value>
                 </restriction> 
             </restrictions>
 
@@ -212,7 +179,7 @@ def get_restriction_as_dict(restriction_xml):
 
         {
             'MAXLEN' : 3,
-            'SUMTO' : 4
+            'VALUERANGE' : [1, 10]
         }
 
     """
@@ -241,12 +208,13 @@ class ValidationError(Exception):
     pass
 
 
-def validate_ENUM(value, restriction):
+def validate_ENUM(in_value, restriction):
     """
         Test to ensure that the given value is contained in the provided list.
         the value parameter must be either a single value or a 1-dimensional list.
         All the values in this list must satisfy the ENUM
     """
+    value = _get_val(in_value)
     if type(value) is list:
         for subval in value:
             if type(subval) is tuple:
@@ -256,66 +224,77 @@ def validate_ENUM(value, restriction):
         if value not in restriction:
             raise ValidationError("ENUM : %s"%(restriction))
 
-def validate_BOOLYN(value, restriction):
+def validate_BOOLYN(in_value, restriction):
     """
         Restriction is not used here. It is just present to be
         in line with all the other validation functions
 
     """
+    value = _get_val(in_value)
     if type(value) is list:
         for subval in value:
             if type(subval) is tuple:
                 subval = subval[1]
             validate_BOOLYN(subval, restriction)
-
-    if value not in ('Y', 'N'):
-        raise ValidationError("BOOLYN")
+    else:
+        if value not in ('Y', 'N'):
+            raise ValidationError("BOOLYN")
 
 
 def validate_BOOL10(value, restriction):
+    value = _get_val(value)
     if type(value) is list:
         for subval in value:
             if type(subval) is tuple:
                 subval = subval[1]
             validate_BOOL10(subval, restriction)
+    else:
+        if value not in (1, 0):
+            raise ValidationError("BOOL10")
 
-    if value not in (1, 0):
-        raise ValidationError("BOOL10")
-
-def validate_NUMPLACES(value, restriction):
+def validate_NUMPLACES(in_value, restriction):
     """
         the value parameter must be either a single value or a 1-dimensional list.
         All the values in this list must satisfy the condition
     """
+    #Sometimes restriction values can accidentally be put in the template <item>100</items>,
+    #Making them a list, not a number. Rather than blowing up, just get value 1 from the list.
+    if type(restriction) is list:
+        restriction = restriction[0]
+
+    value = _get_val(in_value)
     if type(value) is list:
         for subval in value:
             if type(subval) is tuple:
                 subval = subval[1]
             validate_NUMPLACES(subval, restriction)
+    else:
+        restriction = int(restriction) # Just in case..
+        dec_val = Decimal(str(value))
+        num_places = dec_val.as_tuple().exponent * -1 #exponent returns a negative num
+        if restriction != num_places:
+            raise ValidationError("NUMPLACES: %s"%(restriction))
 
-    restriction = int(restriction) # Just in case..
-    dec_val = Decimal(value)
-    num_places = dec_val.as_tuple().exponent * -1 #exponent returns a negative num
-    if restriction != num_places:
-        raise ValidationError("NUMPLACES: %s"%(num_places))
-
-def validate_VALUERANGE(value, restriction):
+def validate_VALUERANGE(in_value, restriction):
     """
         Test to ensure that a value sits between a lower and upper bound.
         Parameters: A Decimal value and a tuple, containing a lower and upper bound,
         both as Decimal values.
     """
+    if len(restriction) != 2:
+        raise ValidationError("Template ERROR: Only two values can be specified in a date range.")
+    value = _get_val(in_value)
     if type(value) is list:
         for subval in value:
             if type(subval) is tuple:
                 subval = subval[1]
             validate_VALUERANGE(subval, restriction)
-
-    min_val = Decimal(restriction[0])
-    max_val = Decimal(restriction[1])
-    val     = Decimal(value)
-    if val < min_val or val > max_val:
-        raise ValidationError("VALUERANGE: %s, %s"%(min_val, max_val))
+    else:
+        min_val = Decimal(restriction[0])
+        max_val = Decimal(restriction[1])
+        val     = Decimal(value)
+        if val < min_val or val > max_val:
+            raise ValidationError("VALUERANGE: %s, %s"%(min_val, max_val))
 
 def validate_DATERANGE(value, restriction):
     """
@@ -323,13 +302,17 @@ def validate_DATERANGE(value, restriction):
         Parameters: A timeseries in the form [(datetime, val), (datetime, val)..]
         and a tuple containing the lower and upper bound as datetime objects.
     """
-    if type(value) is list:
-        for subval in value:
-            if type(subval) is tuple:
-                ts_time = subval[0]
-            elif type(subval) is dict:
-                ts_time = subval['ts_time']
-            validate_DATERANGE(ts_time, restriction)
+    if len(restriction) != 2:
+        raise ValidationError("Template ERROR: Only two values can be specified in a date range.")
+
+    if type(value) == pd.DataFrame:
+        dates = [get_datetime(v) for v in list(value.index)]
+    else:
+        dates = value
+
+    if type(dates) is list:
+        for date in dates:
+            validate_DATERANGE(date, restriction)
         return
 
     min_date = get_datetime(restriction[0])
@@ -343,50 +326,95 @@ def validate_MAXLEN(value, restriction):
         Parameters: A list and an integer, which defines the required length of
         the list.
     """
+    #Sometimes restriction values can accidentally be put in the template <item>100</items>,
+    #Making them a list, not a number. Rather than blowing up, just get value 1 from the list.
+    if type(restriction) is list:
+        restriction = restriction[0]
+    else:
+        return
+
     if len(value) > restriction:
         raise ValidationError("MAXLEN: %s"%(restriction))
 
-def validate_EQUALTO(value, restriction):
+def validate_NOTNULL(value, restriction):
+    """
+        Restriction is not used here. It is just present to be
+        in line with all the other validation functions
+
+    """
+
+    if value is None or str(value).lower == 'null':
+        raise ValidationError("NOTNULL")
+
+def validate_ISNULL(value, restriction):
+    """
+        Restriction is not used here. It is just present to be
+        in line with all the other validation functions
+
+    """
+    
+    if value is not None and str(value).lower != 'null':
+        raise ValidationError("ISNULL")
+
+def validate_EQUALTO(in_value, restriction):
     """
         Test to ensure that a value is equal to a prescribed value.
         Parameter: Two values, which will be compared for equality.
     """
+    #Sometimes restriction values can accidentally be put in the template <item>100</items>,
+    #Making them a list, not a number. Rather than blowing up, just get value 1 from the list.
+    if type(restriction) is list:
+        restriction = restriction[0]
+
+    value = _get_val(in_value)
     if type(value) is list:
         for subval in value:
             if type(subval) is tuple:
                 subval = subval[1]
             validate_EQUALTO(subval, restriction)
+    else:
+        if value != restriction:
+            raise ValidationError("EQUALTO: %s"%(restriction))
 
-    if value != restriction:
-        raise ValidationError("EQUALTO: %s"%(restriction))
-
-def validate_NOTEQUALTO(value, restriction):
+def validate_NOTEQUALTO(in_value, restriction):
     """
         Test to ensure that a value is NOT equal to a prescribed value.
         Parameter: Two values, which will be compared for non-equality.
     """
+    #Sometimes restriction values can accidentally be put in the template <item>100</items>,
+    #Making them a list, not a number. Rather than blowing up, just get value 1 from the list.
+    if type(restriction) is list:
+        restriction = restriction[0]
+
+    value = _get_val(in_value)
     if type(value) is list:
         for subval in value:
             if type(subval) is tuple:
                 subval = subval[1]
             validate_NOTEQUALTO(subval, restriction)
+    else:
+        if value == restriction:
+            raise ValidationError("NOTEQUALTO: %s"%(restriction))
 
-    if value == restriction:
-        raise ValidationError("NOTEQUALTO: %s"%(restriction))
-
-def validate_LESSTHAN(value, restriction):
+def validate_LESSTHAN(in_value, restriction):
     """
         Test to ensure that a value is less than a prescribed value.
         Parameter: Two values, which will be compared for the difference..
     """
+    #Sometimes restriction values can accidentally be put in the template <item>100</items>,
+    #Making them a list, not a number. Rather than blowing up, just get value 1 from the list.
+    if type(restriction) is list:
+        restriction = restriction[0]
+
+    value = _get_val(in_value)
     if type(value) is list:
         for subval in value:
             if type(subval) is tuple:
                 subval = subval[1]
             validate_LESSTHAN(subval, restriction)
-
-    if value >= restriction:
-        raise ValidationError("LESSTHAN: %s"%(restriction))
+    else:
+        if value >= restriction:
+            raise ValidationError("LESSTHAN: %s"%(restriction))
 
 
 def validate_LESSTHANEQ(value, restriction):
@@ -394,67 +422,96 @@ def validate_LESSTHANEQ(value, restriction):
         Test to ensure that a value is less than or equal to a prescribed value.
         Parameter: Two values, which will be compared for the difference..
     """
+    #Sometimes restriction values can accidentally be put in the template <item>100</items>,
+    #Making them a list, not a number. Rather than blowing up, just get value 1 from the list.
+    if type(restriction) is list:
+        restriction = restriction[0]
+
+    value = _get_val(value)
     if type(value) is list:
         for subval in value:
             if type(subval) is tuple:
                 subval = subval[1]
             validate_LESSTHANEQ(subval, restriction)
+    else:
+        if value > restriction:
+            raise ValidationError("LESSTHANEQ: %s"%(restriction))
 
-    if value > restriction:
-        raise ValidationError("LESSTHANEQ: %s"%(restriction))
-
-def validate_GREATERTHAN(value, restriction):
+def validate_GREATERTHAN(in_value, restriction):
     """
         Test to ensure that a value is greater than a prescribed value.
         Parameter: Two values, which will be compared for the difference..
     """
+    #Sometimes restriction values can accidentally be put in the template <item>100</items>,
+    #Making them a list, not a number. Rather than blowing up, just get value 1 from the list.
+    if type(restriction) is list:
+        restriction = restriction[0]
+
+    value = _get_val(in_value)
     if type(value) is list:
         for subval in value:
             if type(subval) is tuple:
                 subval = subval[1]
             validate_GREATERTHAN(subval, restriction)
-
-    if value <= restriction:
-        raise ValidationError("GREATERTHAN: %s"%(restriction))
+    else:
+        if value <= restriction:
+            raise ValidationError("GREATERTHAN: %s"%(restriction))
 
 def validate_GREATERTHANEQ(value, restriction):
     """
         Test to ensure that a value is greater than or equal to a prescribed value.
         Parameter: Two values, which will be compared for the difference..
     """
+    #Sometimes restriction values can accidentally be put in the template <item>100</items>,
+    #Making them a list, not a number. Rather than blowing up, just get value 1 from the list.
+    if type(restriction) is list:
+        restriction = restriction[0]
+
+    value = _get_val(value)
     if type(value) is list:
         for subval in value:
             if type(subval) is tuple:
                 subval = subval[1]
             validate_GREATERTHANEQ(subval, restriction)
+    else:
+        if value < restriction:
+            raise ValidationError("GREATERTHANEQ: %s"%(restriction))
 
-    if value < restriction:
-        raise ValidationError("GREATERTHANEQ: %s"%(restriction))
-
-def validate_MULTIPLEOF(value, restriction):
+def validate_MULTIPLEOF(in_value, restriction):
     """
         Test to ensure that a value is a multiple of a specified restriction value.
         Parameters: Numeric value and an integer
     """
+    #Sometimes restriction values can accidentally be put in the template <item>100</items>,
+    #Making them a list, not a number. Rather than blowing up, just get value 1 from the list.
+    if type(restriction) is list:
+        restriction = restriction[0]
+
+    value = _get_val(in_value)
     if type(value) is list:
         for subval in value:
             if type(subval) is tuple:
                 subval = subval[1]
             validate_MULTIPLEOF(subval, restriction)
+    else:
+        if value % restriction != 0:
+            raise ValidationError("MULTIPLEOF: %s"%(restriction))
 
-    if value % restriction != 0:
-        raise ValidationError("MULTIPLEOF: %s"%(restriction))
-
-def validate_SUMTO(value, restriction):
+def validate_SUMTO(in_value, restriction):
     """
         Test to ensure the values of a list sum to a specified value:
         Parameters: a list of numeric values and a target to which the values
         in the list must sum
     """
+    #Sometimes restriction values can accidentally be put in the template <item>100</items>,
+    #Making them a list, not a number. Rather than blowing up, just get value 1 from the list.
+    if type(restriction) is list:
+        restriction = restriction[0]
+        
+    value = _get_val(in_value, full=True)
+
     if len(value) == 0:
         return
-    if type(value) != list:
-        raise ValidationError("Value %s cannot be summed."%(value))
    
     flat_list = _flatten_value(value)
     
@@ -466,14 +523,14 @@ def validate_SUMTO(value, restriction):
     if sum(flat_list) != restriction:
         raise ValidationError("SUMTO: %s"%(restriction))
 
-def validate_INCREASING(value,restriction):
+def validate_INCREASING(in_value,restriction):
     """
         Test to ensure the values in a list are increasing.
         Parameters: a list of values and None. The none is there simply
         to conform with the rest of the validation routines.
     """
 
-    flat_list = _flatten_value(value)
+    flat_list = _flatten_value(in_value)
 
     previous = None
     for a in flat_list:
@@ -484,13 +541,13 @@ def validate_INCREASING(value,restriction):
             raise ValidationError("INCREASING")
         previous = a
 
-def validate_DECREASING(value,restriction):
+def validate_DECREASING(in_value,restriction):
     """
         Test to ensure the values in a list are decreasing.
         Parameters: a list of values and None. The none is there simply
         to conform with the rest of the validation routines.
     """
-    flat_list = _flatten_value(value)
+    flat_list = _flatten_value(in_value)
 
     previous = None
     for a in flat_list:
@@ -503,37 +560,38 @@ def validate_DECREASING(value,restriction):
 
 def validate_EQUALTIMESTEPS(value, restriction):
     """
-        Test to ensure the values of a list sum to a specified value:
-        Parameters: a list of numeric values and a target to which the values
-        in the list must sum
+        Ensure that the timesteps in a timeseries are equal. If a restriction
+        is provided, they must be equal to the specified restriction.
+
+        Value is a pandas dataframe.
     """
     if len(value) == 0:
         return
 
-    if type(value) != list:
-        raise ValidationError("Value %s cannot be validated. It is not a list."%(value))
+    if type(value) == pd.DataFrame:
+        if str(value.index[0]).startswith('9999'):
+            tmp_val = value.to_json().replace('9999', '1900')
+            value = pd.read_json(tmp_val)
+   
 
-    ts_val_keys = []
-    ts_vals     = []
-    for ts_instance in value:
-        if type(ts_instance) is tuple:
-            ts_val_keys.append(ts_instance[0])
-            ts_vals.append(ts_instance[1])
-        else:
-            ts_val_keys.append(ts_instance['ts_time'])
-            ts_vals.append(ts_instance['ts_value'])
+    #If the timeseries is not datetime-based, check for a consistent timestep
+    if type(value.index) == pd.Int64Index:
+        timesteps = list(value.index)
+        timestep = timesteps[1] - timesteps[0]
+        for i, t in enumerate(timesteps[1:]):
+            if timesteps[i] - timesteps[i-1] != timestep:
+                raise ValidationError("Timesteps not equal: %s"%(list(value.index)))
 
-    test_pd = pd.DataFrame(ts_vals, index=pd.Series(ts_val_keys))
-    
-    if not hasattr(test_pd.index, 'inferred_freq'):
-        raise ValidationError("Timesteps not equal: %s"%(ts_val_keys,))
+
+    if not hasattr(value.index, 'inferred_freq'):
+        raise ValidationError("Timesteps not equal: %s"%(list(value.index),))
 
     if restriction is None:
-        if test_pd.index.inferred_freq is None:
-            raise ValidationError("Timesteps not equal: %s"%(ts_val_keys,))
+        if value.index.inferred_freq is None:
+            raise ValidationError("Timesteps not equal: %s"%(list(value.index),))
     else:
-        if test_pd.index.inferred_freq != restriction:
-            raise ValidationError("Timesteps not equal: %s"%(ts_val_keys,))
+        if value.index.inferred_freq != restriction:
+            raise ValidationError("Timesteps not equal: %s"%(list(value.index),))
 
 validation_func_map = dict(
     ENUM = validate_ENUM,
@@ -554,26 +612,28 @@ validation_func_map = dict(
     INCREASING = validate_INCREASING,
     DECREASING = validate_DECREASING,
     EQUALTIMESTEPS = validate_EQUALTIMESTEPS,
+    NOTNULL        = validate_NOTNULL,
+    ISNULL         = validate_ISNULL,
 )
 
 def validate_value(restriction_dict, inval):
     if len(restriction_dict) == 0:
         return
 
-    val = _get_val(inval)
-    #log.warn("%s -> %s", inval, val)
     try:
         for restriction_type, restriction in restriction_dict.items():
             func = validation_func_map.get(restriction_type)
             if func is None:
                 raise Exception("Validation type %s does not exist"%(restriction_type,))
-            func(val, restriction)
+            func(inval, restriction)
     except ValidationError, e:
-        if len(str(inval)) > 100:
-            val = "%s..."%str(inval)[:100]
-        raise HydraError("Validation error. Val %s does not conform with rule %s" 
-                         %(val, e.message))
+        log.exception(e)
+        err_val = re.sub('\s+', ' ', str(inval)).strip()
+        if len(err_val) > 60:
+            err_val = "%s..."%err_val[:60]
+        raise HydraError("Validation error (%s). Val %s does not conform with rule %s"%(restriction_type, err_val, e.message))
     except Exception, e:
+        log.exception(e)
         raise HydraError("An error occurred in validation. (%s)"%(e))
 
 def _flatten_value(value):
@@ -582,28 +642,16 @@ def _flatten_value(value):
         2: Turn a timeseries of values into a single 1-dimensional array
     """
 
+    if type(value) == pd.DataFrame:
+        value = value.values.tolist()
+
     if type(value) != list:
         raise ValidationError("Value %s cannot be processed."%(value))
     
     if len(value) == 0:
         return
 
-    if type(value[0]) == tuple:
-        flat_list = _flatten_timeseries(value)
-    else:
-        flat_list = _flatten_list(value)
-
-    return flat_list
-
-def _flatten_timeseries(value):
-    flat_list = []
-    for timestep in value:
-        val = timestep[1]
-        if type(val) is list:
-            flat_sub_list = _flatten_list(val)
-            flat_list.extend(flat_sub_list)
-        else:
-            flat_list.append(val)
+    flat_list = _flatten_list(value)
 
     return flat_list
 

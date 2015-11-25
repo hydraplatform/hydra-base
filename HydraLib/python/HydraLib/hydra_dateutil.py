@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 # (c) Copyright 2013, 2014, University of Manchester
 #
@@ -20,6 +19,7 @@ import logging
 from decimal import Decimal, ROUND_HALF_UP
 from dateutil.parser import parse
 from HydraLib import config
+import pandas as pd
 
 
 log = logging.getLogger(__name__)
@@ -31,62 +31,7 @@ FORMAT = "%Y-%m-%d %H:%M:%S.%f"
     A mapping from commonly used time periods to the appropriate hydra-compatible
     time period abbreviation
 """
-time_map = {
-    'picosecond'  : 'ps',
-    'picoseconds' : 'ps',
-    'picosec'     : 'ps',
-    'picosecs'    : 'ps',
-    'ps'          : 'ps',
-
-    'nanosecond'  : 'ns',
-    'nanoseconds' : 'ns',
-    'nanosecs'    : 'ns',
-    'nanosec'     : 'ns',
-    'ns'          : 'ns',
-
-    'microsecond'  : 'ms',
-    'microseconds' : 'ms',
-    'microsec'     : 'ms',
-    'microsecs'    : 'ms',
-    'ms'           : 'ms',
-
-    'millisecond'   : '탎',
-    'milliseconds'  : '탎',
-    'millisec'      : '탎',
-    'millisecs'     : '탎',
-    '탎'            : '탎',
-
-    'second'  : 's',
-    'seconds' : 's',
-    'sec'     : 's',
-    'secs'    : 's',
-    's'       : 's',
-    
-    'minute'  : 'min',
-    'minutes' : 'min',
-    'min'     : 'min',
-    'mins'    : 'min',
-    'm'       : 'min',
-
-    'h'     : 'h',
-    'hour'  : 'h',
-    'hours' : 'h',
-
-    'd'    : 'day',
-    'day'  : 'day',
-    'days' : 'day',
-
-    'mon'    : 'mon',
-    'month'  : 'mon',
-    'months' : 'mon',
-    'mons'   : 'mon',
-
-    'y'    : 'yr',
-    'yr'   : 'yr',
-    'year' : 'yr',
-    'years': 'yr',
-    'yrs'  : 'yr',
-}
+from time_map import time_map
 
 
 def get_time_period(period_name):
@@ -111,7 +56,7 @@ def get_datetime(timestamp):
     """
     #First try to use date util. Failing that, continue
     try:
-        parsed_dt = parse(timestamp)
+        parsed_dt = parse(timestamp, dayfirst=True)
         if parsed_dt.tzinfo is None:
             return parsed_dt
         else:
@@ -198,7 +143,7 @@ def date_to_string(date, seasonal=False):
     recognised by Hydra as seasonal time stamp.
     """
 
-    seasonal_key = config.get('DEFAULT', 'seasonal_key', 9999)
+    seasonal_key = config.get('DEFAULT', 'seasonal_key', '9999')
     if seasonal:
         FORMAT = seasonal_key+'-%m-%dT%H:%M:%S.%f'
     else:
@@ -253,7 +198,7 @@ def guess_timefmt(datestr):
     """
 
 
-    seasonal_key = str(config.get('DEFAULT', 'seasonal_key', 9999))
+    seasonal_key = str(config.get('DEFAULT', 'seasonal_key', '9999'))
 
     #replace 'T' with space to handle ISO times.
     if datestr.find('T') > 0:
@@ -265,6 +210,9 @@ def guess_timefmt(datestr):
     formatstrings = [['%Y', '%m', '%d'],
                      ['%d', '%m', '%Y'],
                      ['%d', '%b', '%Y'],
+                     ['XXXX', '%m', '%d'],
+                     ['%d', '%m', 'XXXX'],
+                     ['%d', '%b', 'XXXX'],
                      [seasonal_key, '%m', '%d'],
                      ['%d', '%m', seasonal_key],
                      ['%d', '%b', seasonal_key]]
@@ -300,7 +248,7 @@ def guess_timefmt(datestr):
                     pass
 
     # Check for other formats:
-    custom_formats = ['%d/%m/%Y', '%b %d %Y', '%B %d %Y', '%d/%m/'+seasonal_key]
+    custom_formats = ['%d/%m/%Y', '%b %d %Y', '%B %d %Y','%d/%m/XXXX', '%d/%m/'+seasonal_key]
 
     for fmt in custom_formats:
         if usetime:
@@ -321,4 +269,60 @@ def guess_timefmt(datestr):
 
     return None
 
+def reindex_timeseries(ts_string, new_timestamps):
+    """
+        get data for timesamp
 
+        :param a JSON string, in pandas-friendly format
+        :param a timestamp or list of timestamps (datetimes)
+        :returns a pandas data frame, reindexed with the supplied timestamos or None if no data is found
+    """
+    #If a single timestamp is passed in, turn it into a list
+    #Reindexing can't work if it's not a list
+    if not isinstance(new_timestamps, list):
+        new_timestamps = [new_timestamps]
+    
+    #Convert the incoming timestamps to datetimes
+    #if they are not datetimes.
+    new_timestamps_converted = []
+    for t in new_timestamps:
+        new_timestamps_converted.append(get_datetime(t))
+
+    new_timestamps = new_timestamps_converted
+
+    seasonal_year = config.get('DEFAULT','seasonal_year', '1678')
+    seasonal_key = config.get('DEFAULT', 'seasonal_key', '9999')
+
+    ts = ts_string.replace(seasonal_key, seasonal_year)
+    
+    timeseries = pd.read_json(ts)
+
+    idx = timeseries.index
+
+    ts_timestamps = new_timestamps
+
+    #'Fix' the incoming timestamp in case it's a seasonal value
+    if type(idx) == pd.DatetimeIndex:
+        if set(idx.year) == set([int(seasonal_year)]):
+            if isinstance(new_timestamps,  list):
+                seasonal_timestamp = []
+                for t in ts_timestamps:
+                    t_1900 = t.replace(year=int(seasonal_year))
+                    seasonal_timestamp.append(t_1900)
+                ts_timestamps = seasonal_timestamp
+
+    #Reindex the timeseries to reflect the requested timestamps
+    reindexed_ts = timeseries.reindex(ts_timestamps, method='ffill')
+
+    i = reindexed_ts.index
+
+    reindexed_ts.index = pd.Index(new_timestamps, names=i.names)
+
+    #If there are no values at all, just return None
+    if len(reindexed_ts.dropna()) == 0:
+        return None
+
+    #Replace all numpy NAN values with None
+    pandas_ts = reindexed_ts.where(reindexed_ts.notnull(), None)
+
+    return pandas_ts

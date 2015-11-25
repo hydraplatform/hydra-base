@@ -37,8 +37,6 @@ class ScenarioTest(server.SoapServerTest):
         resource_attr_id = resource_scenario.resource_attr_id
 
         dataset = self.client.factory.create('ns1:Dataset')
-       
-        dataset = self.client.factory.create('ns1:Dataset')
         dataset.type = 'descriptor'
         dataset.name = 'Max Capacity'
         dataset.unit = 'metres / second'
@@ -221,6 +219,54 @@ class ScenarioTest(server.SoapServerTest):
                 if u_rs.resource_attr_id == rs.resource_attr_id:
                     assert str(u_rs.value) == str(rs.value)
                     break
+
+    def test_update_resourcedata_single_dataset_update_and_delete(self):
+        """
+            Test to ensure update_resourcedata does not update other
+            datasets that it should not.
+        """
+        network = self.create_network_with_data()
+
+        scenario_1 = network.scenarios.Scenario[0]
+        scenario_2 = self.client.service.clone_scenario(scenario_1.id)
+        scenario_2 = self.client.service.get_scenario(scenario_2.id)
+
+        new_value = json.dumps({"index": {"1.0":"test", "2.0":"update"}})
+
+        #Delete a timeseries from one scenario, so there's only 1 reference to that
+        #dataset in tResourceSceanrio.
+        ts_to_delete = self.client.factory.create('ns1:ResourceScenarioArray')
+        ra_id = None
+        ts_id = None
+        for rs in scenario_1.resourcescenarios.ResourceScenario:
+            if rs.value.type == 'timeseries':
+                ra_id = rs.resource_attr_id
+                ts_id = rs.value.id
+                rs.value = None
+                ts_to_delete.ResourceScenario.append(rs)
+                break
+
+        ts_to_update = self.client.factory.create('ns1:ResourceScenarioArray')
+        for rs in scenario_2.resourcescenarios.ResourceScenario:
+            if rs.resource_attr_id == ra_id:
+                rs.value.value= new_value
+                ts_to_update.ResourceScenario.append(rs)
+                break
+
+        deleted_rs = self.client.service.update_resourcedata(scenario_1.id,
+                                                                        ts_to_delete)
+        updated_ts_rs = self.client.service.update_resourcedata(scenario_2.id,
+                                                                        ts_to_update)
+        scenario_2_updated_1 = self.client.service.get_scenario(scenario_2.id)
+        for rs in scenario_2_updated_1.resourcescenarios.ResourceScenario:
+            if rs.resource_attr_id == ra_id:
+                assert json.loads(rs.value.value) == json.loads(new_value)
+                #Either the dataset is the same dataset, just updated or the dataset
+                #has been removed and linked to a previous dataset, which must have a lower ID.
+                assert rs.value.id <= ts_id
+                break
+        else:
+            raise Exception("Couldn't find resource scenario. SOmething went wrong.")
 
     def test_update_resourcedata_consistency(self):
         """

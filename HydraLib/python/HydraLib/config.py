@@ -56,9 +56,9 @@ def load_config():
     global sysfiles
     global CONFIG
     logging.basicConfig(level='INFO')
-    
+
     config = ConfigParser.ConfigParser(allow_no_value=True)
-    
+
     modulepath = os.path.dirname(os.path.abspath(__file__))
 
     localfile = os.getcwd() + '/hydra.ini'
@@ -107,7 +107,7 @@ def load_config():
     try:
         hydra_base = config.get('DEFAULT', 'hydra_base_dir')
     except:
-        hydra_base = os.environ.get('HYDRA_BASE_DIR', '~/svn/HYDRA')
+        hydra_base = os.environ.get('HYDRA_BASE_DIR', modulepath + '/../../../')
     config.set('DEFAULT', 'hydra_base_dir', os.path.expanduser(hydra_base))
 
 
@@ -156,4 +156,4 @@ def getint(section, option, default=None):
         return CONFIG.getint(section, option)
     except:
         return default
-    
+

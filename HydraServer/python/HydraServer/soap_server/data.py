@@ -215,6 +215,17 @@ class DataService(HydraService):
                                                      **ctx.in_header.__dict__)
         return DatasetCollection(dataset_coln_i)
 
+    @rpc(Integer, _returns=Unicode)
+    def delete_dataset_collection(ctx, collection_id):
+        """
+            Delete a single dataset collection, by ID.
+            :param Collection ID.
+        """
+
+        data.delete_dataset_collection(collection_id,
+                                                     **ctx.in_header.__dict__)
+        return "OK"
+
     @rpc(Unicode, _returns=DatasetCollection)
     def get_dataset_collection_by_name(ctx, collection_name):
         """

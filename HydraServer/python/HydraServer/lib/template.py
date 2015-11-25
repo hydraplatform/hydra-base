@@ -1083,39 +1083,102 @@ def delete_typeattr(typeattr,**kwargs):
 
     return 'OK'
 
-def validate_attr(resource_attr_id, scenario_id, type_id=None):
+def validate_attr(resource_attr_id, scenario_id, template_id=None):
     """
         Check that a resource attribute satisfies the requirements of all the types of the 
         resource.
     """
+    rs = DBSession.query(ResourceScenario).\
+                        filter(ResourceScenario.resource_attr_id==resource_attr_id, 
+        ResourceScenario.scenario_id==scenario_id).options(
+        joinedload_all("resourceattr")).options(
+        joinedload_all("dataset")
+        ).one()
+
+    error = None
+    
     try:
-        rs = DBSession.query(ResourceScenario).filter(ResourceScenario.resource_attr_id==resource_attr_id, 
-            ResourceScenario.scenario_id==scenario_id).options(
-            joinedload_all("resourceattr")).options(
-            joinedload_all("dataset")
-            ).one()
+        _do_validate_resourcescenario(rs, template_id)
+    except HydraError, e:
 
-        _do_validate_resourcescenario(rs, type_id)
-                    
-    except NoResultFound:
-        raise ResourceNotFoundError("Resource Scenario %s not found"%resource_attr_id)
+        error = dict(
+                 ref_key = rs.resourceattr.ref_key,
+                 ref_id  = rs.resourceattr.get_resource_id(),
+                 ref_name = rs.resourceattr.get_resource().get_name(),
+                 resource_attr_id = rs.resource_attr_id,
+                 attr_id          = rs.resourceattr.attr.attr_id,
+                 attr_name        = rs.resourceattr.attr.attr_name,
+                 dataset_id       = rs.dataset_id,
+                 scenario_id=scenario_id,
+                 template_id=template_id,
+                 error_text=e.message)
+    return error
 
-def validate_attrs(resource_attr_ids, scenario_id, type_id=None):
+def validate_attrs(resource_attr_ids, scenario_id, template_id=None):
     """
         Check that multiple resource attribute satisfy the requirements of the types of resources to
         which the they are attached.
     """
-    try:
-        multi_rs = DBSession.query(ResourceScenario).filter(ResourceScenario.resource_attr_id.in_(resource_attr_ids), ResourceScenario.scenario_id==scenario_id).options(joinedload_all("resourceattr")).options(joinedload_all("dataset")).all()
+    multi_rs = DBSession.query(ResourceScenario).\
+                            filter(ResourceScenario.resource_attr_id.in_(resource_attr_ids),\
+                                   ResourceScenario.scenario_id==scenario_id).\
+                                   options(joinedload_all("resourceattr")).\
+                                   options(joinedload_all("dataset")).all()
         
-        for rs in multi_rs:
-            _do_validate_resourcescenario(rs, type_id)
+    errors = []
+    for rs in multi_rs:
+        try:
+            _do_validate_resourcescenario(rs, template_id)
+        except HydraError, e:
+
+            error = dict(
+                     ref_key = rs.resourceattr.ref_key,
+                     ref_id  = rs.resourceattr.get_resource_id(),
+                     ref_name = rs.resourceattr.get_resource().get_name(),
+                     resource_attr_id = rs.resource_attr_id,
+                     attr_id          = rs.resourceattr.attr.attr_id,
+                     attr_name        = rs.resourceattr.attr.attr_name,
+                     dataset_id       = rs.dataset_id,
+                     scenario_id=scenario_id,
+                     template_id=template_id,
+                     error_text=e.message)
+            errors.append(error)
                     
-    except NoResultFound:
-        raise ResourceNotFoundError("Resource Scenarios %s not found"%resource_attr_ids)
+
+def validate_scenario(scenario_id, template_id=None):
+    """
+        Check that the requirements of the types of resources in a scenario are
+        correct, based on the templates in a network. If a template is specified,
+        only that template will be checked.
+    """
+    scenario_rs = DBSession.query(ResourceScenario).filter(
+                ResourceScenario.scenario_id==scenario_id)\
+                .options(joinedload_all("resourceattr"))\
+                .options(joinedload_all("dataset")).all()
+
+    errors = []
+    for rs in scenario_rs:
+        try:
+            _do_validate_resourcescenario(rs, template_id)
+        except HydraError, e:
+
+            error = dict(
+                     ref_key = rs.resourceattr.ref_key,
+                     ref_id  = rs.resourceattr.get_resource_id(),
+                     ref_name = rs.resourceattr.get_resource().get_name(),
+                     resource_attr_id = rs.resource_attr_id,
+                     attr_id          = rs.resourceattr.attr.attr_id,
+                     attr_name        = rs.resourceattr.attr.attr_name,
+                     dataset_id       = rs.dataset_id,
+                     scenario_id=scenario_id,
+                     template_id=template_id,
+                     error_text=e.message)
+            errors.append(error)
+                    
+    return errors
 
 
-def _do_validate_resourcescenario(resourcescenario, type_id=None):
+def _do_validate_resourcescenario(resourcescenario, template_id=None):
     """
         Perform a check to ensure a resource scenario's datasets are correct given what the
         definition of that resource (its type) specifies.
@@ -1129,12 +1192,18 @@ def _do_validate_resourcescenario(resourcescenario, type_id=None):
     if len(types) == 0:
         return
 
+    if template_id is not None:
+        if template_id not in [r.templatetype.template_id for r in res.types]:
+            raise HydraError("Template %s is not used for resource attribute %s in scenario %s"%\
+                             (template_id, resourcescenario.resourceattr.attr.attr_name,
+                             resourcescenario.scenario.scenario_name))
+
     #Validate against all the types for the resource
     for resourcetype in types:
         #If a specific type has been specified, then only validate
         #against that type and ignore all the others
-        if type_id is not None:
-            if resourcetype.type_id != type_id:
+        if template_id is not None:
+            if resourcetype.templatetype.template_id != template_id:
                 continue
         #Identify the template types for the template
         tmpltype = resourcetype.templatetype
@@ -1143,6 +1212,7 @@ def _do_validate_resourcescenario(resourcescenario, type_id=None):
             #we can do some validation.
             if ta.attr_id == resourcescenario.resourceattr.attr_id:
                 if ta.data_restriction:
+                    log.info("Validating against %s", ta.data_restriction)
                     validation_dict = eval(ta.data_restriction)
                     util.validate_value(validation_dict, dataset.get_val())
 

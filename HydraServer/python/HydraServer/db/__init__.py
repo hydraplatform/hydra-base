@@ -23,6 +23,7 @@ import logging
 log = logging.getLogger(__name__)
 
 from sqlalchemy.ext.declarative import declarative_base
+global DeclarativeBase
 DeclarativeBase = declarative_base()
 
 db_url = config.get('mysqld', 'url')
@@ -45,4 +46,3 @@ def commit_transaction():
 
 def rollback_transaction():
     transaction.abort()
-

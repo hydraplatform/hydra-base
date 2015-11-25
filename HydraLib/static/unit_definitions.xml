@@ -284,6 +284,9 @@
         <unit name="USDollars per kilowatt-hour" abbr="USD kWh^-1"    lf="2.77777777e-07" cf="0" info="Cost in US Dollars per energy unit (kilowatt-hour)."/>
         <unit name="USDollars per kilojoule" abbr="USD kJ^-1"    lf="0.001" cf="0" info="Cost in US Dollars per energy unit (kilojoule)."/>
         <unit name="USDollars per joule" abbr="USD J^-1"    lf="1" cf="0" info="Cost in US Dollars per energy unit (joule)."/>
+        <unit name="Pound Sterling per kilowatt-hour" abbr="GBP kWh^-1"    lf="1.8333333282e-07" cf="0" info="Cost in Pound Sterling per energy unit (kilowatt-hour)."/>
+        <unit name="Pound Sterling per kilojoule" abbr="GBP kJ^-1"    lf="0.0066" cf="0" info="Cost in Pound Sterling per energy unit (kilojoule)."/>
+        <unit name="Pound Sterling per joule" abbr="GBP J^-1"    lf="0.66" cf="0" info="Cost in Pound Sterling per energy unit (joule)."/>
     </dimension>
     <dimension name="Unit price (volume)">
         <unit name="US Dollar per cubic metre" abbr="USD m^-3"     lf="1.0" cf="0.0" info=""/>

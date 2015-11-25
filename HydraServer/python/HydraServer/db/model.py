@@ -13,15 +13,13 @@
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
+
 from sqlalchemy import Column,\
 ForeignKey,\
 text,\
 Integer,\
-Numeric,\
 String,\
 LargeBinary,\
-BigInteger,\
-DateTime,\
 TIMESTAMP,\
 BIGINT,\
 Float,\
@@ -84,7 +82,7 @@ class Dataset(Base):
     frequency = Column(String(10),  nullable=True)
     value = Column('value', LargeBinary(),  nullable=True)
 
-    useruser = relationship('User', backref=backref("datasets", order_by=dataset_id))
+    user = relationship('User', backref=backref("datasets", order_by=dataset_id))
 
     def set_metadata(self, metadata_dict):
         """
@@ -285,8 +283,7 @@ class DatasetCollectionItem(Base):
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     collection = relationship('DatasetCollection', backref=backref("items", order_by=dataset_id, cascade="all, delete-orphan"))
-    dataset = relationship('Dataset', backref=backref("collectionitems", order_by=dataset_id))
-
+    dataset = relationship('Dataset', backref=backref("collectionitems", order_by=dataset_id,  cascade="all, delete-orphan"))
 
 class Metadata(Base):
     """
@@ -369,7 +366,7 @@ class TemplateType(Base):
 
     __tablename__='tTemplateType'
     __table_args__ = (
-        UniqueConstraint('template_id', 'type_name', name="unique type name"),
+        UniqueConstraint('template_id', 'type_name', 'resource_type', name="unique type name"),
     )
 
     type_id = Column(Integer(), primary_key=True, nullable=False)
@@ -419,6 +416,14 @@ class ResourceAttr(Base):
 
     __tablename__='tResourceAttr'
 
+    __table_args__ = (
+        UniqueConstraint('network_id', 'attr_id', name = 'net_attr_1'),
+        UniqueConstraint('project_id', 'attr_id', name = 'proj_attr_1'),
+        UniqueConstraint('node_id',    'attr_id', name = 'node_attr_1'),
+        UniqueConstraint('link_id',    'attr_id', name = 'link_attr_1'),
+        UniqueConstraint('group_id',   'attr_id', name = 'group_attr_1'),
+    )
+
     resource_attr_id = Column(Integer(), primary_key=True, nullable=False)
     attr_id = Column(Integer(), ForeignKey('tAttr.attr_id'),  nullable=False)
     ref_key = Column(String(60),  nullable=False, index=True)
@@ -463,7 +468,7 @@ class ResourceAttr(Base):
         elif ref_key == 'LINK':
             return self.link
         elif ref_key == 'GROUP':
-            return self.group
+            return self.resourcegroup
         elif ref_key == 'PROJECT':
             return self.project
 
@@ -1044,6 +1049,7 @@ class ResourceScenario(Base):
 
         return dataset
 
+
 class Scenario(Base):
     """
     """
@@ -1363,3 +1369,62 @@ class User(Base):
 
 from HydraServer.db import engine
 Base.metadata.create_all(engine)
+
+def create_resourcedata_view():
+    #These are for creating the resource data view (see bottom of page)
+    from sqlalchemy import select
+    from sqlalchemy.schema import DDLElement
+    from sqlalchemy.sql import table
+    from sqlalchemy.ext import compiler
+    from model import ResourceAttr, ResourceScenario, Attr, Dataset
+
+    class CreateView(DDLElement):
+        def __init__(self, name, selectable):
+            self.name = name
+            self.selectable = selectable
+
+    class DropView(DDLElement):
+        def __init__(self, name):
+            self.name = name
+
+    @compiler.compiles(CreateView)
+    def compile(element, compiler, **kw):
+        return "CREATE VIEW %s AS %s" % (element.name, compiler.sql_compiler.process(element.selectable))
+
+    @compiler.compiles(DropView)
+    def compile(element, compiler, **kw):
+        return "DROP VIEW %s" % (element.name)
+
+    def view(name, metadata, selectable):
+        t = table(name)
+
+        for c in selectable.c:
+            c._make_proxy(t)
+
+        CreateView(name, selectable).execute_at('after-create', metadata)
+        DropView(name).execute_at('before-drop', metadata)
+        return t
+
+
+    view_qry = select([
+        ResourceAttr.resource_attr_id,
+        ResourceAttr.attr_id,
+        Attr.attr_name,
+        ResourceAttr.resource_attr_id,
+        ResourceAttr.network_id,
+        ResourceAttr.node_id,
+        ResourceAttr.link_id,
+        ResourceAttr.group_id,
+        ResourceScenario.scenario_id,
+        ResourceScenario.dataset_id,
+        Dataset.data_units,
+        Dataset.data_dimen,
+        Dataset.data_name,
+        Dataset.data_type,
+        Dataset.value]).where(ResourceScenario.resource_attr_id==ResourceAttr.attr_id).where(ResourceAttr.attr_id==Attr.attr_id).where(ResourceScenario.dataset_id==Dataset.dataset_id)
+
+    stuff_view = view("vResourceData", Base.metadata, view_qry)
+    try:
+        Base.metadata.create_all(engine)
+    except:
+        pass

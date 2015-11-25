@@ -14,13 +14,14 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 from spyne.model.complex import Array as SpyneArray
-from spyne.model.primitive import String, Integer, Unicode
+from spyne.model.primitive import String, Integer, Integer32, Unicode
 from spyne.decorator import rpc
 from hydra_complexmodels import Template,\
 TemplateType,\
 TypeAttr,\
 TypeSummary,\
-ResourceTypeDef
+ResourceTypeDef,\
+ValidationError
 
 from hydra_base import HydraService
 from HydraServer.lib import template
@@ -296,10 +297,73 @@ class TemplateService(HydraService):
 
         return template_xml
 
-    @rpc(Integer, Integer, Integer, _returns=Unicode)
-    def validate_attr(ctx, resource_attr_id, scenario_id, type_id):
-        template.validate_attr(resource_attr_id, scenario_id, type_id)
-        return 'OK'
+    @rpc(Integer, Integer, Integer, _returns=ValidationError)
+    def validate_attr(ctx, resource_attr_id, scenario_id, template_id):
+        """
+            Validate that the value of a specified resource attribute is valid
+            relative to the data restrictions specified on the template. If no
+            template is specified, (set as null), then validation will be made
+            against every template on the network.
+        """
+        error_dict = template.validate_attr(resource_attr_id, scenario_id, template_id)
+        if error_dict is None:
+            return None
+
+        error = ValidationError(
+                ref_key = error_dict.get('ref_key'),
+                 ref_id  = error_dict.get('ref_id'), 
+                 ref_name = error_dict.get('ref_name'),
+                 resource_attr_id = error_dict.get('resource_attr_id'),
+                 attr_id          = error_dict.get('attr_id'),
+                 attr_name        = error_dict.get('attr_name'),
+                 dataset_id       = error_dict.get('dataset_id'),
+                 scenario_id=error_dict.get('scenario_id'),
+                 template_id=error_dict.get('template_id'),
+                 error_text=error_dict.get('error_text')
+        )
+        return error
+
+    @rpc(SpyneArray(Integer32), Integer, Integer, _returns=SpyneArray(ValidationError))
+    def validate_attrs(ctx, resource_attr_ids, scenario_id, template_id):
+        errors = []
+        error_dicts = template.validate_attrs(resource_attr_ids, scenario_id, template_id)
+        for error_dict in error_dicts:
+            error = ValidationError(
+                    ref_key = error_dict.get('ref_key'),
+                     ref_id  = error_dict.get('ref_id'), 
+                     ref_name = error_dict.get('ref_name'),
+                     resource_attr_id = error_dict.get('resource_attr_id'),
+                     attr_id          = error_dict.get('attr_id'),
+                     attr_name        = error_dict.get('attr_name'),
+                     dataset_id       = error_dict.get('dataset_id'),
+                     scenario_id=error_dict.get('scenario_id'),
+                     template_id=error_dict.get('template_id'),
+                     error_text=error_dict.get('error_text')
+            )
+            errors.append(error)
+            
+        return errors
+
+    @rpc(Integer, Integer, _returns=SpyneArray(ValidationError))
+    def validate_scenario(ctx, scenario_id, template_id):
+        errors = []
+        error_dicts = template.validate_scenario(scenario_id, template_id)
+        for error_dict in error_dicts:
+            error = ValidationError(
+                    ref_key = error_dict.get('ref_key'),
+                     ref_id  = error_dict.get('ref_id'), 
+                     ref_name = error_dict.get('ref_name'),
+                     resource_attr_id = error_dict.get('resource_attr_id'),
+                     attr_id          = error_dict.get('attr_id'),
+                     attr_name        = error_dict.get('attr_name'),
+                     dataset_id       = error_dict.get('dataset_id'),
+                     scenario_id=error_dict.get('scenario_id'),
+                     template_id=error_dict.get('template_id'),
+                     error_text=error_dict.get('error_text')
+            )
+            errors.append(error)
+            
+        return errors
 
     @rpc(Integer, Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(Unicode))
     def validate_network(ctx, network_id, template_id, scenario_id):

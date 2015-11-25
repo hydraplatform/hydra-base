@@ -266,6 +266,15 @@ class AttributeService(HydraService):
 
         return [ResourceAttr(ra) for ra in resource_attrs]
 
+    @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttr))
+    def get_all_node_attributes(ctx, network_id, template_id):
+        resource_attrs = attributes.get_all_resource_attributes(
+                'NODE',
+                network_id,
+                template_id)
+
+        return [ResourceAttr(ra) for ra in resource_attrs]
+
     @rpc(Integer, Integer, Unicode(pattern="['YN']", default='N'), _returns=ResourceAttr)
     def add_link_attribute(ctx,link_id, attr_id, is_var):
         """
@@ -303,6 +312,15 @@ class AttributeService(HydraService):
                 'LINK',
                 link_id,
                 type_id)
+
+        return [ResourceAttr(ra) for ra in resource_attrs]
+
+    @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttr))
+    def get_all_link_attributes(ctx, network_id, template_id):
+        resource_attrs = attributes.get_all_resource_attributes(
+                'LINK',
+                network_id,
+                template_id)
 
         return [ResourceAttr(ra) for ra in resource_attrs]
 
@@ -349,6 +367,20 @@ class AttributeService(HydraService):
                 **ctx.in_header.__dict__)
 
         return [ResourceAttr(ra) for ra in resource_attrs]
+
+    @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttr))
+    def get_all_group_attributes(ctx, network_id, template_id):
+        """
+            Get the resource attributes of a resource group.
+        """
+        resource_attrs = attributes.get_all_resource_attributes(
+                'GROUP',
+                network_id,
+                template_id,
+                **ctx.in_header.__dict__)
+
+        return [ResourceAttr(ra) for ra in resource_attrs]
+
 
     @rpc(Integer, _returns=Unicode)
     def check_attr_dimension(ctx, attr_id):
@@ -415,3 +447,15 @@ class AttributeService(HydraService):
        
         mappings = [ResourceAttrMap(m) for m in mapping_rs]
         return mappings
+
+
+    @rpc(Integer, Integer, _returns=Unicode)
+    def check_mapping_exists(ctx, resource_attr_id_source, resource_attr_id_target):
+        """
+           Check whether a mapping exists between two resource attributes
+           Returns 'Y' if a mapping between the source and target exists.
+           Returns 'N' in every other case
+        """
+        is_mapped = attributes.check_attribute_mapping_exists(resource_attr_id_source, resource_attr_id_target,**ctx.in_header.__dict__)
+        
+        return is_mapped

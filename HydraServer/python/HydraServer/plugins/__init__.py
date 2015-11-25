@@ -21,7 +21,8 @@ import glob
 import importlib
 import advanced_dataset_retrieval
 import timeseries_functions
-services = [advanced_dataset_retrieval.Service, timeseries_functions.Service]
+import ra_collections
+services = [advanced_dataset_retrieval.Service, timeseries_functions.Service, ra_collections.Service]
 #modules = glob.glob(os.path.dirname(__file__)+"/*.py")
 #mods = []
 #for f in modules:

@@ -40,8 +40,11 @@ import spyne.decorator
 
 from spyne.error import Fault, ArgumentError
 
+import HydraServer.plugins 
+from HydraServer.db.model import create_resourcedata_view
+create_resourcedata_view()
+
 from HydraServer.util.hdb import make_root_user
-from HydraServer.db import model
 
 from HydraServer.soap_server.network import NetworkService
 from HydraServer.soap_server.project import ProjectService
@@ -62,7 +65,6 @@ from HydraServer.soap_server.hydra_base import AuthenticationService,\
     ObjectNotFoundError,\
     HydraServiceError,\
     HydraDocument
-import HydraServer.plugins 
 from HydraServer.soap_server.sharing import SharingService
 from spyne.util.wsgi_wrapper import WsgiMounter
 import socket
