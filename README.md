@@ -32,3 +32,8 @@ Dependencies
     winpaths
     cherrypy
     python-dateutil
+
+FAQ
+---
+- CFFI won't install on Ubuntu!
+  - If this occurs, make sure you have both "libffi-dev" and "python-dev" installed through apt-get. 
