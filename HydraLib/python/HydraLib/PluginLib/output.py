@@ -56,7 +56,7 @@ def create_xml_response(plugin_name, network_id, scenario_ids,
     scenario_string = "<scenario_id>%s</scenario_id>"
     error_string = "<error>%s</error>"
     warning_string = "<warning>%s</warning>"
-    file_string = "<file>%s<file>"
+    file_string = "<file>%s</file>"
 
     if scenario_ids is None:
         scenario_ids = []
