@@ -976,6 +976,10 @@ class RetrievalTest(server.SoapServerTest):
         link_data = self.client.service.get_link_data(link_id, scenario_id)
         assert len(link_data) > 0
 
+        group_id     = net.resourcegroups.ResourceGroup[0].id
+        group_data = self.client.service.get_resourcegroup_data(group_id, scenario_id)
+        assert len(group_data) > 0
+
     def test_get_node_attribute_data(self):
         net = self.create_network_with_data()
         nodes = net.nodes.Node
