@@ -57,12 +57,12 @@ Philipp Meier
 References
 ----------
 
-Stephen Knox, Philipp Meier, andJulien J. Harou: Web service and plug-in
+Stephen Knox, Philipp Meier, and Julien J. Harou: Web service and plug-in
 architecture for flexibility and openness of environmental data sharing
 platforms. 7th Intl. Congress on Env. Modelling and Software, San Diego,
 California, USA; 06/2014 `[PDF] <http://www.iemss.org/sites/iemss2014/papers/iemss2014_submission_211.pdf>`_
 
-Stephen Knox, Philipp Meier, andJulien J. Harou: Linking water resource network
+Philipp Meier, Stephen Knox, and Julien J. Harou: Linking water resource network
 models to an open data management platform. 7th Intl. Congress on Env. Modelling
 and Software, San Diego, California, USA; 06/2014 `[PDF] <http://www.iemss.org/sites/iemss2014/papers/iemss2014_submission_276.pdf>`_
 
