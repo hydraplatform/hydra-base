@@ -31,7 +31,7 @@ A network contains links and scenarios, not no nodes directly. The topology
 of a network is defined through its links -- a link connects two nodes.
 A network also contains scenarios, which are containers for network data.
 
- * project_id: THe project in which this network resides.
+ * project_id: The project in which this network resides.
  * network_id: Unique identifier
  * network_name: The name of the network. This is UNIQUE within a project.
  * network_description: A non-mandatory description

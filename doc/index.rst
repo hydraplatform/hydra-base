@@ -11,28 +11,35 @@
 Welcome to HydraPlatform
 ========================
 
+.. toctree::
+   :hidden:
+
+   design/index
+   tutorials/index
+   implementation/index
+   webapi/index
+   devdocs/index
+
 HydraPlatform is an open-source model platform for network based data
 management. It facilitates the development of complex resource network models by
 providing a consistent storage facility for network topology and associated
 datasets. HydraPlatform is build around a server that exposes all functionality
 as a web service to which Apps can connect to interact with network data.
 
-`HydraModeller <http://hydramodeller.com>`_ is user interface tailored to support the full functionality of HydraPlatform.
+`HydraModeller <http://hydramodeller.com>`_ provides a user interface tailored
+to support the full functionality of HydraPlatform.
 
-.. admonition:: Learn more
-    :class: note
-
-    |br|
+.. sidebar:: Learn more
 
     :doc:`design/index`
         HydraPlatform is acting as a server providing a web service to which
         Apps connect.
 
     :doc:`tutorials/index` 
-        This chapter should get you up and running with HydraPlatform. It
+        This chapter will get you up and running with HydraPlatform. It
         explains the installation process, basic usage of the web service and
         how to build your own App and template.
-    
+
     :doc:`implementation/index`
         Details about the technical implementation are described in this
         chapter.
@@ -44,6 +51,14 @@ as a web service to which Apps can connect to interact with network data.
         Documentation for HydraPlatform developers.
 
 
+HydroPlatform Apps
+------------------
+
+.. toctree::
+   :maxdepth: 2
+
+   HydraPlugins/index
+
 
 Development team
 ----------------
@@ -51,8 +66,9 @@ Development team
 Stephen Knox
     some description.
 
-Philipp Meier
+`Philipp Meier <http://www.eawag.ch/de/ueberuns/portraet/organisation/mitarbeitende/profile/philipp-meier/show/>`_
     some description.
+
 
 References
 ----------
@@ -66,32 +82,7 @@ Philipp Meier, Stephen Knox, and Julien J. Harou: Linking water resource network
 models to an open data management platform. 7th Intl. Congress on Env. Modelling
 and Software, San Diego, California, USA; 06/2014 `[PDF] <http://www.iemss.org/sites/iemss2014/papers/iemss2014_submission_276.pdf>`_
 
-Main packages
--------------
-
-.. toctree::
-   :maxdepth: 3
-
-   HydraDB/index
-   HydraUI/index
-   HydraServer/index
-   HydraLib/index
-
-Hydra plug-ins
---------------
-
-.. toctree::
-   :maxdepth: 2
-
-   HydraPlugins/index
-
-Tutorials
----------
-
-.. toctree::
-   :maxdepth: 1
-
-   tutorials/plug-in/simple_plugin_in_python
+----
 
 Technical documents
 -------------------
@@ -104,17 +95,6 @@ Technical documents
    techdocs/libraries_and_templates
    techdocs/EBSD_constraints
 
-Tests
------
-
-.. toctree::
-   :maxdepth: 1
-
-   HydraServer/unittests
-
-
-Miscellaneous
--------------
 
 Server maintenance
 ~~~~~~~~~~~~~~~~~~
@@ -124,7 +104,7 @@ Server maintenance
 
    devdocs/server
 
-______________________________________________________________________________________
+----
 
 **Indices and tables**
 
