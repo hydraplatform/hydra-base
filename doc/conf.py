@@ -46,7 +46,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'HYDRA'
+project = u'HydraPlatform'
 copyright = u'2015, CH2M Hill Halcrow and The University of Manchester'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -127,7 +127,7 @@ html_theme_options = {
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
 # pixels large.
-#html_favicon = None
+html_favicon = 'favicon.ico'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -176,7 +176,7 @@ html_static_path = ['_static']
 #html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'HYDRAdoc'
+htmlhelp_basename = 'HydraPlatformDoc'
 
 
 # -- Options for LaTeX output --------------------------------------------------
@@ -195,7 +195,7 @@ latex_elements = {
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'HYDRA.tex', u'HYDRA Documentation',
+  ('index', 'HydraPlatform.tex', u'HydraPlatform Documentation',
    u'S. Knox, P. Meier', 'manual'),
 ]
 
@@ -225,7 +225,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'hydra', u'HYDRA Documentation',
+    ('index', 'hydra', u'HydraPlatform Documentation',
      [u'S. Knox, P. Meier'], 1)
 ]
 
@@ -239,8 +239,9 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'HYDRA', u'HYDRA Documentation',
-   u'S. Knox, P. Meier', 'HYDRA', 'One line description of project.',
+  ('index', 'HydraPlatform', u'HydraPlatform Documentation',
+   u'S. Knox, P. Meier', 'HydraPlatform',
+   'An open-source model platform for network based data management.',
    'Miscellaneous'),
 ]
 
@@ -257,10 +258,10 @@ texinfo_documents = [
 # -- Options for Epub output ---------------------------------------------------
 
 # Bibliographic Dublin Core info.
-epub_title = u'HYDRA'
+epub_title = u'HydraPlatform'
 epub_author = u'S. Knox, P. Meier'
 epub_publisher = u'S. Knox, P. Meier'
-epub_copyright = u'2013, S. Knox, P. Meier'
+epub_copyright = u'2015, S. Knox, P. Meier'
 
 # The language of the text. It defaults to the language option
 # or en if the language is not set.
