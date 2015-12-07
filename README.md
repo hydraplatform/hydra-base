@@ -1,7 +1,7 @@
 HydraPlatform
 =============
 
-A library and web server for managing networks.
+A library and web server for managing networks. Full documentation can be found [here](http://umwrg.github.io/HydraPlatform/).
 
 Installation
 ------------
