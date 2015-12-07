@@ -126,6 +126,19 @@ class AttributeService(HydraService):
         
         return None
 
+    @rpc(Integer, _returns=SpyneArray(Attr))
+    def get_template_attributes(ctx, template_id):
+        """
+            Get all the attributes in a template.
+            Args
+                :param (int) template_id
+            Returns
+                List(Attr)
+        """
+        attrs = attributes.get_template_attributes(template_id,**ctx.in_header.__dict__)
+
+        return [Attr(a) for a in attrs]
+
     @rpc(SpyneArray(Attr), _returns=SpyneArray(Attr))
     def get_attributes(ctx,attrs):
         """

@@ -64,6 +64,20 @@ def get_attribute_by_id(attr_id, **kwargs):
     except NoResultFound:
         return None
 
+def get_template_attributes(template_id, **kwargs):
+    """
+        Get a specific attribute by its ID.
+    """
+
+    try:
+        attrs_i = DBSession.query(Attr).filter(TemplateType.template_id==template_id).filter(TypeAttr.type_id==TemplateType.type_id).filter(Attr.attr_id==TypeAttr.attr_id).all()
+        log.info(attrs_i)
+        return attrs_i
+    except NoResultFound:
+        return None
+
+
+
 def get_attribute_by_name_and_dimension(name, dimension='dimensionless',**kwargs):
     """
         Get a specific attribute by its name.

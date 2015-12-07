@@ -152,6 +152,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
                 #Go through all types in the resource and add attributes from these types
                 #which have not already been added.
                 typeattrs = type_dict[resource_type.id]
+
                 for ta in typeattrs:
                     if ta.attr_id not in existing_attrs:
                         resource_attrs[resource.id].append({
@@ -178,7 +179,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
             DBSession.execute(ResourceAttr.__table__.insert(), all_resource_attrs)
             logging.info("ResourceAttr insert took %s secs"% str(time.time() - t0))
         else:
-            logging.warn("No attributes on any resource....")
+            logging.warn("No attributes on any %s....", ref_key.lower())
 
     logging.info("Resource attributes insertion from types done in %s"%(datetime.datetime.now() - start_time))
 
