@@ -9,7 +9,7 @@ BUILDDIR      = build
 SOURCEDIR     = .
 
 # Needed for building gh-pages "on-site" (from the master branch)
-GH_PAGES_SOURCES = conf.py HydraDB HydraPlugins HydraUI Makefile techdocs devdocs HydraLib HydraServer index.rst make.sh tutorials webapi _sources design implementation
+GH_PAGES_SOURCES = conf.py HydraPlugins Makefile techdocs devdocs index.rst make.sh tutorials webapi _sources design implementation hydra_icon.png
 
 # Internal variables.
 PAPEROPT_a4     = -D latex_paper_size=a4
