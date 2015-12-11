@@ -14,7 +14,7 @@ Welcome to HydraPlatform
 .. toctree::
    :hidden:
 
-   HydraPlugins/index
+   plugins/index
    Design <design/index>
    tutorials/index
    Implementation <implementation/index>
@@ -58,7 +58,7 @@ Apps
 HydraPlatform provides a set of selected Apps for importing and exporting
 datasets. Currently network topology and data can be exported to and imported
 from CSV files (:ref:`exportcsv` and :ref:`importcsv`). We also provide an App
-to :doc:`HydraPlugins/importwml`.
+to :doc:`plugins/importwml`.
 
 Development team
 ----------------
