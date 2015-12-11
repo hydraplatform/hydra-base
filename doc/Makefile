@@ -9,7 +9,7 @@ BUILDDIR      = build
 SOURCEDIR     = .
 
 # Needed for building gh-pages "on-site" (from the master branch)
-GH_PAGES_SOURCES = conf.py HydraPlugins Makefile techdocs devdocs index.rst make.sh tutorials webapi _sources design implementation hydra_icon.png
+GH_PAGES_SOURCES = conf.py HydraPlugins Makefile techdocs devdocs index.rst make.sh tutorials webapi _sources design implementation hydra_icon.png HydraServer HydraPlugins HydraLib
 
 # Internal variables.
 PAPEROPT_a4     = -D latex_paper_size=a4
@@ -160,6 +160,9 @@ gh-pages:
 	git checkout gh-pages
 	rm -rf *
 	git checkout master doc
+	git checkout master HydraServer
+	git checkout master HydraPlugins
+	git checkout master HydraLib
 	mv doc/* ./
 	git reset HEAD
 	make html
