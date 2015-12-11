@@ -3,7 +3,7 @@
 
 # You can set these variables from the command line.
 SPHINXOPTS    =
-SPHINXBUILD   = sphinx-build
+SPHINXBUILD   = sphinx-build2
 PAPER         =
 BUILDDIR      = build
 SOURCEDIR     = .
@@ -162,6 +162,7 @@ gh-pages:
 	git checkout master doc
 	mv doc/* ./
 	git reset HEAD
+	make html
 	make html
 	rm -rf $(GH_PAGES_SOURCES)
 	mv -fv build/html/* ./

@@ -1,7 +1,16 @@
 .. _importwml:
 
-Import Water ML Timeseries files
-================================
+Import and export WaterML timeseries files
+==========================================
+
+Import WaterML
+--------------
 
 .. automodule:: ImportWML
+   :members:
+
+Export WaterML
+--------------
+
+.. automodule:: ExportWML
    :members:

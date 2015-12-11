@@ -1,7 +1,7 @@
 .. _importcsv:
 
-Import CSV files
-================
+Import from CSV files
+=====================
 
 .. automodule:: ImportCSV
    :members:

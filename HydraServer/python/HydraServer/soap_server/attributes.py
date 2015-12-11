@@ -9,7 +9,7 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
@@ -17,8 +17,8 @@ from spyne.model.primitive import Integer, Unicode
 from spyne.model.complex import Array as SpyneArray
 from spyne.decorator import rpc
 from hydra_complexmodels import Attr
-from hydra_complexmodels import ResourceAttr 
-from hydra_complexmodels import ResourceAttrMap 
+from hydra_complexmodels import ResourceAttr
+from hydra_complexmodels import ResourceAttrMap
 
 from hydra_base import HydraService
 
@@ -123,7 +123,7 @@ class AttributeService(HydraService):
                                                               **ctx.in_header.__dict__)
         if attr:
             return Attr(attr)
-        
+
         return None
 
     @rpc(Integer, _returns=SpyneArray(Attr))
@@ -131,8 +131,11 @@ class AttributeService(HydraService):
         """
             Get all the attributes in a template.
             Args
-                :param (int) template_id
+
+                param (int) template_id
+
             Returns
+
                 List(Attr)
         """
         attrs = attributes.get_template_attributes(template_id,**ctx.in_header.__dict__)
@@ -162,7 +165,7 @@ class AttributeService(HydraService):
                 ret_attrs.append(a)
             else:
                 ret_attrs.append(None)
-        
+
         return ret_attrs
 
     @rpc(Integer, Unicode, _returns=ResourceAttr)
@@ -195,7 +198,7 @@ class AttributeService(HydraService):
         """
         attributes.delete_resource_attribute(resource_attr_id,                                                                       **ctx.in_header.__dict__)
 
-        return "OK" 
+        return "OK"
 
 
     @rpc(Integer, Integer, Unicode(pattern="['YN']", default='N'), _returns=ResourceAttr)
@@ -408,7 +411,7 @@ class AttributeService(HydraService):
         attributes.check_attr_dimension(attr_id, **ctx.in_header.__dict__)
 
         return 'OK'
-    
+
     @rpc(Integer, Integer, _returns=Unicode)
     def set_attribute_mapping(ctx, resource_attr_a, resource_attr_b):
         """
@@ -416,7 +419,7 @@ class AttributeService(HydraService):
             that from another network.
         """
         attributes.set_attribute_mapping(resource_attr_a, resource_attr_b, **ctx.in_header.__dict__)
-        
+
         return 'OK'
 
     @rpc(Integer, Integer, _returns=Unicode)
@@ -426,7 +429,7 @@ class AttributeService(HydraService):
             that from another network.
         """
         attributes.delete_attribute_mapping(resource_attr_a, resource_attr_b, **ctx.in_header.__dict__)
-        
+
         return 'OK'
 
     @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttrMap))
@@ -436,7 +439,7 @@ class AttributeService(HydraService):
             is specified, only return the mappings between the two networks.
         """
         mapping_rs = attributes.get_mappings_in_network(network_id, network_2_id, **ctx.in_header.__dict__)
-       
+
         mappings = [ResourceAttrMap(m) for m in mapping_rs]
         return mappings
 
@@ -447,8 +450,8 @@ class AttributeService(HydraService):
             is specified, only delete the mappings between the two networks.
         """
         attributes.delete_mappings_in_network(network_id, network_2_id, **ctx.in_header.__dict__)
-       
-        return 'OK' 
+
+        return 'OK'
 
     @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttrMap))
     def get_node_mappings(ctx, node_id, node_2_id):
@@ -457,7 +460,7 @@ class AttributeService(HydraService):
            is specified, return only the mappings between these nodes..
         """
         mapping_rs = attributes.get_node_mappings(node_id, node_2_id, **ctx.in_header.__dict__)
-       
+
         mappings = [ResourceAttrMap(m) for m in mapping_rs]
         return mappings
 
@@ -470,5 +473,5 @@ class AttributeService(HydraService):
            Returns 'N' in every other case
         """
         is_mapped = attributes.check_attribute_mapping_exists(resource_attr_id_source, resource_attr_id_target,**ctx.in_header.__dict__)
-        
+
         return is_mapped

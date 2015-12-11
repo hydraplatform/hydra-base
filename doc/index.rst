@@ -14,10 +14,11 @@ Welcome to HydraPlatform
 .. toctree::
    :hidden:
 
-   design/index
+   HydraPlugins/index
+   Design <design/index>
    tutorials/index
-   implementation/index
-   webapi/index
+   Implementation <implementation/index>
+   Web API <webapi/index>
    devdocs/index
 
 HydraPlatform is an open-source model platform for network based data
@@ -51,23 +52,25 @@ to support the full functionality of HydraPlatform.
         Documentation for HydraPlatform developers.
 
 
-HydroPlatform Apps
-------------------
+Apps
+----
 
-.. toctree::
-   :maxdepth: 2
-
-   HydraPlugins/index
-
+HydraPlatform provides a set of selected Apps for importing and exporting
+datasets. Currently network topology and data can be exported to and imported
+from CSV files (:ref:`exportcsv` and :ref:`importcsv`). We also provide an App
+to :doc:`HydraPlugins/importwml`.
 
 Development team
 ----------------
 
-Stephen Knox
-    some description.
+Stephen Knox is a computer scientist and currently the main developer of
+HydraPlatform at the University of Manchester. 
 
-`Philipp Meier <http://www.eawag.ch/de/ueberuns/portraet/organisation/mitarbeitende/profile/philipp-meier/show/>`_
-    some description.
+`Philipp Meier
+<http://www.eawag.ch/de/ueberuns/portraet/organisation/mitarbeitende/profile/philipp-meier/show/>`_
+currently works as a PostDoc at the Department of Surface Waters Research and
+Management at `Eawag <http://www.eawag.ch>`_. He is involved in developing
+HydraPlatform from the very beginning in early 2013.
 
 
 References
@@ -81,34 +84,3 @@ California, USA; 06/2014 `[PDF] <http://www.iemss.org/sites/iemss2014/papers/iem
 Philipp Meier, Stephen Knox, and Julien J. Harou: Linking water resource network
 models to an open data management platform. 7th Intl. Congress on Env. Modelling
 and Software, San Diego, California, USA; 06/2014 `[PDF] <http://www.iemss.org/sites/iemss2014/papers/iemss2014_submission_276.pdf>`_
-
-----
-
-Technical documents
--------------------
-
-.. toctree::
-   :maxdepth: 1
-
-   techdocs/units_and_dimensions
-   techdocs/timeseries
-   techdocs/libraries_and_templates
-   techdocs/EBSD_constraints
-
-
-Server maintenance
-~~~~~~~~~~~~~~~~~~
-
-.. toctree::
-   :maxdepth: 2
-
-   devdocs/server
-
-----
-
-**Indices and tables**
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
-
