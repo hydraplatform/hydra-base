@@ -24,10 +24,3 @@ API doumentation
     HydraLib/index
     HydraServer/unittests
 
-Server maintenance
-------------------
-
-.. toctree::
-   :maxdepth: 2
-
-   server
