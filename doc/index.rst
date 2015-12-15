@@ -78,9 +78,7 @@ References
 
 Stephen Knox,Philipp Meier,Khaled Mohammed,Brett Korteling,Evgenii Matrosov,
 Anthony Hurford,Ivana Huskova,Julien Harou,David Rosenberg,Amaury Thilmant,Josue Medellin-Azuara,Jon Wicks:
-An open-source software platform for data management, visualisation, model building and model sharing in water,
- energy and other resource modelling domains. American Geophysical Union (AGU) 2015, San Francisco, USA; 12/2016
-  `[PDF] <https://agu.confex.com/agu/fm15/meetingapp.cgi/Paper/78165>`_
+An open-source software platform for data management, visualisation, model building and model sharing in water, energy and other resource modelling domains. American Geophysical Union (AGU) 2015, San Francisco, USA; 12/2016 `[GO] <https://agu.confex.com/agu/fm15/meetingapp.cgi/Paper/78165>`_
 
 Stephen Knox, Philipp Meier, and Julien J. Harou: Web service and plug-in
 architecture for flexibility and openness of environmental data sharing

@@ -8,9 +8,3 @@ Import WaterML
 
 .. automodule:: ImportWML
    :members:
-
-Export WaterML
---------------
-
-.. automodule:: ExportWML
-   :members:
