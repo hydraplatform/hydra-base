@@ -24,11 +24,8 @@ Welcome to HydraPlatform
 HydraPlatform is an open-source model platform for network based data
 management. It facilitates the development of complex resource network models by
 providing a consistent storage facility for network topology and associated
-datasets. HydraPlatform is build around a server that exposes all functionality
-as a web service to which Apps can connect to interact with network data.
-
-`HydraModeller <http://hydramodeller.com>`_ provides a user interface tailored
-to support the full functionality of HydraPlatform.
+datasets. HydraPlatform is built around a server that exposes all functionality
+as a web service to which Apps can connect to access data.
 
 .. sidebar:: Learn more
 
@@ -60,6 +57,11 @@ datasets. Currently network topology and data can be exported to and imported
 from CSV files (:ref:`exportcsv` and :ref:`importcsv`). We also provide an App
 to :doc:`plugins/importwml`.
 
+User Interfaces
+---------------
+
+`Hydra Modeller <http://hydramodeller.com>`_, built by ch2m, provides a desktop user interface tailored to support the full functionality of Hydra Platform. In future other web-based or desktop user-interfaces may be built.
+
 Development team
 ----------------
 
@@ -68,17 +70,15 @@ HydraPlatform at the University of Manchester.
 
 `Philipp Meier
 <http://www.eawag.ch/de/ueberuns/portraet/organisation/mitarbeitende/profile/philipp-meier/show/>`_
-currently works as a PostDoc at the Department of Surface Waters Research and
-Management at `Eawag <http://www.eawag.ch>`_. He is involved in developing
-HydraPlatform from the very beginning in early 2013.
-
+currently works as a postdoc at the Department of Surface Waters Research and
+Management at `Eawag <http://www.eawag.ch>`_.
 
 References
 ----------
 
-Stephen Knox,Philipp Meier,Khaled Mohammed,Brett Korteling,Evgenii Matrosov,
-Anthony Hurford,Ivana Huskova,Julien Harou,David Rosenberg,Amaury Thilmant,Josue Medellin-Azuara,Jon Wicks:
-An open-source software platform for data management, visualisation, model building and model sharing in water, energy and other resource modelling domains. American Geophysical Union (AGU) 2015, San Francisco, USA; 12/2016 `[GO] <https://agu.confex.com/agu/fm15/meetingapp.cgi/Paper/78165>`_
+Stephen Knox, Philipp Meier, Khaled Mohammed, Brett Korteling, Evgenii Matrosov,
+Anthony Hurford, Ivana Huskova, Julien Harou, David Rosenberg, Amaury Thilmant, Josue Medellin-Azuara, Jon Wicks:
+An open-source software platform for data management, visualisation, model building and model sharing in water, energy and other resource modelling domains. American Geophysical Union (AGU) 2015, San Francisco, USA; 12/2015 `[GO] <https://agu.confex.com/agu/fm15/meetingapp.cgi/Paper/78165>`_
 
 Stephen Knox, Philipp Meier, and Julien J. Harou: Web service and plug-in
 architecture for flexibility and openness of environmental data sharing
