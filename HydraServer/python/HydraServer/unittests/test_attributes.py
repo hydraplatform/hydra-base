@@ -226,7 +226,7 @@ class AttributeTest(server.SoapServerTest):
         for n in network.links.Link:
             for a in n.attributes.ResourceAttr:
                 link_attr_ids.append(a.id)
-        link_attributes = self.client.service.get_all_link_attributes(7)
+        link_attributes = self.client.service.get_all_link_attributes(network.id)
         #Check that the retrieved attributes are in the list of node attributes
         retrieved_ras = []
         for n in link_attributes.ResourceAttr:

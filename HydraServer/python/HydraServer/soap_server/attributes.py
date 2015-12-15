@@ -41,13 +41,18 @@ class AttributeService(HydraService):
         .. code-block:: python
 
             (Attr){
-                id = 1020
                 name = "Test Attr"
                 dimen = "very big"
                 description = "I am a very big attribute"
             }
 
+        Args:
+            attr (soap_server.Attr): An attribute object, as described above.
+
+        Returns:
+            soap_server.Attr: An attribute object, similar to the one sent in but with an ID. 
         """
+
         attr = attributes.add_attribute(attr, **ctx.in_header.__dict__)
         return Attr(attr)
 
@@ -65,6 +70,11 @@ class AttributeService(HydraService):
                 dimen = "very big"
                 description = "I am a very big attribute"
             }
+        Args:
+            attr (soap_server.Attr): An attribute complex model, as described above.
+
+        Returns:
+            soap_server.Attr: An attribute complex model, reflecting the one sent in. 
 
         """
         attr = attributes.update_attribute(attr, **ctx.in_header.__dict__)
@@ -73,17 +83,15 @@ class AttributeService(HydraService):
     @rpc(SpyneArray(Attr), _returns=SpyneArray(Attr))
     def add_attributes(ctx, attrs):
         """
-        Add a generic attribute, which can then be used in creating
-        a resource attribute, and put into a type.
+        Add multiple generic attributes
 
-        .. code-block:: python
+        Args:
+            attrs (List[soap_server.Attr]): A list of attribute complex models, 
+                as described above.
 
-            (Attr){
-                id = 1020
-                name = "Test Attr"
-                dimen = "very big"
-                description = "I am a very big attribute"
-            }
+        Returns:
+            List[soap_server.Attr]: A list of attribute complex models,
+                reflecting the ones sent in. 
 
         """
 
@@ -94,7 +102,13 @@ class AttributeService(HydraService):
     @rpc(_returns=SpyneArray(Attr))
     def get_all_attributes(ctx):
         """
-            Get all attributes
+        Get all the attributes in the system
+
+        Args:
+            None
+
+        Returns:
+            List[soap_server.Attr]: A list of attribute complex models
         """
 
         attrs = attributes.get_attributes(**ctx.in_header.__dict__)
@@ -104,7 +118,14 @@ class AttributeService(HydraService):
     @rpc(Integer, _returns=Attr)
     def get_attribute_by_id(ctx, ID):
         """
-            Get a specific attribute by its ID.
+        Get a specific attribute by its ID.
+
+        Args:
+            ID (int): The ID of the attribute
+
+        Returns:
+            soap_server.Attr: An attribute complex model.
+                Returns None if no attribute is found.
         """
         attr = attributes.get_attribute_by_id(ID, **ctx.in_header.__dict__)
 
@@ -116,7 +137,17 @@ class AttributeService(HydraService):
     @rpc(Unicode, Unicode, _returns=Attr)
     def get_attribute(ctx, name, dimension):
         """
-            Get a specific attribute by its name.
+        Get a specific attribute by its name and dimension (this combination
+        is unique for attributes in Hydra Platform).
+
+        Args:
+            name (unicode): The name of the attribute
+            dimension (unicode): The dimension of the attribute
+
+        Returns:
+            soap_server.Attr: An attribute complex model.
+                Returns None if no attribute is found.
+
         """
         attr = attributes.get_attribute_by_name_and_dimension(name,
                                                               dimension,
@@ -145,10 +176,19 @@ class AttributeService(HydraService):
     @rpc(SpyneArray(Attr), _returns=SpyneArray(Attr))
     def get_attributes(ctx,attrs):
         """
-            Get a list of attribute, by their names and dimension. Takes a list
+        Get a list of attribute, by their names and dimension. Takes a list
             of attribute objects, picks out their name & dimension, finds the appropriate
             attribute in the DB and updates the incoming attribute with an ID.
             The same attributes go out that came in, except this time with an ID.
+            If one of the incoming attributes does not match, this attribute is not
+            returned.
+
+        Args:
+            attrs (List(soap_server.Attr)): A list of attribute complex models
+
+        Returns:
+            List(soap_server.Attr): List of Attr complex models
+        
         """
         ret_attrs = []
         for a in attrs:
@@ -168,10 +208,21 @@ class AttributeService(HydraService):
 
         return ret_attrs
 
-    @rpc(Integer, Unicode, _returns=ResourceAttr)
+    @rpc(Integer, Unicode(pattern="['YN']"), _returns=ResourceAttr)
     def update_resource_attribute(ctx, resource_attr_id, is_var):
         """
-            Update the 'is_var' flag on a resource attribute
+        Update a resource attribute (which means update the is_var flag
+        as this is the only thing you can update on a resource attr)
+
+        Args:
+            resource_attr_id (int): ID of the complex model to be updated
+            is_var           (unicode): 'Y' or 'N'
+
+        Returns:
+            List(soap_server.ResourceAttr): Updated ResourceAttr
+
+        Raises:
+            ResourceNotFoundError if the resource_attr_id is not in the DB
         """
         updated_ra = attributes.update_resource_attribute(resource_attr_id,
                                                           is_var,
@@ -182,19 +233,37 @@ class AttributeService(HydraService):
     @rpc(Integer, _returns=Unicode)
     def delete_resourceattr(ctx, resource_attr_id):
         """
-            Deletes a resource attribute and all associated data.
+        Deletes a resource attribute and all associated data.
+        ***WILL BE DEPRECATED***
+
+        Args:
+            resource_attr_id (int): ID of the complex model to be deleted 
+
+        Returns:
+            unicode: 'OK'
+
+        Raises:
+            ResourceNotFoundError if the resource_attr_id is not in the DB
+
         """
         attributes.delete_resource_attribute(resource_attr_id, **ctx.in_header.__dict__)
+
         return 'OK'
 
     @rpc(Integer, _returns=Unicode)
     def delete_resource_attribute(ctx,resource_attr_id):
         """
-            Add a resource attribute attribute to a resource.
+        Add a resource attribute attribute to a resource (Duplicate of delete_resourceattr)
 
-            attr_is_var indicates whether the attribute is a variable or not --
-            this is used in simulation to indicate that this value is expected
-            to be filled in by the simulator.
+        Args:
+            resource_attr_id (int): ID of the complex model to be deleted 
+
+        Returns:
+            unicode: 'OK'
+
+        Raises:
+            ResourceNotFoundError if the resource_attr_id is not in the DB
+
         """
         attributes.delete_resource_attribute(resource_attr_id,                                                                       **ctx.in_header.__dict__)
 
@@ -204,11 +273,21 @@ class AttributeService(HydraService):
     @rpc(Integer, Integer, Unicode(pattern="['YN']", default='N'), _returns=ResourceAttr)
     def add_network_attribute(ctx,network_id, attr_id, is_var):
         """
-            Add a resource attribute attribute to a resource.
+        Add a resource attribute to a network.
 
-            attr_is_var indicates whether the attribute is a variable or not --
-            this is used in simulation to indicate that this value is expected
-            to be filled in by the simulator.
+        Args:
+            network_id (int): ID of the network 
+            attr_id    (int): ID of the attribute to assign to the network
+            is_var     (string) 'Y' or 'N'. Indicates whether this attribute is
+                a variable or not. (a variable is typically the result of a model run,
+                so therefore doesn't need data assigned to it initially)
+
+        Returns:
+            soap_server.ResourceAttr: A complex model of the newly created resource attribute.
+        Raises:
+            ResourceNotFoundError: If the network or attribute are not in the DB.
+            HydraError           : If the attribute is already on the network.
+
         """
         new_ra = attributes.add_resource_attribute(
                                                        'NETWORK',

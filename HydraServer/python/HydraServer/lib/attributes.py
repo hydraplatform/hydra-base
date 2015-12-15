@@ -228,6 +228,22 @@ def _get_templatetype(type_id):
     except NoResultFound:
         raise ResourceNotFoundError("Template Type with ID %s not found"%(type_id,))
 
+def update_resource_attribute(resource_attr_id, is_var, **kwargs):
+    """
+        Deletes a resource attribute and all associated data.
+    """
+    user_id = kwargs.get('user_id')
+    try:
+        ra = DBSession.query(ResourceAttr).filter(ResourceAttr.resource_attr_id == resource_attr_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError("Resource Attribute %s not found"%(resource_attr_id))
+
+    ra.check_write_permission(user_id)
+
+    ra.is_var = is_var
+
+    return 'OK'
+
 def delete_resource_attribute(resource_attr_id, **kwargs):
     """
         Deletes a resource attribute and all associated data.
@@ -237,8 +253,8 @@ def delete_resource_attribute(resource_attr_id, **kwargs):
         ra = DBSession.query(ResourceAttr).filter(ResourceAttr.resource_attr_id == resource_attr_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Resource Attribute %s not found"%(resource_attr_id))
-    ra_resource = ra.get_resource()
-    ra_resource.check_write_permission(user_id)
+
+    ra.check_write_permission(user_id)
     DBSession.delete(ra)
     DBSession.flush()
     return 'OK'
@@ -255,7 +271,7 @@ def add_resource_attribute(resource_type, resource_id, attr_id, is_var,**kwargs)
     attr = DBSession.query(Attr).filter(Attr.attr_id==attr_id).first()
 
     if attr is None:
-        raise HydraError("Attribute with ID %s does not exist."%attr_id)
+        raise ResourceNotFoundError("Attribute with ID %s does not exist."%attr_id)
 
     resource_i = _get_resource(resource_type, resource_id)
 
