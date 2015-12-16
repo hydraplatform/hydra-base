@@ -8,7 +8,7 @@
    <br />
 
 
-Welcome to HydraPlatform
+Welcome to Hydra Platform
 ========================
 
 .. toctree::
@@ -21,20 +21,20 @@ Welcome to HydraPlatform
    Web API <webapi/index>
    devdocs/index
 
-HydraPlatform is an open-source model platform for network based data
+Hydra Platform is an open-source model platform for network based data
 management. It facilitates the development of complex resource network models by
 providing a consistent storage facility for network topology and associated
-datasets. HydraPlatform is built around a server that exposes all functionality
+datasets. Hydra Platform is built around a server that exposes all functionality
 as a web service to which Apps can connect to access data.
 
 .. sidebar:: Learn more
 
     :doc:`design/index`
-        HydraPlatform is acting as a server providing a web service to which
+        Hydra Platform is acting as a server providing a web service to which
         Apps connect.
 
     :doc:`tutorials/index` 
-        This chapter will get you up and running with HydraPlatform. It
+        This chapter will get you up and running with Hydra Platform. It
         explains the installation process, basic usage of the web service and
         how to build your own App and template.
 
@@ -46,13 +46,13 @@ as a web service to which Apps can connect to access data.
         Full description of the web service API.
 
     :doc:`devdocs/index`
-        Documentation for HydraPlatform developers.
+        Documentation for Hydra Platform developers.
 
 
 Apps
 ----
 
-HydraPlatform provides a set of selected Apps for importing and exporting
+Hydra Platform provides a set of selected Apps for importing and exporting
 datasets. Currently network topology and data can be exported to and imported
 from CSV files (:ref:`exportcsv` and :ref:`importcsv`). We also provide an App
 to :doc:`plugins/importwml`.
@@ -66,12 +66,14 @@ Development team
 ----------------
 
 Stephen Knox is a computer scientist and currently the main developer of
-HydraPlatform at the University of Manchester. 
+Hydra Platform at the University of Manchester. 
 
 `Philipp Meier
 <http://www.eawag.ch/de/ueberuns/portraet/organisation/mitarbeitende/profile/philipp-meier/show/>`_
 currently works as a postdoc at the Department of Surface Waters Research and
 Management at `Eawag <http://www.eawag.ch>`_.
+
+Khaled Mohamed has working on Hydra Platform for 18 months, primarily building Apps and related models.
 
 References
 ----------
