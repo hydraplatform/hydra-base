@@ -302,7 +302,17 @@ class AttributeService(HydraService):
     @rpc(Integer, Integer, _returns=SpyneArray(ResourceAttr))
     def add_network_attrs_from_type(ctx, type_id, network_id):
         """
-            adds all the attributes defined by a type to a node.
+        Adds all the attributes defined by a type to a network.
+
+        Args:
+            type_id    (int): ID of the type used to get the resource attributes from
+            network_id (int): ID of the network 
+
+        Returns:
+            List(ResourceAttr): All the newly created network attributes
+
+        Raises:
+            ResourceNotFoundError if the type_id or network_id are not in the DB
         """
         new_resource_attrs = attributes.add_resource_attrs_from_type(
                                                         type_id,
@@ -313,6 +323,21 @@ class AttributeService(HydraService):
 
     @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttr))
     def get_network_attributes(ctx, network_id, type_id):
+        """
+        Get all a network's attributes (not the attributes of the nodes and links. just the network itself).
+
+        Args:
+            network_id (int): ID of the network 
+            type_id    (int) (optional): ID of the type. If specified will only return the resource attributes relative to that type
+
+        Returns:
+            List(ResourceAttr): All the network attributes
+
+        Raises:
+            ResourceNotFoundError if the type_id or network_id are not in the DB
+
+ 
+        """
         resource_attrs = attributes.get_resource_attributes(
                 'NETWORK',
                 network_id,
@@ -324,11 +349,20 @@ class AttributeService(HydraService):
     @rpc(Integer, Integer, Unicode(pattern="['YN']", default='N'), _returns=ResourceAttr)
     def add_node_attribute(ctx,node_id, attr_id, is_var):
         """
-            Add a resource attribute attribute to a resource.
+        Add a resource attribute to a node.
 
-            attr_is_var indicates whether the attribute is a variable or not --
-            this is used in simulation to indicate that this value is expected
-            to be filled in by the simulator.
+        Args:
+            node_id (int): The ID of the Node
+            attr_id (int): THe ID if the attribute being added.
+            is_var (char): Y or N. Indicates whether the attribute is a variable or not.
+
+        Returns:
+            ResourceAttr: The newly created node attribute
+
+        Raises:
+            ResourceNotFoundError: If the node or attribute do not exist
+            HydraError: If this addition causes a duplicate attribute on the node.
+
         """
         new_ra = attributes.add_resource_attribute(
                                                        'NODE',
@@ -343,7 +377,18 @@ class AttributeService(HydraService):
     @rpc(Integer, Integer, _returns=SpyneArray(ResourceAttr))
     def add_node_attrs_from_type(ctx, type_id, node_id):
         """
-            adds all the attributes defined by a type to a node.
+        Adds all the attributes defined by a type to a node.
+
+        Args:
+            type_id (int): ID of the type used to get the resource attributes from
+            node_id (int): ID of the node 
+
+        Returns:
+            List(ResourceAttr): All the newly created node attributes
+
+        Raises:
+            ResourceNotFoundError if the type_id or node_id are not in the DB
+ 
         """
         new_resource_attrs = attributes.add_resource_attrs_from_type(
                                                         type_id,
@@ -354,6 +399,20 @@ class AttributeService(HydraService):
 
     @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttr))
     def get_node_attributes(ctx, node_id, type_id):
+        """
+        Get all a node's attributes.
+
+        Args:
+            node_id (int): ID of the node 
+            type_id (int) (optional): ID of the type. If specified will only return the resource attributes relative to that type
+
+        Returns:
+            List(ResourceAttr): All the node's attributes
+
+        Raises:
+            ResourceNotFoundError if the type_id or node_id do not exist.
+        """
+ 
         resource_attrs = attributes.get_resource_attributes(
                 'NODE',
                 node_id,
@@ -363,6 +422,16 @@ class AttributeService(HydraService):
 
     @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttr))
     def get_all_node_attributes(ctx, network_id, template_id):
+        """
+        Get all the resource attributes for all the nodes in the network.
+
+        Args:
+            network_id (int): The ID of the network that you want the node attributes from
+            template_id (int) (optional): If this is specified, then it will only return the attributes in this template.
+
+        Returns:
+            List(ResourceAttr): The resource attributes of all the nodes in the network.
+        """
         resource_attrs = attributes.get_all_resource_attributes(
                 'NODE',
                 network_id,
@@ -373,11 +442,20 @@ class AttributeService(HydraService):
     @rpc(Integer, Integer, Unicode(pattern="['YN']", default='N'), _returns=ResourceAttr)
     def add_link_attribute(ctx,link_id, attr_id, is_var):
         """
-            Add a resource attribute attribute to a resource.
+        Add a resource attribute to a link.
 
-            attr_is_var indicates whether the attribute is a variable or not --
-            this is used in simulation to indicate that this value is expected
-            to be filled in by the simulator.
+        Args:
+            link_id (int): The ID of the Link
+            attr_id (int): THe ID if the attribute being added.
+            is_var (char): Y or N. Indicates whether the attribute is a variable or not.
+
+        Returns:
+            ResourceAttr: The newly created link attribute
+
+        Raises:
+            ResourceNotFoundError: If the link or attribute do not exist
+            HydraError: If this addition causes a duplicate attribute on the link.
+
         """
         new_ra = attributes.add_resource_attribute(
                                                        'LINK',
@@ -392,8 +470,20 @@ class AttributeService(HydraService):
     @rpc(Integer, Integer, _returns=SpyneArray(ResourceAttr))
     def add_link_attrs_from_type(ctx, type_id, link_id):
         """
-            adds all the attributes defined by a type to a link.
+        Adds all the attributes defined by a type to a link.
+
+        Args:
+            type_id (int): ID of the type used to get the resource attributes from
+            link_id (int): ID of the link
+
+        Returns:
+            List(ResourceAttr): All the newly created link attributes
+
+        Raises:
+            ResourceNotFoundError if the type_id or link_id are not in the DB
+ 
         """
+
         new_resource_attrs = attributes.add_resource_attrs_from_type(
                                                         type_id,
                                                         'LINK',
@@ -403,6 +493,20 @@ class AttributeService(HydraService):
 
     @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttr))
     def get_link_attributes(ctx, link_id, type_id):
+        """
+        Get all a link's attributes.
+
+        Args:
+            link_id (int): ID of the link 
+            type_id (int) (optional): ID of the type. If specified will only return the resource attributes relative to that type
+
+        Returns:
+            List(ResourceAttr): All the link's attributes
+
+        Raises:
+            ResourceNotFoundError if the type_id or link_id do not exist.
+        """
+
         resource_attrs = attributes.get_resource_attributes(
                 'LINK',
                 link_id,
@@ -412,6 +516,17 @@ class AttributeService(HydraService):
 
     @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttr))
     def get_all_link_attributes(ctx, network_id, template_id):
+        """
+        Get all the resource attributes for all the links in the network.
+
+        Args:
+            network_id (int): The ID of the network that you want the link attributes from
+            template_id (int) (optional): If this is specified, then it will only return the attributes in this template.
+
+        Returns:
+            List(ResourceAttr): The resource attributes of all the links in the network.
+        """
+
         resource_attrs = attributes.get_all_resource_attributes(
                 'LINK',
                 network_id,
@@ -422,12 +537,22 @@ class AttributeService(HydraService):
     @rpc(Integer, Integer, Unicode(pattern="['YN']", default='N'), _returns=ResourceAttr)
     def add_group_attribute(ctx,group_id, attr_id, is_var):
         """
-            Add a resource attribute attribute to a resource.
+        Add a resource attribute to a group.
 
-            attr_is_var indicates whether the attribute is a variable or not --
-            this is used in simulation to indicate that this value is expected
-            to be filled in by the simulator.
+        Args:
+            group_id (int): The ID of the Group
+            attr_id (int): THe ID if the attribute being added.
+            is_var (char): Y or N. Indicates whether the attribute is a variable or not.
+
+        Returns:
+            ResourceAttr: The newly created group attribute
+
+        Raises:
+            ResourceNotFoundError: If the group or attribute do not exist
+            HydraError: If this addition causes a duplicate attribute on the group.
+
         """
+
         new_ra = attributes.add_resource_attribute(
                                                        'GROUP',
                                                        group_id,
@@ -441,7 +566,18 @@ class AttributeService(HydraService):
     @rpc(Integer, Integer, _returns=SpyneArray(ResourceAttr))
     def add_group_attrs_from_type(ctx, type_id, group_id):
         """
-            adds all the attributes defined by a type to a group.
+        Adds all the attributes defined by a type to a group.
+
+        Args:
+            type_id (int): ID of the type used to get the resource attributes from
+            group_id (int): ID of the group
+
+        Returns:
+            List(ResourceAttr): All the newly created group attributes
+
+        Raises:
+            ResourceNotFoundError if the type_id or group_id are not in the DB
+ 
         """
         new_resource_attrs = attributes.add_resource_attrs_from_type(
                                                         type_id,
@@ -453,8 +589,19 @@ class AttributeService(HydraService):
     @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttr))
     def get_group_attributes(ctx, group_id, type_id):
         """
-            Get the resource attributes of a resource group.
+        Get all a group's attributes.
+
+        Args:
+            group_id (int): ID of the group 
+            type_id (int) (optional): ID of the type. If specified will only return the resource attributes relative to that type
+
+        Returns:
+            List(ResourceAttr): All the group's attributes
+
+        Raises:
+            ResourceNotFoundError if the type_id or group_id do not exist.
         """
+
         resource_attrs = attributes.get_resource_attributes(
                 'GROUP',
                 group_id,
@@ -466,8 +613,17 @@ class AttributeService(HydraService):
     @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttr))
     def get_all_group_attributes(ctx, network_id, template_id):
         """
-            Get the resource attributes of a resource group.
+        Get all the resource attributes for all the groups in the network.
+
+        Args:
+            network_id (int): The ID of the network that you want the group attributes from
+            template_id (int) (optional): If this is specified, then it will only return the attributes in this template.
+
+        Returns:
+            List(ResourceAttr): The resource attributes of all the groups in the network.
         """
+
+
         resource_attrs = attributes.get_all_resource_attributes(
                 'GROUP',
                 network_id,
@@ -480,11 +636,20 @@ class AttributeService(HydraService):
     @rpc(Integer, _returns=Unicode)
     def check_attr_dimension(ctx, attr_id):
         """
-            Check that the dimension of the resource attribute data is consistent
-            with the definition of the attribute.
-            If the attribute says 'volume', make sure every dataset connected
-            with this attribute via a resource attribute also has a dimension
-            of 'volume'.
+        Check that the dimension of the resource attribute data is consistent
+        with the definition of the attribute.
+        If the attribute says 'volume', make sure every dataset connected
+        with this attribute via a resource attribute also has a dimension
+        of 'volume'.
+        
+        Args:
+            attr_id (int): The ID of the attribute you want to check
+
+        Returns:
+            string: 'OK' if all is well.
+
+        Raises:
+            HydraError: If a dimension mismatch is found.
         """
 
         attributes.check_attr_dimension(attr_id, **ctx.in_header.__dict__)
@@ -494,8 +659,18 @@ class AttributeService(HydraService):
     @rpc(Integer, Integer, _returns=Unicode)
     def set_attribute_mapping(ctx, resource_attr_a, resource_attr_b):
         """
-            Define one resource attribute from one network as being the same as
-            that from another network.
+        Define one resource attribute from one network as being the same as
+        that from another network.
+
+        Args:
+            resource_attr_a (int): The ID of the source resoure attribute
+            resource_attr_b (int): The ID of the target resoure attribute
+
+        Returns:
+            string: 'OK' if all is well.
+
+        Raises:
+            ResourceNotFoundError: If either resource attribute is not found.
         """
         attributes.set_attribute_mapping(resource_attr_a, resource_attr_b, **ctx.in_header.__dict__)
 
@@ -504,8 +679,16 @@ class AttributeService(HydraService):
     @rpc(Integer, Integer, _returns=Unicode)
     def delete_attribute_mapping(ctx, resource_attr_a, resource_attr_b):
         """
-            Define one resource attribute from one network as being the same as
-            that from another network.
+        Delete a mapping which said one resource attribute from one network 
+        was the same as the resource attribute in another.
+
+        Args:
+            resource_attr_a (int): The ID of the source resoure attribute
+            resource_attr_b (int): The ID of the target resoure attribute
+
+        Returns:
+            string: 'OK' if all is well. If the mapping isn't there, it'll still return 'OK', so make sure the IDs are correct! 
+
         """
         attributes.delete_attribute_mapping(resource_attr_a, resource_attr_b, **ctx.in_header.__dict__)
 
@@ -514,8 +697,15 @@ class AttributeService(HydraService):
     @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttrMap))
     def get_mappings_in_network(ctx, network_id, network_2_id):
         """
-            Get all the resource attribute mappings in a network. If another network
-            is specified, only return the mappings between the two networks.
+        Get all the resource attribute mappings in a network (both from and to). If another network
+        is specified, only return the mappings between the two networks.
+
+        Args:
+            network_id (int): The network you want to check the mappings of (both from and to)
+            network_2_id (int) (optional): The partner network
+
+        Returns:
+            List(ResourceAttrMap): All the mappings to and from the network(s) in question.
         """
         mapping_rs = attributes.get_mappings_in_network(network_id, network_2_id, **ctx.in_header.__dict__)
 
@@ -525,8 +715,15 @@ class AttributeService(HydraService):
     @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=Unicode)
     def delete_mappings_in_network(ctx, network_id, network_2_id):
         """
-            Delete all the resource attribute mappings in a network. If another network
-            is specified, only delete the mappings between the two networks.
+        Delete all the resource attribute mappings in a network. If another network
+        is specified, only delete the mappings between the two networks.
+
+        Args:
+            network_id (int): The network you want to delete the mappings from (both from and to)
+            network_2_id (int) (optional): The partner network
+
+        Returns:
+            string: 'OK'
         """
         attributes.delete_mappings_in_network(network_id, network_2_id, **ctx.in_header.__dict__)
 
@@ -535,8 +732,15 @@ class AttributeService(HydraService):
     @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttrMap))
     def get_node_mappings(ctx, node_id, node_2_id):
         """
-           Get the mappings for all the attributes of a given node. If a second node
-           is specified, return only the mappings between these nodes..
+        Get the mappings for all the attributes of a given node. If a second node
+        is specified, return only the mappings between these nodes..
+
+        Args:
+            node_id (int): The node you want to delete the mappings from (both from and to)
+            node_2_id (int) (optional): The partner node
+
+        Returns:
+            List(ResourceAttrMap): All the mappings to and from the node(s) in question.
         """
         mapping_rs = attributes.get_node_mappings(node_id, node_2_id, **ctx.in_header.__dict__)
 
@@ -547,9 +751,16 @@ class AttributeService(HydraService):
     @rpc(Integer, Integer, _returns=Unicode)
     def check_mapping_exists(ctx, resource_attr_id_source, resource_attr_id_target):
         """
-           Check whether a mapping exists between two resource attributes
-           Returns 'Y' if a mapping between the source and target exists.
-           Returns 'N' in every other case
+        Check whether a mapping exists between two resource attributes
+        This does not check whether a reverse mapping exists, so order is important here.
+
+        Args:
+            resource_attr_id_source (int): The source resource attribute 
+            resource_attr_id_target (int) (optional): The target resource attribute
+
+        Returns:
+            string: 'Y' if a mapping between the source and target exists. 'N' in every other case.
+
         """
         is_mapped = attributes.check_attribute_mapping_exists(resource_attr_id_source, resource_attr_id_target,**ctx.in_header.__dict__)
 
