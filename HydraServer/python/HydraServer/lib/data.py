@@ -192,7 +192,7 @@ def get_datasets(dataset_ids,**kwargs):
             else:
                 dataset.metadata = []
     except NoResultFound:
-        raise HydraError("Datasets not found.")
+        raise ResourceNotFoundError("Datasets not found.")
 
     return datasets
 
@@ -903,7 +903,7 @@ def get_dataset_collection_by_name(collection_name,**kwargs):
     try:
         collection = DBSession.query(DatasetCollection).filter(DatasetCollection.collection_name==collection_name).one()
     except NoResultFound:
-        raise ResourceNotFoundError("No dataset collection found with id %s"%collection_name)
+        raise ResourceNotFoundError("No dataset collection found with name %s"%collection_name)
 
     return collection
 
