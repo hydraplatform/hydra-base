@@ -54,7 +54,7 @@ Apps
 
 Hydra Platform provides a set of selected Apps for importing and exporting
 datasets. Currently network topology and data can be exported to and imported
-from CSV files (:ref:`exportcsv` and :ref:`importcsv`). We also provide an App
+from CSV files (:ref:`plugins/exportcsv` and :ref:`plugins/importcsv`). We also provide an App
 to :doc:`plugins/importwml`.
 
 User Interfaces
