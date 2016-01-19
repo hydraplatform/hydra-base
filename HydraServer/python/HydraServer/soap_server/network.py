@@ -55,10 +55,10 @@ class NetworkService(HydraService):
         The returned object will have positive IDS
         
         Args:
-            net (Network): The entire network complex model structure including nodes, links, scenarios and data
+            net (hydra_complexmodels.Network): The entire network complex model structure including nodes, links, scenarios and data
 
         Returns:
-            Network: The full network structure, with correct IDs for all resources
+            hydra_complexmodels.Network: The full network structure, with correct IDs for all resources
 
         """
         net = network.add_network(net, **ctx.in_header.__dict__)
@@ -83,7 +83,7 @@ class NetworkService(HydraService):
             summary      (char) ('Y' or 'N'): Optional flag to indicate whether attributes are returned with the nodes & links. Seting to 'Y' has significant speed improvements at the cost of not retrieving attribute information.
 
         Returns:
-            Network: A network complex model
+            hydra_complexmodels.Network: A network complex model
 
         Raises:
             ResourceNotFoundError: If the network is not found.
@@ -129,7 +129,7 @@ class NetworkService(HydraService):
             network_name (string): The name of the network
 
         Returns:
-            Network: The entire network structure, no filtering is performed, so all data and attributes are returned
+            hydra_complexmodels.Network: The entire network structure, no filtering is performed, so all data and attributes are returned
 
         Raises:
             ResourceNotFoundError: If the project or network is not found
@@ -172,14 +172,14 @@ class NetworkService(HydraService):
         flags, tell the function which of these to update.
 
         Args:
-            net (Network): A network reflecting an already existing network (must have an ID), which is to be updated
+            net (hydra_complexmodels.Network): A network reflecting an already existing network (must have an ID), which is to be updated
             updated_nodes (char) (Y or N): Flag to indicated whether the incoming network's nodes should be updated
             updated_links (char) (Y or N): Flag to indicated whether the incoming network's links should be updated
             updated_groups (char) (Y or N): Flag to indicated whether the incoming network's resource groups should be updated
             updated_scenarios (char) (Y or N): Flag to indicated whether the incoming network's data should be updated
         
         Returns:
-            Network: The updated network, in summarised forms (without data or attributes)
+            hydra_complexmodels.Network: The updated network, in summarised forms (without data or attributes)
 
         Raises:
             ResourceNotFoundError: If the network does not exist.
@@ -210,7 +210,7 @@ class NetworkService(HydraService):
             scenario_id (int) (optional): Include this if you want to include data with the scenario
 
         Returns:
-            Node: A node complex model, with attributes and data if requested)
+            hydra_complexmodels.Node: A node complex model, with attributes and data if requested)
 
         Raises:
             ResourceNotFoundError: If the node or scenario is not found
@@ -247,7 +247,7 @@ class NetworkService(HydraService):
             scenario_id (int) (optional): Include this if you want to include data with the scenario
 
         Returns:
-            Link: A link complex model, with attributes and data if requested)
+            hydra_complexmodels.Link: A link complex model, with attributes and data if requested)
 
         Raises:
             ResourceNotFoundError: If the link or scenario is not found
@@ -282,7 +282,7 @@ class NetworkService(HydraService):
             scenario_id (int) (optional): Include this if you want to include data with the scenario
 
         Returns:
-            ResourceGroup: A resource group complex model, with attributes and data if requested)
+            hydra_complexmodels.ResourceGroup: A resource group complex model, with attributes and data if requested)
 
         Raises:
             ResourceNotFoundError: If the group or scenario is not found
@@ -421,10 +421,10 @@ class NetworkService(HydraService):
 
         Args:
             network_id (int):  The id of the network to receive the new node
-            node       (Node): The node to be added (see above for the format)
+            node       (hydra_complexmodels.Node): The node to be added (see above for the format)
 
         Returns:
-            Node: The newly added node, complete with an ID
+            hydra_complexmodels.Node: The newly added node, complete with an ID
 
         Raises:
             ResourceNotFoundError: If the network is not found
@@ -445,10 +445,10 @@ class NetworkService(HydraService):
 
         Args:
             network_id (int):  The id of the network to receive the new node
-            node       (List(Node)): A list of the nodes to be added
+            node       (List(hydra_complexmodels.Node)): A list of the nodes to be added
 
         Returns:
-            List(Node): The newly added nodes, each complete with an ID
+            List(hydra_complexmodels.Node): The newly added nodes, each complete with an ID
 
         Raises:
             ResourceNotFoundError: If the network is not found
@@ -472,10 +472,10 @@ class NetworkService(HydraService):
 
         Args:
             network_id (int):  The id of the network to receive the new link
-            link       (List(Link)): A list of the links to be added
+            link       (List(hydra_complexmodels.Link)): A list of the links to be added
 
         Returns:
-            List(Link): The newly added links, each complete with an ID
+            List(hydra_complexmodels.Link): The newly added links, each complete with an ID
 
         Raises:
             ResourceNotFoundError: If the network is not found
@@ -530,10 +530,10 @@ class NetworkService(HydraService):
              }
 
         Args:
-            node       (Node): The node to be updated 
+            node (hydra_complexmodels.Node): The node to be updated 
 
         Returns:
-            Node: The updated node. 
+            hydra_complexmodels.Node: The updated node. 
 
         Raises:
             ResourceNotFoundError: If the node is not found
@@ -612,10 +612,10 @@ class NetworkService(HydraService):
 
         Args:
             network_id (int):  The id of the network to receive the new link
-            link       (Link): The node to be added (see above for the format)
+            link       (hydra_complexmodels.Link): The link to be added (see above for the format)
 
         Returns:
-            Link: The newly added link, complete with an ID
+            hydra_complexmodels.Link: The newly added link, complete with an ID
 
         Raises:
             ResourceNotFoundError: If the network is not found
@@ -632,10 +632,10 @@ class NetworkService(HydraService):
         Update a link.
 
         Args:
-            link       (Link): The link to be updated 
+            link       (hydra_complexmodels.Link): The link to be updated 
 
         Returns:
-            Link: The updated link. 
+            hydra_complexmodels.Link: The updated link. 
 
         Raises:
             ResourceNotFoundError: If the link is not found
@@ -708,10 +708,10 @@ class NetworkService(HydraService):
 
         Args:
             network_id (int):  The id of the network to receive the new node
-            group      (ResourceGroup): The group to be added 
+            group      (hydra_complexmodels.ResourceGroup): The group to be added 
 
         Returns:
-            ResourceGroup: The newly added group, complete with an ID
+            hydra_complexmodels.ResourceGroup: The newly added group, complete with an ID
 
         Raises:
             ResourceNotFoundError: If the network is not found
@@ -788,7 +788,7 @@ class NetworkService(HydraService):
             network_id (int): The network from which to retrieve the scenarios
 
         Returns:
-            List(Scenario)): All the scenarios in the network
+            List(hydra_complexmodels.Scenario): All the scenarios in the network
 
         Raises:
             ResourceNotFoundError: If the network is not found

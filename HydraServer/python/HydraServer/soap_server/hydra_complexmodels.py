@@ -53,6 +53,11 @@ ref_id_map = {
 
 
 class HydraComplexModel(ComplexModel):
+    """
+    This is the superclass from which most hydra complex models inherit.
+    It contains the namespace 'soap_server.hydra_complexmodels', which all
+    hydra complex models need.
+    """
     __namespace__ = 'soap_server.hydra_complexmodels'
 
     def get_outgoing_layout(self, resource_layout):
@@ -182,6 +187,16 @@ class ResourceData(HydraComplexModel):
 
 class Dataset(HydraComplexModel):
     """
+    - **id**               Integer(min_occurs=0, default=None)
+    - **type**             Unicode
+    - **dimension**        Unicode(min_occurs=1, default='dimensionless')
+    - **unit**             Unicode(min_occurs=1, default=None)
+    - **name**             Unicode(min_occurs=1, default=None)
+    - **value**            Unicode(min_occurs=1, default=None)
+    - **hidden**           Unicode(min_occurs=0, default='N pattern="[YN]")
+    - **created_by**       Integer(min_occurs=0, default=None)
+    - **cr_date**          Unicode(min_occurs=0, default=None)
+    - **metadata**         Unicode(min_occurs=0, default='{}')
     """
     _type_info = [
         ('id',               Integer(min_occurs=0, default=None)),
@@ -270,6 +285,16 @@ class Dataset(HydraComplexModel):
             raise HydraError("Error parsing value %s: %s"%(self.value, e))
 
     def get_metadata_as_dict(self, user_id=None, source=None):
+        """
+        Convert a metadata json string into a dictionary.
+
+        Args:
+            user_id (int): Optional: Insert user_id into the metadata if specified
+            source (string): Optional: Insert source (the name of the app typically) into the metadata if necessary.
+
+        Returns:
+            dict: THe metadata as a python dictionary
+        """
 
         if self.metadata is None:
             return {}
@@ -314,6 +339,12 @@ class Dataset(HydraComplexModel):
         return data_hash
 
 class DatasetCollection(HydraComplexModel):
+    """
+    - **name** Unicode(default=None)
+    - **id** Integer(default=None)
+    - **dataset_ids** SpyneArray(Integer)
+    - **cr_date** Unicode(default=None)
+    """
     _type_info = [
         ('name', Unicode(default=None)),
         ('id'  , Integer(default=None)),
@@ -332,6 +363,11 @@ class DatasetCollection(HydraComplexModel):
 
 class Attr(HydraComplexModel):
     """
+       - **id** Integer(default=None)
+       - **name** Unicode(default=None)
+       - **dimen** Unicode(default=None)
+       - **description** Unicode(default=None)
+       - **cr_date** Unicode(default=None)
     """
     _type_info = [
         ('id', Integer(default=None)),
@@ -353,6 +389,12 @@ class Attr(HydraComplexModel):
 
 class ResourceScenario(HydraComplexModel):
     """
+       - **resource_attr_id** Integer(default=None)
+       - **attr_id**          Integer(default=None)
+       - **dataset_id**       Integer(default=None)
+       - **value**            Dataset
+       - **source**           Unicode
+       - **cr_date**          Unicode(default=None)
     """
     _type_info = [
         ('resource_attr_id', Integer(default=None)),
@@ -377,6 +419,13 @@ class ResourceScenario(HydraComplexModel):
 
 class ResourceAttr(HydraComplexModel):
     """
+       - **id**      Integer(min_occurs=0, default=None)
+       - **attr_id** Integer(default=None)
+       - **ref_id**  Integer(min_occurs=0, default=None)
+       - **ref_key** Unicode(min_occurs=0, default=None)
+       - **attr_is_var** Unicode(min_occurs=0, default='N')
+       - **resourcescenario** ResourceScenario
+       - **cr_date** Unicode(default=None)
     """
     _type_info = [
         ('id',      Integer(min_occurs=0, default=None)),
@@ -410,6 +459,20 @@ class ResourceAttr(HydraComplexModel):
         self.resourcescenario = None
 
 class ResourceAttrMap(HydraComplexModel):
+    """
+       - **resource_attr_id_a** Integer(default=None)
+       - **resource_attr_id_b** Integer(default=None)
+       - **attr_a_name**        Unicode(default=None)
+       - **attr_b_name**        Unicode(default=None)
+       - **ref_key_a**          Unicode(default=None)
+       - **ref_key_b**          Unicode(default=None)
+       - **ref_id_a**           Integer(default=None)
+       - **ref_id_b**           Integer(default=None)
+       - **resource_a_name**    Unicode(default=None)
+       - **resource_b_name**    Unicode(default=None)
+       - **network_a_id**       Integer(default=None)
+       - **network_b_id**       Integer(default=None)
+    """
     _type_info = [
         ('resource_attr_id_a', Integer(default=None)),
         ('resource_attr_id_b', Integer(default=None)),
@@ -449,6 +512,9 @@ class ResourceAttrMap(HydraComplexModel):
 
 class ResourceTypeDef(HydraComplexModel):
     """
+       - **ref_key** Unicode(default=None)
+       - **ref_id**  Integer(default=None)
+       - **type_id** Integer(default=None)
     """
     _type_info = [
         ('ref_key', Unicode(default=None)),
@@ -458,6 +524,18 @@ class ResourceTypeDef(HydraComplexModel):
 
 class TypeAttr(HydraComplexModel):
     """
+       - **attr_id**            Integer(min_occurs=1, max_occurs=1)
+       - **attr_name**          Unicode(default=None)
+       - **type_id**            Integer(default=None)
+       - **data_type**          Unicode(default=None)
+       - **dimension**          Unicode(default=None)
+       - **unit**               Unicode(default=None)
+       - **default_dataset_id** Integer(default=None)
+       - **data_restriction**   AnyDict(default=None)
+       - **is_var**             Unicode(default=None)
+       - **description**        Unicode(default=None)
+       - **properties**         AnyDict(default=None)
+       - **cr_date**            Unicode(default=None)
     """
     _type_info = [
         ('attr_id',            Integer(min_occurs=1, max_occurs=1)),
@@ -506,6 +584,14 @@ class TypeAttr(HydraComplexModel):
 
 class TemplateType(HydraComplexModel):
     """
+       - **id**          Integer(default=None)
+       - **name**        Unicode(default=None)
+       - **resource_type** Unicode(values=['GROUP', 'NODE', 'LINK', 'NETWORK'], default=None)
+       - **alias**       Unicode(default=None)
+       - **layout**      AnyDict(min_occurs=0, max_occurs=1, default=None)
+       - **template_id** Integer(min_occurs=1, default=None)
+       - **typeattrs**   SpyneArray(TypeAttr)
+       - **cr_date**     Unicode(default=None)
     """
     _type_info = [
         ('id',          Integer(default=None)),
@@ -539,6 +625,11 @@ class TemplateType(HydraComplexModel):
 
 class Template(HydraComplexModel):
     """
+       - **id**        Integer(default=None)
+       - **name**      Unicode(default=None)
+       - **layout**    AnyDict(min_occurs=0, max_occurs=1, default=None)
+       - **types**     SpyneArray(TemplateType)
+       - **cr_date**   Unicode(default=None)
     """
     _type_info = [
         ('id',        Integer(default=None)),
@@ -565,6 +656,10 @@ class Template(HydraComplexModel):
 
 class TypeSummary(HydraComplexModel):
     """
+       - **name**    Unicode
+       - **id**      Integer
+       - **template_name** Unicode
+       - **template_id** Integer
     """
     _type_info = [
         ('name',    Unicode),
@@ -586,6 +681,17 @@ class TypeSummary(HydraComplexModel):
 
 class ValidationError(HydraComplexModel):
     """
+       - **scenario_id**      Integer(default=None)
+       - **ref_key**          Unicode(default=None)
+       - **ref_id**           Integer(default=None)
+       - **ref_name**         Unicode(default=None)
+       - **attr_name**        Unicode(default=None)
+       - **attr_id**          Integer(default=None)
+       - **template_id**      Integer(default=None)
+       - **type_id**          Integer(defult=None)
+       - **resource_attr_id** Integer(default=None)
+       - **dataset_id**       Integer(default=None)
+       - **error_text**       Unicode(default=None)
     """
     _type_info = [
         ('scenario_id',      Integer(default=None)),
@@ -622,8 +728,13 @@ class ValidationError(HydraComplexModel):
 
 class Resource(HydraComplexModel):
     """
+        Superclass for anything which has a layout field:
+            - nodes
+            - links
+            - network
+            - scenario
+            - project
     """
-
     def get_layout(self):
         if hasattr(self, 'layout') and self.layout is not None:
             return str(self.layout).replace('{%s}'%NS, '')
@@ -633,6 +744,12 @@ class Resource(HydraComplexModel):
 
 class ResourceSummary(HydraComplexModel):
     """
+       - **ref_key**     Unicode(default=None)
+       - **id**          Integer(default=None)
+       - **name**        Unicode(default=None)
+       - **description** Unicode(min_occurs=1, default="")
+       - **attributes**  SpyneArray(ResourceAttr)),
+       - **types**       SpyneArray(TypeSummary)),
     """
     _type_info = [
         ('ref_key',     Unicode(default=None)),
@@ -669,6 +786,16 @@ class ResourceSummary(HydraComplexModel):
 
 class Node(Resource):
     """
+       - **id**          Integer(default=None)
+       - **name**        Unicode(default=None)
+       - **description** Unicode(min_occurs=1, default="")
+       - **layout**      AnyDict(min_occurs=0, max_occurs=1, default=None)
+       - **x**           Decimal(min_occurs=1, default=0)
+       - **y**           Decimal(min_occurs=1, default=0)
+       - **status**      Unicode(default='A** pattern="[AX]")
+       - **attributes**  SpyneArray(ResourceAttr)
+       - **types**       SpyneArray(TypeSummary)
+       - **cr_date**     Unicode(default=None)
     """
     _type_info = [
         ('id',          Integer(default=None)),
@@ -706,6 +833,16 @@ class Node(Resource):
 
 class Link(Resource):
     """
+       - **id**          Integer(default=None)
+       - **name**        Unicode(default=None)
+       - **description** Unicode(min_occurs=1, default="")
+       - **layout**      AnyDict(min_occurs=0, max_occurs=1, default=None)
+       - **node_1_id**   Integer(default=None)
+       - **node_2_id**   Integer(default=None))
+       - **status**      Unicode(default='A** pattern="[AX]")
+       - **attributes**  SpyneArray(ResourceAttr)
+       - **types**       SpyneArray(TypeSummary)
+       - **cr_date**     Unicode(default=None)
     """
     _type_info = [
         ('id',          Integer(default=None)),
@@ -746,6 +883,8 @@ class AttributeData(HydraComplexModel):
     """
         A class which is returned by the server when a request is made
         for the data associated with an attribute.
+       - **resourceattrs** SpyneArray(ResourceAttr)
+       - **resourcescenarios** SpyneArray(ResourceScenario)
     """
     _type_info = [
         ('resourceattrs', SpyneArray(ResourceAttr)),
@@ -754,6 +893,11 @@ class AttributeData(HydraComplexModel):
 
 class ResourceGroupItem(HydraComplexModel):
     """
+       - **id**       Integer(default=None)
+       - **ref_id**   Integer(default=None)
+       - **ref_key**  Unicode(default=None)
+       - **group_id** Integer(default=None)
+       - **cr_date**     Unicode(default=None)
     """
     _type_info = [
         ('id',       Integer(default=None)),
@@ -780,6 +924,14 @@ class ResourceGroupItem(HydraComplexModel):
 
 class ResourceGroup(HydraComplexModel):
     """
+       - **id**          Integer(default=None)
+       - **network_id**  Integer(default=None)
+       - **name**        Unicode(default=None)
+       - **description** Unicode(min_occurs=1, default="")
+       - **status**      Unicode(default='A** pattern="[AX]")
+       - **attributes**  SpyneArray(ResourceAttr)
+       - **types**       SpyneArray(TypeSummary)
+       - **cr_date**     Unicode(default=None)
     """
     _type_info = [
         ('id',          Integer(default=None)),
@@ -812,6 +964,20 @@ class ResourceGroup(HydraComplexModel):
 
 class Scenario(Resource):
     """
+       - **id**                   Integer(default=None)
+       - **name**                 Unicode(default=None)
+       - **description**          Unicode(min_occurs=1, default="")
+       - **network_id**           Integer(default=None)
+       - **layout**               AnyDict(min_occurs=0, max_occurs=1, default=None)
+       - **status**               Unicode(default='A** pattern="[AX]")
+       - **locked**               Unicode(default='N** pattern="[YN]")
+       - **start_time**           Unicode(default=None)
+       - **end_time**             Unicode(default=None)
+       - **created_by**           Integer(default=None)
+       - **cr_date**              Unicode(default=None)
+       - **time_step**            Unicode(default=None)
+       - **resourcescenarios**    SpyneArray(ResourceScenario, default=None)
+       - **resourcegroupitems**   SpyneArray(ResourceGroupItem, default=None)
     """
     _type_info = [
         ('id',                   Integer(default=None)),
@@ -856,6 +1022,14 @@ class Scenario(Resource):
 
 class Rule(HydraComplexModel):
     """
+       - **id** Integer
+       - **name** Unicode
+       - **description** Unicode
+       - **scenario_id** Integer
+       - **ref_key** Unicode
+       - **ref_id** Integer
+       - **text** Unicode
+       - **cr_date** Unicode(default=None)
     """
     _type_info = [
         ('id', Integer),
@@ -892,6 +1066,12 @@ class Rule(HydraComplexModel):
 
 class Note(HydraComplexModel):
     """
+       - **id** Integer
+       - **ref_key** Unicode
+       - **ref_id** Integer
+       - **text** Unicode
+       - **created_by** Integer
+       - **cr_date** Unicode
     """
     _type_info = [
         ('id', Integer),
@@ -929,6 +1109,8 @@ class Note(HydraComplexModel):
 
 class ResourceGroupDiff(HydraComplexModel):
     """
+      - **scenario_1_items** SpyneArray(ResourceGroupItem)
+      - **scenario_2_items** SpyneArray(ResourceGroupItem))
     """
     _type_info = [
        ('scenario_1_items', SpyneArray(ResourceGroupItem)),
@@ -946,6 +1128,9 @@ class ResourceGroupDiff(HydraComplexModel):
 
 class ResourceScenarioDiff(HydraComplexModel):
     """
+       - **resource_attr_id**     Integer(default=None)
+       - **scenario_1_dataset**   Dataset
+       - **scenario_2_dataset**   Dataset
     """
     _type_info = [
         ('resource_attr_id',     Integer(default=None)),
@@ -966,6 +1151,8 @@ class ResourceScenarioDiff(HydraComplexModel):
 
 class ScenarioDiff(HydraComplexModel):
     """
+       - **resourcescenarios**    SpyneArray(ResourceScenarioDiff)
+       - **groups**               ResourceGroupDiff
     """
     _type_info = [
         ('resourcescenarios',    SpyneArray(ResourceScenarioDiff)),
@@ -983,6 +1170,21 @@ class ScenarioDiff(HydraComplexModel):
 
 class Network(Resource):
     """
+       - **project_id**          Integer(default=None)
+       - **id**                  Integer(default=None)
+       - **name**                Unicode(default=None)
+       - **description**         Unicode(min_occurs=1, default=None)
+       - **created_by**          Integer(default=None)
+       - **cr_date**             Unicode(default=None)
+       - **layout**              AnyDict(min_occurs=0, max_occurs=1, default=None)
+       - **status**              Unicode(default='A')
+       - **attributes**          SpyneArray(ResourceAttr)
+       - **scenarios**           SpyneArray(Scenario)
+       - **nodes**               SpyneArray(Node)
+       - **links**               SpyneArray(Link)
+       - **resourcegroups**      SpyneArray(ResourceGroup)
+       - **types**               SpyneArray(TypeSummary)
+       - **projection**          Unicode(default=None)
     """
     _type_info = [
         ('project_id',          Integer(default=None)),
@@ -1027,6 +1229,11 @@ class Network(Resource):
 
 class NetworkExtents(HydraComplexModel):
     """
+       - **network_id** Integer(default=None)
+       - **min_x**      Decimal(default=0)
+       - **min_y**      Decimal(default=0)
+       - **max_x**      Decimal(default=0)
+       - **max_y**      Decimal(default=0)
     """
     _type_info = [
         ('network_id', Integer(default=None)),
@@ -1050,6 +1257,14 @@ class NetworkExtents(HydraComplexModel):
 
 class Project(Resource):
     """
+   - **id**          Integer(default=None)
+   - **name**        Unicode(default=None)
+   - **description** Unicode(default=None)
+   - **status**      Unicode(default='A')
+   - **cr_date**     Unicode(default=None)
+   - **created_by**  Integer(default=None)
+   - **attributes**  SpyneArray(ResourceAttr)
+   - **attribute_data** SpyneArray(ResourceScenario)
     """
     _type_info = [
         ('id',          Integer(default=None)),
@@ -1079,6 +1294,12 @@ class Project(Resource):
 
 class ProjectSummary(Resource):
     """
+       - **id**          Integer(default=None)
+       - **name**        Unicode(default=None)
+       - **description** Unicode(default=None)
+       - **status**      Unicode(default=None)
+       - **cr_date**     Unicode(default=None)
+       - **created_by**  Integer(default=None)
     """
     _type_info = [
         ('id',          Integer(default=None)),
@@ -1104,6 +1325,10 @@ class ProjectSummary(Resource):
 
 class User(HydraComplexModel):
     """
+       - **id**  Integer
+       - **username** Unicode(default=None)
+       - **display_name** Unicode(default=None)
+       - **password** Unicode(default=None)
     """
     _type_info = [
         ('id',  Integer),
@@ -1125,6 +1350,9 @@ class User(HydraComplexModel):
 
 class Perm(HydraComplexModel):
     """
+       - **id**   Integer
+       - **name** Unicode
+       - **code** Unicode
     """
     _type_info = [
         ('id',   Integer),
@@ -1144,6 +1372,7 @@ class Perm(HydraComplexModel):
 
 class RoleUser(HydraComplexModel):
     """
+       - **user_id**  Integer
     """
     _type_info = [
         ('user_id',  Integer),
@@ -1158,6 +1387,7 @@ class RoleUser(HydraComplexModel):
 
 class RolePerm(HydraComplexModel):
     """
+       - **perm_id**   Integer
     """
     _type_info = [
         ('perm_id',   Integer),
@@ -1173,6 +1403,11 @@ class RolePerm(HydraComplexModel):
 
 class Role(HydraComplexModel):
     """
+       - **id**     Integer
+       - **name**   Unicode
+       - **code**   Unicode
+       - **roleperms** SpyneArray(RolePerm)
+       - **roleusers** SpyneArray(RoleUser)
     """
     _type_info = [
         ('id',     Integer),
@@ -1196,6 +1431,8 @@ class Role(HydraComplexModel):
 
 class PluginParam(HydraComplexModel):
     """
+       - **name**        Unicode
+       - **value**       Unicode
     """
     _type_info = [
         ('name',        Unicode),
@@ -1214,6 +1451,9 @@ class PluginParam(HydraComplexModel):
 
 class Plugin(HydraComplexModel):
     """
+       - **name**        Unicode
+       - **location**    Unicode
+       - **params**      SpyneArray(PluginParam)
     """
     _type_info = [
         ('name',        Unicode),
@@ -1234,6 +1474,10 @@ class Plugin(HydraComplexModel):
 
 class ProjectOwner(HydraComplexModel):
     """
+       - **project_id**   Integer
+       - **user_id**  Integer
+       - **edit**     Unicode
+       - **view**     Unicode)
     """
     _type_info = [
         ('project_id',   Integer),
@@ -1253,6 +1497,10 @@ class ProjectOwner(HydraComplexModel):
 
 class DatasetOwner(HydraComplexModel):
     """
+       - **dataset_id**   Integer
+       - **user_id**  Integer
+       - **edit**     Unicode
+       - **view**     Unicode)
     """
     _type_info = [
         ('dataset_id',   Integer),
@@ -1272,6 +1520,10 @@ class DatasetOwner(HydraComplexModel):
 
 class NetworkOwner(HydraComplexModel):
     """
+       - **network_id**   Integer
+       - **user_id**  Integer
+       - **edit**     Unicode
+       - **view**     Unicode)
     """
     _type_info = [
         ('network_id',   Integer),
@@ -1292,6 +1544,12 @@ class NetworkOwner(HydraComplexModel):
 
 class Unit(HydraComplexModel):
     """
+       - **name** Unicode
+       - **abbr** Unicode
+       - **cf** Double
+       - **lf** Double
+       - **info** Unicode
+       - **dimension** Unicode
     """
     _type_info = [
         ('name', Unicode),
@@ -1317,6 +1575,8 @@ class Unit(HydraComplexModel):
 class Dimension(HydraComplexModel):
     """
         A dimension, with name and units
+       - **name** Unicode
+       - **units** SpyneArray(Unicode)
     """
     _type_info = [
         ('name', Unicode),

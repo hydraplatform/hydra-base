@@ -18,11 +18,11 @@ import alabaster
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath('./'))
-sys.path.insert(0, os.path.abspath('./HydraServer/python'))
-sys.path.insert(0, os.path.abspath('./HydraServer/python/HydraServer/unittests'))
-sys.path.insert(0, os.path.abspath('./HydraPlugins/WaterML/ImportWML'))
-sys.path.insert(0, os.path.abspath('./HydraPlugins/CSVplugin/ImportCSV'))
-sys.path.insert(0, os.path.abspath('./HydraPlugins/CSVplugin/ExportCSV'))
+sys.path.insert(0, os.path.abspath('../HydraServer/python'))
+sys.path.insert(0, os.path.abspath('../HydraServer/python/HydraServer/unittests'))
+sys.path.insert(0, os.path.abspath('../HydraPlugins/CSVplugin/ImportCSV'))
+sys.path.insert(0, os.path.abspath('../HydraPlugins/CSVplugin/ExportCSV'))
+sys.path.insert(0, os.path.abspath('../HydraPlugins/WaterML/ImportWML'))
 
 
 # -- General configuration -----------------------------------------------------
@@ -32,7 +32,7 @@ sys.path.insert(0, os.path.abspath('./HydraPlugins/CSVplugin/ExportCSV'))
 
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest', 'sphinx.ext.todo', 'sphinx.ext.coverage', 'sphinx.ext.pngmath', 'sphinx.ext.ifconfig', 'alabaster']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest', 'sphinx.ext.todo', 'sphinx.ext.coverage', 'sphinx.ext.pngmath', 'sphinx.ext.ifconfig', 'alabaster', 'sphinxcontrib.napoleon']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
