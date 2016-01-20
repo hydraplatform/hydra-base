@@ -168,7 +168,7 @@ gh-pages:
 	$(MAKE) -C doc html
 	$(MAKE) -C doc html
 	rm -rf doc/$(GH_PAGES_SOURCES)
-	mv -fv doc/build/html/* ../
+	mv -fv doc/build/html/* .
 	rm -rf $(GH_CODE_SOURCES)
 	git add -A
 	git commit -m "Generated gh-pages for `git log master -1 --pretty=short --abbrev-commit`" && git push origin gh-pages ; git checkout master
