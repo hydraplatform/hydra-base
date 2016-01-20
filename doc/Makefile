@@ -165,7 +165,9 @@ gh-pages:
 	git checkout master HydraPlugins
 	git checkout master HydraLib
 	git reset HEAD
+	ls
 	cd doc
+	ls
 	make html
 	make html
 	rm -rf $(GH_PAGES_SOURCES)
