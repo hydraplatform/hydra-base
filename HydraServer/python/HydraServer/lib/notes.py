@@ -12,7 +12,8 @@ def _get_note(note_id):
 
 def get_notes(ref_key, ref_id, **kwargs):
     """
-        Get all the notes for a given scenario.
+        Get all the notes for a resource, identifed by ref_key and ref_ido.
+        Returns [] if no notes are found or if the resource doesn't exist.
     """
     notes = DBSession.query(Note).filter(Note.ref_key==ref_key)
     if ref_key == 'NETWORK':
@@ -35,10 +36,16 @@ def get_notes(ref_key, ref_id, **kwargs):
     return note_rs 
 
 def get_note(note_id, **kwargs):
+    """
+    Get a note by ID
+    """
     note = _get_note(note_id)
     return note
 
 def add_note(note, **kwargs):
+    """
+    Add a new note
+    """
     note_i = Note()
     note_i.ref_key = note.ref_key
 
@@ -54,6 +61,9 @@ def add_note(note, **kwargs):
     return note_i
 
 def update_note(note, **kwargs):
+    """
+    Update a note 
+    """
     note_i = _get_note(note.id)
 
     if note.ref_key != note_i.ref_key:
@@ -68,7 +78,11 @@ def update_note(note, **kwargs):
     return note_i
 
 def purge_note(note_id, **kwargs):
+    """
+    Remove a note from the DB permenantly
+    """
     note_i = _get_note(note_id)
     
     DBSession.delete(note_i)
+    
     DBSession.flush()
