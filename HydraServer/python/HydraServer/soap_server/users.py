@@ -18,9 +18,7 @@ from spyne.model.complex import Array as SpyneArray
 from spyne.decorator import rpc
 from hydra_complexmodels import User,\
         Role,\
-        Perm,\
-        RolePerm,\
-        RoleUser
+        Perm
 
 from hydra_base import HydraService
 from HydraServer.lib import users
