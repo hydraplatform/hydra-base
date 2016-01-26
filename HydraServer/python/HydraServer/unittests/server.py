@@ -85,10 +85,11 @@ class SoapServerTest(unittest.TestCase):
 
     def create_network_with_data(self, project_id=None, num_nodes=10,
                                  ret_full_net=True, new_proj=False,
-                                 map_projection='EPSG:4326'):
+                                 map_projection='EPSG:4326',
+                                use_existing_template=True):
         if project_id is None and new_proj is False:
             project_id = self.project_id
-        return util.create_network_with_data(self.client, project_id, num_nodes,ret_full_net, new_proj,map_projection)
+        return util.create_network_with_data(self.client, project_id, num_nodes,ret_full_net, new_proj,map_projection, use_existing_template=use_existing_template)
 
     def check_network(self, request_net, response_net):
         return util.check_network(self.client, request_net, response_net)

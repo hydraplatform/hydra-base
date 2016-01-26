@@ -35,6 +35,8 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql.expression import literal_column
 from sqlalchemy import distinct
 
+from collections import namedtuple
+
 from decimal import Decimal
 import copy
 
@@ -63,7 +65,7 @@ def get_dataset(dataset_id,**kwargs):
     if dataset_id is None:
         return None
     try:
-        dataset = DBSession.query(Dataset.dataset_id,
+        dataset_rs = DBSession.query(Dataset.dataset_id,
                 Dataset.data_type,
                 Dataset.data_units,
                 Dataset.data_dimen,
@@ -83,18 +85,24 @@ def get_dataset(dataset_id,**kwargs):
                                     and_(DatasetOwner.dataset_id==Dataset.dataset_id,
                                     DatasetOwner.user_id==user_id)).one()
 
-        #convert the value row into a string as it is returned as a binary
-        if dataset.value is not None:
-            dataset.value = str(dataset.value)
+        rs_dict = dataset_rs._asdict()
 
-        if dataset.hidden == 'N' or (dataset.hidden == 'Y' and dataset.user_id is not None):
+        #convert the value row into a string as it is returned as a binary
+        if dataset_rs.value is not None:
+            rs_dict['value'] = str(dataset_rs.value)
+
+        if dataset_rs.hidden == 'N' or (dataset_rs.hidden == 'Y' and dataset_rs.user_id is not None):
             metadata = DBSession.query(Metadata).filter(Metadata.dataset_id==dataset_id).all()
-            dataset.metadata = metadata
+            rs_dict['metadata'] = metadata
         else:
-            dataset.metadata = []
+            rs_dict['metadata'] = []
+
     except NoResultFound:
         raise HydraError("Dataset %s does not exist."%(dataset_id))
 
+
+    dataset = namedtuple('Dataset', rs_dict.keys())(**rs_dict)
+    
     return dataset
 
 def clone_dataset(dataset_id,**kwargs):
@@ -157,11 +165,11 @@ def get_datasets(dataset_ids,**kwargs):
     """
 
     user_id = int(kwargs.get('user_id'))
-
+    datasets = []
     if len(dataset_ids) == 0:
         return []
     try:
-        datasets = DBSession.query(Dataset.dataset_id,
+        dataset_rs = DBSession.query(Dataset.dataset_id,
                 Dataset.data_type,
                 Dataset.data_units,
                 Dataset.data_dimen,
@@ -182,15 +190,21 @@ def get_datasets(dataset_ids,**kwargs):
                                     DatasetOwner.user_id==user_id)).all()
 
         #convert the value row into a string as it is returned as a binary
-        for dataset in datasets:
-            if dataset.value is not None:
-                dataset.value = str(dataset.value)
+        for dataset_row in dataset_rs:
+            dataset_dict = dataset_row._asdict()
 
-            if dataset.hidden == 'N' or (dataset.hidden == 'Y' and dataset.user_id is not None):
-                metadata = DBSession.query(Metadata).filter(Metadata.dataset_id == dataset.dataset_id).all()
-                dataset.metadata = metadata
+            if dataset_row.value is not None:
+                dataset_dict['value'] = str(dataset_row.value)
+
+            if dataset_row.hidden == 'N' or (dataset_row.hidden == 'Y' and dataset_row.user_id is not None):
+                metadata = DBSession.query(Metadata).filter(Metadata.dataset_id == dataset_row.dataset_id).all()
+                dataset_dict['metadata'] = metadata
             else:
-                dataset.metadata = []
+                dataset_dict['metadata'] = []
+
+            datasets.append(namedtuple('Dataset', dataset_dict.keys())(**dataset_dict))
+
+            
     except NoResultFound:
         raise ResourceNotFoundError("Datasets not found.")
 
@@ -395,19 +409,27 @@ def search_datasets(dataset_id=None,
     log.info("Datasets paged from result %s to %s", page_start, page_end)
 
     datasets_to_return = []
-    for dataset in datasets:
+    for dataset_row in datasets:
+
+        dataset_dict = dataset_row._asdict()
+
+        
+
         if inc_val == 'N':
-            dataset.value = None
+            dataset_dict['value'] = None
         else:
             #convert the value row into a string as it is returned as a binary
-            if dataset.value is not None:
-                dataset.value = str(dataset.value)
+            if dataset_row.value is not None:
+                dataset_dict['value'] = str(dataset_row.value)
 
         if inc_metadata=='Y':
-            metadata = DBSession.query(Metadata).filter(Metadata.dataset_id==dataset.dataset_id).all()
-            dataset.metadata = metadata
+            metadata = DBSession.query(Metadata).filter(Metadata.dataset_id==dataset_row.dataset_id).all()
+            dataset_dict['metadata'] = metadata
         else:
-            dataset.metadata = []
+            dataset_dict['metadata'] = []
+
+        dataset = namedtuple('Dataset', dataset_dict.keys())(**dataset_dict)
+
         datasets_to_return.append(dataset)
 
     return datasets_to_return

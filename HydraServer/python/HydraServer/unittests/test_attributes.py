@@ -19,6 +19,7 @@
 import server
 import logging
 from suds import WebFault
+from util import update_template
 log = logging.getLogger(__name__)
 
 class AttributeTest(server.SoapServerTest):
@@ -31,8 +32,8 @@ class AttributeTest(server.SoapServerTest):
         net_attrs = self.client.service.get_network_attributes(net.id)
         net_type_attrs = self.client.service.get_network_attributes(net.id, net.types.TypeSummary[0].id)
 
-        assert len(net_attrs.ResourceAttr) == 2
-        assert len(net_type_attrs.ResourceAttr) == 1
+        assert len(net_attrs.ResourceAttr) == 3
+        assert len(net_type_attrs.ResourceAttr) == 2
 
     def test_add_attribute(self):
         name = "Test add Attr"
@@ -138,7 +139,11 @@ class AttributeTest(server.SoapServerTest):
         assert new_attr.id in network_attr_ids
 
     def test_add_network_attrs_from_type(self):
-        network = self.create_network_with_data()
+        network = self.create_network_with_data(use_existing_template=False)
+
+        #Add a new attribute to the network type
+        update_template(self.client, network.types.TypeSummary[0].template_id)
+
         type_id = network.types.TypeSummary[0].id
         before_net_attrs = []
         for ra in network.attributes.ResourceAttr:
@@ -341,7 +346,6 @@ class ResourceAttributeCollectionTest(server.SoapServerTest):
         for ra in net_attrs.ResourceAttr:
             item_ids.integer.append(ra.id)
 
-        
         ra_collection = {
             'name': 'Test RA collection',
             'resource_attr_ids' : item_ids,
@@ -350,10 +354,10 @@ class ResourceAttributeCollectionTest(server.SoapServerTest):
 
         new_ra_collection = self.client.service.add_resource_attr_collection(ra_collection)
 
-        assert len(new_ra_collection.resource_attr_ids.integer) == 2
+        assert len(new_ra_collection.resource_attr_ids.integer) == len(item_ids.integer)
         
         retrieved_ra_collection = self.client.service.get_resource_attr_collection(new_ra_collection.id)
-        assert len(retrieved_ra_collection.resource_attr_ids.integer) == 2
+        assert len(retrieved_ra_collection.resource_attr_ids.integer) == len(item_ids.integer)
 
         item_ids_to_remove = self.client.factory.create("integerArray")
         item_ids_to_remove.integer.append(new_ra_collection.resource_attr_ids.integer[0])
@@ -361,14 +365,14 @@ class ResourceAttributeCollectionTest(server.SoapServerTest):
         self.client.service.remove_items_from_attr_collection(new_ra_collection.id, item_ids_to_remove)
 
         smaller_ra_collection = self.client.service.get_resource_attr_collection(new_ra_collection.id)
-        assert len(smaller_ra_collection.resource_attr_ids.integer) == 1
+        assert len(smaller_ra_collection.resource_attr_ids.integer) == len(item_ids.integer)-1
 
         item_ids_to_add = self.client.factory.create("integerArray")
         item_ids_to_add.integer.append(new_ra_collection.resource_attr_ids.integer[0])
 
         larger_ra_collection = self.client.service.add_items_to_attr_collection(new_ra_collection.id, item_ids_to_add)
          
-        assert len(larger_ra_collection.resource_attr_ids.integer) == 2
+        assert len(larger_ra_collection.resource_attr_ids.integer) == len(item_ids.integer)
 
 
         self.client.service.delete_resource_attr_collection(new_ra_collection.id)

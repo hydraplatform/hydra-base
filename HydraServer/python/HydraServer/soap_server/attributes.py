@@ -47,7 +47,7 @@ class AttributeService(HydraService):
             }
 
         Args:
-            attr (HydraServer.soap_server.hydra_complexmodels.Attr): An attribute object, as described above.
+            attr (hydra_complexmodels.Attr): An attribute object, as described above.
 
         Returns:
             hydra_complexmodels.Attr: An attribute object, similar to the one sent in but with an ID. 
@@ -71,7 +71,7 @@ class AttributeService(HydraService):
             }
 
         Args:
-            attr (HydraServer.soap_server.hydra_complexmodels.Attr): An attribute complex model, as described above.
+            attr (hydra_complexmodels.Attr): An attribute complex model, as described above.
 
         Returns:
             hydra_complexmodels.Attr: An attribute complex model, reflecting the one sent in. 
@@ -187,7 +187,7 @@ class AttributeService(HydraService):
             attrs (List(Attr)): A list of attribute complex models
 
         Returns:
-            List(HydraServer.soap_server.hydra_complexmodels.Attr): List of Attr complex models
+            List(hydra_complexmodels.Attr): List of Attr complex models
         
         """
         ret_attrs = []
@@ -219,7 +219,7 @@ class AttributeService(HydraService):
             is_var           (unicode): 'Y' or 'N'
 
         Returns:
-            List(HydraServer.soap_server.hydra_complexmodels.ResourceAttr): Updated ResourceAttr
+            List(hydra_complexmodels.ResourceAttr): Updated ResourceAttr
 
         Raises:
             ResourceNotFoundError if the resource_attr_id is not in the DB
@@ -283,7 +283,7 @@ class AttributeService(HydraService):
                 so therefore doesn't need data assigned to it initially)
 
         Returns:
-            HydraServer.soap_server.hydra_complexmodels.ResourceAttr: A complex model of the newly created resource attribute.
+            hydra_complexmodels.ResourceAttr: A complex model of the newly created resource attribute.
         Raises:
             ResourceNotFoundError: If the network or attribute are not in the DB.
             HydraError           : If the attribute is already on the network.
@@ -309,7 +309,7 @@ class AttributeService(HydraService):
             network_id (int): ID of the network 
 
         Returns:
-            List(HydraServer.soap_server.hydra_complexmodels.ResourceAttr): All the newly created network attributes
+            List(hydra_complexmodels.ResourceAttr): All the newly created network attributes
 
         Raises:
             ResourceNotFoundError if the type_id or network_id are not in the DB
@@ -319,6 +319,7 @@ class AttributeService(HydraService):
                                                         'NETWORK',
                                                         network_id,
                                                         **ctx.in_header.__dict__)
+
         return [ResourceAttr(ra) for ra in new_resource_attrs]
 
     @rpc(Integer, Integer(min_occurs=0, max_occurs=1), _returns=SpyneArray(ResourceAttr))
@@ -331,7 +332,7 @@ class AttributeService(HydraService):
             type_id    (int) (optional): ID of the type. If specified will only return the resource attributes relative to that type
 
         Returns:
-            List(HydraServer.soap_server.hydra_complexmodels.ResourceAttr): All the network attributes
+            List(hydra_complexmodels.ResourceAttr): All the network attributes
 
         Raises:
             ResourceNotFoundError if the type_id or network_id are not in the DB
@@ -357,7 +358,7 @@ class AttributeService(HydraService):
             is_var (char): Y or N. Indicates whether the attribute is a variable or not.
 
         Returns:
-            HydraServer.soap_server.hydra_complexmodels.ResourceAttr: The newly created node attribute
+            hydra_complexmodels.ResourceAttr: The newly created node attribute
 
         Raises:
             ResourceNotFoundError: If the node or attribute do not exist
@@ -384,7 +385,7 @@ class AttributeService(HydraService):
             node_id (int): ID of the node 
 
         Returns:
-            List(HydraServer.soap_server.hydra_complexmodels.ResourceAttr): All the newly created node attributes
+            List(hydra_complexmodels.ResourceAttr): All the newly created node attributes
 
         Raises:
             ResourceNotFoundError if the type_id or node_id are not in the DB
@@ -407,7 +408,7 @@ class AttributeService(HydraService):
             type_id (int) (optional): ID of the type. If specified will only return the resource attributes relative to that type
 
         Returns:
-            List(HydraServer.soap_server.hydra_complexmodels.ResourceAttr): All the node's attributes
+            List(hydra_complexmodels.ResourceAttr): All the node's attributes
 
         Raises:
             ResourceNotFoundError if the type_id or node_id do not exist.
@@ -430,7 +431,7 @@ class AttributeService(HydraService):
             template_id (int) (optional): If this is specified, then it will only return the attributes in this template.
 
         Returns:
-            List(HydraServer.soap_server.hydra_complexmodels.ResourceAttr): The resource attributes of all the nodes in the network.
+            List(hydra_complexmodels.ResourceAttr): The resource attributes of all the nodes in the network.
         """
         resource_attrs = attributes.get_all_resource_attributes(
                 'NODE',
@@ -450,7 +451,7 @@ class AttributeService(HydraService):
             is_var (char): Y or N. Indicates whether the attribute is a variable or not.
 
         Returns:
-            HydraServer.soap_server.hydra_complexmodels.ResourceAttr: The newly created link attribute
+            hydra_complexmodels.ResourceAttr: The newly created link attribute
 
         Raises:
             ResourceNotFoundError: If the link or attribute do not exist
@@ -477,7 +478,7 @@ class AttributeService(HydraService):
             link_id (int): ID of the link
 
         Returns:
-            List(HydraServer.soap_server.hydra_complexmodels.ResourceAttr): All the newly created link attributes
+            List(hydra_complexmodels.ResourceAttr): All the newly created link attributes
 
         Raises:
             ResourceNotFoundError if the type_id or link_id are not in the DB
@@ -501,7 +502,7 @@ class AttributeService(HydraService):
             type_id (int) (optional): ID of the type. If specified will only return the resource attributes relative to that type
 
         Returns:
-            List(HydraServer.soap_server.hydra_complexmodels.ResourceAttr): All the link's attributes
+            List(hydra_complexmodels.ResourceAttr): All the link's attributes
 
         Raises:
             ResourceNotFoundError if the type_id or link_id do not exist.
@@ -524,7 +525,7 @@ class AttributeService(HydraService):
             template_id (int) (optional): If this is specified, then it will only return the attributes in this template.
 
         Returns:
-            List(HydraServer.soap_server.hydra_complexmodels.ResourceAttr): The resource attributes of all the links in the network.
+            List(hydra_complexmodels.ResourceAttr): The resource attributes of all the links in the network.
         """
 
         resource_attrs = attributes.get_all_resource_attributes(
@@ -545,7 +546,7 @@ class AttributeService(HydraService):
             is_var (char): Y or N. Indicates whether the attribute is a variable or not.
 
         Returns:
-            HydraServer.soap_server.hydra_complexmodels.ResourceAttr: The newly created group attribute
+            hydra_complexmodels.ResourceAttr: The newly created group attribute
 
         Raises:
             ResourceNotFoundError: If the group or attribute do not exist
@@ -573,7 +574,7 @@ class AttributeService(HydraService):
             group_id (int): ID of the group
 
         Returns:
-            List(HydraServer.soap_server.hydra_complexmodels.ResourceAttr): All the newly created group attributes
+            List(hydra_complexmodels.ResourceAttr): All the newly created group attributes
 
         Raises:
             ResourceNotFoundError if the type_id or group_id are not in the DB
@@ -596,7 +597,7 @@ class AttributeService(HydraService):
             type_id (int) (optional): ID of the type. If specified will only return the resource attributes relative to that type
 
         Returns:
-            List(HydraServer.soap_server.hydra_complexmodels.ResourceAttr): All the group's attributes
+            List(hydra_complexmodels.ResourceAttr): All the group's attributes
 
         Raises:
             ResourceNotFoundError if the type_id or group_id do not exist.
@@ -620,7 +621,7 @@ class AttributeService(HydraService):
             template_id (int) (optional): If this is specified, then it will only return the attributes in this template.
 
         Returns:
-            List(HydraServer.soap_server.hydra_complexmodels.ResourceAttr): The resource attributes of all the groups in the network.
+            List(hydra_complexmodels.ResourceAttr): The resource attributes of all the groups in the network.
         """
 
 
