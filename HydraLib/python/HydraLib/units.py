@@ -87,7 +87,7 @@ class Units(object):
             self.usertree = etree.parse(f).getroot()
       
         with open(builtin_unitfile) as f:
-            self.usertree = etree.parse(f).getroot()
+            self.unittree = etree.parse(f).getroot()
       
         for element in self.usertree:
             self.unittree.append(deepcopy(element))

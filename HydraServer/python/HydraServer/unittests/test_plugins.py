@@ -145,7 +145,7 @@ class PluginsTest(server.SoapServerTest):
         stream.wait()
        
         #Re-import the network (this ensures that export csv worked correctly).
-        network_file = "~/Desktop/network_%s/CSV_import/network.csv"%network_id
+        network_file = "~/Desktop/network_hydro-econ/CSV_import/network.csv"
         stream = Popen('python ../../../../HydraPlugins/CSVplugin/ImportCSV/ImportCSV.py -t %s -x'%(network_file), shell=True, stdout=PIPE)
         stream.wait()
         updated_result_text = stream.stdout.readlines()
