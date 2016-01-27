@@ -1,1 +1,0 @@
-doc.rst:7: [redirected] http://stackoverflow.com/questions/1165352 to http://stackoverflow.com/questions/1165352/fast-comparison-between-two-python-dictionary
