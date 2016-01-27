@@ -34,7 +34,10 @@ from HydraLib.hydra_dateutil import timestamp_to_ordinal
 from HydraServer.util.hdb import add_attributes, add_resource_types
 
 from sqlalchemy import case
-from sqlalchemy.sql import null, literal_column
+from sqlalchemy.sql import null
+
+from collections import namedtuple
+
 import zlib
 
 log = logging.getLogger(__name__)
@@ -1979,7 +1982,9 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
             else:
                 metadata_dict[m.dataset_id] = [m]
 
+    return_data = []
     for ra in all_resource_data:
+        ra_dict = ra._asdict()
         if ra.hidden == 'Y':
            try:
                 d = DBSession.query(Dataset).filter(
@@ -1987,15 +1992,15 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
                     ).options(noload('metadata')).one()
                 d.check_read_permission(kwargs.get('user_id'))
            except:
-               ra.value      = None
-               ra.frequency  = None
-               ra.metadata = []
+               ra_dict['value']     = None
+               ra_dict['frequency'] = None
+               ra_dict['metadata']  = []
         else:
             if include_metadata == 'Y':
-                ra.metadata = metadata_dict.get(ra.dataset_id, [])
+                ra_dict['metadata'] = metadata_dict.get(ra.dataset_id, [])
 
-    DBSession.expunge_all()
+        return_data.append(namedtuple('ResourceData', ra_dict.keys())(**ra_dict))
 
-    log.info("Returning %s datasets", len(all_resource_data))
+    log.info("Returning %s datasets", len(return_data))
 
-    return all_resource_data 
+    return return_data 

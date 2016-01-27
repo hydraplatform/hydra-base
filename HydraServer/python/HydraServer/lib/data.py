@@ -1085,11 +1085,11 @@ def delete_dataset(dataset_id,**kwargs):
     try:
         d = DBSession.query(Dataset).filter(Dataset.dataset_id==dataset_id).one()
     except NoResultFound:
-        raise HydraException("Dataset %s does not exist."%dataset_id)
+        raise HydraError("Dataset %s does not exist."%dataset_id)
 
     dataset_rs = DBSession.query(ResourceScenario).filter(ResourceScenario.dataset_id==dataset_id).all()
     if len(dataset_rs) > 0:
-        raise HydraException("Cannot delete %s. Dataset is used by resource scenarios."%dataset_id)
+        raise HydraError("Cannot delete %s. Dataset is used by resource scenarios."%dataset_id)
 
     DBSession.delete(d)
     DBSession.flush()
