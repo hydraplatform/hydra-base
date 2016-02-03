@@ -33,7 +33,7 @@ getcontext().prec = 26
 
 from spyne.application import Application
 from spyne.protocol.soap import Soap11
-from spyne.protocol.json import JsonDocument
+from spyne.protocol.json import JsonDocument, JsonP
 from spyne.protocol.http import HttpRpc
 
 import spyne.decorator
@@ -69,6 +69,8 @@ from HydraServer.soap_server.hydra_base import AuthenticationService,\
 from HydraServer.soap_server.sharing import SharingService
 from spyne.util.wsgi_wrapper import WsgiMounter
 import socket
+
+from HydraServer.ui import app as ui_app
 
 applications = [
     AuthenticationService,
@@ -202,6 +204,14 @@ class HydraServer():
                 )
         return app
 
+    def create_jsonp_application(self):
+
+        app = HydraSoapApplication(applications, tns='hydra.base',
+                    in_protocol=HttpRpc(validator='soft'),
+                    out_protocol=JsonP("hydra_cb")
+                )
+        return app
+
     def create_http_application(self):
 
         app = HydraSoapApplication(applications, tns='hydra.base',
@@ -254,12 +264,15 @@ def check_port_available(domain, port):
 s = HydraServer()
 soap_application = s.create_soap_application()
 json_application = s.create_json_application()
+jsonp_application = s.create_jsonp_application()
 http_application = s.create_http_application()
 
 application = WsgiMounter({
     config.get('hydra_server', 'soap_path', 'soap'): soap_application,
     config.get('hydra_server', 'json_path', 'json'): json_application,
+    'jsonp': jsonp_application,
     config.get('hydra_server', 'http_path', 'http'): http_application,
+    '': ui_app,
 })
 
 for server in application.mounts.values():
