@@ -11,7 +11,7 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
@@ -40,7 +40,7 @@ import spyne.decorator
 
 from spyne.error import Fault, ArgumentError
 
-import HydraServer.plugins 
+import HydraServer.plugins
 from HydraServer.db.model import create_resourcedata_view
 create_resourcedata_view()
 
@@ -102,14 +102,14 @@ import datetime
 import traceback
 
 from cherrypy.wsgiserver import CherryPyWSGIServer
-from HydraServer.db import commit_transaction, rollback_transaction 
+from HydraServer.db import commit_transaction, rollback_transaction
 
 log = logging.getLogger(__name__)
 
 def _on_method_call(ctx):
     if ctx.function == AuthenticationService.login:
         return
-    
+
     if ctx.in_body_doc.get('session_id'):
         session_id=ctx.in_body_doc['session_id'][0]
     else:
@@ -221,7 +221,7 @@ class HydraServer():
         return app
 
     def run_server(self):
-        
+
         log.info("home_dir %s",config.get('DEFAULT', 'home_dir'))
         log.info("hydra_base_dir %s",config.get('DEFAULT', 'hydra_base_dir'))
         log.info("common_app_data_folder %s",config.get('DEFAULT', 'common_app_data_folder'))
@@ -232,14 +232,14 @@ class HydraServer():
         log.info("result_file %s",config.get('plugin', 'result_file'))
         log.info("plugin_xsd_path %s",config.get('plugin', 'plugin_xsd_path'))
         log.info("log_config_path %s",config.get('logging_conf', 'log_config_path'))
-        
+
         port = config.getint('hydra_server', 'port', 8080)
         domain = config.get('hydra_server', 'domain', '127.0.0.1')
-       
+
         check_port_available(domain, port)
 
         spyne.const.xml_ns.DEFAULT_NS = 'soap_server.hydra_complexmodels'
-        cp_wsgi_application = CherryPyWSGIServer((domain,port), application, numthreads=1)
+        cp_wsgi_application = CherryPyWSGIServer((domain,port), application, numthreads=10)
 
         log.info("listening to http://%s:%s", domain, port)
         log.info("wsdl is at: http://%s:%s/soap/?wsdl", domain, port)
