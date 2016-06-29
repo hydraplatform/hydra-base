@@ -21,7 +21,7 @@ from HydraServer.soap_server.hydra_complexmodels import Dataset, HydraComplexMod
 from HydraServer.soap_server.hydra_base import HydraService
 
 from HydraServer.db import DBSession
-from HydraServer.db.model import ResourceAttr, ResourceScenario, Scenario, Node, Link
+from HydraServer.db.model import ResourceAttr, ResourceScenario, Scenario, Node, Link, ResourceGroup
 
 from sqlalchemy.orm import joinedload
 
@@ -71,6 +71,14 @@ def _get_links(link_ids):
 
     qry = DBSession.query(Link).filter(
                         Link.link_id.in_(link_ids),
+                    )
+
+    return qry.all()
+
+def _get_groups(group_ids):
+
+    qry = DBSession.query(ResourceGroup).filter(
+                        ResourceGroup.group_id.in_(group_ids),
                     )
 
     return qry.all()
@@ -139,6 +147,23 @@ class LinkDatasetMatrix(HydraComplexModel):
            link = MatrixResourceData(link_id, attributes)
            link_data.append(link)
         self.links = link_data
+
+class GroupDatasetMatrix(HydraComplexModel):
+    _type_info = [
+        ('scenario_id', Integer32(min_occurs=1)),
+        ('groups'  , SpyneArray(MatrixResourceData)),
+    ]
+
+    def __init__(self, scenario_id=None, groups=None):
+        super(GroupDatasetMatrix, self).__init__()
+        if scenario_id is None:
+            return
+        self.scenario_id = scenario_id
+        group_data = []
+        for group_id, attributes in groups.items():
+           group = MatrixResourceData(group_id, attributes)
+           group_data.append(group)
+        self.groups = group_data
 
 
 def get_attr_dict(ref_key, scenario_ids, resource_ids, attribute_ids, resource_rs, resource_attr_rs, data_rs):
@@ -248,3 +273,32 @@ class Service(HydraService):
 
         return returned_matrix 
 
+    @rpc(Integer32(min_occurs=1, max_occurs='unbounded'),
+        Integer32(min_occurs=1, max_occurs='unbounded'),
+        Integer32(min_occurs=1, max_occurs='unbounded'),
+        _returns=SpyneArray(GroupDatasetMatrix))
+    def get_group_dataset_matrix(ctx, group_ids, attribute_ids, scenario_ids):
+        """
+            Given a list of resources, attributes and scenarios return a matrix
+            of datasets. If a resource doesn't have an attribute, return None.
+            If a resource has an attribute but no dataset, return None.
+
+        """
+        if len(scenario_ids) == 0:
+            raise HydraError("No scenarios specified!")
+        if len(attribute_ids) == 0:
+            raise HydraError("No attributes specified!")
+        if len(group_ids) == 0:
+            raise HydraError("No resources specified")
+
+        groups = _get_groups(group_ids)
+
+        resource_attrs = _get_resource_attributes('GROUP', group_ids, attribute_ids)
+
+        data = _get_data('GROUP', group_ids, attribute_ids, scenario_ids)
+
+        group_attr_dict = get_attr_dict('GROUP', scenario_ids, group_ids, attribute_ids, groups, resource_attrs, data)
+
+        returned_matrix = [GroupDatasetMatrix(scenario_id, data) for scenario_id, data in group_attr_dict.items()]
+
+        return returned_matrix

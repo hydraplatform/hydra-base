@@ -132,7 +132,13 @@ class AuthenticationService(ServiceBase):
                                                    _throws=AuthenticationError)
     def login(username, password):
         try:
+
+            if username is None:
+                raise HydraError("No Username specified.")
             username = username.encode('utf-8')
+
+            if password is None:
+                raise HydraError("No password specified")
             password = password.encode('utf-8')
 
             user_id, session_id = login_user(username, password)
@@ -145,5 +151,3 @@ class AuthenticationService(ServiceBase):
         loginresponse.user_id    = user_id
 
         return loginresponse
-
-
