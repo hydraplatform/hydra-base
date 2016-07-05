@@ -42,22 +42,33 @@ class ServerPluginsTest(server.SoapServerTest):
         scenario_ids = [scenario.id, clone.id]
         attr_ids = [a.attr_id for a in network.nodes.Node[0].attributes.ResourceAttr]
 
-        result_matrix = self.client.service.get_node_dataset_matrix(node_ids,
+        n_result_matrix = self.client.service.get_node_dataset_matrix(node_ids,
                                                                     attr_ids,
                                                                     scenario_ids)
 
-        for nd in result_matrix[0]:
+        for nd in n_result_matrix[0]:
             for n in nd.nodes.MatrixResourceData:
                 for a in n.attributes.MatrixResourceAttribute:
                     if not hasattr(a,  'dataset'):
                         print a
 
-        result_matrix = self.client.service.get_link_dataset_matrix(link_ids,
+        l_result_matrix = self.client.service.get_link_dataset_matrix(link_ids,
                                                                     attr_ids,
                                                                     scenario_ids)
 
-        for nd in result_matrix[0]:
+        for nd in l_result_matrix[0]:
             for l in nd.links.MatrixResourceData:
+                for a in l.attributes.MatrixResourceAttribute:
+                    if not hasattr(a,  'dataset'):
+                        print a
+
+
+        g_result_matrix = self.client.service.get_link_dataset_matrix(link_ids,
+                                                                    attr_ids,
+                                                                    scenario_ids)
+
+        for nd in g_result_matrix[0]:
+            for l in nd.groups.MatrixResourceData:
                 for a in l.attributes.MatrixResourceAttribute:
                     if not hasattr(a,  'dataset'):
                         print a
@@ -145,7 +156,7 @@ class PluginsTest(server.SoapServerTest):
         stream.wait()
        
         #Re-import the network (this ensures that export csv worked correctly).
-        network_file = "~/Desktop/network_%s/CSV_import/network.csv"%network_id
+        network_file = "~/Desktop/network_hydro-econ/CSV_import/network.csv"
         stream = Popen('python ../../../../HydraPlugins/CSVplugin/ImportCSV/ImportCSV.py -t %s -x'%(network_file), shell=True, stdout=PIPE)
         stream.wait()
         updated_result_text = stream.stdout.readlines()

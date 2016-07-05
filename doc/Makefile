@@ -8,6 +8,10 @@ PAPER         =
 BUILDDIR      = build
 SOURCEDIR     = .
 
+# Needed for building gh-pages "on-site" (from the master branch)
+GH_PAGES_SOURCES = conf.py Makefile techdocs devdocs index.rst make.sh tutorials webapi _sources design implementation hydra_icon.png plugins _images
+GH_CODE_SOURCES = HydraPlugins HydraServer HydraLib doc
+
 # Internal variables.
 PAPEROPT_a4     = -D latex_paper_size=a4
 PAPEROPT_letter = -D latex_paper_size=letter
@@ -152,3 +156,19 @@ doctest:
 	$(SPHINXBUILD) -b doctest $(ALLSPHINXOPTS) $(BUILDDIR)/doctest
 	@echo "Testing of doctests in the sources finished, look at the " \
 	      "results in $(BUILDDIR)/doctest/output.txt."
+
+gh-pages:
+	git checkout gh-pages
+	rm -rf *
+	git checkout master doc
+	git checkout master HydraServer
+	git checkout master HydraPlugins
+	git checkout master HydraLib
+	git reset HEAD
+	$(MAKE) -C doc html
+	$(MAKE) -C doc html
+	rm -rf doc/$(GH_PAGES_SOURCES)
+	mv -fv doc/build/html/* .
+	rm -rf $(GH_CODE_SOURCES)
+	git add -A
+	git commit -m "Generated gh-pages for `git log master -1 --pretty=short --abbrev-commit`" && git push origin gh-pages ; git checkout master

@@ -53,6 +53,12 @@ class NetworkService(HydraService):
         negative IDs in the client.
 
         The returned object will have positive IDS
+        
+        Args:
+            net (hydra_complexmodels.Network): The entire network complex model structure including nodes, links, scenarios and data
+
+        Returns:
+            hydra_complexmodels.Network: The full network structure, with correct IDs for all resources
 
         """
         net = network.add_network(net, **ctx.in_header.__dict__)
@@ -67,7 +73,20 @@ class NetworkService(HydraService):
          _returns=Network)
     def get_network(ctx, network_id, include_data, template_id, scenario_ids, summary):
         """
-            Return a whole network as a complex model.
+        Return a whole network as a complex model.
+
+        Args:
+            network_id   (int)              : The ID of the network to retrieve
+            include_data (char) ('Y' or 'N'): Optional flag to indicate whether to return datasets with the network. Defaults to 'Y', but using 'N' is much faster.
+            template_id  (int)              : Optional parameter which will only return attributes on the resources that are in this template.
+            scenario_ids (List(int))        : Optional parameter to indicate which scenarios to return with the network. If left unspecified, all scenarios are returned
+            summary      (char) ('Y' or 'N'): Optional flag to indicate whether attributes are returned with the nodes & links. Seting to 'Y' has significant speed improvements at the cost of not retrieving attribute information.
+
+        Returns:
+            hydra_complexmodels.Network: A network complex model
+
+        Raises:
+            ResourceNotFoundError: If the network is not found.
         """
         net  = network.get_network(network_id,
                                    True if summary=='Y' else False,
@@ -82,7 +101,14 @@ class NetworkService(HydraService):
          _returns=Unicode)
     def get_network_as_json(ctx, network_id):
         """
-            Return a whole network as a complex model.
+        Return a whole network as a json string. Used for testing.
+        
+        Args:
+            network_id (int): The ID of the network to retrieve
+
+        Returns:
+            string: A json-encoded representation of the network
+
         """
         net  = network.get_network(network_id,
                                    False,
@@ -96,7 +122,17 @@ class NetworkService(HydraService):
     @rpc(Integer, Unicode, _returns=Network)
     def get_network_by_name(ctx, project_id, network_name):
         """
-        Return a whole network as a complex model.
+        Search for a network by its name and return it.
+
+        Args:
+            project_id (int): As network names are only unique within a project, search for the network within the specified project
+            network_name (string): The name of the network
+
+        Returns:
+            hydra_complexmodels.Network: The entire network structure, no filtering is performed, so all data and attributes are returned
+
+        Raises:
+            ResourceNotFoundError: If the project or network is not found
         """
 
         net = network.get_network_by_name(project_id, network_name, **ctx.in_header.__dict__)
@@ -106,7 +142,17 @@ class NetworkService(HydraService):
     @rpc(Integer, Unicode, _returns=Unicode)
     def network_exists(ctx, project_id, network_name):
         """
-        Return a whole network as a complex model.
+        Using a network's name, check if a network exists or not within a project. 
+
+        Args:
+            project_id (int): The project in which you are searching
+            network_name (string): The name of the network you are searching for
+
+        Returns:
+           Unicode: 'Y' or 'N'
+
+        Raises:
+            ResourceNotFoundError: If the project is not defined
         """
 
         net_exists = network.network_exists(project_id, network_name, **ctx.in_header.__dict__)
@@ -121,7 +167,24 @@ class NetworkService(HydraService):
         _returns=Network)
     def update_network(ctx, net, update_nodes, update_links, update_groups, update_scenarios):
         """
-            Update an entire network
+        Update an entire network.
+        Send a network complex model with updated nodes, links, groups or scenarios. Using
+        flags, tell the function which of these to update.
+
+        Args:
+            net (hydra_complexmodels.Network): A network reflecting an already existing network (must have an ID), which is to be updated
+            updated_nodes (char) (Y or N): Flag to indicated whether the incoming network's nodes should be updated
+            updated_links (char) (Y or N): Flag to indicated whether the incoming network's links should be updated
+            updated_groups (char) (Y or N): Flag to indicated whether the incoming network's resource groups should be updated
+            updated_scenarios (char) (Y or N): Flag to indicated whether the incoming network's data should be updated
+        
+        Returns:
+            hydra_complexmodels.Network: The updated network, in summarised forms (without data or attributes)
+
+        Raises:
+            ResourceNotFoundError: If the network does not exist.
+
+
         """
         upd_nodes = True if update_nodes == 'Y' else False
         upd_links = True if update_links == 'Y' else False
@@ -139,8 +202,19 @@ class NetworkService(HydraService):
     @rpc(Integer, Integer(min_occurs=0), _returns=Node)
     def get_node(ctx, node_id, scenario_id):
         """
-            Get a node using the node_id.
-            optionally, scenario_id can be included if data is to be included
+        Get a node using the node_id.
+        optionally, scenario_id can be included if data is to be included
+
+        Args:
+            node_id (int): The node to retrieve
+            scenario_id (int) (optional): Include this if you want to include data with the scenario
+
+        Returns:
+            hydra_complexmodels.Node: A node complex model, with attributes and data if requested)
+
+        Raises:
+            ResourceNotFoundError: If the node or scenario is not found
+
         """
         node = network.get_node(node_id, **ctx.in_header.__dict__)
 
@@ -164,6 +238,21 @@ class NetworkService(HydraService):
 
     @rpc(Integer, Integer, _returns=Link)
     def get_link(ctx, link_id, scenario_id):
+        """
+        Get a link using the link_id.
+        optionally, scenario_id can be included if data is to be included
+
+        Args:
+            link_id (int): The link to retrieve
+            scenario_id (int) (optional): Include this if you want to include data with the scenario
+
+        Returns:
+            hydra_complexmodels.Link: A link complex model, with attributes and data if requested)
+
+        Raises:
+            ResourceNotFoundError: If the link or scenario is not found
+
+        """
         link = network.get_link(link_id, **ctx.in_header.__dict__)
 
         if scenario_id is not None:
@@ -184,6 +273,21 @@ class NetworkService(HydraService):
 
     @rpc(Integer, Integer, _returns=ResourceGroup)
     def get_resourcegroup(ctx, group_id, scenario_id):
+        """
+        Get a resourcegroup using the group_id.
+        optionally, scenario_id can be included if data is to be included
+
+        Args:
+            group_id (int): The resource group to retrieve
+            scenario_id (int) (optional): Include this if you want to include data with the scenario
+
+        Returns:
+            hydra_complexmodels.ResourceGroup: A resource group complex model, with attributes and data if requested)
+
+        Raises:
+            ResourceNotFoundError: If the group or scenario is not found
+
+        """
         group = network.get_resourcegroup(group_id, **ctx.in_header.__dict__)
 
         if scenario_id is not None:
@@ -205,7 +309,17 @@ class NetworkService(HydraService):
     @rpc(Integer, _returns=Unicode)
     def delete_network(ctx, network_id):
         """
-        Set status of network for delete or un-delete
+        Set status of network to 'X' so it will no longer appear when you retrieve its project.
+        This will not delete the network from the DB. For that use purge_network
+
+        Args:
+            network_id (int): The network to delete
+        
+        Returns:
+            string: 'OK'
+
+        Raises:
+            ResourceNotFoundError: If the network is not found
         """
         #check_perm('delete_network')
         network.set_network_status(network_id, 'X', **ctx.in_header.__dict__)
@@ -215,6 +329,16 @@ class NetworkService(HydraService):
     def purge_network(ctx, network_id, purge_data):
         """
         Remove a network from hydra platform completely.
+
+        Args:
+            network_id (int): The network to remove completely
+            purge_data (string) ('Y' or 'N'): Any data left unconnected can be left in the DB or deleted with this flag.
+
+        Returns:
+            string: 'OK'
+
+        Raises:
+            ResourceNotFoundError: If the network is not found
         """
         #check_perm('delete_network')
         network.purge_network(network_id, purge_data, **ctx.in_header.__dict__)
@@ -223,9 +347,17 @@ class NetworkService(HydraService):
     @rpc(Integer, _returns=Unicode)
     def activate_network(ctx, network_id):
         """
-        Deletes a network. This does not remove the network from the DB. It
-        just sets the status to 'X', meaning it can no longer be seen by the
-        user.
+        Un-Deletes a network. (Set the status to 'Y' meaning it'll be included
+        when you request a project's networks.
+
+        Args:
+            network_id (int): The network to reactivate
+
+        Returns:
+            string: 'OK'
+
+        Raises:
+            ResourceNotFoundError: If the network is not found.
         """
         #check_perm('delete_network')
         network.set_network_status(network_id, 'A', **ctx.in_header.__dict__)
@@ -239,8 +371,16 @@ class NetworkService(HydraService):
         the minimum y value of all nodes,
         the maximum x value of all nodes and
         maximum y value of all nodes.
+        
+        Args:
+            network_id (int): The network to get the extents for
 
-        @returns NetworkExtents object
+        Returns:
+            NetworkExtents: the min x, max x, min y, max y of all nodes in the network
+
+        Raises:
+            ResourceNotFoundError: If the network is not found.
+
         """
         extents = network.get_network_extents(network_id, **ctx.in_header.__dict__)
 
@@ -278,6 +418,16 @@ class NetworkService(HydraService):
                         },
                   }
              }
+
+        Args:
+            network_id (int):  The id of the network to receive the new node
+            node       (hydra_complexmodels.Node): The node to be added (see above for the format)
+
+        Returns:
+            hydra_complexmodels.Node: The newly added node, complete with an ID
+
+        Raises:
+            ResourceNotFoundError: If the network is not found
         """
 
         node_dict = network.add_node(network_id, node, **ctx.in_header.__dict__)
@@ -291,7 +441,17 @@ class NetworkService(HydraService):
     def add_nodes(ctx, network_id, nodes):
 
         """
-        Add a nodes to a network
+        Add a lost of nodes to a network
+
+        Args:
+            network_id (int):  The id of the network to receive the new node
+            node       (List(hydra_complexmodels.Node)): A list of the nodes to be added
+
+        Returns:
+            List(hydra_complexmodels.Node): The newly added nodes, each complete with an ID
+
+        Raises:
+            ResourceNotFoundError: If the network is not found
         """
 
         node_s = network.add_nodes(network_id, nodes, **ctx.in_header.__dict__)
@@ -307,8 +467,19 @@ class NetworkService(HydraService):
     @rpc(Integer,  SpyneArray(Link), _returns=SpyneArray(Link))
     def add_links(ctx, network_id, links):
 
-        """
-        Add a nodes to a network
+        """      
+        Add a lost of links to a network
+
+        Args:
+            network_id (int):  The id of the network to receive the new link
+            link       (List(hydra_complexmodels.Link)): A list of the links to be added
+
+        Returns:
+            List(hydra_complexmodels.Link): The newly added links, each complete with an ID
+
+        Raises:
+            ResourceNotFoundError: If the network is not found
+        
         """
         link_s = network.add_links(network_id, links, **ctx.in_header.__dict__)
 
@@ -358,6 +529,14 @@ class NetworkService(HydraService):
                   }
              }
 
+        Args:
+            node (hydra_complexmodels.Node): The node to be updated 
+
+        Returns:
+            hydra_complexmodels.Node: The updated node. 
+
+        Raises:
+            ResourceNotFoundError: If the node is not found
         """
 
         node_dict = network.update_node(node, **ctx.in_header.__dict__)
@@ -369,7 +548,17 @@ class NetworkService(HydraService):
     @rpc(Integer, _returns=Unicode)
     def delete_node(ctx, node_id):
         """
-            Set the status of a node to 'X'
+        Set status of node to 'X' so it will no longer appear when you retrieve its network.
+        This will not delete the node from the DB. For that use purge_node
+
+        Args:
+            node_id (int): The node to delete
+        
+        Returns:
+            string: 'OK'
+
+        Raises:
+            ResourceNotFoundError: If the node is not found
         """
         #check_perm('edit_topology')
         network.set_node_status(node_id, 'X', **ctx.in_header.__dict__)
@@ -377,7 +566,19 @@ class NetworkService(HydraService):
     @rpc(Integer, _returns=Unicode)
     def activate_node(ctx, node_id):
         """
-            Set the status of a node to 'A'
+        Set the status of a node to 'A'
+        
+        Un-Deletes a node. (Set the status to 'Y' meaning it'll be included
+        when you request a network.
+
+        Args:
+            node_id (int): The node to reactivate
+
+        Returns:
+            string: 'OK'
+
+        Raises:
+            ResourceNotFoundError: If the node is not found.
         """
         #check_perm('edit_topology')
         network.set_node_status(node_id, 'A', **ctx.in_header.__dict__)
@@ -391,14 +592,33 @@ class NetworkService(HydraService):
             delete the data. If no other resources link to this data, it
             will be deleted.
 
-        """
+        Args:
+            node_id (int): The node to remove completely
+            purge_data (string) ('Y' or 'N'): Any data left unconnected can be left in the DB or deleted with this flag.
+
+        Returns:
+            string: 'OK'
+
+        Raises:
+            ResourceNotFoundError: If the node is not found
+        """ 
         network.delete_node(node_id, purge_data, **ctx.in_header.__dict__)
         return 'OK'
 
     @rpc(Integer, Link, _returns=Link)
     def add_link(ctx, network_id, link):
         """
-            Add a link to a network
+        Add a link to a network
+
+        Args:
+            network_id (int):  The id of the network to receive the new link
+            link       (hydra_complexmodels.Link): The link to be added (see above for the format)
+
+        Returns:
+            hydra_complexmodels.Link: The newly added link, complete with an ID
+
+        Raises:
+            ResourceNotFoundError: If the network is not found
         """
 
         link_dict = network.add_link(network_id, link, **ctx.in_header.__dict__)
@@ -409,7 +629,16 @@ class NetworkService(HydraService):
     @rpc(Link, _returns=Link)
     def update_link(ctx, link):
         """
-            Update a link.
+        Update a link.
+
+        Args:
+            link       (hydra_complexmodels.Link): The link to be updated 
+
+        Returns:
+            hydra_complexmodels.Link: The updated link. 
+
+        Raises:
+            ResourceNotFoundError: If the link is not found
         """
         link_dict = network.update_link(link, **ctx.in_header.__dict__)
         updated_link = Link(link_dict)
@@ -419,7 +648,17 @@ class NetworkService(HydraService):
     @rpc(Integer, _returns=Unicode)
     def delete_link(ctx, link_id):
         """
-            Set the status of a link to 'X'
+        Set the status of a link to 'X'
+
+        Args:
+            link_id (int): The link to delete
+        
+        Returns:
+            string: 'OK'
+
+        Raises:
+            ResourceNotFoundError: If the link is not found
+
         """
         network.set_link_status(link_id, 'X', **ctx.in_header.__dict__)
         return 'OK'
@@ -427,7 +666,17 @@ class NetworkService(HydraService):
     @rpc(Integer, _returns=Unicode)
     def activate_link(ctx, link_id):
         """
-            Set the status of a link to 'X'
+        Set the status of a link to 'A'
+
+        Args:
+            link_id (int): The link to reactivate
+
+        Returns:
+            string: 'OK'
+
+        Raises:
+            ResourceNotFoundError: If the link is not found.
+
         """
         network.set_link_status(link_id, 'A', **ctx.in_header.__dict__)
         return 'OK'
@@ -435,10 +684,19 @@ class NetworkService(HydraService):
     @rpc(Integer, Unicode(pattern="[YN]", default='Y'), _returns=Unicode)
     def purge_link(ctx, link_id, purge_data):
         """
-            Remove link from DB completely
-            If there are attributes on the link, use purge_data to try to
-            delete the data. If no other resources link to this data, it
-            will be deleted.
+        Remove link from DB completely
+        If there are attributes on the link, use purge_data to try to
+        delete the data. If no other resources link to this data, it
+        will be deleted.
+
+        Args:
+            link_id (int): The link to reactivate
+
+        Returns:
+            string: 'OK'
+
+        Raises:
+            ResourceNotFoundError: If the link is not found.
         """
         network.delete_link(link_id, purge_data, **ctx.in_header.__dict__)
         return 'OK'
@@ -446,7 +704,17 @@ class NetworkService(HydraService):
     @rpc(Integer, ResourceGroup, _returns=ResourceGroup)
     def add_group(ctx, network_id, group):
         """
-            Add a resourcegroup to a network
+        Add a resourcegroup to a network
+
+        Args:
+            network_id (int):  The id of the network to receive the new node
+            group      (hydra_complexmodels.ResourceGroup): The group to be added 
+
+        Returns:
+            hydra_complexmodels.ResourceGroup: The newly added group, complete with an ID
+
+        Raises:
+            ResourceNotFoundError: If the network is not found
         """
 
         group_i = network.add_group(network_id, group, **ctx.in_header.__dict__)
@@ -457,7 +725,16 @@ class NetworkService(HydraService):
     @rpc(Integer, _returns=Unicode)
     def delete_group(ctx, group_id):
         """
-            Set the status of a group to 'X'
+        Set the status of a group to 'X'
+        Args:
+            group_id (int): The resource group to delete
+        
+        Returns:
+            string: 'OK'
+
+        Raises:
+            ResourceNotFoundError: If the resource group is not found
+
         """
         network.set_group_status(group_id, 'X', **ctx.in_header.__dict__)
         return 'OK'
@@ -465,9 +742,20 @@ class NetworkService(HydraService):
     @rpc(Integer, Unicode(pattern="[YN]", default='Y'), _returns=Unicode)
     def purge_group(ctx, group_id, purge_data):
         """
-            Remove a resource group from the DB completely. If purge data is set 
-            to 'Y', any data that is unconnected after the removal of the group
-            will be removed also.
+        Remove a resource group from the DB completely. If purge data is set 
+        to 'Y', any data that is unconnected after the removal of the group
+        will be removed also.
+
+        Args:
+            group_id (int): The resource group to remove completely
+            purge_data (string) ('Y' or 'N'): Any data left unconnected can be left in the DB or deleted with this flag.
+
+        Returns:
+            string: 'OK'
+
+        Raises:
+            ResourceNotFoundError: If the resource group is not found
+
         """
         network.delete_group(group_id, purge_data, **ctx.in_header.__dict__)
         return 'OK'
@@ -475,7 +763,17 @@ class NetworkService(HydraService):
     @rpc(Integer, _returns=Unicode)
     def activate_group(ctx, group_id):
         """
-            Set the status of a group to 'A'
+        Set the status of a group to 'A'
+
+        Args:
+            group_id (int): The resource group to reactivate
+
+        Returns:
+            string: 'OK'
+
+        Raises:
+            ResourceNotFoundError: If the resource group is not found.
+
         """
         network.set_group_status(group_id, 'A', **ctx.in_header.__dict__)
         return 'OK'
@@ -484,7 +782,16 @@ class NetworkService(HydraService):
     @rpc(Integer, _returns=SpyneArray(Scenario))
     def get_scenarios(ctx, network_id):
         """
-            Get all the scenarios in a given network.
+        Get all the scenarios in a given network.
+
+        Args:
+            network_id (int): The network from which to retrieve the scenarios
+
+        Returns:
+            List(hydra_complexmodels.Scenario): All the scenarios in the network
+
+        Raises:
+            ResourceNotFoundError: If the network is not found
         """
         scenarios_i = network.get_scenarios(network_id, **ctx.in_header.__dict__)
 
@@ -499,18 +806,34 @@ class NetworkService(HydraService):
     @rpc(Integer, _returns=SpyneArray(Integer))
     def validate_network_topology(ctx, network_id):
         """
-            Check for the presence of orphan nodes in a network.
+        Check for the presence of orphan nodes in a network.
+        Args:
+            network_id (int): The network to check 
+
+        Returns:
+            List(int)): IDs of all the orphan nodes in the network
+
+        Raises:
+            ResourceNotFoundError: If the network is not found
+
         """
         return network.validate_network_topology(network_id, **ctx.in_header.__dict__)
 
     @rpc(Integer, Integer, _returns=SpyneArray(ResourceSummary))
     def get_resources_of_type(ctx, network_id, type_id):
         """
-            Return a list of Nodes, Links or ResourceGroups
-            which have the specified type.
-            @returns list of ResourceSummary objects.
-            These objects contain the attributes common to all resources, namely:
-            type, id, name, description, attribues and types.
+        Return a list of Nodes, Links or ResourceGroups
+        which have the specified type.
+
+        Args:
+            network_id (int): Types of resources in this network 
+            type_id    (int): Search for resources of this type.
+
+        Returns:
+            List(ResourceSummary): These objects contain the attributes common to all resources, namely: type, id, name, description, attribues and types.
+
+        Raises:
+            ResourceNotFoundError: If the network or type is not found
         """
 
         nodes, links, groups = network.get_resources_of_type(network_id, type_id, **ctx.in_header.__dict__)
@@ -528,18 +851,40 @@ class NetworkService(HydraService):
     @rpc(Integer, _returns=Unicode)
     def clean_up_network(ctx, network_id):
         """
-            Purge all nodes, links, groups and scenarios from a network which
-            have previously been deleted.
+        Purge all nodes, links, groups and scenarios from a network which
+        have previously been deleted.
+        
+        Args:
+            network_id (int): The network to clean up
+
+        Returns:
+            string: 'OK'
+
+        Raises:
+            ResourceNotFoundError: If the network is not found
+
         """
         return network.clean_up_network(network_id, **ctx.in_header.__dict__)
 
     @rpc(Integer, Integer, Integer(max_occurs="unbounded"), Unicode(pattern="['YN']", default='N'), _returns=SpyneArray(ResourceAttr))
     def get_all_node_data(ctx, network_id, scenario_id, node_ids, include_metadata):
         """
-            Return all the attributes for all the nodes in a given network and a
-            given scenario.
-            Returns a list of ResourceAttr objects, each with a resourcescenario
-            attribute, containing the actual value for the scenario specified.
+        Return all the attributes for all the nodes in a given network and a
+        given scenario.
+        
+
+        Args:
+            network_id (int): The network to search in
+            scenario_id (int): The scenario to search
+            node_ids (List(int)) (optional): The specific nodes to search for data in. If not specified, all the nodes in the network will be searched.
+            include_metadata: (string) ('Y' or 'N'): Default 'N'. Set to 'Y' to return metadata. This may vause a performance hit as metadata is BIG!
+
+        Returns:
+            List(ResourceAttr), each with a resourcescenario attribute, containing the actual value for the scenario specified.
+
+        Raises:
+            ResourceNotFoundError: If the network or scenario are not found
+
         """
         start = datetime.datetime.now()
 
@@ -564,8 +909,6 @@ class NetworkService(HydraService):
         """
         Return all the attributes for all the nodes in a given network and a
         given scenario.
-
-        :returns: An array of soap_server.hydra_complexmodels.ResourceData
 
         In this function array data and timeseries data are returned as JSON strings.
 
@@ -626,6 +969,18 @@ class NetworkService(HydraService):
                      "2014/09/06 16:46:12:00":300,\n
                      "2014/09/07 16:46:12:00":400}\n
         }'
+
+
+        Args:
+            scenario_id (int): The scenario to search
+            include_values (string) ('Y' or 'N'): Default 'N'. Set to 'Y' to return the values. This may vause a performance hit as values are BIG!
+            include_metadata: (string) ('Y' or 'N'): Default 'N'. Set to 'Y' to return metadata. This may vause a performance hit as metadata is BIG!
+            page_start (int): The start of the search results (allows you to contol the nuber of results) 
+            page_end (int): The end of the search results
+
+        Returns:
+            List(ResourceData): A list of objects describing datasets specifically designed for efficiency
+
         """
         start = datetime.datetime.now()
 
@@ -651,10 +1006,24 @@ class NetworkService(HydraService):
     @rpc(Integer, Integer, Integer(max_occurs="unbounded"), Unicode(pattern="['YN']", default='N'), _returns=SpyneArray(ResourceAttr))
     def get_all_link_data(ctx, network_id, scenario_id, link_ids, include_metadata):
         """
-            Return all the attributes for all the links in a given network and a
-            given scenario.
-            Returns a list of ResourceAttr objects, each with a resourcescenario
-            attribute, containing the actual value for the scenario specified.
+        Return all the attributes for all the links in a given network and a
+        given scenario.
+        Returns a list of ResourceAttr objects, each with a resourcescenario
+        attribute, containing the actual value for the scenario specified.
+
+        Args:
+            network_id (int): The network to search in
+            scenario_id (int): The scenario to search
+            link_ids (List(int)) (optional): The specific links to search for data in. If not specified, all the links in the network will be searched.
+            include_metadata: (string) ('Y' or 'N'): Default 'N'. Set to 'Y' to return metadata. This may vause a performance hit as metadata is BIG!
+
+        Returns:
+            List(ResourceAttr), each with a resourcescenario attribute, containing the actual value for the scenario specified.
+
+        Raises:
+            ResourceNotFoundError: If the network or scenario are not found
+
+
         """
         start = datetime.datetime.now()
 
@@ -676,10 +1045,20 @@ class NetworkService(HydraService):
     @rpc(Integer, Integer, Integer(max_occurs="unbounded"), Unicode(pattern="['YN']", default='N'), _returns=SpyneArray(ResourceAttr))
     def get_all_group_data(ctx, network_id, scenario_id, group_ids, include_metadata):
         """
-            Return all the attributes for all the groups in a given network and a
-            given scenario.
-            Returns a list of ResourceAttr objects, each with a resourcescenario
-            attribute, containing the actual value for the scenario specified.
+        Return all the attributes for all the groups in a given network and a
+        given scenario.
+        Returns a list of ResourceAttr objects, each with a resourcescenario
+        attribute, containing the actual value for the scenario specified.
+
+        Args:
+            network_id (int): The network to search in
+            scenario_id (int): The scenario to search
+            group_ids (List(int)) (optional): The specific resource groups to search for data in. If not specified, all the groups in the network will be searched.
+            include_metadata: (string) ('Y' or 'N'): Default 'N'. Set to 'Y' to return metadata. This may vause a performance hit as metadata is BIG!
+
+        Returns:
+            List(ResourceAttr), each with a resourcescenario attribute, containing the actual value for the scenario specified.
+
         """
 
         group_resourcescenarios = network.get_attributes_for_resource(network_id, scenario_id, 'GROUP', group_ids, include_metadata)

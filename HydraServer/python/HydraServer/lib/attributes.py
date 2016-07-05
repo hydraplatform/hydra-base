@@ -64,6 +64,20 @@ def get_attribute_by_id(attr_id, **kwargs):
     except NoResultFound:
         return None
 
+def get_template_attributes(template_id, **kwargs):
+    """
+        Get a specific attribute by its ID.
+    """
+
+    try:
+        attrs_i = DBSession.query(Attr).filter(TemplateType.template_id==template_id).filter(TypeAttr.type_id==TemplateType.type_id).filter(Attr.attr_id==TypeAttr.attr_id).all()
+        log.info(attrs_i)
+        return attrs_i
+    except NoResultFound:
+        return None
+
+
+
 def get_attribute_by_name_and_dimension(name, dimension='dimensionless',**kwargs):
     """
         Get a specific attribute by its name.
@@ -214,6 +228,22 @@ def _get_templatetype(type_id):
     except NoResultFound:
         raise ResourceNotFoundError("Template Type with ID %s not found"%(type_id,))
 
+def update_resource_attribute(resource_attr_id, is_var, **kwargs):
+    """
+        Deletes a resource attribute and all associated data.
+    """
+    user_id = kwargs.get('user_id')
+    try:
+        ra = DBSession.query(ResourceAttr).filter(ResourceAttr.resource_attr_id == resource_attr_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError("Resource Attribute %s not found"%(resource_attr_id))
+
+    ra.check_write_permission(user_id)
+
+    ra.is_var = is_var
+
+    return 'OK'
+
 def delete_resource_attribute(resource_attr_id, **kwargs):
     """
         Deletes a resource attribute and all associated data.
@@ -223,8 +253,8 @@ def delete_resource_attribute(resource_attr_id, **kwargs):
         ra = DBSession.query(ResourceAttr).filter(ResourceAttr.resource_attr_id == resource_attr_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Resource Attribute %s not found"%(resource_attr_id))
-    ra_resource = ra.get_resource()
-    ra_resource.check_write_permission(user_id)
+
+    ra.check_write_permission(user_id)
     DBSession.delete(ra)
     DBSession.flush()
     return 'OK'
@@ -241,7 +271,7 @@ def add_resource_attribute(resource_type, resource_id, attr_id, is_var,**kwargs)
     attr = DBSession.query(Attr).filter(Attr.attr_id==attr_id).first()
 
     if attr is None:
-        raise HydraError("Attribute with ID %s does not exist."%attr_id)
+        raise ResourceNotFoundError("Attribute with ID %s does not exist."%attr_id)
 
     resource_i = _get_resource(resource_type, resource_id)
 
@@ -281,7 +311,11 @@ def add_resource_attrs_from_type(type_id, resource_type, resource_id,**kwargs):
 
 def get_all_resource_attributes(ref_key, network_id, template_id=None, **kwargs):
     """
-        Get all the resource attributes for a given resource. 
+        Get all the resource attributes for a given resource type in the network.
+        That includes all the resource attributes for a given type within the network.
+        For example, if the ref_key is 'NODE', then it will return all the attirbutes
+        of all nodes in the network. This function allows a front end to pre-load an entire
+        network's resource attribute information to reduce on function calls.
         If type_id is specified, only
         return the resource attributes within the type.
     """

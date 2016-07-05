@@ -93,11 +93,29 @@ def create_user(client, name):
 
     return new_user
 
-def create_template(client):
-    template = client.service.get_template_by_name('Default Template')
+def update_template(client, template_id):
 
-    if template is not None:
-        return template
+    template = client.service.get_template(template_id)
+    new_net_attr    = create_attr(client, "net_attr_d", dimension='Monetary Value')
+
+    for tmpltype in template.types.TemplateType:
+        if tmpltype.resource_type == 'NETWORK':
+            typeattr_1 = client.factory.create('hyd:TypeAttr')
+            typeattr_1.attr_id = new_net_attr.id
+            typeattr_1.data_restriction = {'LESSTHAN': 10, 'NUMPLACES': 1}
+            typeattr_1.unit = 'USD'
+            tmpltype.typeattrs.TypeAttr.append(typeattr_1)
+            break
+
+    template = client.service.update_template(template)
+
+
+def create_template(client, use_existing_template=True):
+    if use_existing_template is True:
+        template = client.service.get_template_by_name('Default Template')
+
+        if template is not None:
+            return template
 
     net_attr1    = create_attr(client, "net_attr_a", dimension='Volume')
     net_attr2    = create_attr(client, "net_attr_c", dimension=None)
@@ -111,7 +129,10 @@ def create_template(client):
     group_attr_2 = create_attr(client, "grp_attr_2", dimension='Displacement')
 
     template = client.factory.create('hyd:Template')
-    template.name = 'Default Template'
+    if use_existing_template is True:
+        template.name = 'Default Template'
+    else:
+        template.name = 'Default Template ' + str(datetime.datetime.now())
 
 
     types = client.factory.create('hyd:TemplateTypeArray')
@@ -294,7 +315,7 @@ def create_attr(client, name="Test attribute", dimension="dimensionless"):
     return attr
 
 def build_network(client, project_id=None, num_nodes=10, new_proj=True,
-                  map_projection='EPSG:4326'):
+                  map_projection='EPSG:4326', use_existing_template=True):
 
     start = datetime.datetime.now()
     if project_id is None:
@@ -308,7 +329,7 @@ def build_network(client, project_id=None, num_nodes=10, new_proj=True,
     log.debug("Project creation took: %s"%(datetime.datetime.now()-start))
     start = datetime.datetime.now()
 
-    template = create_template(client)
+    template = create_template(client, use_existing_template=use_existing_template)
 
     log.debug("Attribute creation took: %s"%(datetime.datetime.now()-start))
     start = datetime.datetime.now()
@@ -575,7 +596,8 @@ def build_network(client, project_id=None, num_nodes=10, new_proj=True,
 
 def create_network_with_data(client, project_id=None, num_nodes=10,
                              ret_full_net=True, new_proj=False,
-                             map_projection='EPSG:4326'):
+                             map_projection='EPSG:4326',
+                            use_existing_template=True):
     """
         Test adding data to a network through a scenario.
         This test adds attributes to one node and then assignes data to them.
@@ -583,7 +605,8 @@ def create_network_with_data(client, project_id=None, num_nodes=10,
         attributes node.
     """
     network=build_network(client, project_id, num_nodes, new_proj=new_proj,
-                               map_projection=map_projection)
+                               map_projection=map_projection,
+                                use_existing_template=use_existing_template)
 
     #log.debug(network)
     start = datetime.datetime.now()

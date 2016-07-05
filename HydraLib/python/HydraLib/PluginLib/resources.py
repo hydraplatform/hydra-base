@@ -166,6 +166,8 @@ class HydraNetwork(HydraResource):
             new_node = HydraResource()
             new_node.ID = node.id
             new_node.name = node.name
+            new_node.X=node.x
+            new_node.Y=node.y
             if node.attributes is not None:
                 for res_attr in node.attributes:
                     new_node.add_attribute(attributes[res_attr.attr_id],

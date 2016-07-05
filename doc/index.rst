@@ -3,74 +3,91 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to HYDRA's documentation!
-=================================
+.. |br| raw:: html
 
-This page unites the complete documentation of the Hydra project.
+   <br />
 
-Main packages
--------------
 
-.. toctree::
-   :maxdepth: 3
-
-   HydraDB/index
-   HydraUI/index
-   HydraServer/index
-   HydraLib/index
-
-Hydra plug-ins
---------------
+Welcome to Hydra Platform
+========================
 
 .. toctree::
-   :maxdepth: 2
+   :hidden:
 
-   HydraPlugins/index
+   plugins/index
+   Design <design/index>
+   tutorials/index
+   Implementation <implementation/index>
+   Web API <webapi/index>
+   devdocs/index
 
-Tutorials
----------
+Hydra Platform is an open-source model platform for network based data
+management. It facilitates the development of complex resource network models by
+providing a consistent storage facility for network topology and associated
+datasets. Hydra Platform is built around a server that exposes all functionality
+as a web service to which Apps can connect to access data.
 
-.. toctree::
-   :maxdepth: 1
+.. sidebar:: Learn more
 
-   tutorials/plug-in/simple_plugin_in_python
+    :doc:`design/index`
+        Hydra Platform is acting as a server providing a web service to which
+        Apps connect.
 
-Technical documents
--------------------
+    :doc:`tutorials/index` 
+        This chapter will get you up and running with Hydra Platform. It
+        explains the installation process, basic usage of the web service and
+        how to build your own App and template.
 
-.. toctree::
-   :maxdepth: 1
+    :doc:`implementation/index`
+        Details about the technical implementation are described in this
+        chapter.
 
-   techdocs/units_and_dimensions
-   techdocs/timeseries
-   techdocs/libraries_and_templates
-   techdocs/EBSD_constraints
+    :doc:`webapi/index`
+        Full description of the web service API.
 
-Tests
------
-
-.. toctree::
-   :maxdepth: 1
-
-   HydraServer/unittests
+    :doc:`devdocs/index`
+        Documentation for Hydra Platform developers.
 
 
-Miscellaneous
--------------
+Apps
+----
 
-Server maintenance
-~~~~~~~~~~~~~~~~~~
+Hydra Platform provides a set of selected Apps for importing and exporting
+datasets. Currently network topology and data can be exported to and imported
+from CSV files (:ref:`exportcsv` and :ref:`importcsv`). We also provide an App
+to :ref:`importwml`. To get started building an app, see our tutorial on building 
+a simple app (:doc:`here <tutorials/plug-in/index>`).
 
-.. toctree::
-   :maxdepth: 2
+User Interfaces
+---------------
 
-   devdocs/server
+`Hydra Modeller <http://hydramodeller.com>`_, built by ch2m, provides a desktop user interface tailored to support the full functionality of Hydra Platform. In future other web-based or desktop user-interfaces may be built.
 
-______________________________________________________________________________________
+Development team
+----------------
 
-**Indices and tables**
+Stephen Knox is a computer scientist and currently the main developer of
+Hydra Platform at the University of Manchester. 
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+`Philipp Meier
+<http://www.eawag.ch/de/ueberuns/portraet/organisation/mitarbeitende/profile/philipp-meier/show/>`_
+currently works as a postdoc at the Department of Surface Waters Research and
+Management at `Eawag <http://www.eawag.ch>`_.
 
+Khaled Mohamed has working on Hydra Platform for 18 months, primarily building Apps and related models.
+
+References
+----------
+
+Stephen Knox, Philipp Meier, Khaled Mohammed, Brett Korteling, Evgenii Matrosov,
+Anthony Hurford, Ivana Huskova, Julien Harou, David Rosenberg, Amaury Thilmant, Josue Medellin-Azuara, Jon Wicks:
+An open-source software platform for data management, visualisation, model building and model sharing in water, energy and other resource modelling domains. American Geophysical Union (AGU) 2015, San Francisco, USA; 12/2015 `[GO] <https://agu.confex.com/agu/fm15/meetingapp.cgi/Paper/78165>`_
+
+Stephen Knox, Philipp Meier, and Julien J. Harou: Web service and plug-in
+architecture for flexibility and openness of environmental data sharing
+platforms. 7th Intl. Congress on Env. Modelling and Software, San Diego,
+California, USA; 06/2014 `[PDF] <http://www.iemss.org/sites/iemss2014/papers/iemss2014_submission_211.pdf>`_
+
+Philipp Meier, Stephen Knox, and Julien J. Harou: Linking water resource network
+models to an open data management platform. 7th Intl. Congress on Env. Modelling
+and Software, San Diego, California, USA; 06/2014 `[PDF] <http://www.iemss.org/sites/iemss2014/papers/iemss2014_submission_276.pdf>`_

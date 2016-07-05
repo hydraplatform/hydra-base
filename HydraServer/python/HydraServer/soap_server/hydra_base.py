@@ -123,14 +123,21 @@ class AuthenticationService(ServiceBase):
                                                    _throws=AuthenticationError)
     def login(ctx, username, password):
         try:
+
+            if username is None:
+                raise HydraError("No Username specified.")
             username = username.encode('utf-8')
+
+            if password is None:
+                raise HydraError("No password specified")
             password = password.encode('utf-8')
 
             user_id = login_user(username, password)
         except HydraError, e:
             raise AuthenticationError(e)
+
         ctx.transport.req_env['beaker.session']['user_id'] = user_id
         ctx.transport.req_env['beaker.session']['username'] = username
         ctx.transport.req_env['beaker.session'].save()
-        
+       
         return "OK"

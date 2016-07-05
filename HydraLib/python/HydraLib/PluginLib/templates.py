@@ -15,7 +15,7 @@
 #
 # -*- coding: utf-8 -*-
 
-__all__ = ['set_resource_types', 'validate_template']
+__all__ = ['set_resource_types', 'validate_template', 'xsd_validate']
 
 import os
 import logging
@@ -108,16 +108,11 @@ def set_resource_types(client, xml_template, network,
     client.service.assign_types_to_resources(args)
     return warnings
 
-
-def validate_template(template_file, connection):
-
-    log.info('Validating template file (%s).' % template_file)
-
-    #Check for duplicate attributes on a single resource and for duplicate attribute names
-    #but with different capitalisation
-    warnings = []
-    errors = []
-    attribute_names = []
+def xsd_validate(template_file):
+    """
+        Validate a template against the xsd.
+        Return the xml tree if successful.
+    """
 
     with open(template_file) as f:
         xml_template = f.read()
@@ -133,6 +128,23 @@ def validate_template(template_file, connection):
         xmlschema.assertValid(xml_tree)
     except etree.DocumentInvalid as e:
         raise HydraPluginError('Template validation failed: ' + e.message)
+
+    log.info("Template XSD validation successful.")
+
+    return xml_tree
+
+def validate_template(template_file, connection):
+
+    log.info('Validating template file (%s).' % template_file)
+
+    #Check for duplicate attributes on a single resource and for duplicate attribute names
+    #but with different capitalisation
+    warnings = []
+    errors = []
+    attribute_names = []
+
+    xml_tree = xsd_validate(template_file)
+
 
     template_dict = {'name': xml_tree.find('template_name').text,
                      'resources': {}

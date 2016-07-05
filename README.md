@@ -1,7 +1,7 @@
 HydraPlatform
 =============
 
-A library and web server for managing networks.
+A library and web server for managing networks. Full documentation can be found [here](http://umwrg.github.io/HydraPlatform/).
 
 Installation
 ------------
@@ -32,3 +32,8 @@ Dependencies
     winpaths
     cherrypy
     python-dateutil
+
+FAQ
+---
+- CFFI won't install on Ubuntu!
+  - If this occurs, make sure you have both "libffi-dev" and "python-dev" installed through apt-get. 

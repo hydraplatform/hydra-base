@@ -1144,6 +1144,7 @@ def validate_attrs(resource_attr_ids, scenario_id, template_id=None):
                      error_text=e.message)
             errors.append(error)
                     
+    return errors
 
 def validate_scenario(scenario_id, template_id=None):
     """

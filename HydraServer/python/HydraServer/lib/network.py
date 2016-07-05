@@ -34,7 +34,10 @@ from HydraLib.hydra_dateutil import timestamp_to_ordinal
 from HydraServer.util.hdb import add_attributes, add_resource_types
 
 from sqlalchemy import case
-from sqlalchemy.sql import null, literal_column
+from sqlalchemy.sql import null
+
+from collections import namedtuple
+
 import zlib
 
 log = logging.getLogger(__name__)
@@ -152,6 +155,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
                 #Go through all types in the resource and add attributes from these types
                 #which have not already been added.
                 typeattrs = type_dict[resource_type.id]
+
                 for ta in typeattrs:
                     if ta.attr_id not in existing_attrs:
                         resource_attrs[resource.id].append({
@@ -174,11 +178,12 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
         all_resource_attrs = []
         for na in resource_attrs.values():
             all_resource_attrs.extend(na)
+
         if len(all_resource_attrs) > 0:
             DBSession.execute(ResourceAttr.__table__.insert(), all_resource_attrs)
             logging.info("ResourceAttr insert took %s secs"% str(time.time() - t0))
         else:
-            logging.warn("No attributes on any resource....")
+            logging.warn("No attributes on any %s....", ref_key.lower())
 
     logging.info("Resource attributes insertion from types done in %s"%(datetime.datetime.now() - start_time))
 
@@ -192,6 +197,8 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
         res_qry = res_qry.join(ResourceGroup).filter(ResourceGroup.network_id==network_id)
     elif ref_key == 'LINK':
         res_qry = res_qry.join(Link).filter(Link.network_id==network_id)
+    elif ref_key == 'NETWORK':
+        res_qry = res_qry.join(Network).filter(Network.network_id==network_id)
 
     real_resource_attrs = res_qry.all()
     logging.info("retrieved %s entries in %s"%(len(real_resource_attrs), datetime.datetime.now() - start_time))
@@ -204,6 +211,9 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
             ref_id = resource_attr.group_id
         elif ref_key == 'LINK':
             ref_id = resource_attr.link_id
+        elif ref_key == 'NETWORK':
+            ref_id = resource_attr.network_id
+
         resource_attr_dict[(ref_id, resource_attr.attr_id)] = resource_attr
 
     logging.info("Processing Query results took %s"%(datetime.datetime.now() - start_time))
@@ -218,6 +228,9 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
             ref_id = iface_resource.group_id
         elif ref_key == 'LINK':
             ref_id = iface_resource.link_id
+        elif ref_key == 'NETWORK':
+            ref_id = iface_resource.network_id
+
         if resource.attributes is not None:
             for ra in resource.attributes:
                 resource_attrs[ra.id] = resource_attr_dict[(ref_id, ra.attr_id)]
@@ -440,7 +453,8 @@ def add_network(network,**kwargs):
     #List of all the resource attributes
     all_resource_attrs = {}
 
-    network_attrs  = add_attributes(net_i, network.attributes)
+    name_map = {network.name:net_i} 
+    network_attrs = _bulk_add_resource_attrs(net_i.network_id, 'NETWORK', [network], name_map)
     add_resource_types(net_i, network.types)
 
     all_resource_attrs.update(network_attrs)
@@ -1968,7 +1982,9 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
             else:
                 metadata_dict[m.dataset_id] = [m]
 
+    return_data = []
     for ra in all_resource_data:
+        ra_dict = ra._asdict()
         if ra.hidden == 'Y':
            try:
                 d = DBSession.query(Dataset).filter(
@@ -1976,15 +1992,15 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
                     ).options(noload('metadata')).one()
                 d.check_read_permission(kwargs.get('user_id'))
            except:
-               ra.value      = None
-               ra.frequency  = None
-               ra.metadata = []
+               ra_dict['value']     = None
+               ra_dict['frequency'] = None
+               ra_dict['metadata']  = []
         else:
             if include_metadata == 'Y':
-                ra.metadata = metadata_dict.get(ra.dataset_id, [])
+                ra_dict['metadata'] = metadata_dict.get(ra.dataset_id, [])
 
-    DBSession.expunge_all()
+        return_data.append(namedtuple('ResourceData', ra_dict.keys())(**ra_dict))
 
-    log.info("Returning %s datasets", len(all_resource_data))
+    log.info("Returning %s datasets", len(return_data))
 
-    return all_resource_data 
+    return return_data 

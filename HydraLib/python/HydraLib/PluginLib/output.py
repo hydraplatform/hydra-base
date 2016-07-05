@@ -28,6 +28,7 @@ from lxml.etree import XMLSyntaxError, ParseError
 from HydraLib import config
 from HydraLib.HydraException import HydraPluginError
 
+import sys
 
 def create_xml_response(plugin_name, network_id, scenario_ids,
                         errors=[], warnings=[], message=None, files=[]):
@@ -56,7 +57,7 @@ def create_xml_response(plugin_name, network_id, scenario_ids,
     scenario_string = "<scenario_id>%s</scenario_id>"
     error_string = "<error>%s</error>"
     warning_string = "<warning>%s</warning>"
-    file_string = "<file>%s<file>"
+    file_string = "<file>%s</file>"
 
     if scenario_ids is None:
         scenario_ids = []
@@ -82,6 +83,7 @@ def write_progress(x, y):
     """
     msg = "!!Progress %s/%s" % (x, y)
     print msg
+    sys.stdout.flush()
 
 
 def write_output(text):
@@ -91,6 +93,7 @@ def write_output(text):
     """
     msg = "!!Output %s" % (text,)
     print msg
+    sys.stdout.flush()
 
 
 def validate_plugin_xml(plugin_xml_file_path):

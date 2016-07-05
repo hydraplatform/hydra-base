@@ -22,6 +22,7 @@ from lxml import etree
 from HydraLib import config
 import logging
 from suds import WebFault
+from util import update_template
 log = logging.getLogger(__name__)
 
 class TemplatesTest(server.SoapServerTest):
@@ -873,7 +874,7 @@ class TemplatesTest(server.SoapServerTest):
                     if ra.attr_id == attr.attr_id and ra.id in rs_ids and attr.data_restriction is not None:
                 #        logging.info("Validating RA %s in scenario %s", ra.id, scenario.id)
                         error = self.client.service.validate_attr(ra.id, scenario.id, template_id)
-                        assert error.ValidationError.ref_kd == n.id
+                        assert error.ref_id == n.id
 
 
     def test_validate_attrs(self):
@@ -903,17 +904,21 @@ class TemplatesTest(server.SoapServerTest):
         assert len(errors.ValidationError) > 0 
 
     def test_validate_network(self):
-        network = self.create_network_with_data()
+        network = self.create_network_with_data(use_existing_template=False)
+
+        update_template(self.client, network.types.TypeSummary[0].template_id)
+
         scenario = network.scenarios.Scenario[0]
         template = network.nodes.Node[0].types.TypeSummary[0]
         #Validate the network without data: should pass as the network is built
         #based on the template in these unit tests
         errors1 = self.client.service.validate_network(network['id'],
                                                        template['template_id'])
+
         #The network should have an error, saying that the template has net_attr_c,
         #but the network does not
         assert len(errors1) == 1
-        assert errors1.string[0].find('net_attr_c')  > 0
+        assert errors1.string[0].find('net_attr_d')  > 0
 
         #Validate the network with data. Should fail as one of the attributes (node_attr_3)
         #is specified as being a 'Cost' in the template but 'Speed' is the dimension

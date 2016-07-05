@@ -1,24 +1,17 @@
-Database Objects
-================
+.. Database Objects
+.. ================
+.. 
+.. .. automodule:: HydraServer.db.model
+..     :members:
 
-.. automodule:: HydraServer.db.model
-    :members:
-    :exclude-members: and_, case, relationship, text
-
-Soap Objects
-============
+Web Objects (Complex Models)
+============================
 
 .. automodule:: HydraServer.soap_server.hydra_complexmodels
     :members:
 
 API functions
 =============
-
-Soap Objects
-============
-
-.. automodule:: soap_server.hydra_complexmodels
-   :members:
 
 Projects
 --------

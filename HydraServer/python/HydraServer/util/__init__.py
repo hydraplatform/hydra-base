@@ -7,6 +7,23 @@ import zlib
 import json
 from HydraLib import config
 
+from collections import namedtuple
+
+def to_named_tuple(keys, values):
+    """
+        Convert a sqlalchemy object into a named tuple
+    """
+
+    values = [dbobject.__dict__[key] for key in dbobject.keys()]
+
+    tuple_object = namedtuple('DBObject', dbobject.keys())
+
+    tuple_instance = tuple_object._make(values)
+
+    return tuple_instance
+
+    
+
 def generate_data_hash(dataset_dict):
 
     d = dataset_dict

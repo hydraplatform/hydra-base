@@ -29,7 +29,12 @@ class PluginService(HydraService):
     @rpc(_returns=SpyneArray(Unicode))
     def get_plugins(ctx):
         """
-            Get all available plugins
+        Get all available plugins
+        
+        Args:
+
+        Returns:
+            List(string): A list of all the available plugins (the contents of plugin.xml)
         """
         plug_ins = plugins.get_plugins(**ctx.in_header.__dict__)
 
@@ -38,7 +43,13 @@ class PluginService(HydraService):
     @rpc(Plugin, _returns=Unicode)
     def run_plugin(ctx, plugin):
         """
-            Run a plugin
+        Run a plugin
+
+        Args:
+            plugin (Plugin): A plugin object containing the location of the plugin and its parameters.
+
+        Returns:
+            string: The process ID of the plugin
         """
       
         pid = plugins.run_plugin(plugin,
@@ -49,6 +60,20 @@ class PluginService(HydraService):
        
     @rpc(Unicode, Integer, _returns=Unicode)
     def check_plugin_status(ctx, plugin_name, pid):
+        """
+        Check the status of a plugin by looking into the log file for the PID
+
+        Args:
+            plugin_name (string): The name of the plugin being checked (used to identify the log file to look in)
+            pid (int): The ID of the plugin to check
+
+        Returns:
+            string: The logs produced by the plugin. If the PID is not correct, return
+            "No log found for PID %s in %s"
+
+        Raises:
+            IOError: If the log file does not exist for the plugin name
+        """
         status = plugins.check_plugin_status(plugin_name,
                                              pid,
                                              **ctx.in_header.__dict__)

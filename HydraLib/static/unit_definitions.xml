@@ -256,6 +256,7 @@
         <unit name="megalitre per hour"      abbr="Ml h^-1"   lf="2.77777778e-01" cf="0" info=""/>
         <unit name="megalitre per day"       abbr="Ml day^-1" lf="1.15740741e-02" cf="0" info=""/>
         <unit name="megalitre per month"     abbr="Ml mon^-1" lf="3.80265176e-04" cf="0" info=""/>
+        <unit name="barrel(oil) per day"          abbr="bbl day^-1"  lf="0.158987295"    cf="0" info="The standard oil barrel is used in the United States for crude oil or other petroleum products. 1 Oil barrel = 42 US gallons"/>
     </dimension>
     <dimension name="Mass flow rate">
         <unit name="kilograms per second" abbr="kg s^-1"   lf="1.0"            cf="0.0" info=""/>
@@ -275,6 +276,7 @@
     <dimension name="Density">
         <unit name="kilograms per cubic-metre" abbr="kg m^-3" lf="1.0" cf="0.0" info=""/>
 		<unit name="kilograms per megalitre" abbr="kg Ml^-1" lf="0.0001" cf="0.0" info=""/>
+		<unit name="parts per billion" abbr="ppb" lf="0.000001" cf="0.0" info=""/>
     </dimension>
     <dimension name="Monetary value">
 		<unit abbr="USD" cf="0" info="" lf="1.0" name="US Dollar"/>

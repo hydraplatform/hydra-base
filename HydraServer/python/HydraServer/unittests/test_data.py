@@ -883,19 +883,45 @@ class SharingTest(server.SoapServerTest):
 
         self.client = old_client
 
-    def test_get_extents(self):
-        """
-        Extents test: Test that the min X, max X, min Y and max Y of a
-        network are retrieved correctly.
-        """
-        net = self.create_network_with_data()
+class DataTest(server.SoapServerTest):
 
-        extents = self.client.service.get_network_extents(net.id)
+    def _make_timeseries(self):
+        t1 = datetime.datetime.now()
+        t2 = t1+datetime.timedelta(hours=1)
 
-        assert extents.min_x == 10
-        assert extents.max_x == 100
-        assert extents.min_y == 9
-        assert extents.max_y == 99
+        t1 = t1.strftime(self.fmt)
+        t2 = t2.strftime(self.fmt)
+
+        dataset = self.client.factory.create('hyd:Dataset')
+
+        dataset.type = 'timeseries'
+        dataset.name = 'time series to retrieve'
+        dataset.unit = 'feet cubed'
+        dataset.dimension = 'cubic capacity'
+        ts_val = {0: {t1: [11, 21, 31, 41, 51],
+              t2: [12, 22, 32, 42, 52]}}
+
+        dataset.value = json.dumps(ts_val)
+        new_d = self.client.service.add_dataset(dataset)
+        return new_d
+
+    def test_update_dataset(self):
+        new_dataset = self._make_timeseries() 
+        t1 = datetime.datetime.now()
+        t2 = t1+datetime.timedelta(hours=1)
+
+        t1 = t1.strftime(self.fmt)
+        t2 = t2.strftime(self.fmt)
+
+        ts_val = {0: {t1: [110, 210, 310, 410, 510],
+              t2: [102, 202, 302, 402, 502]}}
+
+        new_dataset.value = json.dumps(ts_val)
+
+        updated_dataset = self.client.service.update_dataset(new_dataset)
+        
+        val = json.loads(updated_dataset.value)
+        assert val.values()[0][t1] == [110, 210, 310, 410, 510] 
 
 class RetrievalTest(server.SoapServerTest):
 
@@ -975,6 +1001,10 @@ class RetrievalTest(server.SoapServerTest):
         link_id     = net.links.Link[1].id
         link_data = self.client.service.get_link_data(link_id, scenario_id)
         assert len(link_data) > 0
+
+        group_id     = net.resourcegroups.ResourceGroup[0].id
+        group_data = self.client.service.get_resourcegroup_data(group_id, scenario_id)
+        assert len(group_data) > 0
 
     def test_get_node_attribute_data(self):
         net = self.create_network_with_data()
