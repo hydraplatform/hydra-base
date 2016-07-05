@@ -315,7 +315,7 @@ class Attr(Base):
 
     attr_id           = Column(Integer(), primary_key=True, nullable=False)
     attr_name         = Column(String(60),  nullable=False)
-    attr_dimen        = Column(String(60), server_default=text('dimensionless'))
+    attr_dimen        = Column(String(60), server_default=text(u"'dimensionless'"))
     attr_description  = Column(String(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
