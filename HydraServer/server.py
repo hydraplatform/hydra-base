@@ -107,16 +107,17 @@ log = logging.getLogger(__name__)
 def _on_method_call(ctx):
     if ctx.function == AuthenticationService.login:
         return
-    
-    if ctx.in_body_doc.get('session_id'):
-        session_id=ctx.in_body_doc['session_id'][0]
+
+    if ctx.in_body_doc.get('sessionid'):
+        session_id=ctx.in_body_doc['sessionid'][0]
     else:
-        session_id=ctx.in_header.session_id
+        session_id=ctx.in_header.sessionid
 
     if ctx.in_object is None:
         raise ArgumentError("RequestHeader is null")
     if ctx.in_header is None:
         raise AuthenticationError("No headers!")
+
     session_db = get_session_db()
     sess_info  = session_db.get(session_id)
     if sess_info is None:
