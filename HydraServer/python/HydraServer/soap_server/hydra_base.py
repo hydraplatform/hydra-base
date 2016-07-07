@@ -63,14 +63,14 @@ class HydraDocument(JsonDocument):
 
 class RequestHeader(ComplexModel):
     __namespace__ = 'hydra.base'
-    session_id    = Unicode
-    username      = Unicode
-    user_id       = Unicode
-    app_name      = Unicode
+    sessionid    = Unicode
+    username     = Unicode
+    userid       = Unicode
+    appname      = Unicode
 
     def __init__(self):
-        self.app_name = None
-        self.user_id  = None
+        self.appname = None
+        self.userid  = None
         self.username = None
 
 class HydraService(ServiceBase):
@@ -122,7 +122,7 @@ class LogoutService(HydraService):
     @rpc(Mandatory.String, _returns=String,
                                                     _throws=AuthenticationError)
     def logout(ctx, username):
-        del(_session_db[ctx.in_header.session_id])
+        del(_session_db[ctx.in_header.sessionid])
         return "OK"
 
 class AuthenticationService(ServiceBase):
