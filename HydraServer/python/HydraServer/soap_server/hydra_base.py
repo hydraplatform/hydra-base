@@ -55,6 +55,10 @@ class HydraDocument(JsonDocument):
 
 class RequestHeader(ComplexModel):
     __namespace__ = 'hydra.base'
+<<<<<<< HEAD
+=======
+    sessionid    = Unicode
+>>>>>>> Khaled_Web_UI
     username     = Unicode
     userid       = Unicode
     appname      = Unicode
@@ -113,7 +117,9 @@ class LogoutService(HydraService):
     @rpc(Mandatory.String, _returns=String,
                                                     _throws=AuthenticationError)
     def logout(ctx, username):
+
         ctx.transport.req_env['beaker.session'].delete()
+
         return "OK"
 
 class AuthenticationService(ServiceBase):

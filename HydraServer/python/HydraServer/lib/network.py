@@ -965,7 +965,7 @@ def get_network(network_id, summary=False, include_data='N', scenario_ids=None, 
         net = dictobj(net_i.__dict__)
 
         net.nodes          = _get_nodes(network_id, template_id=template_id)
-        net.links          = _get_links(network_id, template_id=template_id) 
+        net.links          = _get_links(network_id, template_id=template_id)
         net.resourcegroups = _get_groups(network_id, template_id=template_id)
 
         if summary is False:

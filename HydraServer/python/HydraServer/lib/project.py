@@ -21,9 +21,11 @@ from HydraServer.db.model import Project, ProjectOwner, Network
 from HydraServer.db import DBSession
 import network
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.orm import class_mapper
 from sqlalchemy import and_
 from HydraServer.util.hdb import add_attributes
-
+from sqlalchemy.util import KeyedTuple
+from HydraServer.db import DeclarativeBase
 
 log = logging.getLogger(__name__)
 
@@ -120,8 +122,74 @@ def get_project_by_name(project_name,**kwargs):
         raise ResourceNotFoundError("Project %s not found"%(project_name))
 
     proj_i.check_read_permission(user_id)
-
+    
     return proj_i
+
+def to_named_tuple(obj, visited_children=None, back_relationships=None, levels=None, ignore=[], extras={}):
+    """
+        Altered from an example found on stackoverflow
+        http://stackoverflow.com/questions/23554119/convert-sqlalchemy-orm-result-to-dict
+    """
+
+    if visited_children is None:
+        visited_children = []
+
+    if back_relationships is None:
+        back_relationships = []
+
+    serialized_data = {c.key: getattr(obj, c.key) for c in obj.__table__.columns}
+    
+
+    #Any other non-column data to include in the keyed tuple
+    for k, v in extras.items():
+        serialized_data[k] = v
+
+    relationships = class_mapper(obj.__class__).relationships
+
+    #Set the attributes to 'None' first, so the attributes are there, even if they don't
+    #get filled in:
+    for name, relation in relationships.items():
+        if relation.uselist:
+            serialized_data[name] = tuple([])
+        else:
+            serialized_data[name] = None
+
+    
+    visitable_relationships = [(name, rel) for name, rel in relationships.items() if name not in back_relationships]
+    
+    if levels is not None and levels > 0:
+        for name, relation in visitable_relationships:
+
+            levels = levels - 1
+
+            if name in ignore:
+                continue
+
+            if relation.backref:
+                back_relationships.append(relation.backref)
+
+            relationship_children = getattr(obj, name)
+
+            if relationship_children is not None:
+                if relation.uselist:
+                    children = []
+                    for child in [c for c in relationship_children if c not in visited_children]:
+                        visited_children.append(child)
+                        children.append(to_named_tuple(child, visited_children, back_relationships, ignore=ignore, levels=levels))
+                    serialized_data[name] = tuple(children)
+                else:
+                    serialized_data[name] = to_named_tuple(relationship_children, visited_children, back_relationships, ignore=ignore, levels=levels)
+
+    vals = []
+    cols = []
+    for k, v in serialized_data.items():
+        vals.append(k)
+        cols.append(v)
+
+    result = KeyedTuple(cols, vals)
+
+    return result
+
 
 def get_projects(uid,**kwargs):
     """
@@ -136,7 +204,9 @@ def get_projects(uid,**kwargs):
     for project in projects:
         project.check_read_permission(req_user_id)
 
-    return projects
+    ret_projects = [to_named_tuple(p, ignore=['user'], extras={'attribute_data':[]}) for p in projects]
+    
+    return ret_projects
 
 
 def set_project_status(project_id, status, **kwargs):

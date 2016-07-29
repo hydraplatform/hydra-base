@@ -33,7 +33,7 @@ getcontext().prec = 26
 
 from spyne.application import Application
 from spyne.protocol.soap import Soap11
-from spyne.protocol.json import JsonDocument
+from spyne.protocol.json import JsonDocument, JsonP
 from spyne.protocol.http import HttpRpc
 
 import spyne.decorator
@@ -69,7 +69,10 @@ from HydraServer.soap_server.sharing import SharingService
 from spyne.util.wsgi_wrapper import WsgiMounter
 import socket
 
+
 from beaker.middleware import SessionMiddleware
+from HydraServer.ui import app as ui_app
+
 
 applications = [
     AuthenticationService,
@@ -112,10 +115,11 @@ def _on_method_call(ctx):
     if ctx.function == AuthenticationService.login:
         return
 
-#    if ctx.in_object is None:
-#        raise ArgumentError("RequestHeader is null")
-#    if ctx.in_header is None:
-#        raise AuthenticationError("No headers!")
+    if ctx.in_object is None:
+        raise ArgumentError("RequestHeader is null")
+
+    if ctx.in_header is None:
+        raise AuthenticationError("No headers!")
     session = env['beaker.session']
     if session.get('userid') is None:
         raise Fault("No Session!")
@@ -201,6 +205,14 @@ class HydraServer():
                 )
         return app
 
+    def create_jsonp_application(self):
+
+        app = HydraSoapApplication(applications, tns='hydra.base',
+                    in_protocol=HttpRpc(validator='soft'),
+                    out_protocol=JsonP("hydra_cb")
+                )
+        return app
+
     def create_http_application(self):
 
         app = HydraSoapApplication(applications, tns='hydra.base',
@@ -228,10 +240,12 @@ class HydraServer():
         check_port_available(domain, port)
 
         spyne.const.xml_ns.DEFAULT_NS = 'soap_server.hydra_complexmodels'
-        cp_wsgi_application = CherryPyWSGIServer((domain,port), application)
+
+        cp_wsgi_application = CherryPyWSGIServer((domain,port), application, numthreads=2)
 
         log.info("listening to http://%s:%s", domain, port)
         log.info("wsdl is at: http://%s:%s/soap/?wsdl", domain, port)
+
         try:
             cp_wsgi_application.start()
         except KeyboardInterrupt:
@@ -253,12 +267,15 @@ def check_port_available(domain, port):
 s = HydraServer()
 soap_application = s.create_soap_application()
 json_application = s.create_json_application()
+jsonp_application = s.create_jsonp_application()
 http_application = s.create_http_application()
 
 wsgi_application = WsgiMounter({
     config.get('hydra_server', 'soap_path', 'soap'): soap_application,
     config.get('hydra_server', 'json_path', 'json'): json_application,
+    'jsonp': jsonp_application,
     config.get('hydra_server', 'http_path', 'http'): http_application,
+    '': ui_app,
 })
 
 for server in wsgi_application.mounts.values():
