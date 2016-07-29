@@ -55,10 +55,7 @@ class HydraDocument(JsonDocument):
 
 class RequestHeader(ComplexModel):
     __namespace__ = 'hydra.base'
-<<<<<<< HEAD
-=======
-    sessionid    = Unicode
->>>>>>> Khaled_Web_UI
+
     username     = Unicode
     userid       = Unicode
     appname      = Unicode
