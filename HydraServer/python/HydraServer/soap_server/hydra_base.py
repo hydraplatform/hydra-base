@@ -55,13 +55,13 @@ class HydraDocument(JsonDocument):
 
 class RequestHeader(ComplexModel):
     __namespace__ = 'hydra.base'
-    username      = Unicode
-    user_id       = Unicode
-    app_name      = Unicode
+    username     = Unicode
+    userid       = Unicode
+    appname      = Unicode
 
     def __init__(self):
-        self.app_name = None
-        self.user_id  = None
+        self.appname = None
+        self.userid  = None
         self.username = None
 
 class HydraService(ServiceBase):
@@ -136,8 +136,8 @@ class AuthenticationService(ServiceBase):
         except HydraError, e:
             raise AuthenticationError(e)
 
-        ctx.transport.req_env['beaker.session']['user_id'] = user_id
+        ctx.transport.req_env['beaker.session']['userid'] = user_id
         ctx.transport.req_env['beaker.session']['username'] = username
         ctx.transport.req_env['beaker.session'].save()
-       
+
         return "OK"

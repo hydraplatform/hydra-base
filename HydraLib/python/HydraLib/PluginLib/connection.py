@@ -161,13 +161,15 @@ class JsonConnection(object):
         start_time = time.time()
         log.info("Calling: %s" % (func))
         call = {func: args}
+
         headers = {
                    'Content-Type': 'application/json',
-                   'app_name': self.app_name,
+                   'appname': self.app_name,
                    }
 
-        cookie = {'beaker.session.id':self.session_id}
+        cookie = {'beaker.session.id':self.session_id, 'appname:': self.app_name}
         r = requests.post(self.url, data=json.dumps(call), headers=headers, cookies=cookie)
+
         if not r.ok:
             try:
                 resp = json.loads(r.content)
@@ -258,11 +260,11 @@ class SoapConnection(object):
             user = config.get('hydra_client', 'user')
             passwd = config.get('hydra_client', 'password')
             login_response = self.client.service.login(user, passwd)
-            token.user_id = login_response.user_id
+            token.userid = login_response.user_id
             session_id = login_response.session_id
             token.username = user
 
-        token.session_id = session_id
+        token.sessionid = session_id
         self.client.set_options(soapheaders=token)
 
         return session_id

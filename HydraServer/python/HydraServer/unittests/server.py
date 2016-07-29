@@ -43,6 +43,8 @@ class SoapServerTest(unittest.TestCase):
 
         self.client = CLIENT
 
+        self.login('root', '')
+
         self.create_user("UserA")
         self.create_user("UserB")
         self.create_user("UserC")
