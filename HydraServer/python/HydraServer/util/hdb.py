@@ -82,7 +82,7 @@ def make_root_user():
         userrole = DBSession.query(RoleUser).filter(RoleUser.role_id==role.role_id,
                                                    RoleUser.user_id==user.user_id).one()
     except NoResultFound:
-        userrole = RoleUser(role_id=role.role_id,user_id=user.user_id) 
+        userrole = RoleUser(role_id=role.role_id,user_id=user.user_id)
         user.roleusers.append(userrole)
         DBSession.add(userrole)
     DBSession.flush()
@@ -91,15 +91,15 @@ def make_root_user():
 
 def login_user(username, password):
     try:
-        user_i = DBSession.query(User).filter(User.username==username).one()
+        user_i = DBSession.query(User).filter( User.username==username ).one()
     except NoResultFound:
-       raise HydraError(username)
+        raise HydraError(username)
 
     if bcrypt.hashpw(password.encode('utf-8'), user_i.password.encode('utf-8')) == user_i.password.encode('utf-8'):
         user_i.last_login = datetime.datetime.now()
         return user_i.user_id
     else:
-       raise HydraError(username)
+        raise HydraError(username)
 
 def create_default_net():
     try:
@@ -113,10 +113,10 @@ def create_default_net():
         DBSession.add(net)
     DBSession.flush()
     return net
-        
+
 
 def create_default_users_and_perms():
-   
+
     perms = DBSession.query(Perm).all()
     if len(perms) > 0:
         return
@@ -184,7 +184,7 @@ def create_default_users_and_perms():
             ("developer", "edit_project"),
             ("developer", "delete_project"),
             ("developer", "share_project"),
-            ("developer", "edit_topology"), 
+            ("developer", "edit_topology"),
             ("developer", "edit_data"),
             ("developer", "view_data"),
             ("developer", "add_template"),
@@ -194,7 +194,7 @@ def create_default_users_and_perms():
             ("modeller", "edit_network"),
             ("modeller", "delete_network"),
             ("modeller", "share_network"),
-            ("modeller", "edit_topology"), 
+            ("modeller", "edit_topology"),
             ("modeller", "add_project"),
             ("modeller", "edit_project"),
             ("modeller", "delete_project"),
@@ -205,7 +205,7 @@ def create_default_users_and_perms():
             ("manager", "edit_data"),
             ("manager", "view_data"),
     )
-   
+
     perm_dict = {}
     for code, name in default_perms:
         perm = Perm(perm_code=code, perm_name=name)
@@ -224,5 +224,3 @@ def create_default_users_and_perms():
         DBSession.add(roleperm)
 
     DBSession.flush()
-
-

@@ -120,11 +120,12 @@ def _on_method_call(ctx):
 
     if ctx.in_header is None:
         raise AuthenticationError("No headers!")
+
     session = env['beaker.session']
-    if session.get('userid') is None:
+    if session.get('user_id') is None:
         raise Fault("No Session!")
 
-    ctx.in_header.user_id = session['userid']
+    ctx.in_header.user_id = session['user_id']
     ctx.in_header.username = session['username']
 
 
@@ -241,7 +242,7 @@ class HydraServer():
 
         spyne.const.xml_ns.DEFAULT_NS = 'soap_server.hydra_complexmodels'
 
-        cp_wsgi_application = CherryPyWSGIServer((domain,port), application, numthreads=2)
+        cp_wsgi_application = CherryPyWSGIServer((domain,port), application, numthreads=10)
 
         log.info("listening to http://%s:%s", domain, port)
         log.info("wsdl is at: http://%s:%s/soap/?wsdl", domain, port)
