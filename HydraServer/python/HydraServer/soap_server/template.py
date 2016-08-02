@@ -14,7 +14,7 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 from spyne.model.complex import Array as SpyneArray
-from spyne.model.primitive import String, Integer, Integer32, Unicode
+from spyne.model.primitive import Integer, Integer32, Unicode
 from spyne.decorator import rpc
 from hydra_complexmodels import Template,\
 TemplateType,\
@@ -45,7 +45,7 @@ class TemplateService(HydraService):
 
         return Template(tmpl_i)
 
-    @rpc(String, Integer, _returns=SpyneArray(TypeSummary))
+    @rpc(Unicode, Integer, _returns=SpyneArray(TypeSummary))
     def get_matching_resource_types(ctx, resource_type, resource_id):
         """
             Get the possible types of a resource by checking its attributes
@@ -75,7 +75,7 @@ class TemplateService(HydraService):
         return ret_val
 
 
-    @rpc(Integer, String, Integer, _returns=TypeSummary)
+    @rpc(Integer, Unicode, Integer, _returns=TypeSummary)
     def assign_type_to_resource(ctx, type_id, resource_type, resource_id):
         """Assign new type to a resource. This function checks if the necessary
         attributes are present and adds them if needed. Non existing attributes
@@ -119,7 +119,7 @@ class TemplateService(HydraService):
         return 'OK'
 
 
-    @rpc(Integer, String, Integer, _returns=String)
+    @rpc(Integer, Unicode, Integer, _returns=Unicode)
     def remove_type_from_resource(ctx,  type_id, resource_type, resource_id):
         """
 
@@ -194,12 +194,12 @@ class TemplateService(HydraService):
 
         return tmpl
 
-    @rpc(String, _returns=Template)
-    def get_template_by_name(ctx, name):
+    @rpc(Unicode, _returns=Template)
+    def get_template_by_name(ctx, template_name):
         """
             Get a specific resource template, either by ID or name.
         """
-        tmpl_i = template.get_template_by_name(name,
+        tmpl_i = template.get_template_by_name(template_name,
                                               **ctx.in_header.__dict__)
         if tmpl_i is not None:
             tmpl = Template(tmpl_i)
@@ -249,7 +249,7 @@ class TemplateService(HydraService):
         templatetype = TemplateType(type_i)
         return templatetype
 
-    @rpc(Integer, String, _returns=TemplateType)
+    @rpc(Integer, Unicode, _returns=TemplateType)
     def get_templatetype_by_name(ctx, template_id, type_name):
         """
             Get a specific resource type by name.

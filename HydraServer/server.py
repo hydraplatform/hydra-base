@@ -122,10 +122,11 @@ def _on_method_call(ctx):
         raise AuthenticationError("No headers!")
 
     session = env['beaker.session']
-    if session.get('user_id') is None:
+
+    if session.get('userid') is None:
         raise Fault("No Session!")
 
-    ctx.in_header.user_id = session['user_id']
+    ctx.in_header.user_id = session['userid']
     ctx.in_header.username = session['username']
 
 

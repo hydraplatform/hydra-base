@@ -29,6 +29,7 @@ from HydraLib import config
 
 from exception import RequestError
 
+import time
 
 class FixNamespace(MessagePlugin):
     """Hopefully a temporary fix for an unresolved namespace issue.
@@ -210,14 +211,7 @@ class JsonConnection(object):
         login_params = {'username': username, 'password': password}
 
         resp = self.call('login', login_params)
-        #set variables for use in request headers
-        self.session_id = resp.session_id
-
-        log.info("Session ID=%s", self.session_id)
-
-        return self.session_id
-
-
+       
 class SoapConnection(object):
 
     def __init__(self, url=None, session_id=None, app_name=None):
