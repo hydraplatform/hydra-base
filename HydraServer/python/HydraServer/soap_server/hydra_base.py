@@ -141,13 +141,13 @@ class AuthenticationService(ServiceBase):
                 raise HydraError("No password specified")
             password = password.encode('utf-8')
 
-            user_id, session_id = login_user(username, password)
+            user_id, sessionid = login_user(username, password)
         except HydraError, e:
             raise AuthenticationError(e)
 
-        _session_db[session_id] = (user_id, username)
+        _session_db[sessionid] = (user_id, username)
         loginresponse = LoginResponse()
-        loginresponse.session_id = session_id
-        loginresponse.user_id    = user_id
-
+        loginresponse.sessionid = sessionid
+        loginresponse.userid    = user_id
+        print loginresponse
         return loginresponse

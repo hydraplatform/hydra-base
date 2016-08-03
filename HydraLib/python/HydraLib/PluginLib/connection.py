@@ -136,7 +136,7 @@ def _get_protocol(url):
 
 class JsonConnection(object):
 
-    def __init__(self, url=None, session_id=None, app_name=None):
+    def __init__(self, url=None, sessionid=None, app_name=None):
         if url is None:
             port = config.getint('hydra_client', 'port', 80)
             domain = config.get('hydra_client', 'domain', '127.0.0.1')
@@ -156,13 +156,13 @@ class JsonConnection(object):
         log.info("Setting URL %s", self.url)
         self.app_name = app_name
 
-        self.session_id = session_id
+        self.sessionid = sessionid
 
     def call(self, func, args):
         log.info("Calling: %s" % (func))
         call = {func: args}
         headers = {'Content-Type': 'application/json',
-                   'sessionid': self.session_id,
+                   'sessionid': self.sessionid,
                    'appname': self.app_name,
                    }
 
@@ -204,38 +204,40 @@ class JsonConnection(object):
 
         resp = self.call('login', login_params)
         #set variables for use in request headers
-        self.session_id = resp.session_id
+        self.sessionid = resp.sessionid
 
-        log.info("Session ID=%s", self.session_id)
+        log.info("Session ID=%s", self.sessionid)
 
-        return self.session_id
+        return self.sessionid
 
 
 class SoapConnection(object):
 
-    def __init__(self, url=None, session_id=None, app_name=None):
+    def __init__(self, url=None, sessionid=None, app_name=None):
         if url is None:
             port = config.getint('hydra_client', 'port', 80)
             domain = config.get('hydra_client', 'domain', '127.0.0.1')
-            path = config.get('hydra_client', 'json_path', 'json')
+            path = config.get('hydra_client', 'soap_path', 'soap')
             #The domain may or may not specify the protocol, so do a check.
             if domain.find('http') == -1:
-                self.url = "http://%s:%s/%s" % (domain, port, path)
+                self.url = "http://%s:%s/%s?wsdl" % (domain, port, path)
             else:
-                self.url = "%s:%s/%s" % (domain, port, path)
+                self.url = "%s:%s/%s?wsdl" % (domain, port, path)
         else:
             log.info("Using user-defined URL: %s", url)
             port = _get_port(url)
             hostname = _get_hostname(url)
             path = _get_path(url)
             protocol = _get_protocol(url)
-            self.url = "%s://%s:%s%s/json" % (protocol, hostname, port, path)
+            self.url = "%s://%s:%s%s/soap?wsdl" % (protocol, hostname, port, path)
         log.info("Setting URL %s", self.url)
 
         self.app_name = app_name
-        self.session_id = session_id
+        self.sessionid = sessionid
         self.retxml = False
-        self.client = Client(self.url, timeout=3600, plugins=[FixNamespace()],
+        self.client = Client(self.url,
+                             timeout=3600,
+                             plugins=[FixNamespace()],
                              retxml=self.retxml)
         self.client.add_prefix('hyd', 'soap_server.hydra_complexmodels')
 
@@ -249,18 +251,18 @@ class SoapConnection(object):
 
         # Connect
         token = self.client.factory.create('RequestHeader')
-        if self.session_id is None:
+        if self.sessionid is None:
             user = config.get('hydra_client', 'user')
             passwd = config.get('hydra_client', 'password')
             login_response = self.client.service.login(user, passwd)
-            token.userid = login_response.user_id
-            session_id = login_response.session_id
+            token.userid = login_response.userid
+            sessionid = login_response.sessionid
             token.username = user
 
-        token.sessionid = session_id
+        token.sessionid = sessionid
         self.client.set_options(soapheaders=token)
 
-        return session_id
+        return sessionid
 
 
 def object_hook(x):
