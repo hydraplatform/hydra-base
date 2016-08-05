@@ -74,8 +74,8 @@ class LoginResponse(HydraComplexModel):
     """
     __namespace__ = 'soap_server.hydra_complexmodels'
     _type_info = [
-        ('session_id', Unicode(min_occurs=1)),
-        ('user_id',    Integer(min_occurs=1)),
+        ('sessionid', Unicode(min_occurs=1)),
+        ('userid',    Integer(min_occurs=1)),
     ]
 
 class ResourceData(HydraComplexModel):

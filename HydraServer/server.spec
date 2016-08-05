@@ -1,7 +1,7 @@
 # -*- mode: python -*-
 a = Analysis(['server.py'],
              pathex=[],
-             hiddenimports=['spyne.service', 'sqlalchemy', 'cherrypy', 'cherrypy.wsgiserver', 'zope.sqlalchemy', 'zope.interface', 'numpy', 'numpy.linalg', 'winpaths'],
+             hiddenimports=['spyne.service', 'sqlalchemy', 'cherrypy', 'cherrypy.wsgiserver', 'zope.sqlalchemy', 'zope.interface', 'numpy', 'numpy.linalg', 'winpaths', '_cffi_backend'],
              hookspath=None,
              runtime_hooks=None,
              excludes=['_tkinter', 'IPython', 'scipy', 'yaml', 'wx', 'tables', 'matplotlib', 'bottleneck', 'sphinx', 'statsmodels', 'PyQt4', 'tcl'])

@@ -64,7 +64,8 @@ def login(client, username, password):
     #If connecting to the cookie-based server, the response is just "OK"
     token = client.factory.create('RequestHeader')
     if login_response != "OK":
-        token.sessionid = login_response.session_id
+        token.sessionid = login_response.sessionid
+
     token.appname = "Unit Test"
 
     client.set_options(cache=None, soapheaders=token)
