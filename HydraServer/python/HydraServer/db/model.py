@@ -564,10 +564,15 @@ class Project(Base):
     __tablename__='tProject'
     ref_key = 'PROJECT'
 
+
+    __table_args__ = (
+        UniqueConstraint('project_name', 'created_by', 'status', name="unique proj name"),
+    )
+
     attribute_data = []
 
     project_id = Column(Integer(), primary_key=True, nullable=False)
-    project_name = Column(String(60),  nullable=False, unique=True)
+    project_name = Column(String(60),  nullable=False, unique=False)
     project_description = Column(String(1000))
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
