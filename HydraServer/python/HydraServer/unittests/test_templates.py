@@ -100,9 +100,8 @@ class TemplatesTest(server.SoapServerTest):
 
         tattr_2 = self.client.factory.create('hyd:TypeAttr')
         tattr_2.attr_id = node_attr_2.id
-        tattr_1.description = "Type attribute 2 description"
+        tattr_2.description = "Type attribute 2 description"
         tattr_2.data_restriction = {'INCREASING': None}
-        tattrs.TypeAttr.append(tattr_2)
 
         type1.typeattrs = tattrs
 
@@ -129,6 +128,9 @@ class TemplatesTest(server.SoapServerTest):
 
         types.TemplateType.append(type2)
 
+        #**********************
+        #type 2           #
+        #**********************
         type3 = self.client.factory.create('hyd:TemplateType')
         type3.name = "Network Type"
         type3.alias = "Network Type alias"
@@ -137,9 +139,10 @@ class TemplatesTest(server.SoapServerTest):
 
         tattr_3 = self.client.factory.create('hyd:TypeAttr')
         tattr_3.attr_id = net_attr_1.id
-        tattrs.TypeAttr.append(tattr_1)
+        tattr_3.data_restriction = {}
+        tattrs.TypeAttr.append(tattr_3)
         types.TemplateType.append(type3)
-      #  type3.typeattrs = tattrs
+        type3.typeattrs = tattrs
 
         template.types = types
 

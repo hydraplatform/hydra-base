@@ -794,17 +794,24 @@ def remove_type_from_resource( type_id, resource_type, resource_id,**kwargs):
                                         ResourceType.node_id == node_id,
     ResourceType.link_id == link_id,
     ResourceType.group_id == group_id).one() 
+
     DBSession.delete(resourcetype) 
 
 def _parse_data_restriction(restriction_dict):
-#    {{soap_server.hydra_complexmodels}LESSTHAN}
-
-    if restriction_dict is None or restriction_dict == '':
+    log.critical(restriction_dict)
+    if restriction_dict is None or len(restriction_dict) == 0:
         return None
 
+    #replace soap text with an empty string
+    #'{soap_server.hydra_complexmodels}' -> ''
     dict_str = re.sub('{[a-zA-Z\.\_]*}', '', str(restriction_dict))
 
-    new_dict = eval(dict_str)
+    new_dict = eval(str(restriction_dict))
+    
+    #Evaluate whether the dict actually contains anything.
+    if not isinstance(new_dict, dict) or len(new_dict) == 0:
+        log.critical('A restriction was specified, but it is null')
+        return None
 
     ret_dict = {}
     for k, v in new_dict.items():
@@ -815,14 +822,14 @@ def _parse_data_restriction(restriction_dict):
 
     return str(ret_dict)
 
-def add_template(template,**kwargs):
+def add_template(template, **kwargs):
     """
         Add template and a type and typeattrs.
     """
     tmpl = Template()
     tmpl.template_name = template.name
     if template.layout:
-        tmpl.layout        = str(template.layout)
+        tmpl.layout = str(template.layout)
 
     DBSession.add(tmpl)
 
