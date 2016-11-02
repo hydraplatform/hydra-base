@@ -1238,8 +1238,6 @@ def get_network_extents(network_id,**kwargs):
     )
     return ne
 
-
-
 #########################################
 def add_nodes(network_id, nodes,**kwargs):
     """
