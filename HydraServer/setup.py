@@ -6,6 +6,7 @@ try:
 except:
     pass
 
+import platform
 import sys
 py_version = sys.version_info[:2]
 
@@ -31,10 +32,12 @@ install_requires=[
     "mysql-connector-python",
     "suds",
     "spyne >= 2.12",
-    "winpaths",
     "cherrypy",
     "python-dateutil",
     ]
+
+if platform.system() == "Windows":  # only add winpaths when platform is Windows so that setup.py is universal
+    install_requires.append("winpaths")
 
 setup(
     name='HydraPlatform',
