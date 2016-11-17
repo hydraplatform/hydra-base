@@ -23,18 +23,31 @@ import logging
 log = logging.getLogger(__name__)
 
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+
 global DeclarativeBase
 DeclarativeBase = declarative_base()
 
-db_url = config.get('mysqld', 'url')
-log.info("Connecting to database: %s", db_url)
-engine = create_engine(db_url) 
-from sqlalchemy.orm import sessionmaker
+global DBSession
+DBSession = None
 
-maker = sessionmaker(bind=engine, autoflush=False, autocommit=False,
+global engine
+engine = None
+
+def connect():
+    db_url = config.get('mysqld', 'url')
+    log.info("Connecting to database: %s", db_url)
+    global engine
+    engine = create_engine(db_url) 
+
+    maker = sessionmaker(bind=engine, autoflush=False, autocommit=False,
                      extension=ZopeTransactionExtension())
+    global DBSession
+    DBSession = scoped_session(maker)
 
-DBSession = scoped_session(maker)
+    DeclarativeBase.metadata.create_all(engine)
+    
 
 def commit_transaction():
     try:

@@ -78,9 +78,9 @@ def init(level=None):
             handler.setFormatter(formatter)
             logger.addHandler(handler)
             use_default=False
-            logging.info("Using logging config at %s", config_file)
+            logging.debug("Using logging config at %s", config_file)
         else:
-            logging.info("No logging config file found. Using default settings.")
+            logging.debug("No logging config file found. Using default settings.")
             use_default = True
     except Exception, e:
         logging.critical("Error finding logging conf file: %s", e)

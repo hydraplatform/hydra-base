@@ -154,7 +154,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
                 )
                 #Go through all types in the resource and add attributes from these types
                 #which have not already been added.
-                typeattrs = type_dict[resource_type.id]
+                typeattrs = type_dict.get(resource_type.id, [])
 
                 for ta in typeattrs:
                     if ta.attr_id not in existing_attrs:
@@ -656,13 +656,13 @@ def _get_all_templates(network_id, template_id):
         all_group_type_qry = all_group_type_qry.filter(Template.template_id==template_id)
 
     x = time.time()
-    logging.info("Getting all types")
+    log.info("Getting all types")
     type_qry = all_node_type_qry.union(all_link_type_qry, all_group_type_qry, network_type_qry)
     all_types = DBSession.execute(type_qry.statement).fetchall()
     log.info("%s types retrieved in %s", len(all_types), time.time()-x)
 
 
-    logging.info("Attributes retrieved. Processing results...")
+    log.info("Attributes retrieved. Processing results...")
     x = time.time()
     node_type_dict = dict() 
     link_type_dict = dict()
@@ -1220,6 +1220,15 @@ def get_network_extents(network_id,**kwargs):
     @returns NetworkExtents object
     """
     rs = DBSession.query(Node.node_x, Node.node_y).filter(Node.network_id==network_id).all()
+    if len(rs) == 0:
+        return dict(
+            network_id = network_id,
+            min_x = None,
+            max_x = None,
+            min_y = None,
+            max_y = None,
+        )
+
     x_values = []
     y_values = []
     for r in rs:

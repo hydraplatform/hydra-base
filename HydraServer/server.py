@@ -40,11 +40,16 @@ import spyne.decorator
 
 from spyne.error import Fault, ArgumentError
 
+from HydraServer.db import connect
+connect()
+
 import HydraServer.plugins
 from HydraServer.db.model import create_resourcedata_view
 create_resourcedata_view()
 
 from HydraServer.util.hdb import make_root_user
+
+
 
 from HydraServer.soap_server.network import NetworkService
 from HydraServer.soap_server.project import ProjectService

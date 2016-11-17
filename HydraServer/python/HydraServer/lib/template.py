@@ -858,21 +858,27 @@ def update_template(template,**kwargs):
 
 def delete_template(template_id,**kwargs):
     """
-        Add template and a type and typeattrs.
+        Delete a template and its type and typeattrs.
     """
     try:
         tmpl = DBSession.query(Template).filter(Template.template_id==template_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Template %s not found"%(template_id,))
     DBSession.delete(tmpl)
-    return tmpl
+    return 'OK'
 
-def get_templates(**kwargs):
+def get_templates(load_all=True, **kwargs):
     """
-        Get all resource template templates.
+        Get all templates.
+        Args:
+            load_all Boolean: Returns just the template entry or the full template structure (template types and type attrs)
+        Returns:
+            List of Template objects
     """
-
-    templates = DBSession.query(Template).options(joinedload_all('templatetypes.typeattrs')).all()
+    if load_all is False:
+        templates = DBSession.query(Template).all()
+    else:
+        templates = DBSession.query(Template).options(joinedload_all('templatetypes.typeattrs')).all()
 
     return templates 
 
@@ -890,7 +896,7 @@ def get_template(template_id,**kwargs):
         Get a specific resource template template, either by ID or name.
     """
 
-    tmpl = DBSession.query(Template).filter(Template.template_id==template_id).one()
+    tmpl = DBSession.query(Template).filter(Template.template_id==template_id).options(joinedload_all('templatetypes.typeattrs')).one()
 
     return tmpl
 

@@ -74,8 +74,8 @@ class Units(object):
                                        "default_file",
                                        default_builtin_unitfile_location)
 
-        log.info("Default unitfile: %s", builtin_unitfile)
-        log.info("User unitfile: %s", user_unitfile)
+        log.debug("Default unitfile: %s", builtin_unitfile)
+        log.debug("User unitfile: %s", user_unitfile)
 
         with open(builtin_unitfile) as f:
             self.unittree = etree.parse(f).getroot()

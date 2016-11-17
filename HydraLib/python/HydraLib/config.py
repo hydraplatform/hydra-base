@@ -83,7 +83,7 @@ def load_config():
 
 
     for ini_file in repofiles:
-        logging.info("Repofile: %s"%ini_file)
+        logging.debug("Repofile: %s"%ini_file)
         config.read(ini_file)
     for ini_file in sysfiles:
         logging.info("Sysfile: %s"%ini_file)

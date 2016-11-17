@@ -25,6 +25,8 @@ BIGINT,\
 Float,\
 Text
 
+from sqlalchemy import inspect
+
 from HydraLib.HydraException import HydraError, PermissionError
 
 from sqlalchemy.orm import relationship, backref
@@ -62,7 +64,11 @@ def get_timestamp(ordinal):
 #Data
 #***************************************************
 
-class Dataset(Base):
+class Inspect(object):
+    def get_columns_and_relationships(self):
+        return inspect(self).attrs.keys()
+
+class Dataset(Base, Inspect):
     """
         Table holding all the attribute values
     """
@@ -262,7 +268,7 @@ class Dataset(Base):
                              " access on dataset %s" %
                              (user_id, self.dataset_id))
 
-class DatasetCollection(Base):
+class DatasetCollection(Base, Inspect):
     """
     """
 
@@ -272,7 +278,7 @@ class DatasetCollection(Base):
     collection_name = Column(String(60),  nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
-class DatasetCollectionItem(Base):
+class DatasetCollectionItem(Base, Inspect):
     """
     """
 
@@ -285,7 +291,7 @@ class DatasetCollectionItem(Base):
     collection = relationship('DatasetCollection', backref=backref("items", order_by=dataset_id, cascade="all, delete-orphan"))
     dataset = relationship('Dataset', backref=backref("collectionitems", order_by=dataset_id,  cascade="all, delete-orphan"))
 
-class Metadata(Base):
+class Metadata(Base, Inspect):
     """
     """
 
@@ -303,7 +309,7 @@ class Metadata(Base):
 #Attributes & Templates
 #********************************************************
 
-class Attr(Base):
+class Attr(Base, Inspect):
     """
     """
 
@@ -319,7 +325,7 @@ class Attr(Base):
     attr_description  = Column(String(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
-class AttrMap(Base):
+class AttrMap(Base, Inspect):
     """
     """
 
@@ -332,7 +338,7 @@ class AttrMap(Base):
     attr_b = relationship("Attr", foreign_keys=[attr_id_b], backref=backref('maps_from', order_by=attr_id_b))
 
 
-class ResourceAttrMap(Base):
+class ResourceAttrMap(Base, Inspect):
     """
     """
 
@@ -349,7 +355,7 @@ class ResourceAttrMap(Base):
     network_a = relationship("Network", foreign_keys=[network_a_id])
     network_b = relationship("Network", foreign_keys=[network_b_id])
 
-class Template(Base):
+class Template(Base, Inspect):
     """
     """
 
@@ -360,7 +366,7 @@ class Template(Base):
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     layout = Column(Text(1000))
 
-class TemplateType(Base):
+class TemplateType(Base, Inspect):
     """
     """
 
@@ -379,7 +385,7 @@ class TemplateType(Base):
 
     template = relationship('Template', backref=backref("templatetypes", order_by=type_id, cascade="all, delete-orphan"))
 
-class TypeAttr(Base):
+class TypeAttr(Base, Inspect):
     """
     """
 
@@ -410,7 +416,7 @@ class TypeAttr(Base):
         return attr
 
 
-class ResourceAttr(Base):
+class ResourceAttr(Base, Inspect):
     """
     """
 
@@ -498,7 +504,7 @@ class ResourceAttr(Base):
         self.get_resource().check_write_permission(user_id)
 
 
-class ResourceType(Base):
+class ResourceType(Base, Inspect):
     """
     """
 
@@ -557,7 +563,7 @@ class ResourceType(Base):
 # Topology & Scenarios
 #*****************************************************
 
-class Project(Base):
+class Project(Base, Inspect):
     """
     """
 
@@ -655,7 +661,7 @@ class Project(Base):
 
 
 
-class Network(Base):
+class Network(Base, Inspect):
     """
     """
 
@@ -821,7 +827,7 @@ class Network(Base):
                              " access on network %s" %
                              (user_id, self.network_id))
 
-class Link(Base):
+class Link(Base, Inspect):
     """
     """
 
@@ -872,7 +878,7 @@ class Link(Base):
 
         self.network.check_write_permission(user_id)
 
-class Node(Base):
+class Node(Base, Inspect):
     """
     """
 
@@ -920,7 +926,7 @@ class Node(Base):
 
         self.network.check_write_permission(user_id)
 
-class ResourceGroup(Base):
+class ResourceGroup(Base, Inspect):
     """
     """
 
@@ -975,7 +981,7 @@ class ResourceGroup(Base):
 
         self.network.check_write_permission(user_id)
 
-class ResourceGroupItem(Base):
+class ResourceGroupItem(Base, Inspect):
     """
     """
 
@@ -1027,7 +1033,7 @@ class ResourceGroupItem(Base):
         elif ref_key == 'GROUP':
             return self.subgroup_id
 
-class ResourceScenario(Base):
+class ResourceScenario(Base, Inspect):
     """
     """
 
@@ -1063,7 +1069,7 @@ class ResourceScenario(Base):
         return dataset
 
 
-class Scenario(Base):
+class Scenario(Base, Inspect):
     """
     """
 
@@ -1113,7 +1119,7 @@ class Scenario(Base):
             group_item_i.link     = resource
         self.resourcegroupitems.append(group_item_i)
 
-class Rule(Base):
+class Rule(Base, Inspect):
     """
         A rule is an arbitrary piece of text applied to resources
         within a scenario. A scenario itself cannot have a rule applied
@@ -1147,7 +1153,7 @@ class Rule(Base):
 
     scenario = relationship('Scenario', backref=backref('rules', uselist=True, cascade="all, delete-orphan"), uselist=True, lazy='joined')
 
-class Note(Base):
+class Note(Base, Inspect):
     """
         A note is an arbitrary piece of text which can be applied
         to any resource. A note is NOT scenario dependent. It is applied
@@ -1240,7 +1246,7 @@ class Note(Base):
 #***************************************************
 #Ownership & Permissions
 #***************************************************
-class ProjectOwner(Base):
+class ProjectOwner(Base, Inspect):
     """
     """
 
@@ -1256,7 +1262,7 @@ class ProjectOwner(Base):
     user = relationship('User')
     project = relationship('Project', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
 
-class NetworkOwner(Base):
+class NetworkOwner(Base, Inspect):
     """
     """
 
@@ -1272,7 +1278,7 @@ class NetworkOwner(Base):
     user = relationship('User')
     network = relationship('Network', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
 
-class DatasetOwner(Base):
+class DatasetOwner(Base, Inspect):
     """
     """
 
@@ -1288,7 +1294,7 @@ class DatasetOwner(Base):
     user = relationship('User')
     dataset = relationship('Dataset', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
 
-class Perm(Base):
+class Perm(Base, Inspect):
     """
     """
 
@@ -1300,7 +1306,7 @@ class Perm(Base):
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     roleperms = relationship('RolePerm', lazy='joined')
 
-class Role(Base):
+class Role(Base, Inspect):
     """
     """
 
@@ -1318,7 +1324,7 @@ class Role(Base):
         return set([rp.perm for rp in self.roleperms])
 
 
-class RolePerm(Base):
+class RolePerm(Base, Inspect):
     """
     """
 
@@ -1331,7 +1337,7 @@ class RolePerm(Base):
     perm = relationship('Perm', lazy='joined')
     role = relationship('Role', lazy='joined')
 
-class RoleUser(Base):
+class RoleUser(Base, Inspect):
     """
     """
 
@@ -1344,7 +1350,7 @@ class RoleUser(Base):
     user = relationship('User', lazy='joined')
     role = relationship('Role', lazy='joined')
 
-class User(Base):
+class User(Base, Inspect):
     """
     """
 
@@ -1380,8 +1386,6 @@ class User(Base):
             roles.append(ur.role)
         return set(roles)
 
-from HydraServer.db import engine
-Base.metadata.create_all(engine)
 
 def create_resourcedata_view():
     #These are for creating the resource data view (see bottom of page)
@@ -1437,7 +1441,3 @@ def create_resourcedata_view():
         Dataset.value]).where(ResourceScenario.resource_attr_id==ResourceAttr.attr_id).where(ResourceAttr.attr_id==Attr.attr_id).where(ResourceScenario.dataset_id==Dataset.dataset_id)
 
     stuff_view = view("vResourceData", Base.metadata, view_qry)
-    try:
-        Base.metadata.create_all(engine)
-    except:
-        pass
