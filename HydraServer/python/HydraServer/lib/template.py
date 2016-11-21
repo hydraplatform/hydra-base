@@ -842,16 +842,25 @@ def update_template(template,**kwargs):
     tmpl.template_name = template.name
     if template.layout is not None:
         tmpl.layout        = str(template.layout)
+
+    type_dict = dict([(t.type_id, t) for t in tmpl.templatetypes])
+    existing_templatetypes = []
+
     if template.types is not None:
         for templatetype in template.types:
             if templatetype.id is not None:
-                for type_i in tmpl.templatetypes:
-                    if type_i.type_id == templatetype.id:
-                        _update_templatetype(templatetype, type_i)
-                        break
+                type_i = type_dict[templatetype.id] 
+                _update_templatetype(templatetype, type_i)
+                existing_templatetypes.append(type_i.type_id)
+                break
             else:
-                _update_templatetype(templatetype)
+                new_templatetype_i = _update_templatetype(templatetype)
+                existing_templatetypes.append(new_templatetype_i.type_id)
 
+    for tt in tmpl.templatetypes:
+        if tt.type_id not in existing_templatetypes:
+            delete_templatetype(tt.type_id)
+    
     DBSession.flush()
  
     return tmpl
@@ -1018,14 +1027,23 @@ def _update_templatetype(templatetype, existing_tt=None):
     ta_dict = {}
     for t in tmpltype_i.typeattrs:
         ta_dict[t.attr_id] = t
+    
+    existing_attrs = []
 
     if templatetype.typeattrs is not None:
         for typeattr in templatetype.typeattrs:
             if typeattr.attr_id in ta_dict:
                 ta = _set_typeattr(typeattr, ta_dict[typeattr.attr_id])
+                existing_attrs.append(ta.attr_id)
             else:
                 ta = _set_typeattr(typeattr)
                 tmpltype_i.typeattrs.append(ta)
+                existing_attrs.append(ta.attr_id)
+
+    log.info("Deleting any type attrs not sent")
+    for ta in ta_dict.values():
+        if ta.attr_id not in existing_attrs:
+            delete_typeattr(ta)
 
     if existing_tt is None:
         DBSession.add(tmpltype_i)
