@@ -104,6 +104,7 @@ def _get_all_attributes(network):
     return attrs
 
 def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
+
     start_time = datetime.datetime.now()
 
     #List of resource attributes

@@ -27,6 +27,7 @@ from sqlalchemy.orm import joinedload_all, noload
 from sqlalchemy import or_, and_
 import re
 import units
+import json
 log = logging.getLogger(__name__)
 
 def _check_dimension(typeattr, unit=None):
@@ -852,7 +853,6 @@ def update_template(template,**kwargs):
                 type_i = type_dict[templatetype.id] 
                 _update_templatetype(templatetype, type_i)
                 existing_templatetypes.append(type_i.type_id)
-                break
             else:
                 new_templatetype_i = _update_templatetype(templatetype)
                 existing_templatetypes.append(new_templatetype_i.type_id)
@@ -981,7 +981,7 @@ def _set_typeattr(typeattr, existing_ta = None):
     
     ta.properties         = typeattr.get_properties()
     
-    ta.attr_is_var        = typeattr.is_var
+    ta.attr_is_var        = typeattr.is_var if typeattr.is_var is not None else 'N'
 
     ta.data_restriction = _parse_data_restriction(typeattr.data_restriction)
 
@@ -1020,8 +1020,13 @@ def _update_templatetype(templatetype, existing_tt=None):
     tmpltype_i.template_id = templatetype.template_id
     tmpltype_i.type_name  = templatetype.name
     tmpltype_i.alias      = templatetype.alias
+
     if templatetype.layout is not None:
-        tmpltype_i.layout     = str(templatetype.layout)
+        try:
+            tmpltype_i.layout = json.dumps(templatetype.layout)
+        except:
+            tmpltype_i.layout = str(templatetype.layout)
+
     tmpltype_i.resource_type = templatetype.resource_type
     
     ta_dict = {}
