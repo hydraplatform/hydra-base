@@ -889,7 +889,7 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id,**kwargs):
     for rs in resource_data:
         try:
             rs.dataset.value = zlib.decompress(rs.dataset.value)
-        except:
+        except zlib.error:
             pass
 
         if rs.dataset.hidden == 'Y':
@@ -899,6 +899,7 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id,**kwargs):
                rs.dataset.value      = None
                rs.dataset.frequency  = None
                rs.dataset.start_time = None
+
     DBSession.expunge_all() 
     return resource_data 
 
