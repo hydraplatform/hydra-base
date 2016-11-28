@@ -544,7 +544,7 @@ class TypeAttr(HydraComplexModel):
         ('data_type',          Unicode(default=None)),
         ('dimension',          Unicode(default=None)),
         ('unit',               Unicode(default=None)),
-        ('default_dataset_id', Integer(default=None)),
+        ('default_dataset',    Integer(default=None)),
         ('data_restriction',   AnyDict(default=None)),
         ('is_var',             Unicode(default=None)),
         ('description',        Unicode(default=None)),
@@ -569,7 +569,7 @@ class TypeAttr(HydraComplexModel):
         self.type_id   = parent.type_id
         self.data_type = parent.data_type
         self.unit      = parent.unit
-        self.default_dataset_id = self.default_dataset_id
+        self.default_dataset = self.default_dataset
         self.description = parent.description
         self.properties = self.get_outgoing_layout(parent.properties)
         self.cr_date = str(parent.cr_date)

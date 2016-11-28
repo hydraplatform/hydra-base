@@ -905,7 +905,7 @@ def get_template(template_id,**kwargs):
         Get a specific resource template template, either by ID or name.
     """
 
-    tmpl = DBSession.query(Template).filter(Template.template_id==template_id).options(joinedload_all('templatetypes.typeattrs')).one()
+    tmpl = DBSession.query(Template).filter(Template.template_id==template_id).options(joinedload_all('templatetypes.typeattrs.default_dataset')).one()
 
     return tmpl
 
