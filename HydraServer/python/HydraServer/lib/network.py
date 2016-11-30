@@ -1347,16 +1347,32 @@ def add_node(network_id, node,**kwargs):
     if node.types is not None and len(node.types) > 0:
         res_types = []
         res_attrs = []
+        res_scenarios = {}
         for typesummary in node.types:
-            ra, rt = template.set_resource_type(new_node,
+            ra, rt, rs = template.set_resource_type(new_node,
                                             typesummary.id,
                                             **kwargs)
-            res_types.append(rt)
-            res_attrs.extend(ra)
+            res_types.append(rt)#rt is one object
+            res_attrs.extend(ra)#ra is a list of objects
+            res_scenarios.update(rs)#rs is a dict
         if len(res_types) > 0:
             DBSession.execute(ResourceType.__table__.insert(), res_types)
         if len(res_attrs) > 0:
             DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
+            
+            new_res_attrs = DBSession.query(ResourceAttr).order_by(ResourceAttr.resource_attr_id.desc()).limit(len(res_attrs)).all()
+            all_rs = []
+            for ra in new_res_attrs:
+                ra_id = ra.resource_attr_id
+                if ra.attr_id in res_scenarios:
+                    rs_list = res_scenarios[ra.attr_id]
+                    for rs in rs_list:
+                        rs_list[rs]['resource_attr_id'] = ra_id
+                        all_rs.append(rs_list[rs])
+
+            if len(all_rs) > 0:
+                DBSession.execute(ResourceScenario.__table__.insert(), all_rs)
+
 
     DBSession.refresh(new_node)
 
@@ -1527,17 +1543,32 @@ def add_link(network_id, link,**kwargs):
     if link.types is not None and len(link.types) > 0:
         res_types = []
         res_attrs = []
+        res_scenarios = {}
         for typesummary in link.types:
-            ra, rt = template.set_resource_type(link_i,
+            ra, rt, rs = template.set_resource_type(link_i,
                                         typesummary.id,
                                          **kwargs)
             res_types.append(rt)
             res_attrs.extend(ra)
+            res_scenarios.update(rs)#rs is a dict
 
         if len(res_types) > 0:
             DBSession.execute(ResourceType.__table__.insert(), res_types)
         if len(res_attrs) > 0:
             DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
+
+            new_res_attrs = DBSession.query(ResourceAttr).order_by(ResourceAttr.resource_attr_id.desc()).limit(len(res_attrs)).all()
+            all_rs = []
+            for ra in new_res_attrs:
+                ra_id = ra.resource_attr_id
+                if ra.attr_id in res_scenarios:
+                    rs_list = res_scenarios[ra.attr_id]
+                    for rs in rs_list:
+                        rs_list[rs]['resource_attr_id'] = ra_id
+                        all_rs.append(rs_list[rs])
+
+            if len(all_rs) > 0:
+                DBSession.execute(ResourceScenario.__table__.insert(), all_rs)
 
     DBSession.refresh(link_i)
 
@@ -1646,16 +1677,32 @@ def add_group(network_id, group,**kwargs):
     if group.types is not None and len(group.types) > 0:
         res_types = []
         res_attrs = []
+        res_scenarios = {}
         for typesummary in group.types:
             ra, rt = template.set_resource_type(res_grp_i,
                                         typesummary.id,
                                          **kwargs)
             res_types.append(rt)
             res_attrs.extend(ra)
+            res_scenarios.update(rs)#rs is a dict
         if len(res_types) > 0:
             DBSession.execute(ResourceType.__table__.insert(), res_types)
         if len(res_attrs) > 0:
             DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
+
+            new_res_attrs = DBSession.query(ResourceAttr).order_by(ResourceAttr.resource_attr_id.desc()).limit(len(res_attrs)).all()
+            all_rs = []
+            for ra in new_res_attrs:
+                ra_id = ra.resource_attr_id
+                if ra.attr_id in res_scenarios:
+                    rs_list = res_scenarios[ra.attr_id]
+                    for rs in rs_list:
+                        rs_list[rs]['resource_attr_id'] = ra_id
+                        all_rs.append(rs_list[rs])
+
+            if len(all_rs) > 0:
+                DBSession.execute(ResourceScenario.__table__.insert(), all_rs)
+
 
     DBSession.refresh(res_grp_i)
 

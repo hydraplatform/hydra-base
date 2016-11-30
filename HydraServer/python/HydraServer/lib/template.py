@@ -737,19 +737,25 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
 
     type_attrs = dict()
     for typeattr in type_i.typeattrs:
-        type_attrs.update({typeattr.attr_id:
-                           typeattr.attr_is_var})
+        type_attrs.update({typeattr.attr_id:{
+                            'is_var':typeattr.attr_is_var,
+                            'default_dataset_id': typeattr.default_dataset_id}})
 
     # check if attributes exist
     missing_attr_ids = set(type_attrs.keys()) - set(existing_attr_ids)
 
     # add attributes if necessary
     new_res_attrs = []
+
+    #This is a dict as the length of the list may not match the new_res_attrs 
+    #Keyed on attr_id, as resource_attr_id doesn't exist yet, and there should only
+    #be one attr_id per template.
+    new_res_scenarios = {}
     for attr_id in missing_attr_ids:
         ra_dict = dict(
             ref_key = ref_key,
             attr_id = attr_id,
-            attr_is_var = type_attrs[attr_id],
+            attr_is_var = type_attrs[attr_id]['is_var'],
             node_id    = resource.node_id    if ref_key == 'NODE' else None,
             link_id    = resource.link_id    if ref_key == 'LINK' else None,
             group_id   = resource.group_id   if ref_key == 'GROUP' else None,
@@ -757,6 +763,20 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
 
         )
         new_res_attrs.append(ra_dict)
+        
+
+
+        if type_attrs[attr_id]['default_dataset_id'] is not None:
+            if hasattr(resource, 'network'):
+                
+                new_res_scenarios[attr_id] =  dict()
+                for s in resource.network.scenarios:
+                    new_res_scenarios[attr_id][s.scenario_id] =  dict(
+                        dataset_id = type_attrs[attr_id]['default_dataset_id'],
+                        scenario_id = s.scenario_id
+                    )
+
+
     resource_type = None
     for rt in resource.types:
         if rt.type_id == type_i.type_id:
@@ -779,7 +799,7 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
             type_id    = type_id,
         )
 
-    return new_res_attrs, resource_type
+    return new_res_attrs, resource_type, new_res_scenarios
 
 def remove_type_from_resource( type_id, resource_type, resource_id,**kwargs): 
     """ 
