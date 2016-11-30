@@ -107,7 +107,6 @@ class Dataset(JSONObject):
         """
             Turn the value of an incoming dataset into a hydra-friendly value.
         """
-        import pudb; pudb.set_trace()
         try:
             #attr_data.value is a dictionary,
             #but the keys have namespaces which must be stripped.
