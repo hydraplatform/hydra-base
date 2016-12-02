@@ -21,7 +21,7 @@ from HydraServer.db.model import Project, ProjectOwner, Network
 from HydraServer.db import DBSession
 import network
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.orm import class_mapper
+from sqlalchemy.orm import class_mapper, joinedload_all
 from sqlalchemy import and_
 from HydraServer.util.hdb import add_attributes
 from sqlalchemy.util import KeyedTuple
@@ -200,11 +200,12 @@ def get_projects(uid,**kwargs):
     #Potentially join this with an rs of projects
     #where no owner exists?
 
-    projects = DBSession.query(Project).join(ProjectOwner).filter(ProjectOwner.user_id==uid).all()
+    projects = DBSession.query(Project).join(ProjectOwner).filter(ProjectOwner.user_id==uid).options(joinedload_all('networks')).all()
     for project in projects:
         project.check_read_permission(req_user_id)
 
-    ret_projects = [to_named_tuple(p, ignore=['user'], extras={'attribute_data':[]}) for p in projects]
+    ret_projects = [to_named_tuple(p, ignore=['user'], extras={'attribute_data':[]}, levels=1) for p in projects]
+
     
     return ret_projects
 
