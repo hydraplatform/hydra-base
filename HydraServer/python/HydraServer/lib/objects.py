@@ -38,9 +38,12 @@ class JSONObject(dict):
             if isinstance(v, dict):
                 setattr(self, k, JSONObject(v, obj_dict))
             elif isinstance(v, list):
-                log.info(v)
-                l = [JSONObject(item, obj_dict) for item in v]
-                setattr(self, k, l)
+                #another special case for datasets, to convert a metadata list into a dict
+                if k == 'metadata':
+                    setattr(self, k, JSONObject(obj_dict.get_metadata_as_dict()))
+                else:
+                    l = [JSONObject(item, obj_dict) for item in v]
+                    setattr(self, k, l)
             elif hasattr(v, '_sa_instance_state') and v != parent: #Special case for SQLAlchemy obhjects
 
                 l = JSONObject(v)
@@ -160,7 +163,7 @@ class Dataset(JSONObject):
             dict: THe metadata as a python dictionary
         """
 
-        if self.metadata is None:
+        if self.metadata is None or self.metadata == "":
             return {}
 
         metadata_dict = {}
