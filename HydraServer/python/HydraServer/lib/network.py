@@ -1004,6 +1004,13 @@ def get_network(network_id, summary=False, include_data='N', scenario_ids=None, 
 
     return net
 
+def get_network_simple(network_id,**kwargs):
+    try:
+        n = DBSession.query(Network).filter(Network.network_id==network_id).options(joinedload_all('attributes.attr')).one()
+        return n
+    except NoResultFound:
+        raise ResourceNotFoundError("Network %s not found"%(network_id,))
+
 def get_node(node_id,**kwargs):
     try:
         n = DBSession.query(Node).filter(Node.node_id==node_id).options(joinedload_all('attributes.attr')).one()
