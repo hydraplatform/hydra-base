@@ -696,7 +696,6 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
                  data_hash=data_hash,
                  user_id=user_id,
                  source=source)
-
     return r_scen_i
 
 def assign_value(rs, data_type, val,

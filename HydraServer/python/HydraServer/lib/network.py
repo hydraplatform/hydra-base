@@ -1401,15 +1401,17 @@ def update_node(node,**kwargs):
 
     node_i.network.check_write_permission(user_id)
 
-    node_i.node_name = node.name
-    node_i.node_x    = node.x
-    node_i.node_y    = node.y
-    node_i.node_description = node.description
-    node_i.layout           = node.get_layout()
+    node_i.node_name = node.name if node.name != None else node_i.node_name
+    node_i.node_x    = node.x if node.x is not None else node_i.node_x
+    node_i.node_y    = node.y if node.y is not None else node_i.node_y
+    node_i.node_description = node.description if node.description else node_i.node_description
+    node_i.layout           = node.get_layout() if node.layout is not None else node_i.layout
 
-    _update_attributes(node_i, node.attributes)
+    if node.attributes is not None:
+        _update_attributes(node_i, node.attributes)
 
-    add_resource_types(node_i, node.types)
+    if node.types is not None:
+        add_resource_types(node_i, node.types)
     DBSession.flush()
 
     return node_i

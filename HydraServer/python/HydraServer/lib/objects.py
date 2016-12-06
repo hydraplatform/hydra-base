@@ -121,6 +121,12 @@ class Dataset(JSONObject):
 
             data = str(self.value)
 
+            if data.upper().strip() == 'NULL':
+                return 'NULL'
+
+            if data.strip() == '':
+                return "NULL"
+
             if len(data) > 100:
                 log.debug("Parsing %s", data[0:100])
             else:

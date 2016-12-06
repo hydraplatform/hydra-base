@@ -256,6 +256,9 @@ class Dataset(HydraComplexModel, Dataset):
 
             data = str(self.value)
 
+            if data == 'NULL':
+                return 'NULL'
+
             if len(data) > 100:
                 log.debug("Parsing %s", data[0:100])
             else:
@@ -277,6 +280,7 @@ class Dataset(HydraComplexModel, Dataset):
                     return ts
             elif self.type == 'array':
                 #check to make sure this is valid json
+                log.info(data)
                 json.loads(data)
                 if len(data) > int(config.get('db', 'compression_threshold', 1000)):
                     return zlib.compress(data)
