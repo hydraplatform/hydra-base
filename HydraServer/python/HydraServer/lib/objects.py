@@ -188,6 +188,9 @@ class Dataset(JSONObject):
         if source is not None and 'source' not in metadata_keys:
             metadata_dict['source'] = str(source)
 
+        for k, v in metadata_dict.items():
+            metadata_dict[k] = str(v)
+
         return metadata_dict
 
     def get_hash(self, val, metadata):
