@@ -228,7 +228,7 @@ def upload_template_xml(template_xml,**kwargs):
                xml_tree.find('layout').text is not None:
         layout = xml_tree.find('layout')
         layout_string = get_layout_as_dict(layout)
-        template_layout = str(layout_string)
+        template_layout = json.dumps(layout_string)
 
     try:
         tmpl_i = DBSession.query(Template).filter(Template.template_name==template_name).options(joinedload_all('templatetypes.typeattrs.attr')).one()
@@ -288,7 +288,7 @@ def upload_template_xml(template_xml,**kwargs):
             resource.find('layout').text is not None:
             layout = resource.find('layout')
             layout_string = get_layout_as_dict(layout)
-            type_i.layout = str(layout_string)
+            type_i.layout = json.dumps(layout_string)
        
         if resource.find('type') is not None and \
            resource.find('type').text is not None:
