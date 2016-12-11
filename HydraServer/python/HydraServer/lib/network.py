@@ -1496,7 +1496,7 @@ def delete_node(node_id, purge_data,**kwargs):
         raise ResourceNotFoundError("Node %s not found"%(node_id))
     
     group_items = DBSession.query(ResourceGroupItem).filter(
-                                                    ResourceGroupItem.node_id==node_id).all()
+                                        ResourceGroupItem.node_id==node_id).all()
     for gi in group_items:
         DBSession.delete(gi)
 
