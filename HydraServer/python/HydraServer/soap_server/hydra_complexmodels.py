@@ -286,7 +286,7 @@ class Dataset(HydraComplexModel, Dataset):
                     return zlib.compress(data)
                 else:
                     return data
-        except Exception, e:
+        except Exception as e:
             log.exception(e)
             raise HydraError("Error parsing value %s: %s"%(self.value, e))
 

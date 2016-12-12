@@ -166,21 +166,21 @@ class HydraSoapApplication(Application):
 
             log.info("Call took: %s"%(datetime.datetime.now()-start))
             return res
-        except HydraError, e:
+        except HydraError as e:
             log.critical(e)
             rollback_transaction()
             traceback.print_exc(file=sys.stdout)
             code = "HydraError %s"%e.code
             raise HydraServiceError(e.message, code)
-        except ObjectNotFoundError, e:
+        except ObjectNotFoundError as e:
             log.critical(e)
             rollback_transaction()
             raise
-        except Fault, e:
+        except Fault as e:
             log.critical(e)
             rollback_transaction()
             raise
-        except Exception, e:
+        except Exception as e:
             log.critical(e)
             traceback.print_exc(file=sys.stdout)
             rollback_transaction()

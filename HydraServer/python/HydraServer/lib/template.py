@@ -1148,7 +1148,7 @@ def validate_attr(resource_attr_id, scenario_id, template_id=None):
     
     try:
         _do_validate_resourcescenario(rs, template_id)
-    except HydraError, e:
+    except HydraError as e:
 
         error = dict(
                  ref_key = rs.resourceattr.ref_key,
@@ -1178,7 +1178,7 @@ def validate_attrs(resource_attr_ids, scenario_id, template_id=None):
     for rs in multi_rs:
         try:
             _do_validate_resourcescenario(rs, template_id)
-        except HydraError, e:
+        except HydraError as e:
 
             error = dict(
                      ref_key = rs.resourceattr.ref_key,
@@ -1210,7 +1210,7 @@ def validate_scenario(scenario_id, template_id=None):
     for rs in scenario_rs:
         try:
             _do_validate_resourcescenario(rs, template_id)
-        except HydraError, e:
+        except HydraError as e:
 
             error = dict(
                      ref_key = rs.resourceattr.ref_key,

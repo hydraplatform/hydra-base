@@ -81,7 +81,7 @@ def get_plugins(**kwargs):
                     xmlschema.assertValid(xml_tree)
                    
                     plugins.append(etree.tostring(xml_tree))
-                except Exception, e:
+                except Exception as e:
                     log.critical("Schema %s did not validate! (error was %s)"%(file_name, e))
 
                 break
@@ -154,6 +154,6 @@ def check_plugin_status(plugin_name, pid,**kwargs):
 
         return split_string[1]
 
-    except IOError, e:
+    except IOError as e:
         return "No log file found for %s in plugin %s Error was: %s"%(pid, plugin_name, e)
 

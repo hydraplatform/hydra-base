@@ -52,7 +52,7 @@ def connect():
 def commit_transaction():
     try:
         transaction.commit()
-    except Exception, e:
+    except Exception as e:
         log.critical(e)
         transaction.abort()
     DBSession.remove()

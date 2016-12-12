@@ -142,7 +142,7 @@ class AuthenticationService(ServiceBase):
             password = password.encode('utf-8')
 
             user_id, session_id = login_user(username, password)
-        except HydraError, e:
+        except HydraError as e:
             raise AuthenticationError(e)
 
         _session_db[session_id] = (user_id, username)

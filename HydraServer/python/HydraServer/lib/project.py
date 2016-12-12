@@ -200,7 +200,7 @@ def get_projects(uid,**kwargs):
     #Potentially join this with an rs of projects
     #where no owner exists?
 
-    projects = DBSession.query(Project).join(ProjectOwner).filter(ProjectOwner.user_id==uid).options(joinedload_all('networks')).all()
+    projects = DBSession.query(Project).join(ProjectOwner).filter(ProjectOwner.user_id==uid).options(joinedload_all('networks')).order_by('project_id').all()
     for project in projects:
         project.check_read_permission(req_user_id)
 
