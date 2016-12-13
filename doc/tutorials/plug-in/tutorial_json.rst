@@ -16,7 +16,7 @@ By default, the hydra server is hosted on port 8080: ``http://localhost:8080/jso
 .. code-block:: python
 
     from HydraLib.PluginLib import JsonConnection
-    url = "http://localhost:8080/soap?wsdl"
+    url = "http://localhost:8080/json?wsdl"
     conn = JsonConnection(url)
 
 
@@ -55,7 +55,7 @@ Before a network can be created, we must first create a project
  
 .. code-block:: python
 
-    proj = dict(name = 'SOAP test %s'%(datetime.datetime.now()))
+    proj = dict(name = 'JSON test %s'%(datetime.datetime.now()))
     project   = conn.call('add_project', {'project':proj})
 
 A network can now be created

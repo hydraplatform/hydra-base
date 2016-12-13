@@ -28,7 +28,9 @@ TIMESTAMP,\
 BIGINT,\
 Float,\
 UniqueConstraint,\
-and_
+distinct,\
+and_,\
+or_
 
 from sqlalchemy.orm import relationship, backref
 
@@ -44,7 +46,8 @@ log = logging.getLogger(__name__)
 
 
 from HydraServer.db import DeclarativeBase as Base, DBSession
-from HydraServer.soap_server.hydra_complexmodels import HydraComplexModel
+from HydraServer.soap_server.hydra_complexmodels import HydraComplexModel, NS
+from HydraServer.db.model import ResourceAttr, Node, Link, ResourceGroup
 
 class ResourceAttrCollection(Base):
     """
@@ -88,6 +91,12 @@ class HydraResourceAttrCollection(HydraComplexModel):
         self.layout = parent.layout
         self.resource_attr_ids = [i.resource_attr_id for i in parent.items]
 
+    def get_layout(self):
+        if hasattr(self, 'layout') and self.layout is not None:
+            return str(self.layout).replace('{%s}'%NS, '')
+        else:
+            return None
+
 
 from HydraServer.db import engine
 Base.metadata.create_all(engine)
@@ -97,7 +106,7 @@ class Service(HydraService):
         An example of a server-side plug-in
     """
     
-    __service_name__ = "SampleService"
+    __service_name__ = "ResourceAttrCollectionService"
     
     
     @rpc(HydraResourceAttrCollection, _returns=HydraResourceAttrCollection)
@@ -183,3 +192,115 @@ class Service(HydraService):
             raise HydraError("No collection with ID %s", collection_id)
 
         return HydraResourceAttrCollection(collection_i) 
+
+    @rpc(HydraResourceAttrCollection, _returns=HydraResourceAttrCollection)
+    def update_resource_attr_collection(ctx, resourceattrcollection):
+        """
+            Delete a resource attribute collection
+        """
+
+        collection_i = DBSession.query(ResourceAttrCollection).filter(ResourceAttrCollection.collection_id==resourceattrcollection.id).first()
+        
+        if collection_i is None:
+            raise HydraError("No collection with ID %s", resourceattrcollection.id)
+
+        collection_i.layout = resourceattrcollection.get_layout()
+        collection_i.name   = resourceattrcollection.name
+
+        DBSession.flush()
+
+        return HydraResourceAttrCollection(collection_i) 
+
+    @rpc(_returns=SpyneArray(HydraResourceAttrCollection))
+    def get_all_resource_attr_collections(ctx):
+        """
+            Get all resource attribute collections
+        """
+        collections_i = DBSession.query(ResourceAttrCollection).all()
+
+        return [HydraResourceAttrCollection(collection_i) for collection_i in collections_i] 
+
+    @rpc(SpyneInteger,_returns=SpyneArray(HydraResourceAttrCollection))
+    def get_resource_attr_collections_for_node(ctx, node_id):
+        """
+            Get all resource attribute collections containing an attribute on the specified node.
+        """
+        collections_i = DBSession.query(ResourceAttrCollection).filter(
+                    ResourceAttrCollection.collection_id == ResourceAttrCollectionItem.collection_id,
+                    ResourceAttrCollectionItem.resource_attr_id==ResourceAttr.resource_attr_id,
+                    ResourceAttr.node_id == node_id
+        
+        )
+
+        return [HydraResourceAttrCollection(collection_i) for collection_i in collections_i] 
+
+    @rpc(SpyneInteger,_returns=SpyneArray(HydraResourceAttrCollection))
+    def get_resource_attr_collections_for_link(ctx, link_id):
+        """
+            Get all resource attribute collections containing an attribute on the specified link.
+        """
+        collections_i = DBSession.query(ResourceAttrCollection).filter(
+                    ResourceAttrCollection.collection_id == ResourceAttrCollectionItem.collection_id,
+                    ResourceAttrCollectionItem.resource_attr_id==ResourceAttr.resource_attr_id,
+                    ResourceAttr.link_id == link_id
+        
+        )
+
+        return [HydraResourceAttrCollection(collection_i) for collection_i in collections_i] 
+
+    @rpc(SpyneInteger,_returns=SpyneArray(HydraResourceAttrCollection))
+    def get_resource_attr_collections_for_attr(ctx, attr_id):
+        """
+            Get all resource attribute collections containing the specified attribute.
+        """
+        collections_i = DBSession.query(ResourceAttrCollection).distinct(ResourceAttrCollection.collection_id).filter(
+            and_(
+                ResourceAttrCollection.collection_id == ResourceAttrCollectionItem.collection_id,
+                and_(
+                     ResourceAttrCollectionItem.resource_attr_id==ResourceAttr.resource_attr_id,
+                    ResourceAttr.attr_id == attr_id
+        
+        ) )).all()
+
+        
+        return [HydraResourceAttrCollection(collection_i) for collection_i in collections_i] 
+
+    @rpc(SpyneInteger,_returns=SpyneArray(HydraResourceAttrCollection))
+    def get_resource_attr_collections_in_network(ctx, network_id):
+        """
+            Get all resource attribute collections containing an resource attribute of a resource in that network.
+        """
+        node_collection_qry = DBSession.query(ResourceAttrCollection).filter(
+                           ResourceAttrCollection.collection_id==ResourceAttrCollectionItem.collection_id,
+                            ResourceAttrCollectionItem.resource_attr_id == ResourceAttr.resource_attr_id,
+                            ResourceAttr.ref_key == 'NODE',
+                            ResourceAttr.node_id == Node.node_id,
+                            Node.network_id == network_id
+                    ).all()
+
+        link_collection_qry = DBSession.query(ResourceAttrCollection).filter(
+                           ResourceAttrCollection.collection_id==ResourceAttrCollectionItem.collection_id,
+                            ResourceAttrCollectionItem.resource_attr_id == ResourceAttr.resource_attr_id,
+                            ResourceAttr.ref_key == 'LINK',
+                            ResourceAttr.link_id == Link.link_id,
+                            Link.network_id == network_id
+                    ).all()
+        grp_collection_qry = DBSession.query(ResourceAttrCollection).filter(
+                           ResourceAttrCollection.collection_id==ResourceAttrCollectionItem.collection_id,
+                            ResourceAttrCollectionItem.resource_attr_id == ResourceAttr.resource_attr_id,
+                            ResourceAttr.ref_key == 'GROUP',
+                            ResourceAttr.group_id == ResourceGroup.group_id,
+                            ResourceGroup.network_id == network_id
+                    ).all()
+
+        net_collection_qry = DBSession.query(ResourceAttrCollection).filter(
+                           ResourceAttrCollection.collection_id==ResourceAttrCollectionItem.collection_id,
+                            ResourceAttrCollectionItem.resource_attr_id == ResourceAttr.resource_attr_id,
+                            ResourceAttr.ref_key == 'NETWORK',
+                            ResourceAttr.network_id == network_id
+
+                    ).all()
+
+        collections_i = node_collection_qry + link_collection_qry + grp_collection_qry + net_collection_qry
+
+        return [HydraResourceAttrCollection(collection_i) for collection_i in collections_i] 
