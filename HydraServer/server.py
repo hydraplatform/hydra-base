@@ -122,6 +122,7 @@ def _on_method_call(ctx):
 
     if ctx.in_object is None:
         raise ArgumentError("RequestHeader is null")
+
     if ctx.in_header is None:
         raise AuthenticationError("No headers!")
 
