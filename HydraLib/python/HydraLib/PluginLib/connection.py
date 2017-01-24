@@ -204,6 +204,7 @@ class JsonConnection(object):
 
         resp = self.call('login', login_params)
         #set variables for use in request headers
+        log.info(resp)
         self.sessionid = resp.sessionid
 
         log.info("Session ID=%s", self.sessionid)
@@ -255,22 +256,14 @@ class SoapConnection(object):
             user = config.get('hydra_client', 'user')
             passwd = config.get('hydra_client', 'password')
             login_response = self.client.service.login(user, passwd)
-<<<<<<< HEAD
             token.userid = login_response.user_id
             session_id = login_response.session_id
             token.username = user
 
         token.sessionid = session_id
-=======
-            token.userid = login_response.userid
-            sessionid = login_response.sessionid
-            token.username = user
-
-        token.sessionid = sessionid
->>>>>>> master
         self.client.set_options(soapheaders=token)
 
-        return sessionid
+        return session_id
 
 
 def object_hook(x):

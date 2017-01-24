@@ -1020,14 +1020,14 @@ def get_node(node_id,**kwargs):
 
 def get_link(link_id,**kwargs):
     try:
-        l = DBSession.query(Link).filter(Link.link_id==link_id).one()
+        l = DBSession.query(Link).filter(Link.link_id==link_id).options(joinedload_all('attributes.attr')).one()
         return l
     except NoResultFound:
         raise ResourceNotFoundError("Link %s not found"%(link_id,))
 
 def get_resourcegroup(group_id,**kwargs):
     try:
-        rg = DBSession.query(ResourceGroup).filter(ResourceGroup.group_id==group_id).one()
+        rg = DBSession.query(ResourceGroup).filter(ResourceGroup.group_id==group_id).options(joinedload_all('attributes.attr')).one()
         return rg
     except NoResultFound:
         raise ResourceNotFoundError("ResourceGroup %s not found"%(group_id,))
@@ -1038,7 +1038,7 @@ def get_network_by_name(project_id, network_name,**kwargs):
     """
 
     try:
-        res = DBSession.query(Network.network_id).filter(func.lower(Network.network_name).like(network_name.lower()), Network.project_id == project_id).one()
+        res = DBSession.query(Network.network_id).filter(func.lower(Network.network_name).like(network_name.lower()), Network.project_id == project_id).options(joinedload_all('attributes.attr')).one()
         net = get_network(res.network_id, 'Y', None, **kwargs)
         return net
     except NoResultFound:
