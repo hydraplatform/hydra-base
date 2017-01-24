@@ -1101,11 +1101,12 @@ def update_network(network,
                 n.node_x           = node.x
                 n.node_y           = node.y
                 n.status           = node.status
+                n.layout           = node.get_layout()
             else:
                 log.info("Adding new node %s", node.name)
                 n = net_i.add_node(node.name,
                                    node.description,
-                                   node.layout,
+                                   node.get_layout(),
                                    node.x,
                                    node.y)
                 net_i.nodes.append(n)
@@ -1129,7 +1130,7 @@ def update_network(network,
                 log.info("Adding new link %s", link.name)
                 l = net_i.add_link(link.name,
                                    link.description,
-                                   link.layout,
+                                   link.get_layout(),
                                    node_1,
                                    node_2)
                 net_i.links.append(l)
@@ -1140,6 +1141,7 @@ def update_network(network,
                 l.link_descripion = link.description
                 l.node_a          = node_1
                 l.node_b          = node_2
+                l.layout          = link.get_layout()
                 
 
             all_resource_attrs.update(_update_attributes(l, link.attributes))
