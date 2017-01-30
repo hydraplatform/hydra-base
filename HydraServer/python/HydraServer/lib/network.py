@@ -1362,6 +1362,7 @@ def add_node(network_id, node,**kwargs):
             res_types.append(rt)#rt is one object
             res_attrs.extend(ra)#ra is a list of objects
             res_scenarios.update(rs)#rs is a dict
+
         if len(res_types) > 0:
             DBSession.execute(ResourceType.__table__.insert(), res_types)
         if len(res_attrs) > 0:
