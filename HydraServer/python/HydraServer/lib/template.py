@@ -877,6 +877,8 @@ def update_template(template,**kwargs):
     if template.types is not None:
         for templatetype in template.types:
             if templatetype.id is not None:
+                if type_dict.get(templatetype.id) is None:
+                    import pudb; pudb.set_trace()   
                 type_i = type_dict[templatetype.id] 
                 _update_templatetype(templatetype, type_i)
                 existing_templatetypes.append(type_i.type_id)

@@ -55,12 +55,18 @@ class JSONObject(dict):
                     continue
 
                 try:
-                    v = int(v)
+                    int(v)
+                    if v.find('.'):
+                        if int(v.split('.')[0]) == int(v):
+                            v = int(v)
+                    else:
+                        v = int(v)
                 except:
                     pass
 
                 try:
-                    v = float(v)
+                    if not isinstance(v, int):
+                        v = float(v)
                 except:
                     pass
 
