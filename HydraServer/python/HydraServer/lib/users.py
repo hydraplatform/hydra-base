@@ -65,6 +65,11 @@ def get_username(uid,**kwargs):
 
     return rs.username
 
+def get_usernames_like(username,**kwargs):
+    checkname = "%%%s%%"%username
+    rs = DBSession.query(User.username).filter(User.username.like(checkname)).all()
+    return [r.username for r in rs]
+
 def add_user(user,**kwargs):
     """
     """
