@@ -161,7 +161,7 @@ class Dataset(Base, Inspect):
                 if len(json_value) > config.get('DATA', 'compression_threshold', 1000):
                     self.value = zlib.compress(json_value)
                 else:
-                    self.value = json_value 
+                    self.value = json_value
             else:
                 self.value = val
         else:
@@ -211,6 +211,17 @@ class Dataset(Base, Inspect):
         owner.edit  = write
         owner.share = share
         return owner
+
+    def unset_owner(self, user_id):
+        owner = None
+        if str(user_id) == str(self.created_by):
+            log.warn("Cannot unset %s as owner, as they created the dataset", user_id)
+            return
+        for o in self.owners:
+            if user_id == o.user_id:
+                owner = o
+                DBSession.delete(owner)
+                break
 
     def check_read_permission(self, user_id):
         """
@@ -607,7 +618,7 @@ class Project(Base, Inspect):
     def set_owner(self, user_id, read='Y', write='Y', share='Y'):
         owner = None
         for o in self.owners:
-            if user_id == o.user_id:
+            if str(user_id) == str(o.user_id):
                 owner = o
                 break
         else:
@@ -621,6 +632,17 @@ class Project(Base, Inspect):
         owner.share = share
 
         return owner
+
+    def unset_owner(self, user_id):
+        owner = None
+        if str(user_id) == str(self.created_by):
+            log.warn("Cannot unset %s as owner, as they created the project", user_id)
+            return
+        for o in self.owners:
+            if user_id == o.user_id:
+                owner = o
+                DBSession.delete(owner)
+                break
 
     def check_read_permission(self, user_id):
         """
@@ -775,7 +797,7 @@ class Network(Base, Inspect):
     def set_owner(self, user_id, read='Y', write='Y', share='Y'):
         owner = None
         for o in self.owners:
-            if user_id == o.user_id:
+            if str(user_id) == str(o.user_id):
                 owner = o
                 break
         else:
@@ -789,6 +811,17 @@ class Network(Base, Inspect):
         owner.share = share
 
         return owner
+
+    def unset_owner(self, user_id):
+        owner = None
+        if str(user_id) == str(self.created_by):
+            log.warn("Cannot unset %s as owner, as they created the network", user_id)
+            return
+        for o in self.owners:
+            if user_id == o.user_id:
+                owner = o
+                DBSession.delete(owner)
+                break
 
     def check_read_permission(self, user_id):
         """
@@ -872,13 +905,13 @@ class Link(Base, Inspect):
 
     def check_read_permission(self, user_id):
         """
-            Check whether this user can read this link 
+            Check whether this user can read this link
         """
         self.network.check_read_permission(user_id)
 
     def check_write_permission(self, user_id):
         """
-            Check whether this user can write this link 
+            Check whether this user can write this link
         """
 
         self.network.check_write_permission(user_id)
@@ -975,7 +1008,7 @@ class ResourceGroup(Base, Inspect):
 
     def check_read_permission(self, user_id):
         """
-            Check whether this user can read this group 
+            Check whether this user can read this group
         """
         self.network.check_read_permission(user_id)
 
@@ -1009,7 +1042,7 @@ class ResourceGroupItem(Base, Inspect):
     scenario_id = Column(Integer(), ForeignKey('tScenario.scenario_id'),  nullable=False, index=True)
 
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    
+
     group = relationship('ResourceGroup', foreign_keys=[group_id], backref=backref("items", order_by=group_id))
     scenario = relationship('Scenario', backref=backref("resourcegroupitems", order_by=item_id, cascade="all, delete-orphan"))
 
