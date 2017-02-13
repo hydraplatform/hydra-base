@@ -454,7 +454,7 @@ def add_network(network,**kwargs):
     #List of all the resource attributes
     all_resource_attrs = {}
 
-    name_map = {network.name:net_i} 
+    name_map = {network.name:net_i}
     network_attrs = _bulk_add_resource_attrs(net_i.network_id, 'NETWORK', [network], name_map)
     add_resource_types(net_i, network.types)
 
@@ -560,7 +560,7 @@ def _get_all_resource_attributes(network_id, template_id=None):
                                ResourceAttr.attr_id.label('attr_id'),
                                Attr.attr_name.label('attr_name'),
                               ).filter(Attr.attr_id==ResourceAttr.attr_id)
-    
+
 
     all_node_attribute_qry = base_qry.join(Node).filter(Node.network_id==network_id)
 
@@ -585,7 +585,7 @@ def _get_all_resource_attributes(network_id, template_id=None):
 
     logging.info("Attributes retrieved. Processing results...")
     x = time.time()
-    node_attr_dict = dict() 
+    node_attr_dict = dict()
     link_attr_dict = dict()
     group_attr_dict = dict()
     network_attr_dict = dict()
@@ -637,7 +637,7 @@ def _get_all_templates(network_id, template_id):
                                TemplateType.type_name.label('type_name'),
                               ).filter(TemplateType.type_id==ResourceType.type_id,
                                        Template.template_id==TemplateType.template_id)
-    
+
 
     all_node_type_qry = base_qry.filter(Node.node_id==ResourceType.node_id,
                                         Node.network_id==network_id)
@@ -665,7 +665,7 @@ def _get_all_templates(network_id, template_id):
 
     log.info("Attributes retrieved. Processing results...")
     x = time.time()
-    node_type_dict = dict() 
+    node_type_dict = dict()
     link_type_dict = dict()
     group_type_dict = dict()
     network_type_dict = dict()
@@ -675,12 +675,12 @@ def _get_all_templates(network_id, template_id):
         resourcetype = dictobj({'type_id':t.type_id})
         resourcetype.templatetype = dictobj(t)
         rttemplate = dictobj({'template_name':t.template_name})
-        resourcetype.templatetype.template =rttemplate 
+        resourcetype.templatetype.template =rttemplate
 
         if t.ref_key == 'NODE':
             nodetype = node_type_dict.get(t.node_id, [])
             nodetype.append(resourcetype)
-            node_type_dict[t.node_id] = nodetype 
+            node_type_dict[t.node_id] = nodetype
         elif t.ref_key == 'LINK':
             linktype = link_type_dict.get(t.link_id, [])
             linktype.append(resourcetype)
@@ -711,7 +711,7 @@ def _get_all_group_items(network_id):
         Get all the resource group items in the network, across all scenarios
         returns a dictionary of dict objects, keyed on scenario_id
     """
-    base_qry = DBSession.query(ResourceGroupItem) 
+    base_qry = DBSession.query(ResourceGroupItem)
 
     item_qry = base_qry.join(Scenario).filter(Scenario.network_id==network_id)
 
@@ -723,12 +723,12 @@ def _get_all_group_items(network_id):
 
     logging.info("items retrieved. Processing results...")
     x = time.time()
-    item_dict = dict() 
+    item_dict = dict()
     for item in all_items:
 
         items = item_dict.get(item.scenario_id, [])
         items.append(item)
-        item_dict[item.scenario_id] = items 
+        item_dict[item.scenario_id] = items
 
     logging.info("items processed in %s", time.time()-x)
 
@@ -738,7 +738,7 @@ def _get_all_resourcescenarios(network_id, user_id):
     """
         Get all the resource scenarios in a network, across all scenarios
         returns a dictionary of dict objects, keyed on scenario_id
-    """ 
+    """
 
     rs_qry = DBSession.query(
                 Dataset.data_type,
@@ -772,7 +772,7 @@ def _get_all_resourcescenarios(network_id, user_id):
 
     logging.info("resource scenarios retrieved. Processing results...")
     x = time.time()
-    rs_dict = dict() 
+    rs_dict = dict()
     for rs in all_rs:
         rs_obj = dictobj(rs)
         rs_attr = dictobj({'attr_id':rs.attr_id})
@@ -803,7 +803,7 @@ def _get_all_resourcescenarios(network_id, user_id):
 
         scenario_rs = rs_dict.get(rs.scenario_id, [])
         scenario_rs.append(rs_obj)
-        rs_dict[rs.scenario_id] = scenario_rs 
+        rs_dict[rs.scenario_id] = scenario_rs
 
     logging.info("resource scenarios processed in %s", time.time()-x)
 
@@ -813,9 +813,9 @@ def _get_all_resourcescenarios(network_id, user_id):
 def _get_metadata(network_id, user_id):
     """
         Get all the metadata in a network, across all scenarios
-        returns a dictionary of dict objects, keyed on dataset ID 
+        returns a dictionary of dict objects, keyed on dataset ID
     """
-    
+
     dataset_qry = DBSession.query(
                 Dataset
     ).outerjoin(DatasetOwner, and_(DatasetOwner.dataset_id==Dataset.dataset_id, DatasetOwner.user_id==user_id)).filter(
@@ -835,7 +835,7 @@ def _get_metadata(network_id, user_id):
 
     logging.info("metadata retrieved. Processing results...")
     x = time.time()
-    metadata_dict = dict() 
+    metadata_dict = dict()
     for m in all_metadata:
         metadata = metadata_dict.get(m.dataset_id, [])
         metadata.append(m)
@@ -857,7 +857,7 @@ def _get_nodes(network_id, template_id=None):
     if template_id is not None:
         node_qry = node_qry.filter(ResourceType.node_id==Node.node_id, TemplateType.type_id==ResourceType.type_id, TemplateType.template_id==template_id)
     node_res = DBSession.execute(node_qry.statement).fetchall()
-    
+
     nodes = []
     for n in node_res:
         nodes.append(dictobj(n, extras))
@@ -882,7 +882,7 @@ def _get_links(network_id, template_id=None):
         links.append(dictobj(l, extras))
 
     return links
-    
+
 def _get_groups(network_id, template_id=None):
     """
         Get all the resource groups in a network
@@ -916,7 +916,7 @@ def _get_scenarios(network_id, include_data, user_id, scenario_ids=None):
         scen_qry = scen_qry.filter(Scenario.scenario_id.in_(scenario_ids))
     extras = {'resourcescenarios': [], 'resourcegroupitems': []}
     scens = [dictobj(s,extras) for s in DBSession.execute(scen_qry.statement).fetchall()]
-    
+
     all_resource_group_items = _get_all_group_items(network_id)
 
     if include_data == 'Y':
@@ -928,7 +928,7 @@ def _get_scenarios(network_id, include_data, user_id, scenario_ids=None):
 
         if include_data == 'Y':
             s.resourcescenarios  = all_rs.get(s.scenario_id, [])
-    
+
             for rs in s.resourcescenarios:
                 rs.dataset.metadata = metadata.get(rs.dataset_id, [])
 
@@ -949,7 +949,7 @@ def get_network(network_id, summary=False, include_data='N', scenario_ids=None, 
     """
     log.debug("getting network %s"%network_id)
     user_id = kwargs.get('user_id')
-   
+
     try:
         log.debug("Querying Network %s", network_id)
         net_i = DBSession.query(Network).filter(
@@ -960,9 +960,9 @@ def get_network(network_id, summary=False, include_data='N', scenario_ids=None, 
                                 noload('types')).options(
                                 noload('attributes')).options(
                                 noload('resourcegroups')).one()
-        
+
         net_i.check_read_permission(user_id)
-        
+
         net = dictobj(net_i.__dict__)
 
         net.nodes          = _get_nodes(network_id, template_id=template_id)
@@ -982,7 +982,7 @@ def get_network(network_id, summary=False, include_data='N', scenario_ids=None, 
             for group in net.resourcegroups:
                 group.attributes = all_attributes['GROUP'].get(group.group_id, [])
             log.info("Group attributes set")
-    
+
 
         log.info("Setting types")
         all_types = _get_all_templates(network_id, template_id)
@@ -1085,7 +1085,7 @@ def update_network(network,
 
     #Maps temporary node_ids to real node_ids
     node_id_map = dict()
-    
+
     if network.nodes is not None and update_nodes is True:
         log.info("Updating nodes")
         t0 = time.time()
@@ -1142,7 +1142,7 @@ def update_network(network,
                 l.node_a          = node_1
                 l.node_b          = node_2
                 l.layout          = link.get_layout()
-                
+
 
             all_resource_attrs.update(_update_attributes(l, link.attributes))
             add_resource_types(l, link.types)
@@ -1352,7 +1352,7 @@ def add_node(network_id, node,**kwargs):
     add_attributes(new_node, node.attributes)
 
     DBSession.flush()
-    
+
     if node.types is not None and len(node.types) > 0:
         res_types = []
         res_attrs = []
@@ -1369,7 +1369,7 @@ def add_node(network_id, node,**kwargs):
             DBSession.execute(ResourceType.__table__.insert(), res_types)
         if len(res_attrs) > 0:
             DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
-            
+
             new_res_attrs = DBSession.query(ResourceAttr).order_by(ResourceAttr.resource_attr_id.desc()).limit(len(res_attrs)).all()
             all_rs = []
             for ra in new_res_attrs:
@@ -1444,7 +1444,7 @@ def set_node_status(node_id, status, **kwargs):
 
 def _unique_data_qry(count=1):
     rs = aliased(ResourceScenario)
-       
+
     log.critical(count)
     subqry=DBSession.query(rs.resource_attr_id,
                            rs.dataset_id,
@@ -1455,7 +1455,7 @@ def _unique_data_qry(count=1):
 
     unique_data = DBSession.query(rs).\
                         join(subqry,
-                                and_(rs.resource_attr_id==subqry.c.resource_attr_id, 
+                                and_(rs.resource_attr_id==subqry.c.resource_attr_id,
                                 rs.dataset_id==subqry.c.dataset_id)
                             ).\
                     filter(
@@ -1467,7 +1467,7 @@ def _unique_data_qry(count=1):
 def purge_network(network_id, purge_data,**kwargs):
     """
         Remove a network from DB completely
-        Use purge_data to try to delete the data associated with only this network. 
+        Use purge_data to try to delete the data associated with only this network.
         If no other resources link to this data, it will be deleted.
 
     """
@@ -1476,7 +1476,7 @@ def purge_network(network_id, purge_data,**kwargs):
         net_i = DBSession.query(Network).filter(Network.network_id == network_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id))
-    
+
     log.info("Deleting network %s, id=%s", net_i.network_name, network_id)
 
     net_i.check_write_permission(user_id)
@@ -1497,7 +1497,7 @@ def delete_node(node_id, purge_data,**kwargs):
         node_i = DBSession.query(Node).filter(Node.node_id == node_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Node %s not found"%(node_id))
-    
+
     group_items = DBSession.query(ResourceGroupItem).filter(
                                         ResourceGroupItem.node_id==node_id).all()
     for gi in group_items:
@@ -1684,14 +1684,12 @@ def add_group(network_id, group,**kwargs):
     add_attributes(res_grp_i, group.attributes)
 
     DBSession.flush()
-
-
     if group.types is not None and len(group.types) > 0:
         res_types = []
         res_attrs = []
         res_scenarios = {}
         for typesummary in group.types:
-            ra, rt = template.set_resource_type(res_grp_i,
+            ra, rt, rs = template.set_resource_type(res_grp_i,
                                         typesummary.id,
                                          **kwargs)
             res_types.append(rt)
@@ -1756,7 +1754,7 @@ def delete_group(group_id, purge_data,**kwargs):
                                                     ResourceGroupItem.group_id==group_id).all()
     for gi in group_items:
         DBSession.delete(gi)
-    
+
     if purge_data == 'Y':
         #Find the number of times a a resource and dataset combination
         #occurs. If this equals the number of times the dataset appears, then
@@ -2070,4 +2068,4 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
 
     log.info("Returning %s datasets", len(return_data))
 
-    return return_data 
+    return return_data

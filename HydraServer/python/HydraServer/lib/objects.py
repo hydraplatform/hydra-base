@@ -16,7 +16,7 @@ import pandas as pd
 class JSONObject(dict):
     """
         A dictionary object whose attributes can be accesed via a '.'.
-        Pass in a nested dictionary, a SQLAlchemy object or a JSON string. 
+        Pass in a nested dictionary, a SQLAlchemy object or a JSON string.
     """
     def __init__(self, obj_dict, parent=None):
         if isinstance(obj_dict, str) or isinstance(obj_dict, unicode):
@@ -31,8 +31,12 @@ class JSONObject(dict):
         elif isinstance(obj_dict, dict):
             obj = obj_dict
         else:
-            log.critical("Error with value: %s" , obj_dict)
-            raise ValueError("Unrecognised value. It must be a valid JSON dict, a SQLAlchemy result or a dictionary.")
+            #last chance...try to cast it as a dict. Do this for sqlalchemy result proxies.
+            try:
+                obj = dict(obj_dict)
+            except:
+                log.critical("Error with value: %s" , obj_dict)
+                raise ValueError("Unrecognised value. It must be a valid JSON dict, a SQLAlchemy result or a dictionary.")
 
         for k, v in obj.items():
             if isinstance(v, dict):
@@ -109,8 +113,8 @@ class ResourceScenario(JSONObject):
         for k, v in rs.items():
             if k == 'value':
                 setattr(self, k, Dataset(v))
-        
- 
+
+
 class Dataset(JSONObject):
     def parse_value(self):
         """
