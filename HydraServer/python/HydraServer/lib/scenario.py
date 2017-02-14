@@ -49,9 +49,14 @@ def _check_network_ownership(network_id, user_id):
         raise PermissionError("Permission denied."
                             " User %s is not an owner of network"%(user_id, network_id))
 
-def _get_scenario(scenario_id):
+def _get_scenario(scenario_id, include_data=True, include_items=True):
     try:
-        scenario = DBSession.query(Scenario).filter(Scenario.scenario_id==scenario_id).one()
+        scenario_qry = DBSession.query(Scenario).filter(Scenario.scenario_id==scenario_id)
+        if include_data is True:
+            scenario_qry = scenario_qry.options(joinedload_all('resourcescenarios'))
+        if include_items is True:
+            scenario_qry = scenario_qry.options(joinedload_all('resourcegroupitems'))
+        scenario = scenario_qry.one()
         return scenario
     except NoResultFound:
         raise ResourceNotFoundError("Scenario %s does not exist."%(scenario_id))
@@ -925,18 +930,17 @@ def get_resourcegroupitems(group_id, scenario_id, **kwargs):
                 filter(ResourceGroupItem.scenario_id==scenario_id).all()
     return rgi
 
-def delete_resourcegroupitems(item_ids, **kwargs):
+def delete_resourcegroupitems(scenario_id, item_ids, **kwargs):
     """
         Delete specified items in a group, in a scenario.
     """
     user_id = int(kwargs.get('user_id'))
     scenario = _get_scenario(scenario_id)
     _check_network_ownership(scenario.network_id, user_id)
-
     for item_id in item_ids:
         rgi = DBSession.query(ResourceGroupItem).\
-                filter(ResourceGroupItem.item_id==item_id).all()
-        rgi.delete()
+                filter(ResourceGroupItem.item_id==item_id).one()
+        DBSession.delete(rgi)
 
 def empty_group(group_id, scenario_id, **kwargs):
     """
