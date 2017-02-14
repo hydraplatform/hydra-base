@@ -1718,6 +1718,33 @@ def add_group(network_id, group,**kwargs):
 
     return res_grp_i
 
+def update_group(group,**kwargs):
+    """
+    Update a group.
+    If new attributes are present, they will be added to the group.
+    The non-presence of attributes does not remove them.
+    """
+    user_id = kwargs.get('user_id')
+    try:
+        group_i = DBSession.query(ResourceGroup).filter(ResourceGroup.group_id == group.id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError("group %s not found"%(group.id))
+
+    group_i.network.check_write_permission(user_id)
+
+    group_i.group_name = group.name if group.name != None else group_i.group_name
+    group_i.group_description = group.description if group.description else group_i.group_description
+
+    if group.attributes is not None:
+        _update_attributes(group_i, group.attributes)
+
+    if group.types is not None:
+        add_resource_types(group_i, group.types)
+    DBSession.flush()
+
+    return group_i
+
+
 def set_group_status(group_id, status, **kwargs):
     """
         Set the status of a group to 'X'
