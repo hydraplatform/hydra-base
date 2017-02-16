@@ -473,6 +473,7 @@ def assign_types_to_resources(resource_types,**kwargs):
     log.info("Retrieved all the appropriate template types")
     res_types = []
     res_attrs = []
+    res_scenarios = []
 
     net_id = None
     node_ids = []
@@ -512,12 +513,16 @@ def assign_types_to_resources(resource_types,**kwargs):
             res_types.append(rt)
         if len(ra) > 0:
             res_attrs.extend(ra)
+        if len(rs) > 0:
+            res_scenarios.extend(rs)
 
     log.info("Retrieved all the appropriate resources")
     if len(res_types) > 0:
         DBSession.execute(ResourceType.__table__.insert(), res_types)
     if len(res_attrs) > 0:
         DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
+    if len(res_scenarios) > 0:
+        DBSession.execute(ResourceScenario.__table__.insert(), res_scenarios)
 
     #Make DBsession 'dirty' to pick up the inserts by doing a fake delete. 
     DBSession.query(Attr).filter(Attr.attr_id==None).delete()
@@ -706,6 +711,9 @@ def assign_type_to_resource(type_id, resource_type, resource_id,**kwargs):
 
     if len(res_attrs) > 0:
         DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
+
+    if len(res_scenarios) > 0:
+        DBSession.execute(ResourceScenario.__table__.insert(), res_scenarios)
 
     #Make DBsession 'dirty' to pick up the inserts by doing a fake delete. 
     DBSession.query(Attr).filter(Attr.attr_id==None).delete()
