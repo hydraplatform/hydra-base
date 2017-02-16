@@ -507,11 +507,12 @@ def assign_types_to_resources(resource_types,**kwargs):
         elif ref_key == 'GROUP':
             resource = groups[ref_id]
 
-        ra, rt = set_resource_type(resource, type_id, types)
+        ra, rt, rs= set_resource_type(resource, type_id, types)
         if rt is not None:
             res_types.append(rt)
         if len(ra) > 0:
             res_attrs.extend(ra)
+
     log.info("Retrieved all the appropriate resources")
     if len(res_types) > 0:
         DBSession.execute(ResourceType.__table__.insert(), res_types)
@@ -693,7 +694,7 @@ def assign_type_to_resource(type_id, resource_type, resource_id,**kwargs):
         resource = DBSession.query(Link).filter(Link.link_id==resource_id).one()
     elif resource_type == 'GROUP':
         resource = DBSession.query(ResourceGroup).filter(ResourceGroup.group_id==resource_id).one()
-    res_attrs, res_type = set_resource_type(resource, type_id, **kwargs)
+    res_attrs, res_type, res_scenarios = set_resource_type(resource, type_id, **kwargs)
 
     type_i = DBSession.query(TemplateType).filter(TemplateType.type_id==type_id).one()
     if resource_type != type_i.resource_type:
