@@ -478,7 +478,20 @@ def _check_network_owner(network, user_id):
 
     raise PermissionError('User %s is not the owner of network %s' % (user_id,network.network_id))
 
+def get_resource_scenario(resource_attr_id, scenario_id, **kwargs):
+    """
+        Get the resource scenario object for a given resource atttribute and scenario.
+        This is done when you know the attribute, resource and scenario and want to get the
+        value associated with it.
+    """
+    scenario_i = _get_scenario(scenario_id)
+    owner = _check_network_owner(scenario_i.network, kwargs['user_id'])
 
+    try:
+        DBSession.query(ResourceScenario).filter(ResourceScenario.resource_attr_id==resource_attr_id,
+                                             ResourceScenario.scenario_id == scenario_id).options(joinedload_all('dataset')).one()
+    except NoResultFound:
+        raise ResourceNotFoundError("Resource Scenario for %s not found in scenbario "%resource_attr_id, scenario_id)
 
 def lock_scenario(scenario_id, **kwargs):
     #user_id = kwargs.get('user_id')
