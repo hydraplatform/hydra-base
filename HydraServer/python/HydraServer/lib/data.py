@@ -696,6 +696,8 @@ def _process_incoming_data(data, user_id=None, source=None):
 
         if d.metadata is not None:
             metadata_dict = json.loads(d.metadata)
+        else:
+            metadata_dict={}
 
         metadata_keys = [k.lower() for k in metadata_dict]
         if user_id is not None and 'user_id' not in metadata_keys:
