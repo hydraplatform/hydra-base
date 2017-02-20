@@ -143,6 +143,10 @@ class Dataset(JSONObject):
                 log.debug("Parsing %s", data)
 
             if self.type == 'descriptor':
+                #Hack to work with hashtables. REMOVE AFTER DEMO
+                if self.get_metadata_as_dict().get('data_type') == 'hashtable':
+                    df = pd.read_json(data)
+                    data = df.transpose().to_json() 
                 return data
             elif self.type == 'scalar':
                 return data
