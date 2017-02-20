@@ -492,7 +492,7 @@ def get_resource_scenario(resource_attr_id, scenario_id, **kwargs):
                                              ResourceScenario.scenario_id == scenario_id).options(joinedload_all('dataset')).one()
         return rs
     except NoResultFound:
-        raise ResourceNotFoundError("Resource Scenario for %s not found in scenario %s"%(resource_attr_id, scenario_id))
+        raise ResourceNotFoundError("resource scenario for %s not found in scenario %s"%(resource_attr_id, scenario_id))
 
 def lock_scenario(scenario_id, **kwargs):
     #user_id = kwargs.get('user_id')
