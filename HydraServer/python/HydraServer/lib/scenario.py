@@ -238,7 +238,7 @@ def update_scenario(scenario,update_data=True,update_groups=True,**kwargs):
         #THen process all the items sent to this handler.
         #Any in the DB that are not passed in here are removed.
         for group_item in scenario.resourcegroupitems:
-            group_item_i = _add_resourcegroupitem(group_item, scenario_id)
+            group_item_i = _add_resourcegroupitem(group_item, scenario.id)
 
             if group_item.id is None or group_item.id < 0:
                 scen.resourcegroupitems.append(group_item_i)
