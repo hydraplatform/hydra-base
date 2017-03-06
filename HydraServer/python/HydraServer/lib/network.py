@@ -1032,6 +1032,33 @@ def get_resourcegroup(group_id,**kwargs):
     except NoResultFound:
         raise ResourceNotFoundError("ResourceGroup %s not found"%(group_id,))
 
+def get_node_by_name(network_id, node_name,**kwargs):
+    try:
+        n = DBSession.query(Node).filter(Node.node_name==node_name,
+                                         Node.network_id==network_id).\
+                                         options(joinedload_all('attributes.attr')).one()
+        return n
+    except NoResultFound:
+        raise ResourceNotFoundError("Node %s not found in network %s"%(node_name, network_id,))
+
+def get_link(network_id, link_name,**kwargs):
+    try:
+        l = DBSession.query(Link).filter(Link.link_name==link_name,
+                                         Link.network_id==network_id).\
+                                         options(joinedload_all('attributes.attr')).one()
+        return l
+    except NoResultFound:
+        raise ResourceNotFoundError("Link %s not found in network %s"%(link_name, network_id))
+
+def get_resourcegroup_by_name(network_id, group_name,**kwargs):
+    try:
+        rg = DBSession.query(ResourceGroup).filter(ResourceGroup.group_name==group_name,
+                                                   ResourceGroup.network_id==network_id).\
+                                                    options(joinedload_all('attributes.attr')).one()
+        return rg
+    except NoResultFound:
+        raise ResourceNotFoundError("ResourceGroup %s not found in network %s"%(group_name,network_id))
+
 def get_network_by_name(project_id, network_name,**kwargs):
     """
     Return a whole network as a complex model.

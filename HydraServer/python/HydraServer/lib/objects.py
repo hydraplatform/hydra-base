@@ -187,7 +187,7 @@ class Dataset(JSONObject):
 
         metadata_dict = {}
 
-        if type(self.metadata) == dict:
+        if isinstance(self.metadata, dict):
             metadata_dict = self.metadata
         else:
             metadata_dict = json.loads(self.metadata)
