@@ -757,6 +757,8 @@ def assign_value(rs, data_type, val,
         rs.dataset = dataset
         rs.source  = source
 
+    DBSession.flush()
+
 def add_data_to_attribute(scenario_id, resource_attr_id, dataset,**kwargs):
     """
         Add data to a resource scenario outside of a network update
