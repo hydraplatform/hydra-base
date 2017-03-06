@@ -1041,7 +1041,7 @@ def get_node_by_name(network_id, node_name,**kwargs):
     except NoResultFound:
         raise ResourceNotFoundError("Node %s not found in network %s"%(node_name, network_id,))
 
-def get_link(network_id, link_name,**kwargs):
+def get_link_by_name(network_id, link_name,**kwargs):
     try:
         l = DBSession.query(Link).filter(Link.link_name==link_name,
                                          Link.network_id==network_id).\
