@@ -63,3 +63,7 @@ HydraPlugins/JSONPlugin/ImportJSON/dist/
 .idea/
 
 .DS_Store
+
+*.gdx
+*.lst
+*.opt

@@ -489,7 +489,8 @@ def get_resource_scenario(resource_attr_id, scenario_id, **kwargs):
 
     try:
         rs = DBSession.query(ResourceScenario).filter(ResourceScenario.resource_attr_id==resource_attr_id,
-                                             ResourceScenario.scenario_id == scenario_id).options(joinedload_all('dataset')).one()
+                                             ResourceScenario.scenario_id == scenario_id).options(joinedload_all('dataset')).options(joinedload_all('dataset.metadata')).one()
+
         return rs
     except NoResultFound:
         raise ResourceNotFoundError("resource scenario for %s not found in scenario %s"%(resource_attr_id, scenario_id))
@@ -756,6 +757,8 @@ def assign_value(rs, data_type, val,
                                 **dict(user_id=user_id))
         rs.dataset = dataset
         rs.source  = source
+
+    DBSession.flush()
 
 def add_data_to_attribute(scenario_id, resource_attr_id, dataset,**kwargs):
     """
