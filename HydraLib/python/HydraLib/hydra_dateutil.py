@@ -118,6 +118,9 @@ def ordinal_to_timestamp(date):
     if date is None:
         return None
 
+    if type(date) in (str, unicode):
+        date = Decimal(date)
+
     day = int(date)
     time = date - day
     time_in_secs_ms = (time * Decimal(86400)).quantize(Decimal('.000001'),
