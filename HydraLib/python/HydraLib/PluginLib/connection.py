@@ -162,7 +162,6 @@ class JsonConnection(object):
         start_time = time.time()
         log.info("Calling: %s" % (func))
         call = {func: args}
-
         headers = {
                    'Content-Type': 'application/json',
                    'appname': self.app_name,
@@ -211,6 +210,8 @@ class JsonConnection(object):
         login_params = {'username': username, 'password': password}
 
         resp = self.call('login', login_params)
+        #set variables for use in request headers
+        log.info(resp)
 
 class SoapConnection(object):
 
@@ -263,7 +264,7 @@ class SoapConnection(object):
         token.sessionid = sessionid
         self.client.set_options(soapheaders=token)
 
-        return sessionid
+        return session_id
 
 
 def object_hook(x):

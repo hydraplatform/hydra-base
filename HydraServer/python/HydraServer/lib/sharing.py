@@ -9,7 +9,7 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
@@ -51,12 +51,12 @@ def _get_dataset(dataset_id):
 def share_network(network_id, usernames, read_only, share,**kwargs):
     """
         Share a network with a list of users, identified by their usernames.
-        
+
         The read_only flag ('Y' or 'N') must be set
         to 'Y' to allow write access or sharing.
 
-        The share flat ('Y' or 'N') must be set to 'Y' to allow the 
-        project to be shared with other users 
+        The share flat ('Y' or 'N') must be set to 'Y' to allow the
+        project to be shared with other users
     """
 
     user_id = kwargs.get('user_id')
@@ -78,19 +78,39 @@ def share_network(network_id, usernames, read_only, share,**kwargs):
         user_i = _get_user(username)
         #Set the owner ship on the network itself
         net_i.set_owner(user_i.user_id, write=write, share=share)
-        #Give the user read access to the containing project
-        net_i.project.set_owner(user_i.user_id, write='N', share='N')
+        for o in net_i.project.owners:
+            if o.user_id == user_i.user_id:
+                break
+        else:
+            #Give the user read access to the containing project
+            net_i.project.set_owner(user_i.user_id, write='N', share='N')
+    DBSession.flush()
+
+def unshare_network(network_id, usernames,**kwargs):
+    """
+        Un-Share a network with a list of users, identified by their usernames.
+    """
+
+    user_id = kwargs.get('user_id')
+    net_i = _get_network(network_id)
+    net_i.check_share_permission(user_id)
+
+    for username in usernames:
+        user_i = _get_user(username)
+        #Set the owner ship on the network itself
+
+    net_i.unset_owner(user_i.user_id, write=write, share=share)
     DBSession.flush()
 
 def share_project(project_id, usernames, read_only, share,**kwargs):
     """
-        Share an entire project with a list of users, identifed by 
-        their usernames. 
-        
+        Share an entire project with a list of users, identifed by
+        their usernames.
+
         The read_only flag ('Y' or 'N') must be set
         to 'Y' to allow write access or sharing.
 
-        The share flat ('Y' or 'N') must be set to 'Y' to allow the 
+        The share flat ('Y' or 'N') must be set to 'Y' to allow the
         project to be shared with other users
     """
     user_id = kwargs.get('user_id')
@@ -99,7 +119,7 @@ def share_project(project_id, usernames, read_only, share,**kwargs):
 
     #Is the sharing user allowed to share this project?
     proj_i.check_share_permission(int(user_id))
-   
+
     user_id = int(user_id)
 
     for owner in proj_i.owners:
@@ -107,7 +127,7 @@ def share_project(project_id, usernames, read_only, share,**kwargs):
             break
     else:
        raise HydraError("Permission Denied. Cannot share project.")
- 
+
     if read_only == 'Y':
         write = 'N'
         share = 'N'
@@ -121,18 +141,33 @@ def share_project(project_id, usernames, read_only, share,**kwargs):
 
     for username in usernames:
         user_i = _get_user(username)
-        
+
         proj_i.set_owner(user_i.user_id, write=write, share=share)
-        
+
         for net_i in proj_i.networks:
             net_i.set_owner(user_i.user_id, write=write, share=share)
     DBSession.flush()
 
+def unshare_project(project_id, usernames,**kwargs):
+    """
+        Un-share a project with a list of users, identified by their usernames.
+    """
+
+    user_id = kwargs.get('user_id')
+    proj_i = _get_project(project_id)
+    proj_i.check_share_permission(user_id)
+
+    for username in usernames:
+        user_i = _get_user(username)
+        #Set the owner ship on the network itself
+        proj_i.unset_owner(user_i.user_id, write=write, share=share)
+    DBSession.flush()
+
 def set_project_permission(project_id, usernames, read, write, share,**kwargs):
     """
-        Set permissions on a project to a list of users, identifed by 
-        their usernames. 
-        
+        Set permissions on a project to a list of users, identifed by
+        their usernames.
+
         The read flag ('Y' or 'N') sets read access, the write
         flag sets write access. If the read flag is 'N', then there is
         automatically no write access or share access.
@@ -140,10 +175,10 @@ def set_project_permission(project_id, usernames, read, write, share,**kwargs):
     user_id = kwargs.get('user_id')
 
     proj_i = _get_project(project_id)
-   
+
     #Is the sharing user allowed to share this project?
     proj_i.check_share_permission(user_id)
-   
+
     #You cannot edit something you cannot see.
     if read == 'N':
         write = 'N'
@@ -156,18 +191,18 @@ def set_project_permission(project_id, usernames, read, write, share,**kwargs):
         #to their project
         if proj_i.created_by == user_i.user_id:
             raise HydraError("Cannot set permissions on project %s"
-                             " for user %s as this user is the creator." % 
-                             (project_id, username)) 
-        
+                             " for user %s as this user is the creator." %
+                             (project_id, username))
+
         proj_i.set_owner(user_i.user_id, read=read, write=write)
-        
+
         for net_i in proj_i.networks:
             net_i.set_owner(user_i.user_id, read=read, write=write, share=share)
     DBSession.flush()
 
 def set_network_permission(network_id, usernames, read, write, share,**kwargs):
     """
-        Set permissions on a network to a list of users, identifed by 
+        Set permissions on a network to a list of users, identifed by
         their usernames. The read flag ('Y' or 'N') sets read access, the write
         flag sets write access. If the read flag is 'N', then there is
         automatically no write access or share access.
@@ -184,18 +219,18 @@ def set_network_permission(network_id, usernames, read, write, share,**kwargs):
     if read == 'N':
         write = 'N'
         share = 'N'
-   
+
     for username in usernames:
-        
+
         user_i = _get_user(username)
 
         #The creator of a network must always have read and write access
         #to their project
         if net_i.created_by == user_i.user_id:
             raise HydraError("Cannot set permissions on network %s"
-                             " for user %s as tis user is the creator." % 
+                             " for user %s as tis user is the creator." %
                              (network_id, username))
-        
+
         net_i.set_owner(user_i.user_id, read=read, write=write, share=share)
     DBSession.flush()
 
@@ -204,7 +239,7 @@ def hide_dataset(dataset_id, exceptions, read, write, share,**kwargs):
         Hide a particular piece of data so it can only be seen by its owner.
         Only an owner can hide (and unhide) data.
         Data with no owner cannot be hidden.
-        
+
         The exceptions paramater lists the usernames of those with permission to view the data
         read, write and share indicate whether these users can read, edit and share this data.
     """
@@ -229,7 +264,7 @@ def unhide_dataset(dataset_id,**kwargs):
         Hide a particular piece of data so it can only be seen by its owner.
         Only an owner can hide (and unhide) data.
         Data with no owner cannot be hidden.
-        
+
         The exceptions paramater lists the usernames of those with permission to view the data
         read, write and share indicate whether these users can read, edit and share this data.
     """

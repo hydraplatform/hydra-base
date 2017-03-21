@@ -79,7 +79,7 @@ def get_val(dataset, timestamp=None):
         try:
             #The data might be compressed.
             val = zlib.decompress(dataset.value)
-        except Exception, e:
+        except Exception as e:
             val = dataset.value
 
         seasonal_year = config.get('DEFAULT','seasonal_year', '1678')
@@ -137,6 +137,6 @@ def get_val(dataset, timestamp=None):
 
                 return ret_val
 
-            except Exception, e:
+            except Exception as e:
                 log.critical("Unable to retrive data. Check timestamps.")
                 log.critical(e)

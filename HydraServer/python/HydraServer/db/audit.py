@@ -55,21 +55,21 @@ def create_sqlite_backup_db(audit_tables):
     try:
         Popen("rm %s"%(config.get('sqlite', 'backup_url')), shell=True)
         logging.warn("Old sqlite backup DB removed")
-    except Exception, e:
+    except Exception as e:
         logging.warn(e)
 
     try:
         aux_dir = config.get('DEFAULT', 'hydra_aux_dir')
         os.mkdir(aux_dir)
         logging.warn("%s created", aux_dir)
-    except Exception, e:
+    except Exception as e:
         logging.warn(e)
 
     try:
         backup_dir = config.get('db', 'export_target')
         os.mkdir(backup_dir)
         logging.warn("%s created", backup_dir)
-    except Exception, e:
+    except Exception as e:
         logging.warn(e)
 
     db = create_engine(sqlite_engine, echo=True)

@@ -29,6 +29,8 @@ import zlib
 from HydraLib import config
 from HydraLib.HydraException import HydraError
 
+from HydraServer.lib.objects import Dataset
+
 NS = "soap_server.hydra_complexmodels"
 log = logging.getLogger(__name__)
 
@@ -185,7 +187,7 @@ class ResourceData(HydraComplexModel):
 
             self.dataset_metadata = json.dumps(self.metadata)
 
-class Dataset(HydraComplexModel):
+class Dataset(HydraComplexModel, Dataset):
     """
     - **id**               Integer(min_occurs=0, default=None)
     - **type**             Unicode
@@ -254,6 +256,9 @@ class Dataset(HydraComplexModel):
 
             data = str(self.value)
 
+            if data == 'NULL':
+                return 'NULL'
+
             if len(data) > 100:
                 log.debug("Parsing %s", data[0:100])
             else:
@@ -275,68 +280,15 @@ class Dataset(HydraComplexModel):
                     return ts
             elif self.type == 'array':
                 #check to make sure this is valid json
+                log.info(data)
                 json.loads(data)
                 if len(data) > int(config.get('db', 'compression_threshold', 1000)):
                     return zlib.compress(data)
                 else:
                     return data
-        except Exception, e:
+        except Exception as e:
             log.exception(e)
             raise HydraError("Error parsing value %s: %s"%(self.value, e))
-
-    def get_metadata_as_dict(self, user_id=None, source=None):
-        """
-        Convert a metadata json string into a dictionary.
-
-        Args:
-            user_id (int): Optional: Insert user_id into the metadata if specified
-            source (string): Optional: Insert source (the name of the app typically) into the metadata if necessary.
-
-        Returns:
-            dict: THe metadata as a python dictionary
-        """
-
-        if self.metadata is None:
-            return {}
-
-        metadata_dict = {}
-
-        if type(self.metadata) == dict:
-            metadata_dict = self.metadata
-        else:
-            metadata_dict = json.loads(self.metadata)
-
-        #These should be set on all datasests by default, but we don't
-        #want to enforce this rigidly
-        metadata_keys = [m.lower() for m in metadata_dict]
-        if user_id is not None and 'user_id' not in metadata_keys:
-            metadata_dict['user_id'] = str(user_id)
-
-        if source is not None and 'source' not in metadata_keys:
-            metadata_dict['source'] = str(source)
-
-        return metadata_dict
-
-    def get_hash(self, val, metadata):
-
-        if metadata is None:
-            metadata = self.get_metadata()
-
-        if val is None:
-            value = self.parse_value()
-        else:
-            value = val
-
-        dataset_dict = {'data_name' : self.name,
-                    'data_units': self.unit,
-                    'data_dimen': self.dimension,
-                    'data_type' : self.type.lower(),
-                    'value'     : value,
-                    'metadata'  : metadata,}
-
-        data_hash = generate_data_hash(dataset_dict)
-
-        return data_hash
 
 class DatasetCollection(HydraComplexModel):
     """
@@ -544,7 +496,7 @@ class TypeAttr(HydraComplexModel):
         ('data_type',          Unicode(default=None)),
         ('dimension',          Unicode(default=None)),
         ('unit',               Unicode(default=None)),
-        ('default_dataset_id', Integer(default=None)),
+        ('default_dataset',    Integer(default=None)),
         ('data_restriction',   AnyDict(default=None)),
         ('is_var',             Unicode(default=None)),
         ('description',        Unicode(default=None)),
@@ -569,7 +521,7 @@ class TypeAttr(HydraComplexModel):
         self.type_id   = parent.type_id
         self.data_type = parent.data_type
         self.unit      = parent.unit
-        self.default_dataset_id = self.default_dataset_id
+        self.default_dataset = self.default_dataset
         self.description = parent.description
         self.properties = self.get_outgoing_layout(parent.properties)
         self.cr_date = str(parent.cr_date)

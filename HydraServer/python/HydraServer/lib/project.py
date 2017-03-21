@@ -9,7 +9,7 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
@@ -21,7 +21,7 @@ from HydraServer.db.model import Project, ProjectOwner, Network
 from HydraServer.db import DBSession
 import network
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.orm import class_mapper
+from sqlalchemy.orm import class_mapper, joinedload_all
 from sqlalchemy import and_
 from HydraServer.util.hdb import add_attributes
 from sqlalchemy.util import KeyedTuple
@@ -48,18 +48,18 @@ def _add_project_attribute_data(project_i, attr_map, attribute_data):
 
         rscen = scenario._update_resourcescenario(None, attr)
         if attr.resource_attr_id < 0:
-            ra_i = attr_map[attr.resource_attr_id] 
+            ra_i = attr_map[attr.resource_attr_id]
             rscen.resourceattr = ra_i
 
         resource_scenarios.append(rscen)
-    return resource_scenarios 
+    return resource_scenarios
 
 def add_project(project,**kwargs):
     """
         Add a new project
         returns a project complexmodel
     """
-    user_id = kwargs.get('user_id') 
+    user_id = kwargs.get('user_id')
 
     #check_perm(user_id, 'add_project')
     proj_i = Project()
@@ -72,7 +72,7 @@ def add_project(project,**kwargs):
     proj_i.attribute_data = proj_data
 
     proj_i.set_owner(user_id)
-    
+
     DBSession.add(proj_i)
     DBSession.flush()
 
@@ -84,12 +84,12 @@ def update_project(project,**kwargs):
         returns a project complexmodel
     """
 
-    user_id = kwargs.get('user_id') 
+    user_id = kwargs.get('user_id')
     #check_perm(user_id, 'update_project')
-    proj_i = _get_project(project.id) 
-    
+    proj_i = _get_project(project.id)
+
     proj_i.check_write_permission(user_id)
-    
+
     proj_i.project_name        = project.name
     proj_i.project_description = project.description
 
@@ -104,7 +104,7 @@ def get_project(project_id,**kwargs):
     """
         get a project complexmodel
     """
-    user_id = kwargs.get('user_id') 
+    user_id = kwargs.get('user_id')
     proj_i = _get_project(project_id)
 
     proj_i.check_read_permission(user_id)
@@ -115,14 +115,14 @@ def get_project_by_name(project_name,**kwargs):
     """
         get a project complexmodel
     """
-    user_id = kwargs.get('user_id') 
+    user_id = kwargs.get('user_id')
     try:
         proj_i = DBSession.query(Project).filter(Project.project_name==project_name).one()
     except NoResultFound:
         raise ResourceNotFoundError("Project %s not found"%(project_name))
 
     proj_i.check_read_permission(user_id)
-    
+
     return proj_i
 
 def to_named_tuple(obj, visited_children=None, back_relationships=None, levels=None, ignore=[], extras={}):
@@ -138,7 +138,7 @@ def to_named_tuple(obj, visited_children=None, back_relationships=None, levels=N
         back_relationships = []
 
     serialized_data = {c.key: getattr(obj, c.key) for c in obj.__table__.columns}
-    
+
 
     #Any other non-column data to include in the keyed tuple
     for k, v in extras.items():
@@ -154,9 +154,9 @@ def to_named_tuple(obj, visited_children=None, back_relationships=None, levels=N
         else:
             serialized_data[name] = None
 
-    
+
     visitable_relationships = [(name, rel) for name, rel in relationships.items() if name not in back_relationships]
-    
+
     if levels is not None and levels > 0:
         for name, relation in visitable_relationships:
 
@@ -195,17 +195,18 @@ def get_projects(uid,**kwargs):
     """
         get a project complexmodel
     """
-    req_user_id = kwargs.get('user_id') 
+    req_user_id = kwargs.get('user_id')
 
     #Potentially join this with an rs of projects
     #where no owner exists?
 
-    projects = DBSession.query(Project).join(ProjectOwner).filter(ProjectOwner.user_id==uid).all()
+    projects = DBSession.query(Project).join(ProjectOwner).filter(ProjectOwner.user_id==uid).options(joinedload_all('networks')).order_by('project_id').all()
     for project in projects:
         project.check_read_permission(req_user_id)
 
-    ret_projects = [to_named_tuple(p, ignore=['user'], extras={'attribute_data':[]}) for p in projects]
-    
+    ret_projects = [to_named_tuple(p, ignore=['user'], extras={'attribute_data':[]}, levels=1) for p in projects]
+
+
     return ret_projects
 
 
@@ -213,7 +214,7 @@ def set_project_status(project_id, status, **kwargs):
     """
         Set the status of a project to 'X'
     """
-    user_id = kwargs.get('user_id') 
+    user_id = kwargs.get('user_id')
     #check_perm(user_id, 'delete_project')
     project = _get_project(project_id)
     project.check_write_permission(user_id)
@@ -224,7 +225,7 @@ def delete_project(project_id,**kwargs):
     """
         Set the status of a project to 'X'
     """
-    user_id = kwargs.get('user_id') 
+    user_id = kwargs.get('user_id')
     #check_perm(user_id, 'delete_project')
     project = _get_project(project_id)
     project.check_write_permission(user_id)
@@ -237,7 +238,7 @@ def get_networks(project_id, include_data='N', **kwargs):
         Returns an array of network objects.
     """
     log.info("Getting networks for project %s", project_id)
-    user_id = kwargs.get('user_id') 
+    user_id = kwargs.get('user_id')
     project = _get_project(project_id)
     project.check_read_permission(user_id)
 

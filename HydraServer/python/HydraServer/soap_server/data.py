@@ -598,7 +598,7 @@ class DataService(HydraService):
         """
         try:
             data.check_json(json_string)
-        except Exception, e:
+        except Exception as e:
             return "Unable to process JSON string. error was: %s"%e
 
         return 'OK'

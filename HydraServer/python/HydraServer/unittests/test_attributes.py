@@ -20,6 +20,8 @@ import server
 import logging
 from suds import WebFault
 from util import update_template
+import copy
+import json
 log = logging.getLogger(__name__)
 
 class AttributeTest(server.SoapServerTest):
@@ -339,17 +341,21 @@ class ResourceAttributeCollectionTest(server.SoapServerTest):
     """
     def test_add_resource_attr_collection(self):
         net = self.create_network_with_data()
+        net_no_collections = self.create_network_with_data()
 
         net_attrs = self.client.service.get_network_attributes(net.id)
+
+        attr_ids = []
 
         item_ids = self.client.factory.create("integerArray")
         for ra in net_attrs.ResourceAttr:
             item_ids.integer.append(ra.id)
+            attr_ids.append(ra.attr_id)
 
         ra_collection = {
             'name': 'Test RA collection',
             'resource_attr_ids' : item_ids,
-            'layout': 'test',
+            'layout': json.dumps({"test": "ABC"}),
         }
 
         new_ra_collection = self.client.service.add_resource_attr_collection(ra_collection)
@@ -374,11 +380,44 @@ class ResourceAttributeCollectionTest(server.SoapServerTest):
          
         assert len(larger_ra_collection.resource_attr_ids.integer) == len(item_ids.integer)
 
+        #Test searching for items
+        existing_items = self.client.service.get_all_resource_attr_collections()
+        assert len(existing_items[0]) >= len(attr_ids)
+
+        existing_items = self.client.service.get_resource_attr_collections_for_attr(attr_ids[0])
+        assert len(existing_items) > 0
+
+        no_items = self.client.service.get_resource_attr_collections_for_attr(999)
+        assert len(no_items) == 0
+        
+
+        #Test searching for items
+        network_items = self.client.service.get_resource_attr_collections_in_network(net.id)
+        assert len(network_items) == len(item_ids)
+
+        no_network_items = self.client.service.get_resource_attr_collections_in_network(net_no_collections.id)
+        assert len(no_network_items) == 0
+
+        no_node_items = self.client.service.get_resource_attr_collections_for_node(net.nodes[0][0].id)
+        assert len(no_node_items) == 0
+
+        no_link_items = self.client.service.get_resource_attr_collections_for_link(net.links[0][0].id)
+        assert len(no_link_items) == 0
+
+        ra_collection_to_update = copy.deepcopy(new_ra_collection)
+        ra_collection_to_update.layout = json.dumps({"tesing":123})
+
+        updated_ra_collection = self.client.service.update_resource_attr_collection(ra_collection_to_update)
+        assert json.loads(updated_ra_collection.layout) == json.loads(ra_collection_to_update.layout)
+        assert updated_ra_collection.name == ra_collection_to_update.name
 
         self.client.service.delete_resource_attr_collection(new_ra_collection.id)
 
         self.assertRaises(WebFault, self.client.service.get_resource_attr_collection, new_ra_collection.id)
+
+
         
+
 
 if __name__ == '__main__':
     server.run()

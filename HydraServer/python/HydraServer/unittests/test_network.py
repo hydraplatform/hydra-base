@@ -21,6 +21,7 @@ import copy
 import logging
 import suds
 import datetime
+import json
 log = logging.getLogger(__name__)
 
 class NetworkTest(server.SoapServerTest):
@@ -198,6 +199,9 @@ class NetworkTest(server.SoapServerTest):
 
         new_network.links.Link[1].node_1_id = net.nodes.Node[2].id
         new_network.links.Link[1].node_2_id = net.nodes.Node[1].id
+        new_network.links.Link[1].layout = {'color':'red'}
+        
+        new_network.nodes.Node[1].layout = {'color':'green'}
 
         new_network.description = \
             'A different network for SOAP unit tests.'
@@ -211,9 +215,12 @@ class NetworkTest(server.SoapServerTest):
         assert updated_network.links.Link[1].id == link_id
         assert updated_network.links.Link[1].node_1_id != old_node_1_id
         assert updated_network.links.Link[1].node_1_id == net.nodes.Node[2].id
+        assert updated_network.links.Link[1].layout['color'] == 'red'
 
         assert updated_network.links.Link[1].node_2_id != old_node_2_id
         assert updated_network.links.Link[1].node_2_id == net.nodes.Node[1].id
+
+        assert updated_network.nodes.Node[1].layout['color'] == 'green'
 
        # assert net.description != updated_network.description,\
        #     "project_description did not update"

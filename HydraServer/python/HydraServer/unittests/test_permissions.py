@@ -34,7 +34,7 @@ class LoginTest(server.SoapServerTest):
         login_response = None
         try:
             login_response = self.client.service.login('root', 'invalid_password')
-        except Exception, e:
+        except Exception as e:
             assert e.fault.faultcode.find("AuthenticationError") >= 0, \
                                         "An unexpected excepton was thrown!"
 
@@ -95,7 +95,7 @@ class SharingTest(server.SoapServerTest):
         net1 = self.client.service.get_network(network_1.id)
         try:
             net2 = self.client.service.get_network(network_2.id)
-        except Exception, e:
+        except Exception as e:
             print e
             net2 = None
 
@@ -109,7 +109,7 @@ class SharingTest(server.SoapServerTest):
         net2 = self.client.service.get_network(network_2.id)
         try:
             net1 = self.client.service.get_network(network_1.id)
-        except Exception, e:
+        except Exception as e:
             print e
             net1 = None
 
@@ -155,7 +155,7 @@ class SharingTest(server.SoapServerTest):
         self.login("UserB", 'password')
         try:
             self.client.service.get_network(network_1.id)
-        except Exception, e:
+        except Exception as e:
             assert e.fault.faultcode.find("HydraError") > 0
             assert e.fault.faultstring.find("Permission denied.") >= 0
         self.client.service.logout("UserB")
@@ -193,7 +193,7 @@ class SharingTest(server.SoapServerTest):
         userb_networks.Network[0].description = "Updated description"
         try:
             self.client.service.update_network(userb_networks.Network[0])
-        except Exception, e:
+        except Exception as e:
             assert e.fault.faultcode.find("HydraError") > 0
             assert e.fault.faultstring.find("Permission denied.") >= 0
 
@@ -253,7 +253,7 @@ class SharingTest(server.SoapServerTest):
         self.login("UserB", 'password')
         try:
             userb_networks = self.client.service.get_networks(network_1.project_id)
-        except Exception, e:
+        except Exception as e:
             assert e.fault.faultcode.find("HydraError") > 0
             assert e.fault.faultstring.find("Permission denied.") >= 0
         self.client.service.logout("UserB")

@@ -53,7 +53,7 @@ class NetworkService(HydraService):
         negative IDs in the client.
 
         The returned object will have positive IDS
-        
+
         Args:
             net (hydra_complexmodels.Network): The entire network complex model structure including nodes, links, scenarios and data
 
@@ -102,7 +102,7 @@ class NetworkService(HydraService):
     def get_network_as_json(ctx, network_id):
         """
         Return a whole network as a json string. Used for testing.
-        
+
         Args:
             network_id (int): The ID of the network to retrieve
 
@@ -142,7 +142,7 @@ class NetworkService(HydraService):
     @rpc(Integer, Unicode, _returns=Unicode)
     def network_exists(ctx, project_id, network_name):
         """
-        Using a network's name, check if a network exists or not within a project. 
+        Using a network's name, check if a network exists or not within a project.
 
         Args:
             project_id (int): The project in which you are searching
@@ -159,7 +159,7 @@ class NetworkService(HydraService):
 
         return net_exists
 
-    @rpc(Network, 
+    @rpc(Network,
         Unicode(pattern="['YN']", default='Y'),
         Unicode(pattern="['YN']", default='Y'),
         Unicode(pattern="['YN']", default='Y'),
@@ -177,7 +177,7 @@ class NetworkService(HydraService):
             updated_links (char) (Y or N): Flag to indicated whether the incoming network's links should be updated
             updated_groups (char) (Y or N): Flag to indicated whether the incoming network's resource groups should be updated
             updated_scenarios (char) (Y or N): Flag to indicated whether the incoming network's data should be updated
-        
+
         Returns:
             hydra_complexmodels.Network: The updated network, in summarised forms (without data or attributes)
 
@@ -314,7 +314,7 @@ class NetworkService(HydraService):
 
         Args:
             network_id (int): The network to delete
-        
+
         Returns:
             string: 'OK'
 
@@ -371,7 +371,7 @@ class NetworkService(HydraService):
         the minimum y value of all nodes,
         the maximum x value of all nodes and
         maximum y value of all nodes.
-        
+
         Args:
             network_id (int): The network to get the extents for
 
@@ -467,7 +467,7 @@ class NetworkService(HydraService):
     @rpc(Integer,  SpyneArray(Link), _returns=SpyneArray(Link))
     def add_links(ctx, network_id, links):
 
-        """      
+        """
         Add a lost of links to a network
 
         Args:
@@ -479,7 +479,7 @@ class NetworkService(HydraService):
 
         Raises:
             ResourceNotFoundError: If the network is not found
-        
+
         """
         link_s = network.add_links(network_id, links, **ctx.in_header.__dict__)
 
@@ -530,10 +530,10 @@ class NetworkService(HydraService):
              }
 
         Args:
-            node (hydra_complexmodels.Node): The node to be updated 
+            node (hydra_complexmodels.Node): The node to be updated
 
         Returns:
-            hydra_complexmodels.Node: The updated node. 
+            hydra_complexmodels.Node: The updated node.
 
         Raises:
             ResourceNotFoundError: If the node is not found
@@ -553,7 +553,7 @@ class NetworkService(HydraService):
 
         Args:
             node_id (int): The node to delete
-        
+
         Returns:
             string: 'OK'
 
@@ -567,7 +567,7 @@ class NetworkService(HydraService):
     def activate_node(ctx, node_id):
         """
         Set the status of a node to 'A'
-        
+
         Un-Deletes a node. (Set the status to 'Y' meaning it'll be included
         when you request a network.
 
@@ -601,7 +601,7 @@ class NetworkService(HydraService):
 
         Raises:
             ResourceNotFoundError: If the node is not found
-        """ 
+        """
         network.delete_node(node_id, purge_data, **ctx.in_header.__dict__)
         return 'OK'
 
@@ -632,10 +632,10 @@ class NetworkService(HydraService):
         Update a link.
 
         Args:
-            link       (hydra_complexmodels.Link): The link to be updated 
+            link       (hydra_complexmodels.Link): The link to be updated
 
         Returns:
-            hydra_complexmodels.Link: The updated link. 
+            hydra_complexmodels.Link: The updated link.
 
         Raises:
             ResourceNotFoundError: If the link is not found
@@ -652,7 +652,7 @@ class NetworkService(HydraService):
 
         Args:
             link_id (int): The link to delete
-        
+
         Returns:
             string: 'OK'
 
@@ -708,7 +708,7 @@ class NetworkService(HydraService):
 
         Args:
             network_id (int):  The id of the network to receive the new node
-            group      (hydra_complexmodels.ResourceGroup): The group to be added 
+            group      (hydra_complexmodels.ResourceGroup): The group to be added
 
         Returns:
             hydra_complexmodels.ResourceGroup: The newly added group, complete with an ID
@@ -728,7 +728,7 @@ class NetworkService(HydraService):
         Set the status of a group to 'X'
         Args:
             group_id (int): The resource group to delete
-        
+
         Returns:
             string: 'OK'
 
@@ -742,7 +742,7 @@ class NetworkService(HydraService):
     @rpc(Integer, Unicode(pattern="[YN]", default='Y'), _returns=Unicode)
     def purge_group(ctx, group_id, purge_data):
         """
-        Remove a resource group from the DB completely. If purge data is set 
+        Remove a resource group from the DB completely. If purge data is set
         to 'Y', any data that is unconnected after the removal of the group
         will be removed also.
 
@@ -795,11 +795,7 @@ class NetworkService(HydraService):
         """
         scenarios_i = network.get_scenarios(network_id, **ctx.in_header.__dict__)
 
-        scenarios = []
-        for scen in scenarios_i:
-            scen.load()
-            s_complex = Scenario(scen)
-            scenarios.append(s_complex)
+        scenarios = [Scenario(scen) for scen in scenarios_i]
 
         return scenarios
 
@@ -808,7 +804,7 @@ class NetworkService(HydraService):
         """
         Check for the presence of orphan nodes in a network.
         Args:
-            network_id (int): The network to check 
+            network_id (int): The network to check
 
         Returns:
             List(int)): IDs of all the orphan nodes in the network
@@ -826,7 +822,7 @@ class NetworkService(HydraService):
         which have the specified type.
 
         Args:
-            network_id (int): Types of resources in this network 
+            network_id (int): Types of resources in this network
             type_id    (int): Search for resources of this type.
 
         Returns:
@@ -853,7 +849,7 @@ class NetworkService(HydraService):
         """
         Purge all nodes, links, groups and scenarios from a network which
         have previously been deleted.
-        
+
         Args:
             network_id (int): The network to clean up
 
@@ -871,7 +867,7 @@ class NetworkService(HydraService):
         """
         Return all the attributes for all the nodes in a given network and a
         given scenario.
-        
+
 
         Args:
             network_id (int): The network to search in
@@ -975,7 +971,7 @@ class NetworkService(HydraService):
             scenario_id (int): The scenario to search
             include_values (string) ('Y' or 'N'): Default 'N'. Set to 'Y' to return the values. This may vause a performance hit as values are BIG!
             include_metadata: (string) ('Y' or 'N'): Default 'N'. Set to 'Y' to return metadata. This may vause a performance hit as metadata is BIG!
-            page_start (int): The start of the search results (allows you to contol the nuber of results) 
+            page_start (int): The start of the search results (allows you to contol the nuber of results)
             page_end (int): The end of the search results
 
         Returns:

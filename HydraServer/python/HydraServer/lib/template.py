@@ -27,6 +27,7 @@ from sqlalchemy.orm import joinedload_all, noload
 from sqlalchemy import or_, and_
 import re
 import units
+import json
 log = logging.getLogger(__name__)
 
 def _check_dimension(typeattr, unit=None):
@@ -227,7 +228,7 @@ def upload_template_xml(template_xml,**kwargs):
                xml_tree.find('layout').text is not None:
         layout = xml_tree.find('layout')
         layout_string = get_layout_as_dict(layout)
-        template_layout = str(layout_string)
+        template_layout = json.dumps(layout_string)
 
     try:
         tmpl_i = DBSession.query(Template).filter(Template.template_name==template_name).options(joinedload_all('templatetypes.typeattrs.attr')).one()
@@ -287,7 +288,7 @@ def upload_template_xml(template_xml,**kwargs):
             resource.find('layout').text is not None:
             layout = resource.find('layout')
             layout_string = get_layout_as_dict(layout)
-            type_i.layout = str(layout_string)
+            type_i.layout = json.dumps(layout_string)
        
         if resource.find('type') is not None and \
            resource.find('type').text is not None:
@@ -472,6 +473,7 @@ def assign_types_to_resources(resource_types,**kwargs):
     log.info("Retrieved all the appropriate template types")
     res_types = []
     res_attrs = []
+    res_scenarios = []
 
     net_id = None
     node_ids = []
@@ -506,16 +508,21 @@ def assign_types_to_resources(resource_types,**kwargs):
         elif ref_key == 'GROUP':
             resource = groups[ref_id]
 
-        ra, rt = set_resource_type(resource, type_id, types)
+        ra, rt, rs= set_resource_type(resource, type_id, types)
         if rt is not None:
             res_types.append(rt)
         if len(ra) > 0:
             res_attrs.extend(ra)
+        if len(rs) > 0:
+            res_scenarios.extend(rs)
+
     log.info("Retrieved all the appropriate resources")
     if len(res_types) > 0:
         DBSession.execute(ResourceType.__table__.insert(), res_types)
     if len(res_attrs) > 0:
         DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
+    if len(res_scenarios) > 0:
+        DBSession.execute(ResourceScenario.__table__.insert(), res_scenarios)
 
     #Make DBsession 'dirty' to pick up the inserts by doing a fake delete. 
     DBSession.query(Attr).filter(Attr.attr_id==None).delete()
@@ -692,7 +699,7 @@ def assign_type_to_resource(type_id, resource_type, resource_id,**kwargs):
         resource = DBSession.query(Link).filter(Link.link_id==resource_id).one()
     elif resource_type == 'GROUP':
         resource = DBSession.query(ResourceGroup).filter(ResourceGroup.group_id==resource_id).one()
-    res_attrs, res_type = set_resource_type(resource, type_id, **kwargs)
+    res_attrs, res_type, res_scenarios = set_resource_type(resource, type_id, **kwargs)
 
     type_i = DBSession.query(TemplateType).filter(TemplateType.type_id==type_id).one()
     if resource_type != type_i.resource_type:
@@ -704,6 +711,9 @@ def assign_type_to_resource(type_id, resource_type, resource_id,**kwargs):
 
     if len(res_attrs) > 0:
         DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
+
+    if len(res_scenarios) > 0:
+        DBSession.execute(ResourceScenario.__table__.insert(), res_scenarios)
 
     #Make DBsession 'dirty' to pick up the inserts by doing a fake delete. 
     DBSession.query(Attr).filter(Attr.attr_id==None).delete()
@@ -736,19 +746,25 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
 
     type_attrs = dict()
     for typeattr in type_i.typeattrs:
-        type_attrs.update({typeattr.attr_id:
-                           typeattr.attr_is_var})
+        type_attrs.update({typeattr.attr_id:{
+                            'is_var':typeattr.attr_is_var,
+                            'default_dataset_id': typeattr.default_dataset_id}})
 
     # check if attributes exist
     missing_attr_ids = set(type_attrs.keys()) - set(existing_attr_ids)
 
     # add attributes if necessary
     new_res_attrs = []
+
+    #This is a dict as the length of the list may not match the new_res_attrs 
+    #Keyed on attr_id, as resource_attr_id doesn't exist yet, and there should only
+    #be one attr_id per template.
+    new_res_scenarios = {}
     for attr_id in missing_attr_ids:
         ra_dict = dict(
             ref_key = ref_key,
             attr_id = attr_id,
-            attr_is_var = type_attrs[attr_id],
+            attr_is_var = type_attrs[attr_id]['is_var'],
             node_id    = resource.node_id    if ref_key == 'NODE' else None,
             link_id    = resource.link_id    if ref_key == 'LINK' else None,
             group_id   = resource.group_id   if ref_key == 'GROUP' else None,
@@ -756,6 +772,20 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
 
         )
         new_res_attrs.append(ra_dict)
+        
+
+
+        if type_attrs[attr_id]['default_dataset_id'] is not None:
+            if hasattr(resource, 'network'):
+                
+                new_res_scenarios[attr_id] =  dict()
+                for s in resource.network.scenarios:
+                    new_res_scenarios[attr_id][s.scenario_id] =  dict(
+                        dataset_id = type_attrs[attr_id]['default_dataset_id'],
+                        scenario_id = s.scenario_id
+                    )
+
+
     resource_type = None
     for rt in resource.types:
         if rt.type_id == type_i.type_id:
@@ -778,7 +808,7 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
             type_id    = type_id,
         )
 
-    return new_res_attrs, resource_type
+    return new_res_attrs, resource_type, new_res_scenarios
 
 def remove_type_from_resource( type_id, resource_type, resource_id,**kwargs): 
     """ 
@@ -794,17 +824,24 @@ def remove_type_from_resource( type_id, resource_type, resource_id,**kwargs):
                                         ResourceType.node_id == node_id,
     ResourceType.link_id == link_id,
     ResourceType.group_id == group_id).one() 
+
     DBSession.delete(resourcetype) 
 
 def _parse_data_restriction(restriction_dict):
-#    {{soap_server.hydra_complexmodels}LESSTHAN}
-
-    if restriction_dict is None or restriction_dict == '':
+    log.critical(restriction_dict)
+    if restriction_dict is None or len(restriction_dict) == 0:
         return None
 
+    #replace soap text with an empty string
+    #'{soap_server.hydra_complexmodels}' -> ''
     dict_str = re.sub('{[a-zA-Z\.\_]*}', '', str(restriction_dict))
 
-    new_dict = eval(dict_str)
+    new_dict = eval(str(restriction_dict))
+    
+    #Evaluate whether the dict actually contains anything.
+    if not isinstance(new_dict, dict) or len(new_dict) == 0:
+        log.critical('A restriction was specified, but it is null')
+        return None
 
     ret_dict = {}
     for k, v in new_dict.items():
@@ -815,14 +852,14 @@ def _parse_data_restriction(restriction_dict):
 
     return str(ret_dict)
 
-def add_template(template,**kwargs):
+def add_template(template, **kwargs):
     """
         Add template and a type and typeattrs.
     """
     tmpl = Template()
     tmpl.template_name = template.name
     if template.layout:
-        tmpl.layout        = str(template.layout)
+        tmpl.layout = str(template.layout)
 
     DBSession.add(tmpl)
 
@@ -842,37 +879,53 @@ def update_template(template,**kwargs):
     tmpl.template_name = template.name
     if template.layout is not None:
         tmpl.layout        = str(template.layout)
+
+    type_dict = dict([(t.type_id, t) for t in tmpl.templatetypes])
+    existing_templatetypes = []
+
     if template.types is not None:
         for templatetype in template.types:
             if templatetype.id is not None:
-                for type_i in tmpl.templatetypes:
-                    if type_i.type_id == templatetype.id:
-                        _update_templatetype(templatetype, type_i)
-                        break
+                if type_dict.get(templatetype.id) is None:
+                    import pudb; pudb.set_trace()   
+                type_i = type_dict[templatetype.id] 
+                _update_templatetype(templatetype, type_i)
+                existing_templatetypes.append(type_i.type_id)
             else:
-                _update_templatetype(templatetype)
+                new_templatetype_i = _update_templatetype(templatetype)
+                existing_templatetypes.append(new_templatetype_i.type_id)
 
+    for tt in tmpl.templatetypes:
+        if tt.type_id not in existing_templatetypes:
+            delete_templatetype(tt.type_id)
+    
     DBSession.flush()
  
     return tmpl
 
 def delete_template(template_id,**kwargs):
     """
-        Add template and a type and typeattrs.
+        Delete a template and its type and typeattrs.
     """
     try:
         tmpl = DBSession.query(Template).filter(Template.template_id==template_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Template %s not found"%(template_id,))
     DBSession.delete(tmpl)
-    return tmpl
+    return 'OK'
 
-def get_templates(**kwargs):
+def get_templates(load_all=True, **kwargs):
     """
-        Get all resource template templates.
+        Get all templates.
+        Args:
+            load_all Boolean: Returns just the template entry or the full template structure (template types and type attrs)
+        Returns:
+            List of Template objects
     """
-
-    templates = DBSession.query(Template).options(joinedload_all('templatetypes.typeattrs')).all()
+    if load_all is False:
+        templates = DBSession.query(Template).all()
+    else:
+        templates = DBSession.query(Template).options(joinedload_all('templatetypes.typeattrs')).all()
 
     return templates 
 
@@ -890,7 +943,7 @@ def get_template(template_id,**kwargs):
         Get a specific resource template template, either by ID or name.
     """
 
-    tmpl = DBSession.query(Template).filter(Template.template_id==template_id).one()
+    tmpl = DBSession.query(Template).filter(Template.template_id==template_id).options(joinedload_all('templatetypes.typeattrs.default_dataset.metadata')).one()
 
     return tmpl
 
@@ -966,7 +1019,7 @@ def _set_typeattr(typeattr, existing_ta = None):
     
     ta.properties         = typeattr.get_properties()
     
-    ta.attr_is_var        = typeattr.is_var
+    ta.attr_is_var        = typeattr.is_var if typeattr.is_var is not None else 'N'
 
     ta.data_restriction = _parse_data_restriction(typeattr.data_restriction)
 
@@ -1005,21 +1058,35 @@ def _update_templatetype(templatetype, existing_tt=None):
     tmpltype_i.template_id = templatetype.template_id
     tmpltype_i.type_name  = templatetype.name
     tmpltype_i.alias      = templatetype.alias
+
     if templatetype.layout is not None:
-        tmpltype_i.layout     = str(templatetype.layout)
+        try:
+            tmpltype_i.layout = json.dumps(templatetype.layout)
+        except:
+            tmpltype_i.layout = str(templatetype.layout)
+
     tmpltype_i.resource_type = templatetype.resource_type
     
     ta_dict = {}
     for t in tmpltype_i.typeattrs:
         ta_dict[t.attr_id] = t
+    
+    existing_attrs = []
 
     if templatetype.typeattrs is not None:
         for typeattr in templatetype.typeattrs:
             if typeattr.attr_id in ta_dict:
                 ta = _set_typeattr(typeattr, ta_dict[typeattr.attr_id])
+                existing_attrs.append(ta.attr_id)
             else:
                 ta = _set_typeattr(typeattr)
                 tmpltype_i.typeattrs.append(ta)
+                existing_attrs.append(ta.attr_id)
+
+    log.info("Deleting any type attrs not sent")
+    for ta in ta_dict.values():
+        if ta.attr_id not in existing_attrs:
+            delete_typeattr(ta)
 
     if existing_tt is None:
         DBSession.add(tmpltype_i)
@@ -1099,7 +1166,7 @@ def validate_attr(resource_attr_id, scenario_id, template_id=None):
     
     try:
         _do_validate_resourcescenario(rs, template_id)
-    except HydraError, e:
+    except HydraError as e:
 
         error = dict(
                  ref_key = rs.resourceattr.ref_key,
@@ -1129,7 +1196,7 @@ def validate_attrs(resource_attr_ids, scenario_id, template_id=None):
     for rs in multi_rs:
         try:
             _do_validate_resourcescenario(rs, template_id)
-        except HydraError, e:
+        except HydraError as e:
 
             error = dict(
                      ref_key = rs.resourceattr.ref_key,
@@ -1161,7 +1228,7 @@ def validate_scenario(scenario_id, template_id=None):
     for rs in scenario_rs:
         try:
             _do_validate_resourcescenario(rs, template_id)
-        except HydraError, e:
+        except HydraError as e:
 
             error = dict(
                      ref_key = rs.resourceattr.ref_key,
