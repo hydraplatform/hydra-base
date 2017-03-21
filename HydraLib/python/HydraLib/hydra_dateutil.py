@@ -119,7 +119,11 @@ def ordinal_to_timestamp(date):
         return None
 
     if type(date) in (str, unicode):
-        date = Decimal(date)
+        try:
+            date = Decimal(date)
+        except:
+            log.warning("Unable to convert %s to a timestamp" % (date))
+            return date
 
     day = int(date)
     time = date - day
