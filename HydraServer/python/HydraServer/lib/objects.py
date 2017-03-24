@@ -75,6 +75,17 @@ class JSONObject(dict):
                     pass
 
                 if k == 'layout' and v is not None:
+                    #Check if the layout is valid json or evaluates to a dict.
+                    try:
+                        v = json.loads(v)
+                    except:
+                        try:
+                           v = eval(v)
+                        except:
+                           continue
+                    #We're only interested in dicts
+                    if not isinstance(v, dict):
+                        continue
                     v = JSONObject(v)
 
                 if isinstance(v, datetime):
