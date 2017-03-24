@@ -156,7 +156,7 @@ class JsonConnection(object):
         log.info("Setting URL %s", self.url)
         self.app_name = app_name
 
-        self.sessionid = sessionid
+        self.session_id = sessionid
 
     def call(self, func, args):
         start_time = time.time()
@@ -257,7 +257,7 @@ class SoapConnection(object):
             user = config.get('hydra_client', 'user')
             passwd = config.get('hydra_client', 'password')
             login_response = self.client.service.login(user, passwd)
-            token.userid = login_response.userid
+            token.user_id = login_response.user_id
             sessionid = login_response.sessionid
             token.username = user
 
