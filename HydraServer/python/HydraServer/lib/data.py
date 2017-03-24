@@ -578,6 +578,7 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
     metadata         = {}
     #This is what gets returned.
     for d in bulk_data:
+        log.info(d.data_hash)
         dataset_dict = new_data[d.data_hash]
         current_hash = d.data_hash
 

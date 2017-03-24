@@ -16,7 +16,7 @@
 from spyne.model.primitive import Mandatory, String, Unicode
 from spyne.error import Fault
 from spyne.model.complex import ComplexModel
-from spyne.decorator import srpc, rpc
+from spyne.decorator import rpc
 from hydra_complexmodels import LoginResponse
 import logging
 from HydraServer.util.hdb import login_user
@@ -26,14 +26,6 @@ from spyne.protocol.json import JsonDocument
 from spyne.service import ServiceBase
 
 log = logging.getLogger(__name__)
-_session_db = dict()
-
-def get_session_db():
-    return _session_db
-
-def set_session_db(session_db):
-    global _session_db
-    _session_db = session_db
 
 class HydraDocument(JsonDocument):
     """An implementation of the json protocol
@@ -63,14 +55,14 @@ class HydraDocument(JsonDocument):
 
 class RequestHeader(ComplexModel):
     __namespace__ = 'hydra.base'
-    sessionid    = Unicode
+
     username     = Unicode
-    userid       = Unicode
+    user_id       = Unicode
     appname      = Unicode
 
     def __init__(self):
         self.appname = None
-        self.userid  = None
+        self.user_id  = None
         self.username = None
 
 class HydraService(ServiceBase):
@@ -122,15 +114,17 @@ class LogoutService(HydraService):
     @rpc(Mandatory.String, _returns=String,
                                                     _throws=AuthenticationError)
     def logout(ctx, username):
-        del(_session_db[ctx.in_header.sessionid])
+
+        ctx.transport.req_env['beaker.session'].delete()
+
         return "OK"
 
 class AuthenticationService(ServiceBase):
     __tns__      = 'hydra.base'
 
-    @srpc(Mandatory.Unicode, Unicode, _returns=LoginResponse,
+    @rpc(Mandatory.Unicode, Unicode, _returns=Unicode,
                                                    _throws=AuthenticationError)
-    def login(username, password):
+    def login(ctx, username, password):
         try:
 
             if username is None:
@@ -141,13 +135,12 @@ class AuthenticationService(ServiceBase):
                 raise HydraError("No password specified")
             password = password.encode('utf-8')
 
-            user_id, sessionid = login_user(username, password)
-        except HydraError as e:
+            user_id = login_user(username, password)
+        except HydraError, e:
             raise AuthenticationError(e)
 
-        _session_db[sessionid] = (user_id, username)
-        loginresponse = LoginResponse()
-        loginresponse.sessionid = sessionid
-        loginresponse.userid    = user_id
-        print loginresponse
-        return loginresponse
+        ctx.transport.req_env['beaker.session']['user_id'] = user_id
+        ctx.transport.req_env['beaker.session']['username'] = username
+        ctx.transport.req_env['beaker.session'].save()
+
+        return "OK"

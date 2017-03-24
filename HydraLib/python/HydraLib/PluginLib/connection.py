@@ -16,7 +16,6 @@
 # -*- coding: utf-8 -*-
 
 __all__ = ['JsonConnection', 'SoapConnection']
-
 import requests
 import json
 
@@ -30,6 +29,7 @@ from HydraLib import config
 
 from exception import RequestError
 
+import time
 
 class FixNamespace(MessagePlugin):
     """Hopefully a temporary fix for an unresolved namespace issue.
@@ -156,17 +156,20 @@ class JsonConnection(object):
         log.info("Setting URL %s", self.url)
         self.app_name = app_name
 
-        self.sessionid = sessionid
+        self.session_id = sessionid
 
     def call(self, func, args):
+        start_time = time.time()
         log.info("Calling: %s" % (func))
         call = {func: args}
-        headers = {'Content-Type': 'application/json',
-                   'sessionid': self.sessionid,
+        headers = {
+                   'Content-Type': 'application/json',
                    'appname': self.app_name,
                    }
 
-        r = requests.post(self.url, data=json.dumps(call), headers=headers)
+        cookie = {'beaker.session.id':self.session_id, 'appname:': self.app_name}
+        r = requests.post(self.url, data=json.dumps(call), headers=headers, cookies=cookie)
+
         if not r.ok:
             try:
                 resp = json.loads(r.content)
@@ -189,9 +192,13 @@ class JsonConnection(object):
 
             raise RequestError(err)
 
+        if self.session_id is None:
+            self.session_id = r.cookies['beaker.session.id']
+            log.info(self.session_id)
+
         ret_obj = json.loads(r.content, object_hook=object_hook)
 
-        log.info('done')
+        log.info('done (%s)'%(time.time() -start_time,))
 
         return ret_obj
 
@@ -205,12 +212,6 @@ class JsonConnection(object):
         resp = self.call('login', login_params)
         #set variables for use in request headers
         log.info(resp)
-        self.sessionid = resp.sessionid
-
-        log.info("Session ID=%s", self.sessionid)
-
-        return self.sessionid
-
 
 class SoapConnection(object):
 
@@ -256,11 +257,11 @@ class SoapConnection(object):
             user = config.get('hydra_client', 'user')
             passwd = config.get('hydra_client', 'password')
             login_response = self.client.service.login(user, passwd)
-            token.userid = login_response.user_id
-            session_id = login_response.session_id
+            token.user_id = login_response.user_id
+            sessionid = login_response.sessionid
             token.username = user
 
-        token.sessionid = session_id
+        token.sessionid = sessionid
         self.client.set_options(soapheaders=token)
 
         return session_id

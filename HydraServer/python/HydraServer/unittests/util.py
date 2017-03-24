@@ -65,6 +65,7 @@ def login(client, username, password):
     token = client.factory.create('RequestHeader')
     if login_response != "OK":
         token.sessionid = login_response.sessionid
+
     token.appname = "Unit Test"
 
     client.set_options(cache=None, soapheaders=token)
@@ -551,7 +552,7 @@ def build_network(client, project_id=None, num_nodes=10, new_proj=True,
     node_array.Node = nodes
     link_array = client.factory.create("hyd:LinkArray")
     link_array.Link = links
-    
+
     net_attr = create_attr(client, "net_attr_b", dimension='Pressure')
     net_ra_notmpl = dict(
         ref_id  = None,
@@ -730,7 +731,7 @@ def create_timeseries(client, ResourceAttr):
     t1 = datetime.datetime.now()
     t2 = t1+datetime.timedelta(hours=1)
     t3 = t1+datetime.timedelta(hours=2)
- 
+
     val_1 = [[[1, 2, "hello"], [5, 4, 6]], [[10, 20, 30], [40, 50, 60]], [[9, 8, 7],[6, 5, 4]]]
     val_2 = [1.0, 2.0, 3.0]
 

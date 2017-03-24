@@ -66,7 +66,6 @@ from HydraServer.soap_server.rules import RuleService
 from HydraServer.soap_server.notes import NoteService
 from HydraServer.soap_server.hydra_base import AuthenticationService,\
     LogoutService,\
-    get_session_db,\
     AuthenticationError,\
     ObjectNotFoundError,\
     HydraServiceError,\
@@ -75,7 +74,10 @@ from HydraServer.soap_server.sharing import SharingService
 from spyne.util.wsgi_wrapper import WsgiMounter
 import socket
 
+
+from beaker.middleware import SessionMiddleware
 from HydraServer.ui import app as ui_app
+
 
 applications = [
     AuthenticationService,
@@ -112,13 +114,11 @@ from HydraServer.db import commit_transaction, rollback_transaction
 log = logging.getLogger(__name__)
 
 def _on_method_call(ctx):
+
+    env = ctx.transport.req_env
+
     if ctx.function == AuthenticationService.login:
         return
-
-    if ctx.in_body_doc.get('sessionid'):
-        session_id=ctx.in_body_doc['sessionid'][0]
-    else:
-        session_id=ctx.in_header.sessionid
 
     if ctx.in_object is None:
         raise ArgumentError("RequestHeader is null")
@@ -126,13 +126,14 @@ def _on_method_call(ctx):
     if ctx.in_header is None:
         raise AuthenticationError("No headers!")
 
-    session_db = get_session_db()
-    sess_info  = session_db.get(session_id)
-    if sess_info is None:
-        raise Fault("No Session")
+    session = env['beaker.session']
 
-    ctx.in_header.user_id  = sess_info[0]
-    ctx.in_header.username = sess_info[1]
+    if session.get('userid') is None:
+        raise Fault("No Session!")
+
+    ctx.in_header.user_id = session['userid']
+    ctx.in_header.username = session['username']
+
 
 def _on_method_context_closed(ctx):
     commit_transaction()
@@ -246,10 +247,12 @@ class HydraServer():
         check_port_available(domain, port)
 
         spyne.const.xml_ns.DEFAULT_NS = 'soap_server.hydra_complexmodels'
+
         cp_wsgi_application = CherryPyWSGIServer((domain,port), application, numthreads=10)
 
         log.info("listening to http://%s:%s", domain, port)
         log.info("wsdl is at: http://%s:%s/soap/?wsdl", domain, port)
+
         try:
             cp_wsgi_application.start()
         except KeyboardInterrupt:
@@ -274,7 +277,7 @@ json_application = s.create_json_application()
 jsonp_application = s.create_jsonp_application()
 http_application = s.create_http_application()
 
-application = WsgiMounter({
+wsgi_application = WsgiMounter({
     config.get('hydra_server', 'soap_path', 'soap'): soap_application,
     config.get('hydra_server', 'json_path', 'json'): json_application,
     'jsonp': jsonp_application,
@@ -282,8 +285,17 @@ application = WsgiMounter({
     '': ui_app,
 })
 
-for server in application.mounts.values():
+for server in wsgi_application.mounts.values():
     server.max_content_length = 100 * 0x100000 # 10 MB
+
+# Configure the SessionMiddleware
+session_opts = {
+    'session.type': 'file',
+    'session.cookie_expires': True,
+    'session.data_dir':'/tmp',
+    'session.file_dir':'/tmp/auth',
+}
+application = SessionMiddleware(wsgi_application, session_opts)
 
 #To kill this process, use this command:
 #ps -ef | grep 'server.py' | grep 'python' | awk '{print $2}' | xargs kill
