@@ -241,7 +241,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
 
 def _add_nodes_to_database(net_i, nodes):
     #First add all the nodes
-    log.info("Adding nodes to network")
+    log.info("Adding nodes to network %s", net_i.network_id)
     node_list = []
     for node in nodes:
         node_dict = {'network_id'   : net_i.network_id,
@@ -255,6 +255,7 @@ def _add_nodes_to_database(net_i, nodes):
     t0 = time.time()
     if len(node_list):
         DBSession.execute(Node.__table__.insert(), node_list)
+    DBSession.flush()
     logging.info("Node insert took %s secs"% str(time.time() - t0))
 
 def _add_nodes(net_i, nodes):
