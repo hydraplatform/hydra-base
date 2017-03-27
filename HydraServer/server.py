@@ -109,7 +109,7 @@ import datetime
 import traceback
 
 from cherrypy.wsgiserver import CherryPyWSGIServer
-from HydraServer.db import commit_transaction, rollback_transaction
+from HydraServer.db import commit_transaction, rollback_transaction, close_session
 
 log = logging.getLogger(__name__)
 
@@ -136,7 +136,10 @@ def _on_method_call(ctx):
 
 
 def _on_method_context_closed(ctx):
+    log.info("Committing...")
     commit_transaction()
+    log.info("Closing session")
+    close_session()
 
 class HydraSoapApplication(Application):
     """
@@ -165,7 +168,6 @@ class HydraSoapApplication(Application):
 
             start = datetime.datetime.now()
             res =  ctx.service_class.call_wrapper(ctx)
-
             log.info("Call took: %s"%(datetime.datetime.now()-start))
             return res
         except HydraError as e:
@@ -228,7 +230,7 @@ class HydraServer():
                 )
         return app
 
-    def run_server(self):
+    def run_server(self, port=None):
 
         log.info("home_dir %s",config.get('DEFAULT', 'home_dir'))
         log.info("hydra_base_dir %s",config.get('DEFAULT', 'hydra_base_dir'))
@@ -241,7 +243,9 @@ class HydraServer():
         log.info("plugin_xsd_path %s",config.get('plugin', 'plugin_xsd_path'))
         log.info("log_config_path %s",config.get('logging_conf', 'log_config_path'))
 
-        port = config.getint('hydra_server', 'port', 8080)
+        if port is None:
+            port = config.getint('hydra_server', 'port', 8080)
+
         domain = config.get('hydra_server', 'domain', '127.0.0.1')
 
         check_port_available(domain, port)
@@ -300,4 +304,14 @@ application = SessionMiddleware(wsgi_application, session_opts)
 #To kill this process, use this command:
 #ps -ef | grep 'server.py' | grep 'python' | awk '{print $2}' | xargs kill
 if __name__ == '__main__':
-    s.run_server()
+
+    args = sys.argv
+    
+    print args
+
+    if len(args) > 0:
+        port = int(args[1])
+    else:
+        port = None
+
+    s.run_server(port=port)
