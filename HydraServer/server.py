@@ -136,7 +136,10 @@ def _on_method_call(ctx):
 
 
 def _on_method_context_closed(ctx):
+    log.info("Committing...")
     commit_transaction()
+    log.info("Closing session")
+    close_session()
 
 class HydraSoapApplication(Application):
     """
@@ -165,7 +168,6 @@ class HydraSoapApplication(Application):
 
             start = datetime.datetime.now()
             res =  ctx.service_class.call_wrapper(ctx)
-            close_session()
             log.info("Call took: %s"%(datetime.datetime.now()-start))
             return res
         except HydraError as e:
