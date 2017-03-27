@@ -98,10 +98,10 @@ def _get_port(url):
 
     if url.find('http://') == 0:
         url = url.replace('http://', '')
+        port = 80
     if url.find('https://') == 0:
         url = url.replace('https://', '')
-
-    port = 80
+        port = 443
 
     url_parts = url.split(':')
 
