@@ -55,6 +55,8 @@ def commit_transaction():
     except Exception as e:
         log.critical(e)
         transaction.abort()
+
+def close_session():
     DBSession.remove()
 
 def rollback_transaction():
