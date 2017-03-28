@@ -32,7 +32,6 @@ install_requires=[
     "mysql-connector-python",
     "suds",
     "spyne >= 2.12",
-    "cherrypy",
     "python-dateutil",
     ]
 
