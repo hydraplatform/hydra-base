@@ -30,7 +30,7 @@ Dependencies
     suds
     spyne >= 2.12
     winpaths
-    cherrypy
+    cheroot
     python-dateutil
 
 FAQ
