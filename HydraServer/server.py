@@ -108,7 +108,7 @@ from HydraServer.util import hdb
 import datetime
 import traceback
 
-from cherrypy.wsgiserver import CherryPyWSGIServer
+from cheroot.wsgi import Server
 from HydraServer.db import commit_transaction, rollback_transaction, close_session
 
 log = logging.getLogger(__name__)
@@ -252,7 +252,7 @@ class HydraServer():
 
         spyne.const.xml_ns.DEFAULT_NS = 'soap_server.hydra_complexmodels'
 
-        cp_wsgi_application = CherryPyWSGIServer((domain,port), application, numthreads=10)
+        cp_wsgi_application = Server((domain,port), application, numthreads=1)
 
         log.info("listening to http://%s:%s", domain, port)
         log.info("wsdl is at: http://%s:%s/soap/?wsdl", domain, port)
