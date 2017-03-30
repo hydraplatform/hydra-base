@@ -309,7 +309,7 @@ if __name__ == '__main__':
     
     print args
 
-    if len(args) > 0:
+    if len(args) > 1:
         port = int(args[1])
     else:
         port = None
