@@ -252,7 +252,7 @@ class HydraServer():
 
         spyne.const.xml_ns.DEFAULT_NS = 'soap_server.hydra_complexmodels'
 
-        cp_wsgi_application = Server((domain,port), application, numthreads=1)
+        cp_wsgi_application = Server((domain,port), application, numthreads=10)
 
         log.info("listening to http://%s:%s", domain, port)
         log.info("wsdl is at: http://%s:%s/soap/?wsdl", domain, port)
