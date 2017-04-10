@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:element name="plugin_result">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="plugin_name" type="xs:string"/>
+                <xs:element name="message"     type="xs:string"/>
+                <xs:element name="network_id"  type="xs:integer"/>
+                <xs:element name="scenario_id" type="xs:integer"/>
+                <xs:element name="errors">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="error" minOccurs="0" maxOccurs="unbounded" type="xs:string"/>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+                <xs:element name="warnings">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="warning" minOccurs="0" maxOccurs="unbounded" type="xs:string"/>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element> 
+                <xs:element name="files">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="file" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>
