@@ -246,7 +246,7 @@ class SoapConnection(object):
         cache = self.client.options.cache
         cache.setduration(days=10)
 
-    def login(self):
+    def login(self, username=None, password=None):
         """Establish a connection to the specified server. If the URL of the
         server is not specified as an argument of this function, the URL
         defined in the configuration file is used."""
@@ -254,8 +254,10 @@ class SoapConnection(object):
         # Connect
         token = self.client.factory.create('RequestHeader')
         if self.sessionid is None:
-            user = config.get('hydra_client', 'user')
-            passwd = config.get('hydra_client', 'password')
+            if username is None:
+                user = config.get('hydra_client', 'user')
+            if password is None:
+                passwd = config.get('hydra_client', 'password')
             login_response = self.client.service.login(user, passwd)
             token.user_id = login_response.user_id
             sessionid = login_response.sessionid
