@@ -47,7 +47,7 @@ def _check_network_ownership(network_id, user_id):
                                 " User %s cannot edit network %s"%(user_id,network_id))
     except NoResultFound:
         raise PermissionError("Permission denied."
-                            " User %s is not an owner of network"%(user_id, network_id))
+                            " User %s is not an owner of network %s"%(user_id, network_id))
 
 def _get_scenario(scenario_id, include_data=True, include_items=True):
     try:
