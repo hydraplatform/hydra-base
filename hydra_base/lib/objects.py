@@ -6,10 +6,10 @@ log = logging.getLogger(__name__)
 
 from datetime import datetime
 
-from HydraLib.HydraException import HydraError
+from hydra_base.exceptions import HydraError
 
 from HydraServer.util import generate_data_hash
-from HydraLib import config
+from hydra_base import config
 import zlib
 import pandas as pd
 

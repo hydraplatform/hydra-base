@@ -13,10 +13,10 @@
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-from HydraLib.HydraException import ResourceNotFoundError
+from hydra_base.exceptions import ResourceNotFoundError
 import scenario
 import logging
-from HydraLib.HydraException import PermissionError, HydraError
+from hydra_base.exceptions import PermissionError, HydraError
 from HydraServer.db.model import Project, ProjectOwner, Network
 from HydraServer.db import DBSession
 import network

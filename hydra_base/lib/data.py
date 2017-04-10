@@ -15,7 +15,7 @@
 #
 import datetime
 import sys
-from HydraLib.hydra_dateutil import get_datetime
+from hydra_base.util.hydra_dateutil import get_datetime
 import logging
 from HydraServer.db.model import Dataset, Metadata, DatasetOwner, DatasetCollection,\
         DatasetCollectionItem, ResourceScenario, ResourceAttr, TypeAttr
@@ -26,10 +26,10 @@ from sqlalchemy.sql.expression import case
 from sqlalchemy import func
 from sqlalchemy import null
 from HydraServer.db import DBSession
-from HydraLib import config
+from hydra_base import config
 
 import pandas as pd
-from HydraLib.HydraException import HydraError, PermissionError, ResourceNotFoundError
+from hydra_base.exceptions import HydraError, PermissionError, ResourceNotFoundError
 from sqlalchemy import and_, or_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql.expression import literal_column

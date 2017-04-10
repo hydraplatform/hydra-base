@@ -15,11 +15,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from HydraLib import units
-from HydraLib.HydraException import HydraError
-from HydraLib.util import array_dim
-from HydraLib.util import arr_to_vector
-from HydraLib.util import vector_to_arr
+from hydra_base import units
+from hydra_base.exceptions import HydraError
+from hydra_base.util.dataset_util import array_dim
+from hydra_base.util.dataset_util import arr_to_vector
+from hydra_base.util.dataset_util import vector_to_arr
 from HydraServer.db.model import Dataset
 from HydraServer.db import DBSession
 import logging

@@ -1,6 +1,6 @@
 from HydraServer.db.model import Note
 from HydraServer.db import DBSession
-from HydraLib.HydraException import HydraError, ResourceNotFoundError
+from hydra_base.exceptions import HydraError, ResourceNotFoundError
 from sqlalchemy.orm.exc import NoResultFound
 
 def _get_note(note_id):

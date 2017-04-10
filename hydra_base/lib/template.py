@@ -17,8 +17,8 @@ from HydraServer.db import DBSession
 from HydraServer.db.model import Template, TemplateType, TypeAttr, Attr, Network, Node, Link, ResourceGroup, ResourceType, ResourceAttr, ResourceScenario, Scenario
 from data import add_dataset
 
-from HydraLib.HydraException import HydraError, ResourceNotFoundError
-from HydraLib import config, util
+from hydra_base.exceptions import HydraError, ResourceNotFoundError
+from hydra_base import config, util
 from lxml import etree
 from decimal import Decimal
 import logging

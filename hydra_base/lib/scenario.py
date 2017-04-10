@@ -1,7 +1,7 @@
-# (c) Copyright 2013, 2014, University of Manchester
+# (c) Copyright 2013 to 2017 University of Manchester
 #
 # HydraPlatform is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
+# it under the terms of the GNU Lesser General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
@@ -10,11 +10,12 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
+# You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
+
 import logging
-from HydraLib.HydraException import HydraError, PermissionError, ResourceNotFoundError
+from hydra_base.exceptions import HydraError, PermissionError, ResourceNotFoundError
 from HydraServer.db import DBSession
 from HydraServer.db.model import Scenario,\
         ResourceGroupItem,\
@@ -32,7 +33,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import joinedload_all, joinedload, aliased
 import data
-from HydraLib.hydra_dateutil import timestamp_to_ordinal
+from hydra_base.util.hydra_dateutil import timestamp_to_ordinal
 from collections import namedtuple
 from copy import deepcopy
 import zlib

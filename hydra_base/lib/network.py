@@ -14,7 +14,7 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 import logging
-from HydraLib.HydraException import HydraError, ResourceNotFoundError
+from hydra_base.exceptions import HydraError, ResourceNotFoundError
 import scenario
 import datetime
 import data
@@ -30,7 +30,7 @@ from HydraServer.db import DBSession
 from sqlalchemy import func, and_, or_, distinct
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import aliased
-from HydraLib.hydra_dateutil import timestamp_to_ordinal
+from hydra_base.util.hydra_dateutil import timestamp_to_ordinal
 from HydraServer.util.hdb import add_attributes, add_resource_types
 
 from sqlalchemy import case
