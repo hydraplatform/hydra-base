@@ -19,7 +19,7 @@
 
 from ..db.model import Network, Scenario, Project, User, Role, Perm, RolePerm, RoleUser, ResourceAttr, ResourceType
 from sqlalchemy.orm.exc import NoResultFound
-from ..db import DBSession
+from .. import db 
 import datetime
 import random
 import bcrypt
@@ -75,7 +75,7 @@ def add_attributes(resource_i, attributes):
         if ra.id < 0:
             ra_i = resource_i.add_attribute(ra.attr_id, ra.attr_is_var)
         else:
-            ra_i = DBSession.query(ResourceAttr).filter(ResourceAttr.resource_attr_id==ra.id).one()
+            ra_i = db.DBSession.query(ResourceAttr).filter(ResourceAttr.resource_attr_id==ra.id).one()
             ra_i.attr_is_var = ra.attr_is_var
 
         resource_attrs[ra.id] = ra_i
@@ -85,32 +85,32 @@ def add_attributes(resource_i, attributes):
 def make_root_user():
 
     try:
-        user = DBSession.query(User).filter(User.username=='root').one()
+        user = db.DBSession.query(User).filter(User.username=='root').one()
     except NoResultFound:
         user = User(username='root',
                     password=bcrypt.hashpw('', bcrypt.gensalt()),
                     display_name='Root User')
-        DBSession.add(user)
+        db.DBSession.add(user)
 
     try:
-        role = DBSession.query(Role).filter(Role.role_code=='admin').one()
+        role = db.DBSession.query(Role).filter(Role.role_code=='admin').one()
     except NoResultFound:
         raise HydraError("Admin role not found.")
 
     try:
-        userrole = DBSession.query(RoleUser).filter(RoleUser.role_id==role.role_id,
+        userrole = db.DBSession.query(RoleUser).filter(RoleUser.role_id==role.role_id,
                                                    RoleUser.user_id==user.user_id).one()
     except NoResultFound:
         userrole = RoleUser(role_id=role.role_id,user_id=user.user_id)
         user.roleusers.append(userrole)
-        DBSession.add(userrole)
-    DBSession.flush()
+        db.DBSession.add(userrole)
+    db.DBSession.flush()
     transaction.commit()
 
 
 def login_user(username, password):
     try:
-        user_i = DBSession.query(User).filter( User.username==username ).one()
+        user_i = db.DBSession.query(User).filter( User.username==username ).one()
     except NoResultFound:
         raise HydraError(username)
 
@@ -122,21 +122,21 @@ def login_user(username, password):
 
 def create_default_net():
     try:
-        net = DBSession.query(Network).filter(Network.network_id==1).one()
+        net = db.DBSession.query(Network).filter(Network.network_id==1).one()
     except NoResultFound:
         project = Project(project_name="Project network")
         net = Network(network_name="Default network")
         scen = Scenario(scenario_name="Default network")
         project.networks.append(net)
         net.scenarios.append(scen)
-        DBSession.add(net)
-    DBSession.flush()
+        db.DBSession.add(net)
+    db.DBSession.flush()
     return net
 
 
 def create_default_users_and_perms():
 
-    perms = DBSession.query(Perm).all()
+    perms = db.DBSession.query(Perm).all()
     if len(perms) > 0:
         return
 
@@ -229,17 +229,17 @@ def create_default_users_and_perms():
     for code, name in default_perms:
         perm = Perm(perm_code=code, perm_name=name)
         perm_dict[code] = perm
-        DBSession.add(perm)
+        db.DBSession.add(perm)
     role_dict = {}
     for code, name in default_roles:
         role = Role(role_code=code, role_name=name)
         role_dict[code] = role
-        DBSession.add(role)
+        db.DBSession.add(role)
 
     for role_code, perm_code in roleperms:
         roleperm = RolePerm()
         roleperm.role = role_dict[role_code]
         roleperm.perm = perm_dict[perm_code]
-        DBSession.add(roleperm)
+        db.DBSession.add(roleperm)
 
-    DBSession.flush()
+    db.DBSession.flush()
