@@ -38,7 +38,7 @@ def load_config():
         (1) ./*.ini
         (2) ~/.config/hydra/
         (3) /etc/hydra
-        (4) [...]/HYDRA/HydraLib/trunk/../../config/
+        (4) /path/to/hydra_base/*.ini
 
     (1) will override (2) will override (3) will override (4). Parameters not
     defined in (1) will be taken from (2). Parameters not defined in (2) will
@@ -64,7 +64,7 @@ def load_config():
     localfile = os.getcwd() + '/hydra.ini'
     localfiles = glob.glob(localfile)
 
-    repofile = modulepath + '/../../../config/hydra.ini'
+    repofile = modulepath + '/hydra.ini'
     repofiles = glob.glob(repofile)
 
     if os.name == 'nt':
@@ -107,7 +107,7 @@ def load_config():
     try:
         hydra_base = config.get('DEFAULT', 'hydra_base_dir')
     except:
-        hydra_base = os.environ.get('HYDRA_BASE_DIR', modulepath + '/../../../')
+        hydra_base = os.environ.get('HYDRA_BASE_DIR', modulepath)
     config.set('DEFAULT', 'hydra_base_dir', os.path.expanduser(hydra_base))
 
 
