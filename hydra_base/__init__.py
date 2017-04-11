@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 # (c) Copyright 2013 to 2017 University of Manchester
 #
 # HydraPlatform is free software: you can redistribute it and/or modify
@@ -13,6 +16,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import logging
 import config
 if config.CONFIG is None:

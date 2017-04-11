@@ -1,4 +1,7 @@
-# (c) Copyright 2013, 2014, 2015 University of Manchester
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+# (c) Copyright 2013 to 2017 University of Manchester
 #
 # HydraPlatform is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -13,7 +16,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-
 
 class HydraError(Exception):
     def __init__(self, message="A hydra error has occurred", code=0000):
