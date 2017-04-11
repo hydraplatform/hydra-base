@@ -17,7 +17,7 @@ import logging
 from decimal import Decimal
 
 from operator import mul
-from HydraException import HydraError
+from ..exceptions import HydraError
 import numpy as np
 import pandas as pd
 import re

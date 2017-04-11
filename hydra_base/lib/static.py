@@ -14,8 +14,8 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 import os
-from hydra_base.exceptions import HydraError
-from hydra_base import config
+from ..exceptions import HydraError
+from ..import config
 import base64
 import logging
 log = logging.getLogger(__name__)

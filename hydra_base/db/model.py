@@ -27,15 +27,15 @@ Text
 
 from sqlalchemy import inspect
 
-from HydraLib.HydraException import HydraError, PermissionError
+from ..exceptions import HydraError, PermissionError
 
 from sqlalchemy.orm import relationship, backref
 
-from HydraLib.hydra_dateutil import ordinal_to_timestamp, get_datetime
+from ..util.hydra_dateutil import ordinal_to_timestamp, get_datetime
 
-from HydraServer.db import DeclarativeBase as Base, DBSession
+from . import DeclarativeBase as Base, DBSession
 
-from HydraServer.util import generate_data_hash, get_val
+from ..util import generate_data_hash, get_val
 
 from sqlalchemy.sql.expression import case
 from sqlalchemy import UniqueConstraint, and_
@@ -44,7 +44,7 @@ import pandas as pd
 
 import json
 import zlib
-from HydraLib import config
+from .. import config
 
 import logging
 import bcrypt

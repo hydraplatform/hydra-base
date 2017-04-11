@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 import logging
 from decimal import Decimal, ROUND_HALF_UP
 from dateutil.parser import parse
-from HydraLib import config
+from .. import config
 import pandas as pd
 
 

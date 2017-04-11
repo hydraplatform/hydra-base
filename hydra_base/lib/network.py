@@ -14,24 +14,24 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 import logging
-from hydra_base.exceptions import HydraError, ResourceNotFoundError
+from ..exceptions import HydraError, ResourceNotFoundError
 import scenario
 import datetime
 import data
 import time
 
-from HydraServer.util.permissions import check_perm
+from ..util.permissions import check_perm
 import template
-from HydraServer.db.model import Project, Network, Scenario, Node, Link, ResourceGroup,\
+from ..db.model import Project, Network, Scenario, Node, Link, ResourceGroup,\
         ResourceAttr, Attr, ResourceType, ResourceGroupItem, Dataset, Metadata, DatasetOwner,\
         ResourceScenario, TemplateType, TypeAttr, Template
 from sqlalchemy.orm import noload, joinedload, joinedload_all
-from HydraServer.db import DBSession
+from .. import db
 from sqlalchemy import func, and_, or_, distinct
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import aliased
-from hydra_base.util.hydra_dateutil import timestamp_to_ordinal
-from HydraServer.util.hdb import add_attributes, add_resource_types
+from ..util.hydra_dateutil import timestamp_to_ordinal
+from ..util.hdb import add_attributes, add_resource_types
 
 from sqlalchemy import case
 from sqlalchemy.sql import null
@@ -78,7 +78,7 @@ def _update_attributes(resource_i, attributes):
 
 def get_scenario_by_name(network_id, scenario_name,**kwargs):
     try:
-        scen = DBSession.query(Scenario).filter(and_(Scenario.network_id==network_id, func.lower(Scenario.scenario_id) == scenario_name.lower())).one()
+        scen = db.DBSession.query(Scenario).filter(and_(Scenario.network_id==network_id, func.lower(Scenario.scenario_id) == scenario_name.lower())).one()
         return scen.scenario_id
     except NoResultFound:
         log.info("No scenario in network %s with name %s"\
@@ -129,7 +129,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
 
     #Now get all the attributes supposed to be on the resources based on the types.
     t0 = time.time()
-    all_types = DBSession.query(TemplateType).options(joinedload('typeattrs')).all()
+    all_types = db.DBSession.query(TemplateType).options(joinedload('typeattrs')).all()
     type_dict = {}
     for t in all_types:
         type_dict[t.type_id] = t.typeattrs
@@ -170,7 +170,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
                         })
 
     if len(resource_resource_types) > 0:
-        DBSession.execute(ResourceType.__table__.insert(), resource_resource_types)
+        db.DBSession.execute(ResourceType.__table__.insert(), resource_resource_types)
     logging.info("%s ResourceTypes inserted in %s secs", len(resource_resource_types), str(time.time() - t0))
 
     logging.info("Resource attributes from types added in %s"%(datetime.datetime.now() - start_time))
@@ -181,7 +181,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
             all_resource_attrs.extend(na)
 
         if len(all_resource_attrs) > 0:
-            DBSession.execute(ResourceAttr.__table__.insert(), all_resource_attrs)
+            db.DBSession.execute(ResourceAttr.__table__.insert(), all_resource_attrs)
             logging.info("ResourceAttr insert took %s secs"% str(time.time() - t0))
         else:
             logging.warn("No attributes on any %s....", ref_key.lower())
@@ -191,7 +191,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
     #Now that the attributes are in, we need to map the attributes in the DB
     #to the attributes in the incoming data so that the resource scenarios
     #know what to refer to.
-    res_qry = DBSession.query(ResourceAttr)
+    res_qry = db.DBSession.query(ResourceAttr)
     if ref_key == 'NODE':
         res_qry = res_qry.join(Node).filter(Node.network_id==network_id)
     elif ref_key == 'GROUP':
@@ -254,8 +254,8 @@ def _add_nodes_to_database(net_i, nodes):
         node_list.append(node_dict)
     t0 = time.time()
     if len(node_list):
-        DBSession.execute(Node.__table__.insert(), node_list)
-    DBSession.flush()
+        db.DBSession.execute(Node.__table__.insert(), node_list)
+    db.DBSession.flush()
     logging.info("Node insert took %s secs"% str(time.time() - t0))
 
 def _add_nodes(net_i, nodes):
@@ -309,7 +309,7 @@ def _add_links_to_database(net_i, links, node_id_map):
                            'node_2_id' : node_2.node_id
                           })
     if len(link_dicts) > 0:
-        DBSession.execute(Link.__table__.insert(), link_dicts)
+        db.DBSession.execute(Link.__table__.insert(), link_dicts)
 
 def _add_links(net_i, links, node_id_map):
 
@@ -368,7 +368,7 @@ def _add_resource_groups(net_i, resourcegroups):
                           })
 
     if len(group_dicts) > 0:
-        DBSession.execute(ResourceGroup.__table__.insert(), group_dicts)
+        db.DBSession.execute(ResourceGroup.__table__.insert(), group_dicts)
         log.info("Resource Groups added in %s", get_timing(start_time))
 
         iface_groups = {}
@@ -416,7 +416,7 @@ def add_network(network,**kwargs):
     The returned object will have positive IDS
 
     """
-    DBSession.autoflush = False
+    db.DBSession.autoflush = False
     user_id = kwargs.get('user_id')
 
     #check_perm('add_network')
@@ -426,11 +426,11 @@ def add_network(network,**kwargs):
 
     insert_start = datetime.datetime.now()
 
-    proj_i = DBSession.query(Project).filter(Project.project_id == network.project_id).first()
+    proj_i = db.DBSession.query(Project).filter(Project.project_id == network.project_id).first()
     if proj_i is None:
         raise HydraError("Project ID is none. A project ID must be specified on the Network")
 
-    existing_net = DBSession.query(Network).filter(Network.project_id == network.project_id, Network.network_name==network.name).first()
+    existing_net = db.DBSession.query(Network).filter(Network.project_id == network.project_id, Network.network_name==network.name).first()
     if existing_net is not None:
         raise HydraError("A network with the name %s is already in project %s"%(network.name, network.project_id))
 
@@ -447,8 +447,8 @@ def add_network(network,**kwargs):
         net_i.layout = network.get_layout()
 
     network.network_id = net_i.network_id
-    DBSession.add(net_i)
-    DBSession.flush()
+    db.DBSession.add(net_i)
+    db.DBSession.flush()
     #These two lists are used for comparison and lookup, so when
     #new attributes are added, these lists are extended.
 
@@ -539,7 +539,7 @@ def add_network(network,**kwargs):
     log.info("Scenarios added in %s", get_timing(start_time))
     net_i.set_owner(user_id)
 
-    DBSession.flush()
+    db.DBSession.flush()
     log.info("Insertion of network took: %s",(datetime.datetime.now()-insert_start))
 
     return net_i
@@ -550,7 +550,7 @@ def _get_all_resource_attributes(network_id, template_id=None):
         Return these attributes as a dictionary, keyed on type (NODE, LINK, GROUP)
         then by ID of the node or link.
     """
-    base_qry = DBSession.query(ResourceAttr.resource_attr_id.label('resource_attr_id'),
+    base_qry = db.DBSession.query(ResourceAttr.resource_attr_id.label('resource_attr_id'),
                                ResourceAttr.ref_key.label('ref_key'),
                                ResourceAttr.cr_date.label('cr_date'),
                                ResourceAttr.attr_is_var.label('attr_is_var'),
@@ -581,7 +581,7 @@ def _get_all_resource_attributes(network_id, template_id=None):
     x = time.time()
     logging.info("Getting all attributes using execute")
     attribute_qry = all_node_attribute_qry.union(all_link_attribute_qry, all_group_attribute_qry, network_attribute_qry)
-    all_attributes = DBSession.execute(attribute_qry.statement).fetchall()
+    all_attributes = db.DBSession.execute(attribute_qry.statement).fetchall()
     log.info("%s attrs retrieved in %s", len(all_attributes), time.time()-x)
 
     logging.info("Attributes retrieved. Processing results...")
@@ -625,7 +625,7 @@ def _get_all_templates(network_id, template_id):
         Return these templates as a dictionary, keyed on type (NODE, LINK, GROUP)
         then by ID of the node or link.
     """
-    base_qry = DBSession.query(
+    base_qry = db.DBSession.query(
                                ResourceType.ref_key.label('ref_key'),
                                ResourceType.node_id.label('node_id'),
                                ResourceType.link_id.label('link_id'),
@@ -660,7 +660,7 @@ def _get_all_templates(network_id, template_id):
     x = time.time()
     log.info("Getting all types")
     type_qry = all_node_type_qry.union(all_link_type_qry, all_group_type_qry, network_type_qry)
-    all_types = DBSession.execute(type_qry.statement).fetchall()
+    all_types = db.DBSession.execute(type_qry.statement).fetchall()
     log.info("%s types retrieved in %s", len(all_types), time.time()-x)
 
 
@@ -712,13 +712,13 @@ def _get_all_group_items(network_id):
         Get all the resource group items in the network, across all scenarios
         returns a dictionary of dict objects, keyed on scenario_id
     """
-    base_qry = DBSession.query(ResourceGroupItem)
+    base_qry = db.DBSession.query(ResourceGroupItem)
 
     item_qry = base_qry.join(Scenario).filter(Scenario.network_id==network_id)
 
     x = time.time()
     logging.info("Getting all items")
-    all_items = DBSession.execute(item_qry.statement).fetchall()
+    all_items = db.DBSession.execute(item_qry.statement).fetchall()
     log.info("%s groups jointly retrieved in %s", len(all_items), time.time()-x)
 
 
@@ -741,7 +741,7 @@ def _get_all_resourcescenarios(network_id, user_id):
         returns a dictionary of dict objects, keyed on scenario_id
     """
 
-    rs_qry = DBSession.query(
+    rs_qry = db.DBSession.query(
                 Dataset.data_type,
                 Dataset.data_units,
                 Dataset.data_dimen,
@@ -767,7 +767,7 @@ def _get_all_resourcescenarios(network_id, user_id):
 
     x = time.time()
     logging.info("Getting all resource scenarios")
-    all_rs = DBSession.execute(rs_qry.statement).fetchall()
+    all_rs = db.DBSession.execute(rs_qry.statement).fetchall()
     log.info("%s resource scenarios retrieved in %s", len(all_rs), time.time()-x)
 
 
@@ -817,7 +817,7 @@ def _get_metadata(network_id, user_id):
         returns a dictionary of dict objects, keyed on dataset ID
     """
 
-    dataset_qry = DBSession.query(
+    dataset_qry = db.DBSession.query(
                 Dataset
     ).outerjoin(DatasetOwner, and_(DatasetOwner.dataset_id==Dataset.dataset_id, DatasetOwner.user_id==user_id)).filter(
                 or_(Dataset.hidden=='N', DatasetOwner.user_id != None),
@@ -825,13 +825,13 @@ def _get_metadata(network_id, user_id):
                 Scenario.network_id==network_id,
                 Dataset.dataset_id==ResourceScenario.dataset_id).distinct().subquery()
 
-    rs_qry = DBSession.query(
+    rs_qry = db.DBSession.query(
                 Metadata
     ).join(dataset_qry, Metadata.dataset_id==dataset_qry.c.dataset_id)
 
     x = time.time()
     logging.info("Getting all matadata")
-    all_metadata = DBSession.execute(rs_qry.statement).fetchall()
+    all_metadata = db.DBSession.execute(rs_qry.statement).fetchall()
     log.info("%s metadata jointly retrieved in %s",len(all_metadata), time.time()-x)
 
     logging.info("metadata retrieved. Processing results...")
@@ -852,12 +852,12 @@ def _get_nodes(network_id, template_id=None):
     """
     extras = {'types':[], 'attributes':[]}
 
-    node_qry = DBSession.query(Node).filter(
+    node_qry = db.DBSession.query(Node).filter(
                         Node.network_id==network_id,
                         Node.status=='A').options(noload('network'))
     if template_id is not None:
         node_qry = node_qry.filter(ResourceType.node_id==Node.node_id, TemplateType.type_id==ResourceType.type_id, TemplateType.template_id==template_id)
-    node_res = DBSession.execute(node_qry.statement).fetchall()
+    node_res = db.DBSession.execute(node_qry.statement).fetchall()
 
     nodes = []
     for n in node_res:
@@ -870,13 +870,13 @@ def _get_links(network_id, template_id=None):
         Get all the links in a network
     """
     extras = {'types':[], 'attributes':[]}
-    link_qry = DBSession.query(Link).filter(
+    link_qry = db.DBSession.query(Link).filter(
                                         Link.network_id==network_id,
                                         Link.status=='A').options(noload('network'))
     if template_id is not None:
         link_qry = link_qry.filter(ResourceType.link_id==Link.link_id, TemplateType.type_id==ResourceType.type_id, TemplateType.template_id==template_id)
 
-    link_res = DBSession.execute(link_qry.statement).fetchall()
+    link_res = db.DBSession.execute(link_qry.statement).fetchall()
 
     links = []
     for l in link_res:
@@ -889,13 +889,13 @@ def _get_groups(network_id, template_id=None):
         Get all the resource groups in a network
     """
     extras = {'types':[], 'attributes':[]}
-    group_qry = DBSession.query(ResourceGroup).filter(
+    group_qry = db.DBSession.query(ResourceGroup).filter(
                                         ResourceGroup.network_id==network_id,
                                         ResourceGroup.status=='A').options(noload('network'))
     if template_id is not None:
         group_qry = group_qry.filter(ResourceType.group_id==ResourceGroup.group_id, TemplateType.type_id==ResourceType.type_id, TemplateType.template_id==template_id)
 
-    group_res = DBSession.execute(group_qry.statement).fetchall()
+    group_res = db.DBSession.execute(group_qry.statement).fetchall()
     groups = []
     for g in group_res:
         groups.append(dictobj(g, extras))
@@ -907,7 +907,7 @@ def _get_scenarios(network_id, include_data, user_id, scenario_ids=None):
     """
         Get all the scenarios in a network
     """
-    scen_qry = DBSession.query(Scenario).filter(
+    scen_qry = db.DBSession.query(Scenario).filter(
                     Scenario.network_id == network_id).options(
                         noload('network')).filter(
                         Scenario.status == 'A')
@@ -916,7 +916,7 @@ def _get_scenarios(network_id, include_data, user_id, scenario_ids=None):
         logging.info("Filtering by scenario_ids %s",scenario_ids)
         scen_qry = scen_qry.filter(Scenario.scenario_id.in_(scenario_ids))
     extras = {'resourcescenarios': [], 'resourcegroupitems': []}
-    scens = [dictobj(s,extras) for s in DBSession.execute(scen_qry.statement).fetchall()]
+    scens = [dictobj(s,extras) for s in db.DBSession.execute(scen_qry.statement).fetchall()]
 
     all_resource_group_items = _get_all_group_items(network_id)
 
@@ -953,7 +953,7 @@ def get_network(network_id, summary=False, include_data='N', scenario_ids=None, 
 
     try:
         log.debug("Querying Network %s", network_id)
-        net_i = DBSession.query(Network).filter(
+        net_i = db.DBSession.query(Network).filter(
                                 Network.network_id == network_id).options(
                                 noload('scenarios')).options(
                                 noload('nodes')).options(
@@ -1007,35 +1007,35 @@ def get_network(network_id, summary=False, include_data='N', scenario_ids=None, 
 
 def get_network_simple(network_id,**kwargs):
     try:
-        n = DBSession.query(Network).filter(Network.network_id==network_id).options(joinedload_all('attributes.attr')).one()
+        n = db.DBSession.query(Network).filter(Network.network_id==network_id).options(joinedload_all('attributes.attr')).one()
         return n
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id,))
 
 def get_node(node_id,**kwargs):
     try:
-        n = DBSession.query(Node).filter(Node.node_id==node_id).options(joinedload_all('attributes.attr')).one()
+        n = db.DBSession.query(Node).filter(Node.node_id==node_id).options(joinedload_all('attributes.attr')).one()
         return n
     except NoResultFound:
         raise ResourceNotFoundError("Node %s not found"%(node_id,))
 
 def get_link(link_id,**kwargs):
     try:
-        l = DBSession.query(Link).filter(Link.link_id==link_id).options(joinedload_all('attributes.attr')).one()
+        l = db.DBSession.query(Link).filter(Link.link_id==link_id).options(joinedload_all('attributes.attr')).one()
         return l
     except NoResultFound:
         raise ResourceNotFoundError("Link %s not found"%(link_id,))
 
 def get_resourcegroup(group_id,**kwargs):
     try:
-        rg = DBSession.query(ResourceGroup).filter(ResourceGroup.group_id==group_id).options(joinedload_all('attributes.attr')).one()
+        rg = db.DBSession.query(ResourceGroup).filter(ResourceGroup.group_id==group_id).options(joinedload_all('attributes.attr')).one()
         return rg
     except NoResultFound:
         raise ResourceNotFoundError("ResourceGroup %s not found"%(group_id,))
 
 def get_node_by_name(network_id, node_name,**kwargs):
     try:
-        n = DBSession.query(Node).filter(Node.node_name==node_name,
+        n = db.DBSession.query(Node).filter(Node.node_name==node_name,
                                          Node.network_id==network_id).\
                                          options(joinedload_all('attributes.attr')).one()
         return n
@@ -1044,7 +1044,7 @@ def get_node_by_name(network_id, node_name,**kwargs):
 
 def get_link_by_name(network_id, link_name,**kwargs):
     try:
-        l = DBSession.query(Link).filter(Link.link_name==link_name,
+        l = db.DBSession.query(Link).filter(Link.link_name==link_name,
                                          Link.network_id==network_id).\
                                          options(joinedload_all('attributes.attr')).one()
         return l
@@ -1053,7 +1053,7 @@ def get_link_by_name(network_id, link_name,**kwargs):
 
 def get_resourcegroup_by_name(network_id, group_name,**kwargs):
     try:
-        rg = DBSession.query(ResourceGroup).filter(ResourceGroup.group_name==group_name,
+        rg = db.DBSession.query(ResourceGroup).filter(ResourceGroup.group_name==group_name,
                                                    ResourceGroup.network_id==network_id).\
                                                     options(joinedload_all('attributes.attr')).one()
         return rg
@@ -1066,7 +1066,7 @@ def get_network_by_name(project_id, network_name,**kwargs):
     """
 
     try:
-        res = DBSession.query(Network.network_id).filter(func.lower(Network.network_name).like(network_name.lower()), Network.project_id == project_id).options(joinedload_all('attributes.attr')).one()
+        res = db.DBSession.query(Network.network_id).filter(func.lower(Network.network_name).like(network_name.lower()), Network.project_id == project_id).options(joinedload_all('attributes.attr')).one()
         net = get_network(res.network_id, 'Y', None, **kwargs)
         return net
     except NoResultFound:
@@ -1078,7 +1078,7 @@ def network_exists(project_id, network_name,**kwargs):
     Return a whole network as a complex model.
     """
     try:
-        DBSession.query(Network.network_id).filter(func.lower(Network.network_name).like(network_name.lower()), Network.project_id == project_id).one()
+        db.DBSession.query(Network.network_id).filter(func.lower(Network.network_name).like(network_name.lower()), Network.project_id == project_id).one()
         return 'Y'
     except NoResultFound:
         return 'N'
@@ -1097,7 +1097,7 @@ def update_network(network,
     #check_perm('update_network')
 
     try:
-        net_i = DBSession.query(Network).filter(Network.network_id == network.id).one()
+        net_i = db.DBSession.query(Network).filter(Network.network_id == network.id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Network with id %s not found"%(network.id))
 
@@ -1210,7 +1210,7 @@ def update_network(network,
             if s.id is not None:
                 if s.id > 0:
                     try:
-                        scen_i = DBSession.query(Scenario).filter(Scenario.scenario_id==s.id).one()
+                        scen_i = db.DBSession.query(Scenario).filter(Scenario.scenario_id==s.id).one()
                         if scen_i.locked == 'Y':
                             errors.append('Scenario %s was not updated as it is locked'%(s.id))
                             continue
@@ -1227,7 +1227,7 @@ def update_network(network,
                 log.info("Adding new scenario %s to network", s.name)
                 scenario.add_scenario(network.id, s, **kwargs)
 
-    DBSession.flush()
+    db.DBSession.flush()
 
     updated_net = get_network(network.id, summary=True, **kwargs)
     return updated_net
@@ -1239,12 +1239,12 @@ def set_network_status(network_id,status,**kwargs):
     user_id = kwargs.get('user_id')
     #check_perm(user_id, 'delete_network')
     try:
-        net_i = DBSession.query(Network).filter(Network.network_id == network_id).one()
+        net_i = db.DBSession.query(Network).filter(Network.network_id == network_id).one()
         net_i.check_write_permission(user_id)
         net_i.status = status
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id))
-    DBSession.flush()
+    db.DBSession.flush()
     return 'OK'
 
 def get_network_extents(network_id,**kwargs):
@@ -1257,7 +1257,7 @@ def get_network_extents(network_id,**kwargs):
 
     @returns NetworkExtents object
     """
-    rs = DBSession.query(Node.node_x, Node.node_y).filter(Node.network_id==network_id).all()
+    rs = db.DBSession.query(Node.node_x, Node.node_y).filter(Node.network_id==network_id).all()
     if len(rs) == 0:
         return dict(
             network_id = network_id,
@@ -1300,7 +1300,7 @@ def add_nodes(network_id, nodes,**kwargs):
 
     user_id = kwargs.get('user_id')
     try:
-        net_i = DBSession.query(Network).filter(Network.network_id == network_id).one()
+        net_i = db.DBSession.query(Network).filter(Network.network_id == network_id).one()
         net_i.check_write_permission(user_id)
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id))
@@ -1308,9 +1308,9 @@ def add_nodes(network_id, nodes,**kwargs):
     _add_nodes_to_database(net_i, nodes)
 
     net_i.project_id=net_i.project_id
-    DBSession.flush()
+    db.DBSession.flush()
 
-    node_s =  DBSession.query(Node).filter(Node.network_id==network_id).all()
+    node_s =  db.DBSession.query(Node).filter(Node.network_id==network_id).all()
 
     #Maps temporary node_ids to real node_ids
     node_id_map = dict()
@@ -1341,7 +1341,7 @@ def add_links(network_id, links,**kwargs):
         names.append(l_i.name)
 
     try:
-        net_i = DBSession.query(Network).filter(Network.network_id == network_id).one()
+        net_i = db.DBSession.query(Network).filter(Network.network_id == network_id).one()
         net_i.check_write_permission(user_id)
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id))
@@ -1351,8 +1351,8 @@ def add_links(network_id, links,**kwargs):
     _add_links_to_database(net_i, links, node_id_map)
 
     net_i.project_id=net_i.project_id
-    DBSession.flush()
-    link_s =  DBSession.query(Link).filter(Link.network_id==network_id).all()
+    db.DBSession.flush()
+    link_s =  db.DBSession.query(Link).filter(Link.network_id==network_id).all()
     iface_links = {}
     for l_i in link_s:
         iface_links[l_i.link_name] = l_i
@@ -1370,7 +1370,7 @@ def add_node(network_id, node,**kwargs):
 
     user_id = kwargs.get('user_id')
     try:
-        net_i = DBSession.query(Network).filter(Network.network_id == network_id).one()
+        net_i = db.DBSession.query(Network).filter(Network.network_id == network_id).one()
         net_i.check_write_permission(user_id)
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id))
@@ -1379,7 +1379,7 @@ def add_node(network_id, node,**kwargs):
 
     add_attributes(new_node, node.attributes)
 
-    DBSession.flush()
+    db.DBSession.flush()
 
     if node.types is not None and len(node.types) > 0:
         res_types = []
@@ -1394,11 +1394,11 @@ def add_node(network_id, node,**kwargs):
             res_scenarios.update(rs)#rs is a dict
 
         if len(res_types) > 0:
-            DBSession.execute(ResourceType.__table__.insert(), res_types)
+            db.DBSession.execute(ResourceType.__table__.insert(), res_types)
         if len(res_attrs) > 0:
-            DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
+            db.DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
 
-            new_res_attrs = DBSession.query(ResourceAttr).order_by(ResourceAttr.resource_attr_id.desc()).limit(len(res_attrs)).all()
+            new_res_attrs = db.DBSession.query(ResourceAttr).order_by(ResourceAttr.resource_attr_id.desc()).limit(len(res_attrs)).all()
             all_rs = []
             for ra in new_res_attrs:
                 ra_id = ra.resource_attr_id
@@ -1409,10 +1409,10 @@ def add_node(network_id, node,**kwargs):
                         all_rs.append(rs_list[rs])
 
             if len(all_rs) > 0:
-                DBSession.execute(ResourceScenario.__table__.insert(), all_rs)
+                db.DBSession.execute(ResourceScenario.__table__.insert(), all_rs)
 
 
-    DBSession.refresh(new_node)
+    db.DBSession.refresh(new_node)
 
     return new_node
 #########################################################################
@@ -1426,7 +1426,7 @@ def update_node(node,**kwargs):
     """
     user_id = kwargs.get('user_id')
     try:
-        node_i = DBSession.query(Node).filter(Node.node_id == node.id).one()
+        node_i = db.DBSession.query(Node).filter(Node.node_id == node.id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Node %s not found"%(node.id))
 
@@ -1443,7 +1443,7 @@ def update_node(node,**kwargs):
 
     if node.types is not None:
         add_resource_types(node_i, node.types)
-    DBSession.flush()
+    db.DBSession.flush()
 
     return node_i
 
@@ -1453,7 +1453,7 @@ def set_node_status(node_id, status, **kwargs):
     """
     user_id = kwargs.get('user_id')
     try:
-        node_i = DBSession.query(Node).filter(Node.node_id == node_id).one()
+        node_i = db.DBSession.query(Node).filter(Node.node_id == node_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Node %s not found"%(node_id))
 
@@ -1466,7 +1466,7 @@ def set_node_status(node_id, status, **kwargs):
     for link in node_i.links_from:
         link.status = status
 
-    DBSession.flush()
+    db.DBSession.flush()
 
     return node_i
 
@@ -1474,14 +1474,14 @@ def _unique_data_qry(count=1):
     rs = aliased(ResourceScenario)
 
     log.critical(count)
-    subqry=DBSession.query(rs.resource_attr_id,
+    subqry=db.DBSession.query(rs.resource_attr_id,
                            rs.dataset_id,
                            func.count(rs.dataset_id).label('dataset_count')).\
                                 group_by(rs.dataset_id).\
                                 having(func.count(rs.dataset_id) == count).\
                                 subquery()
 
-    unique_data = DBSession.query(rs).\
+    unique_data = db.DBSession.query(rs).\
                         join(subqry,
                                 and_(rs.resource_attr_id==subqry.c.resource_attr_id,
                                 rs.dataset_id==subqry.c.dataset_id)
@@ -1501,15 +1501,15 @@ def purge_network(network_id, purge_data,**kwargs):
     """
     user_id = kwargs.get('user_id')
     try:
-        net_i = DBSession.query(Network).filter(Network.network_id == network_id).one()
+        net_i = db.DBSession.query(Network).filter(Network.network_id == network_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id))
 
     log.info("Deleting network %s, id=%s", net_i.network_name, network_id)
 
     net_i.check_write_permission(user_id)
-    DBSession.delete(net_i)
-    DBSession.flush()
+    db.DBSession.delete(net_i)
+    db.DBSession.flush()
     return 'OK'
 
 def delete_node(node_id, purge_data,**kwargs):
@@ -1522,20 +1522,20 @@ def delete_node(node_id, purge_data,**kwargs):
     """
     user_id = kwargs.get('user_id')
     try:
-        node_i = DBSession.query(Node).filter(Node.node_id == node_id).one()
+        node_i = db.DBSession.query(Node).filter(Node.node_id == node_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Node %s not found"%(node_id))
 
-    group_items = DBSession.query(ResourceGroupItem).filter(
+    group_items = db.DBSession.query(ResourceGroupItem).filter(
                                         ResourceGroupItem.node_id==node_id).all()
     for gi in group_items:
-        DBSession.delete(gi)
+        db.DBSession.delete(gi)
 
     if purge_data == 'Y':
         #Find the number of times a a resource and dataset combination
         #occurs. If this equals the number of times the dataset appears, then
         #we can say this datset is unique to this node.
-        count = DBSession.query(ResourceScenario.dataset_id).distinct(
+        count = db.DBSession.query(ResourceScenario.dataset_id).distinct(
             ResourceScenario.resource_attr_id,
             ResourceScenario.dataset_id).filter(ResourceScenario.resource_attr_id==ResourceAttr.resource_attr_id,
                                                ResourceAttr.node_id==node_id).count()
@@ -1546,13 +1546,13 @@ def delete_node(node_id, purge_data,**kwargs):
 
         for node_datum in node_data:
             log.info("Deleting node dataset %s", node_datum.dataset_id)
-            DBSession.delete(node_datum.dataset)
+            db.DBSession.delete(node_datum.dataset)
 
     log.info("Deleting node %s, id=%s", node_i.node_name, node_id)
 
     node_i.network.check_write_permission(user_id)
-    DBSession.delete(node_i)
-    DBSession.flush()
+    db.DBSession.delete(node_i)
+    db.DBSession.flush()
     return 'OK'
 
 def add_link(network_id, link,**kwargs):
@@ -1563,14 +1563,14 @@ def add_link(network_id, link,**kwargs):
 
     #check_perm(user_id, 'edit_topology')
     try:
-        net_i = DBSession.query(Network).filter(Network.network_id == network_id).one()
+        net_i = db.DBSession.query(Network).filter(Network.network_id == network_id).one()
         net_i.check_write_permission(user_id)
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id))
 
     try:
-        node_1 = DBSession.query(Node).filter(Node.node_id==link.node_1_id).one()
-        node_2 = DBSession.query(Node).filter(Node.node_id==link.node_2_id).one()
+        node_1 = db.DBSession.query(Node).filter(Node.node_id==link.node_1_id).one()
+        node_2 = db.DBSession.query(Node).filter(Node.node_id==link.node_2_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Nodes for link not found")
 
@@ -1578,7 +1578,7 @@ def add_link(network_id, link,**kwargs):
 
     add_attributes(link_i, link.attributes)
 
-    DBSession.flush()
+    db.DBSession.flush()
 
     if link.types is not None and len(link.types) > 0:
         res_types = []
@@ -1593,11 +1593,11 @@ def add_link(network_id, link,**kwargs):
             res_scenarios.update(rs)#rs is a dict
 
         if len(res_types) > 0:
-            DBSession.execute(ResourceType.__table__.insert(), res_types)
+            db.DBSession.execute(ResourceType.__table__.insert(), res_types)
         if len(res_attrs) > 0:
-            DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
+            db.DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
 
-            new_res_attrs = DBSession.query(ResourceAttr).order_by(ResourceAttr.resource_attr_id.desc()).limit(len(res_attrs)).all()
+            new_res_attrs = db.DBSession.query(ResourceAttr).order_by(ResourceAttr.resource_attr_id.desc()).limit(len(res_attrs)).all()
             all_rs = []
             for ra in new_res_attrs:
                 ra_id = ra.resource_attr_id
@@ -1608,9 +1608,9 @@ def add_link(network_id, link,**kwargs):
                         all_rs.append(rs_list[rs])
 
             if len(all_rs) > 0:
-                DBSession.execute(ResourceScenario.__table__.insert(), all_rs)
+                db.DBSession.execute(ResourceScenario.__table__.insert(), all_rs)
 
-    DBSession.refresh(link_i)
+    db.DBSession.refresh(link_i)
 
     return link_i
 
@@ -1621,7 +1621,7 @@ def update_link(link,**kwargs):
     user_id = kwargs.get('user_id')
     #check_perm(user_id, 'edit_topology')
     try:
-        link_i = DBSession.query(Link).filter(Link.link_id == link.id).one()
+        link_i = db.DBSession.query(Link).filter(Link.link_id == link.id).one()
         link_i.network.check_write_permission(user_id)
     except NoResultFound:
         raise ResourceNotFoundError("Link %s not found"%(link.id))
@@ -1634,7 +1634,7 @@ def update_link(link,**kwargs):
 
     add_attributes(link_i, link.attributes)
     add_resource_types(link_i, link.types)
-    DBSession.flush()
+    db.DBSession.flush()
     return link_i
 
 def set_link_status(link_id, status, **kwargs):
@@ -1644,14 +1644,14 @@ def set_link_status(link_id, status, **kwargs):
     user_id = kwargs.get('user_id')
     #check_perm(user_id, 'edit_topology')
     try:
-        link_i = DBSession.query(Link).filter(Link.link_id == link_id).one()
+        link_i = db.DBSession.query(Link).filter(Link.link_id == link_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Link %s not found"%(link_id))
 
     link_i.network.check_write_permission(user_id)
 
     link_i.status = status
-    DBSession.flush()
+    db.DBSession.flush()
 
 def delete_link(link_id, purge_data,**kwargs):
     """
@@ -1662,20 +1662,20 @@ def delete_link(link_id, purge_data,**kwargs):
     """
     user_id = kwargs.get('user_id')
     try:
-        link_i = DBSession.query(Link).filter(Link.link_id == link_id).one()
+        link_i = db.DBSession.query(Link).filter(Link.link_id == link_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Link %s not found"%(link_id))
 
-    group_items = DBSession.query(ResourceGroupItem).filter(
+    group_items = db.DBSession.query(ResourceGroupItem).filter(
                                                     ResourceGroupItem.link_id==link_id).all()
     for gi in group_items:
-        DBSession.delete(gi)
+        db.DBSession.delete(gi)
 
     if purge_data == 'Y':
         #Find the number of times a a resource and dataset combination
         #occurs. If this equals the number of times the dataset appears, then
         #we can say this datset is unique to this link.
-        count = DBSession.query(ResourceScenario.dataset_id).distinct(
+        count = db.DBSession.query(ResourceScenario.dataset_id).distinct(
             ResourceScenario.resource_attr_id,
             ResourceScenario.dataset_id).filter(
                     ResourceScenario.resource_attr_id==ResourceAttr.resource_attr_id,
@@ -1687,13 +1687,13 @@ def delete_link(link_id, purge_data,**kwargs):
 
         for link_datum in link_data:
             log.warn("Deleting link dataset %s", link_datum.dataset_id)
-            DBSession.delete(link_datum.dataset)
+            db.DBSession.delete(link_datum.dataset)
 
     log.info("Deleting link %s, id=%s", link_i.link_name, link_id)
 
     link_i.network.check_write_permission(user_id)
-    DBSession.delete(link_i)
-    DBSession.flush()
+    db.DBSession.delete(link_i)
+    db.DBSession.flush()
 
 def add_group(network_id, group,**kwargs):
     """
@@ -1702,7 +1702,7 @@ def add_group(network_id, group,**kwargs):
 
     user_id = kwargs.get('user_id')
     try:
-        net_i = DBSession.query(Network).filter(Network.network_id == network_id).one()
+        net_i = db.DBSession.query(Network).filter(Network.network_id == network_id).one()
         net_i.check_write_permission(user_id=user_id)
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id))
@@ -1711,7 +1711,7 @@ def add_group(network_id, group,**kwargs):
 
     add_attributes(res_grp_i, group.attributes)
 
-    DBSession.flush()
+    db.DBSession.flush()
     if group.types is not None and len(group.types) > 0:
         res_types = []
         res_attrs = []
@@ -1724,11 +1724,11 @@ def add_group(network_id, group,**kwargs):
             res_attrs.extend(ra)
             res_scenarios.update(rs)#rs is a dict
         if len(res_types) > 0:
-            DBSession.execute(ResourceType.__table__.insert(), res_types)
+            db.DBSession.execute(ResourceType.__table__.insert(), res_types)
         if len(res_attrs) > 0:
-            DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
+            db.DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
 
-            new_res_attrs = DBSession.query(ResourceAttr).order_by(ResourceAttr.resource_attr_id.desc()).limit(len(res_attrs)).all()
+            new_res_attrs = db.DBSession.query(ResourceAttr).order_by(ResourceAttr.resource_attr_id.desc()).limit(len(res_attrs)).all()
             all_rs = []
             for ra in new_res_attrs:
                 ra_id = ra.resource_attr_id
@@ -1739,10 +1739,10 @@ def add_group(network_id, group,**kwargs):
                         all_rs.append(rs_list[rs])
 
             if len(all_rs) > 0:
-                DBSession.execute(ResourceScenario.__table__.insert(), all_rs)
+                db.DBSession.execute(ResourceScenario.__table__.insert(), all_rs)
 
 
-    DBSession.refresh(res_grp_i)
+    db.DBSession.refresh(res_grp_i)
 
     return res_grp_i
 
@@ -1754,7 +1754,7 @@ def update_group(group,**kwargs):
     """
     user_id = kwargs.get('user_id')
     try:
-        group_i = DBSession.query(ResourceGroup).filter(ResourceGroup.group_id == group.id).one()
+        group_i = db.DBSession.query(ResourceGroup).filter(ResourceGroup.group_id == group.id).one()
     except NoResultFound:
         raise ResourceNotFoundError("group %s not found"%(group.id))
 
@@ -1768,7 +1768,7 @@ def update_group(group,**kwargs):
 
     if group.types is not None:
         add_resource_types(group_i, group.types)
-    DBSession.flush()
+    db.DBSession.flush()
 
     return group_i
 
@@ -1779,7 +1779,7 @@ def set_group_status(group_id, status, **kwargs):
     """
     user_id = kwargs.get('user_id')
     try:
-        group_i = DBSession.query(ResourceGroup).filter(ResourceGroup.group_id == group_id).one()
+        group_i = db.DBSession.query(ResourceGroup).filter(ResourceGroup.group_id == group_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("ResourceGroup %s not found"%(group_id))
 
@@ -1787,7 +1787,7 @@ def set_group_status(group_id, status, **kwargs):
 
     group_i.status = status
 
-    DBSession.flush()
+    db.DBSession.flush()
 
     return group_i
 
@@ -1801,20 +1801,20 @@ def delete_group(group_id, purge_data,**kwargs):
     """
     user_id = kwargs.get('user_id')
     try:
-        group_i = DBSession.query(ResourceGroup).filter(ResourceGroup.group_id == group_id).one()
+        group_i = db.DBSession.query(ResourceGroup).filter(ResourceGroup.group_id == group_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Group %s not found"%(group_id))
 
-    group_items = DBSession.query(ResourceGroupItem).filter(
+    group_items = db.DBSession.query(ResourceGroupItem).filter(
                                                     ResourceGroupItem.group_id==group_id).all()
     for gi in group_items:
-        DBSession.delete(gi)
+        db.DBSession.delete(gi)
 
     if purge_data == 'Y':
         #Find the number of times a a resource and dataset combination
         #occurs. If this equals the number of times the dataset appears, then
         #we can say this datset is unique to this group.
-        count = DBSession.query(ResourceScenario.dataset_id).distinct(
+        count = db.DBSession.query(ResourceScenario.dataset_id).distinct(
             ResourceScenario.resource_attr_id,
             ResourceScenario.dataset_id).filter(
                     ResourceScenario.resource_attr_id==ResourceAttr.resource_attr_id,
@@ -1825,13 +1825,13 @@ def delete_group(group_id, purge_data,**kwargs):
 
         for group_datum in group_data:
             log.warn("Deleting group dataset %s", group_datum.dataset_id)
-            DBSession.delete(group_datum.dataset)
+            db.DBSession.delete(group_datum.dataset)
 
     log.info("Deleting group %s, id=%s", group_i.group_name, group_id)
 
     group_i.network.check_write_permission(user_id)
-    DBSession.delete(group_i)
-    DBSession.flush()
+    db.DBSession.delete(group_i)
+    db.DBSession.flush()
 
 def get_scenarios(network_id,**kwargs):
     """
@@ -1840,7 +1840,7 @@ def get_scenarios(network_id,**kwargs):
 
     user_id = kwargs.get('user_id')
     try:
-        net_i = DBSession.query(Network).filter(Network.network_id == network_id).one()
+        net_i = db.DBSession.query(Network).filter(Network.network_id == network_id).one()
         net_i.check_write_permission(user_id=user_id)
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id))
@@ -1854,7 +1854,7 @@ def validate_network_topology(network_id,**kwargs):
 
     user_id = kwargs.get('user_id')
     try:
-        net_i = DBSession.query(Network).filter(Network.network_id == network_id).one()
+        net_i = db.DBSession.query(Network).filter(Network.network_id == network_id).one()
         net_i.check_write_permission(user_id=user_id)
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id))
@@ -1887,9 +1887,9 @@ def get_resources_of_type(network_id, type_id, **kwargs):
         have the type specified.
     """
 
-    nodes_with_type = DBSession.query(Node).join(ResourceType).filter(Node.network_id==network_id, ResourceType.type_id==type_id).all()
-    links_with_type = DBSession.query(Link).join(ResourceType).filter(Link.network_id==network_id, ResourceType.type_id==type_id).all()
-    groups_with_type = DBSession.query(ResourceGroup).join(ResourceType).filter(ResourceGroup.network_id==network_id, ResourceType.type_id==type_id).all()
+    nodes_with_type = db.DBSession.query(Node).join(ResourceType).filter(Node.network_id==network_id, ResourceType.type_id==type_id).all()
+    links_with_type = db.DBSession.query(Link).join(ResourceType).filter(Link.network_id==network_id, ResourceType.type_id==type_id).all()
+    groups_with_type = db.DBSession.query(ResourceGroup).join(ResourceType).filter(ResourceGroup.network_id==network_id, ResourceType.type_id==type_id).all()
 
     return nodes_with_type, links_with_type, groups_with_type
 
@@ -1901,47 +1901,47 @@ def clean_up_network(network_id, **kwargs):
     #check_perm(user_id, 'delete_network')
     try:
         log.debug("Querying Network %s", network_id)
-        net_i = DBSession.query(Network).filter(Network.network_id == network_id).\
+        net_i = db.DBSession.query(Network).filter(Network.network_id == network_id).\
         options(noload('scenarios')).options(noload('nodes')).options(noload('links')).options(noload('resourcegroups')).options(joinedload_all('types.templatetype.template')).one()
         net_i.attributes
 
         #Define the basic resource queries
-        node_qry = DBSession.query(Node).filter(Node.network_id==network_id).filter(Node.status=='X').all()
+        node_qry = db.DBSession.query(Node).filter(Node.network_id==network_id).filter(Node.status=='X').all()
 
-        link_qry = DBSession.query(Link).filter(Link.network_id==network_id).filter(Link.status=='X').all()
+        link_qry = db.DBSession.query(Link).filter(Link.network_id==network_id).filter(Link.status=='X').all()
 
-        group_qry = DBSession.query(ResourceGroup).filter(ResourceGroup.network_id==network_id).filter(ResourceGroup.status=='X').all()
+        group_qry = db.DBSession.query(ResourceGroup).filter(ResourceGroup.network_id==network_id).filter(ResourceGroup.status=='X').all()
 
-        scenario_qry = DBSession.query(Scenario).filter(Scenario.network_id==network_id).filter(Scenario.status=='X').all()
+        scenario_qry = db.DBSession.query(Scenario).filter(Scenario.network_id==network_id).filter(Scenario.status=='X').all()
 
 
         for n in node_qry:
-            DBSession.delete(n)
+            db.DBSession.delete(n)
         for l in link_qry:
-            DBSession.delete(l)
+            db.DBSession.delete(l)
         for g in group_qry:
-            DBSession.delete(g)
+            db.DBSession.delete(g)
         for s in scenario_qry:
-            DBSession.delete(s)
+            db.DBSession.delete(s)
 
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id))
-    DBSession.flush()
+    db.DBSession.flush()
     return 'OK'
 
 def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, include_metadata='N', **kwargs):
 
     try:
-        DBSession.query(Network).filter(Network.network_id==network_id).one()
+        db.DBSession.query(Network).filter(Network.network_id==network_id).one()
     except NoResultFound:
         raise HydraError("Network %s does not exist"%network_id)
 
     try:
-        DBSession.query(Scenario).filter(Scenario.scenario_id==scenario_id, Scenario.network_id==network_id).one()
+        db.DBSession.query(Scenario).filter(Scenario.scenario_id==scenario_id, Scenario.network_id==network_id).one()
     except NoResultFound:
         raise HydraError("Scenario %s not found."%scenario_id)
 
-    rs_qry = DBSession.query(ResourceScenario).filter(
+    rs_qry = db.DBSession.query(ResourceScenario).filter(
                             ResourceAttr.resource_attr_id==ResourceScenario.resource_attr_id,
                             ResourceScenario.scenario_id==scenario_id,
                             ResourceAttr.ref_key==ref_key)\
@@ -1989,7 +1989,7 @@ def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, 
     log.info("Retrieved %s resource attrs", len(resource_scenarios))
 
     if include_metadata == 'Y':
-        metadata_qry = DBSession.query(Metadata).filter(
+        metadata_qry = db.DBSession.query(Metadata).filter(
                             ResourceAttr.ref_key==ref_key,
                             ResourceScenario.resource_attr_id==ResourceAttr.resource_attr_id,
                             ResourceScenario.scenario_id==scenario_id,
@@ -2036,7 +2036,7 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
         A function which returns the data for all resources in a network.
     """
 
-    rs_qry = DBSession.query(
+    rs_qry = db.DBSession.query(
                ResourceAttr.attr_id,
                Attr.attr_name,
                ResourceAttr.resource_attr_id,
@@ -2083,7 +2083,7 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
     log.info("%s datasets retrieved", len(all_resource_data))
 
     if include_metadata == 'Y':
-        metadata_qry = DBSession.query(distinct(Metadata.dataset_id).label('dataset_id'),
+        metadata_qry = db.DBSession.query(distinct(Metadata.dataset_id).label('dataset_id'),
                                       Metadata.metadata_name,
                                       Metadata.metadata_val).filter(
                             ResourceScenario.resource_attr_id==ResourceAttr.resource_attr_id,
@@ -2107,7 +2107,7 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
         ra_dict = ra._asdict()
         if ra.hidden == 'Y':
            try:
-                d = DBSession.query(Dataset).filter(
+                d = db.DBSession.query(Dataset).filter(
                         Dataset.dataset_id==ra.dataset_id
                     ).options(noload('metadata')).one()
                 d.check_read_permission(kwargs.get('user_id'))

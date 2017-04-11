@@ -15,21 +15,21 @@
 #
 import datetime
 import sys
-from hydra_base.util.hydra_dateutil import get_datetime
+from ..util.hydra_dateutil import get_datetime
 import logging
-from HydraServer.db.model import Dataset, Metadata, DatasetOwner, DatasetCollection,\
+from ..db.model import Dataset, Metadata, DatasetOwner, DatasetCollection,\
         DatasetCollectionItem, ResourceScenario, ResourceAttr, TypeAttr
-from HydraServer.util import generate_data_hash
+from ..util import generate_data_hash
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import aliased, make_transient, joinedload_all
 from sqlalchemy.sql.expression import case
 from sqlalchemy import func
 from sqlalchemy import null
-from HydraServer.db import DBSession
-from hydra_base import config
+from .. import db
+from ..import config
 
 import pandas as pd
-from hydra_base.exceptions import HydraError, PermissionError, ResourceNotFoundError
+from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
 from sqlalchemy import and_, or_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql.expression import literal_column
@@ -65,7 +65,7 @@ def get_dataset(dataset_id,**kwargs):
     if dataset_id is None:
         return None
     try:
-        dataset_rs = DBSession.query(Dataset.dataset_id,
+        dataset_rs = db.DBSession.query(Dataset.dataset_id,
                 Dataset.data_type,
                 Dataset.data_units,
                 Dataset.data_dimen,
@@ -92,7 +92,7 @@ def get_dataset(dataset_id,**kwargs):
             rs_dict['value'] = str(dataset_rs.value)
 
         if dataset_rs.hidden == 'N' or (dataset_rs.hidden == 'Y' and dataset_rs.user_id is not None):
-            metadata = DBSession.query(Metadata).filter(Metadata.dataset_id==dataset_id).all()
+            metadata = db.DBSession.query(Metadata).filter(Metadata.dataset_id==dataset_id).all()
             rs_dict['metadata'] = metadata
         else:
             rs_dict['metadata'] = []
@@ -115,20 +115,20 @@ def clone_dataset(dataset_id,**kwargs):
     if dataset_id is None:
         return None
 
-    dataset = DBSession.query(Dataset).filter(
+    dataset = db.DBSession.query(Dataset).filter(
             Dataset.dataset_id==dataset_id).options(joinedload_all('metadata')).first()
 
     if dataset is None:
         raise HydraError("Dataset %s does not exist."%(dataset_id))
 
     if dataset is not None and dataset.created_by != user_id:
-        owner = DBSession.query(DatasetOwner).filter(
+        owner = db.DBSession.query(DatasetOwner).filter(
                                 DatasetOwner.dataset_id==Dataset.dataset_id,
                                 DatasetOwner.user_id==user_id).first()
         if owner is None:
             raise PermissionError("User %s is not an owner of dataset %s and therefore cannot clone it."%(user_id, dataset_id))
 
-    DBSession.expunge(dataset)
+    db.DBSession.expunge(dataset)
 
     make_transient(dataset)
 
@@ -151,10 +151,10 @@ def clone_dataset(dataset_id,**kwargs):
     dataset.metadata.append(cloned_meta)
 
     dataset.set_hash()
-    DBSession.add(dataset)
-    DBSession.flush()
+    db.DBSession.add(dataset)
+    db.DBSession.flush()
 
-    cloned_dataset = DBSession.query(Dataset).filter(
+    cloned_dataset = db.DBSession.query(Dataset).filter(
             Dataset.dataset_id==dataset.dataset_id).first()
 
     return cloned_dataset
@@ -169,7 +169,7 @@ def get_datasets(dataset_ids,**kwargs):
     if len(dataset_ids) == 0:
         return []
     try:
-        dataset_rs = DBSession.query(Dataset.dataset_id,
+        dataset_rs = db.DBSession.query(Dataset.dataset_id,
                 Dataset.data_type,
                 Dataset.data_units,
                 Dataset.data_dimen,
@@ -197,7 +197,7 @@ def get_datasets(dataset_ids,**kwargs):
                 dataset_dict['value'] = str(dataset_row.value)
 
             if dataset_row.hidden == 'N' or (dataset_row.hidden == 'Y' and dataset_row.user_id is not None):
-                metadata = DBSession.query(Metadata).filter(Metadata.dataset_id == dataset_row.dataset_id).all()
+                metadata = db.DBSession.query(Metadata).filter(Metadata.dataset_id == dataset_row.dataset_id).all()
                 dataset_dict['metadata'] = metadata
             else:
                 dataset_dict['metadata'] = []
@@ -274,7 +274,7 @@ def search_datasets(dataset_id=None,
 
     user_id = int(kwargs.get('user_id'))
 
-    dataset_qry = DBSession.query(Dataset.dataset_id,
+    dataset_qry = db.DBSession.query(Dataset.dataset_id,
             Dataset.data_type,
             Dataset.data_units,
             Dataset.data_dimen,
@@ -359,14 +359,14 @@ def search_datasets(dataset_id=None,
                 TypeAttr, and_(TypeAttr.attr_id==ResourceAttr.attr_id, TypeAttr.type_id==type_id))
 
         if unconnected == 'Y':
-            stmt = DBSession.query(distinct(ResourceScenario.dataset_id).label('dataset_id'),
+            stmt = db.DBSession.query(distinct(ResourceScenario.dataset_id).label('dataset_id'),
                                 literal_column("0").label('col')).subquery()
             dataset_qry = dataset_qry.outerjoin(
                 stmt, stmt.c.dataset_id == Dataset.dataset_id)
             dataset_qry = dataset_qry.filter(stmt.c.col == None)
         elif unconnected == 'N':
             #The dataset has to be connected to something
-            stmt = DBSession.query(distinct(ResourceScenario.dataset_id).label('dataset_id'),
+            stmt = db.DBSession.query(distinct(ResourceScenario.dataset_id).label('dataset_id'),
                                 literal_column("0").label('col')).subquery()
             dataset_qry = dataset_qry.join(
                 stmt, stmt.c.dataset_id == Dataset.dataset_id)
@@ -423,7 +423,7 @@ def search_datasets(dataset_id=None,
                 dataset_dict['value'] = str(dataset_row.value)
 
         if inc_metadata=='Y':
-            metadata = DBSession.query(Metadata).filter(Metadata.dataset_id==dataset_row.dataset_id).all()
+            metadata = db.DBSession.query(Metadata).filter(Metadata.dataset_id==dataset_row.dataset_id).all()
             dataset_dict['metadata'] = metadata
         else:
             dataset_dict['metadata'] = []
@@ -444,7 +444,7 @@ def update_dataset(dataset_id, name, data_type, val, units, dimension, metadata=
 
     user_id = kwargs.get('user_id')
 
-    dataset = DBSession.query(Dataset).filter(Dataset.dataset_id==dataset_id).one()
+    dataset = db.DBSession.query(Dataset).filter(Dataset.dataset_id==dataset_id).one()
     #This dataset been seen before, so it may be attached
     #to other scenarios, which may be locked. If they are locked, we must
     #not change their data, so new data must be created for the unlocked scenarios
@@ -483,12 +483,12 @@ def update_dataset(dataset_id, name, data_type, val, units, dimension, metadata=
         dataset.data_hash  = dataset.set_hash()
 
         #Is there a dataset in the DB already which is identical to the updated dataset?
-        existing_dataset = DBSession.query(Dataset).filter(Dataset.data_hash==dataset.data_hash, Dataset.dataset_id != dataset.dataset_id).first()
+        existing_dataset = db.DBSession.query(Dataset).filter(Dataset.data_hash==dataset.data_hash, Dataset.dataset_id != dataset.dataset_id).first()
         if existing_dataset is not None and existing_dataset.check_user(user_id):
             log.warn("An identical dataset %s has been found to dataset %s."
                      " Deleting dataset and returning dataset %s",
                      existing_dataset.dataset_id, dataset.dataset_id, existing_dataset.dataset_id)
-            DBSession.delete(dataset)
+            db.DBSession.delete(dataset)
             dataset = existing_dataset
 
     return dataset
@@ -520,27 +520,27 @@ def add_dataset(data_type, val, units, dimension, metadata={}, name="", user_id=
     d.data_hash  = d.set_hash()
 
     try:
-        existing_dataset = DBSession.query(Dataset).filter(Dataset.data_hash==d.data_hash).one()
+        existing_dataset = db.DBSession.query(Dataset).filter(Dataset.data_hash==d.data_hash).one()
         if existing_dataset.check_user(user_id):
             d = existing_dataset
         else:
             d.set_metadata({'created_at': datetime.datetime.now()})
             d.set_hash()
-            DBSession.add(d)
+            db.DBSession.add(d)
     except NoResultFound:
-        DBSession.add(d)
+        db.DBSession.add(d)
 
     if flush == True:
-        DBSession.flush()
+        db.DBSession.flush()
     return d
 
 def bulk_insert_data(data, **kwargs):
     datasets = _bulk_insert_data(data, user_id=kwargs.get('user_id'), source=kwargs.get('app_name'))
-    #This line exists to make the DBSession 'dirty',
+    #This line exists to make the db.DBSession 'dirty',
     #thereby telling it to flush the bulk insert.
     datasets[0].data_name = datasets[0].data_name
 
-    DBSession.flush()
+    db.DBSession.flush()
 
     return datasets
 
@@ -619,16 +619,16 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
     	#If we're working with mysql, we have to lock the table..
     	#For sqlite, this is not possible. Hence the try: except
         try:
-            DBSession.execute("LOCK TABLES tDataset WRITE, tMetadata WRITE")
+            db.DBSession.execute("LOCK TABLES tDataset WRITE, tMetadata WRITE")
         except OperationalError:
             pass
 
         log.debug("Inserting new data", get_timing(start_time))
-        DBSession.execute(Dataset.__table__.insert(), new_data_for_insert)
+        db.DBSession.execute(Dataset.__table__.insert(), new_data_for_insert)
         log.debug("New data Inserted", get_timing(start_time))
 
         try:
-            DBSession.execute("UNLOCK TABLES")
+            db.DBSession.execute("UNLOCK TABLES")
         except OperationalError:
             pass
 
@@ -663,7 +663,7 @@ def _insert_metadata(metadata_hash_dict, dataset_id_hash_dict):
             metadata['dataset_id']      = dataset_id_hash_dict[_hash].dataset_id
             metadata_list.append(metadata)
 
-    DBSession.execute(Metadata.__table__.insert(), metadata_list)
+    db.DBSession.execute(Metadata.__table__.insert(), metadata_list)
 
 def _process_incoming_data(data, user_id=None, source=None):
 
@@ -738,7 +738,7 @@ def _get_metadata(dataset_ids):
         extent = qry_in_threshold
         while idx < len(dataset_ids):
             log.info("Querying %s metadatas", len(dataset_ids[idx:extent]))
-            rs = DBSession.query(Metadata).filter(Metadata.dataset_id.in_(dataset_ids[idx:extent])).all()
+            rs = db.DBSession.query(Metadata).filter(Metadata.dataset_id.in_(dataset_ids[idx:extent])).all()
             metadata.extend(rs)
             idx = idx + qry_in_threshold
 
@@ -747,7 +747,7 @@ def _get_metadata(dataset_ids):
             else:
                 extent = extent +qry_in_threshold
     else:
-        metadata_qry = DBSession.query(Metadata).filter(Metadata.dataset_id.in_(dataset_ids))
+        metadata_qry = db.DBSession.query(Metadata).filter(Metadata.dataset_id.in_(dataset_ids))
         for m in metadata_qry:
             metadata.append(m)
 
@@ -765,7 +765,7 @@ def _get_existing_data(hashes):
         extent =qry_in_threshold
         while idx < len(str_hashes):
             log.info("Querying %s datasets", len(str_hashes[idx:extent]))
-            rs = DBSession.query(Dataset).filter(Dataset.data_hash.in_(str_hashes[idx:extent])).all()
+            rs = db.DBSession.query(Dataset).filter(Dataset.data_hash.in_(str_hashes[idx:extent])).all()
             datasets.extend(rs)
             idx = idx + qry_in_threshold
 
@@ -774,7 +774,7 @@ def _get_existing_data(hashes):
             else:
                 extent = extent + qry_in_threshold
     else:
-        datasets = DBSession.query(Dataset).filter(Dataset.data_hash.in_(str_hashes))
+        datasets = db.DBSession.query(Dataset).filter(Dataset.data_hash.in_(str_hashes))
 
 
     for r in datasets:
@@ -798,7 +798,7 @@ def _get_datasets(dataset_ids):
         extent =qry_in_threshold
         while idx < len(dataset_ids):
             log.info("Querying %s datasets", len(dataset_ids[idx:extent]))
-            rs = DBSession.query(Dataset).filter(Dataset.dataset_id.in_(dataset_ids[idx:extent])).all()
+            rs = db.DBSession.query(Dataset).filter(Dataset.dataset_id.in_(dataset_ids[idx:extent])).all()
             datasets.extend(rs)
             idx = idx + qry_in_threshold
 
@@ -807,7 +807,7 @@ def _get_datasets(dataset_ids):
             else:
                 extent = extent + qry_in_threshold
     else:
-        datasets = DBSession.query(Dataset).filter(Dataset.dataset_id.in_(dataset_ids))
+        datasets = db.DBSession.query(Dataset).filter(Dataset.dataset_id.in_(dataset_ids))
 
 
     for r in datasets:
@@ -818,7 +818,7 @@ def _get_datasets(dataset_ids):
     return dataset_dict
 
 def get_all_dataset_collections(**kwargs):
-    all_collections = DBSession.query(DatasetCollection).all()
+    all_collections = db.DBSession.query(DatasetCollection).all()
 
     return all_collections
 
@@ -828,7 +828,7 @@ def _get_collection(collection_id):
         :param collection ID
     """
     try:
-        collection = DBSession.query(DatasetCollection).filter(DatasetCollection.collection_id==collection_id).one()
+        collection = db.DBSession.query(DatasetCollection).filter(DatasetCollection.collection_id==collection_id).one()
         return collection
     except NoResultFound:
         raise ResourceNotFoundError("No dataset collection found with id %s"%collection_id)
@@ -839,7 +839,7 @@ def _get_collection_item(collection_id, dataset_id):
         :param collection ID
         :param dataset ID
     """
-    collection_item = DBSession.query(DatasetCollectionItem).\
+    collection_item = db.DBSession.query(DatasetCollectionItem).\
             filter(DatasetCollectionItem.collection_id==collection_id,
                    DatasetCollectionItem.dataset_id==dataset_id).first()
     return collection_item
@@ -857,8 +857,8 @@ def add_dataset_to_collection(dataset_id, collection_id, **kwargs):
     new_item.dataset_id=dataset_id
     new_item.collection_id=collection_id
 
-    DBSession.add(new_item)
-    DBSession.flush()
+    db.DBSession.add(new_item)
+    db.DBSession.flush()
 
     return 'OK'
 
@@ -878,9 +878,9 @@ def add_datasets_to_collection(dataset_ids, collection_id, **kwargs):
         new_item.dataset_id=dataset_id
         new_item.collection_id=collection_id
 
-        DBSession.add(new_item)
+        db.DBSession.add(new_item)
 
-    DBSession.flush()
+    db.DBSession.flush()
     return 'OK'
 
 def remove_dataset_from_collection(dataset_id, collection_id, **kwargs):
@@ -893,8 +893,8 @@ def remove_dataset_from_collection(dataset_id, collection_id, **kwargs):
         raise HydraError("Dataset %s is not in collection %s.",
                                                     dataset_id,
                                                     collection_id)
-    DBSession.delete(collection_item)
-    DBSession.flush()
+    db.DBSession.delete(collection_item)
+    db.DBSession.flush()
 
     return 'OK'
 
@@ -918,7 +918,7 @@ def check_dataset_in_collection(dataset_id, collection_id, **kwargs):
 
 def get_dataset_collection(collection_id,**kwargs):
     try:
-        collection = DBSession.query(DatasetCollection).filter(DatasetCollection.collection_id==collection_id).one()
+        collection = db.DBSession.query(DatasetCollection).filter(DatasetCollection.collection_id==collection_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("No dataset collection found with id %s"%collection_id)
 
@@ -926,7 +926,7 @@ def get_dataset_collection(collection_id,**kwargs):
 
 def get_dataset_collection_by_name(collection_name,**kwargs):
     try:
-        collection = DBSession.query(DatasetCollection).filter(DatasetCollection.collection_name==collection_name).one()
+        collection = db.DBSession.query(DatasetCollection).filter(DatasetCollection.collection_name==collection_name).one()
     except NoResultFound:
         raise ResourceNotFoundError("No dataset collection found with name %s"%collection_name)
 
@@ -939,26 +939,26 @@ def add_dataset_collection(collection,**kwargs):
     for dataset_id in collection.dataset_ids:
         datasetitem = DatasetCollectionItem(dataset_id=dataset_id)
         coln_i.items.append(datasetitem)
-    DBSession.add(coln_i)
-    DBSession.flush()
+    db.DBSession.add(coln_i)
+    db.DBSession.flush()
     return coln_i
 
 def delete_dataset_collection(collection_id,**kwargs):
 
     try:
-        collection = DBSession.query(DatasetCollection).filter(DatasetCollection.collection_id==collection_id).one()
+        collection = db.DBSession.query(DatasetCollection).filter(DatasetCollection.collection_id==collection_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("No dataset collection found with id %s"%collection_id)
 
-    DBSession.delete(collection)
-    DBSession.flush()
+    db.DBSession.delete(collection)
+    db.DBSession.flush()
 
 def get_collections_like_name(collection_name,**kwargs):
     """
         Get all the datasets from the collection with the specified name
     """
     try:
-        collections = DBSession.query(DatasetCollection).filter(DatasetCollection.collection_name.like("%%%s%%"%collection_name.lower())).all()
+        collections = db.DBSession.query(DatasetCollection).filter(DatasetCollection.collection_name.like("%%%s%%"%collection_name.lower())).all()
     except NoResultFound:
         raise ResourceNotFoundError("No dataset collection found with name %s"%collection_name)
 
@@ -968,7 +968,7 @@ def get_collection_datasets(collection_id,**kwargs):
     """
         Get all the datasets from the collection with the specified name
     """
-    collection_datasets = DBSession.query(Dataset).filter(Dataset.dataset_id==DatasetCollectionItem.dataset_id,
+    collection_datasets = db.DBSession.query(Dataset).filter(Dataset.dataset_id==DatasetCollectionItem.dataset_id,
                                         DatasetCollectionItem.collection_id==DatasetCollection.collection_id,
                                         DatasetCollection.collection_id==collection_id).all()
     return collection_datasets
@@ -984,7 +984,7 @@ def get_val_at_time(dataset_id, timestamps,**kwargs):
     t = []
     for time in timestamps:
         t.append(get_datetime(time))
-    dataset_i = DBSession.query(Dataset).filter(Dataset.dataset_id==dataset_id).one()
+    dataset_i = db.DBSession.query(Dataset).filter(Dataset.dataset_id==dataset_id).one()
     #for time in t:
     #    data.append(td.get_val(timestamp=time))
 
@@ -1062,7 +1062,7 @@ def get_vals_between_times(dataset_id, start_time, end_time, timestep,increment,
         except:
             raise HydraError("Unable to get times. Please check to and from times.")
 
-    td = DBSession.query(Dataset).filter(Dataset.dataset_id==dataset_id).one()
+    td = db.DBSession.query(Dataset).filter(Dataset.dataset_id==dataset_id).one()
     log.debug("Number of times to fetch: %s", len(times))
     data = td.get_val(timestamp=times)
 
@@ -1086,16 +1086,16 @@ def delete_dataset(dataset_id,**kwargs):
         CAUTION! Use with care, as this cannot be undone easily.
     """
     try:
-        d = DBSession.query(Dataset).filter(Dataset.dataset_id==dataset_id).one()
+        d = db.DBSession.query(Dataset).filter(Dataset.dataset_id==dataset_id).one()
     except NoResultFound:
         raise HydraError("Dataset %s does not exist."%dataset_id)
 
-    dataset_rs = DBSession.query(ResourceScenario).filter(ResourceScenario.dataset_id==dataset_id).all()
+    dataset_rs = db.DBSession.query(ResourceScenario).filter(ResourceScenario.dataset_id==dataset_id).all()
     if len(dataset_rs) > 0:
         raise HydraError("Cannot delete %s. Dataset is used by resource scenarios."%dataset_id)
 
-    DBSession.delete(d)
-    DBSession.flush()
+    db.DBSession.delete(d)
+    db.DBSession.flush()
 
 def read_json(json_string):
     pd.read_json(json_string)

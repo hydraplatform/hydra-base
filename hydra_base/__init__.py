@@ -18,8 +18,12 @@ import config
 if config.CONFIG is None:
     config.load_config()
 
+from .lib.project import *
+
 import hydra_logging
 hydra_logging.init()
+
+from .db import connect
 
 
 log = logging.getLogger(__name__)

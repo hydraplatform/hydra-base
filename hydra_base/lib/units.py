@@ -15,13 +15,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from hydra_base import units
-from hydra_base.exceptions import HydraError
-from hydra_base.util.dataset_util import array_dim
-from hydra_base.util.dataset_util import arr_to_vector
-from hydra_base.util.dataset_util import vector_to_arr
-from HydraServer.db.model import Dataset
-from HydraServer.db import DBSession
+from .. import units
+from ..exceptions import HydraError
+from ..util.dataset_util import array_dim
+from ..util.dataset_util import arr_to_vector
+from ..util.dataset_util import vector_to_arr
+from ..db.model import Dataset
+from .. import db
 import logging
 log = logging.getLogger(__name__)
 
@@ -119,7 +119,7 @@ def convert_dataset(dataset_id, to_unit,**kwargs):
     returns the dataset ID of new dataset.
     """
 
-    ds_i = DBSession.query(Dataset).filter(Dataset.dataset_id==dataset_id).one()
+    ds_i = db.DBSession.query(Dataset).filter(Dataset.dataset_id==dataset_id).one()
 
     dataset_type = ds_i.data_type
 
@@ -155,14 +155,14 @@ def convert_dataset(dataset_id, to_unit,**kwargs):
         new_dataset.set_metadata(ds_i.get_metadata_as_dict())
         new_dataset.set_hash()
 
-        existing_ds = DBSession.query(Dataset).filter(Dataset.data_hash==new_dataset.data_hash).first()
+        existing_ds = db.DBSession.query(Dataset).filter(Dataset.data_hash==new_dataset.data_hash).first()
 
         if existing_ds is not None:
-            DBSession.expunge_all()
+            db.DBSession.expunge_all()
             return existing_ds.dataset_id
         
-        DBSession.add(new_dataset)
-        DBSession.flush()
+        db.DBSession.add(new_dataset)
+        db.DBSession.flush()
 
         return new_dataset.dataset_id
 

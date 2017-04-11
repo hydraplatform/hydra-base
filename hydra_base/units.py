@@ -21,7 +21,7 @@ between units and dimensions.
 
 import os
 from copy import deepcopy
-from HydraLib.HydraException import HydraError
+from .exceptions import HydraError
 
 import config
 from lxml import etree

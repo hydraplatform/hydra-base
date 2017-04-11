@@ -13,25 +13,24 @@
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-from hydra_base.exceptions import ResourceNotFoundError
+from ..exceptions import ResourceNotFoundError
 import scenario
 import logging
-from hydra_base.exceptions import PermissionError, HydraError
-from HydraServer.db.model import Project, ProjectOwner, Network
-from HydraServer.db import DBSession
+from ..exceptions import PermissionError, HydraError
+from ..db.model import Project, ProjectOwner, Network
+from .. import db
 import network
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import class_mapper, joinedload_all
 from sqlalchemy import and_
-from HydraServer.util.hdb import add_attributes
+from ..util.hdb import add_attributes
 from sqlalchemy.util import KeyedTuple
-from HydraServer.db import DeclarativeBase
 
 log = logging.getLogger(__name__)
 
 def _get_project(project_id):
     try:
-        project = DBSession.query(Project).filter(Project.project_id==project_id).one()
+        project = db.DBSession.query(Project).filter(Project.project_id==project_id).one()
         return project
     except NoResultFound:
         raise ResourceNotFoundError("Project %s not found"%(project_id))
@@ -73,8 +72,8 @@ def add_project(project,**kwargs):
 
     proj_i.set_owner(user_id)
 
-    DBSession.add(proj_i)
-    DBSession.flush()
+    db.DBSession.add(proj_i)
+    db.DBSession.flush()
 
     return proj_i
 
@@ -96,7 +95,7 @@ def update_project(project,**kwargs):
     attr_map = add_attributes(proj_i, project.attributes)
     proj_data = _add_project_attribute_data(proj_i, attr_map, project.attribute_data)
     proj_i.attribute_data = proj_data
-    DBSession.flush()
+    db.DBSession.flush()
 
     return proj_i
 
@@ -117,7 +116,7 @@ def get_project_by_name(project_name,**kwargs):
     """
     user_id = kwargs.get('user_id')
     try:
-        proj_i = DBSession.query(Project).filter(Project.project_name==project_name).one()
+        proj_i = db.DBSession.query(Project).filter(Project.project_name==project_name).one()
     except NoResultFound:
         raise ResourceNotFoundError("Project %s not found"%(project_name))
 
@@ -200,7 +199,7 @@ def get_projects(uid,**kwargs):
     #Potentially join this with an rs of projects
     #where no owner exists?
 
-    projects = DBSession.query(Project).join(ProjectOwner).filter(ProjectOwner.user_id==uid).options(joinedload_all('networks')).order_by('project_id').all()
+    projects = db.DBSession.query(Project).join(ProjectOwner).filter(ProjectOwner.user_id==uid).options(joinedload_all('networks')).order_by('project_id').all()
     for project in projects:
         project.check_read_permission(req_user_id)
 
@@ -219,7 +218,7 @@ def set_project_status(project_id, status, **kwargs):
     project = _get_project(project_id)
     project.check_write_permission(user_id)
     project.status = status
-    DBSession.flush()
+    db.DBSession.flush()
 
 def delete_project(project_id,**kwargs):
     """
@@ -229,8 +228,8 @@ def delete_project(project_id,**kwargs):
     #check_perm(user_id, 'delete_project')
     project = _get_project(project_id)
     project.check_write_permission(user_id)
-    DBSession.delete(project)
-    DBSession.flush()
+    db.DBSession.delete(project)
+    db.DBSession.flush()
 
 def get_networks(project_id, include_data='N', **kwargs):
     """
@@ -242,7 +241,7 @@ def get_networks(project_id, include_data='N', **kwargs):
     project = _get_project(project_id)
     project.check_read_permission(user_id)
 
-    rs = DBSession.query(Network.network_id, Network.status).filter(Network.project_id==project_id).all()
+    rs = db.DBSession.query(Network.network_id, Network.status).filter(Network.project_id==project_id).all()
     networks=[]
     for r in rs:
         if r.status != 'A':
@@ -262,7 +261,7 @@ def get_network_project(network_id, **kwargs):
         get the project that a network is in
     """
 
-    net_proj = DBSession.query(Project).join(Network, and_(Project.project_id==Network.network_id, Network.network_id==network_id)).first()
+    net_proj = db.DBSession.query(Project).join(Network, and_(Project.project_id==Network.network_id, Network.network_id==network_id)).first()
 
     if net_proj is None:
         raise HydraError("Network %s not found"% network_id)

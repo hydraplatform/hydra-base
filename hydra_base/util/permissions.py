@@ -13,10 +13,10 @@
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-from HydraServer.db import DBSession
-from HydraServer.db.model import Perm, User, RolePerm, RoleUser
+from ..db import DBSession
+from ..db.model import Perm, User, RolePerm, RoleUser
 from sqlalchemy.orm.exc import NoResultFound
-from HydraLib.HydraException import PermissionError
+from ..exceptions import PermissionError
 
 def check_perm(user_id, permission_code):
     """

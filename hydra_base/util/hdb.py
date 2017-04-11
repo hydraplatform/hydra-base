@@ -1,10 +1,10 @@
-from HydraServer.db.model import Network, Scenario, Project, User, Role, Perm, RolePerm, RoleUser, ResourceAttr, ResourceType
+from ..db.model import Network, Scenario, Project, User, Role, Perm, RolePerm, RoleUser, ResourceAttr, ResourceType
 from sqlalchemy.orm.exc import NoResultFound
-from HydraServer.db import DBSession
+from ..db import DBSession
 import datetime
 import random
 import bcrypt
-from HydraLib.HydraException import HydraError
+from ..exceptions import HydraError
 import transaction
 import logging
 log = logging.getLogger(__name__)

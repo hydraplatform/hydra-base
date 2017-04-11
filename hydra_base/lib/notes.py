@@ -1,11 +1,11 @@
-from HydraServer.db.model import Note
-from HydraServer.db import DBSession
-from hydra_base.exceptions import HydraError, ResourceNotFoundError
+from ..db.model import Note
+from .. import db
+from ..exceptions import HydraError, ResourceNotFoundError
 from sqlalchemy.orm.exc import NoResultFound
 
 def _get_note(note_id):
     try:
-        note_i = DBSession.query(Note).filter(Note.note_id == note_id).one()
+        note_i = db.DBSession.query(Note).filter(Note.note_id == note_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Note %s not found"%note_id)
     return note_i
@@ -15,7 +15,7 @@ def get_notes(ref_key, ref_id, **kwargs):
         Get all the notes for a resource, identifed by ref_key and ref_ido.
         Returns [] if no notes are found or if the resource doesn't exist.
     """
-    notes = DBSession.query(Note).filter(Note.ref_key==ref_key)
+    notes = db.DBSession.query(Note).filter(Note.ref_key==ref_key)
     if ref_key == 'NETWORK':
         notes = notes.filter(Note.network_id == ref_id)
     elif ref_key == 'NODE':
@@ -55,8 +55,8 @@ def add_note(note, **kwargs):
 
     note_i.created_by = kwargs.get('user_id')
 
-    DBSession.add(note_i)
-    DBSession.flush()
+    db.DBSession.add(note_i)
+    db.DBSession.flush()
 
     return note_i
 
@@ -73,7 +73,7 @@ def update_note(note, **kwargs):
 
     note_i.note_text = note.text
 
-    DBSession.flush()
+    db.DBSession.flush()
 
     return note_i
 
@@ -83,6 +83,6 @@ def purge_note(note_id, **kwargs):
     """
     note_i = _get_note(note_id)
     
-    DBSession.delete(note_i)
+    db.DBSession.delete(note_i)
     
-    DBSession.flush()
+    db.DBSession.flush()

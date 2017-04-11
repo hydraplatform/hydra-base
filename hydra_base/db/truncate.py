@@ -20,7 +20,7 @@ from sqlalchemy.engine import reflection
 from sqlalchemy.orm import sessionmaker
 import logging
 from mysql.connector.connection import MySQLConnection
-from HydraLib import config
+from .. import config
 import os
 import datetime
 from multiprocessing import Process

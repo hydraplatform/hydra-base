@@ -5,7 +5,7 @@ from decimal import Decimal
 import pandas as pd
 import zlib
 import json
-from HydraLib import config
+from .. import config
 
 from collections import namedtuple
 

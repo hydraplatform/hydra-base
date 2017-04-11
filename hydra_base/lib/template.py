@@ -13,12 +13,12 @@
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-from HydraServer.db import DBSession
-from HydraServer.db.model import Template, TemplateType, TypeAttr, Attr, Network, Node, Link, ResourceGroup, ResourceType, ResourceAttr, ResourceScenario, Scenario
+from .. import db
+from ..db.model import Template, TemplateType, TypeAttr, Attr, Network, Node, Link, ResourceGroup, ResourceType, ResourceAttr, ResourceScenario, Scenario
 from data import add_dataset
 
-from hydra_base.exceptions import HydraError, ResourceNotFoundError
-from hydra_base import config, util
+from ..exceptions import HydraError, ResourceNotFoundError
+from ..import config, util
 from lxml import etree
 from decimal import Decimal
 import logging
@@ -66,7 +66,7 @@ def get_types_by_attr(resource, template_id=None):
         attr_ids.append(attr.attr_id)
     all_resource_attr_ids = set(attr_ids)
 
-    all_types = DBSession.query(TemplateType).options(joinedload_all('typeattrs')).filter(TemplateType.resource_type==resource.ref_key)
+    all_types = db.DBSession.query(TemplateType).options(joinedload_all('typeattrs')).filter(TemplateType.resource_type==resource.ref_key)
     if template_id is not None:
         all_types = all_types.filter(TemplateType.template_id==template_id)
 
@@ -88,7 +88,7 @@ def _get_attr_by_name_and_dimension(name, dimension):
         If such an attribute does not exist, create one.
     """
     
-    attr = DBSession.query(Attr).filter(Attr.attr_name==name, Attr.attr_dimen==dimension).first()
+    attr = db.DBSession.query(Attr).filter(Attr.attr_name==name, Attr.attr_dimen==dimension).first()
 
     if attr is None: 
         attr         = Attr()
@@ -98,7 +98,7 @@ def _get_attr_by_name_and_dimension(name, dimension):
         log.info("Attribute not found, creating new attribute: name:%s, dimen:%s",
                     attr.attr_name, attr.attr_dimen)
 
-        DBSession.add(attr)
+        db.DBSession.add(attr)
 
     return attr
 
@@ -123,7 +123,7 @@ def parse_attribute(attribute):
     
     attr = _get_attr_by_name_and_dimension(name, dimension)
 
-    DBSession.flush()
+    db.DBSession.flush()
 
     return attr
 
@@ -141,7 +141,7 @@ def parse_typeattr(type_i, attribute):
         typeattr_i.type_id=type_i.type_id
         typeattr_i.attr_id=attr.attr_id
         type_i.typeattrs.append(typeattr_i)
-        DBSession.add(typeattr_i)
+        db.DBSession.add(typeattr_i)
 
     unit = None
     if attribute.find('unit') is not None:
@@ -231,13 +231,13 @@ def upload_template_xml(template_xml,**kwargs):
         template_layout = json.dumps(layout_string)
 
     try:
-        tmpl_i = DBSession.query(Template).filter(Template.template_name==template_name).options(joinedload_all('templatetypes.typeattrs.attr')).one()
+        tmpl_i = db.DBSession.query(Template).filter(Template.template_name==template_name).options(joinedload_all('templatetypes.typeattrs.attr')).one()
         tmpl_i.layout = template_layout
         log.info("Existing template found. name=%s", template_name)
     except NoResultFound:
         log.info("Template not found. Creating new one. name=%s", template_name)
         tmpl_i = Template(template_name=template_name, layout=template_layout)
-        DBSession.add(tmpl_i)
+        db.DBSession.add(tmpl_i)
 
     types = xml_tree.find('resources')
     #Delete any types which are in the DB but no longer in the XML file
@@ -256,9 +256,9 @@ def upload_template_xml(template_xml,**kwargs):
     for type_to_delete in types_to_delete:
         type_id = type_name_map[type_to_delete]
         try:
-            type_i = DBSession.query(TemplateType).filter(TemplateType.type_id==type_id).one()
+            type_i = db.DBSession.query(TemplateType).filter(TemplateType.type_id==type_id).one()
             log.info("Deleting type %s", type_i.type_name)
-            DBSession.delete(type_i)
+            db.DBSession.delete(type_i)
         except NoResultFound:
             pass
 
@@ -269,7 +269,7 @@ def upload_template_xml(template_xml,**kwargs):
         type_is_new = False
         if type_name in existing_types:
             type_id = type_name_map[type_name]
-            type_i = DBSession.query(TemplateType).filter(TemplateType.type_id==type_id).options(joinedload_all('typeattrs.attr')).one()
+            type_i = db.DBSession.query(TemplateType).filter(TemplateType.type_id==type_id).options(joinedload_all('typeattrs.attr')).one()
             
         else:
             log.info("Type %s not found, creating new one.", type_name)
@@ -309,8 +309,8 @@ def upload_template_xml(template_xml,**kwargs):
         for attr_to_delete in attrs_to_delete:
             attr_id, type_id = attr_name_map[attr_to_delete]
             try:
-                attr_i = DBSession.query(TypeAttr).filter(TypeAttr.attr_id==attr_id, TypeAttr.type_id==type_id).options(joinedload_all('attr')).one()
-                DBSession.delete(attr_i)
+                attr_i = db.DBSession.query(TypeAttr).filter(TypeAttr.attr_id==attr_id, TypeAttr.type_id==type_id).options(joinedload_all('attr')).one()
+                db.DBSession.delete(attr_i)
                 log.info("Attr %s in type %s deleted",attr_i.attr.attr_name, attr_i.templatetype.type_name)
             except NoResultFound:
                 log.debug("Attr %s not found in type %s"%(attr_id, type_id))
@@ -320,7 +320,7 @@ def upload_template_xml(template_xml,**kwargs):
         for attribute in resource.findall('attribute'):
             parse_typeattr(type_i, attribute)
 
-    DBSession.flush()
+    db.DBSession.flush()
 
     return tmpl_i
 
@@ -330,11 +330,11 @@ def apply_template_to_network(template_id, network_id, **kwargs):
         a type in a given template. If so, assign the type to the node / link.
     """
 
-    net_i = DBSession.query(Network).filter(Network.network_id==network_id).one()
+    net_i = db.DBSession.query(Network).filter(Network.network_id==network_id).one()
     #There should only ever be one matching type, but if there are more,
     #all we can do is pick the first one.
     try: 
-        network_type_id = DBSession.query(TemplateType.type_id).filter(TemplateType.template_id==template_id,
+        network_type_id = db.DBSession.query(TemplateType.type_id).filter(TemplateType.template_id==template_id,
                                                                        TemplateType.resource_type=='NETWORK').one()
         assign_type_to_resource(network_type_id.type_id, 'NETWORK', network_id,**kwargs)
     except NoResultFound:
@@ -367,12 +367,12 @@ def remove_template_from_network(network_id, template_id, remove_attrs, **kwargs
     """
 
     try:
-        network = DBSession.query(Network).filter(Network.network_id==network_id).one()
+        network = db.DBSession.query(Network).filter(Network.network_id==network_id).one()
     except NoResultFound:
         raise HydraError("Network %s not found"%network_id)
 
     try:
-        template = DBSession.query(Template).filter(Template.template_id==template_id).one()
+        template = db.DBSession.query(Template).filter(Template.template_id==template_id).one()
     except NoResultFound:
         raise HydraError("Template %s not found"%template_id)
 
@@ -393,9 +393,9 @@ def remove_template_from_network(network_id, template_id, remove_attrs, **kwargs
             resource_attrs_to_remove.extend(_get_resources_to_remove(g, template))
 
         for ra in resource_attrs_to_remove:
-            DBSession.delete(ra)
+            db.DBSession.delete(ra)
 
-    resource_types = DBSession.query(ResourceType).filter(
+    resource_types = db.DBSession.query(ResourceType).filter(
         and_(or_(
             ResourceType.network_id==network_id,
             ResourceType.node_id.in_(node_ids),
@@ -404,7 +404,7 @@ def remove_template_from_network(network_id, template_id, remove_attrs, **kwargs
         ), ResourceType.type_id.in_(type_ids))).all()
     
     for resource_type in resource_types:
-        DBSession.delete(resource_type)
+        db.DBSession.delete(resource_type)
 
 
 def _get_resources_to_remove(resource, template):
@@ -441,13 +441,13 @@ def get_matching_resource_types(resource_type, resource_id,**kwargs):
     """
     resource_i = None
     if resource_type == 'NETWORK':
-        resource_i = DBSession.query(Network).filter(Network.network_id==resource_id).one()
+        resource_i = db.DBSession.query(Network).filter(Network.network_id==resource_id).one()
     elif resource_type == 'NODE':
-        resource_i = DBSession.query(Node).filter(Node.node_id==resource_id).one()
+        resource_i = db.DBSession.query(Node).filter(Node.node_id==resource_id).one()
     elif resource_type == 'LINK':
-        resource_i = DBSession.query(Link).filter(Link.link_id==resource_id).one()
+        resource_i = db.DBSession.query(Link).filter(Link.link_id==resource_id).one()
     elif resource_type == 'GROUP':
-        resource_i = DBSession.query(ResourceGroup).filter(ResourceGroup.resourcegroup_id==resource_id).one()
+        resource_i = db.DBSession.query(ResourceGroup).filter(ResourceGroup.resourcegroup_id==resource_id).one()
 
     matching_types = get_types_by_attr(resource_i)
     return matching_types
@@ -464,7 +464,7 @@ def assign_types_to_resources(resource_types,**kwargs):
     #Remove duplicate values from types by turning it into a set
     type_ids = list(set([rt.type_id for rt in resource_types]))
     
-    db_types = DBSession.query(TemplateType).filter(TemplateType.type_id.in_(type_ids)).options(joinedload_all('typeattrs')).all()
+    db_types = db.DBSession.query(TemplateType).filter(TemplateType.type_id.in_(type_ids)).options(joinedload_all('typeattrs')).all()
 
     types = {}
     for db_type in db_types:
@@ -491,7 +491,7 @@ def assign_types_to_resources(resource_types,**kwargs):
         elif resource_type.ref_key == 'GROUP':
             grp_ids.append(ref_id)
     if net_id:
-        net = DBSession.query(Network).filter(Network.network_id==net_id).one()
+        net = db.DBSession.query(Network).filter(Network.network_id==net_id).one()
     nodes = _get_nodes(node_ids)
     links = _get_links(link_ids)
     groups = _get_groups(grp_ids)
@@ -518,14 +518,14 @@ def assign_types_to_resources(resource_types,**kwargs):
 
     log.info("Retrieved all the appropriate resources")
     if len(res_types) > 0:
-        DBSession.execute(ResourceType.__table__.insert(), res_types)
+        db.DBSession.execute(ResourceType.__table__.insert(), res_types)
     if len(res_attrs) > 0:
-        DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
+        db.DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
     if len(res_scenarios) > 0:
-        DBSession.execute(ResourceScenario.__table__.insert(), res_scenarios)
+        db.DBSession.execute(ResourceScenario.__table__.insert(), res_scenarios)
 
     #Make DBsession 'dirty' to pick up the inserts by doing a fake delete. 
-    DBSession.query(Attr).filter(Attr.attr_id==None).delete()
+    db.DBSession.query(Attr).filter(Attr.attr_id==None).delete()
 
     ret_val = [t for t in types.values()]
     return ret_val
@@ -541,8 +541,8 @@ def check_type_compatibility(type_1_id, type_2_id):
     """
     errors = []
 
-    type_1 = DBSession.query(TemplateType).filter(TemplateType.type_id==type_1_id).options(joinedload_all('typeattrs')).one()
-    type_2 = DBSession.query(TemplateType).filter(TemplateType.type_id==type_2_id).options(joinedload_all('typeattrs')).one()
+    type_1 = db.DBSession.query(TemplateType).filter(TemplateType.type_id==type_1_id).options(joinedload_all('typeattrs')).one()
+    type_2 = db.DBSession.query(TemplateType).filter(TemplateType.type_id==type_2_id).options(joinedload_all('typeattrs')).one()
     template_1_name = type_1.template.template_name
     template_2_name = type_2.template.template_name
 
@@ -597,7 +597,7 @@ def _get_links(link_ids):
         extent = 500
         while idx < len(link_ids):
             log.info("Querying %s links", len(link_ids[idx:extent]))
-            rs = DBSession.query(Link).options(joinedload_all('attributes')).options(joinedload_all('types')).filter(Link.link_id.in_(link_ids[idx:extent])).all()
+            rs = db.DBSession.query(Link).options(joinedload_all('attributes')).options(joinedload_all('types')).filter(Link.link_id.in_(link_ids[idx:extent])).all()
             log.info("Retrieved %s links", len(rs))
             links.extend(rs)
             idx = idx + 500
@@ -607,7 +607,7 @@ def _get_links(link_ids):
             else:
                 extent = extent + 500
     else:
-        links = DBSession.query(Link).options(joinedload_all('attributes')).options(joinedload_all('types')).filter(Link.link_id.in_(link_ids)).all()
+        links = db.DBSession.query(Link).options(joinedload_all('attributes')).options(joinedload_all('types')).filter(Link.link_id.in_(link_ids)).all()
     
     link_dict = {}
 
@@ -630,7 +630,7 @@ def _get_nodes(node_ids):
         while idx < len(node_ids):
             log.info("Querying %s nodes", len(node_ids[idx:extent]))
 
-            rs = DBSession.query(Node).options(joinedload_all('attributes')).options(joinedload_all('types')).filter(Node.node_id.in_(node_ids[idx:extent])).all()
+            rs = db.DBSession.query(Node).options(joinedload_all('attributes')).options(joinedload_all('types')).filter(Node.node_id.in_(node_ids[idx:extent])).all()
 
             log.info("Retrieved %s nodes", len(rs))
             
@@ -642,7 +642,7 @@ def _get_nodes(node_ids):
             else:
                 extent = extent + 500
     else:
-        nodes = DBSession.query(Node).options(joinedload_all('attributes')).options(joinedload_all('types')).filter(Node.node_id.in_(node_ids)).all()
+        nodes = db.DBSession.query(Node).options(joinedload_all('attributes')).options(joinedload_all('types')).filter(Node.node_id.in_(node_ids)).all()
 
     node_dict = {}
 
@@ -664,7 +664,7 @@ def _get_groups(group_ids):
         extent = 500
         while idx < len(group_ids):
             log.info("Querying %s groups", len(group_ids[idx:extent]))
-            rs = DBSession.query(ResourceGroup).options(joinedload_all('attributes')).filter(ResourceGroup.group_id.in_(group_ids[idx:extent])).all()
+            rs = db.DBSession.query(ResourceGroup).options(joinedload_all('attributes')).filter(ResourceGroup.group_id.in_(group_ids[idx:extent])).all()
             log.info("Retrieved %s groups", len(rs))
             groups.extend(rs)
             idx = idx + 500
@@ -674,7 +674,7 @@ def _get_groups(group_ids):
             else:
                 extent = extent + 500
     else:
-        groups = DBSession.query(ResourceGroup).options(joinedload_all('types')).options(joinedload_all('attributes')).filter(ResourceGroup.group_id.in_(group_ids))
+        groups = db.DBSession.query(ResourceGroup).options(joinedload_all('types')).options(joinedload_all('attributes')).filter(ResourceGroup.group_id.in_(group_ids))
     group_dict = {}
 
     for g in groups:
@@ -692,33 +692,33 @@ def assign_type_to_resource(type_id, resource_type, resource_id,**kwargs):
     changed.
     """
     if resource_type == 'NETWORK':
-        resource = DBSession.query(Network).filter(Network.network_id==resource_id).one()
+        resource = db.DBSession.query(Network).filter(Network.network_id==resource_id).one()
     elif resource_type == 'NODE':
-        resource = DBSession.query(Node).filter(Node.node_id==resource_id).one()
+        resource = db.DBSession.query(Node).filter(Node.node_id==resource_id).one()
     elif resource_type == 'LINK':
-        resource = DBSession.query(Link).filter(Link.link_id==resource_id).one()
+        resource = db.DBSession.query(Link).filter(Link.link_id==resource_id).one()
     elif resource_type == 'GROUP':
-        resource = DBSession.query(ResourceGroup).filter(ResourceGroup.group_id==resource_id).one()
+        resource = db.DBSession.query(ResourceGroup).filter(ResourceGroup.group_id==resource_id).one()
     res_attrs, res_type, res_scenarios = set_resource_type(resource, type_id, **kwargs)
 
-    type_i = DBSession.query(TemplateType).filter(TemplateType.type_id==type_id).one()
+    type_i = db.DBSession.query(TemplateType).filter(TemplateType.type_id==type_id).one()
     if resource_type != type_i.resource_type:
         raise HydraError("Cannot assign a %s type to a %s"%
                          (type_i.resource_type,resource_type))
     
     if res_type is not None:
-        DBSession.execute(ResourceType.__table__.insert(), [res_type])
+        db.DBSession.execute(ResourceType.__table__.insert(), [res_type])
 
     if len(res_attrs) > 0:
-        DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
+        db.DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
 
     if len(res_scenarios) > 0:
-        DBSession.execute(ResourceScenario.__table__.insert(), res_scenarios)
+        db.DBSession.execute(ResourceScenario.__table__.insert(), res_scenarios)
 
     #Make DBsession 'dirty' to pick up the inserts by doing a fake delete. 
-    DBSession.query(Attr).filter(Attr.attr_id==None).delete()
+    db.DBSession.query(Attr).filter(Attr.attr_id==None).delete()
 
-    return DBSession.query(TemplateType).filter(TemplateType.type_id==type_id).one()
+    return db.DBSession.query(TemplateType).filter(TemplateType.type_id==type_id).one()
 
 def set_resource_type(resource, type_id, types={}, **kwargs):
     """
@@ -742,7 +742,7 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
     if type_id in types:
         type_i = types[type_id]
     else:
-        type_i = DBSession.query(TemplateType).filter(TemplateType.type_id==type_id).options(joinedload_all('typeattrs')).one()
+        type_i = db.DBSession.query(TemplateType).filter(TemplateType.type_id==type_id).options(joinedload_all('typeattrs')).one()
 
     type_attrs = dict()
     for typeattr in type_i.typeattrs:
@@ -818,14 +818,14 @@ def remove_type_from_resource( type_id, resource_type, resource_id,**kwargs):
     link_id = resource_id if resource_type == 'LINK' else None
     group_id = resource_id if resource_type == 'GROUP' else None
 
-    resourcetype = DBSession.query(ResourceType).filter(
+    resourcetype = db.DBSession.query(ResourceType).filter(
                                         ResourceType.type_id==type_id,
                                         ResourceType.ref_key==resource_type,
                                         ResourceType.node_id == node_id,
     ResourceType.link_id == link_id,
     ResourceType.group_id == group_id).one() 
 
-    DBSession.delete(resourcetype) 
+    db.DBSession.delete(resourcetype) 
 
 def _parse_data_restriction(restriction_dict):
     log.critical(restriction_dict)
@@ -861,21 +861,21 @@ def add_template(template, **kwargs):
     if template.layout:
         tmpl.layout = str(template.layout)
 
-    DBSession.add(tmpl)
+    db.DBSession.add(tmpl)
 
     if template.types is not None:
         for templatetype in template.types:
             ttype = _update_templatetype(templatetype)
             tmpl.templatetypes.append(ttype)
 
-    DBSession.flush()
+    db.DBSession.flush()
     return tmpl
 
 def update_template(template,**kwargs):
     """
         Update template and a type and typeattrs.
     """
-    tmpl = DBSession.query(Template).filter(Template.template_id==template.id).one()
+    tmpl = db.DBSession.query(Template).filter(Template.template_id==template.id).one()
     tmpl.template_name = template.name
     if template.layout is not None:
         tmpl.layout        = str(template.layout)
@@ -899,7 +899,7 @@ def update_template(template,**kwargs):
         if tt.type_id not in existing_templatetypes:
             delete_templatetype(tt.type_id)
     
-    DBSession.flush()
+    db.DBSession.flush()
  
     return tmpl
 
@@ -908,10 +908,10 @@ def delete_template(template_id,**kwargs):
         Delete a template and its type and typeattrs.
     """
     try:
-        tmpl = DBSession.query(Template).filter(Template.template_id==template_id).one()
+        tmpl = db.DBSession.query(Template).filter(Template.template_id==template_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Template %s not found"%(template_id,))
-    DBSession.delete(tmpl)
+    db.DBSession.delete(tmpl)
     return 'OK'
 
 def get_templates(load_all=True, **kwargs):
@@ -923,9 +923,9 @@ def get_templates(load_all=True, **kwargs):
             List of Template objects
     """
     if load_all is False:
-        templates = DBSession.query(Template).all()
+        templates = db.DBSession.query(Template).all()
     else:
-        templates = DBSession.query(Template).options(joinedload_all('templatetypes.typeattrs')).all()
+        templates = db.DBSession.query(Template).options(joinedload_all('templatetypes.typeattrs')).all()
 
     return templates 
 
@@ -934,16 +934,16 @@ def remove_attr_from_type(type_id, attr_id,**kwargs):
 
         Remove an attribute from a type
     """
-    typeattr_i = DBSession.query(TypeAttr).filter(TypeAttr.type_id==type_id,
+    typeattr_i = db.DBSession.query(TypeAttr).filter(TypeAttr.type_id==type_id,
                                                   TypeAttr.attr_id==attr_id).one()
-    DBSession.delete(typeattr_i)
+    db.DBSession.delete(typeattr_i)
 
 def get_template(template_id,**kwargs):
     """
         Get a specific resource template template, either by ID or name.
     """
 
-    tmpl = DBSession.query(Template).filter(Template.template_id==template_id).options(joinedload_all('templatetypes.typeattrs.default_dataset.metadata')).one()
+    tmpl = db.DBSession.query(Template).filter(Template.template_id==template_id).options(joinedload_all('templatetypes.typeattrs.default_dataset.metadata')).one()
 
     return tmpl
 
@@ -952,7 +952,7 @@ def get_template_by_name(name,**kwargs):
         Get a specific resource template, either by ID or name.
     """
     try:
-        tmpl = DBSession.query(Template).filter(Template.template_name == name).one()
+        tmpl = db.DBSession.query(Template).filter(Template.template_name == name).one()
         return tmpl
     except NoResultFound:
         log.info("%s is not a valid identifier for a template",name)
@@ -965,7 +965,7 @@ def add_templatetype(templatetype,**kwargs):
 
     type_i = _update_templatetype(templatetype)
 
-    DBSession.flush()
+    db.DBSession.flush()
 
     return type_i
 
@@ -976,11 +976,11 @@ def update_templatetype(templatetype,**kwargs):
         To delete typeattrs, call delete_typeattr
     """
 
-    tmpltype_i = DBSession.query(TemplateType).filter(TemplateType.type_id == templatetype.id).one()
+    tmpltype_i = db.DBSession.query(TemplateType).filter(TemplateType.type_id == templatetype.id).one()
 
     _update_templatetype(templatetype, tmpltype_i)
 
-    DBSession.flush()
+    db.DBSession.flush()
 
     return tmpltype_i
 
@@ -1038,7 +1038,7 @@ def _set_typeattr(typeattr, existing_ta = None):
     _check_dimension(ta)
 
     if existing_ta is None:
-        DBSession.add(ta)
+        db.DBSession.add(ta)
 
     return ta
 
@@ -1049,7 +1049,7 @@ def _update_templatetype(templatetype, existing_tt=None):
     """
     if existing_tt is None:
         if templatetype.id is not None:
-            tmpltype_i = DBSession.query(TemplateType).filter(TemplateType.type_id == templatetype.id).one()
+            tmpltype_i = db.DBSession.query(TemplateType).filter(TemplateType.type_id == templatetype.id).one()
         else:
             tmpltype_i = TemplateType()
     else:
@@ -1089,7 +1089,7 @@ def _update_templatetype(templatetype, existing_tt=None):
             delete_typeattr(ta)
 
     if existing_tt is None:
-        DBSession.add(tmpltype_i)
+        db.DBSession.add(tmpltype_i)
 
     return tmpltype_i 
 
@@ -1100,17 +1100,17 @@ def delete_templatetype(type_id,**kwargs):
         To delete typeattrs, call delete_typeattr
     """
     try:
-        tmpltype = DBSession.query(TemplateType).filter(TemplateType.type_id == type_id).one()
+        tmpltype = db.DBSession.query(TemplateType).filter(TemplateType.type_id == type_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Template Type %s not found"%(type_id,))
-    DBSession.delete(tmpltype)
-    DBSession.flush()
+    db.DBSession.delete(tmpltype)
+    db.DBSession.flush()
 
 def get_templatetype(type_id,**kwargs):
     """
         Get a specific resource type by ID.
     """
-    templatetype = DBSession.query(TemplateType).filter(TemplateType.type_id==type_id).one()
+    templatetype = db.DBSession.query(TemplateType).filter(TemplateType.type_id==type_id).one()
 
     return templatetype
 
@@ -1120,7 +1120,7 @@ def get_templatetype_by_name(template_id, type_name,**kwargs):
     """
 
     try:
-        templatetype = DBSession.query(TemplateType).filter(TemplateType.template_id==template_id, TemplateType.type_name==type_name).one()
+        templatetype = db.DBSession.query(TemplateType).filter(TemplateType.template_id==template_id, TemplateType.type_name==type_name).one()
     except NoResultFound:
         raise HydraError("%s is not a valid identifier for a type"%(type_name))
 
@@ -1133,9 +1133,9 @@ def add_typeattr(typeattr,**kwargs):
     
     ta = _set_typeattr(typeattr)
     
-    DBSession.flush()
+    db.DBSession.flush()
 
-    updated_template_type = DBSession.query(TemplateType).filter(TemplateType.type_id==ta.type_id).one()
+    updated_template_type = db.DBSession.query(TemplateType).filter(TemplateType.type_id==ta.type_id).one()
 
     return updated_template_type
 
@@ -1144,9 +1144,9 @@ def delete_typeattr(typeattr,**kwargs):
     """
         Remove an typeattr from an existing type
     """
-    ta = DBSession.query(TypeAttr).filter(TypeAttr.type_id == typeattr.type_id,
+    ta = db.DBSession.query(TypeAttr).filter(TypeAttr.type_id == typeattr.type_id,
                                           TypeAttr.attr_id == typeattr.attr_id).one()
-    DBSession.delete(ta)
+    db.DBSession.delete(ta)
 
     return 'OK'
 
@@ -1155,7 +1155,7 @@ def validate_attr(resource_attr_id, scenario_id, template_id=None):
         Check that a resource attribute satisfies the requirements of all the types of the 
         resource.
     """
-    rs = DBSession.query(ResourceScenario).\
+    rs = db.DBSession.query(ResourceScenario).\
                         filter(ResourceScenario.resource_attr_id==resource_attr_id, 
         ResourceScenario.scenario_id==scenario_id).options(
         joinedload_all("resourceattr")).options(
@@ -1186,7 +1186,7 @@ def validate_attrs(resource_attr_ids, scenario_id, template_id=None):
         Check that multiple resource attribute satisfy the requirements of the types of resources to
         which the they are attached.
     """
-    multi_rs = DBSession.query(ResourceScenario).\
+    multi_rs = db.DBSession.query(ResourceScenario).\
                             filter(ResourceScenario.resource_attr_id.in_(resource_attr_ids),\
                                    ResourceScenario.scenario_id==scenario_id).\
                                    options(joinedload_all("resourceattr")).\
@@ -1219,7 +1219,7 @@ def validate_scenario(scenario_id, template_id=None):
         correct, based on the templates in a network. If a template is specified,
         only that template will be checked.
     """
-    scenario_rs = DBSession.query(ResourceScenario).filter(
+    scenario_rs = db.DBSession.query(ResourceScenario).filter(
                 ResourceScenario.scenario_id==scenario_id)\
                 .options(joinedload_all("resourceattr"))\
                 .options(joinedload_all("dataset")).all()
@@ -1293,14 +1293,14 @@ def validate_network(network_id, template_id, scenario_id=None):
         it has fewer or if any attribute has a conflicting dimension or unit.
     """
 
-    network = DBSession.query(Network).filter(Network.network_id==network_id).options(noload('scenarios')).first()
+    network = db.DBSession.query(Network).filter(Network.network_id==network_id).options(noload('scenarios')).first()
 
     if network is None:
         raise HydraError("Could not find network %s"%(network_id))
 
     resource_scenario_dict = {}
     if scenario_id is not None:
-        scenario = DBSession.query(Scenario).filter(Scenario.scenario_id==scenario_id).first()
+        scenario = db.DBSession.query(Scenario).filter(Scenario.scenario_id==scenario_id).first()
 
         if scenario is None:
             raise HydraError("Could not find scenario %s"%(scenario_id,))
@@ -1308,7 +1308,7 @@ def validate_network(network_id, template_id, scenario_id=None):
         for rs in scenario.resourcescenarios:
             resource_scenario_dict[rs.resource_attr_id] = rs
 
-    template = DBSession.query(Template).filter(Template.template_id == template_id).options(joinedload_all('templatetypes')).first()
+    template = db.DBSession.query(Template).filter(Template.template_id == template_id).options(joinedload_all('templatetypes')).first()
 
     if template is None:
         raise HydraError("Could not find template %s"%(template_id,))
@@ -1420,7 +1420,7 @@ def get_network_as_xml_template(network_id,**kwargs):
     """
     template_xml = etree.Element("template_definition")
 
-    net_i = DBSession.query(Network).filter(Network.network_id==network_id).one()
+    net_i = db.DBSession.query(Network).filter(Network.network_id==network_id).one()
 
     template_name = etree.SubElement(template_xml, "template_name")
     template_name.text = "TemplateType from Network %s"%(net_i.network_name)

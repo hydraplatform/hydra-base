@@ -13,37 +13,37 @@
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-from hydra_base.exceptions import HydraError, ResourceNotFoundError
+from ..exceptions import HydraError, ResourceNotFoundError
 import logging
 log = logging.getLogger(__name__)
-from HydraServer.db import DBSession
-from HydraServer.db.model import Network, Project, User, Dataset
+from .. import db
+from ..db.model import Network, Project, User, Dataset
 from sqlalchemy.orm.exc import NoResultFound
 
 def _get_project(project_id):
     try:
-        proj_i = DBSession.query(Project).filter(Project.project_id==project_id).one()
+        proj_i = db.DBSession.query(Project).filter(Project.project_id==project_id).one()
         return proj_i
     except NoResultFound:
         raise ResourceNotFoundError("Project %s not found"%(project_id,))
 
 def _get_network(network_id):
     try:
-        net_i = DBSession.query(Network).filter(Network.network_id == network_id).one()
+        net_i = db.DBSession.query(Network).filter(Network.network_id == network_id).one()
         return net_i
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id))
 
 def _get_user(username):
     try:
-        user_i = DBSession.query(User).filter(User.username==username).one()
+        user_i = db.DBSession.query(User).filter(User.username==username).one()
         return user_i
     except NoResultFound:
         raise ResourceNotFoundError("User %s not found"%(username))
 
 def _get_dataset(dataset_id):
     try:
-        dataset_i = DBSession.query(Dataset).filter(Dataset.dataset_id==dataset_id).one()
+        dataset_i = db.DBSession.query(Dataset).filter(Dataset.dataset_id==dataset_id).one()
         return dataset_i
     except NoResultFound:
         raise ResourceNotFoundError("Dataset %s not found"%(dataset_id))
@@ -84,7 +84,7 @@ def share_network(network_id, usernames, read_only, share,**kwargs):
         else:
             #Give the user read access to the containing project
             net_i.project.set_owner(user_i.user_id, write='N', share='N')
-    DBSession.flush()
+    db.DBSession.flush()
 
 def unshare_network(network_id, usernames,**kwargs):
     """
@@ -100,7 +100,7 @@ def unshare_network(network_id, usernames,**kwargs):
         #Set the owner ship on the network itself
 
     net_i.unset_owner(user_i.user_id, write=write, share=share)
-    DBSession.flush()
+    db.DBSession.flush()
 
 def share_project(project_id, usernames, read_only, share,**kwargs):
     """
@@ -146,7 +146,7 @@ def share_project(project_id, usernames, read_only, share,**kwargs):
 
         for net_i in proj_i.networks:
             net_i.set_owner(user_i.user_id, write=write, share=share)
-    DBSession.flush()
+    db.DBSession.flush()
 
 def unshare_project(project_id, usernames,**kwargs):
     """
@@ -161,7 +161,7 @@ def unshare_project(project_id, usernames,**kwargs):
         user_i = _get_user(username)
         #Set the owner ship on the network itself
         proj_i.unset_owner(user_i.user_id, write=write, share=share)
-    DBSession.flush()
+    db.DBSession.flush()
 
 def set_project_permission(project_id, usernames, read, write, share,**kwargs):
     """
@@ -198,7 +198,7 @@ def set_project_permission(project_id, usernames, read, write, share,**kwargs):
 
         for net_i in proj_i.networks:
             net_i.set_owner(user_i.user_id, read=read, write=write, share=share)
-    DBSession.flush()
+    db.DBSession.flush()
 
 def set_network_permission(network_id, usernames, read, write, share,**kwargs):
     """
@@ -232,7 +232,7 @@ def set_network_permission(network_id, usernames, read, write, share,**kwargs):
                              (network_id, username))
 
         net_i.set_owner(user_i.user_id, read=read, write=write, share=share)
-    DBSession.flush()
+    db.DBSession.flush()
 
 def hide_dataset(dataset_id, exceptions, read, write, share,**kwargs):
     """
@@ -257,7 +257,7 @@ def hide_dataset(dataset_id, exceptions, read, write, share,**kwargs):
         for username in exceptions:
             user_i = _get_user(username)
             dataset_i.set_owner(user_i.user_id, read=read, write=write, share=share)
-    DBSession.flush()
+    db.DBSession.flush()
 
 def unhide_dataset(dataset_id,**kwargs):
     """
@@ -278,4 +278,4 @@ def unhide_dataset(dataset_id,**kwargs):
                         %(user_id, dataset_i.data_name))
 
     dataset_i.hidden = 'N'
-    DBSession.flush()
+    db.DBSession.flush()

@@ -1,11 +1,11 @@
-from HydraServer.db.model import Rule
-from HydraServer.db import DBSession
-from hydra_base.exceptions import HydraError, ResourceNotFoundError
+from ..db.model import Rule
+from .. import db
+from ..exceptions import HydraError, ResourceNotFoundError
 from sqlalchemy.orm.exc import NoResultFound
 
 def _get_rule(rule_id):
     try:
-        rule_i = DBSession.query(Rule).filter(Rule.rule_id == rule_id).one()
+        rule_i = db.DBSession.query(Rule).filter(Rule.rule_id == rule_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Rule %s not found"%rule_id)
     return rule_i
@@ -14,7 +14,7 @@ def get_rules(scenario_id, **kwargs):
     """
         Get all the rules for a given scenario.
     """
-    rules = DBSession.query(Rule).filter(Rule.scenario_id==scenario_id, Rule.status=='A').all()
+    rules = db.DBSession.query(Rule).filter(Rule.scenario_id==scenario_id, Rule.status=='A').all()
 
     return rules
 
@@ -42,8 +42,8 @@ def add_rule(scenario_id, rule, **kwargs):
 
     rule_i.rule_text = rule.text
 
-    DBSession.add(rule_i)
-    DBSession.flush()
+    db.DBSession.add(rule_i)
+    db.DBSession.flush()
 
     return rule_i
 
@@ -70,7 +70,7 @@ def update_rule(rule, **kwargs):
 
     rule_i.rule_text = rule.text
 
-    DBSession.flush()
+    db.DBSession.flush()
 
     return rule_i
 
@@ -80,17 +80,17 @@ def delete_rule(rule_id, **kwargs):
 
     rule_i.status = 'X'
 
-    DBSession.flush()
+    db.DBSession.flush()
 
 def activate_rule(rule_id, **kwargs):
     rule_i = _get_rule(rule_id)
 
     rule_i.status = 'A'
 
-    DBSession.flush()
+    db.DBSession.flush()
 
 def purge_rule(rule_id, **kwargs):
     rule_i = _get_rule(rule_id)
     
-    DBSession.delete(rule_i)
-    DBSession.flush()
+    db.DBSession.delete(rule_i)
+    db.DBSession.flush()

@@ -15,7 +15,7 @@
 #
 from sqlalchemy.orm import scoped_session
 from sqlalchemy import create_engine
-from HydraLib import config
+from .. import config
 from zope.sqlalchemy import ZopeTransactionExtension
 
 import transaction
@@ -35,8 +35,10 @@ DBSession = None
 global engine
 engine = None
 
-def connect():
-    db_url = config.get('mysqld', 'url')
+def connect(db_url=None):
+    if db_url is None:
+        db_url = config.get('mysqld', 'url')
+
     log.info("Connecting to database: %s", db_url)
     global engine
     engine = create_engine(db_url) 
@@ -57,6 +59,7 @@ def commit_transaction():
         transaction.abort()
 
 def close_session():
+    global DBSession
     DBSession.remove()
 
 def rollback_transaction():
