@@ -102,7 +102,7 @@ def init(level=None):
         'handlers': {
             'default': {
                 'level':'DEBUG',
-                'class':'HydraLib.hydra_logging.ColorizingStreamHandler',
+                'class':'hydra_base.hydra_logging.ColorizingStreamHandler',
                 'formatter' : 'hydraFormatter',
             },
         },

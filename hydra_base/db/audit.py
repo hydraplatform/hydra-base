@@ -28,7 +28,7 @@ from sqlalchemy import create_engine,\
 from sqlalchemy.engine import reflection
 import logging
 from mysql.connector.connection import MySQLConnection
-from HydraLib import config
+import .config
 from subprocess import Popen
 from sqlalchemy.types import DECIMAL, NUMERIC
 from sqlalchemy.dialects.mysql.base import DOUBLE
