@@ -1393,7 +1393,8 @@ def add_node(network_id, node,**kwargs):
             ra, rt, rs = template.set_resource_type(new_node,
                                             typesummary.id,
                                             **kwargs)
-            res_types.append(rt)#rt is one object
+            if rt is not None:
+                res_types.append(rt)#rt is one object
             res_attrs.extend(ra)#ra is a list of objects
             res_scenarios.update(rs)#rs is a dict
 
@@ -1845,7 +1846,7 @@ def get_scenarios(network_id,**kwargs):
     user_id = kwargs.get('user_id')
     try:
         net_i = db.DBSession.query(Network).filter(Network.network_id == network_id).one()
-        net_i.check_write_permission(user_id=user_id)
+        net_i.check_read_permission(user_id=user_id)
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id))
 
