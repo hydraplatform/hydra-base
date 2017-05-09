@@ -36,7 +36,7 @@ from sqlalchemy.orm import relationship, backref
 
 from ..util.hydra_dateutil import ordinal_to_timestamp, get_datetime
 
-from . import DeclarativeBase as Base, DBSession
+from . import DeclarativeBase as Base, get_session
 
 from ..util import generate_data_hash, get_val
 
@@ -48,7 +48,6 @@ import pandas as pd
 import json
 import zlib
 from .. import config
-
 import logging
 import bcrypt
 log = logging.getLogger(__name__)
@@ -223,7 +222,7 @@ class Dataset(Base, Inspect):
         for o in self.owners:
             if user_id == o.user_id:
                 owner = o
-                DBSession.delete(owner)
+                get_session().delete(owner)
                 break
 
     def check_read_permission(self, user_id):
@@ -423,7 +422,7 @@ class TypeAttr(Base, Inspect):
     def get_attr(self):
 
         if self.attr is None:
-            attr = DBSession.query(Attr).filter(Attr.attr_id==self.attr_id).first()
+            attr = get_session().query(Attr).filter(Attr.attr_id==self.attr_id).first()
         else:
             attr = self.attr
 
@@ -604,7 +603,7 @@ class Project(Base, Inspect):
         return self.project_name
 
     def get_attribute_data(self):
-        attribute_data_rs = DBSession.query(ResourceScenario).join(ResourceAttr).filter(ResourceAttr.project_id==1).all()
+        attribute_data_rs = get_session().query(ResourceScenario).join(ResourceAttr).filter(ResourceAttr.project_id==1).all()
         self.attribute_data = attribute_data_rs
         return attribute_data_rs
 
@@ -644,7 +643,7 @@ class Project(Base, Inspect):
         for o in self.owners:
             if user_id == o.user_id:
                 owner = o
-                DBSession.delete(owner)
+                get_session().delete(owner)
                 break
 
     def check_read_permission(self, user_id):
@@ -733,7 +732,7 @@ class Network(Base, Inspect):
             existing nodes.
         """
 
-        existing_link = DBSession.query(Link).filter(Link.link_name==name, Link.network_id==self.network_id).first()
+        existing_link = get_session().query(Link).filter(Link.link_name==name, Link.network_id==self.network_id).first()
         if existing_link is not None:
             raise HydraError("A link with name %s is already in network %s"%(name, self.network_id))
 
@@ -744,7 +743,7 @@ class Network(Base, Inspect):
         l.node_a           = node_1
         l.node_b           = node_2
 
-        DBSession.add(l)
+        get_session().add(l)
 
         self.links.append(l)
 
@@ -755,8 +754,7 @@ class Network(Base, Inspect):
         """
             Add a node to a network.
         """
-
-        existing_node = DBSession.query(Node).filter(Node.node_name==name, Node.network_id==self.network_id).first()
+        existing_node = get_session().query(Node).filter(Node.node_name==name, Node.network_id==self.network_id).first()
         if existing_node is not None:
             raise HydraError("A node with name %s is already in network %s"%(name, self.network_id))
 
@@ -770,7 +768,7 @@ class Network(Base, Inspect):
         #Do not call save here because it is likely that we may want
         #to bulk insert nodes, not one at a time.
 
-        DBSession.add(node)
+        get_session().add(node)
 
         self.nodes.append(node)
 
@@ -781,7 +779,7 @@ class Network(Base, Inspect):
             Add a new group to a network.
         """
 
-        existing_group = DBSession.query(ResourceGroup).filter(ResourceGroup.group_name==name, ResourceGroup.network_id==self.network_id).first()
+        existing_group = get_session().query(ResourceGroup).filter(ResourceGroup.group_name==name, ResourceGroup.network_id==self.network_id).first()
         if existing_group is not None:
             raise HydraError("A resource group with name %s is already in network %s"%(name, self.network_id))
 
@@ -790,7 +788,7 @@ class Network(Base, Inspect):
         group_i.group_description = desc
         group_i.status            = status
 
-        DBSession.add(group_i)
+        get_session().add(group_i)
 
         self.resourcegroups.append(group_i)
 
@@ -823,7 +821,7 @@ class Network(Base, Inspect):
         for o in self.owners:
             if user_id == o.user_id:
                 owner = o
-                DBSession.delete(owner)
+                get_session().delete(owner)
                 break
 
     def check_read_permission(self, user_id):
@@ -1003,7 +1001,7 @@ class ResourceGroup(Base, Inspect):
         """
             Get all the items in this group, in the given scenario
         """
-        items = DBSession.query(ResourceGroupItem)\
+        items = get_session().query(ResourceGroupItem)\
                 .filter(ResourceGroupItem.group_id==self.group_id).\
                 filter(ResourceGroupItem.scenario_id==scenario_id).all()
 
@@ -1091,7 +1089,7 @@ class ResourceScenario(Base, Inspect):
     resourceattr = relationship('ResourceAttr', backref=backref("resourcescenarios", cascade="all, delete-orphan"), uselist=False)
 
     def get_dataset(self, user_id):
-        dataset = DBSession.query(Dataset.dataset_id,
+        dataset = get_session().query(Dataset.dataset_id,
                 Dataset.data_type,
                 Dataset.data_units,
                 Dataset.data_dimen,

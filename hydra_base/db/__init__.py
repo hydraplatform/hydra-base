@@ -23,12 +23,11 @@ from .. import config
 from zope.sqlalchemy import ZopeTransactionExtension
 
 import transaction
-import logging
-log = logging.getLogger(__name__)
-
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
+import logging
+log = logging.getLogger(__name__)
 
 global DeclarativeBase
 DeclarativeBase = declarative_base()
@@ -44,6 +43,7 @@ def connect(db_url=None):
         db_url = config.get('mysqld', 'url')
 
     log.info("Connecting to database: %s", db_url)
+
     global engine
     engine = create_engine(db_url) 
 
@@ -52,8 +52,12 @@ def connect(db_url=None):
     global DBSession
     DBSession = scoped_session(maker)
 
+    global DeclarativeBase
     DeclarativeBase.metadata.create_all(engine)
-    
+
+def get_session():
+    global DBSession
+    return DBSession
 
 def commit_transaction():
     try:
@@ -63,7 +67,6 @@ def commit_transaction():
         transaction.abort()
 
 def close_session():
-    global DBSession
     DBSession.remove()
 
 def rollback_transaction():
