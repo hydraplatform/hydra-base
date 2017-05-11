@@ -919,7 +919,7 @@ def _check_can_edit_scenario(scenario_id, user_id):
         raise PermissionError('Cannot update scenario %s as it is locked.'%(scenario_id))
 
 
-def get_attribute_datasests(attr_id, scenario_id, **kwargs):
+def get_attribute_datasets(attr_id, scenario_id, **kwargs):
     """
         Retrieve all the datasets in a scenario for a given attribute.
         Also return the resource attributes so there is a reference to the node/link
@@ -932,13 +932,15 @@ def get_attribute_datasests(attr_id, scenario_id, **kwargs):
     except NoResultFound:
         raise HydraError("Attribute %s not found"%(attr_id,))
 
-    ras = db.DBSession.query(ResourceAttr).filter(
+    rs_qry = db.DBSession.query(ResourceScenario).filter(
                 ResourceAttr.attr_id==attr_id,
                 ResourceScenario.scenario_id==scenario_i.scenario_id,
                 ResourceScenario.resource_attr_id==ResourceAttr.resource_attr_id
-            ).all()
+            ).options(joinedload_all('dataset')).options(joinedload_all('resourceattr'))
 
-    return ras
+    resourcescenarios = rs_qry.all()
+
+    return resourcescenarios
 
 def get_resourcegroupitems(group_id, scenario_id, **kwargs):
 
