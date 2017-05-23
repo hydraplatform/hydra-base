@@ -936,7 +936,12 @@ def get_attribute_datasets(attr_id, scenario_id, **kwargs):
                 ResourceAttr.attr_id==attr_id,
                 ResourceScenario.scenario_id==scenario_i.scenario_id,
                 ResourceScenario.resource_attr_id==ResourceAttr.resource_attr_id
-            ).options(joinedload_all('dataset')).options(joinedload_all('resourceattr'))
+            ).options(joinedload_all('dataset'))\
+            .options(joinedload_all('resourceattr'))\
+            .options(joinedload_all('resourceattr.node'))\
+            .options(joinedload_all('resourceattr.link'))\
+            .options(joinedload_all('resourceattr.resourcegroup'))\
+            .options(joinedload_all('resourceattr.network'))
 
     resourcescenarios = rs_qry.all()
 
