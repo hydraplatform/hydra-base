@@ -37,6 +37,7 @@ class JSONObject(dict):
         Pass in a nested dictionary, a SQLAlchemy object or a JSON string.
     """
     def __init__(self, obj_dict, parent=None):
+
         if isinstance(obj_dict, str) or isinstance(obj_dict, unicode):
             try:
                 obj = json.loads(obj_dict)
@@ -60,7 +61,9 @@ class JSONObject(dict):
                 raise ValueError("Unrecognised value. It must be a valid JSON dict, a SQLAlchemy result or a dictionary.")
 
         for k, v in obj.items():
-            if isinstance(v, dict):
+            if isinstance(v, JSONObject):
+                setattr(self, k, v)
+            elif isinstance(v, dict):
                 setattr(self, k, JSONObject(v, obj_dict))
             elif isinstance(v, list):
                 #another special case for datasets, to convert a metadata list into a dict
@@ -112,7 +115,7 @@ class JSONObject(dict):
                 if isinstance(v, datetime):
                     v = str(v)
 
-                setattr(self, k, v)
+                setattr(self, str(k), v)
 
     def __getattr__(self, name):
         return self.get(name, None)
@@ -126,9 +129,11 @@ class JSONObject(dict):
         return json.dumps(self)
 
     def get_layout(self):
-        return None
-        if hasattr(self, 'layout'):
-            return self.layout
+        if self.get('layout') is not None:
+            if isinstance(self.layout, str):
+                return self.layout
+            else:
+                return json.dumps(self.layout)
         else:
             return None
 
