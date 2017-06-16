@@ -65,6 +65,9 @@ class DataError(HydraError):
         code = error_codes.get('HYDRADATA', '0000')
         HydraError.__init__(self, message, code)
 
+class ValidationError(Exception):
+    pass
+
 #
 #ERROR CODES FOR HYDRA
 #Categories are:

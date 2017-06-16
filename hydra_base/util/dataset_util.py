@@ -21,7 +21,7 @@ import logging
 from decimal import Decimal
 
 from operator import mul
-from ..exceptions import HydraError
+from ..exceptions import HydraError, ValidationError
 import numpy as np
 import pandas as pd
 import re
@@ -92,9 +92,9 @@ def vector_to_arr(vec, dim):
 
 def _get_val(val, full=False):
     """
-        Get the value(s) of a dataset as a single value or as 1-d list of 
+        Get the value(s) of a dataset as a single value or as 1-d list of
         values. In the special case of timeseries, when a check is for time-based
-        criteria, you can return the entire timeseries. 
+        criteria, you can return the entire timeseries.
     """
     try:
         val = val.strip()
@@ -119,17 +119,17 @@ def _get_val(val, full=False):
     except:
         pass
 
-    try: 
+    try:
         val = int(val)
         return val
     except:
         pass
 
     if type(val) == pd.DataFrame:
-        
+
         if full:
             return val
-        
+
         newval = []
         values = val.values
         for v in values:
@@ -141,7 +141,7 @@ def _get_val(val, full=False):
         val = newval
 
     elif type(val) == dict:
-        
+
         if full:
             return val
 
@@ -175,7 +175,7 @@ def get_restriction_as_dict(restriction_xml):
                 <restriction>
                     <type>VALUERANGE</type>
                     <value><item>1</item><item>10</item></value>
-                </restriction> 
+                </restriction>
             </restrictions>
 
     into:
@@ -207,9 +207,6 @@ def get_restriction_as_dict(restriction_xml):
                         val.append(_get_val(item.text))
             restriction_dict[restriction_type] = val
     return restriction_dict
-
-class ValidationError(Exception):
-    pass
 
 
 def validate_ENUM(in_value, restriction):
@@ -356,7 +353,7 @@ def validate_ISNULL(value, restriction):
         in line with all the other validation functions
 
     """
-    
+
     if value is not None and str(value).lower != 'null':
         raise ValidationError("ISNULL")
 
@@ -511,14 +508,14 @@ def validate_SUMTO(in_value, restriction):
     #Making them a list, not a number. Rather than blowing up, just get value 1 from the list.
     if type(restriction) is list:
         restriction = restriction[0]
-        
+
     value = _get_val(in_value, full=True)
 
     if len(value) == 0:
         return
-   
+
     flat_list = _flatten_value(value)
-    
+
     try:
         sum(flat_list)
     except:
@@ -576,7 +573,7 @@ def validate_EQUALTIMESTEPS(value, restriction):
         if str(value.index[0]).startswith('9999'):
             tmp_val = value.to_json().replace('9999', '1900')
             value = pd.read_json(tmp_val)
-   
+
 
     #If the timeseries is not datetime-based, check for a consistent timestep
     if type(value.index) == pd.Int64Index:
@@ -651,7 +648,7 @@ def _flatten_value(value):
 
     if type(value) != list:
         raise ValidationError("Value %s cannot be processed."%(value))
-    
+
     if len(value) == 0:
         return
 
