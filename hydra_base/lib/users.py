@@ -32,14 +32,14 @@ log = logging.getLogger(__name__)
 
 def _get_user_id(username):
     try:
-        rs = db.DBSession.query(User.user_id).filter(User.username==username).one()
-        return rs.user_id
+        rs = db.DBSession.query(User.id).filter(User.username==username).one()
+        return rs.id
     except:
         return None
 
 def _get_user(user_id, **kwargs):
     try:
-        user_i = db.DBSession.query(User).filter(User.user_id==user_id).one()
+        user_i = db.DBSession.query(User).filter(User.id==user_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("User %s does not exist"%user_id)
 
@@ -62,7 +62,7 @@ def _get_perm(perm_id,**kwargs):
     return perm_i
 
 def get_username(uid,**kwargs):
-    rs = db.DBSession.query(User.username).filter(User.user_id==uid).one()
+    rs = db.DBSession.query(User.username).filter(User.id==uid).one()
     
     if rs is None:
         raise ResourceNotFoundError("User with ID %s not found"%uid)
@@ -102,7 +102,7 @@ def update_user_display_name(user,**kwargs):
     """
     #check_perm(kwargs.get('user_id'), 'edit_user')
     try:
-        user_i = db.DBSession.query(User).filter(User.user_id==user.id).one()
+        user_i = db.DBSession.query(User).filter(User.id==user.id).one()
         user_i.display_name = user.display_name
         return user_i
     except NoResultFound:
@@ -113,7 +113,7 @@ def update_user_password(new_pwd_user_id, new_password,**kwargs):
     """
     #check_perm(kwargs.get('user_id'), 'edit_user')
     try:
-        user_i = db.DBSession.query(User).filter(User.user_id==new_pwd_user_id).one()
+        user_i = db.DBSession.query(User).filter(User.id==new_pwd_user_id).one()
         user_i.password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
         return user_i
     except NoResultFound:
@@ -133,7 +133,7 @@ def delete_user(deleted_user_id,**kwargs):
     """
     #check_perm(kwargs.get('user_id'), 'edit_user')
     try:
-        user_i = db.DBSession.query(User).filter(User.user_id==deleted_user_id).one()
+        user_i = db.DBSession.query(User).filter(User.id==deleted_user_id).one()
         db.DBSession.delete(user_i)
     except NoResultFound:    
         raise ResourceNotFoundError("User (user_id=%s) does not exist"%(deleted_user_id))

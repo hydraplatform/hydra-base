@@ -83,7 +83,7 @@ class Dataset(Base, Inspect):
     data_name = Column(String(60),  nullable=False)
     data_hash = Column(BIGINT(),  nullable=False, unique=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    created_by = Column(Integer(), ForeignKey('tUser.user_id'))
+    created_by = Column(Integer(), ForeignKey('tUser.id'))
     hidden = Column(String(1),  nullable=False, server_default=text(u"'N'"))
 
     start_time = Column(String(60),  nullable=True)
@@ -595,7 +595,7 @@ class Project(Base, Inspect):
     project_description = Column(String(1000))
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    created_by = Column(Integer(), ForeignKey('tUser.user_id'))
+    created_by = Column(Integer(), ForeignKey('tUser.id'))
 
     user = relationship('User', backref=backref("projects", order_by=project_id))
 
@@ -708,7 +708,7 @@ class Network(Base, Inspect):
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     projection = Column(String(1000))
-    created_by = Column(Integer(), ForeignKey('tUser.user_id'))
+    created_by = Column(Integer(), ForeignKey('tUser.id'))
 
     project = relationship('Project', backref=backref("networks", order_by=network_id, cascade="all, delete-orphan"))
 
@@ -1128,7 +1128,7 @@ class Scenario(Base, Inspect):
     locked = Column(String(1),  nullable=False, server_default=text(u"'N'"))
     time_step = Column(String(60))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    created_by = Column(Integer(), ForeignKey('tUser.user_id'))
+    created_by = Column(Integer(), ForeignKey('tUser.id'))
 
     network = relationship('Network', backref=backref("scenarios", order_by=scenario_id))
 
@@ -1207,7 +1207,7 @@ class Note(Base, Inspect):
 
     note_text = Column('value', LargeBinary(),  nullable=True)
 
-    created_by = Column(Integer(), ForeignKey('tUser.user_id'))
+    created_by = Column(Integer(), ForeignKey('tUser.id'))
 
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     scenario_id = Column(Integer(), ForeignKey('tScenario.scenario_id'),  index=True, nullable=True)
@@ -1291,7 +1291,7 @@ class ProjectOwner(Base, Inspect):
 
     __tablename__='tProjectOwner'
 
-    user_id = Column(Integer(), ForeignKey('tUser.user_id'), primary_key=True, nullable=False)
+    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
     project_id = Column(Integer(), ForeignKey('tProject.project_id'), primary_key=True, nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     view = Column(String(1),  nullable=False)
@@ -1307,7 +1307,7 @@ class NetworkOwner(Base, Inspect):
 
     __tablename__='tNetworkOwner'
 
-    user_id = Column(Integer(), ForeignKey('tUser.user_id'), primary_key=True, nullable=False)
+    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
     network_id = Column(Integer(), ForeignKey('tNetwork.network_id'), primary_key=True, nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     view = Column(String(1),  nullable=False)
@@ -1323,7 +1323,7 @@ class DatasetOwner(Base, Inspect):
 
     __tablename__='tDatasetOwner'
 
-    user_id = Column(Integer(), ForeignKey('tUser.user_id'), primary_key=True, nullable=False)
+    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
     dataset_id = Column(Integer(), ForeignKey('tDataset.dataset_id'), primary_key=True, nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     view = Column(String(1),  nullable=False)
@@ -1382,7 +1382,7 @@ class RoleUser(Base, Inspect):
 
     __tablename__='tRoleUser'
 
-    user_id = Column(Integer(), ForeignKey('tUser.user_id'), primary_key=True, nullable=False)
+    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
     role_id = Column(Integer(), ForeignKey('tRole.role_id'), primary_key=True, nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
@@ -1395,7 +1395,7 @@ class User(Base, Inspect):
 
     __tablename__='tUser'
 
-    user_id = Column(Integer(), primary_key=True, nullable=False)
+    id = Column(Integer(), primary_key=True, nullable=False)
     username = Column(String(60),  nullable=False, unique=True)
     password = Column(String(1000),  nullable=False)
     display_name = Column(String(60),  nullable=False, server_default=text(u"''"))

@@ -220,7 +220,7 @@ def create_audit_table(table):
         args.append(col)
     args.append(Column('action', String(12)))
     args.append(Column('aud_id', Integer, primary_key=True))
-#    args.append(Column('aud_user_id', Integer, ForeignKey('tUser.user_id')))
+#    args.append(Column('aud_user_id', Integer, ForeignKey('tUser.id')))
     args.append(Column('aud_time', TIMESTAMP, server_default=text('LOCALTIMESTAMP')))
     return Table(table.name+"_aud", table.metadata, *args, extend_existing=True)
 

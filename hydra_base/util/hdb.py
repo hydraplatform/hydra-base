@@ -99,9 +99,9 @@ def make_root_user():
 
     try:
         userrole = db.DBSession.query(RoleUser).filter(RoleUser.role_id==role.role_id,
-                                                   RoleUser.user_id==user.user_id).one()
+                                                   RoleUser.user_id==user.id).one()
     except NoResultFound:
-        userrole = RoleUser(role_id=role.role_id,user_id=user.user_id)
+        userrole = RoleUser(role_id=role.role_id,user_id=user.id)
         user.roleusers.append(userrole)
         db.DBSession.add(userrole)
     db.DBSession.flush()
@@ -116,7 +116,7 @@ def login_user(username, password):
 
     if bcrypt.hashpw(password.encode('utf-8'), user_i.password.encode('utf-8')) == user_i.password.encode('utf-8'):
         user_i.last_login = datetime.datetime.now()
-        return user_i.user_id
+        return user_i.id
     else:
         raise HydraError(username)
 

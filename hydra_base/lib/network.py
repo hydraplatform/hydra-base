@@ -24,6 +24,7 @@ import data
 import time
 
 from ..util.permissions import check_perm
+import json
 import template
 from ..db.model import Project, Network, Scenario, Node, Link, ResourceGroup,\
         ResourceAttr, Attr, ResourceType, ResourceGroupItem, Dataset, Metadata, DatasetOwner,\
@@ -1236,6 +1237,35 @@ def update_network(network,
     updated_net = get_network(network.id, summary=True, **kwargs)
     return updated_net
 
+def update_resource_layout(resource_type, resource_id, key, value, **kwargs):
+    log.info("Updating %s %s's layout with {%s:%s}", resource_type, resource_id, key, value)
+    resource = get_resource(resource_type, resource_id, **kwargs)
+    if resource.layout is None:
+        layout = dict()
+    else:
+        layout = json.loads(resource.layout)
+
+    layout[key] = value
+    resource.layout = json.dumps(layout)
+
+    db.DBSession.flush()
+
+    return layout
+
+def get_resource(resource_type, resource_id, **kwargs):
+    user_id = kwargs.get('user_id')
+
+    resource_type = resource_type.upper()
+    if resource_type == 'NODE':
+        return get_node(resource_id, **kwargs)
+    elif resource_type == 'LINK':
+        return get_link(resource_id, **kwargs)
+    elif resource_type == 'GROUP':
+        return get_resourcegroup(resource_id, **kwargs)
+    elif resource_type == 'NETWORK':
+        network = get_network_simple(resource_id, **kwargs)
+        return network
+
 def set_network_status(network_id,status,**kwargs):
     """
     Activates a network by setting its status attribute to 'A'.
@@ -1885,6 +1915,21 @@ def validate_network_topology(network_id,**kwargs):
     isolated_nodes = nodes - link_nodes
 
     return isolated_nodes
+
+def get_resource(resource_type, resource_id, **kwargs):
+    user_id = kwargs.get('user_id')
+
+    resource_type = resource_type.upper()
+    if resource_type == 'NODE':
+        return get_node(resource_id, **kwargs)
+    elif resource_type == 'LINK':
+        return get_link(resource_id, **kwargs)
+    elif resource_type == 'GROUP':
+        return get_resourcegroup(resource_id, **kwargs)
+    elif resource_type == 'NETWORK':
+        network = get_network_simple(resource_id, **kwargs)
+        return network
+    
 
 def get_resources_of_type(network_id, type_id, **kwargs):
     """

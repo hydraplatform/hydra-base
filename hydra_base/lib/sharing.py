@@ -81,13 +81,13 @@ def share_network(network_id, usernames, read_only, share,**kwargs):
     for username in usernames:
         user_i = _get_user(username)
         #Set the owner ship on the network itself
-        net_i.set_owner(user_i.user_id, write=write, share=share)
+        net_i.set_owner(user_i.id, write=write, share=share)
         for o in net_i.project.owners:
-            if o.user_id == user_i.user_id:
+            if o.user_id == user_i.id:
                 break
         else:
             #Give the user read access to the containing project
-            net_i.project.set_owner(user_i.user_id, write='N', share='N')
+            net_i.project.set_owner(user_i.id, write='N', share='N')
     db.DBSession.flush()
 
 def unshare_network(network_id, usernames,**kwargs):
@@ -103,7 +103,7 @@ def unshare_network(network_id, usernames,**kwargs):
         user_i = _get_user(username)
         #Set the owner ship on the network itself
 
-    net_i.unset_owner(user_i.user_id, write=write, share=share)
+    net_i.unset_owner(user_i.id, write=write, share=share)
     db.DBSession.flush()
 
 def share_project(project_id, usernames, read_only, share,**kwargs):
@@ -146,10 +146,10 @@ def share_project(project_id, usernames, read_only, share,**kwargs):
     for username in usernames:
         user_i = _get_user(username)
 
-        proj_i.set_owner(user_i.user_id, write=write, share=share)
+        proj_i.set_owner(user_i.id, write=write, share=share)
 
         for net_i in proj_i.networks:
-            net_i.set_owner(user_i.user_id, write=write, share=share)
+            net_i.set_owner(user_i.id, write=write, share=share)
     db.DBSession.flush()
 
 def unshare_project(project_id, usernames,**kwargs):
@@ -164,7 +164,7 @@ def unshare_project(project_id, usernames,**kwargs):
     for username in usernames:
         user_i = _get_user(username)
         #Set the owner ship on the network itself
-        proj_i.unset_owner(user_i.user_id, write=write, share=share)
+        proj_i.unset_owner(user_i.id, write=write, share=share)
     db.DBSession.flush()
 
 def set_project_permission(project_id, usernames, read, write, share,**kwargs):
@@ -193,15 +193,15 @@ def set_project_permission(project_id, usernames, read, write, share,**kwargs):
 
         #The creator of a project must always have read and write access
         #to their project
-        if proj_i.created_by == user_i.user_id:
+        if proj_i.created_by == user_i.id:
             raise HydraError("Cannot set permissions on project %s"
                              " for user %s as this user is the creator." %
                              (project_id, username))
 
-        proj_i.set_owner(user_i.user_id, read=read, write=write)
+        proj_i.set_owner(user_i.id, read=read, write=write)
 
         for net_i in proj_i.networks:
-            net_i.set_owner(user_i.user_id, read=read, write=write, share=share)
+            net_i.set_owner(user_i.id, read=read, write=write, share=share)
     db.DBSession.flush()
 
 def set_network_permission(network_id, usernames, read, write, share,**kwargs):
@@ -230,12 +230,12 @@ def set_network_permission(network_id, usernames, read, write, share,**kwargs):
 
         #The creator of a network must always have read and write access
         #to their project
-        if net_i.created_by == user_i.user_id:
+        if net_i.created_by == user_i.id:
             raise HydraError("Cannot set permissions on network %s"
                              " for user %s as tis user is the creator." %
                              (network_id, username))
 
-        net_i.set_owner(user_i.user_id, read=read, write=write, share=share)
+        net_i.set_owner(user_i.id, read=read, write=write, share=share)
     db.DBSession.flush()
 
 def hide_dataset(dataset_id, exceptions, read, write, share,**kwargs):
@@ -260,7 +260,7 @@ def hide_dataset(dataset_id, exceptions, read, write, share,**kwargs):
     if exceptions is not None:
         for username in exceptions:
             user_i = _get_user(username)
-            dataset_i.set_owner(user_i.user_id, read=read, write=write, share=share)
+            dataset_i.set_owner(user_i.id, read=read, write=write, share=share)
     db.DBSession.flush()
 
 def unhide_dataset(dataset_id,**kwargs):

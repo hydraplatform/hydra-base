@@ -861,7 +861,7 @@ def get_attribute_data(attr_ids, node_ids, **kwargs):
 
     return node_attrs, resource_scenarios
 
-def get_resource_data(ref_key, ref_id, scenario_id, type_id,**kwargs):
+def get_resource_data(ref_key, ref_id, scenario_id, type_id, expunge_session=True, **kwargs):
     """
         Get all the resource scenarios for a given resource
         in a given scenario. If type_id is specified, only
@@ -907,7 +907,9 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id,**kwargs):
                rs.dataset.frequency  = None
                rs.dataset.start_time = None
 
-    db.DBSession.expunge_all()
+    if expunge_session == True:
+        db.DBSession.expunge_all()
+        
     return resource_data
 
 def _check_can_edit_scenario(scenario_id, user_id):
@@ -963,7 +965,7 @@ def delete_resourcegroupitems(scenario_id, item_ids, **kwargs):
         Delete specified items in a group, in a scenario.
     """
     user_id = int(kwargs.get('user_id'))
-    scenario = _get_scenario(scenario_id)
+    scenario = _get_scenario(scenario_id, include_data=False, include_items=False)
     _check_network_ownership(scenario.network_id, user_id)
     for item_id in item_ids:
         rgi = db.DBSession.query(ResourceGroupItem).\
@@ -991,7 +993,7 @@ def add_resourcegroupitems(scenario_id, items, scenario=None, **kwargs):
     user_id = int(kwargs.get('user_id'))
 
     if scenario is None:
-        scenario = _get_scenario(scenario_id)
+        scenario = _get_scenario(scenario_id, include_data=False, include_items=False)
 
     _check_network_ownership(scenario.network_id, user_id)
 
@@ -1028,7 +1030,9 @@ def _add_resourcegroupitem(group_item, scenario_id):
         group_item_i.link_id =group_item.ref_id
     elif ref_key == 'GROUP':
         group_item_i.subgroup_id =group_item.ref_id
+
     db.DBSession.add(group_item_i)
+    
     return group_item_i
 
 def update_value_from_mapping(source_resource_attr_id, target_resource_attr_id, source_scenario_id, target_scenario_id, **kwargs):
