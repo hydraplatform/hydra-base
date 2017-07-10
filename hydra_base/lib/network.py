@@ -424,7 +424,7 @@ def add_network(network,**kwargs):
     db.DBSession.autoflush = False
     user_id = kwargs.get('user_id')
 
-    #check_perm('add_network')
+    check_perm('add_network')
 
     start_time = datetime.datetime.now()
     log.debug("Adding network")
@@ -859,9 +859,13 @@ def _get_nodes(network_id, template_id=None):
 
     node_qry = db.DBSession.query(Node).filter(
                         Node.network_id==network_id,
-                        Node.status=='A').options(noload('network'))
+                        Node.status=='A').options(
+                            noload('network')
+                        )
     if template_id is not None:
-        node_qry = node_qry.filter(ResourceType.node_id==Node.node_id, TemplateType.type_id==ResourceType.type_id, TemplateType.template_id==template_id)
+        node_qry = node_qry.filter(ResourceType.node_id==Node.node_id,
+                                   TemplateType.type_id==ResourceType.type_id,
+                                   TemplateType.template_id==template_id)
     node_res = db.DBSession.execute(node_qry.statement).fetchall()
 
     nodes = []
@@ -877,9 +881,13 @@ def _get_links(network_id, template_id=None):
     extras = {'types':[], 'attributes':[]}
     link_qry = db.DBSession.query(Link).filter(
                                         Link.network_id==network_id,
-                                        Link.status=='A').options(noload('network'))
+                                        Link.status=='A').options(
+                                            noload('network')
+                                        )
     if template_id is not None:
-        link_qry = link_qry.filter(ResourceType.link_id==Link.link_id, TemplateType.type_id==ResourceType.type_id, TemplateType.template_id==template_id)
+        link_qry = link_qry.filter(ResourceType.link_id==Link.link_id,
+                                   TemplateType.type_id==ResourceType.type_id,
+                                   TemplateType.template_id==template_id)
 
     link_res = db.DBSession.execute(link_qry.statement).fetchall()
 
@@ -896,9 +904,14 @@ def _get_groups(network_id, template_id=None):
     extras = {'types':[], 'attributes':[]}
     group_qry = db.DBSession.query(ResourceGroup).filter(
                                         ResourceGroup.network_id==network_id,
-                                        ResourceGroup.status=='A').options(noload('network'))
+                                        ResourceGroup.status=='A').options(
+                                            noload('network')
+                                        )
+
     if template_id is not None:
-        group_qry = group_qry.filter(ResourceType.group_id==ResourceGroup.group_id, TemplateType.type_id==ResourceType.type_id, TemplateType.template_id==template_id)
+        group_qry = group_qry.filter(ResourceType.group_id==ResourceGroup.group_id,
+                                     TemplateType.type_id==ResourceType.type_id,
+                                     TemplateType.template_id==template_id)
 
     group_res = db.DBSession.execute(group_qry.statement).fetchall()
     groups = []
@@ -906,7 +919,6 @@ def _get_groups(network_id, template_id=None):
         groups.append(dictobj(g, extras))
 
     return groups
-
 
 def _get_scenarios(network_id, include_data, user_id, scenario_ids=None):
     """
@@ -1009,6 +1021,102 @@ def get_network(network_id, summary=False, include_data='N', scenario_ids=None, 
                                   network_id)
 
     return net
+
+def get_nodes(network_id, template_id=None, **kwargs):
+    """
+        Get all the nodes in a network. 
+        args:
+            network_id (int): The network in which to search
+            template_id (int): Only return nodes whose type is in this template.
+    """
+    user_id = kwargs.get('user_id')
+    try:
+        net_i = db.DBSession.query(Network).filter(Network.network_id == network_id).one()
+        net_i.check_read_permission(user_id=user_id)
+    except NoResultFound:
+        raise ResourceNotFoundError("Network %s not found"%(network_id))
+
+    node_qry = db.DBSession.query(Node).filter(
+                        Node.network_id==network_id,
+                        Node.status=='A').options(
+                            noload('network')
+                        ).options(
+                            joinedload_all('types.templatetype')
+                        ).options(
+                            joinedload_all('attributes.attr')
+                        )
+    if template_id is not None:
+        node_qry = node_qry.filter(ResourceType.node_id==Node.node_id,
+                                   TemplateType.type_id==ResourceType.type_id,
+                                   TemplateType.template_id==template_id)
+    nodes = node_qry.all()
+
+    return nodes
+
+def get_links(network_id, template_id=None, **kwargs):
+    """
+        Get all the links in a network. 
+        args:
+            network_id (int): The network in which to search
+            template_id (int): Only return links whose type is in this template.
+    """
+    user_id = kwargs.get('user_id')
+    try:
+        net_i = db.DBSession.query(Network).filter(Network.network_id == network_id).one()
+        net_i.check_read_permission(user_id=user_id)
+    except NoResultFound:
+        raise ResourceNotFoundError("Network %s not found"%(network_id))
+
+    link_qry = db.DBSession.query(Link).filter(
+                                        Link.network_id==network_id,
+                                        Link.status=='A').options(
+                                            noload('network')
+                                        ).options(
+                                            joinedload_all('types.templatetype')
+                                        ).options(
+                                            joinedload_all('attributes.attr')
+                                        )
+
+    if template_id is not None:
+        link_qry = link_qry.filter(ResourceType.link_id==Link.link_id,
+                                   TemplateType.type_id==ResourceType.type_id,
+                                   TemplateType.template_id==template_id)
+
+    links = link_qry.all()
+    return links
+
+
+def get_groups(network_id, template_id=None, **kwargs):
+    """
+        Get all the resource groups in a network. 
+        args:
+            network_id (int): The network in which to search
+            template_id (int): Only return resource groups whose type is in this template.
+    """
+    user_id = kwargs.get('user_id')
+    try:
+        net_i = db.DBSession.query(Network).filter(Network.network_id == network_id).one()
+        net_i.check_read_permission(user_id=user_id)
+    except NoResultFound:
+        raise ResourceNotFoundError("Network %s not found"%(network_id))
+
+    group_qry = db.DBSession.query(ResourceGroup).filter(
+                                        ResourceGroup.network_id==network_id,
+                                        ResourceGroup.status=='A').options(
+                                            noload('network')
+                                        ).options(
+                                            joinedload_all('types.templatetype')
+                                        ).options(
+                                            joinedload_all('attributes.attr')
+                                        )
+    if template_id is not None:
+        group_qry = group_qry.filter(ResourceType.group_id==ResourceGroup.group_id,
+                                     TemplateType.type_id==ResourceType.type_id,
+                                     TemplateType.template_id==template_id)
+
+    groups = group_qry.all()
+
+    return groups
 
 def get_network_simple(network_id,**kwargs):
     try:
