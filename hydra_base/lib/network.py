@@ -2282,3 +2282,374 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
     log.info("Returning %s datasets", len(return_data))
 
     return return_data
+
+def clone_network(network_id, new_project=True, recipient_user_id=None, **kwargs):
+    """
+
+    """
+
+    user_id = kwargs['user_id']
+
+    ex_net = db.DBSession.query(Network).filter(Network.network_id==network_id).one()
+
+    ex_net.check_read_permission(user_id)
+
+    if new_project == True:
+        log.info("Creating a new project for cloned network")
+        project = Project()
+        project.project_name="Proj"
+        
+        project.set_owner(user_id)
+        if recipient_user_id!=None:
+            project.set_owner(recipient_user_id)
+
+        db.DBSession.add(project)
+        db.DBSession.flush()
+
+        project_id=project.project_id
+        network_name=ex_net.network_name
+    else:
+        log.info("Using current project for cloned network")
+        project_id=ex_net.project_id
+        network_name=ex_net.network_name + " (Clone)"
+        
+    log.info('Cloning Network...')
+
+    newnet = Network()
+
+    newnet.project_id = project_id
+    newnet.network_name = network_name
+    newnet.network_description = ex_net.network_description
+    newnet.layout = ex_net.layout
+    newnet.status = ex_net.status
+    newnet.projection = ex_net.projection
+    newnet.created_by = user_id
+
+    newnet.set_owner(user_id)
+    if recipient_user_id is not None:
+        newnet.set_owner(recipient_user_id)
+
+    db.DBSession.add(newnet)
+
+    db.DBSession.flush()
+
+    newnetworkid = newnet.network_id
+
+    log.info('CLoning Nodes')
+    node_id_map = _clone_nodes(network_id, newnetworkid)
+
+    log.info('Cloning Links')
+    link_id_map = _clone_links(network_id, newnetworkid, node_id_map)
+
+    log.info('CLoning Groups')
+    group_id_map = _clone_groups(network_id,
+                                          newnetworkid,
+                                          node_id_map,
+                                          link_id_map)
+
+    log.info("Cloning Resource Attributes")
+    ra_id_map = _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, group_id_map)
+
+    log.info("Cloning Resource Types")
+    _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, group_id_map)
+
+    log.info('Cloning Scenarios')
+    _clone_scenarios(network_id, newnetworkid, ra_id_map, node_id_map, link_id_map, group_id_map, user_id)
+
+    db.DBSession.flush()
+
+    return newnetworkid
+
+def _clone_nodes(old_network_id, new_network_id):
+
+    nodes = db.DBSession.query(Node).filter(Node.network_id==old_network_id).all()
+    newnodes = [] 
+    old_node_name_map = {}
+    id_map = {}
+    for ex_n in nodes:
+        new_n = dict(
+            network_id=new_network_id,
+            node_name = ex_n.node_name,
+            node_description = ex_n.node_description,
+            node_x = ex_n.node_x,
+            node_y = ex_n.node_y,
+            layout = ex_n.layout,
+            status = ex_n.status,
+        )
+
+        old_node_name_map[ex_n.node_name] = ex_n.node_id
+
+        newnodes.append(new_n)
+
+    db.DBSession.execute(Node.__table__.insert(), newnodes)
+
+    db.DBSession.flush()
+    #map old IDS to new IDS 
+
+    nodes = db.DBSession.query(Node).filter(Node.network_id==new_network_id).all()
+    for n in nodes:
+        old_node_id = old_node_name_map[n.node_name]
+        id_map[old_node_id] = n.node_id
+
+    return id_map
+
+def _clone_links(old_network_id, new_network_id, node_id_map):
+
+    links = db.DBSession.query(Link).filter(Link.network_id==old_network_id).all()
+    newlinks = []
+    old_link_name_map = {}
+    id_map = {}
+    for ex_l in links:
+        new_l = dict(
+            network_id=new_network_id,
+            link_name = ex_l.link_name,
+            link_description = ex_l.link_description,
+            node_1_id = node_id_map[ex_l.node_1_id],
+            node_2_id = node_id_map[ex_l.node_2_id],
+            layout = ex_l.layout,
+            status = ex_l.status,
+        )
+
+        newlinks.append(new_l)
+
+        old_link_name_map[ex_l.link_name] = ex_l.link_id
+
+    db.DBSession.execute(Link.__table__.insert(), newlinks)
+
+    db.DBSession.flush()
+    #map old IDS to new IDS 
+
+    links = db.DBSession.query(Link).filter(Link.network_id==new_network_id).all()
+    for l in links:
+        old_link_id = old_link_name_map[l.link_name]
+        id_map[old_link_id] = l.link_id
+
+    return id_map
+
+def _clone_groups(old_network_id, new_network_id, node_id_map, link_id_map):
+
+    groups = db.DBSession.query(ResourceGroup).filter(ResourceGroup.network_id==old_network_id).all()
+    newgroups = []
+    old_group_name_map = {}
+    id_map = {}
+    for ex_g in groups:
+        new_g = dict(
+            network_id=new_network_id,
+            group_name = ex_g.group_name,
+            group_description = ex_g.group_description,
+            status = ex_g.status,
+        )
+
+        newgroups.append(new_g)
+
+        old_group_name_map[ex_g.group_name] = ex_g.group_id
+
+    db.DBSession.execute(ResourceGroup.__table__.insert(), newgroups)
+
+    db.DBSession.flush()
+    #map old IDS to new IDS 
+
+    groups = db.DBSession.query(ResourceGroup).filter(ResourceGroup.network_id==new_network_id).all()
+    for g in groups:
+        old_group_id = old_group_name_map[g.group_name]
+        id_map[old_group_id] = g.group_id
+
+    return id_map
+
+def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, group_id_map):
+
+    log.info("Cloning Network Attributes")
+    network_ras = db.DBSession.query(ResourceAttr).filter(ResourceAttr.network_id==network_id)
+    id_map = {}
+    new_ras = []
+    old_ra_name_map = {}
+    for ra in network_ras:
+        new_ras.append(dict(
+            network_id=newnetworkid,
+            node_id=None,
+            group_id=None,
+            link_id=None,
+            ref_key='NETWORK',
+            attr_id=ra.attr_id,
+            attr_is_var=ra.attr_is_var,
+        ))
+        #key is (network_id, node_id, link_id, group_id) -- only one of which can be not null for a given row
+        old_ra_name_map[(newnetworkid, None, None, None, ra.attr_id)] = ra.resource_attr_id
+    log.info("Cloning Node Attributes")
+    node_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.node_id==Node.node_id, Node.network_id==network_id)).all()
+    for ra in node_ras:
+        new_ras.append(dict(
+            node_id=node_id_map[ra.node_id],
+            network_id=None,
+            link_id=None,
+            group_id=None,
+            attr_id=ra.attr_id,
+            attr_is_var=ra.attr_is_var,
+            ref_key=ra.ref_key,
+        ))
+        old_ra_name_map[(None, node_id_map[ra.node_id], None, None, ra.attr_id)] = ra.resource_attr_id
+    log.info("Cloning Link Attributes")
+    link_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.link_id==Link.link_id, Link.network_id==network_id)).all()
+    for ra in link_ras:
+        new_ras.append(dict(
+            link_id=link_id_map[ra.link_id],
+            network_id=ra.network_id,
+            node_id=ra.node_id,
+            group_id=ra.group_id,
+            attr_id=ra.attr_id,
+            attr_is_var=ra.attr_is_var,
+            ref_key=ra.ref_key,
+        ))
+        old_ra_name_map[(None, None, link_id_map[ra.link_id], None, ra.attr_id)] = ra.resource_attr_id
+
+    log.info("Cloning Group Attributes")
+    group_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.group_id==ResourceGroup.group_id, ResourceGroup.network_id==network_id)).all()
+    for ra in group_ras:
+        new_ras.append(dict(
+            group_id=group_id_map[ra.group_id],
+            network_id=ra.network_id,
+            link_id=ra.link_id,
+            node_id=ra.node_id,
+            attr_id=ra.attr_id,
+            attr_is_var=ra.attr_is_var,
+            ref_key=ra.ref_key,
+        ))
+        old_ra_name_map[(None, None, None, group_id_map[ra.group_id], ra.attr_id)] = ra.resource_attr_id
+
+    log.info("Inserting new resource attributes")
+    db.DBSession.execute(ResourceAttr.__table__.insert(), new_ras)
+    db.DBSession.flush()
+    log.info("Insertion Complete")
+
+    log.info("Getting new RAs and building ID map")
+    
+    new_network_ras = db.DBSession.query(ResourceAttr).filter(ResourceAttr.network_id==newnetworkid).all()
+    for ra in new_network_ras:
+        id_map[old_ra_name_map[(ra.network_id, ra.node_id, ra.link_id, ra.group_id, ra.attr_id)]] = ra.resource_attr_id
+
+    new_node_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.node_id==Node.node_id, Node.network_id==newnetworkid)).all()
+    for ra in new_node_ras:
+        id_map[old_ra_name_map[(ra.network_id, ra.node_id, ra.link_id, ra.group_id, ra.attr_id)]] = ra.resource_attr_id
+
+
+    new_link_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.link_id==Link.link_id, Link.network_id==newnetworkid)).all()
+    for ra in new_link_ras:
+        id_map[old_ra_name_map[(ra.network_id, ra.node_id, ra.link_id, ra.group_id, ra.attr_id)]] = ra.resource_attr_id
+
+    new_group_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.group_id==ResourceGroup.group_id, ResourceGroup.network_id==newnetworkid)).all()
+    for ra in new_group_ras:
+        id_map[old_ra_name_map[(ra.network_id, ra.node_id, ra.link_id, ra.group_id, ra.attr_id)]] = ra.resource_attr_id
+    log.info("ID map completed. Returning")
+
+    return id_map
+
+def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, group_id_map):
+
+    log.info("Cloning Network Types")
+    network_ras = db.DBSession.query(ResourceType).filter(ResourceType.network_id==network_id)
+    new_ras = []
+    for rt in network_ras:
+        new_ras.append(dict(
+            ref_key=rt.ref_key,
+            network_id=newnetworkid,
+            node_id=rt.node_id,
+            link_id=rt.link_id,
+            group_id=rt.group_id,
+            type_id=rt.type_id,
+        ))
+    log.info("Cloning Node Types")
+    node_rts = db.DBSession.query(ResourceType).filter(and_(ResourceType.node_id==Node.node_id, Node.network_id==network_id))
+    for rt in node_rts:
+        new_ras.append(dict(
+            ref_key=rt.ref_key,
+            network_id=rt.network_id,
+            node_id=node_id_map[rt.node_id],
+            link_id=rt.link_id,
+            group_id=rt.group_id,
+            type_id=rt.type_id,
+        ))
+    log.info("Cloning Link Types")
+    link_rts = db.DBSession.query(ResourceType).filter(and_(ResourceType.link_id==Link.link_id, Link.network_id==network_id))
+    for rt in link_rts:
+        new_ras.append(dict(
+            ref_key=rt.ref_key,
+            network_id=rt.network_id,
+            node_id=rt.node_id,
+            link_id=link_id_map[rt.link_id],
+            group_id=rt.group_id,
+            type_id=rt.type_id,
+        ))
+
+    log.info("Cloning Group Types")
+    group_rts = db.DBSession.query(ResourceType).filter(and_(ResourceType.group_id==ResourceGroup.group_id, ResourceGroup.network_id==network_id))
+    for rt in group_rts:
+        new_ras.append(dict(
+            ref_key=rt.ref_key,
+            network_id=rt.network_id,
+            node_id=rt.node_id,
+            link_id=rt.link_id,
+            group_id=group_id_map[rt.group_id],
+            type_id=rt.type_id,
+        ))
+
+    log.info("Inserting new resource types")
+    db.DBSession.execute(ResourceType.__table__.insert(), new_ras)
+    db.DBSession.flush()
+    log.info("Insertion Complete")
+
+def _clone_scenarios(network_id, newnetworkid, ra_id_map, node_id_map, link_id_map, group_id_map, user_id):
+    scenarios = db.DBSession.query(Scenario).filter(Scenario.network_id==network_id)
+
+    for s in scenarios:
+        _clone_scenario(s, newnetworkid, ra_id_map, node_id_map, link_id_map, group_id_map, user_id)
+
+def _clone_scenario(old_scenario, newnetworkid, ra_id_map, node_id_map, link_id_map, group_id_map, user_id):
+
+    log.info("Adding scenario shell to get scenario ID")
+    news = Scenario()
+    news.network_id = newnetworkid
+    news.scenario_name = old_scenario.scenario_name
+    news.scenario_description = old_scenario.scenario_description
+    news.layout = old_scenario.layout
+    news.start_time = old_scenario.start_time
+    news.end_time = old_scenario.end_time
+    news.time_step = old_scenario.time_step
+    news.created_by=user_id
+
+    db.DBSession.add(news)
+
+    db.DBSession.flush()
+
+    scenario_id= news.scenario_id
+    log.info("New Scenario %s created", scenario_id)
+
+    log.info("Getting old resource scenarios for scenario %s", old_scenario.scenario_id)
+    old_rscen_rs = db.DBSession.query(ResourceScenario).filter(ResourceScenario.scenario_id==old_scenario.scenario_id).all()
+
+    new_rscens = []
+    for old_rscen in old_rscen_rs:
+        new_rscens.append(dict(
+            dataset_id=old_rscen.dataset_id,
+            scenario_id=scenario_id,
+            resource_attr_id=ra_id_map[old_rscen.resource_attr_id],
+        ))
+
+    log.info("Inserting new resource scenarios")
+    db.DBSession.execute(ResourceScenario.__table__.insert(), new_rscens)
+    log.info("Insertion Complete")
+
+    
+
+    log.info("Getting old resource group items for scenario %s", old_scenario.scenario_id)
+    old_rgis = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.scenario_id==old_scenario.scenario_id).all()
+    new_rgis = []
+    for old_rgi in old_rgis:
+        new_rgis.append(dict(
+            ref_key=old_rgi.ref_key,
+            node_id = node_id_map.get(old_rgi.node_id),
+            link_id = link_id_map.get(old_rgi.link_id),
+            group_id = group_id_map.get(old_rgi.group_id),
+            scenario_id=scenario_id,
+        ))
+
+    db.DBSession.execute(ResourceGroupItem.__table__.insert(), new_rgis)
