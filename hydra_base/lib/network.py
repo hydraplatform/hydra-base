@@ -424,7 +424,7 @@ def add_network(network,**kwargs):
     db.DBSession.autoflush = False
     user_id = kwargs.get('user_id')
 
-    check_perm('add_network')
+    check_perm(user_id, 'add_network')
 
     start_time = datetime.datetime.now()
     log.debug("Adding network")
