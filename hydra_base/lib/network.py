@@ -2624,7 +2624,11 @@ def _clone_scenario(old_scenario, newnetworkid, ra_id_map, node_id_map, link_id_
     log.info("New Scenario %s created", scenario_id)
 
     log.info("Getting old resource scenarios for scenario %s", old_scenario.scenario_id)
-    old_rscen_rs = db.DBSession.query(ResourceScenario).filter(ResourceScenario.scenario_id==old_scenario.scenario_id).all()
+    old_rscen_rs = db.DBSession.query(ResourceScenario).filter(
+                                        ResourceScenario.scenario_id==old_scenario.scenario_id,
+                                        ResourceAttr.resource_attr_id==ResourceScenario.resource_attr_id,
+                                        ResourceAttr.attr_is_var == 'N'
+                                    ).all()
 
     new_rscens = []
     for old_rscen in old_rscen_rs:
