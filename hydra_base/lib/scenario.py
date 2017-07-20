@@ -947,6 +947,10 @@ def get_attribute_datasets(attr_id, scenario_id, **kwargs):
 
     resourcescenarios = rs_qry.all()
 
+    #Load the metadata too
+    for rs in resourcescenarios:
+        rs.dataset.metadata
+
     return resourcescenarios
 
 def get_resourcegroupitems(group_id, scenario_id, **kwargs):
