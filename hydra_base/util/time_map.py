@@ -30,11 +30,11 @@ time_map = {
     'nanosec'     : 'ns',
     'ns'          : 'ns',
 
-    'microsecond'  : 'µs',
-    'microseconds' : 'µs',
-    'microsec'     : 'µs',
-    'microsecs'    : 'µs',
-    'µs'           : 'µs',
+    'microsecond'  : 'Âµs',
+    'microseconds' : 'Âµs',
+    'microsec'     : 'Âµs',
+    'microsecs'    : 'Âµs',
+    'Âµs'           : 'Âµs',
 
     'millisecond'   : 'ms',
     'milliseconds'  : 'ms',
