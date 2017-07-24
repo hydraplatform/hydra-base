@@ -18,7 +18,7 @@
 #
 
 from ..exceptions import HydraError, ResourceNotFoundError
-import scenario
+from . import scenario
 
 from .. import db
 from ..db.model import ResourceGroup, ResourceGroupItem, Node, Link

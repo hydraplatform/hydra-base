@@ -18,12 +18,12 @@
 #
 
 from ..exceptions import ResourceNotFoundError
-import scenario
+from . import scenario
 import logging
 from ..exceptions import PermissionError, HydraError
 from ..db.model import Project, ProjectOwner, Network
 from .. import db
-import network
+from . import network
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import class_mapper, joinedload_all
 from sqlalchemy import and_

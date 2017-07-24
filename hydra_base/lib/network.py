@@ -17,15 +17,16 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
-from ..exceptions import HydraError, ResourceNotFoundError
-import scenario
 import datetime
-import data
 import time
+import json
+
+from ..exceptions import HydraError, ResourceNotFoundError
+from . import scenario
+from . import data
 
 from ..util.permissions import check_perm
-import json
-import template
+from . import template
 from ..db.model import Project, Network, Scenario, Node, Link, ResourceGroup,\
         ResourceAttr, Attr, ResourceType, ResourceGroupItem, Dataset, Metadata, DatasetOwner,\
         ResourceScenario, TemplateType, TypeAttr, Template
@@ -241,7 +242,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
             for ra in resource.attributes:
                 resource_attrs[ra.id] = resource_attr_dict[(ref_id, ra.attr_id)]
     logging.info("Resource attributes added in %s"%(datetime.datetime.now() - start_time))
-    print " resource_attrs   size: ", len(resource_attrs)
+    logging.debug(" resource_attrs   size: %s" % len(resource_attrs))
     return resource_attrs
 
 def _add_nodes_to_database(net_i, nodes):

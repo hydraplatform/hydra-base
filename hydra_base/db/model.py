@@ -1432,7 +1432,7 @@ def create_resourcedata_view():
     from sqlalchemy.schema import DDLElement
     from sqlalchemy.sql import table
     from sqlalchemy.ext import compiler
-    from model import ResourceAttr, ResourceScenario, Attr, Dataset
+    from .model import ResourceAttr, ResourceScenario, Attr, Dataset
 
     class CreateView(DDLElement):
         def __init__(self, name, selectable):

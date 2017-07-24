@@ -33,7 +33,7 @@ FORMAT = "%Y-%m-%d %H:%M:%S.%f"
     A mapping from commonly used time periods to the appropriate hydra-compatible
     time period abbreviation
 """
-from time_map import time_map
+from .time_map import time_map
 
 
 def get_time_period(period_name):
