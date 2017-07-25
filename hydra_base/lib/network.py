@@ -2601,7 +2601,8 @@ def _clone_scenarios(network_id, newnetworkid, ra_id_map, node_id_map, link_id_m
     scenarios = db.DBSession.query(Scenario).filter(Scenario.network_id==network_id)
 
     for s in scenarios:
-        _clone_scenario(s, newnetworkid, ra_id_map, node_id_map, link_id_map, group_id_map, user_id)
+        if s.status == 'A':
+            _clone_scenario(s, newnetworkid, ra_id_map, node_id_map, link_id_map, group_id_map, user_id)
 
 def _clone_scenario(old_scenario, newnetworkid, ra_id_map, node_id_map, link_id_map, group_id_map, user_id):
 
