@@ -46,7 +46,7 @@ import copy
 
 import json
 
-import units as hydra_units
+from . import units as hydra_units
 
 global FORMAT
 FORMAT = "%Y-%m-%d %H:%M:%S.%f"

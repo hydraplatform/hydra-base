@@ -86,7 +86,7 @@ def init(level=None):
         else:
             logging.debug("No logging config file found. Using default settings.")
             use_default = True
-    except Exception, e:
+    except Exception as e:
         logging.critical("Error finding logging conf file: %s", e)
         use_default = True
 

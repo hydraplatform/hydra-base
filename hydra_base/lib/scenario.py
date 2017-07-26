@@ -30,12 +30,12 @@ from ..db.model import Scenario,\
         Attr,\
         ResourceAttrMap
 
-import units as hydra_units
+from . import units as hydra_units
 
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import joinedload_all, joinedload, aliased
-import data
+from . import data
 from ..util.hydra_dateutil import timestamp_to_ordinal
 from collections import namedtuple
 from copy import deepcopy

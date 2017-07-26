@@ -638,9 +638,9 @@ def validate_resource_attributes(resource, attributes, template, check_unit=True
 if __name__ == '__main__':
     units = Units()
     for dim in units.unittree:
-        print '**' + dim.get('name') + '**'
+        print('**' + dim.get('name') + '**')
         for unit in dim:
-            print unit.get('name'), unit.get('abbr'), unit.get('lf'), \
-                unit.get('cf'), unit.get('info')
+            print(unit.get('name'), unit.get('abbr'), unit.get('lf'),
+                  unit.get('cf'), unit.get('info'))
 
-    print units.convert(200, 'm^3', 'ac-ft')
+    print(units.convert(200, 'm^3', 'ac-ft'))

@@ -19,7 +19,7 @@
 
 from .. import db
 from ..db.model import Template, TemplateType, TypeAttr, Attr, Network, Node, Link, ResourceGroup, ResourceType, ResourceAttr, ResourceScenario, Scenario
-from data import add_dataset
+from .data import add_dataset
 
 from ..exceptions import HydraError, ResourceNotFoundError
 from ..import config
@@ -31,7 +31,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import joinedload_all, noload
 from sqlalchemy import or_, and_
 import re
-import units
+from . import units
 import json
 log = logging.getLogger(__name__)
 

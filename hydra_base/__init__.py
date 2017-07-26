@@ -20,7 +20,7 @@
 # -*- coding: utf-8 -*-
 
 import logging
-import config
+from . import config
 if config.CONFIG is None:
     config.load_config()
 
@@ -41,7 +41,7 @@ from .lib.units import *
 from .lib.users import *
 
 
-import hydra_logging
+from . import hydra_logging
 hydra_logging.init()
 
 from .db import connect

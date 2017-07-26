@@ -18,8 +18,13 @@
 #
 import os
 import glob
-import ConfigParser
 import sys
+
+PYTHONVERSION = sys.version_info
+if PYTHONVERSION >= (3,2):
+    import configparser as ConfigParser
+else:
+    import ConfigParser
 import logging
 
 global CONFIG
