@@ -1205,7 +1205,7 @@ class Note(Base, Inspect):
 
     ref_key = Column(String(60),  nullable=False, index=True)
 
-    note_text = Column('value', LargeBinary(),  nullable=True)
+    note_text = Column('note_text', LargeBinary(),  nullable=True)
 
     created_by = Column(Integer(), ForeignKey('tUser.id'))
 
