@@ -41,6 +41,8 @@ from collections import namedtuple
 from copy import deepcopy
 import zlib
 
+from objects import JSONObject
+
 log = logging.getLogger(__name__)
 
 def _check_network_ownership(network_id, user_id):
@@ -274,7 +276,7 @@ def purge_scenario(scenario_id, **kwargs):
 
 def clone_scenario(scenario_id,**kwargs):
 
-    scen_i = _get_scenario(scenario_id)
+    scen_i = _get_scenario(scenario_id, False, False)
 
     log.info("cloning scenario %s", scen_i.scenario_name)
 
@@ -301,36 +303,58 @@ def clone_scenario(scenario_id,**kwargs):
     cloned_scen.end_time             = scen_i.end_time
     cloned_scen.time_step            = scen_i.time_step
 
-    log.info("New scenario created")
+    db.DBSession.add(cloned_scen)
 
-    for rs in scen_i.resourcescenarios:
-        new_rs = ResourceScenario()
-        new_rs.resource_attr_id = rs.resource_attr_id
-        new_rs.dataset_id       = rs.dataset_id
+    db.DBSession.flush()
 
-        if kwargs.get('app_name') is None:
-            new_rs.source           = rs.source
-        else:
-            new_rs.source = kwargs['app_name']
+    cloned_scenario_id = cloned_scen.scenario_id
+    log.info("New scenario created. Scenario ID: %s", cloned_scenario_id)
 
-        cloned_scen.resourcescenarios.append(new_rs)
+
+    log.info("Getting in resource scenarios to clone from scenario %s", scenario_id)
+    old_rscen_rs = db.DBSession.query(ResourceScenario).filter(
+                                        ResourceScenario.scenario_id==scenario_id,
+                                        ResourceAttr.resource_attr_id==ResourceScenario.resource_attr_id,
+                                        ResourceAttr.attr_is_var == 'N'
+                                    ).all()
+    new_rscens = []
+    for old_rscen in old_rscen_rs:
+        new_rscens.append(dict(
+            dataset_id=old_rscen.dataset_id,
+            scenario_id=cloned_scenario_id,
+            resource_attr_id=old_rscen.resource_attr_id,
+            source = kwargs.get('app_name', old_rscen.source)
+        ))
+
+    db.DBSession.execute(ResourceScenario.__table__.insert(), new_rscens)
 
     log.info("ResourceScenarios cloned")
 
-    for resourcegroupitem_i in scen_i.resourcegroupitems:
-        new_resourcegroupitem_i = ResourceGroupItem()
-        new_resourcegroupitem_i.ref_key     = resourcegroupitem_i.ref_key
-        new_resourcegroupitem_i.link_id      = resourcegroupitem_i.link_id
-        new_resourcegroupitem_i.node_id      = resourcegroupitem_i.node_id
-        new_resourcegroupitem_i.subgroup_id      = resourcegroupitem_i.subgroup_id
-        new_resourcegroupitem_i.group_id    = resourcegroupitem_i.group_id
-        cloned_scen.resourcegroupitems.append(new_resourcegroupitem_i)
-    log.info("Resource group items cloned.")
+    log.info("Getting old resource group items for scenario %s", scenario_id)
+    old_rgis = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.scenario_id==scenario_id).all()
+    new_rgis = []
+    for old_rgi in old_rgis:
+        new_rgis.append(dict(
+            ref_key=old_rgi.ref_key,
+            node_id = old_rgi.node_id,
+            link_id = old_rgi.link_id,
+            group_id = old_rgi.group_id,
+            scenario_id=cloned_scenario_id,
+        ))
 
-    db.DBSession.add(cloned_scen)
-    db.DBSession.flush()
-
+    db.DBSession.execute(ResourceGroupItem.__table__.insert(), new_rgis)
     log.info("Cloning finished.")
+
+    log.info("Retrieving cloned scenario")
+    new_rscen_rs = db.DBSession.query(ResourceScenario).filter(
+                                        ResourceScenario.scenario_id==cloned_scenario_id).all()
+    new_rgis_rs  = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.scenario_id==cloned_scenario_id).all()
+
+    cloned_scen = JSONObject(_get_scenario(cloned_scenario_id, False, False))
+    cloned_scen.resourcescenarios = [JSONObject(r) for r in new_rscen_rs]
+    cloned_scen.resourcegroupitems =[JSONObject(r) for r in new_rgis_rs]
+    log.info("Returning cloned scenario")
+
 
     return cloned_scen
 
