@@ -23,15 +23,14 @@ testpkgs=[
                ]
 
 install_requires=[
-    "zope.sqlalchemy >= 0.4",
     "sqlalchemy",
-    "numpy",
+    "zope.sqlalchemy >= 0.4",
     "pandas",
+    "numpy",
     "bcrypt",
     "lxml",
     "mysql-connector-python",
     "suds",
-    "spyne >= 2.12",
     "python-dateutil",
     "requests",
     "cheroot"
@@ -41,19 +40,19 @@ if platform.system() == "Windows":  # only add winpaths when platform is Windows
     install_requires.append("winpaths")
 
 setup(
-    name='HydraPlatform',
+    name='hydra-base',
     version='0.1',
     description='A data manager for networks',
     author='Stephen Knox',
     author_email='stephen.knox@manchester.ac.uk',
-    url='http://umwrg.github.io/HydraPlatform',
+    url='https://github.com/hydraplatform/hydra-base',
     packages=find_packages(exclude=['ez_setup']),
     install_requires=install_requires,
     include_package_data=True,
     test_suite='nose.collector',
     tests_require=testpkgs,
-    package_data={'HydraPlatform': []},
-    message_extractors={'HydraPlatform': [
+    package_data={'hydra-base': []},
+    message_extractors={'hydra-base': [
             ('**.py', 'python', None),
             ('templates/**.html', 'genshi', None),
             ('public/**', 'ignore', None)]},
@@ -63,5 +62,6 @@ setup(
                     'eggsecutable = server:run',
                 ]
     },
-    zip_safe=False
+    zip_safe=False,
+    dependency_links=['http://dev.mysql.com/get/Downloads/Connector-Python/mysql-connector-python-2.1.4.zip'],
 )
