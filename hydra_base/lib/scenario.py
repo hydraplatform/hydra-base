@@ -41,7 +41,7 @@ from collections import namedtuple
 from copy import deepcopy
 import zlib
 
-from objects import JSONObject
+from .objects import JSONObject
 
 log = logging.getLogger(__name__)
 
@@ -774,7 +774,7 @@ def assign_value(rs, data_type, val,
         dataset = data.update_dataset(rs.dataset.dataset_id, name, data_type, val, units, dimension, metadata, **dict(user_id=user_id))
         rs.dataset = dataset
         rs.dataset_id = dataset.dataset_id
-	log.info("Set RS dataset id to %s"%dataset.dataset_id)
+        log.info("Set RS dataset id to %s"%dataset.dataset_id)
     else:
         log.info("Creating new dataset %s in scenario %s", name, rs.scenario_id)
         dataset = data.add_dataset(data_type,
@@ -785,7 +785,7 @@ def assign_value(rs, data_type, val,
                                 name=name,
                                 **dict(user_id=user_id))
         rs.dataset = dataset
-        rs.source  = source
+        rs.source = source
 
     db.DBSession.flush()
 
