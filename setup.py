@@ -30,9 +30,7 @@ install_requires=[
     "bcrypt",
     "lxml",
     "mysql-connector-python",
-    "suds",
     "python-dateutil",
-    "requests",
     "cheroot"
     ]
 
