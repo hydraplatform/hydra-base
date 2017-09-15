@@ -803,7 +803,7 @@ def _get_all_resourcescenarios(network_id, user_id):
             'start_date':rs.start_time,
             'frequency':rs.frequency,
             'value':value,
-            'metadata':[],
+            'metadata':{},
         })
         rs_obj.resourceattr = rs_attr
         rs_obj.dataset = rs_dataset
@@ -822,7 +822,7 @@ def _get_metadata(network_id, user_id):
         Get all the metadata in a network, across all scenarios
         returns a dictionary of dict objects, keyed on dataset ID
     """
-
+    log.info("Getting Metadata")
     dataset_qry = db.DBSession.query(
                 Dataset
     ).outerjoin(DatasetOwner, and_(DatasetOwner.dataset_id==Dataset.dataset_id, DatasetOwner.user_id==user_id)).filter(
@@ -844,9 +844,10 @@ def _get_metadata(network_id, user_id):
     x = time.time()
     metadata_dict = dict()
     for m in all_metadata:
-        metadata = metadata_dict.get(m.dataset_id, [])
-        metadata.append(m)
-        metadata_dict[m.dataset_id] = metadata
+        if metadata_dict.get(m.dataset_id):
+            metadata_dict[m.dataset_id][m.metadata_name] = m.metadata_val
+        else:
+            metadata_dict[m.dataset_id] = {m.metadata_name : m.metadata_val}
 
     logging.info("metadata processed in %s", time.time()-x)
 
@@ -949,7 +950,7 @@ def _get_scenarios(network_id, include_data, user_id, scenario_ids=None):
             s.resourcescenarios  = all_rs.get(s.scenario_id, [])
 
             for rs in s.resourcescenarios:
-                rs.dataset.metadata = metadata.get(rs.dataset_id, [])
+                rs.dataset.metadata = metadata.get(rs.dataset_id, {})
 
     return scens
 
