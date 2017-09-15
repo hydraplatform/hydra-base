@@ -661,8 +661,8 @@ def _insert_metadata(metadata_hash_dict, dataset_id_hash_dict):
     for _hash, _metadata_dict in metadata_hash_dict.items():
         for k, v in _metadata_dict.items():
             metadata = {}
-            metadata['metadata_name']  = k
-            metadata['metadata_val']  = v
+            metadata['metadata_name']  = str(k)
+            metadata['metadata_val']  = str(v)
             metadata['dataset_id']      = dataset_id_hash_dict[_hash].dataset_id
             metadata_list.append(metadata)
 
