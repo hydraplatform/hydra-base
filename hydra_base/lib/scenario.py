@@ -55,17 +55,19 @@ def _check_network_ownership(network_id, user_id):
         raise PermissionError("Permission denied."
                             " User %s is not an owner of network %s"%(user_id, network_id))
 
-def _get_scenario(scenario_id, include_data=True, include_items=True):
+def _get_scenario(scenario_id, user_id):
+    log.info("Getting scenario %s", scenario_id)
     try:
         scenario_qry = db.DBSession.query(Scenario).filter(Scenario.scenario_id==scenario_id)
-        if include_data is True:
-            scenario_qry = scenario_qry.options(joinedload_all('resourcescenarios'))
-        if include_items is True:
-            scenario_qry = scenario_qry.options(joinedload_all('resourcegroupitems'))
         scenario = scenario_qry.one()
         return scenario
     except NoResultFound:
         raise ResourceNotFoundError("Scenario %s does not exist."%(scenario_id))
+
+    owner = _check_network_owner(scenario.network, user_id)
+    if owner.view == 'N':
+        raise PermissionError("Permission denied."
+                              " User %s cannot view scenario %s"%(user_id, scenario_id))
 
 def set_rs_dataset(resource_attr_id, scenario_id, dataset_id, **kwargs):
     rs = db.DBSession.query(ResourceScenario).filter(
@@ -134,13 +136,16 @@ def get_scenario(scenario_id,**kwargs):
 
     user_id = kwargs.get('user_id')
 
-    scen = _get_scenario(scenario_id)
-    owner = _check_network_owner(scen.network, user_id)
-    if owner.view == 'N':
-        raise PermissionError("Permission denied."
-                              " User %s cannot view scenario %s"%(user_id, scenario_id))
+    scen_i = _get_scenario(scenario_id, user_id)
 
-    return scen
+    scen_j = JSONObject(scen_i)
+    rscen_rs = db.DBSession.query(ResourceScenario).filter(ResourceScenario.scenario_id==scenario_id).all()
+    rgi_rs = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.scenario_id==scenario_id).all()
+
+    scen_j.resourcescenarios = [JSONObject(r) for r in rscen_rs]
+    scen_j.resourcegroupitems =[JSONObject(r) for r in rgi_rs]
+
+    return scen_j 
 
 def add_scenario(network_id, scenario,**kwargs):
     """
@@ -213,9 +218,7 @@ def update_scenario(scenario,update_data=True,update_groups=True,**kwargs):
         about negative IDS
     """
     user_id = kwargs.get('user_id')
-    scen = _get_scenario(scenario.id)
-
-    _check_network_ownership(scenario.network_id, user_id)
+    scen = _get_scenario(scenario.id, user_id)
 
     if scen.locked == 'Y':
         raise PermissionError('Scenario is locked. Unlock before editing.')
@@ -232,22 +235,23 @@ def update_scenario(scenario,update_data=True,update_groups=True,**kwargs):
     if scenario.resourcegroupitems == None:
         scenario.resourcegroupitems = []
 
+    rscen_rs = db.DBSession.query(ResourceScenario).filter(ResourceScenario.scenario_id==scenario.id).all()
+    rgi_rs = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.scenario_id==scenario.id).all()
+
     if update_data is True:
 
-        datasets = [rs.value for rs in scenario.resourcescenarios]
+        datasets = [rs.value for rs in rscen_rs]
         updated_datasets = data._bulk_insert_data(datasets, user_id, kwargs.get('app_name'))
-        for i, r_scen in enumerate(scenario.resourcescenarios):
+        for i, r_scen in enumerate(rscen_rs):
             _update_resourcescenario(scen, r_scen, dataset=updated_datasets[i], user_id=user_id, source=kwargs.get('app_name'))
 
     if update_groups is True:
         #Get all the exiting resource group items for this scenario.
         #THen process all the items sent to this handler.
         #Any in the DB that are not passed in here are removed.
-        for group_item in scenario.resourcegroupitems:
-            group_item_i = _add_resourcegroupitem(group_item, scenario.id)
+        for group_item in rgi_rs:
+            _add_resourcegroupitem(group_item, scenario.id)
 
-            if group_item.id is None or group_item.id < 0:
-                scen.resourcegroupitems.append(group_item_i)
     db.DBSession.flush()
     return scen
 
@@ -256,8 +260,11 @@ def set_scenario_status(scenario_id, status, **kwargs):
         Set the status of a scenario.
     """
 
+    user_id = kwargs.get('user_id')
+    
     _check_can_edit_scenario(scenario_id, kwargs['user_id'])
-    scenario_i = _get_scenario(scenario_id)
+
+    scenario_i = _get_scenario(scenario_id, user_id)
 
     scenario_i.status = status
     db.DBSession.flush()
@@ -269,14 +276,20 @@ def purge_scenario(scenario_id, **kwargs):
     """
 
     _check_can_edit_scenario(scenario_id, kwargs['user_id'])
-    scenario_i = _get_scenario(scenario_id)
+
+    user_id = kwargs.get('user_id')
+
+    scenario_i = _get_scenario(scenario_id, user_id)
+    
     db.DBSession.delete(scenario_i)
     db.DBSession.flush()
     return 'OK'
 
 def clone_scenario(scenario_id,**kwargs):
+    
+    user_id = kwargs.get('user_id')
 
-    scen_i = _get_scenario(scenario_id, False, False)
+    scen_i = _get_scenario(scenario_id, user_id)
 
     log.info("cloning scenario %s", scen_i.scenario_name)
 
@@ -350,7 +363,7 @@ def clone_scenario(scenario_id,**kwargs):
                                         ResourceScenario.scenario_id==cloned_scenario_id).all()
     new_rgis_rs  = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.scenario_id==cloned_scenario_id).all()
 
-    cloned_scen = JSONObject(_get_scenario(cloned_scenario_id, False, False))
+    cloned_scen = JSONObject(_get_scenario(cloned_scenario_id, user_id))
     cloned_scen.resourcescenarios = [JSONObject(r) for r in new_rscen_rs]
     cloned_scen.resourcegroupitems =[JSONObject(r) for r in new_rgis_rs]
     log.info("Returning cloned scenario")
@@ -373,9 +386,10 @@ def _get_dataset_as_dict(rs, user_id):
            dataset['value']      = None
            dataset['frequency']  = None
            dataset['start_time'] = None
-           dataset['metadata'] = []
-
-    dataset['metadata'] = [_get_as_obj(m.__dict__, 'Metadata') for m in rs.dataset.metadata]
+           dataset['metadata'] = {}
+    
+    for m in rs.dataset.metadata:
+        dataset['metadata'][m.metadata_name] = m.metadata_val
 
     return dataset
 
@@ -396,8 +410,13 @@ def _get_as_obj(obj_dict, name):
 def compare_scenarios(scenario_id_1, scenario_id_2,**kwargs):
     user_id = kwargs.get('user_id')
 
-    scenario_1 = _get_scenario(scenario_id_1)
-    scenario_2 = _get_scenario(scenario_id_2)
+    scenario_1 = _get_scenario(scenario_id_1, user_id)
+    scenario_2 = _get_scenario(scenario_id_2, user_id)
+
+    scenario_1_rs = db.DBSession.query(ResourceScenario).filter(ResourceScenario.scenario_id==scenario_id_1).all()
+    scenario_2_rs = db.DBSession.query(ResourceScenario).filter(ResourceScenario.scenario_id==scenario_id_2).all()
+    scenario_1_rgi = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.scenario_id==scenario_id_1).all()
+    scenario_2_rgi = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.scenario_id==scenario_id_1).all()
 
     if scenario_1.network_id != scenario_2.network_id:
         raise HydraError("Cannot compare scenarios that are not"
@@ -415,13 +434,13 @@ def compare_scenarios(scenario_id_1, scenario_id_2,**kwargs):
     #them rather than nesting for loops.
     r_scen_1_dict = dict()
     r_scen_2_dict = dict()
-    for s1_rs in scenario_1.resourcescenarios:
+    for s1_rs in scenario_1_rs:
         r_scen_1_dict[s1_rs.resource_attr_id] = s1_rs
-    for s2_rs in scenario_2.resourcescenarios:
+    for s2_rs in scenario_2_rs:
         r_scen_2_dict[s2_rs.resource_attr_id] = s2_rs
 
-    rscen_1_dataset_ids = set([r_scen.dataset_id for r_scen in scenario_1.resourcescenarios])
-    rscen_2_dataset_ids = set([r_scen.dataset_id for r_scen in scenario_2.resourcescenarios])
+    rscen_1_dataset_ids = set([r_scen.dataset_id for r_scen in scenario_1_rs])
+    rscen_2_dataset_ids = set([r_scen.dataset_id for r_scen in scenario_2_rs])
 
     log.info("Datasets In 1 not in 2: %s"%(rscen_1_dataset_ids - rscen_2_dataset_ids))
     log.info("Datasets In 2 not in 1: %s"%(rscen_2_dataset_ids - rscen_1_dataset_ids))
@@ -464,10 +483,10 @@ def compare_scenarios(scenario_id_1, scenario_id_2,**kwargs):
     #Now compare groups.
     #Return list of group items in scenario 1 not in scenario 2 and vice versa
     s1_items = []
-    for s1_item in scenario_1.resourcegroupitems:
+    for s1_item in scenario_1_rgi:
         s1_items.append((s1_item.group_id, s1_item.ref_key, s1_item.node_id, s1_item.link_id, s1_item.subgroup_id))
     s2_items = []
-    for s2_item in scenario_2.resourcegroupitems:
+    for s2_item in scenario_2_rgi:
         s2_items.append((s2_item.group_id, s2_item.ref_key, s2_item.node_id, s2_item.link_id, s2_item.subgroup_id))
 
     groupdiff = dict()
@@ -512,8 +531,9 @@ def get_resource_scenario(resource_attr_id, scenario_id, **kwargs):
         This is done when you know the attribute, resource and scenario and want to get the
         value associated with it.
     """
-    scenario_i = _get_scenario(scenario_id)
-    owner = _check_network_owner(scenario_i.network, kwargs['user_id'])
+    user_id = kwargs.get('user_id')
+
+    _get_scenario(scenario_id, user_id)
 
     try:
         rs = db.DBSession.query(ResourceScenario).filter(ResourceScenario.resource_attr_id==resource_attr_id,
@@ -526,7 +546,10 @@ def get_resource_scenario(resource_attr_id, scenario_id, **kwargs):
 def lock_scenario(scenario_id, **kwargs):
     #user_id = kwargs.get('user_id')
     #check_perm(user_id, 'edit_network')
-    scenario_i = _get_scenario(scenario_id)
+
+    user_id = kwargs.get('user_id')
+
+    scenario_i = _get_scenario(scenario_id, user_id)
     owner = _check_network_owner(scenario_i.network, kwargs['user_id'])
 
     if owner.edit == 'Y':
@@ -539,7 +562,9 @@ def lock_scenario(scenario_id, **kwargs):
 def unlock_scenario(scenario_id, **kwargs):
     #user_id = kwargs.get('user_id')
     #check_perm(user_id, 'edit_network')
-    scenario_i = _get_scenario(scenario_id)
+    user_id = kwargs.get('user_id')
+
+    scenario_i = _get_scenario(scenario_id, user_id)
 
     owner = _check_network_owner(scenario_i.network, kwargs['user_id'])
     if owner.edit == 'Y':
@@ -584,7 +609,7 @@ def bulk_update_resourcedata(scenario_ids, resource_scenarios,**kwargs):
     for scenario_id in scenario_ids:
         _check_can_edit_scenario(scenario_id, kwargs['user_id'])
 
-        scen_i = _get_scenario(scenario_id)
+        scen_i = _get_scenario(scenario_id, user_id)
         res[scenario_id] = []
         for rs in resource_scenarios:
             if rs.value is not None:
@@ -619,7 +644,7 @@ def update_resourcedata(scenario_id, resource_scenarios,**kwargs):
 
     _check_can_edit_scenario(scenario_id, kwargs['user_id'])
 
-    scen_i = _get_scenario(scenario_id)
+    scen_i = _get_scenario(scenario_id, user_id)
 
     res = []
     for rs in resource_scenarios:
@@ -673,8 +698,9 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
     except NoResultFound as e:
         r_scen_i = ResourceScenario()
         r_scen_i.resource_attr_id = resource_scenario.resource_attr_id
+        r_scen_i.scenario_id      = scenario.scenario_id
 
-        scenario.resourcescenarios.append(r_scen_i)
+        db.DBSession.add(r_scen_i)
 
 
     if scenario.locked == 'Y':
@@ -688,9 +714,6 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
         return r_scen_i
 
     dataset = resource_scenario.value
-
-    start_time = None
-    frequency  = None
 
     value = dataset.parse_value()
 
@@ -797,7 +820,7 @@ def add_data_to_attribute(scenario_id, resource_attr_id, dataset,**kwargs):
 
     _check_can_edit_scenario(scenario_id, user_id)
 
-    scenario_i = _get_scenario(scenario_id)
+    scenario_i = _get_scenario(scenario_id, user_id)
 
     try:
         r_scen_i = db.DBSession.query(ResourceScenario).filter(
@@ -938,7 +961,7 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id, expunge_session=Tru
     return resource_data
 
 def _check_can_edit_scenario(scenario_id, user_id):
-    scenario_i = _get_scenario(scenario_id)
+    scenario_i = _get_scenario(scenario_id, user_id)
 
     scenario_i.network.check_write_permission(user_id)
 
@@ -952,7 +975,9 @@ def get_attribute_datasets(attr_id, scenario_id, **kwargs):
         Also return the resource attributes so there is a reference to the node/link
     """
 
-    scenario_i = _get_scenario(scenario_id)
+    user_id = kwargs.get('user_id')
+
+    scenario_i = _get_scenario(scenario_id, user_id)
 
     try:
         a = db.DBSession.query(Attr).filter(Attr.attr_id == attr_id).one()
@@ -994,8 +1019,8 @@ def delete_resourcegroupitems(scenario_id, item_ids, **kwargs):
         Delete specified items in a group, in a scenario.
     """
     user_id = int(kwargs.get('user_id'))
-    scenario = _get_scenario(scenario_id, include_data=False, include_items=False)
-    _check_network_ownership(scenario.network_id, user_id)
+    #check the scenario exists
+    _get_scenario(scenario_id, user_id)
     for item_id in item_ids:
         rgi = db.DBSession.query(ResourceGroupItem).\
                 filter(ResourceGroupItem.item_id==item_id).one()
@@ -1006,8 +1031,8 @@ def empty_group(group_id, scenario_id, **kwargs):
         Delete all itemas in a group, in a scenario.
     """
     user_id = int(kwargs.get('user_id'))
-    scenario = _get_scenario(scenario_id)
-    _check_network_ownership(scenario.network_id, user_id)
+    #check the scenario exists
+    _get_scenario(scenario_id, user_id)
 
     rgi = db.DBSession.query(ResourceGroupItem).\
             filter(ResourceGroupItem.group_id==group_id).\
@@ -1022,7 +1047,7 @@ def add_resourcegroupitems(scenario_id, items, scenario=None, **kwargs):
     user_id = int(kwargs.get('user_id'))
 
     if scenario is None:
-        scenario = _get_scenario(scenario_id, include_data=False, include_items=False)
+        scenario = _get_scenario(scenario_id, user_id)
 
     _check_network_ownership(scenario.network_id, user_id)
 
@@ -1051,6 +1076,8 @@ def _add_resourcegroupitem(group_item, scenario_id):
         if scenario_id is not None:
             group_item_i.scenario_id = scenario_id
 
+        db.DBSession.add(group_item_i)
+
     ref_key = group_item.ref_key
     group_item_i.ref_key = ref_key
     if ref_key == 'NODE':
@@ -1060,8 +1087,6 @@ def _add_resourcegroupitem(group_item, scenario_id):
     elif ref_key == 'GROUP':
         group_item_i.subgroup_id =group_item.ref_id
 
-    db.DBSession.add(group_item_i)
-    
     return group_item_i
 
 def update_value_from_mapping(source_resource_attr_id, target_resource_attr_id, source_scenario_id, target_scenario_id, **kwargs):
@@ -1070,6 +1095,8 @@ def update_value_from_mapping(source_resource_attr_id, target_resource_attr_id, 
         it to the target. Both source and target scenarios must be specified (and therefor
         must exist).
     """
+    user_id = int(kwargs.get('user_id'))
+
     rm = aliased(ResourceAttrMap, name='rm')
     #Check the mapping exists.
     mapping = db.DBSession.query(rm).filter(
@@ -1091,8 +1118,8 @@ def update_value_from_mapping(source_resource_attr_id, target_resource_attr_id, 
                                      target_resource_attr_id))
 
     #check scenarios exist
-    s1 = _get_scenario(source_scenario_id)
-    s2 = _get_scenario(target_scenario_id)
+    s1 = _get_scenario(source_scenario_id, user_id) 
+    s2 = _get_scenario(target_scenario_id, user_id)
 
     rs = aliased(ResourceScenario, name='rs')
     rs1 = db.DBSession.query(rs).filter(rs.resource_attr_id == source_resource_attr_id,
