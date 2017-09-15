@@ -47,7 +47,7 @@ class JSONObject(dict):
         elif hasattr(obj_dict, '_asdict') and obj_dict._asdict is not None:
             #A special case, trying to load a SQLAlchemy object, which is a 'dict' object
             obj = obj_dict._asdict()
-        elif hasattr(obj_dict, '__dict__'):
+        elif hasattr(obj_dict, '__dict__') and len(obj_dict.__dict__) > 0:
             #A special case, trying to load a SQLAlchemy object, which is a 'dict' object
             obj = obj_dict.__dict__
         elif isinstance(obj_dict, dict):
@@ -64,10 +64,14 @@ class JSONObject(dict):
             if isinstance(v, JSONObject):
                 setattr(self, k, v)
             elif isinstance(v, dict):
-                setattr(self, k, JSONObject(v, obj_dict))
+                #TODO what is a better way to identify a dataset?
+                if 'data_units' in v:
+                    setattr(self, k, Dataset(v, obj_dict))
+                else:
+                    setattr(self, k, JSONObject(v, obj_dict))
             elif isinstance(v, list):
                 #another special case for datasets, to convert a metadata list into a dict
-                if k == 'metadata':
+                if k == 'metadata' and obj_dict is not None:
                     setattr(self, k, JSONObject(obj_dict.get_metadata_as_dict()))
                 else:
                     l = [JSONObject(item, obj_dict) for item in v]
@@ -182,8 +186,13 @@ class Dataset(JSONObject):
             if self.type == 'descriptor':
                 #Hack to work with hashtables. REMOVE AFTER DEMO
                 if self.get_metadata_as_dict().get('data_type') == 'hashtable':
-                    df = pd.read_json(data)
-                    data = df.transpose().to_json() 
+                    try:
+                        df = pd.read_json(data)
+                        data = df.transpose().to_json() 
+                    except Exception, e:
+                        noindexdata = json.loads(data)
+                        indexeddata = {0:noindexdata}
+                        data = json.dumps(indexeddata)
                 return data
             elif self.type == 'scalar':
                 return data
