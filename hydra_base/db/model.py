@@ -310,7 +310,7 @@ class Metadata(Base, Inspect):
 
     __tablename__='tMetadata'
 
-    dataset_id = Column(Integer(), ForeignKey('tDataset.dataset_id'), primary_key=True, nullable=False, index=True)
+    dataset_id = Column(Integer(), ForeignKey('tDataset.dataset_id',  ondelete='CASCADE'), primary_key=True, nullable=False, index=True)
     metadata_name = Column(String(60), primary_key=True, nullable=False)
     metadata_val = Column(LargeBinary(),  nullable=False)
 
