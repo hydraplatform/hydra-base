@@ -236,11 +236,9 @@ def update_scenario(scenario,update_data=True,update_groups=True,**kwargs):
         scenario.resourcegroupitems = []
 
     rscen_rs = db.DBSession.query(ResourceScenario).filter(ResourceScenario.scenario_id==scenario.id).all()
-    rgi_rs = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.scenario_id==scenario.id).all()
 
     if update_data is True:
-
-        datasets = [rs.value for rs in rscen_rs]
+        datasets = [rs.value for rs in scenario.resourcescenarios]
         updated_datasets = data._bulk_insert_data(datasets, user_id, kwargs.get('app_name'))
         for i, r_scen in enumerate(rscen_rs):
             _update_resourcescenario(scen, r_scen, dataset=updated_datasets[i], user_id=user_id, source=kwargs.get('app_name'))
@@ -249,7 +247,7 @@ def update_scenario(scenario,update_data=True,update_groups=True,**kwargs):
         #Get all the exiting resource group items for this scenario.
         #THen process all the items sent to this handler.
         #Any in the DB that are not passed in here are removed.
-        for group_item in rgi_rs:
+        for group_item in scenario.resourcegroupitems:
             _add_resourcegroupitem(group_item, scenario.id)
 
     db.DBSession.flush()
