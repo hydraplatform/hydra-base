@@ -240,7 +240,7 @@ def update_scenario(scenario,update_data=True,update_groups=True,**kwargs):
     if update_data is True:
         datasets = [rs.value for rs in scenario.resourcescenarios]
         updated_datasets = data._bulk_insert_data(datasets, user_id, kwargs.get('app_name'))
-        for i, r_scen in enumerate(rscen_rs):
+        for i, r_scen in enumerate(scenario.resourcescenarios):
             _update_resourcescenario(scen, r_scen, dataset=updated_datasets[i], user_id=user_id, source=kwargs.get('app_name'))
 
     if update_groups is True:
