@@ -74,6 +74,7 @@ def get_usernames_like(username,**kwargs):
     rs = db.DBSession.query(User.username).filter(User.username.like(checkname)).all()
     return [r.username for r in rs]
 
+
 def add_user(user,**kwargs):
     """
     """
@@ -119,8 +120,16 @@ def update_user_password(new_pwd_user_id, new_password,**kwargs):
     except NoResultFound:
         raise ResourceNotFoundError("User (id=%s) not found"%(new_pwd_user_id))
 
+def get_user(uid, **kwargs):
+    """
+        Get a user by ID
+    """
+    user_i = _get_user(uid)
+    return user_i
+
 def get_user_by_name(uname,**kwargs):
     """
+        Get a user by username
     """
     try:
         user_i = db.DBSession.query(User).filter(User.username==uname).one()
