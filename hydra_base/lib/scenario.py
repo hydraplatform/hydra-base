@@ -235,12 +235,10 @@ def update_scenario(scenario,update_data=True,update_groups=True,**kwargs):
     if scenario.resourcegroupitems == None:
         scenario.resourcegroupitems = []
 
-    rscen_rs = db.DBSession.query(ResourceScenario).filter(ResourceScenario.scenario_id==scenario.id).all()
-
     if update_data is True:
         datasets = [rs.value for rs in scenario.resourcescenarios]
         updated_datasets = data._bulk_insert_data(datasets, user_id, kwargs.get('app_name'))
-        for i, r_scen in enumerate(rscen_rs):
+        for i, r_scen in enumerate(scenario.resourcescenarios):
             _update_resourcescenario(scen, r_scen, dataset=updated_datasets[i], user_id=user_id, source=kwargs.get('app_name'))
 
     if update_groups is True:
@@ -283,7 +281,7 @@ def purge_scenario(scenario_id, **kwargs):
     db.DBSession.flush()
     return 'OK'
 
-def clone_scenario(scenario_id,**kwargs):
+def clone_scenario(scenario_id, retain_results=False, **kwargs):
     
     user_id = kwargs.get('user_id')
 
@@ -323,11 +321,18 @@ def clone_scenario(scenario_id,**kwargs):
 
 
     log.info("Getting in resource scenarios to clone from scenario %s", scenario_id)
-    old_rscen_rs = db.DBSession.query(ResourceScenario).filter(
+    if retain_results is False:
+        old_rscen_rs = db.DBSession.query(ResourceScenario).filter(
                                         ResourceScenario.scenario_id==scenario_id,
                                         ResourceAttr.resource_attr_id==ResourceScenario.resource_attr_id,
                                         ResourceAttr.attr_is_var == 'N'
                                     ).all()
+    else:
+        old_rscen_rs = db.DBSession.query(ResourceScenario).filter(
+                                        ResourceScenario.scenario_id==scenario_id
+                                    ).all()
+
+
     new_rscens = []
     for old_rscen in old_rscen_rs:
         new_rscens.append(dict(
