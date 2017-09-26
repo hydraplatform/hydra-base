@@ -945,7 +945,7 @@ def remove_attr_from_type(type_id, attr_id,**kwargs):
 
 def get_template(template_id,**kwargs):
     """
-        Get a specific resource template template, either by ID or name.
+        Get a specific resource template template, by ID.
     """
 
     tmpl = db.DBSession.query(Template).filter(Template.template_id==template_id).options(joinedload_all('templatetypes.typeattrs.default_dataset.metadata')).one()
@@ -954,7 +954,7 @@ def get_template(template_id,**kwargs):
 
 def get_template_by_name(name,**kwargs):
     """
-        Get a specific resource template, either by ID or name.
+        Get a specific resource template, by name.
     """
     try:
         tmpl = db.DBSession.query(Template).filter(Template.template_name == name).one()
