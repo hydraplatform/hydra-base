@@ -49,7 +49,7 @@ import logging
 log = logging.getLogger(__name__)
 
 class dictobj(dict):
-    def __init__(self, obj_dict, extras={}):
+    def __init__(self, obj_dict, extras={}, tablename=None):
         for k, v in extras.items():
             self[k] = v
             setattr(self, k, v)
@@ -57,6 +57,10 @@ class dictobj(dict):
         for k, v in obj_dict.items():
             self[k] = v
             setattr(self, k, v)
+        #This makes the dictobj appear like it's a sqlalchemy object, which is required
+        #by the JSON object
+        if tablename is not None:
+            setattr(self, '__tablename__', tablename)
 
     def __getattr__(self, name):
         return self.get(name, None)
@@ -804,7 +808,7 @@ def _get_all_resourcescenarios(network_id, user_id):
             'frequency':rs.frequency,
             'value':value,
             'metadata':{},
-        })
+        }, tablename='tDataset')
         rs_obj.resourceattr = rs_attr
         rs_obj.dataset = rs_dataset
 
@@ -872,7 +876,7 @@ def _get_nodes(network_id, template_id=None):
 
     nodes = []
     for n in node_res:
-        nodes.append(dictobj(n, extras))
+        nodes.append(dictobj(n, extras, 'tNode'))
 
     return nodes
 
@@ -895,7 +899,7 @@ def _get_links(network_id, template_id=None):
 
     links = []
     for l in link_res:
-        links.append(dictobj(l, extras))
+        links.append(dictobj(l, extras, 'tLink'))
 
     return links
 
@@ -918,7 +922,7 @@ def _get_groups(network_id, template_id=None):
     group_res = db.DBSession.execute(group_qry.statement).fetchall()
     groups = []
     for g in group_res:
-        groups.append(dictobj(g, extras))
+        groups.append(dictobj(g, extras, 'tResourceGroup'))
 
     return groups
 
@@ -935,7 +939,7 @@ def _get_scenarios(network_id, include_data, user_id, scenario_ids=None):
         logging.info("Filtering by scenario_ids %s",scenario_ids)
         scen_qry = scen_qry.filter(Scenario.scenario_id.in_(scenario_ids))
     extras = {'resourcescenarios': [], 'resourcegroupitems': []}
-    scens = [dictobj(s,extras) for s in db.DBSession.execute(scen_qry.statement).fetchall()]
+    scens = [dictobj(s,extras, 'tScenario') for s in db.DBSession.execute(scen_qry.statement).fetchall()]
 
     all_resource_group_items = _get_all_group_items(network_id)
 

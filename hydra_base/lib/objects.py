@@ -36,13 +36,15 @@ class JSONObject(dict):
         A dictionary object whose attributes can be accesed via a '.'.
         Pass in a nested dictionary, a SQLAlchemy object or a JSON string.
     """
-    def __init__(self, obj_dict, parent=None):
+    def __init__(self, obj_dict={}, parent=None):
 
         if isinstance(obj_dict, str) or isinstance(obj_dict, unicode):
             try:
                 obj = json.loads(obj_dict)
                 assert isinstance(obj, dict), "JSON string does not evaluate to a dict"
             except Exception:
+                log.critical(obj_dict)
+                log.critical(parent)
                 raise ValueError("Unable to read string value. Make sure it's JSON serialisable")
         elif hasattr(obj_dict, '_asdict') and obj_dict._asdict is not None:
             #A special case, trying to load a SQLAlchemy object, which is a 'dict' object
@@ -62,6 +64,9 @@ class JSONObject(dict):
 
         for k, v in obj.items():
             if isinstance(v, JSONObject):
+                setattr(self, k, v)
+            elif k == 'layout':
+                #Layout is often valid JSON, but we dont want to treat it as a JSON object necessarily
                 setattr(self, k, v)
             elif isinstance(v, dict):
                 #TODO what is a better way to identify a dataset?
@@ -118,6 +123,24 @@ class JSONObject(dict):
 
                 if isinstance(v, datetime):
                     v = str(v)
+
+                #Put in 'id' where a DB table has mytable_id, for example
+                #Turn something like 'tProject.project_id' into 'tProject.id'
+                if hasattr(obj_dict, '__tablename__') and obj_dict.__tablename__ is not None:
+                    #compare with tResourceAttr => resourceattr
+                    formattedname = obj_dict.__tablename__.lower()[1:]
+                    if k.find('_id') >= 0:
+                        formattedk = k.replace('_', '')
+                        #turn resource_attr_id => resourceattr
+                        if formattedk[0:-2] == formattedname:
+                            setattr(self, 'id', v)
+
+                    if k.find('_name') >= 0:
+                        setattr(self, 'name', v)
+
+                    if k.find('_description') >= 0:
+                        setattr(self, 'description', v)
+
 
                 setattr(self, str(k), v)
 
