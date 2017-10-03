@@ -921,7 +921,7 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id, expunge_session=Tru
     """
 
     user_id = kwargs.get('user_id')
-
+    
     resource_data_qry = db.DBSession.query(ResourceScenario).filter(
         ResourceScenario.dataset_id   == Dataset.dataset_id,
         ResourceAttr.resource_attr_id == ResourceScenario.resource_attr_id,
@@ -932,7 +932,10 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id, expunge_session=Tru
             ResourceAttr.node_id==ref_id,
             ResourceAttr.link_id==ref_id,
             ResourceAttr.group_id==ref_id
-        )).distinct().options(joinedload('resourceattr')).options(joinedload_all('dataset.metadata'))
+        )).distinct().\
+            options(joinedload('resourceattr')).\
+            options(joinedload_all('dataset.metadata')).\
+            order_by(ResourceAttr.attr_is_var)
 
     if type_id is not None:
         attr_ids = []
