@@ -215,7 +215,7 @@ def get_attributes(**kwargs):
         Get all attributes
     """
 
-    attrs = db.DBSession.query(Attr).all()
+    attrs = db.DBSession.query(Attr).order_by(Attr.attr_name).all()
 
     return attrs
 
