@@ -64,6 +64,14 @@ def add_project(project,**kwargs):
     """
     user_id = kwargs.get('user_id')
 
+    try:
+        existing_proj = get_project_by_name(project.name,user_id=user_id)
+    except:
+        existing_proj == None
+
+    if existing_proj is not None: 
+        raise HydraError("A Project with the name \"%s\" already exists"%(project.name,))
+
     #check_perm(user_id, 'add_project')
     proj_i = Project()
     proj_i.project_name = project.name
