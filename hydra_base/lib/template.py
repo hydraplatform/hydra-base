@@ -1019,7 +1019,8 @@ def _set_typeattr(typeattr, existing_ta = None):
     ta.unit = typeattr.unit
     ta.type_id = typeattr.type_id
     ta.data_type = typeattr.data_type
-    ta.default_dataset_id = typeattr.default_dataset.id
+    if typeattr.default_dataset is not None:
+        ta.default_dataset_id = typeattr.default_dataset.id
     ta.description        = typeattr.description
 
     ta.properties         = typeattr.get_properties()
