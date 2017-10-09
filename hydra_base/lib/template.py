@@ -753,7 +753,7 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
     for typeattr in type_i.typeattrs:
         type_attrs.update({typeattr.attr_id:{
                             'is_var':typeattr.attr_is_var,
-                            'default_dataset_id': typeattr.default_dataset_id}})
+                            'default_dataset_id': typeattr.default_dataset.id}})
 
     # check if attributes exist
     missing_attr_ids = set(type_attrs.keys()) - set(existing_attr_ids)
@@ -1019,7 +1019,7 @@ def _set_typeattr(typeattr, existing_ta = None):
     ta.unit = typeattr.unit
     ta.type_id = typeattr.type_id
     ta.data_type = typeattr.data_type
-    ta.default_dataset_id = typeattr.default_dataset_id
+    ta.default_dataset_id = typeattr.default_dataset.id
     ta.description        = typeattr.description
 
     ta.properties         = typeattr.get_properties()
