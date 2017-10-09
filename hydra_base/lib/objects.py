@@ -102,19 +102,22 @@ class JSONObject(dict):
                 except:
                     pass
 
-                if k == 'layout' and v is not None:
-                    #Check if the layout is valid json or evaluates to a dict.
-                    try:
-                        v = json.loads(v)
-                    except:
+                if k == 'layout':
+                    if v is not None:
+                        #Check if the layout is valid json or evaluates to a dict.
                         try:
-                           v = eval(v)
+                            v = json.loads(v)
                         except:
-                           continue
-                    #We're only interested in dicts
-                    if not isinstance(v, dict):
-                        continue
-                    v = JSONObject(v)
+                            try:
+                                v = eval(v)
+                            except:
+                                continue
+                        #We're only interested in dicts
+                        if not isinstance(v, dict):
+                            continue
+                        v = JSONObject(v)
+                    else:
+                        v = {}
 
                 if isinstance(v, datetime):
                     v = str(v)
