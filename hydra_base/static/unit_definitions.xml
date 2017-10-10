@@ -52,17 +52,23 @@
         <unit name="square mile"         abbr="mi^2"   lf="2589988.110336" cf="0" />
     </dimension>
 
+    <dimension name="Area Density">
+        <unit name="kilograms per square metre" abbr="kg m^-2" lf="1"   cf="0" />
+        <unit name="tonnes per acre"      abbr="t ac^-1"    lf="4.0469"  cf="0.0" info=""/>
+        <unit name="tonnes per hectare"   abbr="t ha^-1"    lf="10.0"    cf="0.0" info=""/>
+    </dimension>
 
     <dimension name="Volume">
         <unit name="barrel(oil)"          abbr="bbl"  lf="0.158987295"    cf="0" info="The standard oil barrel is used in the United States for crude oil or other petroleum products. 1 Oil barrel = 42 US gallons"/>
-        <unit name="centilitre"          abbr="cl"    lf="0.00001"          cf="0" />
-        <unit name="cubic centimetre"    abbr="cm^3"   lf="0.000001"         cf="0" />
-        <unit name="cubic decimetre"     abbr="dm^3"   lf=".001"             cf="0" />
-        <unit name="cubic hectometre"    abbr="hm^3"   lf="1e6"           cf="0" />
-        <unit name="cubic foot"          abbr="ft^3"   lf="0.028316846592"  cf="0" />
-        <unit name="cubic inch"          abbr="in^3"   lf="0.000016387064"   cf="0" />
-        <unit name="cubic metre"         abbr="m^3"    lf="1"          cf="0" />
-        <unit name="cubic millimetre"    abbr="mm^3"   lf="0.000000001"      cf="0" />
+        <unit name="centilitre"          abbr="cl"    lf="0.00001"         cf="0" />
+        <unit name="cubic centimetre"    abbr="cm^3"   lf="0.000001"       cf="0" />
+        <unit name="cubic decimetre"     abbr="dm^3"   lf=".001"           cf="0" />
+        <unit name="cubic hectometre"    abbr="hm^3"   lf="1e6"            cf="0" />
+        <unit name="cubic foot"          abbr="ft^3"   lf="0.028316846592" cf="0" />
+        <unit name="cubic inch"          abbr="in^3"   lf="0.000016387064" cf="0" />
+        <unit name="cubic metre"         abbr="m^3"    lf="1"              cf="0" />
+        <unit name="million cubic metre" abbr="mcum"    lf="1000000"       cf="0" />
+        <unit name="cubic millimetre"    abbr="mm^3"   lf="0.000000001"    cf="0" />
         <unit name="cubic yard"          abbr="yd^3"   lf="0.764554857984" cf="0" />
         <unit name="decilitre"           abbr="dl"    lf="0.0001"           cf="0" />
         <unit name="fluid ounce(US)"     abbr="fl oz" lf="0.000029574"      cf="0" />
@@ -94,6 +100,7 @@
         <unit name="kilometre/hour"                 abbr="km h^-1" lf="0.27777777777778" cf="0" />
         <unit name="foot/second"                    abbr="fps"  lf="0.3048"           cf="0" />
         <unit name="mile/hour"                      abbr="mph"  lf="0.44704"          cf="0" />
+        <unit name="millimetre/month"               abbr="mm mon^-1"  lf="2592000000" cf="0" />
         <unit name="knot"                           abbr="kn"   lf="0.514444"         cf="0" info="Knot is a unit of speed, equal to one nautical mile per hour."/>
         <unit name="knot(admiralty)"                abbr="kn"   lf="0.514773"         cf="0" />
         <unit name="mile/minute"                    abbr="mpm"  lf="26.8224"          cf="0" />
@@ -292,9 +299,11 @@
     </dimension>
     <dimension name="Unit price (volume)">
         <unit name="US Dollar per cubic metre" abbr="USD m^-3"     lf="1.0" cf="0.0" info=""/>
+		<unit name="US Dollar per million cubic metre" abbr="USD Mm^-3"  lf="0.0000001" cf="0.66" info=""/>
 		<unit name="US Dollar per megalitre" abbr="USD Ml^-1"     lf="0.0001" cf="0.0" info=""/>
         <unit name="US Dollar per acre-foot"    abbr="USD ac-ft^-1" lf="0.000810713194" cf="0.0" info=""/>
 		<unit name="Pound Sterling per cubic metre" abbr="GBP m^-3"     lf="0" cf="0.66" info=""/>
+		<unit name="Pound Sterling per million cubic metre" abbr="GBP Mm^-3" lf="0.00000066" cf="0.66" info=""/>
 		<unit name="Pound Sterling per megalitre" abbr="GBP Ml^-1"     lf="0" cf="0.000066" info=""/>
     </dimension>
     <dimension name="Unit price (mass)">
@@ -302,6 +311,11 @@
         <unit name="Pounds Sterling per kilogram" abbr="GBP kg^-1" lf="0.66" cf="0.66" info=""/>
         <unit name="US Dollar per tonne" abbr="USD t^-1" lf="0.001" cf="0.0" info=""/>
         <unit name="Pounds Sterling per tonne" abbr="GBP t^-1" lf="0.00066" cf="0.66" info=""/>
+    </dimension>
+    <dimension name="Unit price (Area)">
+        <unit name="US Dollar per metre squared" abbr="USD m^-2" lf="1.0" cf="0.0" info=""/>
+        <unit name="US Dollar per acre" abbr="USD ac^-1" lf="0.0002" cf="0.0" info=""/>
+        <unit name="US Dollar per hectare" abbr="USD ha^-1" lf="0.0001" cf="0.0" info=""/>
     </dimension>
     <dimension name="Specific cost (time)">
         <unit name="US Dollar per second" abbr="USD s^-1"    lf="1.0" cf="0.0" info=""/>
