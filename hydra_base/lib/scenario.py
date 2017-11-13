@@ -1012,12 +1012,18 @@ def get_attribute_datasets(attr_id, scenario_id, **kwargs):
 def get_resourcegroupitems(group_id, scenario_id, **kwargs):
 
     """
-        Get all the items in a group, in a scenario.
+        Get all the items in a group, in a scenario. If group_id is None, return
+        all items across all groups in the scenario.
     """
 
-    rgi = db.DBSession.query(ResourceGroupItem).\
-                filter(ResourceGroupItem.group_id==group_id).\
-                filter(ResourceGroupItem.scenario_id==scenario_id).all()
+    rgi_qry = db.DBSession.query(ResourceGroupItem).\
+                filter(ResourceGroupItem.scenario_id==scenario_id)
+
+    if group_id is not None:
+        rgi_qry = rgi_qry.filter(ResourceGroupItem.group_id==group_id)
+
+    rgi = rgi_qry.all()
+
     return rgi
 
 def delete_resourcegroupitems(scenario_id, item_ids, **kwargs):
