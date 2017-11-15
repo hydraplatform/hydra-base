@@ -702,6 +702,7 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
         r_scen_i = ResourceScenario()
         r_scen_i.resource_attr_id = resource_scenario.resource_attr_id
         r_scen_i.scenario_id      = scenario.scenario_id
+        r_scen_i.scenario = scenario
 
         db.DBSession.add(r_scen_i)
 
