@@ -710,7 +710,7 @@ class Network(Base, Inspect):
     projection = Column(String(1000))
     created_by = Column(Integer(), ForeignKey('tUser.id'))
 
-    project = relationship('Project', backref=backref("networks", order_by="desc(Network.cr_date)", cascade="all, delete-orphan"))
+    project = relationship('Project', backref=backref("networks", order_by="asc(Network.cr_date)", cascade="all, delete-orphan"))
 
     def get_name(self):
         return self.network_name
