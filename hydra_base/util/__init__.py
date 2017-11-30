@@ -28,6 +28,64 @@ from .. import config
 
 from collections import namedtuple
 
+def count_levels(value):
+    """
+        Count how many levels are in a dict:
+        scalar, list etc = 0
+        {} = 0
+        {'a':1} = 1
+        {'a' : {'b' : 1}} = 2
+        etc...
+    """
+    if not isinstance(value, dict) or len(value) == 0:
+        return 0
+    elif len(value) == 0:
+        return 0 #An emptu dict has 0
+    else:
+        nextval = value.values()[0]
+        return 1 + count_levels(nextval)
+
+def flatten_dict(value, target_depth=1, depth=None):
+    """
+        Take a hashtable with multiple nested dicts and return a 
+        dict where the keys are a concatenation of each sub-key. 
+        
+        The depth of the returned array is dictated by target_depth, defaulting to 1
+
+        ex: {'a' : {'b':1, 'c': 2}} ==> {'a_b': 1, 'a_c': 2}
+
+        Assumes a constant structure actoss all sub-dicts. i.e. there isn't
+        one sub-dict with values that are both numbers and sub-dicts.
+    """
+    
+    #failsafe in case someone specified null
+    if target_depth is None:
+        target_depth = 1
+
+    values = value.values()
+    if len(values) == 0:
+        return {}
+    else:
+        if depth is None:
+            depth = count_levels(value)
+
+        if isinstance(values[0], dict):
+            subval = values[0].values()[0]
+            if not isinstance(subval, dict) != 'object':
+                return value
+
+            if target_depth >= depth:
+                return value
+
+            flatval = {}
+            for k in value.keys():
+                subval = flatten_dict(value[k], target_depth, depth-1)
+                for k1 in subval.keys():
+                    flatval[k+"_"+k1] = subval[k1];
+            return flatval
+        else:
+            return value
+
 def to_named_tuple(keys, values):
     """
         Convert a sqlalchemy object into a named tuple
