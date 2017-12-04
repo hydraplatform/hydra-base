@@ -1029,7 +1029,7 @@ def _set_typeattr(typeattr, existing_ta = None):
 
     ta.data_restriction = _parse_data_restriction(typeattr.data_restriction)
 
-    if typeattr.dimension is not None and typeattr.attr_id is not None:
+    if typeattr.dimension is not None and typeattr.attr_id is not None and typeattr.attr_id > 0:
         attr = ta.get_attr()
         if attr.attr_dimen != typeattr.dimension:
             raise HydraError("Cannot set a dimension on type attribute which "
