@@ -88,7 +88,7 @@ def make_root_user():
         user = db.DBSession.query(User).filter(User.username=='root').one()
     except NoResultFound:
         user = User(username='root',
-                    password=bcrypt.hashpw('', bcrypt.gensalt()),
+                    password=bcrypt.hashpw(b'', bcrypt.gensalt()),
                     display_name='Root User')
         db.DBSession.add(user)
 
