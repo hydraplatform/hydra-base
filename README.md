@@ -1,6 +1,9 @@
 HydraPlatform
 =============
 
+[![Build Status](https://travis-ci.org/hydraplatform/hydra-base.svg?branch=master)](https://travis-ci.org/hydraplatform/hydra-base)
+
+
 A library and web server for managing networks. Full documentation can be found [here](http://umwrg.github.io/HydraPlatform/).
 
 Installation
