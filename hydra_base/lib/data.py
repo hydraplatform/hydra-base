@@ -626,9 +626,9 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
         except OperationalError:
             pass
 
-        log.debug("Inserting new data", get_timing(start_time))
+        log.debug("Inserting new data %s", get_timing(start_time))
         db.DBSession.execute(Dataset.__table__.insert(), new_data_for_insert)
-        log.debug("New data Inserted", get_timing(start_time))
+        log.debug("New data Inserted %s", get_timing(start_time))
 
         try:
             db.DBSession.execute("UNLOCK TABLES")
@@ -637,13 +637,13 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
 
 
         new_data = _get_existing_data(new_data_hashes)
-        log.debug("New data retrieved", get_timing(start_time))
+        log.debug("New data retrieved %s", get_timing(start_time))
 
         for k, v in new_data.items():
             hash_id_map[k] = v
 
         _insert_metadata(metadata, hash_id_map)
-        log.debug("Metadata inserted", get_timing(start_time))
+        log.debug("Metadata inserted %s", get_timing(start_time))
 
     returned_ids = []
     for d in bulk_data:
@@ -680,11 +680,11 @@ def _process_incoming_data(data, user_id=None, source=None):
             continue
 
         data_dict = {
-            'data_type':d.type,
-             'data_name':d.name,
+            'data_type': d.type,
+            'data_name': d.name,
             'data_units': d.unit,
-            'created_by' : user_id,
-            'frequency' : None,
+            'created_by': user_id,
+            'frequency': None,
             'start_time': None,
         }
 
@@ -707,9 +707,9 @@ def _process_incoming_data(data, user_id=None, source=None):
 
         metadata_keys = [k.lower() for k in metadata_dict]
         if user_id is not None and 'user_id' not in metadata_keys:
-            metadata_dict[u'user_id'] = unicode(user_id)
+            metadata_dict[u'user_id'] = str(user_id)
         if source is not None and 'source' not in metadata_keys:
-            metadata_dict[u'source'] = unicode(source)
+            metadata_dict[u'source'] = str(source)
 
         data_dict['metadata'] = metadata_dict
 

@@ -23,7 +23,7 @@ import logging
 log = logging.getLogger(__name__)
 
 from datetime import datetime
-
+from builtins import str  # treat unicode as str in Python 2
 from ..exceptions import HydraError
 
 from ..util import generate_data_hash
@@ -38,7 +38,7 @@ class JSONObject(dict):
     """
     def __init__(self, obj_dict={}, parent=None):
 
-        if isinstance(obj_dict, str) or isinstance(obj_dict, unicode):
+        if isinstance(obj_dict, str):
             try:
                 obj = json.loads(obj_dict)
                 assert isinstance(obj, dict), "JSON string does not evaluate to a dict"
@@ -145,7 +145,13 @@ class JSONObject(dict):
                 setattr(self, str(k), v)
 
     def __getattr__(self, name):
-        return self.get(name, None)
+        # Make sure that "special" methods are returned as before.
+
+        # Keys that start and end with "__" won't be retrievable via attributes
+        if name.startswith('__') and name.endswith('__'):
+            return super(JSONObject, self).__getattr__(name)
+        else:
+            return self.get(name, None)
 
     def __setattr__(self, name, value):
         super(JSONObject, self).__setattr__(name, value)
@@ -212,7 +218,7 @@ class Dataset(JSONObject):
                     try:
                         df = pd.read_json(data)
                         data = df.transpose().to_json() 
-                    except Exception, e:
+                    except Exception:
                         noindexdata = json.loads(data)
                         indexeddata = {0:noindexdata}
                         data = json.dumps(indexeddata)
