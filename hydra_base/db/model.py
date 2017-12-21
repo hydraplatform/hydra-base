@@ -109,10 +109,16 @@ class Dataset(Base, Inspect):
                 if m.metadata_val != metadata_dict[m.metadata_name]:
                     m.metadata_val = metadata_dict[m.metadata_name]
 
+
         for k, v in metadata_dict.items():
             if k not in existing_metadata:
                 m_i = Metadata(metadata_name=str(k),metadata_val=str(v))
                 self.metadata.append(m_i)
+
+        metadata_to_delete =  set(existing_metadata).difference(set(metadata_dict.keys()))
+        for m in self.metadata:
+            if m.metadata_name in metadata_to_delete:
+                get_session().delete(m)
 
     def get_val(self, timestamp=None):
         """
