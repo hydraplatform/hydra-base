@@ -363,8 +363,8 @@ class ResourceAttrMap(Base, Inspect):
 
     __tablename__='tResourceAttrMap'
 
-    network_a_id       = Column(Integer(), ForeignKey('tNetwork.network_id'), primary_key=True, nullable=False)
-    network_b_id       = Column(Integer(), ForeignKey('tNetwork.network_id'), primary_key=True, nullable=False)
+    network_a_id       = Column(Integer(), ForeignKey('tNetwork.id'), primary_key=True, nullable=False)
+    network_b_id       = Column(Integer(), ForeignKey('tNetwork.id'), primary_key=True, nullable=False)
     resource_attr_id_a = Column(Integer(), ForeignKey('tResourceAttr.resource_attr_id'), primary_key=True, nullable=False)
     resource_attr_id_b = Column(Integer(), ForeignKey('tResourceAttr.resource_attr_id'), primary_key=True, nullable=False)
 
@@ -452,7 +452,7 @@ class ResourceAttr(Base, Inspect):
     resource_attr_id = Column(Integer(), primary_key=True, nullable=False)
     attr_id = Column(Integer(), ForeignKey('tAttr.attr_id'),  nullable=False)
     ref_key = Column(String(60),  nullable=False, index=True)
-    network_id  = Column(Integer(),  ForeignKey('tNetwork.network_id'), index=True, nullable=True,)
+    network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), index=True, nullable=True,)
     project_id  = Column(Integer(),  ForeignKey('tProject.project_id'), index=True, nullable=True,)
     node_id     = Column(Integer(),  ForeignKey('tNode.node_id'), index=True, nullable=True)
     link_id     = Column(Integer(),  ForeignKey('tLink.link_id'), index=True, nullable=True)
@@ -538,7 +538,7 @@ class ResourceType(Base, Inspect):
     resource_type_id = Column(Integer, primary_key=True, nullable=False)
     type_id = Column(Integer(), ForeignKey('tTemplateType.type_id'), primary_key=False, nullable=False)
     ref_key = Column(String(60),nullable=False)
-    network_id  = Column(Integer(),  ForeignKey('tNetwork.network_id'), nullable=True,)
+    network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), nullable=True,)
     node_id     = Column(Integer(),  ForeignKey('tNode.node_id'), nullable=True)
     link_id     = Column(Integer(),  ForeignKey('tLink.link_id'), nullable=True)
     group_id    = Column(Integer(),  ForeignKey('tResourceGroup.group_id'), nullable=True)
@@ -702,13 +702,13 @@ class Network(Base, Inspect):
 
     __tablename__='tNetwork'
     __table_args__ = (
-        UniqueConstraint('network_name', 'project_id', name="unique net name"),
+        UniqueConstraint('name', 'project_id', name="unique net name"),
     )
     ref_key = 'NETWORK'
 
-    network_id = Column(Integer(), primary_key=True, nullable=False)
-    network_name = Column(String(60),  nullable=False)
-    network_description = Column(String(1000))
+    id = Column(Integer(), primary_key=True, nullable=False)
+    name = Column(String(200),  nullable=False)
+    description = Column(String(1000))
     layout = Column(Text(1000))
     project_id = Column(Integer(), ForeignKey('tProject.project_id'),  nullable=False)
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
@@ -719,14 +719,14 @@ class Network(Base, Inspect):
     project = relationship('Project', backref=backref("networks", order_by="asc(Network.cr_date)", cascade="all, delete-orphan"))
 
     def get_name(self):
-        return self.network_name
+        return self.name
 
     def add_attribute(self, attr_id, attr_is_var='N'):
         attr = ResourceAttr()
         attr.attr_id = attr_id
         attr.attr_is_var = attr_is_var
         attr.ref_key = self.ref_key
-        attr.network_id  = self.network_id
+        attr.network_id  = self.id
         self.attributes.append(attr)
 
         return attr
@@ -738,9 +738,9 @@ class Network(Base, Inspect):
             existing nodes.
         """
 
-        existing_link = get_session().query(Link).filter(Link.link_name==name, Link.network_id==self.network_id).first()
+        existing_link = get_session().query(Link).filter(Link.link_name==name, Link.network_id==self.id).first()
         if existing_link is not None:
-            raise HydraError("A link with name %s is already in network %s"%(name, self.network_id))
+            raise HydraError("A link with name %s is already in network %s"%(name, self.id))
 
         l = Link()
         l.link_name        = name
@@ -760,9 +760,9 @@ class Network(Base, Inspect):
         """
             Add a node to a network.
         """
-        existing_node = get_session().query(Node).filter(Node.node_name==name, Node.network_id==self.network_id).first()
+        existing_node = get_session().query(Node).filter(Node.node_name==name, Node.network_id==self.id).first()
         if existing_node is not None:
-            raise HydraError("A node with name %s is already in network %s"%(name, self.network_id))
+            raise HydraError("A node with name %s is already in network %s"%(name, self.id))
 
         node = Node()
         node.node_name        = name
@@ -785,9 +785,9 @@ class Network(Base, Inspect):
             Add a new group to a network.
         """
 
-        existing_group = get_session().query(ResourceGroup).filter(ResourceGroup.group_name==name, ResourceGroup.network_id==self.network_id).first()
+        existing_group = get_session().query(ResourceGroup).filter(ResourceGroup.group_name==name, ResourceGroup.network_id==self.id).first()
         if existing_group is not None:
-            raise HydraError("A resource group with name %s is already in network %s"%(name, self.network_id))
+            raise HydraError("A resource group with name %s is already in network %s"%(name, self.id))
 
         group_i                      = ResourceGroup()
         group_i.group_name        = name
@@ -809,7 +809,7 @@ class Network(Base, Inspect):
                 break
         else:
             owner = NetworkOwner()
-            owner.network_id = self.network_id
+            owner.network_id = self.id
             self.owners.append(owner)
 
         owner.user_id = int(user_id)
@@ -842,7 +842,7 @@ class Network(Base, Inspect):
         else:
             raise PermissionError("Permission denied. User %s does not have read"
                              " access on network %s" %
-                             (user_id, self.network_id))
+                             (user_id, self.id))
 
     def check_write_permission(self, user_id):
         """
@@ -856,7 +856,7 @@ class Network(Base, Inspect):
         else:
             raise PermissionError("Permission denied. User %s does not have edit"
                              " access on network %s" %
-                             (user_id, self.network_id))
+                             (user_id, self.id))
 
     def check_share_permission(self, user_id):
         """
@@ -870,7 +870,7 @@ class Network(Base, Inspect):
         else:
             raise PermissionError("Permission denied. User %s does not have share"
                              " access on network %s" %
-                             (user_id, self.network_id))
+                             (user_id, self.id))
 
 class Link(Base, Inspect):
     """
@@ -884,7 +884,7 @@ class Link(Base, Inspect):
     ref_key = 'LINK'
 
     link_id = Column(Integer(), primary_key=True, nullable=False)
-    network_id = Column(Integer(), ForeignKey('tNetwork.network_id'), nullable=False)
+    network_id = Column(Integer(), ForeignKey('tNetwork.id'), nullable=False)
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     node_1_id = Column(Integer(), ForeignKey('tNode.node_id'), nullable=False)
     node_2_id = Column(Integer(), ForeignKey('tNode.node_id'), nullable=False)
@@ -934,7 +934,7 @@ class Node(Base, Inspect):
     ref_key = 'NODE'
 
     node_id = Column(Integer(), primary_key=True, nullable=False)
-    network_id = Column(Integer(), ForeignKey('tNetwork.network_id'), nullable=False)
+    network_id = Column(Integer(), ForeignKey('tNetwork.id'), nullable=False)
     node_description = Column(String(1000))
     node_name = Column(String(60),  nullable=False)
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
@@ -986,7 +986,7 @@ class ResourceGroup(Base, Inspect):
     group_description = Column(String(1000))
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    network_id = Column(Integer(), ForeignKey('tNetwork.network_id'),  nullable=False)
+    network_id = Column(Integer(), ForeignKey('tNetwork.id'),  nullable=False)
 
     network = relationship('Network', backref=backref("resourcegroups", order_by=group_id, cascade="all, delete-orphan"), lazy='joined')
 
@@ -1128,7 +1128,7 @@ class Scenario(Base, Inspect):
     scenario_description = Column(String(1000))
     layout = Column(Text(1000))
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
-    network_id = Column(Integer(), ForeignKey('tNetwork.network_id'), index=True)
+    network_id = Column(Integer(), ForeignKey('tNetwork.id'), index=True)
     start_time = Column(String(60))
     end_time = Column(String(60))
     locked = Column(String(1),  nullable=False, server_default=text(u"'N'"))
@@ -1191,7 +1191,7 @@ class Rule(Base, Inspect):
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     scenario_id = Column(Integer(), ForeignKey('tScenario.scenario_id'),  nullable=False)
 
-    network_id  = Column(Integer(),  ForeignKey('tNetwork.network_id'), index=True, nullable=True,)
+    network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), index=True, nullable=True,)
     node_id     = Column(Integer(),  ForeignKey('tNode.node_id'), index=True, nullable=True)
     link_id     = Column(Integer(),  ForeignKey('tLink.link_id'), index=True, nullable=True)
     group_id    = Column(Integer(),  ForeignKey('tResourceGroup.group_id'), index=True, nullable=True)
@@ -1219,7 +1219,7 @@ class Note(Base, Inspect):
     scenario_id = Column(Integer(), ForeignKey('tScenario.scenario_id'),  index=True, nullable=True)
     project_id = Column(Integer(), ForeignKey('tProject.project_id'),  index=True, nullable=True)
 
-    network_id  = Column(Integer(),  ForeignKey('tNetwork.network_id'), index=True, nullable=True,)
+    network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), index=True, nullable=True,)
     node_id     = Column(Integer(),  ForeignKey('tNode.node_id'), index=True, nullable=True)
     link_id     = Column(Integer(),  ForeignKey('tLink.link_id'), index=True, nullable=True)
     group_id    = Column(Integer(),  ForeignKey('tResourceGroup.group_id'), index=True, nullable=True)
@@ -1314,7 +1314,7 @@ class NetworkOwner(Base, Inspect):
     __tablename__='tNetworkOwner'
 
     user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
-    network_id = Column(Integer(), ForeignKey('tNetwork.network_id'), primary_key=True, nullable=False)
+    network_id = Column(Integer(), ForeignKey('tNetwork.id'), primary_key=True, nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     view = Column(String(1),  nullable=False)
     edit = Column(String(1),  nullable=False)

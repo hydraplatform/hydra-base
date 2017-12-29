@@ -33,7 +33,7 @@ def _get_project(project_id):
 
 def _get_network(network_id):
     try:
-        net_i = db.DBSession.query(Network).filter(Network.network_id == network_id).one()
+        net_i = db.DBSession.query(Network).filter(Network.id == network_id).one()
         return net_i
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id))

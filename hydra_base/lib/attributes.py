@@ -48,7 +48,7 @@ def _get_resource(ref_key, ref_id):
         if ref_key == 'GROUP':
             return db.DBSession.query(ResourceGroup).filter(ResourceGroup.group_id == ref_id).one()
         elif ref_key == 'NETWORK':
-            return db.DBSession.query(Network).filter(Network.network_id == ref_id).one()
+            return db.DBSession.query(Network).filter(Network.id == ref_id).one()
         elif ref_key == 'SCENARIO':
             return db.DBSession.query(Scenario).filter(Scenario.scenario_id == ref_id).one()
         elif ref_key == 'PROJECT':
@@ -442,8 +442,8 @@ def set_attribute_mapping(resource_attr_a, resource_attr_b, **kwargs):
 
     mapping = ResourceAttrMap(resource_attr_id_a = resource_attr_a,
                              resource_attr_id_b  = resource_attr_b,
-                             network_a_id     = ra_1.get_network().network_id,
-                             network_b_id     = ra_2.get_network().network_id )
+                             network_a_id     = ra_1.get_network().id,
+                             network_b_id     = ra_2.get_network().id )
     
     db.DBSession.add(mapping)
 

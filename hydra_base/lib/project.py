@@ -253,18 +253,18 @@ def get_networks(project_id, include_data='N', **kwargs):
     project = _get_project(project_id)
     project.check_read_permission(user_id)
 
-    rs = db.DBSession.query(Network.network_id, Network.status).filter(Network.project_id==project_id).all()
+    rs = db.DBSession.query(Network.id, Network.status).filter(Network.project_id==project_id).all()
     networks=[]
     for r in rs:
         if r.status != 'A':
             continue
         try:
-            net = network.get_network(r.network_id, summary=True, include_data=include_data, **kwargs)
-            log.info("Network %s retrieved", net.network_name)
+            net = network.get_network(r.id, summary=True, include_data=include_data, **kwargs)
+            log.info("Network %s retrieved", net.name)
             networks.append(net)
         except PermissionError:
             log.info("Not returning network %s as user %s does not have "
-                         "permission to read it."%(r.network_id, user_id))
+                         "permission to read it."%(r.id, user_id))
 
     return networks
 
@@ -273,7 +273,7 @@ def get_network_project(network_id, **kwargs):
         get the project that a network is in
     """
 
-    net_proj = db.DBSession.query(Project).join(Network, and_(Project.project_id==Network.network_id, Network.network_id==network_id)).first()
+    net_proj = db.DBSession.query(Project).join(Network, and_(Project.project_id==Network.id, Network.id==network_id)).first()
 
     if net_proj is None:
         raise HydraError("Network %s not found"% network_id)

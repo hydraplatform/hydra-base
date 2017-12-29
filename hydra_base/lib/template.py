@@ -335,7 +335,7 @@ def apply_template_to_network(template_id, network_id, **kwargs):
         a type in a given template. If so, assign the type to the node / link.
     """
 
-    net_i = db.DBSession.query(Network).filter(Network.network_id==network_id).one()
+    net_i = db.DBSession.query(Network).filter(Network.id==network_id).one()
     #There should only ever be one matching type, but if there are more,
     #all we can do is pick the first one.
     try:
@@ -372,7 +372,7 @@ def remove_template_from_network(network_id, template_id, remove_attrs, **kwargs
     """
 
     try:
-        network = db.DBSession.query(Network).filter(Network.network_id==network_id).one()
+        network = db.DBSession.query(Network).filter(Network.id==network_id).one()
     except NoResultFound:
         raise HydraError("Network %s not found"%network_id)
 
@@ -446,7 +446,7 @@ def get_matching_resource_types(resource_type, resource_id,**kwargs):
     """
     resource_i = None
     if resource_type == 'NETWORK':
-        resource_i = db.DBSession.query(Network).filter(Network.network_id==resource_id).one()
+        resource_i = db.DBSession.query(Network).filter(Network.id==resource_id).one()
     elif resource_type == 'NODE':
         resource_i = db.DBSession.query(Node).filter(Node.node_id==resource_id).one()
     elif resource_type == 'LINK':
@@ -496,7 +496,7 @@ def assign_types_to_resources(resource_types,**kwargs):
         elif resource_type.ref_key == 'GROUP':
             grp_ids.append(ref_id)
     if net_id:
-        net = db.DBSession.query(Network).filter(Network.network_id==net_id).one()
+        net = db.DBSession.query(Network).filter(Network.id==net_id).one()
     nodes = _get_nodes(node_ids)
     links = _get_links(link_ids)
     groups = _get_groups(grp_ids)
@@ -697,7 +697,7 @@ def assign_type_to_resource(type_id, resource_type, resource_id,**kwargs):
     changed.
     """
     if resource_type == 'NETWORK':
-        resource = db.DBSession.query(Network).filter(Network.network_id==resource_id).one()
+        resource = db.DBSession.query(Network).filter(Network.id==resource_id).one()
     elif resource_type == 'NODE':
         resource = db.DBSession.query(Node).filter(Node.node_id==resource_id).one()
     elif resource_type == 'LINK':
@@ -808,7 +808,7 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
             node_id    = resource.node_id    if ref_key == 'NODE' else None,
             link_id    = resource.link_id    if ref_key == 'LINK' else None,
             group_id   = resource.group_id   if ref_key == 'GROUP' else None,
-            network_id = resource.network_id if ref_key == 'NETWORK' else None,
+            network_id = resource.id if ref_key == 'NETWORK' else None,
             ref_key    = ref_key,
             type_id    = type_id,
         )
@@ -1297,7 +1297,7 @@ def validate_network(network_id, template_id, scenario_id=None):
         it has fewer or if any attribute has a conflicting dimension or unit.
     """
 
-    network = db.DBSession.query(Network).filter(Network.network_id==network_id).options(noload('scenarios')).first()
+    network = db.DBSession.query(Network).filter(Network.id==network_id).options(noload('scenarios')).first()
 
     if network is None:
         raise HydraError("Could not find network %s"%(network_id))
@@ -1424,10 +1424,10 @@ def get_network_as_xml_template(network_id,**kwargs):
     """
     template_xml = etree.Element("template_definition")
 
-    net_i = db.DBSession.query(Network).filter(Network.network_id==network_id).one()
+    net_i = db.DBSession.query(Network).filter(Network.id==network_id).one()
 
     template_name = etree.SubElement(template_xml, "template_name")
-    template_name.text = "TemplateType from Network %s"%(net_i.network_name)
+    template_name.text = "TemplateType from Network %s"%(net_i.name)
     layout = _get_layout_as_etree(net_i.layout)
 
     resources = etree.SubElement(template_xml, "resources")
@@ -1438,7 +1438,7 @@ def get_network_as_xml_template(network_id,**kwargs):
         resource_type.text   = "NETWORK"
 
         resource_name   = etree.SubElement(net_resource, "name")
-        resource_name.text   = net_i.network_name
+        resource_name.text   = net_i.name
 
         layout = _get_layout_as_etree(net_i.layout)
         if layout is not None:

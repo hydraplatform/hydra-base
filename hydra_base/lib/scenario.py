@@ -526,7 +526,7 @@ def _check_network_owner(network, user_id):
         if owner.user_id == int(user_id):
             return owner
 
-    raise PermissionError('User %s is not the owner of network %s' % (user_id,network.network_id))
+    raise PermissionError('User %s is not the owner of network %s' % (user_id,network.id))
 
 def get_resource_scenario(resource_attr_id, scenario_id, **kwargs):
     """
