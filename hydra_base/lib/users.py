@@ -75,7 +75,7 @@ def get_usernames_like(username,**kwargs):
     return [r.username for r in rs]
 
 
-def add_user(user,**kwargs):
+def add_user(user, **kwargs):
     """
     """
     #check_perm(kwargs.get('user_id'), 'add_user')
@@ -197,10 +197,11 @@ def delete_perm(perm_id,**kwargs):
     return 'OK' 
 
 
+def set_user_role(new_user_id, role_id, **kwargs):
+    """ Apply `role_id` to `new_user_id`
 
-
-
-def set_user_role(new_user_id, role_id,**kwargs):
+    Note this function returns the `Role` instance associated with `role_id`
+    """
     #check_perm(kwargs.get('user_id'), 'edit_role')
     try:
         _get_user(new_user_id)

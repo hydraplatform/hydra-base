@@ -18,7 +18,7 @@ except ImportError:
     from setuptools import setup, find_packages
 
 testpkgs=[
-               'nose',
+               'pytest',
                'coverage',
                ]
 
@@ -47,7 +47,6 @@ setup(
     packages=find_packages(exclude=['ez_setup']),
     install_requires=install_requires,
     include_package_data=True,
-    test_suite='nose.collector',
     tests_require=testpkgs,
     package_data={'hydra-base': []},
     message_extractors={'hydra-base': [
