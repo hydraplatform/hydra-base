@@ -19,6 +19,7 @@
 
 from .. import db
 from ..db.model import Template, TemplateType, TypeAttr, Attr, Network, Node, Link, ResourceGroup, ResourceType, ResourceAttr, ResourceScenario, Scenario
+from .objects import JSONObject
 from .data import add_dataset
 
 from ..exceptions import HydraError, ResourceNotFoundError
@@ -35,6 +36,19 @@ from . import units
 import json
 log = logging.getLogger(__name__)
 
+global ATTR_CACHE
+ATTR_CACHE = {}
+
+def _get_attr(attr_id):
+    global ATTR_CACHE
+    if attr_id in ATTR_CACHE:
+        return ATTR_CACHE[attr_id]
+    else:
+        attr = db.DBSession.query(Attr).filter(Attr.attr_id==attr_id).one()
+        ATTR_CACHE[attr_id] = JSONObject(attr)
+        return ATTR_CACHE[attr_id]
+    
+
 def _check_dimension(typeattr, unit=None):
     """
         Check that the unit and dimension on a type attribute match.
@@ -45,7 +59,7 @@ def _check_dimension(typeattr, unit=None):
     if unit is None:
         unit = typeattr.unit
 
-    dimension = typeattr.get_attr().attr_dimen
+    dimension = _get_attr(typeattr.attr_id).attr_dimen
 
     if unit is not None and dimension is not None:
         unit_dimen = units.get_unit_dimension(unit)
@@ -132,7 +146,7 @@ def parse_attribute(attribute):
 
     return attr
 
-def parse_typeattr(type_i, attribute):
+def parse_xml_typeattr(type_i, attribute):
 
     attr = parse_attribute(attribute)
 
@@ -208,7 +222,299 @@ def parse_typeattr(type_i, attribute):
 
     return typeattr_i
 
-def upload_template_xml(template_xml,**kwargs):
+def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
+    
+    if attribute_j.dimension is not None:
+        dimension_j = attribute_j.dimension
+        if dimension_j is not None:
+            dimension = units.get_dimension(dimension_j.strip())
+
+            if dimension is None:
+                raise HydraError("Dimension '%s' does not exist."%dimension_j)
+
+    elif attribute_j.unit is not None:
+            dimension = units.get_unit_dimension(attribute_j.unit)
+
+    if dimension is None or dimension.lower() in ('dimensionless', ''):
+        dimension = 'dimensionless'
+
+    name      = attribute_j.name.strip()
+
+    attr_i = _get_attr_by_name_and_dimension(name, dimension)
+
+    for ta in type_i.typeattrs:
+        if ta.attr_id == attr_i.attr_id:
+           typeattr_i = ta
+           break
+    else:
+        typeattr_i = TypeAttr()
+        log.debug("Creating type attr: type_id=%s, attr_id=%s", type_i.type_id, attr_i.attr_id)
+        typeattr_i.type_id=type_i.type_id
+        typeattr_i.attr_id=attr_i.attr_id
+        typeattr_i.attr = attr_i
+        type_i.typeattrs.append(typeattr_i)
+        db.DBSession.add(typeattr_i)
+
+    unit = None
+    if attribute_j.unit is not None:
+        typeattr_i.unit = typeattr_j.unit 
+
+    _check_dimension(typeattr_i)
+
+    if typeattr_j.description is not None:
+        typeattr_i.description = typeattr_j.description
+
+    if typeattr_j.properties is not None:
+        if isinstance(typeattr_j.properties, dict):
+            typeattr_i.properties = json.dumps(typeattr_j.properties)
+        else:
+            typeattr_i.properties = typeattr_j.properties
+
+    if typeattr_j.is_var is not None:
+        typeattr_i.attr_is_var = typeattr_j.is_var
+
+    if typeattr_j.data_type is not None:
+        typeattr_i.data_type = typeattr_j.data_type
+
+    if default_dataset_j is not None:
+        default = default_dataset_j 
+
+        unit = default.unit
+
+        if unit is None and typeattr_i.unit is not None:
+            unit = typeattr_i.unit
+
+        dimension = None
+        if unit is not None:
+            _check_dimension(typeattr_i, unit)
+            dimension = units.get_unit_dimension(unit)
+
+        if unit is not None and typeattr_i.unit is not None:
+            if unit != typeattr_i.unit:
+                raise HydraError("Default value has a unit of %s but the attribute"
+                             " says the unit should be: %s"%(typeattr_i.unit, unit))
+
+        val  = default.value
+
+        data_type = default.type
+        name = default.name if default.name is not None else "%s Default"%attr_i.attr_name
+
+        dataset_i = add_dataset(data_type,
+                               val,
+                               unit,
+                               dimension,
+                               name= name)
+        typeattr_i.default_dataset_id = dataset_i.dataset_id
+
+    if typeattr_j.restriction is not None or typeattr_j.data_restriction is not None:
+        restriction = typeattr_j.restriction if typeattr_j.restriction is not None else typeattr_j.data_restriction
+        if isinstance(restriction, dict):
+            typeattr_i.data_restriction = json.dumps(restriction)
+        else: 
+            typeattr_i.data_restriction = restriction
+    else:
+        typeattr_i.data_restriction = None
+
+    return typeattr_i
+
+def get_template_as_xml(template_id,**kwargs):
+    """
+        Turn a template into an xml template
+    """
+    template_xml = etree.Element("template_definition")
+
+    template_i = db.DBSession.query(Template).filter(
+            Template.template_id==template_id).options(
+                joinedload_all('templatetypes.typeattrs.default_dataset.metadata'
+                              )
+            ).one()
+
+    template_name = etree.SubElement(template_xml, "template_name")
+    template_name.text = template_i.template_name
+    resources = etree.SubElement(template_xml, "resources")
+    
+    for type_i in template_i.templatetypes:
+        xml_resource    = etree.SubElement(resources, "resource")
+
+        name   = etree.SubElement(xml_resource, "name")
+        name.text   = type_i.type_name
+
+        resource_type   = etree.SubElement(xml_resource, "type")
+        resource_type.text   = type_i.resource_type
+
+        alias   = etree.SubElement(xml_resource, "alias")
+        alias.text   = type_i.alias
+        
+        if type_i.layout is not None and type_i.layout != "":
+            layout   = etree.SubElement(xml_resource, "layout")
+            layout.text = _get_layout_as_etree(type_i.layout)
+
+        for type_attr in type_i.typeattrs:
+            _make_attr_element(xml_resource, type_attr)
+
+        resources.append(xml_resource)
+
+    xml_string = etree.tostring(template_xml)
+
+    return xml_string
+
+def upload_template_json(template_json_string,allow_update=True, **kwargs):
+    """
+        Add the template, type and typeattrs described
+        in a JSON file.
+
+        Delete type, typeattr entries in the DB that are not in the XML file
+        The assumption is that they have been deleted and are no longer required.
+
+        The allow_update indicates whether an existing template of the same name should
+        be updated, or whether it should throw an 'existing name' error.
+    """
+    try:
+        template_json = json.loads(template_json_string)
+    except:
+        raise HydraError("Unable to parse JSON string. Plese ensure it is JSON compatible.")
+
+
+    template_file_j = JSONObject(template_json)
+
+    attributes_j = template_file_j.attributes
+
+    default_datasets_j = template_file_j.datasets
+
+    template_j = template_file_j.template
+
+    template_name = template_j.name
+
+    template_layout = None
+    if template_j.layout is not None:
+        template_layout = json.dumps(template_j.layout)
+
+    try:
+        template_i = db.DBSession.query(Template).filter(Template.template_name==template_name).options(joinedload_all('templatetypes.typeattrs.attr')).one()
+        if allow_update == False:
+            raise HydraError("Existing Template Found with name %s"%(template_name,))
+        else:
+            log.info("Existing template found. name=%s", template_name)
+            template_i.layout = template_layout
+    except NoResultFound:
+        log.info("Template not found. Creating new one. name=%s", template_name)
+        template_i = Template(template_name=template_name, layout=template_layout)
+        db.DBSession.add(template_i)
+
+    types_j = template_j.templatetypes
+    #Delete any types which are in the DB but no longer in the JSON file
+    type_name_map = {r.type_name:r.type_id for r in template_i.templatetypes}
+    attr_name_map = {}
+    for type_i in template_i.templatetypes:
+        for attr in type_i.typeattrs:
+            attr_name_map[attr.attr.attr_name] = (attr.attr_id, attr.type_id)
+
+    existing_types = set([r.type_name for r in template_i.templatetypes])
+
+    new_types = set([t.name for t in types_j])
+
+    types_to_delete = existing_types - new_types
+
+    for type_to_delete in types_to_delete:
+        type_id = type_name_map[type_to_delete]
+        try:
+            type_i = db.DBSession.query(TemplateType).filter(TemplateType.type_id==type_id).one()
+            log.info("Deleting type %s", type_i.type_name)
+            db.DBSession.delete(type_i)
+        except NoResultFound:
+            pass
+
+    #Add or update types.
+    for type_j in types_j:
+        type_name = type_j.name
+        #check if the type is already in the DB. If not, create a new one.
+        type_is_new = False
+        if type_name in existing_types:
+            type_id = type_name_map[type_name]
+            type_i = db.DBSession.query(TemplateType).filter(TemplateType.type_id==type_id).options(joinedload_all('typeattrs.attr')).one()
+
+        else:
+            log.info("Type %s not found, creating new one.", type_name)
+            type_i = TemplateType()
+            type_i.type_name = type_name
+            template_i.templatetypes.append(type_i)
+            type_is_new = True
+
+        if type_j.alias is not None:
+            type_i.alias = type_j.alias
+
+        #Allow 'type' or 'resource_type' to be accepted
+        if type_j.type is not None:
+            type_i.resource_type = type_j.type 
+        elif type_j.resource_type is not None:
+            type_i.resource_type = type_j.resource_type 
+
+        if type_j.resource_type is None:
+            raise HydraError("No resource type specified."
+                             " Please include a 'resource_type' with"
+                             " 'NODE', 'LINK', 'GROUP' or 'NETWORK'")
+
+        if type_j.layout is not None:
+            if isinstance(type_j, dict):
+                type_i.layout = json.dumps(type_j.layout)
+            else:
+                type_i.layout = type_j.layout
+
+        #delete any TypeAttrs which are in the DB but not in the XML file
+        existing_attrs = []
+        if not type_is_new:
+            for r in template_i.templatetypes:
+                if r.type_name == type_name:
+                    for typeattr in r.typeattrs:
+                        existing_attrs.append(typeattr.attr.attr_name)
+
+        existing_attrs = set(existing_attrs)
+
+        type_attrs = []
+        for typeattr_j in type_j.typeattrs:
+            if typeattr_j.attr_id is not None:
+                attr_j = attributes_j[str(typeattr_j.attr_id)].name
+            elif typeattr_j.attr is not None:
+                attr_j = typeattr_j.attr.name
+            type_attrs.append(attr_j)
+                
+        type_attrs = set(type_attrs)
+
+        attrs_to_delete = existing_attrs - type_attrs
+        for attr_to_delete in attrs_to_delete:
+            attr_id, type_id = attr_name_map[attr_to_delete]
+            try:
+                attr_i = db.DBSession.query(TypeAttr).filter(TypeAttr.attr_id==attr_id, TypeAttr.type_id==type_id).options(joinedload_all('attr')).one()
+                db.DBSession.delete(attr_i)
+                log.info("Attr %s in type %s deleted",attr_i.attr.attr_name, attr_i.templatetype.type_name)
+            except NoResultFound:
+                log.debug("Attr %s not found in type %s"%(attr_id, type_id))
+                continue
+
+        #Add or update type typeattrs
+        #Support an external attribute dict or embedded attributes. 
+        for typeattr_j  in type_j.typeattrs:
+            if typeattr_j.attr_id is not None:
+                attr_j = attributes_j[str(typeattr_j.attr_id)]
+            elif typeattr_j.attr is not None:
+                attr_j = typeattr_j.attr
+
+            default_dataset_j = None
+            if typeattr_j.default_dataset is not None:
+                default_dataset_j = typeattr_j.default_dataset
+            elif typeattr_j.default is not None:
+                default_dataset_j = typeattr_j.default_dataset
+            elif typeattr_j.default_dataset_id is not None:
+                default_dataset_j = default_datasets_j[str(typeattr_j.default_dataset_id)]
+
+            parse_json_typeattr(type_i, typeattr_j, attr_j, default_dataset_j)
+
+    db.DBSession.flush()
+
+    return template_i
+
+
+def upload_template_xml(template_xml, allow_update=True, **kwargs):
     """
         Add the template, type and typeattrs described
         in an XML file.
@@ -237,8 +543,12 @@ def upload_template_xml(template_xml,**kwargs):
 
     try:
         tmpl_i = db.DBSession.query(Template).filter(Template.template_name==template_name).options(joinedload_all('templatetypes.typeattrs.attr')).one()
-        tmpl_i.layout = template_layout
-        log.info("Existing template found. name=%s", template_name)
+
+        if allow_update == False:
+            raise HydraError("Existing Template Found with name %s"%(template_name,))
+        else:
+            log.info("Existing template found. name=%s", template_name)
+            tmpl_i.layout = template_layout
     except NoResultFound:
         log.info("Template not found. Creating new one. name=%s", template_name)
         tmpl_i = Template(template_name=template_name, layout=template_layout)
@@ -295,9 +605,6 @@ def upload_template_xml(template_xml,**kwargs):
             layout_string = get_layout_as_dict(layout)
             type_i.layout = json.dumps(layout_string)
 
-        if resource.find('type') is not None and \
-           resource.find('type').text is not None:
-            type_i.resource_type = resource.find('type').text
         #delete any TypeAttrs which are in the DB but not in the XML file
         existing_attrs = []
         if not type_is_new:
@@ -323,7 +630,7 @@ def upload_template_xml(template_xml,**kwargs):
 
         #Add or update type typeattrs
         for attribute in resource.findall('attribute'):
-            parse_typeattr(type_i, attribute)
+            parse_xml_typeattr(type_i, attribute)
 
     db.DBSession.flush()
 
@@ -411,6 +718,7 @@ def remove_template_from_network(network_id, template_id, remove_attrs, **kwargs
     for resource_type in resource_types:
         db.DBSession.delete(resource_type)
 
+    db.DBSession.flush()
 
 def _get_resources_to_remove(resource, template):
     """
@@ -773,7 +1081,7 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
             node_id    = resource.node_id    if ref_key == 'NODE' else None,
             link_id    = resource.link_id    if ref_key == 'LINK' else None,
             group_id   = resource.group_id   if ref_key == 'GROUP' else None,
-            network_id = resource.network_id if ref_key == 'NETWORK' else None,
+            network_id = resource.id         if ref_key == 'NETWORK' else None,
 
         )
         new_res_attrs.append(ra_dict)
@@ -808,7 +1116,7 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
             node_id    = resource.node_id    if ref_key == 'NODE' else None,
             link_id    = resource.link_id    if ref_key == 'LINK' else None,
             group_id   = resource.group_id   if ref_key == 'GROUP' else None,
-            network_id = resource.id if ref_key == 'NETWORK' else None,
+            network_id = resource.id         if ref_key == 'NETWORK' else None,
             ref_key    = ref_key,
             type_id    = type_id,
         )
@@ -831,9 +1139,11 @@ def remove_type_from_resource( type_id, resource_type, resource_id,**kwargs):
     ResourceType.group_id == group_id).one()
 
     db.DBSession.delete(resourcetype)
+    db.DBSession.flush()
+
+    return 'OK'
 
 def _parse_data_restriction(restriction_dict):
-    log.critical(restriction_dict)
     if restriction_dict is None or len(restriction_dict) == 0:
         return None
 
@@ -841,7 +1151,10 @@ def _parse_data_restriction(restriction_dict):
     #'{soap_server.hydra_complexmodels}' -> ''
     dict_str = re.sub('{[a-zA-Z\.\_]*}', '', str(restriction_dict))
 
-    new_dict = eval(str(restriction_dict))
+    if isinstance(restriction_dict, dict):
+        new_dict = restriction_dict
+    else:
+        new_dict = json.loads(restriction_dict)
 
     #Evaluate whether the dict actually contains anything.
     if not isinstance(new_dict, dict) or len(new_dict) == 0:
@@ -868,8 +1181,9 @@ def add_template(template, **kwargs):
 
     db.DBSession.add(tmpl)
 
-    if template.types is not None:
-        for templatetype in template.types:
+    if template.types is not None or template.templatetypes is not None:
+        types = template.types if template.types is not None else template.templatetypes
+        for templatetype in types:
             ttype = _update_templatetype(templatetype)
             tmpl.templatetypes.append(ttype)
 
@@ -888,11 +1202,10 @@ def update_template(template,**kwargs):
     type_dict = dict([(t.type_id, t) for t in tmpl.templatetypes])
     existing_templatetypes = []
 
-    if template.types is not None:
-        for templatetype in template.types:
+    if template.types is not None or template.templatetypes is not None:
+        types = template.types if template.types is not None else template.templatetypes
+        for templatetype in types:
             if templatetype.id is not None:
-                if type_dict.get(templatetype.id) is None:
-                    import pudb; pudb.set_trace()
                 type_i = type_dict[templatetype.id]
                 _update_templatetype(templatetype, type_i)
                 existing_templatetypes.append(type_i.type_id)
@@ -917,6 +1230,7 @@ def delete_template(template_id,**kwargs):
     except NoResultFound:
         raise ResourceNotFoundError("Template %s not found"%(template_id,))
     db.DBSession.delete(tmpl)
+    db.DBSession.flush()
     return 'OK'
 
 def get_templates(load_all=True, **kwargs):
@@ -947,18 +1261,25 @@ def get_template(template_id,**kwargs):
     """
         Get a specific resource template template, by ID.
     """
+    try:
+        tmpl_i = db.DBSession.query(Template).filter(Template.template_id==template_id).options(joinedload_all('templatetypes.typeattrs.default_dataset.metadata')).one()
 
-    tmpl = db.DBSession.query(Template).filter(Template.template_id==template_id).options(joinedload_all('templatetypes.typeattrs.default_dataset.metadata')).one()
+        #Load the attributes.
+        for tmpltype_i in tmpl_i.templatetypes:
+            for typeattr_i in tmpltype_i.typeattrs:
+                typeattr_i.attr
 
-    return tmpl
+        return tmpl_i
+    except NoResultFound:
+        raise HydraError("Template %s not found"%template_id)
 
 def get_template_by_name(name,**kwargs):
     """
         Get a specific resource template, by name.
     """
     try:
-        tmpl = db.DBSession.query(Template).filter(Template.template_name == name).one()
-        return tmpl
+        tmpl_i = db.DBSession.query(Template).filter(Template.template_name == name).options(joinedload_all('templatetypes.typeattrs.default_dataset.metadata')).one()
+        return tmpl_i
     except NoResultFound:
         log.info("%s is not a valid identifier for a template",name)
         return None
@@ -1019,8 +1340,12 @@ def _set_typeattr(typeattr, existing_ta = None):
     ta.unit = typeattr.unit
     ta.type_id = typeattr.type_id
     ta.data_type = typeattr.data_type
-    if typeattr.default_dataset is not None:
+
+    if typeattr.default_dataset_id is not None:
+        ta.default_dataset_id = typeattr.default_dataset_id
+    elif typeattr.default_dataset is not None:
         ta.default_dataset_id = typeattr.default_dataset.id
+
     ta.description        = typeattr.description
 
     ta.properties         = typeattr.get_properties()
@@ -1030,7 +1355,7 @@ def _set_typeattr(typeattr, existing_ta = None):
     ta.data_restriction = _parse_data_restriction(typeattr.data_restriction)
 
     if typeattr.dimension is not None and typeattr.attr_id is not None and typeattr.attr_id > 0:
-        attr = ta.get_attr()
+        attr = ta.attr
         if attr.attr_dimen != typeattr.dimension:
             raise HydraError("Cannot set a dimension on type attribute which "
                             "does not match its attribute. Create a new attribute if "
@@ -1044,6 +1369,7 @@ def _set_typeattr(typeattr, existing_ta = None):
     _check_dimension(ta)
 
     if existing_ta is None:
+        log.info("Adding ta to DB")
         db.DBSession.add(ta)
 
     return ta
@@ -1099,22 +1425,31 @@ def _update_templatetype(templatetype, existing_tt=None):
 
     return tmpltype_i
 
-def delete_templatetype(type_id,**kwargs):
+def delete_templatetype(type_id,template_i=None, **kwargs):
     """
         Delete a template type and its typeattrs.
     """
     try:
-        tmpltype = db.DBSession.query(TemplateType).filter(TemplateType.type_id == type_id).one()
+        tmpltype_i = db.DBSession.query(TemplateType).filter(TemplateType.type_id == type_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Template Type %s not found"%(type_id,))
-    db.DBSession.delete(tmpltype)
+
+    if template_i is None:
+        template_i = db.DBSession.query(Template).filter(Template.template_id==tmpltype_i.template_id).one()
+
+    template_i.templatetypes.remove(tmpltype_i)
+
+    db.DBSession.delete(tmpltype_i)
     db.DBSession.flush()
 
 def get_templatetype(type_id,**kwargs):
     """
         Get a specific resource type by ID.
     """
-    templatetype = db.DBSession.query(TemplateType).filter(TemplateType.type_id==type_id).one()
+
+    templatetype = db.DBSession.query(TemplateType).filter(
+                        TemplateType.type_id==type_id).options(
+                        joinedload_all("typeattrs")).one()
 
     return templatetype
 
@@ -1135,22 +1470,30 @@ def add_typeattr(typeattr,**kwargs):
         Add an typeattr to an existing type.
     """
 
+    tmpltype = get_templatetype(typeattr.type_id, user_id=kwargs.get('user_id'))
+
     ta = _set_typeattr(typeattr)
+
+    tmpltype.typeattrs.append(ta)
 
     db.DBSession.flush()
 
-    updated_template_type = db.DBSession.query(TemplateType).filter(TemplateType.type_id==ta.type_id).one()
-
-    return updated_template_type
+    return ta 
 
 
 def delete_typeattr(typeattr,**kwargs):
     """
         Remove an typeattr from an existing type
     """
+
+    tmpltype = get_templatetype(typeattr.type_id, user_id=kwargs.get('user_id'))
+
     ta = db.DBSession.query(TypeAttr).filter(TypeAttr.type_id == typeattr.type_id,
                                           TypeAttr.attr_id == typeattr.attr_id).one()
-    db.DBSession.delete(ta)
+
+    tmpltype.typeattrs.remove(ta)
+
+    db.DBSession.flush()
 
     return 'OK'
 
@@ -1172,7 +1515,7 @@ def validate_attr(resource_attr_id, scenario_id, template_id=None):
         _do_validate_resourcescenario(rs, template_id)
     except HydraError as e:
 
-        error = dict(
+        error = JSONObject(dict(
                  ref_key = rs.resourceattr.ref_key,
                  ref_id  = rs.resourceattr.get_resource_id(),
                  ref_name = rs.resourceattr.get_resource().get_name(),
@@ -1182,7 +1525,7 @@ def validate_attr(resource_attr_id, scenario_id, template_id=None):
                  dataset_id       = rs.dataset_id,
                  scenario_id=scenario_id,
                  template_id=template_id,
-                 error_text=e.message)
+                 error_text=e.message))
     return error
 
 def validate_attrs(resource_attr_ids, scenario_id, template_id=None):

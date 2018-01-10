@@ -211,11 +211,15 @@ def add_scenario(network_id, scenario,**kwargs):
     db.DBSession.flush()
     return scen
 
-def update_scenario(scenario,update_data=True,update_groups=True,**kwargs):
+def update_scenario(scenario,update_data=True,update_groups=True,flush=True,**kwargs):
     """
         Update a single scenario
         as all resources already exist, there is no need to worry
         about negative IDS
+
+        flush = True flushes to the DB at the end of the function.
+        flush = False does not flush, assuming that it will happen as part 
+                of another process, like update_network.
     """
     user_id = kwargs.get('user_id')
     scen = _get_scenario(scenario.id, user_id)
@@ -223,11 +227,24 @@ def update_scenario(scenario,update_data=True,update_groups=True,**kwargs):
     if scen.locked == 'Y':
         raise PermissionError('Scenario is locked. Unlock before editing.')
 
+    start_time = None
+    if isinstance(scenario.start_time, float):
+        start_time = scenario.start_time
+    else:
+        start_time = timestamp_to_ordinal(scenario.start_time)
+
+    end_time = None
+    if isinstance(scenario.end_time, float):
+        end_time = scenario.end_time
+    else:
+        end_time = timestamp_to_ordinal(scenario.end_time)
+
+
     scen.scenario_name        = scenario.name
     scen.scenario_description = scenario.description
     scen.layout               = scenario.get_layout()
-    scen.start_time           = str(timestamp_to_ordinal(scenario.start_time)) if scenario.start_time else None
-    scen.end_time             = str(timestamp_to_ordinal(scenario.end_time)) if scenario.end_time else None
+    scen.start_time           = str(start_time)
+    scen.end_time             = str(end_time)
     scen.time_step            = scenario.time_step
 
     if scenario.resourcescenarios == None:
@@ -248,7 +265,9 @@ def update_scenario(scenario,update_data=True,update_groups=True,**kwargs):
         for group_item in scenario.resourcegroupitems:
             _add_resourcegroupitem(group_item, scenario.id)
 
-    db.DBSession.flush()
+    if flush is True:
+        db.DBSession.flush()
+
     return scen
 
 def set_scenario_status(scenario_id, status, **kwargs):

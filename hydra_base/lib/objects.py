@@ -144,6 +144,23 @@ class JSONObject(dict):
                     if k.find('_description') >= 0:
                         setattr(self, 'description', v)
 
+                    if obj_dict.__tablename__.lower() == 'ttemplatetype':
+                        if k == 'type_id':
+                            setattr(self, 'id', v)
+                        if k == 'type_name':
+                            setattr(self, 'name', v)
+
+                    if obj_dict.__tablename__.lower() == 'tresourcegroup':
+                        if k == 'group_id':
+                            setattr(self, 'id', v)
+                        if k == 'group_name':
+                            setattr(self, 'name', v)
+                        if k == 'group_description':
+                            setattr(self, 'description', v)
+
+                    if obj_dict.__tablename__.lower() == 'tresourceattr':
+                        if k == 'resource_attr_id':
+                            setattr(self, 'id', v) 
 
                 setattr(self, str(k), v)
 
@@ -189,6 +206,36 @@ class ResourceScenario(JSONObject):
 
 
 class Dataset(JSONObject):
+
+    def __getattr__(self, name):
+
+        # Keys that start and end with "__" won't be retrievable via attributes
+        if name.startswith('__') and name.endswith('__'):
+            return super(JSONObject, self).__getattr__(name)
+        elif name == 'name':
+            return self.get('data_name', None)
+        elif name == 'unit':
+            return self.get('data_units', None)
+        elif name == 'dimension':
+            return self.get('data_dimen', None)
+        elif name == 'type':
+            return self.get('data_type', None)
+        else:
+            return self.get(name, None)
+
+    def __setattr__(self, name, value):
+        super(Dataset, self).__setattr__(name, value)
+        self[name] = value
+
+        if name == 'name':
+            self['data_name'] = value
+        elif name == 'unit':
+            self['data_units'] = value
+        elif name == 'dimension':
+            self['data_dimen'] = value
+        elif name == 'type':
+            self['data_type'] = value
+
     def parse_value(self):
         """
             Turn the value of an incoming dataset into a hydra-friendly value.

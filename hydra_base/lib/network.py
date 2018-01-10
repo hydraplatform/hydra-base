@@ -24,6 +24,7 @@ import json
 from ..exceptions import HydraError, ResourceNotFoundError
 from . import scenario
 from . import data
+from .objects import JSONObject, Dataset as JSONDataset
 
 from ..util.permissions import check_perm
 from . import template
@@ -132,7 +133,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
                     'node_id'     : resource_i.node_id    if ref_key=='NODE' else None,
                     'link_id'     : resource_i.link_id    if ref_key=='LINK' else None,
                     'group_id'    : resource_i.group_id   if ref_key=='GROUP' else None,
-                    'network_id'  : resource_i.network_id if ref_key=='NETWORK' else None,
+                    'network_id'  : resource_i.id if ref_key=='NETWORK' else None,
                     'attr_id'     : ra.attr_id,
                     'attr_is_var' : ra.attr_is_var,
                 })
@@ -159,7 +160,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
                         'node_id'     : resource_i.node_id    if ref_key=='NODE' else None,
                         'link_id'     : resource_i.link_id    if ref_key=='LINK' else None,
                         'group_id'    : resource_i.group_id   if ref_key=='GROUP' else None,
-                        'network_id'  : resource_i.network_id if ref_key=='NETWORK' else None,
+                        'network_id'  : resource_i.id         if ref_key=='NETWORK' else None,
                         'type_id'     : resource_type.id,
                     }
                 )
@@ -174,7 +175,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
                             'node_id'     : resource_i.node_id    if ref_key=='NODE' else None,
                             'link_id'     : resource_i.link_id    if ref_key=='LINK' else None,
                             'group_id'    : resource_i.group_id   if ref_key=='GROUP' else None,
-                            'network_id'  : resource_i.network_id if ref_key=='NETWORK' else None,
+                            'network_id'  : resource_i.id         if ref_key=='NETWORK' else None,
                             'attr_id' : ta.attr_id,
                             'attr_is_var' : ta.attr_is_var,
                         })
@@ -209,7 +210,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
     elif ref_key == 'LINK':
         res_qry = res_qry.join(Link).filter(Link.network_id==network_id)
     elif ref_key == 'NETWORK':
-        res_qry = res_qry.join(Network).filter(Network.id==network_id)
+        res_qry = res_qry.filter(ResourceAttr.network_id==network_id)
 
     real_resource_attrs = res_qry.all()
     logging.info("retrieved %s entries in %s"%(len(real_resource_attrs), datetime.datetime.now() - start_time))
@@ -240,7 +241,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
         elif ref_key == 'LINK':
             ref_id = iface_resource.link_id
         elif ref_key == 'NETWORK':
-            ref_id = iface_resource.network_id
+            ref_id = iface_resource.id
 
         if resource.attributes is not None:
             for ra in resource.attributes:
@@ -448,8 +449,8 @@ def add_network(network,**kwargs):
 
     net_i = Network()
     net_i.project_id          = network.project_id
-    net_i.name        = network.name
-    net_i.description = network.description
+    net_i.name                = network.name
+    net_i.description         = network.description
     net_i.created_by          = user_id
     net_i.projection          = network.projection
 
@@ -561,6 +562,7 @@ def _get_all_resource_attributes(network_id, template_id=None):
         then by ID of the node or link.
     """
     base_qry = db.DBSession.query(ResourceAttr.resource_attr_id.label('resource_attr_id'),
+                               ResourceAttr.resource_attr_id.label('id'),
                                ResourceAttr.ref_key.label('ref_key'),
                                ResourceAttr.cr_date.label('cr_date'),
                                ResourceAttr.attr_is_var.label('attr_is_var'),
@@ -684,26 +686,30 @@ def _get_all_templates(network_id, template_id):
 
     for t in all_types:
 
-        resourcetype = dictobj({'type_id':t.type_id})
-        resourcetype.templatetype = dictobj(t)
-        rttemplate = dictobj({'template_name':t.template_name})
-        resourcetype.templatetype.template =rttemplate
+        templatetype = JSONObject({
+                                    'template_id':t.template_id,
+                                    'type_id':t.type_id,
+                                   'id':t.type_id,
+                                   'template_name':t.template_name,
+                                   'layout': t.layout,
+                                   'name': t.type_name, 
+                                   'type_name': t.type_name})
 
         if t.ref_key == 'NODE':
             nodetype = node_type_dict.get(t.node_id, [])
-            nodetype.append(resourcetype)
+            nodetype.append(templatetype)
             node_type_dict[t.node_id] = nodetype
         elif t.ref_key == 'LINK':
             linktype = link_type_dict.get(t.link_id, [])
-            linktype.append(resourcetype)
+            linktype.append(templatetype)
             link_type_dict[t.link_id] = linktype
         elif t.ref_key == 'GROUP':
             grouptype = group_type_dict.get(t.group_id, [])
-            grouptype.append(resourcetype)
+            grouptype.append(templatetype)
             group_type_dict[t.group_id] = grouptype
         elif t.ref_key == 'NETWORK':
             nettype = network_type_dict.get(t.network_id, [])
-            nettype.append(resourcetype)
+            nettype.append(templatetype)
             network_type_dict[t.network_id] = nettype
 
 
@@ -786,8 +792,8 @@ def _get_all_resourcescenarios(network_id, user_id):
     x = time.time()
     rs_dict = dict()
     for rs in all_rs:
-        rs_obj = dictobj(rs)
-        rs_attr = dictobj({'attr_id':rs.attr_id})
+        rs_obj = JSONObject(rs)
+        rs_attr = JSONObject({'attr_id':rs.attr_id})
 
         value = rs.value
         try:
@@ -795,22 +801,21 @@ def _get_all_resourcescenarios(network_id, user_id):
         except:
             pass
 
-        rs_dataset = dictobj({
+        rs_dataset = JSONDataset({
             'dataset_id':rs.dataset_id,
             'data_type' : rs.data_type,
             'data_units':rs.data_units,
-            'data_dimen':rs.data_dimen,
+            'data_dimen': rs.data_dimen,
             'data_name':rs.data_name,
             'data_hash':rs.data_hash,
             'cr_date':rs.cr_date,
             'created_by':rs.created_by,
             'hidden':rs.hidden,
-            'start_date':rs.start_time,
-            'frequency':rs.frequency,
             'value':value,
             'metadata':{},
-        }, tablename='tDataset')
+        })
         rs_obj.resourceattr = rs_attr
+        rs_obj.value = rs_dataset
         rs_obj.dataset = rs_dataset
 
         scenario_rs = rs_dict.get(rs.scenario_id, [])
@@ -988,7 +993,7 @@ def get_network(network_id, summary=False, include_data='N', scenario_ids=None, 
 
         net_i.check_read_permission(user_id)
 
-        net = dictobj(net_i.__dict__)
+        net = JSONObject(net_i)
 
         net.nodes          = _get_nodes(network_id, template_id=template_id)
         net.links          = _get_links(network_id, template_id=template_id)
@@ -1128,6 +1133,7 @@ def get_groups(network_id, template_id=None, **kwargs):
 def get_network_simple(network_id,**kwargs):
     try:
         n = db.DBSession.query(Network).filter(Network.id==network_id).options(joinedload_all('attributes.attr')).one()
+        n.types
         return n
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id,))
@@ -1135,6 +1141,7 @@ def get_network_simple(network_id,**kwargs):
 def get_node(node_id,**kwargs):
     try:
         n = db.DBSession.query(Node).filter(Node.node_id==node_id).options(joinedload_all('attributes.attr')).one()
+        n.types
         return n
     except NoResultFound:
         raise ResourceNotFoundError("Node %s not found"%(node_id,))
@@ -1142,6 +1149,7 @@ def get_node(node_id,**kwargs):
 def get_link(link_id,**kwargs):
     try:
         l = db.DBSession.query(Link).filter(Link.link_id==link_id).options(joinedload_all('attributes.attr')).one()
+        l.types
         return l
     except NoResultFound:
         raise ResourceNotFoundError("Link %s not found"%(link_id,))
@@ -1149,6 +1157,7 @@ def get_link(link_id,**kwargs):
 def get_resourcegroup(group_id,**kwargs):
     try:
         rg = db.DBSession.query(ResourceGroup).filter(ResourceGroup.group_id==group_id).options(joinedload_all('attributes.attr')).one()
+        rg.types
         return rg
     except NoResultFound:
         raise ResourceNotFoundError("ResourceGroup %s not found"%(group_id,))
@@ -1228,7 +1237,8 @@ def update_network(network,
     net_i.layout              = network.get_layout()
 
     all_resource_attrs = {}
-    all_resource_attrs.update(_update_attributes(net_i, network.attributes))
+    new_network_attributes = _update_attributes(net_i, network.attributes)
+    all_resource_attrs.update(new_network_attributes)
     add_resource_types(net_i, network.types)
 
     #Maps temporary node_ids to real node_ids
@@ -1311,7 +1321,7 @@ def update_network(network,
                 g_i.group_description = group.description
                 g_i.status           = group.status
             else:
-                log.info("Adding new group %s", link.name)
+                log.info("Adding new group %s", group.name)
                 g_i = net_i.add_group(group.name,
                                    group.description,
                                    group.status)
@@ -1335,7 +1345,7 @@ def update_network(network,
                             errors.append('Scenario %s was not updated as it is locked'%(s.id))
                             continue
 
-                        scenario.update_scenario(s, **kwargs)
+                        scenario.update_scenario(s, flush=False, **kwargs)
                     except NoResultFound:
                         raise ResourceNotFoundError("Scenario %s not found"%(s.id))
                 else:

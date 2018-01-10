@@ -19,12 +19,10 @@ import unittest
 import logging
 from hydra_base import config
 import util
+from hydra_base.db import commit_transaction, rollback_transaction
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.ERROR)
-
-global DB_CONNECTION
-DB_CONNECTION = None
 
 util.connect()
 
@@ -42,6 +40,7 @@ class SoapServerTest(unittest.TestCase):
 
     def tearDown(self):
         log.debug("Tearing down")
+        commit_transaction()
 
     def login(self, username, password):
         return util.login(username, password)

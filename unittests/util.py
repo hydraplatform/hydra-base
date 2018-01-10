@@ -71,11 +71,11 @@ def update_template(template_id):
 
     for tmpltype in template.templatetypes:
         if tmpltype.resource_type == 'NETWORK':
-            typeattr_1 = dict(
+            typeattr_1 = JSONObject(dict(
                 attr_id = new_net_attr.id,
                 data_restriction = {'LESSTHAN': 10, 'NUMPLACES': 1},
                 unit = 'USD',
-            )
+            ))
             tmpltype.typeattrs.append(typeattr_1)
             break
 
@@ -232,9 +232,9 @@ def create_project(name=None):
         name = "Unittest Project"
 
     try:
-        p = JSONObject(hydra_base.get_project_by_name(name), user_id=user_id)
+        p = JSONObject(hydra_base.get_project_by_name(name, user_id=user_id))
         return p
-    except:
+    except Exception, e:
         project = JSONObject()
         project.name = name
         project.description = "Project which contains all unit test networks"
@@ -312,7 +312,6 @@ def build_network(project_id=None, num_nodes=10, new_proj=True,
 
     log.debug("Attribute creation took: %s"%(datetime.datetime.now()-start))
     start = datetime.datetime.now()
-
 
     #Put an attribute on a group
     group_ra = JSONObject(dict(
@@ -590,11 +589,12 @@ def create_network_with_data(project_id=None, num_nodes=10,
     start = datetime.datetime.now()
     log.info("Creating network...")
     response_network_summary = JSONObject(hydra_base.add_network(network, user_id=user_id))
+    hydra_base.db.commit_transaction()
     log.info("Network Creation took: %s"%(datetime.datetime.now()-start))
     if ret_full_net is True:
         log.info("Fetching new network...:")
         start = datetime.datetime.now()
-        response_net = JSONObject(hydra_base.get_network(response_network_summary.id, user_id=user_id))
+        response_net = JSONObject(hydra_base.get_network(response_network_summary.id, include_data='Y', user_id=user_id))
         log.info("Network Retrieval took: %s"%(datetime.datetime.now()-start))
         check_network(network, response_net)
         return response_net
@@ -626,7 +626,7 @@ def check_network(request_net, response_net):
 
     s = request_net['scenarios'][0]
     for rs0 in s['resourcescenarios']:
-        if rs0['value']['type'] == 'timeseries':
+        if rs0.value.type == 'timeseries':
             val = json.loads(rs0['value']['value'])
             before_ts_times = val.values()[0].keys()
             before_times = []
@@ -639,8 +639,8 @@ def check_network(request_net, response_net):
     after_times = []
     s = response_net.scenarios[0]
     for rs0 in s.resourcescenarios:
-        if rs0.value.type == 'timeseries':
-            val = json.loads(rs0.value.value)
+        if rs0.value.data_type == 'timeseries':
+            val = json.loads(rs0.dataset.value)
             after_ts_times = val.values()[0].keys()
             after_times = []
             for t in after_ts_times:

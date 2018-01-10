@@ -122,7 +122,7 @@ def login_user(username, password):
 
 def create_default_net():
     try:
-        net = db.DBSession.query(Network).filter(Network.network_id==1).one()
+        net = db.DBSession.query(Network).filter(Network.id==1).one()
     except NoResultFound:
         project = Project(project_name="Project network")
         net = Network(network_name="Default network")
