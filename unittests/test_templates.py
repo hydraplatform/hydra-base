@@ -54,7 +54,7 @@ class TemplatesTest(server.SoapServerTest):
 
         file_contents = template_file.read()
 
-        new_tmpl = upload_template_xml(file_contents)
+        new_tmpl = JSONObject(import_template_xml(file_contents))
 
         assert new_tmpl is not None, "Adding template from XML was not successful!"
 
@@ -65,6 +65,53 @@ class TemplatesTest(server.SoapServerTest):
 
         assert new_tmpl.templatetypes[0].typeattrs[-1].properties is not None
         assert eval(new_tmpl.templatetypes[0].typeattrs[-1].properties)['template_property'] == "Test property from template"
+
+        return new_tmpl
+
+    def test_get_xml(self):
+        xml_tmpl = self.test_add_xml()
+        
+        db_template = get_template_as_xml(xml_tmpl.id)
+
+        assert db_template is not None
+
+        template_xsd_path = config.get('templates', 'template_xsd_path')
+        xmlschema_doc = etree.parse(template_xsd_path)
+
+        xmlschema = etree.XMLSchema(xmlschema_doc)
+
+        xml_tree = etree.fromstring(db_template)
+
+        xmlschema.assertValid(xml_tree)
+
+    def test_get_dict(self):
+
+        #Upload the xml file initally to avoid having to manage 2 template files
+        xml_tmpl = self.test_add_xml()
+        
+        template_dict = get_template_as_dict(xml_tmpl.id)
+       
+        #Error that there's already a template with this name.
+        self.assertRaises(HydraError, import_template_dict, template_dict, allow_update=False)
+
+        typename = template_dict['template']['templatetypes'][0]['name']
+
+        template_dict['template']['templatetypes'][0].name = typename + "_updated"
+
+        #Finds a template with this name and updates it to mirror this dict.
+        #This includes deleting types if they're not in this dict.
+        #Changing the name of a type has this effect, as a new template does not have
+        #any reference to existing types in Hydra.
+        updated_template = JSONObject(import_template_dict(template_dict))
+
+        assert updated_template['templatetypes'][-1]['name'] == typename + "_updated"
+
+        #Now put it back to the original name so other tests will work
+        template_dict['template']['templatetypes'][0].name = typename
+        updated_template = JSONObject(import_template_dict(template_dict))
+
+        assert updated_template['templatetypes'][-1]['name'] == typename
+
 
     def test_add_template(self):
 

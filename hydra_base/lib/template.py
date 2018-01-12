@@ -317,6 +317,66 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
 
     return typeattr_i
 
+def get_template_as_json(template_id, **kwargs):
+    """
+        Get a template (including attribute and dataset definitions) as a JSON
+        string. This is just a wrapper around the get_template_as_dict function.
+    """
+    user_id = kwargs['user_id']
+    return json.dumps(get_template_as_dict(template_id, user_id=user_id))
+
+def get_template_as_dict(template_id, **kwargs):
+    attr_dict = JSONObject({})
+    dataset_dict = JSONObject({})
+
+    template_i = db.DBSession.query(Template).filter(
+            Template.template_id==template_id).options(
+                joinedload_all('templatetypes.typeattrs.default_dataset.metadata'
+                              )
+            ).one()
+
+    #Load all the attributes 
+    for type_i in template_i.templatetypes:
+        for typeattr_i in type_i.typeattrs:
+            typeattr_i.attr
+
+    template_j = JSONObject(template_i)
+    
+    for tmpltype in template_j.templatetypes:
+        if tmpltype.layout is not None:
+            try:
+                tmpltype.layout = json.loads(tmpltype.layout)
+            except:
+                tmpltype.layout = tmpltype.layout
+
+        for typeattr in tmpltype.typeattrs:
+            typeattr.attr_id = typeattr.attr_id*-1
+            attr_dict[typeattr.attr_id] = JSONObject(
+                                   {
+                                        'name': typeattr.attr.attr_name, 
+                                        'dimension':typeattr.attr.attr_dimen
+                                     })
+
+            if typeattr.default_dataset_id is not None:
+                typeattr.default_dataset_id = typeattr.default_dataset_id * -1
+                dataset_dict[typeattr.default_dataset_id] = JSONObject(
+                            {
+                                'name'     : typeattr.default_dataset.data_name,
+                                'type'     : typeattr.default_dataset.data_type,
+                                'unit'     : typeattr.default_dataset.data_units,
+                                'value'    : typeattr.default_dataset.value,
+                                'metadata' : typeattr.default_dataset.metadata
+                            })
+            del(typeattr['default_dataset'])
+            del(typeattr.default_dataset)
+            del(typeattr['attr'])
+            del(typeattr.attr)
+
+    output_data = {'attributes': attr_dict, 'datasets':dataset_dict, 'template': template_j}
+
+    return output_data
+
+
 def get_template_as_xml(template_id,**kwargs):
     """
         Turn a template into an xml template
@@ -336,18 +396,18 @@ def get_template_as_xml(template_id,**kwargs):
     for type_i in template_i.templatetypes:
         xml_resource    = etree.SubElement(resources, "resource")
 
-        name   = etree.SubElement(xml_resource, "name")
-        name.text   = type_i.type_name
-
         resource_type   = etree.SubElement(xml_resource, "type")
         resource_type.text   = type_i.resource_type
+
+        name   = etree.SubElement(xml_resource, "name")
+        name.text   = type_i.type_name
 
         alias   = etree.SubElement(xml_resource, "alias")
         alias.text   = type_i.alias
         
         if type_i.layout is not None and type_i.layout != "":
-            layout   = etree.SubElement(xml_resource, "layout")
-            layout.text = _get_layout_as_etree(type_i.layout)
+            layout = _get_layout_as_etree(type_i.layout)
+            xml_resource.append(layout)
 
         for type_attr in type_i.typeattrs:
             _make_attr_element(xml_resource, type_attr)
@@ -358,7 +418,7 @@ def get_template_as_xml(template_id,**kwargs):
 
     return xml_string
 
-def upload_template_json(template_json_string,allow_update=True, **kwargs):
+def import_template_json(template_json_string,allow_update=True, **kwargs):
     """
         Add the template, type and typeattrs described
         in a JSON file.
@@ -369,13 +429,19 @@ def upload_template_json(template_json_string,allow_update=True, **kwargs):
         The allow_update indicates whether an existing template of the same name should
         be updated, or whether it should throw an 'existing name' error.
     """
+
+    user_id = kwargs.get('user_id')
+
     try:
-        template_json = json.loads(template_json_string)
+        template_dict = json.loads(template_json_string)
     except:
         raise HydraError("Unable to parse JSON string. Plese ensure it is JSON compatible.")
 
+    return import_template_dict(template_dict, allow_update=allow_update, user_id=user_id)
 
-    template_file_j = JSONObject(template_json)
+def import_template_dict(template_dict, allow_update=True, **kwargs):
+
+    template_file_j = JSONObject(template_dict)
 
     attributes_j = template_file_j.attributes
 
@@ -427,6 +493,7 @@ def upload_template_json(template_json_string,allow_update=True, **kwargs):
     #Add or update types.
     for type_j in types_j:
         type_name = type_j.name
+
         #check if the type is already in the DB. If not, create a new one.
         type_is_new = False
         if type_name in existing_types:
@@ -451,7 +518,6 @@ def upload_template_json(template_json_string,allow_update=True, **kwargs):
 
         if type_j.resource_type is None:
             raise HydraError("No resource type specified."
-                             " Please include a 'resource_type' with"
                              " 'NODE', 'LINK', 'GROUP' or 'NETWORK'")
 
         if type_j.layout is not None:
@@ -473,7 +539,7 @@ def upload_template_json(template_json_string,allow_update=True, **kwargs):
         type_attrs = []
         for typeattr_j in type_j.typeattrs:
             if typeattr_j.attr_id is not None:
-                attr_j = attributes_j[str(typeattr_j.attr_id)].name
+                attr_j = attributes_j[int(typeattr_j.attr_id)].name
             elif typeattr_j.attr is not None:
                 attr_j = typeattr_j.attr.name
             type_attrs.append(attr_j)
@@ -495,7 +561,7 @@ def upload_template_json(template_json_string,allow_update=True, **kwargs):
         #Support an external attribute dict or embedded attributes. 
         for typeattr_j  in type_j.typeattrs:
             if typeattr_j.attr_id is not None:
-                attr_j = attributes_j[str(typeattr_j.attr_id)]
+                attr_j = attributes_j[int(typeattr_j.attr_id)]
             elif typeattr_j.attr is not None:
                 attr_j = typeattr_j.attr
 
@@ -505,7 +571,7 @@ def upload_template_json(template_json_string,allow_update=True, **kwargs):
             elif typeattr_j.default is not None:
                 default_dataset_j = typeattr_j.default_dataset
             elif typeattr_j.default_dataset_id is not None:
-                default_dataset_j = default_datasets_j[str(typeattr_j.default_dataset_id)]
+                default_dataset_j = default_datasets_j[int(typeattr_j.default_dataset_id)]
 
             parse_json_typeattr(type_i, typeattr_j, attr_j, default_dataset_j)
 
@@ -514,7 +580,7 @@ def upload_template_json(template_json_string,allow_update=True, **kwargs):
     return template_i
 
 
-def upload_template_xml(template_xml, allow_update=True, **kwargs):
+def import_template_xml(template_xml, allow_update=True, **kwargs):
     """
         Add the template, type and typeattrs described
         in an XML file.
