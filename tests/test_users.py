@@ -1,6 +1,6 @@
 import hydra_base
 import hydra_base.exceptions
-from hydra_base.lib.objects import JSONObject, Dataset
+from hydra_base.lib.objects import JSONObject
 from fixtures import *
 import datetime
 import bcrypt
@@ -110,10 +110,6 @@ class TestUser:
         # NB `set_user_role` returns a `Role` instance not a `RoleUser` instance
         role_with_users = hydra_base.set_user_role(new_user.id, new_role.role_id)
 
-        # We need to commit the session to get the relationships working
-        # TODO is this correct behaviour?
-        session.commit()
-
         assert role_with_users is not None, "Role user was not set correctly"
         assert role_with_users.roleusers[0].user_id == new_user.id, "User was not added to role correctly."
 
@@ -136,10 +132,6 @@ class TestUser:
         new_perm = hydra_base.add_perm(perm)
 
         role_with_perms = hydra_base.set_role_perm(new_role.role_id, new_perm.perm_id)
-
-        # We need to commit the session to get the relationships working
-        # TODO is this correct behaviour?
-        session.commit()
 
         assert role_with_perms is not None, "Role perm was not set correctly"
         assert role_with_perms.roleperms[0].perm_id == new_perm.perm_id, "Perm was not added to role correctly."

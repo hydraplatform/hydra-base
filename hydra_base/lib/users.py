@@ -62,6 +62,9 @@ def _get_perm(perm_id,**kwargs):
     return perm_i
 
 def get_username(uid,**kwargs):
+    """
+        Return the username of a given user_id
+    """
     rs = db.DBSession.query(User.username).filter(User.id==uid).one()
     
     if rs is None:
@@ -70,6 +73,9 @@ def get_username(uid,**kwargs):
     return rs.username
 
 def get_usernames_like(username,**kwargs):
+    """
+        Return a list of usernames like the given string.
+    """
     checkname = "%%%s%%"%username
     rs = db.DBSession.query(User.username).filter(User.username.like(checkname)).all()
     return [r.username for r in rs]
@@ -77,6 +83,7 @@ def get_usernames_like(username,**kwargs):
 
 def add_user(user, **kwargs):
     """
+        Add a user
     """
     #check_perm(kwargs.get('user_id'), 'add_user')
     u = User()
@@ -100,6 +107,7 @@ def add_user(user, **kwargs):
 
 def update_user_display_name(user,**kwargs):
     """
+        Update a user's display name
     """
     #check_perm(kwargs.get('user_id'), 'edit_user')
     try:
@@ -111,6 +119,7 @@ def update_user_display_name(user,**kwargs):
 
 def update_user_password(new_pwd_user_id, new_password,**kwargs):
     """
+        Update a user's password
     """
     #check_perm(kwargs.get('user_id'), 'edit_user')
     try:
@@ -139,6 +148,7 @@ def get_user_by_name(uname,**kwargs):
 
 def delete_user(deleted_user_id,**kwargs):
     """
+        Delete a user
     """
     #check_perm(kwargs.get('user_id'), 'edit_user')
     try:
@@ -153,6 +163,7 @@ def delete_user(deleted_user_id,**kwargs):
 
 def add_role(role,**kwargs):
     """
+        Add a new role
     """
     #check_perm(kwargs.get('user_id'), 'add_role')
     role_i = Role(role_name=role.name, role_code=role.code)
@@ -163,6 +174,7 @@ def add_role(role,**kwargs):
 
 def delete_role(role_id,**kwargs):
     """
+        Delete a role
     """
     #check_perm(kwargs.get('user_id'), 'edit_role')
     try:
@@ -175,6 +187,7 @@ def delete_role(role_id,**kwargs):
 
 def add_perm(perm,**kwargs):
     """
+        Add a permission
     """
     #check_perm(kwargs.get('user_id'), 'add_perm')
     perm_i = Perm(perm_name=perm.name, perm_code=perm.code)
@@ -185,6 +198,7 @@ def add_perm(perm,**kwargs):
 
 def delete_perm(perm_id,**kwargs):
     """
+        Delete a permission
     """
 
     #check_perm(kwargs.get('user_id'), 'edit_perm')
@@ -198,24 +212,27 @@ def delete_perm(perm_id,**kwargs):
 
 
 def set_user_role(new_user_id, role_id, **kwargs):
-    """ Apply `role_id` to `new_user_id`
+    """ 
+        Apply `role_id` to `new_user_id`
 
-    Note this function returns the `Role` instance associated with `role_id`
+        Note this function returns the `Role` instance associated with `role_id`
     """
     #check_perm(kwargs.get('user_id'), 'edit_role')
     try:
         _get_user(new_user_id)
-        _get_role(role_id)
+        role_i = _get_role(role_id)
         roleuser_i = RoleUser(user_id=new_user_id, role_id=role_id)
-        db.DBSession.add(roleuser_i) 
+        role_i.roleusers.append(roleuser_i)
         db.DBSession.flush()
     except: # Will occur if the foreign keys do not exist    
         raise ResourceNotFoundError("User or Role does not exist")
 
-    return roleuser_i.role
+    return role_i
 
 def delete_user_role(deleted_user_id, role_id,**kwargs):
-
+    """
+        Remove a user from a role
+    """
     #check_perm(kwargs.get('user_id'), 'edit_role')
     try:
         _get_user(deleted_user_id)
@@ -228,17 +245,25 @@ def delete_user_role(deleted_user_id, role_id,**kwargs):
     return 'OK'
 
 def set_role_perm(role_id, perm_id,**kwargs):
+    """
+        Insert a permission into a role
+    """
     #check_perm(kwargs.get('user_id'), 'edit_perm')
 
     _get_perm(perm_id)
-    _get_role(role_id)
+    role_i = _get_role(role_id)
     roleperm_i = RolePerm(role_id=role_id, perm_id=perm_id)
-    db.DBSession.add(roleperm_i)
-    db.DBSession.flush()
+    
+    role_i.roleperms.append(roleperm_i)
 
-    return roleperm_i.role
+    db.DBSession.flush()
+    
+    return role_i
 
 def delete_role_perm(role_id, perm_id,**kwargs):
+    """
+        Remove a permission from a role
+    """
     #check_perm(kwargs.get('user_id'), 'edit_perm')
     _get_perm(perm_id)
     _get_role(role_id)
