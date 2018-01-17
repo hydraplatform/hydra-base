@@ -23,7 +23,6 @@ import logging
 log = logging.getLogger(__name__)
 
 from datetime import datetime
-from builtins import str  # treat unicode as str in Python 2
 from ..exceptions import HydraError
 
 from ..util import generate_data_hash
@@ -38,7 +37,7 @@ class JSONObject(dict):
     """
     def __init__(self, obj_dict={}, parent=None):
 
-        if isinstance(obj_dict, str):
+        if isinstance(obj_dict, str) or isinstance(obj_dict, unicode):
             try:
                 obj = json.loads(obj_dict)
                 assert isinstance(obj, dict), "JSON string does not evaluate to a dict"
@@ -125,7 +124,7 @@ class JSONObject(dict):
                         v = {}
 
                 if isinstance(v, datetime):
-                    v = str(v)
+                    v = unicode(v)
 
                 #Put in 'id' where a DB table has mytable_id, for example
                 #Turn something like 'tProject.project_id' into 'tProject.id'
@@ -162,7 +161,7 @@ class JSONObject(dict):
                         if k == 'resource_attr_id':
                             setattr(self, 'id', v) 
 
-                setattr(self, str(k), v)
+                setattr(self, unicode(k), v)
 
     def __getattr__(self, name):
         # Make sure that "special" methods are returned as before.
@@ -183,7 +182,7 @@ class JSONObject(dict):
 
     def get_layout(self):
         if self.get('layout') is not None:
-            if isinstance(self.layout, str):
+            if isinstance(self.layout, str) or isinstance(self.layout, unicode):
                 return self.layout
             else:
                 return json.dumps(self.layout)
@@ -193,7 +192,7 @@ class JSONObject(dict):
     #Only for type attrs. How best to generalise this?
     def get_properties(self):
         if self.get('properties') and self.get('properties') is not None:
-            return str(self.properties)
+            return unicode(self.properties)
         else:
             return None
 
@@ -249,7 +248,7 @@ class Dataset(JSONObject):
                 log.warn("Cannot parse dataset. No value specified.")
                 return None
 
-            data = str(self.value)
+            data = unicode(self.value)
 
             if data.upper().strip() == 'NULL':
                 return 'NULL'
@@ -321,13 +320,13 @@ class Dataset(JSONObject):
         #want to enforce this rigidly
         metadata_keys = [m.lower() for m in metadata_dict]
         if user_id is not None and 'user_id' not in metadata_keys:
-            metadata_dict['user_id'] = str(user_id)
+            metadata_dict['user_id'] = unicode(user_id)
 
         if source is not None and 'source' not in metadata_keys:
-            metadata_dict['source'] = str(source)
+            metadata_dict['source'] = unicode(source)
 
         for k, v in metadata_dict.items():
-            metadata_dict[k] = str(v)
+            metadata_dict[k] = unicode(v)
 
         return metadata_dict
 
