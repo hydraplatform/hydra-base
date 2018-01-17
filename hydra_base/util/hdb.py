@@ -125,7 +125,7 @@ def create_default_net():
         net = db.DBSession.query(Network).filter(Network.id==1).one()
     except NoResultFound:
         project = Project(project_name="Project network")
-        net = Network(network_name="Default network")
+        net = Network(name="Default network")
         scen = Scenario(scenario_name="Default network")
         project.networks.append(net)
         net.scenarios.append(scen)
