@@ -180,7 +180,6 @@ def parse_xml_typeattr(type_i, attribute):
 
     if attribute.find('is_var') is not None:
         typeattr_i.attr_is_var = attribute.find('is_var').text
-
     if attribute.find('data_type') is not None:
         typeattr_i.data_type = attribute.find('data_type').text
 
@@ -486,6 +485,7 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
         try:
             type_i = db.DBSession.query(TemplateType).filter(TemplateType.type_id==type_id).one()
             log.info("Deleting type %s", type_i.type_name)
+            del(type_name_map[type_i.type_name])
             db.DBSession.delete(type_i)
         except NoResultFound:
             pass
