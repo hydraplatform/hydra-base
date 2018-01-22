@@ -28,7 +28,7 @@ BIGINT,\
 Float,\
 Text
 
-from sqlalchemy import inspect
+from sqlalchemy import inspect, func
 
 from ..exceptions import HydraError, PermissionError
 
@@ -44,6 +44,8 @@ from sqlalchemy.sql.expression import case
 from sqlalchemy import UniqueConstraint, and_
 
 import pandas as pd
+
+from sqlalchemy.orm import validates
 
 import json
 import zlib
@@ -88,7 +90,7 @@ class Dataset(Base, Inspect):
 
     start_time = Column(String(60),  nullable=True)
     frequency = Column(String(10),  nullable=True)
-    value = Column('value', LargeBinary(),  nullable=True)
+    value = Column('value', Text(4294967295),  nullable=True)
 
     user = relationship('User', backref=backref("datasets", order_by=dataset_id))
 
@@ -1186,7 +1188,7 @@ class Rule(Base, Inspect):
     ref_key = Column(String(60),  nullable=False, index=True)
 
 
-    rule_text = Column('value', LargeBinary(),  nullable=True)
+    rule_text = Column('value', Text(4294967295),  nullable=True)
 
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     scenario_id = Column(Integer(), ForeignKey('tScenario.scenario_id'),  nullable=False)
