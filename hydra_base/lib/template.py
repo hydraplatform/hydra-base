@@ -1101,9 +1101,7 @@ def _update_templatetype(templatetype, existing_tt=None):
 
 def delete_templatetype(type_id,**kwargs):
     """
-        Update a resource type and its typeattrs.
-        New typeattrs will be added. typeattrs not sent will be ignored.
-        To delete typeattrs, call delete_typeattr
+        Delete a template type and its typeattrs.
     """
     try:
         tmpltype = db.DBSession.query(TemplateType).filter(TemplateType.type_id == type_id).one()
