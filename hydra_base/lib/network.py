@@ -855,9 +855,9 @@ def _get_metadata(network_id, user_id):
     metadata_dict = dict()
     for m in all_metadata:
         if metadata_dict.get(m.dataset_id):
-            metadata_dict[m.dataset_id][m.metadata_name] = m.metadata_val
+            metadata_dict[m.dataset_id][m.metadata_name] = unicode(m.metadata_val)
         else:
-            metadata_dict[m.dataset_id] = {m.metadata_name : m.metadata_val}
+            metadata_dict[m.dataset_id] = {m.metadata_name : unicode(m.metadata_val)}
 
     logging.info("metadata processed in %s", time.time()-x)
 
