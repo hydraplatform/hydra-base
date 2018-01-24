@@ -226,6 +226,9 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
     if attribute_j.dimension is not None:
         dimension_j = attribute_j.dimension
         if dimension_j is not None:
+            if dimension_j.strip() == '':
+                dimension_j = 'dimensionless'
+
             dimension = units.get_dimension(dimension_j.strip())
 
             if dimension is None:
@@ -240,6 +243,9 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
     name      = attribute_j.name.strip()
 
     attr_i = _get_attr_by_name_and_dimension(name, dimension)
+    
+    #Get an ID for the attribute
+    db.DBSession.flush()
 
     for ta in type_i.typeattrs:
         if ta.attr_id == attr_i.attr_id:
@@ -253,6 +259,7 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
         typeattr_i.attr = attr_i
         type_i.typeattrs.append(typeattr_i)
         db.DBSession.add(typeattr_i)
+    
 
     unit = None
     if attribute_j.unit is not None:
@@ -342,6 +349,8 @@ def get_template_as_dict(template_id, **kwargs):
     template_j = JSONObject(template_i)
     
     for tmpltype in template_j.templatetypes:
+        ##Try to load the json into an object, as it will be re-encoded as json,
+        ##and we don't want double encoding:
         if tmpltype.layout is not None:
             try:
                 tmpltype.layout = json.loads(tmpltype.layout)
@@ -539,7 +548,7 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
         type_attrs = []
         for typeattr_j in type_j.typeattrs:
             if typeattr_j.attr_id is not None:
-                attr_j = attributes_j[int(typeattr_j.attr_id)].name
+                attr_j = attributes_j[unicode(typeattr_j.attr_id)].name
             elif typeattr_j.attr is not None:
                 attr_j = typeattr_j.attr.name
             type_attrs.append(attr_j)
@@ -561,7 +570,7 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
         #Support an external attribute dict or embedded attributes. 
         for typeattr_j  in type_j.typeattrs:
             if typeattr_j.attr_id is not None:
-                attr_j = attributes_j[int(typeattr_j.attr_id)]
+                attr_j = attributes_j[unicode(typeattr_j.attr_id)]
             elif typeattr_j.attr is not None:
                 attr_j = typeattr_j.attr
 
