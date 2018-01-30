@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 from datetime import datetime
 from ..exceptions import HydraError
 
-from ..util import generate_data_hash
+from ..util import generate_data_hash, get_layout_as_dict
 from .. import config
 import zlib
 import pandas as pd
@@ -66,7 +66,8 @@ class JSONObject(dict):
                 setattr(self, k, v)
             elif k == 'layout':
                 #Layout is often valid JSON, but we dont want to treat it as a JSON object necessarily
-                setattr(self, k, v)
+                dict_layout = get_layout_as_dict(v)
+                setattr(self, k, dict_layout)
             elif isinstance(v, dict):
                 #TODO what is a better way to identify a dataset?
                 if 'data_units' in v:
@@ -182,10 +183,7 @@ class JSONObject(dict):
 
     def get_layout(self):
         if self.get('layout') is not None:
-            if isinstance(self.layout, str) or isinstance(self.layout, unicode):
-                return self.layout
-            else:
-                return json.dumps(self.layout)
+            return get_layout_as_dict(self.layout)
         else:
             return None
 
