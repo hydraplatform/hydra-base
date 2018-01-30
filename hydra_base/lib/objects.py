@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 from datetime import datetime
 from ..exceptions import HydraError
 
-from ..util import generate_data_hash, get_layout_as_dict
+from ..util import generate_data_hash, get_layout_as_dict, get_layout_as_string
 from .. import config
 import zlib
 import pandas as pd
@@ -183,7 +183,7 @@ class JSONObject(dict):
 
     def get_layout(self):
         if self.get('layout') is not None:
-            return get_layout_as_dict(self.layout)
+            return get_layout_as_string(self.layout)
         else:
             return None
 

@@ -90,6 +90,7 @@ class TestTemplates(server.HydraBaseTest):
 
     def test_get_dict(self):
 
+        log.info("Loading XML template")
         #Upload the xml file initally to avoid having to manage 2 template files
         xml_tmpl = self.test_add_xml()
         
@@ -106,15 +107,24 @@ class TestTemplates(server.HydraBaseTest):
         #This includes deleting types if they're not in this dict.
         #Changing the name of a type has this effect, as a new template does not have
         #any reference to existing types in Hydra.
+        log.info("Loading JSON Template template")
         updated_template = JSONObject(hb.import_template_dict(template_dict))
 
+        log.info("Updating a type's name")
         assert updated_template['templatetypes'][-1]['name'] == typename + "_updated"
 
         #Now put it back to the original name so other tests will work
+        log.info("Reverting the type's name")
         template_dict['template']['templatetypes'][0].name = typename
         updated_template = JSONObject(hb.import_template_dict(template_dict))
 
         assert updated_template['templatetypes'][-1]['name'] == typename
+
+        log.info("Checking to ensure Template has been updated correctly...")
+        #one final check to ensure that the type has been deleted
+        check_template_i = hb.get_template(updated_template.id)
+
+        assert len(check_template_i.templatetypes) == 2
 
 
     def test_add_template(self):
@@ -205,7 +215,7 @@ class TestTemplates(server.HydraBaseTest):
         new_template_j = JSONObject(new_template_i)
 
         assert new_template_j.name == template.name, "Names are not the same!"
-        assert str(new_template_j.layout) == str(template.layout), "Layouts are not the same!"
+        assert json.dumps(new_template_j.layout) == json.dumps(template.layout), "Layouts are not the same!"
         assert new_template_j.id is not None, "New Template has no ID!"
         assert new_template_j.id > 0, "New Template has incorrect ID!"
 
@@ -316,7 +326,7 @@ class TestTemplates(server.HydraBaseTest):
 
         hb.apply_template_to_network(retrieved_template_j.id, network.id)
         
-        updated_network = get_network(network.id, user_id=self.user_id)
+        updated_network = hb.get_network(network.id, user_id=self.user_id)
         assert len(updated_network.types) == 2
         
         expected_net_type = None
@@ -374,7 +384,7 @@ class TestTemplates(server.HydraBaseTest):
 
         assert new_type_j.name == templatetype.name, "Names are not the same!"
         assert new_type_j.alias == templatetype.alias, "Aliases are not the same!"
-        assert json.loads(new_type_j.layout) == templatetype.layout, "Layouts are not the same!"
+        assert new_type_j.layout == templatetype.layout, "Layouts are not the same!"
         assert new_type_j.id is not None, "New type has no ID!"
         assert new_type_j.id > 0, "New type has incorrect ID!"
 
@@ -558,7 +568,6 @@ class TestTemplates(server.HydraBaseTest):
         assert new_template.name == template.name, "Names are not the same! Retrieval by ID did not work!"
 
 
-
     def test_get_template_by_name_good(self):
         template = self.get_template()
         new_template = JSONObject(hb.get_template_by_name(template.name))
@@ -577,7 +586,7 @@ class TestTemplates(server.HydraBaseTest):
         type_name = types[0].name
         type_id   = types[0].id
 
-        project = self.create_project('test')
+        project = self.create_project()
         network = JSONObject()
 
         nnodes = 3
@@ -650,9 +659,9 @@ class TestTemplates(server.HydraBaseTest):
 
         node_to_assign = network.nodes[0]
 
-        result = JSONObject(assign_type_to_resource(templatetype.id, 'NODE', node_to_assign.id))
+        result = JSONObject(hb.assign_type_to_resource(templatetype.id, 'NODE', node_to_assign.id))
 
-        node = get_node(node_to_assign.id)
+        node = hb.get_node(node_to_assign.id)
 
 
         assert node.types is not None, \

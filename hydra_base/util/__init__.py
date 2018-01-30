@@ -217,3 +217,38 @@ def get_val(dataset, timestamp=None):
             except Exception as e:
                 log.critical("Unable to retrive data. Check timestamps.")
                 log.critical(e)
+
+def get_layout_as_string(layout):
+    """
+        Take a dict or string and return a string.
+        The dict will be json dumped.
+        The string will json parsed to check for json validity. In order to deal
+        with strings which have been json encoded multiple times, keep json decoding
+        until a dict is retrieved or until a non-json structure is identified.
+    """
+
+    if isinstance(layout, dict):
+        return json.dumps(layout)
+
+    if isinstance(layout, str) or isinstance(layout, unicode):
+        try:
+            return get_layout_as_string(json.loads(layout))
+        except:
+            return layout
+
+def get_layout_as_dict(layout):
+    """
+        Take a dict or string and return a dict if the data is json-encoded.
+        The string will json parsed to check for json validity. In order to deal
+        with strings which have been json encoded multiple times, keep json decoding
+        until a dict is retrieved or until a non-json structure is identified.
+    """
+
+    if isinstance(layout, dict):
+        return layout
+
+    if isinstance(layout, str) or isinstance(layout, unicode):
+        try:
+            return get_layout_as_dict(json.loads(layout))
+        except:
+            return layout

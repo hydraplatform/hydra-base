@@ -612,7 +612,7 @@ def get_network(network_id=None):
 
 def check_network(request_net, response_net):
 
-    assert json.loads(response_net.layout) == request_net['layout']
+    assert response_net.layout == request_net['layout']
 
 
     assert response_net.scenarios[0].created_by is not None

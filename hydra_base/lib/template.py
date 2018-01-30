@@ -24,7 +24,7 @@ from .data import add_dataset
 
 from ..exceptions import HydraError, ResourceNotFoundError
 from ..import config
-from ..util import dataset_util
+from ..util import dataset_util, get_layout_as_string, get_layout_as_dict
 from lxml import etree
 from decimal import Decimal
 import logging
@@ -176,7 +176,7 @@ def parse_xml_typeattr(type_i, attribute):
         typeattr_i.description = attribute.find('description').text
 
     if attribute.find('properties') is not None:
-        properties_string = get_layout_as_dict(attribute.find('properties'))
+        properties_string = get_etree_layout_as_dict(attribute.find('properties'))
         typeattr_i.properties = str(properties_string)
 
     if attribute.find('is_var') is not None:
@@ -353,7 +353,7 @@ def get_template_as_dict(template_id, **kwargs):
         ##Try to load the json into an object, as it will be re-encoded as json,
         ##and we don't want double encoding:
         if tmpltype_j.layout is not None:
-            tmpltype_j.layout = _get_layout_as_dict(tmpltype_j.layout)
+            tmpltype_j.layout = get_layout_as_dict(tmpltype_j.layout)
 
         for typeattr_j in tmpltype_j.typeattrs:
             typeattr_j.attr_id = typeattr_j.attr_id*-1
@@ -449,7 +449,12 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
 
     template_file_j = JSONObject(template_dict)
 
-    attributes_j = template_file_j.attributes
+    file_attributes = template_file_j.attributes
+    
+    #Normalise attribute IDs so they're always ints (in case they're specified as strings)
+    attributes_j = {}
+    for k, v in file_attributes.items():
+        attributes_j[int(k)] = v
 
     default_datasets_j = template_file_j.datasets
 
@@ -477,6 +482,7 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
         db.DBSession.add(template_i)
 
     types_j = template_j.templatetypes
+    type_id_map = {r.type_id:r for r in template_i.templatetypes}
     #Delete any types which are in the DB but no longer in the JSON file
     type_name_map = {r.type_name:r.type_id for r in template_i.templatetypes}
     attr_name_map = {}
@@ -485,20 +491,27 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
             attr_name_map[attr.attr.attr_name] = (attr.attr_id, attr.type_id)
 
     existing_types = set([r.type_name for r in template_i.templatetypes])
+    log.info(["%s : %s" %(tt.type_name, tt.type_id) for tt in template_i.templatetypes])
+    log.info("Existing types: %s", existing_types)
 
     new_types = set([t.name for t in types_j])
+    log.info("New Types: %s", new_types)
 
     types_to_delete = existing_types - new_types
+    log.info("Types to delete: %s", types_to_delete)
 
     for type_to_delete in types_to_delete:
         type_id = type_name_map[type_to_delete]
         try:
-            type_i = db.DBSession.query(TemplateType).filter(TemplateType.type_id==type_id).one()
-            log.info("Deleting type %s", type_i.type_name)
-            del(type_name_map[type_i.type_name])
+            for i, tt in enumerate(template_i.templatetypes):
+                if tt.type_id == type_id:
+                    del(template_i.templatetypes[i])
+            log.info("Deleting type %s (%s)", type_i.type_name, type_i.type_id)
+            del(type_name_map[type_to_delete])
             db.DBSession.delete(type_i)
         except NoResultFound:
             pass
+
 
     #Add or update types.
     for type_j in types_j:
@@ -508,8 +521,7 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
         type_is_new = False
         if type_name in existing_types:
             type_id = type_name_map[type_name]
-            type_i = db.DBSession.query(TemplateType).filter(TemplateType.type_id==type_id).options(joinedload_all('typeattrs.attr')).one()
-
+            type_i = type_id_map[type_id]
         else:
             log.info("Type %s not found, creating new one.", type_name)
             type_i = TemplateType()
@@ -549,7 +561,7 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
         type_attrs = []
         for typeattr_j in type_j.typeattrs:
             if typeattr_j.attr_id is not None:
-                attr_j = attributes_j[unicode(typeattr_j.attr_id)].name
+                attr_j = attributes_j[typeattr_j.attr_id].name
             elif typeattr_j.attr is not None:
                 attr_j = typeattr_j.attr.name
             type_attrs.append(attr_j)
@@ -571,7 +583,7 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
         #Support an external attribute dict or embedded attributes. 
         for typeattr_j  in type_j.typeattrs:
             if typeattr_j.attr_id is not None:
-                attr_j = attributes_j[unicode(typeattr_j.attr_id)]
+                attr_j = attributes_j[typeattr_j.attr_id]
             elif typeattr_j.attr is not None:
                 attr_j = typeattr_j.attr
 
@@ -614,7 +626,7 @@ def import_template_xml(template_xml, allow_update=True, **kwargs):
     if xml_tree.find('layout') is not None and \
                xml_tree.find('layout').text is not None:
         layout = xml_tree.find('layout')
-        layout_string = get_layout_as_dict(layout)
+        layout_string = get_etree_layout_as_dict(layout)
         template_layout = json.dumps(layout_string)
 
     try:
@@ -678,7 +690,7 @@ def import_template_xml(template_xml, allow_update=True, **kwargs):
         if resource.find('layout') is not None and \
             resource.find('layout').text is not None:
             layout = resource.find('layout')
-            layout_string = get_layout_as_dict(layout)
+            layout_string = get_etree_layout_as_dict(layout)
             type_i.layout = json.dumps(layout_string)
 
         #delete any TypeAttrs which are in the DB but not in the XML file
@@ -1253,7 +1265,7 @@ def add_template(template, **kwargs):
     tmpl = Template()
     tmpl.template_name = template.name
     if template.layout:
-        tmpl.layout = _get_layout_as_string(template.layout)
+        tmpl.layout = get_layout_as_string(template.layout)
 
     db.DBSession.add(tmpl)
 
@@ -1274,7 +1286,7 @@ def update_template(template,**kwargs):
     tmpl.template_name = template.name
 
     if template.layout:
-        tmpl.layout = _get_layout_as_string(template.layout)
+        tmpl.layout = get_layout_as_string(template.layout)
 
     type_dict = dict([(t.type_id, t) for t in tmpl.templatetypes])
     existing_templatetypes = []
@@ -1469,7 +1481,7 @@ def _update_templatetype(templatetype, existing_tt=None):
     tmpltype_i.alias      = templatetype.alias
 
     if templatetype.layout is not None:
-        tmpltype_i.layout = _get_layout_as_string(templatetype.layout)
+        tmpltype_i.layout = get_layout_as_string(templatetype.layout)
 
     tmpltype_i.resource_type = templatetype.resource_type
 
@@ -1968,7 +1980,7 @@ def _make_attr_element(parent, resource_attr_i):
 
     return attr
 
-def get_layout_as_dict(layout_tree):
+def get_etree_layout_as_dict(layout_tree):
     """
     Convert something that looks like this:
     <layout>
