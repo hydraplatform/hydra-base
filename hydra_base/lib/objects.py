@@ -277,17 +277,17 @@ class Dataset(JSONObject):
                 #Epoch doesn't work here because dates before 1970 are not
                 # supported in read_json. Ridiculous.
                 ts = timeseries_pd.to_json(date_format='iso', date_unit='ns')
-                if len(data) > int(config.get('db', 'compression_threshold', 1000)):
-                    return zlib.compress(ts)
-                else:
-                    return ts
+                #if len(data) > int(config.get('db', 'compression_threshold', 1000)):
+                #    return zlib.compress(ts)
+                #else:
+                return ts
             elif self.type == 'array':
                 #check to make sure this is valid json
                 json.loads(data)
-                if len(data) > int(config.get('db', 'compression_threshold', 1000)):
-                    return zlib.compress(data)
-                else:
-                    return data
+                #if len(data) > int(config.get('db', 'compression_threshold', 1000)):
+                #    return zlib.compress(data)
+                #else:
+                return data
         except Exception as e:
             log.exception(e)
             raise HydraError("Error parsing value %s: %s"%(self.value, e))
