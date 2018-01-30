@@ -836,6 +836,9 @@ class Network(Base, Inspect):
             Check whether this user can read this network
         """
 
+        if int(self.created_by) == int(user_id):
+            return
+
         for owner in self.owners:
             if int(owner.user_id) == int(user_id):
                 if owner.view == 'Y':
@@ -850,6 +853,9 @@ class Network(Base, Inspect):
             Check whether this user can write this project
         """
 
+        if int(self.created_by) == int(user_id):
+            return
+
         for owner in self.owners:
             if owner.user_id == int(user_id):
                 if owner.view == 'Y' and owner.edit == 'Y':
@@ -863,6 +869,9 @@ class Network(Base, Inspect):
         """
             Check whether this user can write this project
         """
+
+        if int(self.created_by) == int(user_id):
+            return
 
         for owner in self.owners:
             if owner.user_id == int(user_id):
