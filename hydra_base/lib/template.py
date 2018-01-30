@@ -68,6 +68,7 @@ def _check_dimension(typeattr, unit=None):
             raise HydraError("Unit %s has dimension %s, but attribute has dimension %s"%
                             (unit, unit_dimen, dimension))
 
+
 def get_types_by_attr(resource, template_id=None):
     """
         Using the attributes of the resource, get all the
@@ -348,37 +349,34 @@ def get_template_as_dict(template_id, **kwargs):
 
     template_j = JSONObject(template_i)
     
-    for tmpltype in template_j.templatetypes:
+    for tmpltype_j in template_j.templatetypes:
         ##Try to load the json into an object, as it will be re-encoded as json,
         ##and we don't want double encoding:
-        if tmpltype.layout is not None:
-            try:
-                tmpltype.layout = json.loads(tmpltype.layout)
-            except:
-                tmpltype.layout = tmpltype.layout
+        if tmpltype_j.layout is not None:
+            tmpltype_j.layout = _get_layout_as_dict(tmpltype_j.layout)
 
-        for typeattr in tmpltype.typeattrs:
-            typeattr.attr_id = typeattr.attr_id*-1
-            attr_dict[typeattr.attr_id] = JSONObject(
+        for typeattr_j in tmpltype_j.typeattrs:
+            typeattr_j.attr_id = typeattr_j.attr_id*-1
+            attr_dict[typeattr_j.attr_id] = JSONObject(
                                    {
-                                        'name': typeattr.attr.attr_name, 
-                                        'dimension':typeattr.attr.attr_dimen
+                                        'name': typeattr_j.attr.attr_name, 
+                                        'dimension':typeattr_j.attr.attr_dimen
                                      })
 
-            if typeattr.default_dataset_id is not None:
-                typeattr.default_dataset_id = typeattr.default_dataset_id * -1
-                dataset_dict[typeattr.default_dataset_id] = JSONObject(
+            if typeattr_j.default_dataset_id is not None:
+                typeattr_j.default_dataset_id = typeattr_j.default_dataset_id * -1
+                dataset_dict[typeattr_j.default_dataset_id] = JSONObject(
                             {
-                                'name'     : typeattr.default_dataset.data_name,
-                                'type'     : typeattr.default_dataset.data_type,
-                                'unit'     : typeattr.default_dataset.data_units,
-                                'value'    : typeattr.default_dataset.value,
-                                'metadata' : typeattr.default_dataset.metadata
+                                'name'     : typeattr_j.default_dataset.data_name,
+                                'type'     : typeattr_j.default_dataset.data_type,
+                                'unit'     : typeattr_j.default_dataset.data_units,
+                                'value'    : typeattr_j.default_dataset.value,
+                                'metadata' : typeattr_j.default_dataset.metadata
                             })
-            del(typeattr['default_dataset'])
-            del(typeattr.default_dataset)
-            del(typeattr['attr'])
-            del(typeattr.attr)
+            del(typeattr_j['default_dataset'])
+            del(typeattr_j.default_dataset)
+            del(typeattr_j['attr'])
+            del(typeattr_j.attr)
 
     output_data = {'attributes': attr_dict, 'datasets':dataset_dict, 'template': template_j}
 
@@ -461,7 +459,10 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
 
     template_layout = None
     if template_j.layout is not None:
-        template_layout = json.dumps(template_j.layout)
+        if isinstance(template_j.layout, dict):
+            template_layout = json.dumps(template_j.layout)
+        else:
+            template_layout = template_j.layout
 
     try:
         template_i = db.DBSession.query(Template).filter(Template.template_name==template_name).options(joinedload_all('templatetypes.typeattrs.attr')).one()
@@ -1252,7 +1253,7 @@ def add_template(template, **kwargs):
     tmpl = Template()
     tmpl.template_name = template.name
     if template.layout:
-        tmpl.layout = str(template.layout)
+        tmpl.layout = _get_layout_as_string(template.layout)
 
     db.DBSession.add(tmpl)
 
@@ -1271,8 +1272,9 @@ def update_template(template,**kwargs):
     """
     tmpl = db.DBSession.query(Template).filter(Template.template_id==template.id).one()
     tmpl.template_name = template.name
-    if template.layout is not None:
-        tmpl.layout        = str(template.layout)
+
+    if template.layout:
+        tmpl.layout = _get_layout_as_string(template.layout)
 
     type_dict = dict([(t.type_id, t) for t in tmpl.templatetypes])
     existing_templatetypes = []
@@ -1467,10 +1469,7 @@ def _update_templatetype(templatetype, existing_tt=None):
     tmpltype_i.alias      = templatetype.alias
 
     if templatetype.layout is not None:
-        try:
-            tmpltype_i.layout = json.dumps(templatetype.layout)
-        except:
-            tmpltype_i.layout = str(templatetype.layout)
+        tmpltype_i.layout = _get_layout_as_string(templatetype.layout)
 
     tmpltype_i.resource_type = templatetype.resource_type
 
