@@ -229,22 +229,25 @@ def update_scenario(scenario,update_data=True,update_groups=True,flush=True,**kw
 
     start_time = None
     if isinstance(scenario.start_time, float):
-        start_time = scenario.start_time
+        start_time = unicode(scenario.start_time)
     else:
         start_time = timestamp_to_ordinal(scenario.start_time)
+        if start_time is not None:
+            start_time = unicode(start_time)
 
     end_time = None
     if isinstance(scenario.end_time, float):
-        end_time = scenario.end_time
+        end_time = unicode(scenario.end_time)
     else:
         end_time = timestamp_to_ordinal(scenario.end_time)
-
+        if end_time is not None:
+            end_time = unicode(end_time)
 
     scen.scenario_name        = scenario.name
     scen.scenario_description = scenario.description
     scen.layout               = scenario.get_layout()
-    scen.start_time           = str(start_time)
-    scen.end_time             = str(end_time)
+    scen.start_time           = start_time
+    scen.end_time             = end_time
     scen.time_step            = scenario.time_step
 
     if scenario.resourcescenarios == None:
