@@ -621,19 +621,19 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
     if len(new_data_for_insert) > 0:
     	#If we're working with mysql, we have to lock the table..
     	#For sqlite, this is not possible. Hence the try: except
-        try:
-            db.DBSession.execute("LOCK TABLES tDataset WRITE, tMetadata WRITE")
-        except OperationalError:
-            pass
+        #try:
+        #    db.DBSession.execute("LOCK TABLES tDataset WRITE, tMetadata WRITE")
+        #except OperationalError:
+        #    pass
 
         log.debug("Inserting new data %s", get_timing(start_time))
-        db.DBSession.execute(Dataset.__table__.insert(), new_data_for_insert)
+        db.DBSession.bulk_insert_mappings(Dataset, new_data_for_insert)
         log.debug("New data Inserted %s", get_timing(start_time))
 
-        try:
-            db.DBSession.execute("UNLOCK TABLES")
-        except OperationalError:
-            pass
+        #try:
+        #    db.DBSession.execute("UNLOCK TABLES")
+        #except OperationalError:
+        #    pass
 
 
         new_data = _get_existing_data(new_data_hashes)
