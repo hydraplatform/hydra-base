@@ -141,7 +141,7 @@ class Dataset(Base, Inspect):
         if data_type in ('descriptor','scalar'):
             self.value = str(val)
         elif data_type == 'array':
-            if type(val) != str:
+            if not isinstance(val, str) and not isinstance(val, unicode):
                 val = json.dumps(val)
 
             if len(val) > config.get('DATA', 'compression_threshold', 1000):
