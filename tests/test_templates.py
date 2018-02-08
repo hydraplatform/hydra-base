@@ -27,7 +27,14 @@ from hydra_base.exceptions import HydraError
 import util
 import datetime
 import json
+import os
+import pytest
 log = logging.getLogger(__name__)
+
+
+@pytest.fixture()
+def template():
+    return os.path.join(os.path.dirname(__file__), 'template.xml')
 
 
 class TestTemplates(server.HydraBaseTest):
@@ -52,8 +59,8 @@ class TestTemplates(server.HydraBaseTest):
             self.template = self.test_add_template()
         return self.template
 
-    def test_add_xml(self):
-        template_file = open('template.xml', 'r')
+    def test_add_xml(self, template):
+        template_file = open(template, 'r')
 
         file_contents = template_file.read()
 
@@ -73,8 +80,8 @@ class TestTemplates(server.HydraBaseTest):
 
         return new_tmpl
 
-    def test_get_xml(self):
-        xml_tmpl = self.test_add_xml()
+    def test_get_xml(self, template):
+        xml_tmpl = self.test_add_xml(template)
         
         db_template = hb.get_template_as_xml(xml_tmpl.id)
 
@@ -89,16 +96,17 @@ class TestTemplates(server.HydraBaseTest):
 
         xmlschema.assertValid(xml_tree)
 
-    def test_get_dict(self):
+    def test_get_dict(self, template):
 
         log.info("Loading XML template")
         #Upload the xml file initally to avoid having to manage 2 template files
-        xml_tmpl = self.test_add_xml()
+        xml_tmpl = self.test_add_xml(template)
         
         template_dict = hb.get_template_as_dict(xml_tmpl.id)
        
         #Error that there's already a template with this name.
-        self.assertRaises(HydraError, hb.import_template_dict, template_dict, allow_update=False)
+        with pytest.raises(HydraError):
+            hb.import_template_dict(template_dict, allow_update=False)
 
         typename = template_dict['template']['templatetypes'][0]['name']
 
@@ -312,7 +320,9 @@ class TestTemplates(server.HydraBaseTest):
         #Test that when setting a unit on a type attr, it matches the dimension of its attr
         #In this case, setting m^3(Volume) fails as the attr has a dimension of 'Pressure'
         updated_template_j.templatetypes[0].typeattrs[0].unit = 'm^3'
-        self.assertRaises(HydraError, hb.update_template, updated_template_j)
+        with pytest.raises(HydraError):
+            hb.update_template(updated_template_j)
+
 
     def test_delete_template(self):
         
@@ -341,7 +351,8 @@ class TestTemplates(server.HydraBaseTest):
 
         hb.delete_template(new_template.id)
 
-        self.assertRaises(HydraError, hb.get_template, new_template.id)
+        with pytest.raises(HydraError):
+            hb.get_template(new_template.id)
         
         network_deleted_templatetypes = hb.get_network(network.id, user_id=self.user_id)
         

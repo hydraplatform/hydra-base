@@ -15,20 +15,26 @@
 #
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import unittest
 import logging
 from hydra_base import config
 import util
+import pytest
+from fixtures import session
 from hydra_base.db import commit_transaction, rollback_transaction
+from hydra_base.util.hdb import create_default_users_and_perms, make_root_user
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.ERROR)
 
-util.connect()
 
-class HydraBaseTest(unittest.TestCase):
+class HydraBaseTest:
 
+    # TODO tidy this up
+    # This is a simple port from the unittest.TestCase
+    @pytest.fixture(autouse=True)
     def setUp(self):
+        util.connect()
+        create_default_users_and_perms()
         self.create_user("UserA")
         self.create_user("UserB")
         self.create_user("UserC")
@@ -37,6 +43,10 @@ class HydraBaseTest(unittest.TestCase):
         self.fmt = config.get('DEFAULT', 'datetime_format', "%Y-%m-%dT%H:%M:%S.%f000Z")
 
         self.user_id = config.get('DEFAULT', 'root_user_id', 2)
+
+        yield  # perform the test
+        # now tear down
+        self.tearDown()
 
     def tearDown(self):
         log.debug("Tearing down")
@@ -105,8 +115,3 @@ class HydraBaseTest(unittest.TestCase):
 
         return util.create_array(ResourceAttr)
 
-def run():
-    unittest.main()
-
-if __name__ == '__main__':
-    run()  # all tests

@@ -45,7 +45,7 @@ def logout(username):
 def create_user(name):
 
     existing_user = hydra_base.get_user_by_name(name)
-    
+    print(existing_user, name)
     if existing_user is not None:
         return existing_user
 
