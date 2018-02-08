@@ -234,7 +234,7 @@ def create_project(name=None):
     try:
         p = JSONObject(hydra_base.get_project_by_name(name, user_id=user_id))
         return p
-    except Exception, e:
+    except Exception:
         project = JSONObject()
         project.name = name
         project.description = "Project which contains all unit test networks"

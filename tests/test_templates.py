@@ -29,6 +29,7 @@ import datetime
 import json
 log = logging.getLogger(__name__)
 
+
 class TestTemplates(server.HydraBaseTest):
     """
         Test for templates
@@ -690,7 +691,7 @@ class TestTemplates(server.HydraBaseTest):
         remove_result = hb.remove_type_from_resource(templatetype.id,
                                                             'NODE',
                                                             node_to_assign.id) 
-        print remove_result
+        print(remove_result)
         assert remove_result == 'OK'
         
         updated_node_j = JSONObject(hb.get_node(node_to_assign.id))
@@ -1030,7 +1031,7 @@ class TestTemplates(server.HydraBaseTest):
         errors_same = hb.check_type_compatibility(same_type_1_id, same_type_2_id)
         assert len(errors_same) == 0
 
-        print updated_template_1
+        print(updated_template_1)
         
         for typ in updated_template_1.templatetypes:
             if typ.typeattrs:
