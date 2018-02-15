@@ -850,7 +850,7 @@ def _parse_data_restriction(restriction_dict):
 
     ret_dict = {}
     for k, v in new_dict.items():
-        if len(v) == 1:
+        if (isinstance(v, str) or isinstance(v, list)) and len(v) == 1:
             ret_dict[k] = v[0]
         else:
             ret_dict[k] = v

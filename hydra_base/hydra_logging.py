@@ -156,7 +156,8 @@ class ColorizingStreamHandler(logging.StreamHandler):
             self.handleError(record)
 
     def format(self, record):
-        message = logging.StreamHandler.format(self, record)
+        message = super(logging.StreamHandler, self).format(record)
+
         if self.is_tty:
             # Don't colorize any traceback
             parts = message.split('\n', 1)

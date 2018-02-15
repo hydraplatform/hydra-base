@@ -23,6 +23,7 @@ text,\
 Integer,\
 String,\
 LargeBinary,\
+Text,\
 TIMESTAMP,\
 BIGINT,\
 Float,\
@@ -320,7 +321,7 @@ class Metadata(Base, Inspect):
 
     dataset_id = Column(Integer(), ForeignKey('tDataset.dataset_id',  ondelete='CASCADE'), primary_key=True, nullable=False, index=True)
     metadata_name = Column(String(60), primary_key=True, nullable=False)
-    metadata_val = Column(LargeBinary(),  nullable=False)
+    metadata_val = Column(Text(4294967295),  nullable=False)
 
     dataset = relationship('Dataset', backref=backref("metadata", order_by=dataset_id, cascade="all, delete-orphan"))
 
@@ -626,9 +627,9 @@ class Project(Base, Inspect):
         return attr
 
     def set_owner(self, user_id, read='Y', write='Y', share='Y'):
-        owner = None
+
         for o in self.owners:
-            if str(user_id) == str(o.user_id):
+            if user_id == o.user_id:
                 owner = o
                 break
         else:
@@ -637,8 +638,8 @@ class Project(Base, Inspect):
             owner.user_id = int(user_id)
             self.owners.append(owner)
 
-        owner.view  = read
-        owner.edit  = write
+        owner.view = read
+        owner.edit = write
         owner.share = share
 
         return owner
@@ -660,7 +661,7 @@ class Project(Base, Inspect):
         """
 
         for owner in self.owners:
-            if int(owner.user_id) == int(user_id):
+            if owner.user_id == user_id:
                 if owner.view == 'Y':
                     break
         else:

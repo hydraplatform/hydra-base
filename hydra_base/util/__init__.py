@@ -117,7 +117,7 @@ def generate_data_hash(dataset_dict):
 
     log.debug("Generating data hash from: %s", hash_string)
 
-    data_hash  = hash(hash_string)
+    data_hash = hash(hash_string)
 
     log.debug("Data hash: %s", data_hash)
 
