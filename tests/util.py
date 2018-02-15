@@ -28,7 +28,7 @@ import json
 import datetime
 
 global user_id
-user_id = config.get('DEFAULT', 'root_user_id', 2)
+user_id = config.get('DEFAULT', 'root_user_id', 1)
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.ERROR)
@@ -37,7 +37,7 @@ def connect(db_url=None):
     hydra_base.connect()
 
 def login(username, password):
-    hydra_base.util.hdb.login(username, password)
+    hydra_base.util.hdb.login_user(username, password)
 
 def logout(username):
     hydra_base.util.hdb.logout(username)
@@ -45,7 +45,6 @@ def logout(username):
 def create_user(name):
 
     existing_user = hydra_base.get_user_by_name(name)
-    print(existing_user, name)
     if existing_user is not None:
         return existing_user
 
@@ -282,6 +281,7 @@ def create_node(node_id, attributes=None, node_name="Test Node Name"):
 
     return node
 
+
 def create_attr(name="Test attribute", dimension="dimensionless"):
     attr_i = hydra_base.get_attribute_by_name_and_dimension(name, dimension, user_id=user_id)
     if attr_i is None:
@@ -293,9 +293,8 @@ def create_attr(name="Test attribute", dimension="dimensionless"):
         attr = JSONObject(attr_i)
     return attr
 
-def build_network(project_id=None, num_nodes=10, new_proj=True,
-                  map_projection='EPSG:4326', use_existing_template=True):
 
+def build_network(project_id=None, num_nodes=10, new_proj=True, map_projection='EPSG:4326', use_existing_template=True):
     start = datetime.datetime.now()
     if project_id is None:
         proj_name = None
@@ -313,7 +312,7 @@ def build_network(project_id=None, num_nodes=10, new_proj=True,
     log.debug("Attribute creation took: %s"%(datetime.datetime.now()-start))
     start = datetime.datetime.now()
 
-    #Put an attribute on a group
+    # Put an attribute on a group
     group_ra = JSONObject(dict(
         ref_id  = None,
         ref_key = 'GROUP',

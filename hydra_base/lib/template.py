@@ -1272,8 +1272,9 @@ def add_template(template, **kwargs):
     if template.types is not None or template.templatetypes is not None:
         types = template.types if template.types is not None else template.templatetypes
         for templatetype in types:
+            # Given the new template object to the TemplateType data.
+            templatetype.template = tmpl
             ttype = _update_templatetype(templatetype)
-            tmpl.templatetypes.append(ttype)
 
     db.DBSession.flush()
     return tmpl
@@ -1468,6 +1469,7 @@ def _update_templatetype(templatetype, existing_tt=None):
         Add or update a templatetype. If an existing template type is passed in,
         update that one. Otherwise search for an existing one. If not found, add.
     """
+    print(templatetype)
     if existing_tt is None:
         if templatetype.id is not None:
             tmpltype_i = db.DBSession.query(TemplateType).filter(TemplateType.type_id == templatetype.id).one()
@@ -1476,7 +1478,7 @@ def _update_templatetype(templatetype, existing_tt=None):
     else:
         tmpltype_i = existing_tt
 
-    tmpltype_i.template_id = templatetype.template_id
+    tmpltype_i.template = templatetype.template
     tmpltype_i.type_name  = templatetype.name
     tmpltype_i.alias      = templatetype.alias
 

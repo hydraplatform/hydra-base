@@ -31,7 +31,7 @@ class HydraBaseTest:
 
     # TODO tidy this up
     # This is a simple port from the unittest.TestCase
-    @pytest.fixture(autouse=True)
+    #@pytest.fixture(autouse=True)
     def setUp(self):
         util.connect()
         create_default_users_and_perms()
