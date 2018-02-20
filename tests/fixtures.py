@@ -8,9 +8,15 @@ from sqlalchemy.orm import sessionmaker
 
 
 @pytest.fixture()
-def testdb_uri():
-    # Use a :memory: database for the tests.
-    return 'sqlite://'
+def testdb_uri(db_backend):
+    if db_backend == 'sqlite':
+        # Use a :memory: database for the tests.
+        return 'sqlite://'
+    elif db_backend == 'postgres':
+        # This is designed to work on Travis CI
+        return 'postgresql://postgres@localhost:5432/hydra_base_test'
+    else:
+        raise ValueError('Database backend "{}" not supported when running the tests.'.format(db_backend))
 
 
 @pytest.fixture(scope='function')
@@ -53,7 +59,14 @@ def session(db, engine, request):
     util.create_user("UserB")
     util.create_user("UserC")
 
-    return session
+    yield session
+
+    # Tear down the session
+
+    # First make sure everything can be and is committed.
+    session.commit()
+    # Finally drop all the tables.
+    hydra_base.db.DeclarativeBase.metadata.drop_all()
 
 
 @pytest.fixture()

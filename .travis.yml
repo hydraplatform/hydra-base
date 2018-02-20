@@ -1,10 +1,17 @@
 language: python
+services:
+  - postgresql
 python:
   - "2.7"
   - "3.4"
   - "3.5"
   - "3.6"
+before_script:
+  - psql -c 'create database hydra_base_test;' -U postgres
+
 install:
   - pip install -e .
 
-script: pytest tests
+script:
+  - pytest tests --db-backend=sqlite
+  - pytest tests --db-backend=postgres
