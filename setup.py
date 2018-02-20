@@ -24,6 +24,7 @@ testpkgs=[
 
 install_requires=[
     "sqlalchemy",
+    "psycopg2",
     "zope.sqlalchemy >= 0.4",
     "pandas",
     "numpy",
