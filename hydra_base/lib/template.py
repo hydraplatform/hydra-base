@@ -1374,7 +1374,7 @@ def get_template_by_name(name,**kwargs):
         log.info("%s is not a valid identifier for a template",name)
         return None
 
-def add_templatetype(templatetype,**kwargs):
+def add_templatetype(templatetype, **kwargs):
     """
         Add a template type with typeattrs.
     """
@@ -1385,7 +1385,7 @@ def add_templatetype(templatetype,**kwargs):
 
     return type_i
 
-def update_templatetype(templatetype,**kwargs):
+def update_templatetype(templatetype, **kwargs):
     """
         Update a resource type and its typeattrs.
         New typeattrs will be added. typeattrs not sent will be ignored.
@@ -1469,7 +1469,6 @@ def _update_templatetype(templatetype, existing_tt=None):
         Add or update a templatetype. If an existing template type is passed in,
         update that one. Otherwise search for an existing one. If not found, add.
     """
-    print(templatetype)
     if existing_tt is None:
         if templatetype.id is not None:
             tmpltype_i = db.DBSession.query(TemplateType).filter(TemplateType.type_id == templatetype.id).one()
@@ -1478,7 +1477,14 @@ def _update_templatetype(templatetype, existing_tt=None):
     else:
         tmpltype_i = existing_tt
 
-    tmpltype_i.template = templatetype.template
+    # Support being given both an ID and a Template ORM object.
+    if templatetype.template_id is not None:
+        tmpltype_i.template_id = templatetype.template_id
+    elif templatetype.template is not None:
+        tmpltype_i.template = templatetype.template
+    else:
+        raise ValueError('TemplateType must be given with a template_id or Template object.')
+
     tmpltype_i.type_name  = templatetype.name
     tmpltype_i.alias      = templatetype.alias
 
@@ -1513,7 +1519,7 @@ def _update_templatetype(templatetype, existing_tt=None):
 
     return tmpltype_i
 
-def delete_templatetype(type_id,template_i=None, **kwargs):
+def delete_templatetype(type_id, template_i=None, **kwargs):
     """
         Delete a template type and its typeattrs.
     """

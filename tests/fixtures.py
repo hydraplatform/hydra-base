@@ -8,8 +8,9 @@ from sqlalchemy.orm import sessionmaker
 
 
 @pytest.fixture()
-def testdb_uri(tmpdir):
-    return 'sqlite:///{}/testdb.sqlite'.format(tmpdir)
+def testdb_uri():
+    # Use a :memory: database for the tests.
+    return 'sqlite://'
 
 
 @pytest.fixture(scope='function')
@@ -63,5 +64,12 @@ def network(project_id=None, num_nodes=10, new_proj=True, map_projection='EPSG:4
 @pytest.fixture()
 def network_with_data(project_id=None, num_nodes=10, ret_full_net=True, new_proj=True, map_projection='EPSG:4326',
                       use_existing_template=True):
+    return util.create_network_with_data(project_id, num_nodes, ret_full_net, new_proj, map_projection,
+                                         use_existing_template=use_existing_template)
+
+
+@pytest.fixture()
+def network_with_data_new_template(project_id=None, num_nodes=10, ret_full_net=True, new_proj=True, map_projection='EPSG:4326',
+                      use_existing_template=False):
     return util.create_network_with_data(project_id, num_nodes, ret_full_net, new_proj, map_projection,
                                          use_existing_template=use_existing_template)

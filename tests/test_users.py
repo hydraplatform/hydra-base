@@ -146,15 +146,19 @@ class TestUser:
 
     def test_get_users(self, session, user_json_object):
         """ Test fetching all the users """
+
+        # These are the users added for the tests.
+        existing_users = {1: 'root', 2: 'UserA', 3: 'UserB', 4: 'UserC'}
+
         # Add one user
         hydra_base.add_user(user_json_object)
         # There should always be a root user
         users = hydra_base.get_all_users()
         assert len(users) > 0
         for user in users:
-            if user.id == 1:
-                assert user.username == 'root'
-            else:
+            try:
+                assert user.username == existing_users[user.id]
+            except KeyError:
                 assert user.username == user_json_object.username
 
     def test_get_username(self, session, user_json_object):
