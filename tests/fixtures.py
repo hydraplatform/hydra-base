@@ -15,6 +15,8 @@ def testdb_uri(db_backend):
     elif db_backend == 'postgres':
         # This is designed to work on Travis CI
         return 'postgresql://postgres@localhost:5432/hydra_base_test'
+    elif db_backend == 'mysql':
+        return 'mysql://root@localhost/hydra_base_test'
     else:
         raise ValueError('Database backend "{}" not supported when running the tests.'.format(db_backend))
 
