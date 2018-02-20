@@ -90,7 +90,7 @@ class Dataset(Base, Inspect):
 
     start_time = Column(String(60),  nullable=True)
     frequency = Column(String(10),  nullable=True)
-    value = Column('value', Text(4294967295),  nullable=True)
+    value = Column('value', Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
 
     user = relationship('User', backref=backref("datasets", order_by=dataset_id))
 
