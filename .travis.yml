@@ -13,10 +13,10 @@ env:
 before_script:
   - |
     set -e
-    if [ "$DB" -eq "postgres" ]; then
+    if [ "${DB}" == "postgres" ]; then
       psql -c 'create database hydra_base_test;' -U postgres
     fi
-    if [ "$DB" -eq "mysql" ]; then
+    if [ "${DB}" == "mysql" ]; then
       mysql -e 'CREATE DATABASE hydra_base_test;'
     fi
 
@@ -24,4 +24,4 @@ install:
   - pip install -e .
 
 script:
-  - pytest tests --db-backend=$DB
+  - pytest tests --db-backend=${DB}
