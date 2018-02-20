@@ -4,17 +4,24 @@ services:
   - mysql
 python:
   - "2.7"
-  - "3.4"
-  - "3.5"
   - "3.6"
+env:
+- DB=sqlite
+- DB=postgres
+- DB=mysql
+
 before_script:
-  - psql -c 'create database hydra_base_test;' -U postgres
-  - mysql -e 'CREATE DATABASE hydra_base_test;'
+  - |
+    set -e
+    if [ "$DB" -eq "postgres" ]; then
+      psql -c 'create database hydra_base_test;' -U postgres
+    fi
+    if [ "$DB" -eq "mysql" ]; then
+      mysql -e 'CREATE DATABASE hydra_base_test;'
+    fi
 
 install:
   - pip install -e .
 
 script:
-  - pytest tests --db-backend=sqlite
-  - pytest tests --db-backend=mysql
-  - pytest tests --db-backend=postgres
+  - pytest tests --db-backend=$DB
