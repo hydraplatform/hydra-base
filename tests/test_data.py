@@ -38,9 +38,9 @@ def relative_timeseries():
     t1 = "1.0"
     t2 = "2.0"
     t3 = "3.0"
-    val_1 = [[[1, 2, "hello"], [5, 4, 6]], [[10, 20, 30], [40, 50, 60]], [[9, 8, 7], [6, 5, 4]]]
-    val_2 = ["1.0", "2.0", "3.0"]
-    val_3 = ["3.0", "", ""]
+    val_1 = [[[11, 22, "hello"], [55, 44, 66]], [[100, 200, 300], [400, 500, 600]], [[99, 88, 77], [66, 55, 44]]]
+    val_2 = ["1.1", "2.2", "3.3"]
+    val_3 = ["3.3", "", ""]
 
     timeseries = json.dumps({0: {t1: val_1, t2: val_2, t3: val_3}})
 
@@ -56,7 +56,7 @@ def arbitrary_timeseries():
     t1 = 'arb'
     t2 = 'it'
     t3 = 'rary'
-    val_1 = [[[1, 2, "hello"], [5, 4, 6]], [[10, 20, 30], [40, 50, 60]], [[9,8,7],[6,5,4]]]
+    val_1 = [[[0.1, 0.2, "hello"], [0.5, 0.4, 0.6]], [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]], [[0.9,0.8,0.7],[0.6,0.5,0.4]]]
     val_2 = ["1.0", "2.0", "3.0"]
     val_3 = ["3.0", "", ""]
 
@@ -91,16 +91,18 @@ class TestTimeSeries:
     # Todo make this a fixture?
     user_id = util.user_id
 
-    @pytest.mark.xfail(reason='Relative timesteps are being converted to timestamps. ')
+    #@pytest.mark.xfail(reason='Relative timesteps are being converted to timestamps. ')
     def test_relative_timeseries(self, session, network, relative_timeseries):
         """
             Test for relative timeseries for example, x number of hours from hour 0.
         """
+
         s = network['scenarios'][0]
         assert len(s['resourcescenarios']) > 0
         for rs in s['resourcescenarios']:
             if rs['value']['type'] == 'timeseries':
                 rs['value']['value'] = relative_timeseries
+
 
         new_network_summary = hb.add_network(network, user_id=self.user_id)
         new_net = hb.get_network(new_network_summary.id, user_id=self.user_id, include_data='Y')
