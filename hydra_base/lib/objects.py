@@ -175,7 +175,15 @@ class JSONObject(dict):
 
     def __setattr__(self, name, value):
         super(JSONObject, self).__setattr__(name, value)
-        self[name] = value
+
+        #This is to avoid an infinite loop
+        if self.get(name) != value:
+            self[name] = value
+
+    def __setitem__(self, name, value):
+        super(JSONObject, self).__setitem__(name, value)
+
+        self.__setattr__(name, value)
 
     def as_json(self):
 
@@ -222,7 +230,10 @@ class Dataset(JSONObject):
 
     def __setattr__(self, name, value):
         super(Dataset, self).__setattr__(name, value)
-        self[name] = value
+        
+        #This is to avoid an infinite loop
+        if self.get(name) != value:
+            self[name] = value
 
         if name == 'name':
             self['data_name'] = value
