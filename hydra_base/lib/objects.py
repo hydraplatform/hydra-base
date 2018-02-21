@@ -284,10 +284,11 @@ class Dataset(JSONObject):
             elif self.type == 'scalar':
                 return data
             elif self.type == 'timeseries':
-                timeseries_pd = pd.read_json(data)
+                timeseries_pd = pd.read_json(data, convert_axes=False)
                 #Epoch doesn't work here because dates before 1970 are not
                 # supported in read_json. Ridiculous.
                 ts = timeseries_pd.to_json(date_format='iso', date_unit='ns')
+
                 #if len(data) > int(config.get('db', 'compression_threshold', 1000)):
                 #    return zlib.compress(ts)
                 #else:
