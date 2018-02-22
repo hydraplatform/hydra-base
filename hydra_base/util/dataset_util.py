@@ -16,6 +16,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
+# Python 2 and 3 support
+from __future__ import unicode_literals
+from builtins import dict, str
 
 import logging
 from decimal import Decimal
@@ -414,6 +417,7 @@ def validate_LESSTHAN(in_value, restriction):
                 subval = subval[1]
             validate_LESSTHAN(subval, restriction)
     else:
+        import pdb; pdb.set_trace()
         if value >= restriction:
             raise ValidationError("LESSTHAN: %s"%(restriction))
 
