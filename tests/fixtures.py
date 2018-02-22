@@ -1,14 +1,24 @@
 from hydra_base.db import DeclarativeBase as _db
 from hydra_base.util.hdb import create_default_users_and_perms, make_root_user
 import hydra_base
+import util
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 
 @pytest.fixture()
-def testdb_uri(tmpdir):
-    return 'sqlite:///{}/testdb.sqlite'.format(tmpdir)
+def testdb_uri(db_backend):
+    if db_backend == 'sqlite':
+        # Use a :memory: database for the tests.
+        return 'sqlite://'
+    elif db_backend == 'postgres':
+        # This is designed to work on Travis CI
+        return 'postgresql://postgres@localhost:5432/hydra_base_test'
+    elif db_backend == 'mysql':
+        return 'mysql+mysqlconnector://root@localhost/hydra_base_test'
+    else:
+        raise ValueError('Database backend "{}" not supported when running the tests.'.format(db_backend))
 
 
 @pytest.fixture(scope='function')
@@ -45,4 +55,36 @@ def session(db, engine, request):
     # Now apply the default users and roles
     create_default_users_and_perms()
     make_root_user()
-    return session
+
+    # Add some users
+    util.create_user("UserA")
+    util.create_user("UserB")
+    util.create_user("UserC")
+
+    yield session
+
+    # Tear down the session
+
+    # First make sure everything can be and is committed.
+    session.commit()
+    # Finally drop all the tables.
+    hydra_base.db.DeclarativeBase.metadata.drop_all()
+
+
+@pytest.fixture()
+def network(project_id=None, num_nodes=10, new_proj=True, map_projection='EPSG:4326'):
+    return util.build_network(project_id, num_nodes, new_proj, map_projection)
+
+
+@pytest.fixture()
+def network_with_data(project_id=None, num_nodes=10, ret_full_net=True, new_proj=True, map_projection='EPSG:4326',
+                      use_existing_template=True):
+    return util.create_network_with_data(project_id, num_nodes, ret_full_net, new_proj, map_projection,
+                                         use_existing_template=use_existing_template)
+
+
+@pytest.fixture()
+def network_with_data_new_template(project_id=None, num_nodes=10, ret_full_net=True, new_proj=True, map_projection='EPSG:4326',
+                      use_existing_template=False):
+    return util.create_network_with_data(project_id, num_nodes, ret_full_net, new_proj, map_projection,
+                                         use_existing_template=use_existing_template)

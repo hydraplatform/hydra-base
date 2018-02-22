@@ -43,6 +43,7 @@ from ..util import generate_data_hash, get_val
 
 from sqlalchemy.sql.expression import case
 from sqlalchemy import UniqueConstraint, and_
+from sqlalchemy.dialects import mysql
 
 import pandas as pd
 
@@ -89,7 +90,7 @@ class Dataset(Base, Inspect):
 
     start_time = Column(String(60),  nullable=True)
     frequency = Column(String(10),  nullable=True)
-    value = Column('value', Text(4294967295),  nullable=True)
+    value = Column('value', Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
 
     user = relationship('User', backref=backref("datasets", order_by=dataset_id))
 
@@ -319,7 +320,7 @@ class Metadata(Base, Inspect):
 
     dataset_id = Column(Integer(), ForeignKey('tDataset.dataset_id',  ondelete='CASCADE'), primary_key=True, nullable=False, index=True)
     metadata_name = Column(String(60), primary_key=True, nullable=False)
-    metadata_val = Column(Text(4294967295),  nullable=False)
+    metadata_val = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=False)
 
     dataset = relationship('Dataset', backref=backref("metadata", order_by=dataset_id, cascade="all, delete-orphan"))
 
@@ -384,7 +385,7 @@ class Template(Base, Inspect):
     template_id = Column(Integer(), primary_key=True, nullable=False)
     template_name = Column(String(60),  nullable=False, unique=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    layout = Column(Text(1000))
+    layout = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
 
 class TemplateType(Base, Inspect):
     """
@@ -400,7 +401,7 @@ class TemplateType(Base, Inspect):
     template_id = Column(Integer(), ForeignKey('tTemplate.template_id'), nullable=False)
     resource_type = Column(String(60))
     alias = Column(String(100))
-    layout = Column(Text(1000))
+    layout = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     template = relationship('Template', backref=backref("templatetypes", order_by=type_id, cascade="all, delete-orphan"))
@@ -416,10 +417,10 @@ class TypeAttr(Base, Inspect):
     default_dataset_id = Column(Integer(), ForeignKey('tDataset.dataset_id'))
     attr_is_var        = Column(String(1), server_default=text(u"'N'"))
     data_type          = Column(String(60))
-    data_restriction   = Column(Text(1000))
+    data_restriction   = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
     unit               = Column(String(60))
-    description        = Column(Text(1000))
-    properties         = Column(Text(1000))
+    description        = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
+    properties         = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     attr = relationship('Attr')
@@ -710,7 +711,7 @@ class Network(Base, Inspect):
     id = Column(Integer(), primary_key=True, nullable=False)
     name = Column(String(200),  nullable=False)
     description = Column(String(1000))
-    layout = Column(Text(1000))
+    layout = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
     project_id = Column(Integer(), ForeignKey('tProject.project_id'),  nullable=False)
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
@@ -900,7 +901,7 @@ class Link(Base, Inspect):
     node_2_id = Column(Integer(), ForeignKey('tNode.node_id'), nullable=False)
     link_name = Column(String(60))
     link_description = Column(String(1000))
-    layout = Column(Text(1000))
+    layout = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     network = relationship('Network', backref=backref("links", order_by=network_id, cascade="all, delete-orphan"), lazy='joined')
@@ -950,7 +951,7 @@ class Node(Base, Inspect):
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     node_x = Column(Float(precision=10, asdecimal=True))
     node_y = Column(Float(precision=10, asdecimal=True))
-    layout = Column(Text(1000))
+    layout = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     network = relationship('Network', backref=backref("nodes", order_by=network_id, cascade="all, delete-orphan"), lazy='joined')
@@ -1136,7 +1137,7 @@ class Scenario(Base, Inspect):
     scenario_id = Column(Integer(), primary_key=True, index=True, nullable=False)
     scenario_name = Column(String(60),  nullable=False)
     scenario_description = Column(String(1000))
-    layout = Column(Text(1000))
+    layout = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     network_id = Column(Integer(), ForeignKey('tNetwork.id'), index=True)
     start_time = Column(String(60))

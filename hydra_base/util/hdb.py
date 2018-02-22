@@ -82,8 +82,8 @@ def add_attributes(resource_i, attributes):
 
     return resource_attrs
 
-def make_root_user():
 
+def make_root_user():
     try:
         user = db.DBSession.query(User).filter(User.username=='root').one()
     except NoResultFound:

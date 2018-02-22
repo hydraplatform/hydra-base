@@ -1,10 +1,27 @@
 language: python
+services:
+  - postgresql
+  - mysql
 python:
   - "2.7"
-  - "3.4"
-  - "3.5"
   - "3.6"
+env:
+- DB=sqlite
+- DB=postgres
+- DB=mysql
+
+before_script:
+  - |
+    set -e
+    if [ "${DB}" == "postgres" ]; then
+      psql -c 'create database hydra_base_test;' -U postgres
+    fi
+    if [ "${DB}" == "mysql" ]; then
+      mysql -e 'CREATE DATABASE hydra_base_test;'
+    fi
+
 install:
   - pip install -e .
 
-script: pytest tests
+script:
+  - pytest tests --db-backend=${DB}
