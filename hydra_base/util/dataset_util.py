@@ -417,7 +417,6 @@ def validate_LESSTHAN(in_value, restriction):
                 subval = subval[1]
             validate_LESSTHAN(subval, restriction)
     else:
-        import pdb; pdb.set_trace()
         if value >= restriction:
             raise ValidationError("LESSTHAN: %s"%(restriction))
 
