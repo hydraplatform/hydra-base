@@ -32,6 +32,8 @@ from sqlalchemy import null
 from .. import db
 from ..import config
 
+from .objects import JSONObject
+
 import pandas as pd
 from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
 from sqlalchemy import and_, or_
@@ -1058,17 +1060,18 @@ def get_vals_between_times(dataset_id, start_time, end_time, timestep,increment,
         try:
             server_start_time = Decimal(start_time)
             server_end_time   = Decimal(end_time)
-            times = [server_start_time]
+            times = [float(server_start_time)]
 
             next_time = server_start_time
             while next_time < server_end_time:
-                next_time = next_time + increment
+                next_time = float(next_time) + increment
                 times.append(next_time)
         except:
             raise HydraError("Unable to get times. Please check to and from times.")
 
     td = db.DBSession.query(Dataset).filter(Dataset.dataset_id==dataset_id).one()
     log.debug("Number of times to fetch: %s", len(times))
+
     data = td.get_val(timestamp=times)
 
     data_to_return = []
@@ -1081,7 +1084,7 @@ def get_vals_between_times(dataset_id, start_time, end_time, timestep,increment,
     else:
         data_to_return.append(data)
 
-    dataset = {'data' : json.dumps(data_to_return)}
+    dataset = JSONObject({'data' : json.dumps(data_to_return)})
 
     return dataset
 
