@@ -1272,9 +1272,8 @@ def add_template(template, **kwargs):
     if template.types is not None or template.templatetypes is not None:
         types = template.types if template.types is not None else template.templatetypes
         for templatetype in types:
-            # Given the new template object to the TemplateType data.
-            templatetype.template = tmpl
             ttype = _update_templatetype(templatetype)
+            tmpl.templatetypes.append(ttype)
 
     db.DBSession.flush()
     return tmpl
@@ -1374,7 +1373,7 @@ def get_template_by_name(name,**kwargs):
         log.info("%s is not a valid identifier for a template",name)
         return None
 
-def add_templatetype(templatetype, **kwargs):
+def add_templatetype(templatetype,**kwargs):
     """
         Add a template type with typeattrs.
     """
@@ -1385,7 +1384,7 @@ def add_templatetype(templatetype, **kwargs):
 
     return type_i
 
-def update_templatetype(templatetype, **kwargs):
+def update_templatetype(templatetype,**kwargs):
     """
         Update a resource type and its typeattrs.
         New typeattrs will be added. typeattrs not sent will be ignored.
@@ -1477,14 +1476,7 @@ def _update_templatetype(templatetype, existing_tt=None):
     else:
         tmpltype_i = existing_tt
 
-    # Support being given both an ID and a Template ORM object.
-    if templatetype.template_id is not None:
-        tmpltype_i.template_id = templatetype.template_id
-    elif templatetype.template is not None:
-        tmpltype_i.template = templatetype.template
-    else:
-        raise ValueError('TemplateType must be given with a template_id or Template object.')
-
+    tmpltype_i.template_id = templatetype.template_id
     tmpltype_i.type_name  = templatetype.name
     tmpltype_i.alias      = templatetype.alias
 
@@ -1519,7 +1511,7 @@ def _update_templatetype(templatetype, existing_tt=None):
 
     return tmpltype_i
 
-def delete_templatetype(type_id, template_i=None, **kwargs):
+def delete_templatetype(type_id,template_i=None, **kwargs):
     """
         Delete a template type and its typeattrs.
     """
