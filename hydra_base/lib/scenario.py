@@ -701,6 +701,7 @@ def _delete_resourcescenario(scenario_id, resource_scenario):
     except NoResultFound:
         raise HydraError("ResourceAttr %s does not exist in scenario %s."%(ra_id, scenario_id))
     db.DBSession.delete(sd_i)
+    db.DBSession.flush()
 
 def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=False, user_id=None, source=None):
     """

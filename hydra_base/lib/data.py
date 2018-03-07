@@ -855,7 +855,7 @@ def add_dataset_to_collection(dataset_id, collection_id, **kwargs):
     """
         Add a single dataset to a dataset collection.
     """
-    _get_collection(collection_id)
+    collection_i = _get_collection(collection_id)
     collection_item = _get_collection_item(collection_id, dataset_id)
     if collection_item is not None:
         raise HydraError("Dataset Collection %s already contains dataset %s", collection_id, dataset_id)
@@ -864,7 +864,8 @@ def add_dataset_to_collection(dataset_id, collection_id, **kwargs):
     new_item.dataset_id=dataset_id
     new_item.collection_id=collection_id
 
-    db.DBSession.add(new_item)
+    collection_i.items.append(new_item)
+
     db.DBSession.flush()
 
     return 'OK'
@@ -874,7 +875,7 @@ def add_datasets_to_collection(dataset_ids, collection_id, **kwargs):
     """
         Add multiple datasets to a dataset collection.
     """
-    _get_collection(collection_id)
+    collection_i = _get_collection(collection_id)
 
     for dataset_id in dataset_ids:
         collection_item = _get_collection_item(collection_id, dataset_id)
@@ -885,7 +886,7 @@ def add_datasets_to_collection(dataset_ids, collection_id, **kwargs):
         new_item.dataset_id=dataset_id
         new_item.collection_id=collection_id
 
-        db.DBSession.add(new_item)
+        collection_i.items.append(new_item)
 
     db.DBSession.flush()
     return 'OK'
@@ -894,7 +895,7 @@ def remove_dataset_from_collection(dataset_id, collection_id, **kwargs):
     """
         Add a single dataset to a dataset collection.
     """
-    _get_collection(collection_id)
+    collection_i = _get_collection(collection_id)
     collection_item = _get_collection_item(collection_id, dataset_id)
     if collection_item is None:
         raise HydraError("Dataset %s is not in collection %s.",
@@ -902,6 +903,8 @@ def remove_dataset_from_collection(dataset_id, collection_id, **kwargs):
                                                     collection_id)
     db.DBSession.delete(collection_item)
     db.DBSession.flush()
+
+    db.DBSession.expunge_all()
 
     return 'OK'
 
@@ -997,9 +1000,9 @@ def get_val_at_time(dataset_id, timestamps,**kwargs):
 
     data = dataset_i.get_val(timestamp=t)
     if data is not None:
-        dataset = {'data': json.dumps(data)}
+        dataset = JSONObject({'data': json.dumps(data)})
     else:
-        dataset = {'data': None}
+        dataset = JSONObject({'data': None})
 
     return dataset
 
@@ -1011,7 +1014,6 @@ def get_multiple_vals_at_time(dataset_ids, timestamps,**kwargs):
     If the timestamp is before the start of the timeseries data, return
     None If the timestamp is after the end of the timeseries data, return
     the last value.  """
-
     datasets = _get_datasets(dataset_ids)
     datetimes = []
     for time in timestamps:
@@ -1024,7 +1026,7 @@ def get_multiple_vals_at_time(dataset_ids, timestamps,**kwargs):
         if type(data) is list:
             for i, t in enumerate(timestamps):
                 ret_data[t] = data[i]
-        return_vals['dataset_%s'%dataset_i.dataset_id] = json.dumps(ret_data)
+        return_vals['dataset_%s'%dataset_i.dataset_id] = ret_data
 
     return return_vals
 
@@ -1100,10 +1102,14 @@ def delete_dataset(dataset_id,**kwargs):
 
     dataset_rs = db.DBSession.query(ResourceScenario).filter(ResourceScenario.dataset_id==dataset_id).all()
     if len(dataset_rs) > 0:
-        raise HydraError("Cannot delete %s. Dataset is used by resource scenarios."%dataset_id)
+        raise HydraError("Cannot delete %s. Dataset is used by one or more resource scenarios."%dataset_id)
 
     db.DBSession.delete(d)
+
     db.DBSession.flush()
+
+    #Remove ORM references to children of this dataset (metadata, collection items)
+    db.DBSession.expunge_all()
 
 def read_json(json_string):
     pd.read_json(json_string)

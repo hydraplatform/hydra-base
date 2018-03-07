@@ -217,6 +217,8 @@ class Dataset(JSONObject):
         # Keys that start and end with "__" won't be retrievable via attributes
         if name.startswith('__') and name.endswith('__'):
             return super(JSONObject, self).__getattr__(name)
+        elif name == 'id':
+            return self.get('dataset_id', None)
         elif name == 'name':
             return self.get('data_name', None)
         elif name == 'unit':
@@ -235,7 +237,10 @@ class Dataset(JSONObject):
         if self.get(name) != value:
             self[name] = value
 
-        if name == 'name':
+
+        if name == 'id':
+            self['dataset_id'] = value
+        elif name == 'name':
             self['data_name'] = value
         elif name == 'unit':
             self['data_units'] = value

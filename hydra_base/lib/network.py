@@ -73,7 +73,21 @@ def _update_attributes(resource_i, attributes):
     if attributes is None:
         return dict()
     attrs = {}
-    attr_id_map = dict([(ra_i.resource_attr_id, ra_i) for ra_i in resource_i.attributes])
+
+    resource_attribute_qry = db.DBSession.query(ResourceAttr)
+
+    if resource_i.ref_key == 'NETWORK':
+        resource_attribute_qry.filter(ResourceAttr.network_id==resource_i.id)
+    elif resource_i.ref_key == 'NODE':
+        resource_attribute_qry.filter(ResourceAttr.node_id==resource_i.node_id)
+    elif resource_i.ref_key == 'LINK':
+        resource_attribute_qry.filter(ResourceAttr.link_id==resource_i.link_id)
+    elif resource_i.ref_key == 'GROUP':
+        resource_attribute_qry.filter(ResourceAttr.group_id==resource_i.group_id)
+
+    resource_attributes = resource_attribute_qry.all()
+
+    attr_id_map = dict([(ra_i.resource_attr_id, ra_i) for ra_i in resource_attributes])
 
     #ra is for ResourceAttr
     for ra in attributes:
@@ -181,7 +195,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
                         })
 
     if len(resource_resource_types) > 0:
-        db.DBSession.execute(ResourceType.__table__.insert(), resource_resource_types)
+        db.DBSession.bulk_insert_mappings(ResourceType, resource_resource_types)
     logging.info("%s ResourceTypes inserted in %s secs", len(resource_resource_types), str(time.time() - t0))
 
     logging.info("Resource attributes from types added in %s"%(datetime.datetime.now() - start_time))
@@ -192,7 +206,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
             all_resource_attrs.extend(na)
 
         if len(all_resource_attrs) > 0:
-            db.DBSession.execute(ResourceAttr.__table__.insert(), all_resource_attrs)
+            db.DBSession.bulk_insert_mappings(ResourceAttr, all_resource_attrs)
             logging.info("ResourceAttr insert took %s secs"% str(time.time() - t0))
         else:
             logging.warn("No attributes on any %s....", ref_key.lower())
@@ -265,7 +279,7 @@ def _add_nodes_to_database(net_i, nodes):
         node_list.append(node_dict)
     t0 = time.time()
     if len(node_list):
-        db.DBSession.execute(Node.__table__.insert(), node_list)
+        db.DBSession.bulk_insert_mappings(Node, node_list)
     db.DBSession.flush()
     logging.info("Node insert took %s secs"% str(time.time() - t0))
 
@@ -320,7 +334,7 @@ def _add_links_to_database(net_i, links, node_id_map):
                            'node_2_id' : node_2.node_id
                           })
     if len(link_dicts) > 0:
-        db.DBSession.execute(Link.__table__.insert(), link_dicts)
+        db.DBSession.bulk_insert_mappings(Link, link_dicts)
 
 def _add_links(net_i, links, node_id_map):
 
@@ -379,7 +393,7 @@ def _add_resource_groups(net_i, resourcegroups):
                           })
 
     if len(group_dicts) > 0:
-        db.DBSession.execute(ResourceGroup.__table__.insert(), group_dicts)
+        db.DBSession.bulk_insert_mappings(ResourceGroup, group_dicts)
         log.info("Resource Groups added in %s", get_timing(start_time))
 
         iface_groups = {}
@@ -1213,10 +1227,10 @@ def network_exists(project_id, network_name,**kwargs):
         return 'N'
 
 def update_network(network,
-    update_nodes=True,
-    update_links=True,
-    update_groups=True,
-    update_scenarios=True,
+    update_nodes = True,
+    update_links = True,
+    update_groups = True,
+    update_scenarios = True,
     **kwargs):
     """
         Update an entire network
@@ -1231,8 +1245,8 @@ def update_network(network,
         raise ResourceNotFoundError("Network with id %s not found"%(network.id))
 
     net_i.project_id          = network.project_id
-    net_i.name        = network.name
-    net_i.description = network.description
+    net_i.name                = network.name
+    net_i.description         = network.description
     net_i.projection          = network.projection
     net_i.layout              = network.get_layout()
 
@@ -1554,9 +1568,9 @@ def add_node(network_id, node,**kwargs):
             res_scenarios.update(rs)#rs is a dict
 
         if len(res_types) > 0:
-            db.DBSession.execute(ResourceType.__table__.insert(), res_types)
+            db.DBSession.bulk_insert_mappings(ResourceType, res_types)
         if len(res_attrs) > 0:
-            db.DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
+            db.DBSession.bulk_insert_mappings(ResourceAttr, res_attrs)
 
             new_res_attrs = db.DBSession.query(ResourceAttr).order_by(ResourceAttr.resource_attr_id.desc()).limit(len(res_attrs)).all()
             all_rs = []
@@ -1569,7 +1583,7 @@ def add_node(network_id, node,**kwargs):
                         all_rs.append(rs_list[rs])
 
             if len(all_rs) > 0:
-                db.DBSession.execute(ResourceScenario.__table__.insert(), all_rs)
+                db.DBSession.bulk_insert_mappings(ResourceScenario, all_rs)
 
 
     db.DBSession.refresh(new_node)
@@ -1753,9 +1767,9 @@ def add_link(network_id, link,**kwargs):
             res_scenarios.update(rs)#rs is a dict
 
         if len(res_types) > 0:
-            db.DBSession.execute(ResourceType.__table__.insert(), res_types)
+            db.DBSession.bulk_insert_mappings(ResourceType, res_types)
         if len(res_attrs) > 0:
-            db.DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
+            db.DBSession.bulk_insert_mappings(ResourceAttr, res_attrs)
 
             new_res_attrs = db.DBSession.query(ResourceAttr).order_by(ResourceAttr.resource_attr_id.desc()).limit(len(res_attrs)).all()
             all_rs = []
@@ -1768,7 +1782,7 @@ def add_link(network_id, link,**kwargs):
                         all_rs.append(rs_list[rs])
 
             if len(all_rs) > 0:
-                db.DBSession.execute(ResourceScenario.__table__.insert(), all_rs)
+                db.DBSession.bulk_insert_mappings(ResourceScenario, all_rs)
 
     db.DBSession.refresh(link_i)
 
@@ -1884,9 +1898,9 @@ def add_group(network_id, group,**kwargs):
             res_attrs.extend(ra)
             res_scenarios.update(rs)#rs is a dict
         if len(res_types) > 0:
-            db.DBSession.execute(ResourceType.__table__.insert(), res_types)
+            db.DBSession.bulk_insert_mappings(ResourceType, res_types)
         if len(res_attrs) > 0:
-            db.DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
+            db.DBSession.bulk_insert_mappings(ResourceAttr, res_attrs)
 
             new_res_attrs = db.DBSession.query(ResourceAttr).order_by(ResourceAttr.resource_attr_id.desc()).limit(len(res_attrs)).all()
             all_rs = []
@@ -1899,7 +1913,7 @@ def add_group(network_id, group,**kwargs):
                         all_rs.append(rs_list[rs])
 
             if len(all_rs) > 0:
-                db.DBSession.execute(ResourceScenario.__table__.insert(), all_rs)
+                db.DBSession.bulk_insert_mappings(ResourceScenario, all_rs)
 
 
     db.DBSession.refresh(res_grp_i)
@@ -2398,7 +2412,7 @@ def _clone_nodes(old_network_id, new_network_id):
 
         newnodes.append(new_n)
 
-    db.DBSession.execute(Node.__table__.insert(), newnodes)
+    db.DBSession.bulk_insert_mappings(Node, newnodes)
 
     db.DBSession.flush()
     #map old IDS to new IDS 
@@ -2431,7 +2445,7 @@ def _clone_links(old_network_id, new_network_id, node_id_map):
 
         old_link_name_map[ex_l.link_name] = ex_l.link_id
 
-    db.DBSession.execute(Link.__table__.insert(), newlinks)
+    db.DBSession.bulk_insert_mappings(Link, newlinks)
 
     db.DBSession.flush()
     #map old IDS to new IDS 
@@ -2461,7 +2475,7 @@ def _clone_groups(old_network_id, new_network_id, node_id_map, link_id_map):
 
         old_group_name_map[ex_g.group_name] = ex_g.group_id
 
-    db.DBSession.execute(ResourceGroup.__table__.insert(), newgroups)
+    db.DBSession.bulk_insert_mappings(ResourceGroup, newgroups)
 
     db.DBSession.flush()
     #map old IDS to new IDS 
@@ -2534,7 +2548,7 @@ def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, gro
         old_ra_name_map[(None, None, None, group_id_map[ra.group_id], ra.attr_id)] = ra.resource_attr_id
 
     log.info("Inserting new resource attributes")
-    db.DBSession.execute(ResourceAttr.__table__.insert(), new_ras)
+    db.DBSession.bulk_insert_mappings(ResourceAttr, new_ras)
     db.DBSession.flush()
     log.info("Insertion Complete")
 
@@ -2610,7 +2624,7 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
         ))
 
     log.info("Inserting new resource types")
-    db.DBSession.execute(ResourceType.__table__.insert(), new_ras)
+    db.DBSession.bulk_insert_mappings(ResourceType, new_ras)
     db.DBSession.flush()
     log.info("Insertion Complete")
 
@@ -2657,7 +2671,7 @@ def _clone_scenario(old_scenario, newnetworkid, ra_id_map, node_id_map, link_id_
         ))
 
     log.info("Inserting new resource scenarios")
-    db.DBSession.execute(ResourceScenario.__table__.insert(), new_rscens)
+    db.DBSession.bulk_insert_mappings(ResourceScenario, new_rscens)
     log.info("Insertion Complete")
 
     
@@ -2674,4 +2688,4 @@ def _clone_scenario(old_scenario, newnetworkid, ra_id_map, node_id_map, link_id_
             scenario_id=scenario_id,
         ))
 
-    db.DBSession.execute(ResourceGroupItem.__table__.insert(), new_rgis)
+    db.DBSession.bulk_insert_mappings(ResourceGroupItem, new_rgis)

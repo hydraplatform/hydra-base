@@ -56,6 +56,16 @@ def get_datetime(timestamp):
 
         @returns: A timezone unaware timestamp.
     """
+    timestamp_is_float = False
+    try:
+        float(timestamp)
+        timestamp_is_float = True
+    except (ValueError, TypeError), e:
+        pass
+
+    if timestamp_is_float == True:
+        raise ValueError("Timestamp %s is a float"%(timestamp,))
+
     #First try to use date util. Failing that, continue
     try:
         parsed_dt = parse(timestamp, dayfirst=False)
@@ -205,7 +215,9 @@ def guess_timefmt(datestr):
         - Be aware that in a file with comma separated values you should not
           use a date format that contains commas.
     """
-
+    
+    if isinstance(datestr, float) or isinstance(datestr, int):
+        return None
 
     seasonal_key = str(config.get('DEFAULT', 'seasonal_key', '9999'))
 

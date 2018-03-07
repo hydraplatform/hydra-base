@@ -163,7 +163,7 @@ def get_val(dataset, timestamp=None):
         seasonal_key = config.get('DEFAULT', 'seasonal_key', '9999')
         val = dataset.value.replace(seasonal_key, seasonal_year)
         
-        timeseries = pd.read_json(val)
+        timeseries = pd.read_json(val, convert_axes=True)
 
         if timestamp is None:
             return timeseries

@@ -39,7 +39,7 @@ def session(db, engine, request):
     """Creates a new database session for a test."""
     db.metadata.bind = engine
 
-    DBSession = sessionmaker(bind=engine)
+    DBSession = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     # A DBSession() instance establishes all conversations with the database
     # and represents a "staging zone" for all the objects loaded into the
     # database session object. Any change made against the objects in the
