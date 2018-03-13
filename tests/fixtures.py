@@ -77,14 +77,22 @@ def network(project_id=None, num_nodes=10, new_proj=True, map_projection='EPSG:4
 
 
 @pytest.fixture()
-def network_with_data(project_id=None, num_nodes=10, ret_full_net=True, new_proj=True, map_projection='EPSG:4326',
-                      use_existing_template=True):
-    return util.create_network_with_data(project_id, num_nodes, ret_full_net, new_proj, map_projection,
-                                         use_existing_template=use_existing_template)
-
+def network_with_data(project_id=None, num_nodes=10, ret_full_net=True, new_proj=True, map_projection='EPSG:4326'):
+    return util.create_network_with_data(project_id, num_nodes, ret_full_net, new_proj, map_projection)
 
 @pytest.fixture()
-def network_with_data_new_template(project_id=None, num_nodes=10, ret_full_net=True, new_proj=True, map_projection='EPSG:4326',
-                      use_existing_template=False):
-    return util.create_network_with_data(project_id, num_nodes, ret_full_net, new_proj, map_projection,
-                                         use_existing_template=use_existing_template)
+def networkmaker():
+    class NetworkMaker:
+        def create(self, project_id=None, num_nodes=10, ret_full_net=True, new_proj=True, map_projection='EPSG:4326'):
+            return util.create_network_with_data(project_id, num_nodes, ret_full_net, new_proj, map_projection)
+    return NetworkMaker()
+
+@pytest.fixture()
+def attributes():
+    return util.create_attributes()
+
+@pytest.fixture()
+def attribute():
+    return util.create_attribute()
+
+

@@ -65,7 +65,7 @@ def add_resource_types(resource_i, types):
 
     return new_type_ids
 
-def add_attributes(resource_i, attributes):
+def add_resource_attributes(resource_i, attributes):
     if attributes is None:
         return {}
     resource_attrs = {}

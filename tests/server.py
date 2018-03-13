@@ -18,10 +18,8 @@
 import logging
 from hydra_base import config
 import util
-import pytest
-from fixtures import session
-from hydra_base.db import commit_transaction, rollback_transaction
-from hydra_base.util.hdb import create_default_users_and_perms, make_root_user
+from hydra_base.db import commit_transaction
+from hydra_base.util.hdb import create_default_users_and_perms
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.ERROR)

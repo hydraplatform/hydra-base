@@ -27,7 +27,7 @@ from . import network
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import class_mapper, joinedload_all
 from sqlalchemy import and_
-from ..util.hdb import add_attributes
+from ..util import hdb
 from sqlalchemy.util import KeyedTuple
 
 log = logging.getLogger(__name__)
@@ -78,7 +78,7 @@ def add_project(project,**kwargs):
     proj_i.project_description = project.description
     proj_i.created_by = user_id
 
-    attr_map = add_attributes(proj_i, project.attributes)
+    attr_map = hdb.add_resource_attributes(proj_i, project.attributes)
     proj_data = _add_project_attribute_data(proj_i, attr_map, project.attribute_data)
     proj_i.attribute_data = proj_data
 
@@ -104,7 +104,7 @@ def update_project(project,**kwargs):
     proj_i.project_name        = project.name
     proj_i.project_description = project.description
 
-    attr_map = add_attributes(proj_i, project.attributes)
+    attr_map = hdb.add_resource_attributes(proj_i, project.attributes)
     proj_data = _add_project_attribute_data(proj_i, attr_map, project.attribute_data)
     proj_i.attribute_data = proj_data
     db.DBSession.flush()

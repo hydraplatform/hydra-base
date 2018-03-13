@@ -16,9 +16,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import hydra_base as hb
-from hydra_base.lib.objects import JSONObject, Dataset
+from hydra_base.lib.objects import JSONObject
 from hydra_base.exceptions import ResourceNotFoundError
-import server
 from fixtures import *
 import pytest
 import util
@@ -237,17 +236,14 @@ class TestTimeSeries:
 
     def test_multiple_vals_at_time(self, session, network_with_data, seasonal_timeseries):
 
-        # Convenience renaming
-        network = network_with_data
-
         s = network_with_data['scenarios'][0]
     
         for rs in s['resourcescenarios']:
             if rs['value']['data_type'] == 'timeseries':
                 rs['value']['value'] = seasonal_timeseries
 
-        new_network_summary = hb.update_network(network_with_data, user_id=self.user_id)
-        new_net = hb.get_network(network.id, user_id=self.user_id, include_data='Y')
+        hb.update_network(network_with_data, user_id=self.user_id)
+        new_net = hb.get_network(network_with_data.id, user_id=self.user_id, include_data='Y')
 
         scenario = new_net.scenarios[0]
         val_to_query = None

@@ -37,7 +37,7 @@ from sqlalchemy import func, and_, or_, distinct
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import aliased
 from ..util.hydra_dateutil import timestamp_to_ordinal
-from ..util.hdb import add_attributes, add_resource_types
+from ..util import hdb
 
 from sqlalchemy import case
 from sqlalchemy.sql import null
@@ -482,7 +482,7 @@ def add_network(network,**kwargs):
 
     name_map = {network.name:net_i}
     network_attrs = _bulk_add_resource_attrs(net_i.id, 'NETWORK', [network], name_map)
-    add_resource_types(net_i, network.types)
+    hdb.add_resource_types(net_i, network.types)
 
     all_resource_attrs.update(network_attrs)
 
@@ -1253,7 +1253,7 @@ def update_network(network,
     all_resource_attrs = {}
     new_network_attributes = _update_attributes(net_i, network.attributes)
     all_resource_attrs.update(new_network_attributes)
-    add_resource_types(net_i, network.types)
+    hdb.add_resource_types(net_i, network.types)
 
     #Maps temporary node_ids to real node_ids
     node_id_map = dict()
@@ -1285,7 +1285,7 @@ def update_network(network,
                 node_id_map[n.id] = n
 
             all_resource_attrs.update(_update_attributes(n, node.attributes))
-            add_resource_types(n, node.types)
+            hdb.add_resource_types(n, node.types)
         log.info("Updating nodes took %s", time.time() - t0)
 
     link_id_map = dict()
@@ -1317,7 +1317,7 @@ def update_network(network,
 
 
             all_resource_attrs.update(_update_attributes(l, link.attributes))
-            add_resource_types(l, link.types)
+            hdb.add_resource_types(l, link.types)
         log.info("Updating links took %s", time.time() - t0)
 
     group_id_map = dict()
@@ -1343,7 +1343,7 @@ def update_network(network,
                 group_id_map[g_i.group_id] = g_i
 
             all_resource_attrs.update(_update_attributes(g_i, group.attributes))
-            add_resource_types(g_i, group.types)
+            hdb.add_resource_types(g_i, group.types)
             group_id_map[group.id] = g_i
         log.info("Updating groups took %s", time.time() - t0)
 
@@ -1550,7 +1550,7 @@ def add_node(network_id, node,**kwargs):
 
     new_node = net_i.add_node(node.name, node.description, node.layout, node.x, node.y)
 
-    add_attributes(new_node, node.attributes)
+    hdb.add_resource_attributes(new_node, node.attributes)
 
     db.DBSession.flush()
 
@@ -1616,7 +1616,7 @@ def update_node(node,**kwargs):
         _update_attributes(node_i, node.attributes)
 
     if node.types is not None:
-        add_resource_types(node_i, node.types)
+        hdb.add_resource_types(node_i, node.types)
     db.DBSession.flush()
 
     return node_i
@@ -1750,7 +1750,7 @@ def add_link(network_id, link,**kwargs):
 
     link_i = net_i.add_link(link.name, link.description, link.layout, node_1, node_2)
 
-    add_attributes(link_i, link.attributes)
+    hdb.add_resource_attributes(link_i, link.attributes)
 
     db.DBSession.flush()
 
@@ -1806,8 +1806,8 @@ def update_link(link,**kwargs):
     link_i.link_description = link.description
     link_i.layout           = link.get_layout()
 
-    add_attributes(link_i, link.attributes)
-    add_resource_types(link_i, link.types)
+    hdb.add_resource_attributes(link_i, link.attributes)
+    hdb.add_resource_types(link_i, link.types)
     db.DBSession.flush()
     return link_i
 
@@ -1883,7 +1883,7 @@ def add_group(network_id, group,**kwargs):
 
     res_grp_i = net_i.add_group(group.name, group.description, group.status)
 
-    add_attributes(res_grp_i, group.attributes)
+    hdb.add_resource_attributes(res_grp_i, group.attributes)
 
     db.DBSession.flush()
     if group.types is not None and len(group.types) > 0:
@@ -1941,7 +1941,7 @@ def update_group(group,**kwargs):
         _update_attributes(group_i, group.attributes)
 
     if group.types is not None:
-        add_resource_types(group_i, group.types)
+        hdb.add_resource_types(group_i, group.types)
     db.DBSession.flush()
 
     return group_i

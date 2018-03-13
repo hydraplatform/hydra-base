@@ -280,7 +280,22 @@ def add_resource_attribute(resource_type, resource_id, attr_id, is_var,**kwargs)
 
     resource_i = _get_resource(resource_type, resource_id)
 
-    for ra in resource_i.attributes:
+    resourceattr_qry = db.DBSession.query(ResourceAttr).filter(ResourceAttr.ref_key==resource_type)
+
+    if resource_type == 'NETWORK':
+        resourceattr_qry.filter(ResourceAttr.network_id==resource_id)
+    elif resource_type == 'NODE':
+        resourceattr_qry.filter(ResourceAttr.node_id==resource_id)
+    elif resource_type == 'LINK':
+        resourceattr_qry.filter(ResourceAttr.link_id==resource_id)
+    elif resource_type == 'GROUP':
+        resourceattr_qry.filter(ResourceAttr.group_id==resource_id)
+    elif resource_type == 'PROJECT':
+        resourceattr_qry.filter(ResourceAttr.project_id==resource_id)
+
+    resource_attrs = resourceattr_qry.all()
+    
+    for ra in resource_attrs:
         if ra.attr_id == attr_id:
             raise HydraError("Duplicate attribute. %s %s already has attribute %s"
                              %(resource_type, resource_i.get_name(), attr.attr_name))
@@ -300,8 +315,23 @@ def add_resource_attrs_from_type(type_id, resource_type, resource_id,**kwargs):
 
     resource_i = _get_resource(resource_type, resource_id)
 
+    resourceattr_qry = db.DBSession.query(ResourceAttr).filter(ResourceAttr.ref_key==resource_type)
+
+    if resource_type == 'NETWORK':
+        resourceattr_qry.filter(ResourceAttr.network_id==resource_id)
+    elif resource_type == 'NODE':
+        resourceattr_qry.filter(ResourceAttr.node_id==resource_id)
+    elif resource_type == 'LINK':
+        resourceattr_qry.filter(ResourceAttr.link_id==resource_id)
+    elif resource_type == 'GROUP':
+        resourceattr_qry.filter(ResourceAttr.group_id==resource_id)
+    elif resource_type == 'PROJECT':
+        resourceattr_qry.filter(ResourceAttr.project_id==resource_id)
+
+    resource_attrs = resourceattr_qry.all()
+    
     attrs = {}
-    for attr in resource_i.attributes:
+    for attr in resource_attrs:
         attrs[attr.attr_id] = attr
 
     new_resource_attrs = []
@@ -446,6 +476,8 @@ def set_attribute_mapping(resource_attr_a, resource_attr_b, **kwargs):
                              network_b_id     = ra_2.get_network().id )
     
     db.DBSession.add(mapping)
+
+    db.DBSession.flush()
 
     return mapping
 

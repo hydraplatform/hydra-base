@@ -81,13 +81,7 @@ def update_template(template_id):
     template = hydra_base.update_template(template, user_id=user_id)
 
 
-def create_template(use_existing_template=True):
-    if use_existing_template is True:
-        template_i = hydra_base.get_template_by_name('Default Template', user_id=user_id)
-
-        if template_i is not None:
-            template = JSONObject(template_i)
-            return template
+def create_template():
 
     net_attr1    = create_attr("net_attr_a", dimension='Volume')
     net_attr2    = create_attr("net_attr_c", dimension=None)
@@ -101,10 +95,7 @@ def create_template(use_existing_template=True):
     group_attr_2 = create_attr("grp_attr_2", dimension='Displacement')
 
     template = JSONObject()
-    if use_existing_template is True:
-        template['name'] = 'Default Template'
-    else:
-        template['name'] = 'Default Template ' + str(datetime.datetime.now())
+    template['name'] = 'Default Template ' + str(datetime.datetime.now())
 
 
     types = []
@@ -294,7 +285,7 @@ def create_attr(name="Test attribute", dimension="dimensionless"):
     return attr
 
 
-def build_network(project_id=None, num_nodes=10, new_proj=True, map_projection='EPSG:4326', use_existing_template=True):
+def build_network(project_id=None, num_nodes=10, new_proj=True, map_projection='EPSG:4326'):
     start = datetime.datetime.now()
     if project_id is None:
         proj_name = None
@@ -307,7 +298,7 @@ def build_network(project_id=None, num_nodes=10, new_proj=True, map_projection='
     log.debug("Project creation took: %s"%(datetime.datetime.now()-start))
     start = datetime.datetime.now()
 
-    template = create_template(use_existing_template=use_existing_template)
+    template = create_template()
 
     log.debug("Attribute creation took: %s"%(datetime.datetime.now()-start))
     start = datetime.datetime.now()
@@ -572,8 +563,7 @@ def build_network(project_id=None, num_nodes=10, new_proj=True, map_projection='
 
 def create_network_with_data(project_id=None, num_nodes=10,
                              ret_full_net=True, new_proj=False,
-                             map_projection='EPSG:4326',
-                            use_existing_template=True):
+                             map_projection='EPSG:4326'):
     """
         Test adding data to a network through a scenario.
         This test adds attributes to one node and then assignes data to them.
@@ -581,8 +571,7 @@ def create_network_with_data(project_id=None, num_nodes=10,
         attributes node.
     """
     network=build_network(project_id, num_nodes, new_proj=new_proj,
-                               map_projection=map_projection,
-                                use_existing_template=use_existing_template)
+                               map_projection=map_projection)
 
     #log.debug(network)
     start = datetime.datetime.now()
@@ -764,3 +753,62 @@ def create_array(resource_attr):
     ))
 
     return scenario_attr
+
+
+def create_attributes():
+
+    name1 = "Multi-added Attr 1"
+    name2 = "Multi-added Attr 2"
+    dimension = "Volumetric flow rate"
+    attrs = []
+    attr1 = JSONObject({'name'  : name1,
+            'dimen' : dimension,
+            'description' : "Attribute 1 from a test of adding multiple attributes",
+            })
+    attrs.append(attr1)
+    attr2 = JSONObject({'name' : name2,
+             'dimen' : dimension,
+            'description' : "Attribute 2 from a test of adding multiple attributes",
+            })
+    attrs.append(attr2)
+
+    existing_attrs = []
+
+    for a in attrs:
+        log.info("Getting attribute %s, %s", a.name, a.dimen)
+        attr = hydra_base.get_attribute_by_name_and_dimension(a.name,
+                                                          a.dimen,
+                                                          user_id=user_id)
+        existing_attrs.append(attr)
+
+
+    for a in existing_attrs:
+        if a is not None:
+            attrs = existing_attrs
+            break
+    else:
+        attrs = hydra_base.add_attributes(attrs, user_id=user_id)
+        assert len(attrs) == 2
+        for a in attrs:
+            assert a.attr_id is not None
+
+    assert attrs[0].attr_description ==  "Attribute 1 from a test of adding multiple attributes"
+    assert attrs[1].attr_description ==  "Attribute 2 from a test of adding multiple attributes"
+
+    return attrs
+
+def create_attribute():
+
+    name = "Test add Attr"
+    dimension = "Volumetric flow rate"
+    attr = hydra_base.get_attribute_by_name_and_dimension(name, "Volumetric flow rate", user_id=user_id)
+    if attr is None:
+        attr = JSONObject({'name'  : name,
+                'dimen' : dimension,
+                'description' : "Attribute description",
+               })
+        attr = hydra_base.add_attribute(attr, user_id=user_id)
+
+        assert attr.attr_description == "Attribute description"
+        
+    return attr

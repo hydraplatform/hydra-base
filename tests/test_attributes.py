@@ -1,0 +1,390 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+# (c) Copyright 2013 to 2017 University of Manchester
+#
+# HydraPlatform is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# HydraPlatform is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
+#
+
+import logging
+from util import update_template
+from fixtures import *
+import copy
+import json
+import hydra_base as hb
+import pytest
+from hydra_base.lib.objects import JSONObject
+log = logging.getLogger(__name__)
+
+class TestAttribute:
+    """
+        Test for attribute-based functionality
+    """
+    # Todo make this a fixture?
+    user_id = util.user_id
+
+    def test_get_network_attrs(self, session, network_with_data):
+
+        net_attrs = hb.get_resource_attributes('NETWORK', network_with_data.id, user_id=self.user_id)
+        net_type_attrs = hb.get_resource_attributes('NETWORK', network_with_data.id,
+                                                   network_with_data.types[0].id,
+                                                  user_id=self.user_id)
+
+        assert len(net_attrs) == 3
+        assert len(net_type_attrs) == 2
+
+
+    def test_get_all_attributes(self, session, attributes):
+
+        all_attributes = hb.get_attributes(user_id=self.user_id)
+        attribute_names = []
+        for a in all_attributes:
+            attribute_names.append(a.attr_name)
+
+        assert "Multi-added Attr 1" in attribute_names
+        assert "Multi-added Attr 2" in attribute_names
+
+    def test_get_attribute_by_id(self, session, attribute):
+        
+        existing_attr = attribute
+        
+        retrieved_attr = hb.get_attribute_by_id(existing_attr.attr_id, user_id=self.user_id)
+
+        assert existing_attr.attr_name == retrieved_attr.attr_name
+        assert existing_attr.attr_dimen == retrieved_attr.attr_dimen
+        assert existing_attr.attr_description == retrieved_attr.attr_description
+
+    def test_get_attribute_by_name_and_dimension(self, session, attribute):
+        existing_attr = attribute
+        retrieved_attr = hb.get_attribute_by_name_and_dimension(
+                                            existing_attr.attr_name,
+                                            existing_attr.attr_dimen,
+                                            user_id=self.user_id)
+
+        assert existing_attr.attr_id == retrieved_attr.attr_id
+        assert existing_attr.attr_description == retrieved_attr.attr_description
+
+    def test_add_network_attribute(self, session, network_with_data, attribute):
+        
+        new_attr = attribute
+        
+        hb.add_resource_attribute('NETWORK', network_with_data.id, new_attr.attr_id, 'Y', user_id=self.user_id)
+        
+        updated_network = hb.get_network(network_with_data.id, user_id=self.user_id)
+        
+        network_attr_ids = []
+        
+        for ra in updated_network.attributes:
+            network_attr_ids.append(ra.attr_id)
+        assert new_attr.attr_id in network_attr_ids
+
+    def test_add_network_attrs_from_type(self, session, network_with_data, attribute):
+        """
+            Recreate the situation where a template is updated, so the network needs.
+            to be updated to reflect this change.
+            Equivalent to 'apply_template_to_network', just performed differently.
+        """
+
+        network = network_with_data
+
+        type_id = network.types[0].id
+        
+        #Get the template type, and add a new typeattr to it
+        templatetype_j = JSONObject(hb.get_templatetype(type_id))
+
+        new_typeattr = JSONObject({
+            'attr_id' : attribute.attr_id 
+        })
+        
+        templatetype_j.typeattrs.append(new_typeattr)
+
+        hb.update_templatetype(templatetype_j) 
+
+        #Record the network's resource attributes before the update
+        before_net_attrs = []
+        for ra in network.attributes:
+            before_net_attrs.append(ra.attr_id)
+            log.info("old: %s",ra.attr_id)
+
+        #Set any new resource attributes
+        hb.add_resource_attrs_from_type(type_id, 'NETWORK', network.id, user_id=self.user_id) 
+        
+        updated_network = hb.get_network(network.id, user_id=self.user_id)
+        after_net_attrs = []
+        for ra in updated_network.attributes:
+            after_net_attrs.append(ra.attr_id)
+            log.info("new: %s",ra.attr_id)
+
+        assert len(after_net_attrs) == len(before_net_attrs) + 1
+
+    def test_add_node_attribute(self, session, network_with_data, attribute):
+        node = network_with_data.nodes[0]
+        hb.add_resource_attribute('NODE', node.id, attribute.attr_id, 'Y', user_id=self.user_id)
+        node_attributes = hb.get_resource_attributes('NODE', node.id, user_id=self.user_id)
+        network_attr_ids = []
+        for ra in node_attributes:
+            network_attr_ids.append(ra.attr_id)
+        assert attribute.attr_id in network_attr_ids
+
+    def test_add_duplicate_node_attribute(self, session, network_with_data, attribute):
+        node = network_with_data.nodes[0]
+        hb.add_resource_attribute('NODE', node.id, attribute.attr_id, 'Y', user_id=self.user_id)
+        node_attributes = hb.get_resource_attributes('NODE', node.id, user_id=self.user_id)
+        node_attr_ids = []
+        for ra in node_attributes:
+            node_attr_ids.append(ra.attr_id)
+        assert attribute.attr_id in node_attr_ids
+        
+        with pytest.raises(hb.HydraError):
+            hb.add_resource_attribute('NODE', node.id, attribute.attr_id, 'Y', user_id=self.user_id)
+
+    def test_get_all_node_attributes(self, session, network_with_data):
+
+        #Get all the node attributes in the network
+        node_attr_ids = []
+        for n in network_with_data.nodes:
+            for a in n.attributes:
+                node_attr_ids.append(a.id)
+
+        node_attributes = hb.get_all_resource_attributes('NODE', network_with_data.id, user_id=self.user_id)
+        
+        #Check that the retrieved attributes are in the list of node attributes
+        retrieved_ras = []
+        for n in node_attributes:
+            retrieved_ras.append(n.resource_attr_id)
+
+        assert set(node_attr_ids) == set(retrieved_ras)
+
+        template_id = network_with_data.types[0].template_id
+
+        node_attributes = hb.get_all_resource_attributes('NODE', network_with_data.id, template_id, user_id=self.user_id)
+        
+        #Check that the retrieved attributes are in the list of node attributes
+        retrieved_ras = []
+        for n in node_attributes:
+            retrieved_ras.append(n.resource_attr_id)
+        assert set(node_attr_ids) == set(retrieved_ras)
+        
+
+    def test_add_link_attribute(self, session, network_with_data, attribute):
+        link = network_with_data.links[0]
+        hb.add_resource_attribute('LINK', link.id, attribute.attr_id, 'Y')
+        link_attributes = hb.get_resource_attributes('LINK', link.id, user_id=self.user_id)
+        network_attr_ids = []
+        
+        for ra in link_attributes:
+            network_attr_ids.append(ra.attr_id)
+        assert attribute.attr_id in network_attr_ids
+
+    def test_get_all_link_attributes(self, session, network_with_data):
+
+        #Get all the node attributes in the network
+        link_attr_ids = []
+        for n in network_with_data.links:
+            for a in n.attributes:
+                link_attr_ids.append(a.resource_attr_id)
+        link_attributes = hb.get_all_resource_attributes('LINK', network_with_data.id, user_id=self.user_id)
+        #Check that the retrieved attributes are in the list of node attributes
+        retrieved_ras = []
+        for n in link_attributes:
+            retrieved_ras.append(n.resource_attr_id)
+        assert set(link_attr_ids) == set(retrieved_ras)
+
+
+    def test_add_group_attribute(self, session, network_with_data, attribute):
+        group = network_with_data.resourcegroups[0]
+        hb.add_resource_attribute('GROUP', group.id, attribute.attr_id, 'Y', user_id=self.user_id)
+        group_attrs = hb.get_resource_attributes('GROUP', group.id, user_id=self.user_id)
+        group_attr_ids = []
+        for ra in group_attrs:
+            group_attr_ids.append(ra.attr_id)
+        assert attribute.attr_id in group_attr_ids
+
+    def test_get_all_group_attributes(self, session, network_with_data):
+
+        #Get all the node attributes in the network
+        group_attr_ids = []
+        for g in network_with_data.resourcegroups:
+            for a in g.attributes:
+                group_attr_ids.append(a.resource_attr_id)
+
+        group_attributes = hb.get_all_resource_attributes('GROUP', network_with_data.id, user_id=self.user_id)
+        
+        #Check that the retrieved attributes are in the list of group attributes
+        retrieved_ras = []
+        for ra in group_attributes:
+            retrieved_ras.append(ra.resource_attr_id)
+        assert set(group_attr_ids) == set(retrieved_ras)
+
+class TestAttributeMap:
+
+    user_id = util.user_id
+    def test_set_attribute_mapping(self, session, networkmaker):
+        net1 = networkmaker.create()
+        net2 = networkmaker.create()
+        net3 = networkmaker.create()
+
+        s1 = net1.scenarios[0]
+        s2 = net2.scenarios[0]
+
+        node_1 = net1.nodes[0]
+        node_2 = net2.nodes[0]
+        node_3 = net3.nodes[0]
+
+        attr_1 = node_1.attributes[0]
+        attr_2 = node_2.attributes[1]
+        attr_3 = node_3.attributes[2]
+
+        rs_to_update_from = None
+        for rs in s1.resourcescenarios:
+            if rs.resource_attr_id == attr_1.id:
+                rs_to_update_from = rs
+
+
+        rs_to_change = None
+        for rs in s2.resourcescenarios:
+            if rs.resource_attr_id == attr_2.id:
+                rs_to_change = rs
+
+        hb.set_attribute_mapping(attr_1.id, attr_2.id, user_id=self.user_id)
+        hb.set_attribute_mapping(attr_1.id, attr_3.id, user_id=self.user_id)
+        
+        
+        all_mappings_1 = hb.get_mappings_in_network(net1.id, user_id=self.user_id)
+        all_mappings_2 = hb.get_mappings_in_network(net2.id, net2.id, user_id=self.user_id)
+
+
+        #print all_mappings_1 
+        #print all_mappings_2 
+        assert len(all_mappings_1) == 2
+        assert len(all_mappings_2) == 1
+
+        node_mappings_1 = hb.get_node_mappings(node_1.id, user_id=self.user_id)
+        node_mappings_2 = hb.get_node_mappings(node_1.id, node_2.id, user_id=self.user_id)
+        #print "*"*100
+        #print node_mappings_1 
+        #print node_mappings_2 
+        assert len(node_mappings_1) == 2
+        assert len(node_mappings_2) == 1
+
+        map_exists = hb.check_attribute_mapping_exists(attr_1.id, attr_2.id, user_id=self.user_id)
+        assert map_exists == 'Y'
+        map_exists = hb.check_attribute_mapping_exists(attr_2.id, attr_1.id, user_id=self.user_id)
+        assert map_exists == 'N'
+        map_exists = hb.check_attribute_mapping_exists(attr_2.id, attr_3.id, user_id=self.user_id)
+        assert map_exists == 'N'
+        
+       
+        updated_rs = hb.update_value_from_mapping(attr_1.id, attr_2.id, s1.id, s2.id, user_id=self.user_id)
+    
+        assert str(updated_rs.dataset.value) == str(rs_to_update_from.dataset.value)
+       
+        log.info("Deleting %s -> %s", attr_1.id, attr_2.id)
+        hb.delete_attribute_mapping(attr_1.id, attr_2.id, user_id=self.user_id)
+        all_mappings_1 = hb.get_mappings_in_network(net1.id, user_id=self.user_id)
+        assert len(all_mappings_1) == 1
+
+        hb.delete_mappings_in_network(net1.id, user_id=self.user_id)
+        all_mappings_1 = hb.get_mappings_in_network(net1.id, user_id=self.user_id)
+        assert len(all_mappings_1) == 0
+
+class TestAttributeCollection:
+    """
+        Test for attribute-based functionality
+    """
+
+    user_id = util.user_id
+    def test_add_resource_attr_collection(self, network_with_data):
+        net = network_with_data
+        net_no_collections = self.create_network_with_data()
+
+        net_attrs = hb.get_network_attributes(net.id)
+
+        attr_ids = []
+
+        item_ids = []
+        for ra in net_attrs:
+            item_ids.append(ra.id)
+            attr_ids.append(ra.attr_id)
+
+        ra_collection = {
+            'name': 'Test RA collection',
+            'resource_attr_ids' : item_ids,
+            'layout': json.dumps({"test": "ABC"}),
+        }
+
+        new_ra_collection = hb.add_resource_attr_collection(ra_collection, user_id=self.user_id)
+
+        assert len(new_ra_collection.resource_attr_ids) == len(item_ids)
+        
+        retrieved_ra_collection = hb.get_resource_attr_collection(new_ra_collection.id, user_id=self.user_id)
+        assert len(retrieved_ra_collection.resource_attr_ids) == len(item_ids)
+
+        item_ids_to_remove = []
+        item_ids_to_remove.append(new_ra_collection.resource_attr_ids[0])
+
+        hb.remove_items_from_attr_collection(new_ra_collection.id, item_ids_to_remove, user_id=self.user_id)
+
+        smaller_ra_collection = hb.get_resource_attr_collection(new_ra_collection.id, user_id=self.user_id)
+        assert len(smaller_ra_collection.resource_attr_ids) == len(item_ids)-1
+
+        item_ids_to_add = []
+        item_ids_to_add.append(new_ra_collection.resource_attr_ids[0])
+
+        larger_ra_collection = hb.add_items_to_attr_collection(new_ra_collection.id, item_ids_to_add, user_id=self.user_id)
+         
+        assert len(larger_ra_collection.resource_attr_ids) == len(item_ids)
+
+        #Test searching for items
+        existing_items = hb.get_all_resource_attr_collections(user_id=self.user_id)
+        assert len(existing_items[0]) >= len(attr_ids)
+
+        existing_items = hb.get_resource_attr_collections_for_attr(attr_ids[0], user_id=self.user_id)
+        assert len(existing_items) > 0
+
+        no_items = hb.get_resource_attr_collections_for_attr(999, user_id=self.user_id)
+        assert len(no_items) == 0
+        
+
+        #Test searching for items
+        network_items = hb.get_resource_attr_collections_in_network(net.id, user_id=self.user_id)
+        assert len(network_items) == len(item_ids)
+
+        no_network_items = hb.get_resource_attr_collections_in_network(net_no_collections.id, user_id=self.user_id)
+        assert len(no_network_items) == 0
+
+        no_node_items = hb.get_resource_attr_collections_for_node(net.nodes[0][0].id, user_id=self.user_id)
+        assert len(no_node_items) == 0
+
+        no_link_items = hb.get_resource_attr_collections_for_link(net.links[0][0].id, user_id=self.user_id)
+        assert len(no_link_items) == 0
+
+        ra_collection_to_update = copy.deepcopy(new_ra_collection)
+        ra_collection_to_update.layout = json.dumps({"tesing":123})
+
+        updated_ra_collection = hb.update_resource_attr_collection(ra_collection_to_update, user_id=self.user_id)
+        assert json.loads(updated_ra_collection.layout) == json.loads(ra_collection_to_update.layout)
+        assert updated_ra_collection.name == ra_collection_to_update.name
+
+        hb.delete_resource_attr_collection(new_ra_collection.id, user_id=self.user_id)
+
+        with pytest.raises(ResourceNotFoundError):
+            hb.get_resource_attr_collection(new_ra_collection.id, user_id=self.user_id)
+
+
+        
+
+
+if __name__ == '__main__':
+    server.run()
