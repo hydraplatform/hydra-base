@@ -15,6 +15,10 @@
 #
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# Python 2 and 3 support
+from __future__ import unicode_literals
+from builtins import dict, str
+
 import hydra_base as hb
 from hydra_base.lib.objects import JSONObject
 from hydra_base.exceptions import ResourceNotFoundError

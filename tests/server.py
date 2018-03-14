@@ -15,6 +15,10 @@
 #
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# Python 2 and 3 support
+from __future__ import unicode_literals
+from builtins import dict, str
+
 import logging
 from hydra_base import config
 import util

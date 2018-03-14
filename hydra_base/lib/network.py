@@ -16,6 +16,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
+# Python 2 and 3 support
+from __future__ import unicode_literals
+from builtins import dict, str
 
 import datetime
 import time
@@ -869,9 +872,9 @@ def _get_metadata(network_id, user_id):
     metadata_dict = dict()
     for m in all_metadata:
         if metadata_dict.get(m.dataset_id):
-            metadata_dict[m.dataset_id][m.metadata_name] = unicode(m.metadata_val)
+            metadata_dict[m.dataset_id][m.metadata_name] = str(m.metadata_val)
         else:
-            metadata_dict[m.dataset_id] = {m.metadata_name : unicode(m.metadata_val)}
+            metadata_dict[m.dataset_id] = {m.metadata_name: str(m.metadata_val)}
 
     logging.info("metadata processed in %s", time.time()-x)
 

@@ -19,7 +19,7 @@
 
 import logging
 import logging.config
-import config
+from . import config
 import os
 import ctypes
 import inspect
