@@ -812,3 +812,20 @@ def create_attribute():
         assert attr.attr_description == "Attribute description"
         
     return attr
+
+
+def create_attributegroup(project_id, name=None, exclusive='N'):
+    
+    if name is None:
+        name =  "Attribute Group %s" % (datetime.datetime.now(),)
+
+    newgroup = JSONObject({
+            'project_id'  : project_id,
+            'name'        : name,
+            'description' : "A description of an attribute group",
+            'layout'      : {"color": "green"},
+            'exclusive'   : exclusive,
+        })
+
+    newgroup = hydra_base.add_attribute_group(newgroup, user_id=user_id)
+    return newgroup

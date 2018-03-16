@@ -5,6 +5,7 @@ import util
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+import datetime
 
 
 @pytest.fixture()
@@ -95,4 +96,38 @@ def attributes():
 def attribute():
     return util.create_attribute()
 
+
+@pytest.fixture()
+def projectmaker():
+    class ProjectMaker:
+        def create(self, name=None):
+            if name is None:
+                name = 'Project %s' % (datetime.datetime.now())
+            return util.create_project(name=name)
+
+    return ProjectMaker()
+
+
+@pytest.fixture()
+def attributegroup():
+    project = util.create_project('Project %s' % (datetime.datetime.now()))
+    newgroup = util.create_attributegroup(project.id)
+    return newgroup
+
+@pytest.fixture()
+def attributegroupmaker():
+    class AttributeGroupMaker:
+        def create(self, project_id, name=None, exclusive='N'):
+            
+            if name is None:
+                name = 'Attribute Group %s' % (datetime.datetime.now())
+
+            newgroup = util.create_attributegroup(project_id,
+                                                  name=name,
+                                                  exclusive=exclusive)
+            
+            return newgroup
+
+    return AttributeGroupMaker()
+    
 
