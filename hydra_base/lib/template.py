@@ -54,7 +54,6 @@ def _check_dimension(typeattr, unit=None):
 
     if unit is not None and dimension is not None:
         unit_dimen = units.get_unit_dimension(unit)
-
         if unit_dimen.lower() != dimension.lower():
             raise HydraError("Unit %s has dimension %s, but attribute has dimension %s"%
                             (unit, unit_dimen, dimension))
