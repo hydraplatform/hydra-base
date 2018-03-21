@@ -147,22 +147,22 @@ class TestTemplates:
     # Todo make this a fixture?
     user_id = util.user_id
 
-    def set_template(self, session, template):
-        if template is None:
-            self.template = self.test_add_template()
-        else:
-            self.template = template
-
-    def get_template(self, session):
-        if hasattr(self, 'template'):
-            try:
-                hb.get_template(self.template.id)
-                return self.template
-            except:
-                self.template = self.test_add_template()
-        else:
-            self.template = self.test_add_template()
-        return self.template
+    # def set_template(self, session, template):
+    #     if template is None:
+    #         self.template = self.test_add_template()
+    #     else:
+    #         self.template = template
+    #
+    # def get_template(self, session):
+    #     if hasattr(self, 'template'):
+    #         try:
+    #             hb.get_template(self.template.id)
+    #             return self.template
+    #         except:
+    #             self.template = self.test_add_template()
+    #     else:
+    #         self.template = self.test_add_template()
+    #     return self.template
 
     def test_add_xml(self, template_json_object):
         new_tmpl = template_json_object
@@ -263,7 +263,6 @@ class TestTemplates:
 
         return new_template_j
 
-    @pytest.mark.xfail(reason='Not sure why this is not working. Needs more investigation.')
     def test_update_template(self, session):
 
         attr_1 = util.create_attr("link_attr_1", dimension='Pressure')
@@ -481,7 +480,6 @@ class TestTemplates:
 
         assert len(updated_type_j.typeattrs) == 3, "Template type attrs did not update correctly"
 
-    @pytest.mark.xfail(reason="This gives a SQLAlchemy error about failing to flush. Not sure how to debug.")
     def test_delete_type(self, session, template2):
         new_template = template2
 

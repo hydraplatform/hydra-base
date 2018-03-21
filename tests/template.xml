@@ -56,7 +56,7 @@
             </layout>
             <attribute>
                 <name>Min Capacity</name>
-                <!--<dimension>Volume</dimension>-->
+                <dimension>Volume</dimension>
                 <unit>m^3</unit>
                 <is_var>Y</is_var>
                 <data_type>scalar</data_type>

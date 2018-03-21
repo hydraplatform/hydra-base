@@ -45,8 +45,8 @@ def _get_attr(attr_id):
         return ATTR_CACHE[attr_id]
     else:
         attr = db.DBSession.query(Attr).filter(Attr.id==attr_id).one()
-        ATTR_CACHE[attr_id] = JSONObject(attr)
-        return ATTR_CACHE[attr_id]
+        #ATTR_CACHE[attr_id] = JSONObject(attr)
+        return JSONObject(attr)
 
 
 def _check_dimension(typeattr, unit=None):
