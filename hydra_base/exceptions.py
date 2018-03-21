@@ -21,7 +21,8 @@ class HydraError(Exception):
     def __init__(self, message="A hydra error has occurred", code=0000):
         # Call the base class constructor with the parameters it needs
         self.code = code
-        Exception.__init__(self, message)
+        self.message = message
+        Exception.__init__(self)
 
 class HydraDBError(HydraError):
     def __init__(self, message):
@@ -65,7 +66,7 @@ class DataError(HydraError):
         code = error_codes.get('HYDRADATA', '0000')
         HydraError.__init__(self, message, code)
 
-class ValidationError(Exception):
+class ValidationError(HydraError):
     pass
 
 #
