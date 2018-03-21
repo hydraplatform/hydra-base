@@ -1606,7 +1606,7 @@ def validate_attr(resource_attr_id, scenario_id, template_id=None):
                  dataset_id       = rs.dataset_id,
                  scenario_id=scenario_id,
                  template_id=template_id,
-                 error_text=e.message))
+                 error_text=e.args[0]))
     return error
 
 def validate_attrs(resource_attr_ids, scenario_id, template_id=None):
@@ -1636,7 +1636,8 @@ def validate_attrs(resource_attr_ids, scenario_id, template_id=None):
                      dataset_id       = rs.dataset_id,
                      scenario_id      = scenario_id,
                      template_id      = template_id,
-                     error_text       = e.message)
+                     error_text       = e.args[0])
+
             errors.append(error)
 
     return errors
@@ -1668,7 +1669,7 @@ def validate_scenario(scenario_id, template_id=None):
                      dataset_id       = rs.dataset_id,
                      scenario_id=scenario_id,
                      template_id=template_id,
-                     error_text=e.message)
+                     error_text=e.args[0])
             errors.append(error)
 
     return errors

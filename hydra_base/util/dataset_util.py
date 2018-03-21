@@ -652,17 +652,17 @@ def validate_value(restriction_dict, inval):
         for restriction_type, restriction in restriction_dict.items():
             func = validation_func_map.get(restriction_type)
             if func is None:
-                raise Exception("Validation type %s does not exist"%(restriction_type,))
+                raise Exception("Validation type {} does not exist".format(restriction_type,))
             func(inval, restriction)
     except ValidationError as e:
         log.exception(e)
         err_val = re.sub('\s+', ' ', str(inval)).strip()
         if len(err_val) > 60:
-            err_val = "%s..."%err_val[:60]
-        raise HydraError("Validation error (%s). Val %s does not conform with rule %s"%(restriction_type, err_val, e.message))
+            err_val = "{}...".format(err_val[:60])
+        raise HydraError("Validation error ({}). Val {} does not conform with rule {}".format(restriction_type, err_val, e.args[0]))
     except Exception as e:
         log.exception(e)
-        raise HydraError("An error occurred in validation. (%s)"%(e))
+        raise HydraError("An error occurred in validation. ({})".format(e))
 
 def _flatten_value(value):
     """

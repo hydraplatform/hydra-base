@@ -369,6 +369,7 @@ def get_user_roles(uid,**kwargs):
     except NoResultFound:
         raise HydraError("Roles not found for user (user_id=%s)", uid)
 
+
 def get_user_permissions(uid, **kwargs):
     """
         Get the roles for a user.
@@ -384,6 +385,7 @@ def get_user_permissions(uid, **kwargs):
         return user_perms
     except:
         raise HydraError("Permissions not found for user (user_id=%s)", uid)
+
 
 def get_role_by_code(role_code,**kwargs):
     """
@@ -405,7 +407,7 @@ def get_perm(perm_id,**kwargs):
         perm = db.DBSession.query(Perm).filter(Perm.id==perm_id).one()
         return perm
     except NoResultFound:
-        raise ResourceNotFoundError("Permission not found (perm_id=%s)"%(perm_id))
+        raise ResourceNotFoundError("Permission not found (perm_id={})".format(perm_id))
 
 def get_perm_by_code(perm_code,**kwargs):
     """
@@ -416,4 +418,4 @@ def get_perm_by_code(perm_code,**kwargs):
         perm = db.DBSession.query(Perm).filter(Perm.code==perm_code).one()
         return perm
     except NoResultFound:
-        raise ResourceNotFoundError("Permission not found (perm_code=%s)"(perm_code))
+        raise ResourceNotFoundError("Permission not found (perm_code={})".format(perm_code))
