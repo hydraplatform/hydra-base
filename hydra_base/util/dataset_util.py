@@ -414,8 +414,12 @@ def validate_LESSTHAN(in_value, restriction):
                 subval = subval[1]
             validate_LESSTHAN(subval, restriction)
     else:
-        if value >= restriction:
-            raise ValidationError("LESSTHAN: %s"%(restriction))
+        try:
+            if value >= restriction:
+                raise ValidationError("LESSTHAN: %s"%(restriction))
+        except TypeError:
+            # Incompatible types for comparison.
+            raise ValidationError("LESSTHAN: Incompatible types %s"%(restriction))
 
 
 def validate_LESSTHANEQ(value, restriction):
@@ -435,8 +439,13 @@ def validate_LESSTHANEQ(value, restriction):
                 subval = subval[1]
             validate_LESSTHANEQ(subval, restriction)
     else:
-        if value > restriction:
-            raise ValidationError("LESSTHANEQ: %s"%(restriction))
+        try:
+            if value > restriction:
+                raise ValidationError("LESSTHANEQ: %s" % (restriction))
+        except TypeError:
+            # Incompatible types for comparison.
+            raise ValidationError("LESSTHANEQ: Incompatible types %s"%(restriction))
+
 
 def validate_GREATERTHAN(in_value, restriction):
     """
@@ -455,8 +464,12 @@ def validate_GREATERTHAN(in_value, restriction):
                 subval = subval[1]
             validate_GREATERTHAN(subval, restriction)
     else:
-        if value <= restriction:
-            raise ValidationError("GREATERTHAN: %s"%(restriction))
+        try:
+            if value <= restriction:
+                raise ValidationError("GREATERTHAN: %s" % (restriction))
+        except TypeError:
+            # Incompatible types for comparison.
+            raise ValidationError("GREATERTHAN: Incompatible types %s"%(restriction))
 
 def validate_GREATERTHANEQ(value, restriction):
     """
@@ -475,8 +488,12 @@ def validate_GREATERTHANEQ(value, restriction):
                 subval = subval[1]
             validate_GREATERTHANEQ(subval, restriction)
     else:
-        if value < restriction:
-            raise ValidationError("GREATERTHANEQ: %s"%(restriction))
+        try:
+            if value < restriction:
+                raise ValidationError("GREATERTHANEQ: %s" % (restriction))
+        except TypeError:
+            # Incompatible types for comparison.
+            raise ValidationError("GREATERTHANEQ: Incompatible types %s"%(restriction))
 
 def validate_MULTIPLEOF(in_value, restriction):
     """
@@ -495,8 +512,12 @@ def validate_MULTIPLEOF(in_value, restriction):
                 subval = subval[1]
             validate_MULTIPLEOF(subval, restriction)
     else:
-        if value % restriction != 0:
-            raise ValidationError("MULTIPLEOF: %s"%(restriction))
+        try:
+            if value % restriction != 0:
+                raise ValidationError("MULTIPLEOF: %s" % (restriction))
+        except TypeError:
+            # Incompatible types for comparison.
+            raise ValidationError("MULTIPLEOF: Incompatible types %s"%(restriction))
 
 def validate_SUMTO(in_value, restriction):
     """
@@ -524,7 +545,7 @@ def validate_SUMTO(in_value, restriction):
     if sum(flat_list) != restriction:
         raise ValidationError("SUMTO: %s"%(restriction))
 
-def validate_INCREASING(in_value,restriction):
+def validate_INCREASING(in_value, restriction):
     """
         Test to ensure the values in a list are increasing.
         Parameters: a list of values and None. The none is there simply
@@ -538,8 +559,11 @@ def validate_INCREASING(in_value,restriction):
         if previous is None:
             previous = a
             continue
-        if a < previous:
-            raise ValidationError("INCREASING")
+        try:
+            if a < previous:
+                raise ValidationError("INCREASING")
+        except TypeError:
+            raise  ValueError("INCREASING: Incompatible types")
         previous = a
 
 def validate_DECREASING(in_value,restriction):
@@ -555,8 +579,11 @@ def validate_DECREASING(in_value,restriction):
         if previous is None:
             previous = a
             continue
-        if a > previous:
-            raise ValidationError("INCREASING")
+        try:
+            if a > previous:
+                raise ValidationError("DECREASING")
+        except TypeError:
+            raise  ValueError("DECREASING: Incompatible types")
         previous = a
 
 def validate_EQUALTIMESTEPS(value, restriction):
