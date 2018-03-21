@@ -40,6 +40,7 @@ def _get_attr(attr_id):
     attr = db.DBSession.query(Attr).filter(Attr.id==attr_id).one()
     return JSONObject(attr)
 
+
 def _check_dimension(typeattr, unit=None):
     """
         Check that the unit and dimension on a type attribute match.
