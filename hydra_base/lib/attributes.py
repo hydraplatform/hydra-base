@@ -36,12 +36,32 @@ from ..db.model import Attr,\
         TypeAttr,\
         ResourceAttrMap,\
         ResourceScenario,\
-        Dataset
+        Dataset,\
+        AttrGroup,\
+        AttrGroupItem
 from .. import db
 from sqlalchemy.orm.exc import NoResultFound
 from ..exceptions import HydraError, ResourceNotFoundError
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import aliased
+
+
+def _get_network(network_id):
+    try:
+
+        network_i = db.DBSession.query(Network).filter(Network.id==network_id).one()
+    except NoResultFound:
+        raise HydraError("Network %s not found" % (network_id))
+    return network_i
+
+def _get_project(project_id):
+    try:
+
+        project_i = db.DBSession.query(Project).filter(Project.id==project_id).one()
+    except NoResultFound:
+        raise HydraError("Project %s not found" % (project_id))
+    return project_i
+
 
 def _get_resource(ref_key, ref_id):
     try:
@@ -629,3 +649,350 @@ def check_attribute_mapping_exists(resource_attr_id_source, resource_attr_id_tar
         return 'Y'
     else:
         return 'N'
+
+
+def get_attribute_group(group_id, **kwargs):
+    """
+        Get a specific attribute group
+    """
+
+    user_id=kwargs.get('user_id')
+    
+    try:
+        group_i = db.DBSession.query(AttrGroup).filter(
+                                            AttrGroup.id==group_id).one()
+        group_i.project.check_read_permission(user_id)
+    except NoResultFound:
+        raise HydraError("Group %s not found" % (group_id,))
+
+    return group_i
+    
+
+def add_attribute_group(attributegroup, **kwargs):
+    """
+        Add a new attribute group.
+        
+        An attribute group is a container for attributes which need to be grouped
+        in some logical way. For example, if the 'attr_is_var' flag isn't expressive
+        enough to delineate different groupings.
+
+        an attribute group looks like:
+            {
+                'project_id' : XXX,
+                'name'       : 'my group name'
+                'description : 'my group description' (optional)
+                'layout'     : 'my group layout'      (optional)
+                'exclusive'  : 'N' (or 'Y' )          (optional, default to 'N')
+            }
+    """
+    user_id=kwargs.get('user_id')
+    project_i = db.DBSession.query(Project).filter(Project.project_id==attributegroup.project_id).one()
+    project_i.check_write_permission(user_id)
+    try:
+        
+        group_i = db.DBSession.query(AttrGroup).filter(
+                                            AttrGroup.name==attributegroup.name,
+                                            AttrGroup.project_id==attributegroup.project_id).one()
+        log.info("Group %s already exists in project %s", attributegroup.name, attributegroup.project_id)
+
+    except NoResultFound:
+        
+        group_i = AttrGroup()
+        group_i.project_id  = attributegroup.project_id
+        group_i.name        = attributegroup.name
+        group_i.description = attributegroup.description
+        group_i.layout      = attributegroup.get_layout()
+        group_i.exclusive   = attributegroup.exclusive
+
+        db.DBSession.add(group_i)
+        db.DBSession.flush()
+
+        log.info("Attribute Group %s added to project %s", attributegroup.name, attributegroup.project_id)
+
+    return group_i
+
+def update_attribute_group(attributegroup, **kwargs):
+    """
+        Add a new attribute group.
+        
+        An attribute group is a container for attributes which need to be grouped
+        in some logical way. For example, if the 'attr_is_var' flag isn't expressive
+        enough to delineate different groupings.
+
+        an attribute group looks like:
+            {
+                'project_id' : XXX,
+                'name'       : 'my group name'
+                'description : 'my group description' (optional)
+                'layout'     : 'my group layout'      (optional)
+                'exclusive'  : 'N' (or 'Y' )          (optional, default to 'N')
+            }
+    """
+    user_id=kwargs.get('user_id')
+
+    if attributegroup.id is None:
+        raise HydraError("cannot update attribute group. no ID specified")
+
+    try:
+        
+        group_i = db.DBSession.query(AttrGroup).filter(AttrGroup.id==attributegroup.id).one()
+        group_i.project.check_write_permission(user_id)
+
+        group_i.name        = attributegroup.name
+        group_i.description = attributegroup.description
+        group_i.layout      = attributegroup.layout
+        group_i.exclusive   = attributegroup.exclusive
+
+        db.DBSession.flush()
+
+        log.info("Group %s in project %s updated", attributegroup.id, attributegroup.project_id)
+    except NoResultFound:
+
+        raise HydraError('No Attribute Group %s was found in project %s', attributegroup.id, attributegroup.project_id)
+
+
+    return group_i
+
+def delete_attribute_group(group_id, **kwargs):
+    """
+        Delete an attribute group.
+    """
+    user_id = kwargs['user_id']
+
+    try:
+        
+        group_i = db.DBSession.query(AttrGroup).filter(AttrGroup.id==group_id).one()
+
+        group_i.project.check_write_permission(user_id)
+
+        db.DBSession.delete(group_i)
+        db.DBSession.flush()
+
+        log.info("Group %s in project %s deleted", group_i.id, group_i.project_id)
+    except NoResultFound:
+
+        raise HydraError('No Attribute Group %s was found', group_id)
+
+
+    return 'OK'
+
+def get_network_attributegroup_items(network_id, **kwargs):
+    """
+        Get all the group items in a network
+    """
+    
+    user_id=kwargs.get('user_id')
+
+    
+    net_i = _get_network(network_id)
+
+    net_i.check_read_permission(user_id)
+
+    group_items_i = db.DBSession.query(AttrGroupItem).filter(
+                                    AttrGroupItem.network_id==network_id).all()
+
+    return group_items_i
+
+def get_group_attributegroup_items(network_id, group_id, **kwargs):
+    """
+        Get all the items in a specified group, within a network
+    """
+    user_id=kwargs.get('user_id')
+
+    network_i = _get_network(network_id)
+
+    network_i.check_read_permission(user_id)
+
+    group_items_i = db.DBSession.query(AttrGroupItem).filter(
+                                    AttrGroupItem.network_id==network_id,
+                                    AttrGroupItem.group_id==group_id).all()
+
+    return group_items_i
+
+
+def get_attribute_item_groups(network_id, attr_id, **kwargs):
+    """
+        Get all the group items in a network with a given attribute_id 
+    """
+    user_id=kwargs.get('user_id')
+
+    network_i = _get_network(network_id)
+
+    network_i.check_read_permission(user_id)
+
+    group_items_i = db.DBSession.query(AttrGroupItem).filter(
+                                        AttrGroupItem.network_id==network_id, 
+                                        AttrGroupItem.attr_id==attr_id).all()
+
+    return group_items_i
+
+def _get_attr_group(group_id):
+    try:
+        group_i = db.DBSession.query(AttrGroup).filter(AttrGroup.id==group_id).one()
+    except NoResultFound:
+        raise HydraError("Error adding attribute group item: group %s not found" % (agi.group_id))
+
+    return group_i
+
+def _get_attributegroupitems(network_id):
+    existing_agis = db.DBSession.query(AttrGroupItem).filter(AttrGroupItem.network_id==network_id).all()
+    return existing_agis
+
+def add_attribute_group_items(attributegroupitems, **kwargs):
+
+    """
+        Populate attribute groups with items.
+        ** attributegroupitems : a list of items, of the form:
+            ```{
+                    'attr_id'    : X,
+                    'group_id'   : Y,
+                    'network_id' : Z,
+               }```
+
+        Note that this approach supports the possibility of populating groups
+        within multiple networks at the same time.
+
+        When adding a group item, the function checks whether it can be added,
+        based on the 'exclusivity' setup of the groups -- if a group is specified
+        as being 'exclusive', then any attributes within that group cannot appear
+        in any other group (within a network).
+    """
+
+    user_id=kwargs.get('user_id')
+
+    if not isinstance(attributegroupitems, list):
+        raise HydraError("Cannpt add attribute group items. Attributegroupitems must be a list")
+    
+    new_agis_i = []
+
+    group_lookup = {}
+
+    #for each network, keep track of what attributes are contained in which groups it's in
+    #structure: {NETWORK_ID : {ATTR_ID: [GROUP_ID]}
+    agi_lookup = {}
+
+    network_lookup = {}
+
+    #'agi' = shorthand for 'attribute group item'
+    for agi in attributegroupitems:
+           
+
+        network_i = network_lookup.get(agi.network_id)
+
+        if network_i is None:
+            network_i = _get_network(agi.network_id)
+            network_lookup[agi.network_id] = network_i
+
+        network_i.check_write_permission(user_id)
+
+
+        #Get the group so we can check for exclusivity constraints
+        group_i = group_lookup.get(agi.group_id)
+        if group_i is None:
+            group_lookup[agi.group_id] = _get_attr_group(agi.group_id)
+        
+        network_agis = agi_lookup
+       
+        #Create a map of all agis currently in the network
+        if agi_lookup.get(agi.network_id) is None:
+            agi_lookup[agi.network_id] = {}
+            network_agis = _get_attributegroupitems(agi.network_id)
+            log.info(network_agis)
+            for net_agi in network_agis:
+
+                if net_agi.group_id not in group_lookup:
+                    group_lookup[net_agi.group_id] = _get_attr_group(net_agi.group_id)
+
+                if agi_lookup.get(net_agi.network_id) is None:
+                    agi_lookup[net_agi.network_id][net_agi.attr_id] = [net_agi.group_id]
+                else:
+                    if agi_lookup[net_agi.network_id].get(net_agi.attr_id) is None: 
+                        agi_lookup[net_agi.network_id][net_agi.attr_id] = [net_agi.group_id]
+                    elif net_agi.group_id not in agi_lookup[net_agi.network_id][net_agi.attr_id]:
+                        agi_lookup[net_agi.network_id][net_agi.attr_id].append(net_agi.group_id)
+        #Does this agi exist anywhere else inside this network?
+        #Go through all the groups that this attr is in and make sure it's not exclusive
+        if agi_lookup[agi.network_id].get(agi.attr_id) is not None:
+            for group_id in agi_lookup[agi.network_id][agi.attr_id]:
+                group = group_lookup[group_id]
+                #Another group has been found.
+                if group.exclusive == 'Y':
+                    #The other group is exclusive, so this attr can't be added
+                    raise HydraError("Attribute %s is already in Group %s for network %s. This group is exclusive, so attr %s cannot exist in another group."%(agi.attr_id, group.id, agi.network_id, agi.attr_id))
+            
+            #Now check that if this group is exclusive, then the attr isn't in
+            #any other groups
+            if group_lookup[agi.group_id].exclusive == 'Y':
+                if len(agi_lookup[agi.network_id][agi.attr_id]) > 0:
+                    #The other group is exclusive, so this attr can't be added
+                    raise HydraError("Cannot add attribute %s to group %s. This group is exclusive, but attr %s has been found in other groups (%s)" % (agi.attr_id, agi.group_id, agi.attr_id, agi_lookup[agi.network_id][agi.attr_id]))
+
+
+        agi_i = AttrGroupItem()
+        agi_i.network_id = agi.network_id
+        agi_i.group_id   = agi.group_id
+        agi_i.attr_id    = agi.attr_id
+       
+        #Update the lookup table in preparation for the next pass.
+        if agi_lookup[agi.network_id].get(agi.attr_id) is None:
+            agi_lookup[agi.network_id][agi.attr_id] = [agi.group_id]
+        elif agi.group_id not in agi_lookup[agi.network_id][agi.attr_id]:
+            agi_lookup[agi.network_id][agi.attr_id].append(agi.group_id)
+
+
+        db.DBSession.add(agi_i)
+
+        new_agis_i.append(agi_i)
+    log.info(agi_lookup)
+
+    db.DBSession.flush()
+
+    return new_agis_i
+
+def delete_attribute_group_items(attributegroupitems, **kwargs):
+
+    """
+        remove attribute groups items .
+        ** attributegroupitems : a list of items, of the form:
+            ```{
+                    'attr_id'    : X,
+                    'group_id'   : Y,
+                    'network_id' : Z,
+               }```
+    """
+
+
+    user_id=kwargs.get('user_id')
+
+    log.info("Deleting %s attribute group items", len(attributegroupitems))
+
+    #if there area attributegroupitems from different networks, keep track of those
+    #networks to ensure the user actually has permission to remove the items.
+    network_lookup = {}
+
+    if not isinstance(attributegroupitems, list):
+        raise HydraError("Cannpt add attribute group items. Attributegroupitems must be a list")
+    
+    #'agi' = shorthand for 'attribute group item'
+    for agi in attributegroupitems:
+
+        network_i = network_lookup.get(agi.network_id)
+
+        if network_i is None:
+            network_i = _get_network(agi.network_id)
+            network_lookup[agi.network_id] = network_i
+
+        network_i.check_write_permission(user_id)
+
+        agi_i = db.DBSession.query(AttrGroupItem).filter(AttrGroupItem.network_id == agi.network_id,
+                                                 AttrGroupItem.group_id == agi.group_id,
+                                                 AttrGroupItem.attr_id  == agi.attr_id).first()
+        
+        if agi_i is not None:
+            db.DBSession.delete(agi_i)
+           
+    db.DBSession.flush()
+    
+    log.info("Attribute group items deleted")
+
+    return 'OK'

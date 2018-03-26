@@ -358,6 +358,44 @@ class AttrMap(Base, Inspect):
     attr_a = relationship("Attr", foreign_keys=[attr_id_a], backref=backref('maps_to', order_by=attr_id_a))
     attr_b = relationship("Attr", foreign_keys=[attr_id_b], backref=backref('maps_from', order_by=attr_id_b))
 
+class AttrGroup(Base, Inspect):
+    
+    """
+        **exclusive** : If 'Y' then an attribute in this group cannot be in any other groups
+
+    """
+
+    __tablename__='tAttrGroup'
+
+    __table_args__ = (
+        UniqueConstraint('name', 'project_id', name="unique attr group name"),
+    )
+
+    id               = Column(Integer(), primary_key=True, nullable=False, index=True)
+    name             = Column(String(200), nullable=False)
+    description      = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
+    layout           = Column(Text().with_variant(mysql.TEXT(5000), 'mysql'))
+    exclusive        = Column(String(1),  nullable=False, server_default=text(u"'N'"))
+    project_id       = Column(Integer(), ForeignKey('tProject.project_id'), primary_key=False, nullable=False)
+    cr_date          = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    
+    project          = relationship('Project', backref=backref('attrgroups', uselist=True, cascade="all, delete-orphan"), lazy='joined')
+
+class AttrGroupItem(Base, Inspect):
+    """
+        Items within an attribute group. Groupings are network dependent, and you can't
+        have an attribute in a group twice, or an attribute in two groups.
+    """
+
+    __tablename__='tAttrGroupItem'
+
+    group_id    = Column(Integer(), ForeignKey('tAttrGroup.id'), primary_key=True, nullable=False)
+    attr_id    = Column(Integer(), ForeignKey('tAttr.attr_id'), primary_key=True, nullable=False)
+    network_id    = Column(Integer(), ForeignKey('tNetwork.id'), primary_key=True, nullable=False)
+
+    group = relationship('AttrGroup', backref=backref('items', uselist=True, cascade="all, delete-orphan"), lazy='joined')
+    attr = relationship('Attr')
+    network = relationship('Network', backref=backref('attrgroupitems', uselist=True, cascade="all, delete-orphan"), lazy='joined')
 
 class ResourceAttrMap(Base, Inspect):
     """

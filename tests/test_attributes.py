@@ -299,91 +299,223 @@ class TestAttributeMap:
         all_mappings_1 = hb.get_mappings_in_network(net1.id, user_id=self.user_id)
         assert len(all_mappings_1) == 0
 
-class TestAttributeCollection:
+class TestAttributeGroups:
     """
         Test for attribute-based functionality
     """
 
     user_id = util.user_id
-    def test_add_resource_attr_collection(self, network_with_data):
-        net = network_with_data
-        net_no_collections = self.create_network_with_data()
-
-        net_attrs = hb.get_network_attributes(net.id)
-
-        attr_ids = []
-
-        item_ids = []
-        for ra in net_attrs:
-            item_ids.append(ra.id)
-            attr_ids.append(ra.attr_id)
-
-        ra_collection = {
-            'name': 'Test RA collection',
-            'resource_attr_ids' : item_ids,
-            'layout': json.dumps({"test": "ABC"}),
-        }
-
-        new_ra_collection = hb.add_resource_attr_collection(ra_collection, user_id=self.user_id)
-
-        assert len(new_ra_collection.resource_attr_ids) == len(item_ids)
+    
+    def test_add_attribute_group(self, session, projectmaker, attribute):
+        project = projectmaker.create()
         
-        retrieved_ra_collection = hb.get_resource_attr_collection(new_ra_collection.id, user_id=self.user_id)
-        assert len(retrieved_ra_collection.resource_attr_ids) == len(item_ids)
+        newgroup = JSONObject({
+            'project_id'  : project.project_id,
+            'name'        : "Attribute Group %s" % (datetime.datetime.now(),),
+            'description' : "A description of an attribute group",
+            'layout'      : {"color": "green"},
+            'exclusive'   : 'Y',
+        })
 
-        item_ids_to_remove = []
-        item_ids_to_remove.append(new_ra_collection.resource_attr_ids[0])
-
-        hb.remove_items_from_attr_collection(new_ra_collection.id, item_ids_to_remove, user_id=self.user_id)
-
-        smaller_ra_collection = hb.get_resource_attr_collection(new_ra_collection.id, user_id=self.user_id)
-        assert len(smaller_ra_collection.resource_attr_ids) == len(item_ids)-1
-
-        item_ids_to_add = []
-        item_ids_to_add.append(new_ra_collection.resource_attr_ids[0])
-
-        larger_ra_collection = hb.add_items_to_attr_collection(new_ra_collection.id, item_ids_to_add, user_id=self.user_id)
-         
-        assert len(larger_ra_collection.resource_attr_ids) == len(item_ids)
-
-        #Test searching for items
-        existing_items = hb.get_all_resource_attr_collections(user_id=self.user_id)
-        assert len(existing_items[0]) >= len(attr_ids)
-
-        existing_items = hb.get_resource_attr_collections_for_attr(attr_ids[0], user_id=self.user_id)
-        assert len(existing_items) > 0
-
-        no_items = hb.get_resource_attr_collections_for_attr(999, user_id=self.user_id)
-        assert len(no_items) == 0
+        newgroup = hb.add_attribute_group(newgroup, user_id=self.user_id)
         
+        retrieved_new_group = hb.get_attribute_group(newgroup.id, user_id=self.user_id)
 
-        #Test searching for items
-        network_items = hb.get_resource_attr_collections_in_network(net.id, user_id=self.user_id)
-        assert len(network_items) == len(item_ids)
+        assert retrieved_new_group.name == newgroup.name
 
-        no_network_items = hb.get_resource_attr_collections_in_network(net_no_collections.id, user_id=self.user_id)
-        assert len(no_network_items) == 0
+    def test_update_attribute_group(self, session, attributegroup):
 
-        no_node_items = hb.get_resource_attr_collections_for_node(net.nodes[0][0].id, user_id=self.user_id)
-        assert len(no_node_items) == 0
-
-        no_link_items = hb.get_resource_attr_collections_for_link(net.links[0][0].id, user_id=self.user_id)
-        assert len(no_link_items) == 0
-
-        ra_collection_to_update = copy.deepcopy(new_ra_collection)
-        ra_collection_to_update.layout = json.dumps({"tesing":123})
-
-        updated_ra_collection = hb.update_resource_attr_collection(ra_collection_to_update, user_id=self.user_id)
-        assert json.loads(updated_ra_collection.layout) == json.loads(ra_collection_to_update.layout)
-        assert updated_ra_collection.name == ra_collection_to_update.name
-
-        hb.delete_resource_attr_collection(new_ra_collection.id, user_id=self.user_id)
-
-        with pytest.raises(ResourceNotFoundError):
-            hb.get_resource_attr_collection(new_ra_collection.id, user_id=self.user_id)
-
-
+        newname = attributegroup.name + " Updated"
         
+        attributegroup.name = newname 
+
+        hb.update_attribute_group(attributegroup, user_id=self.user_id)
+        
+        retrieved_new_group = hb.get_attribute_group(attributegroup.id, user_id=self.user_id)
+
+        assert retrieved_new_group.name == newname
+
+
+    def test_delete_attribute_group(self, session, attributegroup):
+
+        hb.delete_attribute_group(attributegroup.id, user_id=self.user_id)
+        
+        with pytest.raises(hb.HydraError):
+            hb.get_attribute_group(attributegroup.id, user_id=self.user_id)
+
+    def test_basic_add_attribute_group_items(self, session, projectmaker, network_with_data, attributegroupmaker):
+        project = projectmaker.create()
+
+        #convenience naming
+        network = network_with_data
+
+        #Create two groups -- attributes which are associated with a network,
+        #and everything else. 
+        group_1 = attributegroupmaker.create(project.project_id, "Network Attributes")
+        group_2 = attributegroupmaker.create(project.project_id, "Node Attributes")
+        
+        network_attributes = []
+        for netattr in network.attributes:
+            network_attributes.append(JSONObject({'attr_id'    : netattr.attr_id,
+                                       'network_id' : netattr.network_id,
+                                       'group_id'   : group_1.id}))
+
+        node_attr_tracker = []
+        node_attributes = []
+        for node in network.nodes:
+            for node_attr in node.attributes:
+                if node_attr.attr_id not in node_attr_tracker:
+                    node_attributes.append(JSONObject({'attr_id'    : node_attr.attr_id,
+                                            'network_id' : node.network_id,
+                                            'group_id'   : group_2.id}))
+                    node_attr_tracker.append(node_attr.attr_id)
+
+
+        hb.add_attribute_group_items(network_attributes, user_id=self.user_id)
+        
+        hb.add_attribute_group_items(node_attributes, user_id=self.user_id)
+        
+        all_items_in_network = hb.get_network_attributegroup_items(network.id, user_id=self.user_id)
+
+
+        assert len(all_items_in_network) == len(network_attributes)+len(node_attributes)
+
+    def test_exclusive_add_attribute_group_items(self, session, projectmaker, network_with_data, attributegroupmaker):
+        """
+            add attributes to a group that are already in an exclusive group
+        """
+
+        project = projectmaker.create()
+
+        #convenience naming
+        network = network_with_data
+
+        #Create two groups -- attributes which are associated with a network,
+        #and everything else. 
+        group_1 = attributegroupmaker.create(project.project_id, "Network Attributes", 'Y')
+        group_2 = attributegroupmaker.create(project.project_id, "Node Attributes")
+        
+        network_attributes = []
+        node_attributes = []
+        
+        for netattr in network.attributes:
+            network_attributes.append(JSONObject({'attr_id'    : netattr.attr_id,
+                                       'network_id' : netattr.network_id,
+                                       'group_id'   : group_1.id}))
+            #Put these attributes into both groups. THis should fail, as group 1
+            #is exclusive, and already has these attributes
+            node_attributes.append(JSONObject({'attr_id'    : netattr.attr_id,
+                                       'network_id' : netattr.network_id,
+                                       'group_id'   : group_2.id}))
+
+
+        node_attr_tracker = []
+        for node in network.nodes:
+            for node_attr in node.attributes:
+                if node_attr.attr_id not in node_attr_tracker:
+                    node_attributes.append(JSONObject({'attr_id'    : node_attr.attr_id,
+                                            'network_id' : node.network_id,
+                                            'group_id'   : group_2.id}))
+                    node_attr_tracker.append(node_attr.attr_id)
+
+
+        log.info("Adding items to group 1 (network attributes)")
+        hb.add_attribute_group_items(network_attributes, user_id=self.user_id)
+        
+        #add a group with attributes that are already in an exclusive group
+        with pytest.raises(hb.HydraError):
+            log.info("Adding items to group 2 (node attributes, plus network attributes)")
+            hb.add_attribute_group_items(node_attributes, user_id=self.user_id)
+
+    def test_reverse_exclusive_add_attribute_group_items(self, session, projectmaker, network_with_data, attributegroupmaker):
+        """
+            add attributes to an exclusive group that are already in another group
+        """
+
+        project = projectmaker.create()
+
+        #convenience naming
+        network = network_with_data
+
+        #Create two groups -- attributes which are associated with a network,
+        #and everything else. 
+        group_1 = attributegroupmaker.create(project.project_id, "Network Attributes", 'Y')
+        group_2 = attributegroupmaker.create(project.project_id, "Node Attributes")
+        
+        network_attributes = []
+        node_attributes = []
+        
+        for netattr in network.attributes:
+            network_attributes.append(JSONObject({'attr_id'    : netattr.attr_id,
+                                       'network_id' : netattr.network_id,
+                                       'group_id'   : group_1.id}))
+            #Put these attributes into both groups. THis should fail, as group 1
+            #is exclusive, and already has these attributes
+            node_attributes.append(JSONObject({'attr_id'    : netattr.attr_id,
+                                       'network_id' : netattr.network_id,
+                                       'group_id'   : group_2.id}))
+
+
+        node_attr_tracker = []
+        for node in network.nodes:
+            for node_attr in node.attributes:
+                if node_attr.attr_id not in node_attr_tracker:
+                    node_attributes.append(JSONObject({'attr_id'    : node_attr.attr_id,
+                                            'network_id' : node.network_id,
+                                            'group_id'   : group_2.id}))
+                    node_attr_tracker.append(node_attr.attr_id)
+
+
+        log.info("Adding items to group 2 (node attributes, plus network attributes)")
+        hb.add_attribute_group_items(node_attributes, user_id=self.user_id)
+        
+        #add attributes to an exclusive group that are already in another group
+        with pytest.raises(hb.HydraError):
+            log.info("Adding items to group 1 (network attributes)")
+            hb.add_attribute_group_items(network_attributes, user_id=self.user_id)
+        
+    def test_delete_attribute_group_items(self, session, projectmaker, network_with_data, attributegroupmaker):
+        project = projectmaker.create()
+
+        #convenience naming
+        network = network_with_data
+
+        #Create two groups -- attributes which are associated with a network,
+        #and everything else. 
+        group_1 = attributegroupmaker.create(project.project_id, "Network Attributes")
+        group_2 = attributegroupmaker.create(project.project_id, "Node Attributes")
+        
+        network_attributes = []
+        for netattr in network.attributes:
+            network_attributes.append(JSONObject({'attr_id'    : netattr.attr_id,
+                                       'network_id' : netattr.network_id,
+                                       'group_id'   : group_1.id}))
+
+        node_attr_tracker = []
+        node_attributes   = []
+        for node in network.nodes:
+            for node_attr in node.attributes:
+                if node_attr.attr_id not in node_attr_tracker:
+                    node_attributes.append(JSONObject({'attr_id'    : node_attr.attr_id,
+                                            'network_id' : node.network_id,
+                                            'group_id'   : group_2.id}))
+                    node_attr_tracker.append(node_attr.attr_id)
+
+
+        hb.add_attribute_group_items(network_attributes, user_id=self.user_id)
+        
+        hb.add_attribute_group_items(node_attributes, user_id=self.user_id)
+        
+        all_items_in_network = hb.get_network_attributegroup_items(network.id, user_id=self.user_id)
+
+        assert len(all_items_in_network) == len(network_attributes)+len(node_attributes)
+        
+        #Now remove all the node attributes
+        hb.delete_attribute_group_items(node_attributes, user_id=self.user_id)
+        
+        all_items_in_network = hb.get_network_attributegroup_items(network.id, user_id=self.user_id)
+        
+        assert len(all_items_in_network) == len(network_attributes)
 
 
 if __name__ == '__main__':
