@@ -77,15 +77,6 @@ def downgrade():
     op.drop_constraint(None, 'tNetworkOwner', type_='foreignkey')
     op.drop_constraint('unique net name', 'tNetwork', type_='unique')
     op.drop_constraint(None, 'tLink', type_='foreignkey')
-    op.create_table('tResourceAttrCollectionItem',
-    sa.Column('collection_id', mysql.INTEGER(display_width=11), autoincrement=False, nullable=False),
-    sa.Column('resource_attr_id', mysql.INTEGER(display_width=11), autoincrement=False, nullable=False),
-    sa.ForeignKeyConstraint(['collection_id'], [u'tResourceAttrCollection.collection_id'], name=u'tresourceattrcollectionitem_ibfk_1'),
-    sa.ForeignKeyConstraint(['resource_attr_id'], [u'tResourceAttr.resource_attr_id'], name=u'tresourceattrcollectionitem_ibfk_2'),
-    sa.PrimaryKeyConstraint('collection_id', 'resource_attr_id'),
-    mysql_default_charset=u'utf8',
-    mysql_engine=u'InnoDB'
-    )
     op.drop_table('tAttrGroupItem')
     op.drop_index(op.f('ix_tAttrGroup_id'), table_name='tAttrGroup')
     op.drop_table('tAttrGroup')
