@@ -62,7 +62,7 @@ def required_perms(*req_perms):
 	    for perm in req_perms:
                 check_perm(user_id, perm)
 
-            wfunc(*args, **kwargs)
+            return wfunc(*args, **kwargs)
 
         return wrapped
     return dec_wrapper
