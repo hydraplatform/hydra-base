@@ -1,7 +1,3 @@
-# Python 2 and 3 support
-from __future__ import unicode_literals
-from builtins import dict, str
-
 from hydra_base.db import DeclarativeBase as _db
 from hydra_base.util.hdb import create_default_users_and_perms, make_root_user
 import hydra_base

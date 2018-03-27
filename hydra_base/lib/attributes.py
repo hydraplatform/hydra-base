@@ -16,10 +16,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-# Python 2 and 3 support
-from __future__ import unicode_literals
-from builtins import dict, str
-
 
 import logging
 log = logging.getLogger(__name__)

@@ -1,7 +1,3 @@
-# Python 2 and 3 support
-from __future__ import unicode_literals
-from builtins import dict, str
-
 import hydra_base
 import hydra_base.exceptions
 from hydra_base.lib.objects import JSONObject

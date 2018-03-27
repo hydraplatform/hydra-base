@@ -16,10 +16,6 @@
 #
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Python 2 and 3 support
-from __future__ import unicode_literals
-from builtins import dict, str
-
 import logging
 
 import hydra_base
@@ -620,7 +616,7 @@ def check_network(request_net, response_net):
     for rs0 in s['resourcescenarios']:
         if rs0.value.type == 'timeseries':
             val = json.loads(rs0['value']['value'])
-            before_ts_times = list(val.values())[0].keys()
+            before_ts_times = val.values()[0].keys()
             before_times = []
             for t in before_ts_times:
                 try:
@@ -633,7 +629,7 @@ def check_network(request_net, response_net):
     for rs0 in s.resourcescenarios:
         if rs0.value.data_type == 'timeseries':
             val = json.loads(rs0.dataset.value)
-            after_ts_times = list(val.values())[0].keys()
+            after_ts_times = val.values()[0].keys()
             after_times = []
             for t in after_ts_times:
                 try:

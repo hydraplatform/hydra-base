@@ -16,9 +16,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-# Python 2 and 3 support
-from __future__ import unicode_literals
-from builtins import dict, str
 
 from .. import db
 from ..db.model import Template, TemplateType, TypeAttr, Attr, Network, Node, Link, ResourceGroup, ResourceType, ResourceAttr, ResourceScenario, Scenario
@@ -1885,7 +1882,7 @@ def get_network_as_xml_template(network_id,**kwargs):
     for node_i in net_i.nodes:
         node_attributes = node_i.attributes
         attr_ids = [attr.attr_id for attr in node_attributes]
-        if len(attr_ids) > 0 and attr_ids not in existing_types['NODE']:
+        if attr_ids>0 and attr_ids not in existing_types['NODE']:
 
             node_resource    = etree.Element("resource")
 
@@ -1909,7 +1906,7 @@ def get_network_as_xml_template(network_id,**kwargs):
     for link_i in net_i.links:
         link_attributes = link_i.attributes
         attr_ids = [attr.attr_id for attr in link_attributes]
-        if len(attr_ids) > 0 and attr_ids not in existing_types['LINK']:
+        if attr_ids>0 and attr_ids not in existing_types['LINK']:
             link_resource    = etree.Element("resource")
 
             resource_type   = etree.SubElement(link_resource, "type")
@@ -1932,7 +1929,7 @@ def get_network_as_xml_template(network_id,**kwargs):
     for group_i in net_i.resourcegroups:
         group_attributes = group_i.attributes
         attr_ids = [attr.attr_id for attr in group_attributes]
-        if len(attr_ids) > 0 and attr_ids not in existing_types['GROUP']:
+        if attr_ids>0 and attr_ids not in existing_types['GROUP']:
             group_resource    = etree.Element("resource")
 
             resource_type   = etree.SubElement(group_resource, "type")
@@ -2005,12 +2002,12 @@ def get_etree_layout_as_dict(layout_tree):
     layout_dict = dict()
 
     for item in layout_tree.findall('item'):
-        name = item.find('name').text
+        name  = item.find('name').text
         val_element = item.find('value')
         value = val_element.text.strip()
         if value == '':
             children = val_element.getchildren()
-            value = etree.tostring(children[0], encoding="unicode", pretty_print=True)
+            value = etree.tostring(children[0], pretty_print=True)
         layout_dict[name] = value
     return layout_dict
 
