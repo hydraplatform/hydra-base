@@ -82,11 +82,20 @@ def network_with_data(project_id=None, num_nodes=10, ret_full_net=True, new_proj
     return util.create_network_with_data(project_id, num_nodes, ret_full_net, new_proj, map_projection)
 
 @pytest.fixture()
+def network_with_extra_group(project_id=None, num_nodes=10, ret_full_net=True, new_proj=True, map_projection='EPSG:4326'):
+    return util.create_network_with_extra_group(project_id, num_nodes, ret_full_net, new_proj, map_projection)
+
+
+@pytest.fixture()
 def networkmaker():
     class NetworkMaker:
         def create(self, project_id=None, num_nodes=10, ret_full_net=True, new_proj=True, map_projection='EPSG:4326'):
             return util.create_network_with_data(project_id, num_nodes, ret_full_net, new_proj, map_projection)
     return NetworkMaker()
+
+@pytest.fixture()
+def template():
+    return util.create_template()
 
 @pytest.fixture()
 def attributes():

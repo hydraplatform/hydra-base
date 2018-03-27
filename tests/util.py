@@ -589,6 +589,56 @@ def create_network_with_data(project_id=None, num_nodes=10,
     else:
        return response_network_summary
 
+def create_network_with_extra_group(project_id=None,
+                                    num_nodes=10,
+                                    ret_full_net=True,
+                                    new_proj=False,
+                                    map_projection='EPSG:4326'):
+    """
+        Test adding data to a network through a scenario.
+        This test adds attributes to one node and then assignes data to them.
+        It assigns a descriptor, array and timeseries to the
+        attributes node.
+    """
+    network = create_network_with_data(
+                             project_id=project_id,
+                             num_nodes=num_nodes,
+                             ret_full_net=ret_full_net,
+                             new_proj=new_proj,
+                             map_projection=map_projection)
+
+    group = JSONObject({})
+    group.network_id=network.id
+    group.id = -1
+    group.name = 'test new group'
+    group.description = 'test new group'
+
+    template_id = network.types[0].template_id
+    template = JSONObject(hydra_base.get_template(template_id, user_id=user_id))
+
+    type_summary_arr = []
+
+    type_summary      = JSONObject({})
+    type_summary.id   = template.id
+    type_summary.name = template.name
+    type_summary.id   = template.templatetypes[2].id
+    type_summary.name = template.templatetypes[2].name
+
+    type_summary_arr.append(type_summary)
+
+    group.types = type_summary_arr
+
+    new_group = hydra_base.add_group(network.id, group, user_id=user_id)
+
+    group_attr_ids = []
+    for resource_attr in new_group.attributes:
+        group_attr_ids.append(resource_attr.attr_id)
+
+    updated_network = hydra_base.get_network(network.id, user_id=user_id)
+
+    return updated_network
+
+
 def get_network(network_id=None):
     """
         Get a network with all data.

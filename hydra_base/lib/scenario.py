@@ -936,7 +936,7 @@ def get_attribute_data(attr_ids, node_ids, **kwargs):
 
     return node_attrs, resource_scenarios
 
-def get_resource_data(ref_key, ref_id, scenario_id, type_id, expunge_session=True, **kwargs):
+def get_resource_data(ref_key, ref_id, scenario_id, type_id=None, expunge_session=True, **kwargs):
     """
         Get all the resource scenarios for a given resource
         in a given scenario. If type_id is specified, only

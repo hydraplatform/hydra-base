@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 
 def _get_group(group_id):
     try:
-        db.DBSession.query(ResourceGroup).filter(ResourceGroup.group_id==group_id).one()
+        return db.DBSession.query(ResourceGroup).filter(ResourceGroup.group_id==group_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("ResourceGroup %s not found"%(group_id,))
 
@@ -60,6 +60,7 @@ def delete_resourcegroup(group_id,**kwargs):
     group_i = _get_group(group_id)
     #This should cascaded to delete all the group items.
     db.DBSession.delete(group_i)
+    db.DBSession.flush()
 
     return 'OK'
 

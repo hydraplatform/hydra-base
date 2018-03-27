@@ -1156,25 +1156,58 @@ def get_node(node_id,**kwargs):
     try:
         n = db.DBSession.query(Node).filter(Node.node_id==node_id).options(joinedload_all('attributes.attr')).one()
         n.types
-        return n
     except NoResultFound:
         raise ResourceNotFoundError("Node %s not found"%(node_id,))
 
-def get_link(link_id,**kwargs):
+    if scenario_id is not None:
+        res_scens = scenario.get_resource_data('NODE', node_id, scenario_id, None)
+        rs_dict = {}
+        for rs in res_scens:
+            rs_dict[rs.resource_attr_id] = rs
+
+        for ra in n.attributes:
+            if rs_dict.get(ra.resource_attr_id):
+                ra.resourcescenario = rs_dict[ra.resource_attr_id]
+
+    return n 
+
+def get_link(link_id, scenario_id=None, **kwargs):
     try:
         l = db.DBSession.query(Link).filter(Link.link_id==link_id).options(joinedload_all('attributes.attr')).one()
         l.types
-        return l
     except NoResultFound:
         raise ResourceNotFoundError("Link %s not found"%(link_id,))
 
-def get_resourcegroup(group_id,**kwargs):
+    if scenario_id is not None:
+        res_scens = scenario.get_resource_data('LNK', link_id, scenario_id, None)
+        rs_dict = {}
+        for rs in res_scens:
+            rs_dict[rs.resource_attr_id] = rs
+
+        for ra in l.attributes:
+            if rs_dict.get(ra.resource_attr_id):
+                ra.resourcescenario = rs_dict[ra.resource_attr_id]
+
+    return l 
+
+def get_resourcegroup(group_id, scenario_id=None, **kwargs):
     try:
         rg = db.DBSession.query(ResourceGroup).filter(ResourceGroup.group_id==group_id).options(joinedload_all('attributes.attr')).one()
         rg.types
-        return rg
     except NoResultFound:
         raise ResourceNotFoundError("ResourceGroup %s not found"%(group_id,))
+   
+    if scenario_id is not None:
+        res_scens = scenario.get_resource_data('GROUP', group_id, scenario_id, None)
+        rs_dict = {}
+        for rs in res_scens:
+            rs_dict[rs.resource_attr_id] = rs
+
+        for ra in rg.attributes:
+            if rs_dict.get(ra.resource_attr_id):
+                ra.resourcescenario = rs_dict[ra.resource_attr_id]
+
+    return rg 
 
 def get_node_by_name(network_id, node_name,**kwargs):
     try:
