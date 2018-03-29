@@ -49,6 +49,14 @@ import zlib
 import logging
 log = logging.getLogger(__name__)
 
+# Python 2 and 3 compatible string checking
+# TODO remove this when Python2 support is dropped.
+try:
+    unicode
+except NameError:
+    unicode = str
+
+
 def _update_attributes(resource_i, attributes):
     if attributes is None:
         return dict()

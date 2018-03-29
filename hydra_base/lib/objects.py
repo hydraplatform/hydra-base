@@ -30,6 +30,19 @@ from .. import config
 import zlib
 import pandas as pd
 
+# Python 2 and 3 compatible string checking
+# TODO remove this when Python2 support is dropped.
+try:
+    basestring
+except NameError:
+    basestring = str
+
+try:
+    unicode
+except NameError:
+    unicode = str
+
+
 class JSONObject(dict):
     """
         A dictionary object whose attributes can be accesed via a '.'.
@@ -37,7 +50,7 @@ class JSONObject(dict):
     """
     def __init__(self, obj_dict={}, parent=None, extras={}):
 
-        if isinstance(obj_dict, str) or isinstance(obj_dict, unicode):
+        if isinstance(obj_dict, basestring):
             try:
                 obj = json.loads(obj_dict)
                 assert isinstance(obj, dict), "JSON string does not evaluate to a dict"

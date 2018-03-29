@@ -28,6 +28,12 @@ from .. import config
 
 from collections import namedtuple
 
+# Python 2 and 3 compatible string checking
+try:
+    basestring
+except NameError:
+    basestring = str
+
 def count_levels(value):
     """
         Count how many levels are in a dict:
@@ -229,7 +235,7 @@ def get_layout_as_string(layout):
     if isinstance(layout, dict):
         return json.dumps(layout)
 
-    if isinstance(layout, str) or isinstance(layout, unicode):
+    if isinstance(layout, basestring):
         try:
             return get_layout_as_string(json.loads(layout))
         except:
@@ -246,7 +252,7 @@ def get_layout_as_dict(layout):
     if isinstance(layout, dict):
         return layout
 
-    if isinstance(layout, str) or isinstance(layout, unicode):
+    if isinstance(layout, basestring):
         try:
             return get_layout_as_dict(json.loads(layout))
         except:
