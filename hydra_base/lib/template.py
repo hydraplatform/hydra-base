@@ -409,7 +409,7 @@ def get_template_as_xml(template_id,**kwargs):
 
         resources.append(xml_resource)
 
-    xml_string = etree.tostring(template_xml)
+    xml_string = etree.tostring(template_xml, encoding="unicode")
 
     return xml_string
 
@@ -1946,7 +1946,7 @@ def get_network_as_xml_template(network_id,**kwargs):
             existing_types['GROUP'].append(attr_ids)
             resources.append(group_resource)
 
-    xml_string = etree.tostring(template_xml)
+    xml_string = etree.tostring(template_xml, encoding="unicode")
 
     return xml_string
 
@@ -2004,7 +2004,7 @@ def get_etree_layout_as_dict(layout_tree):
         value = val_element.text.strip()
         if value == '':
             children = val_element.getchildren()
-            value = etree.tostring(children[0], pretty_print=True)
+            value = etree.tostring(children[0], pretty_print=True, encoding="unicode")
         layout_dict[name] = value
     return layout_dict
 
