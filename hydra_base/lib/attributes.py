@@ -62,11 +62,11 @@ def _get_project(project_id):
 def _get_resource(ref_key, ref_id):
     try:
         if ref_key == 'NODE':
-            return db.DBSession.query(Node).filter(Node.node_id == ref_id).one()
+            return db.DBSession.query(Node).filter(Node.id == ref_id).one()
         elif ref_key == 'LINK':
-            return db.DBSession.query(Link).filter(Link.link_id == ref_id).one()
+            return db.DBSession.query(Link).filter(Link.id == ref_id).one()
         if ref_key == 'GROUP':
-            return db.DBSession.query(ResourceGroup).filter(ResourceGroup.group_id == ref_id).one()
+            return db.DBSession.query(ResourceGroup).filter(ResourceGroup.id == ref_id).one()
         elif ref_key == 'NETWORK':
             return db.DBSession.query(Network).filter(Network.id == ref_id).one()
         elif ref_key == 'SCENARIO':
@@ -378,21 +378,21 @@ def get_all_resource_attributes(ref_key, network_id, template_id=None, **kwargs)
     user_id = kwargs.get('user_id')
     
     resource_attr_qry = db.DBSession.query(ResourceAttr).\
-            outerjoin(Node, Node.node_id==ResourceAttr.node_id).\
-            outerjoin(Link, Link.link_id==ResourceAttr.link_id).\
-            outerjoin(ResourceGroup, ResourceGroup.group_id==ResourceAttr.group_id).filter(
+            outerjoin(Node, Node.id==ResourceAttr.node_id).\
+            outerjoin(Link, Link.id==ResourceAttr.link_id).\
+            outerjoin(ResourceGroup, ResourceGroup.id==ResourceAttr.group_id).filter(
         ResourceAttr.ref_key == ref_key,
         or_(
             and_(ResourceAttr.node_id != None, 
-                    ResourceAttr.node_id == Node.node_id,
+                    ResourceAttr.node_id == Node.id,
                                         Node.network_id==network_id),
 
             and_(ResourceAttr.link_id != None,
-                    ResourceAttr.link_id == Link.link_id,
+                    ResourceAttr.link_id == Link.id,
                                         Link.network_id==network_id),
 
             and_(ResourceAttr.group_id != None,
-                    ResourceAttr.group_id == ResourceGroup.group_id,
+                    ResourceAttr.group_id == ResourceGroup.id,
                                         ResourceGroup.network_id==network_id)
         ))
 

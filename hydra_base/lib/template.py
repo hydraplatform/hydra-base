@@ -744,16 +744,16 @@ def apply_template_to_network(template_id, network_id, **kwargs):
     for node_i in net_i.nodes:
         templates = get_types_by_attr(node_i, template_id)
         if len(templates) > 0:
-            assign_type_to_resource(templates[0].type_id, 'NODE', node_i.node_id,**kwargs)
+            assign_type_to_resource(templates[0].type_id, 'NODE', node_i.id,**kwargs)
     for link_i in net_i.links:
         templates = get_types_by_attr(link_i, template_id)
         if len(templates) > 0:
-            assign_type_to_resource(templates[0].type_id, 'LINK', link_i.link_id,**kwargs)
+            assign_type_to_resource(templates[0].type_id, 'LINK', link_i.id,**kwargs)
 
     for group_i in net_i.resourcegroups:
         templates = get_types_by_attr(group_i, template_id)
         if len(templates) > 0:
-            assign_type_to_resource(templates[0].type_id, 'GROUP', group_i.group_id,**kwargs)
+            assign_type_to_resource(templates[0].type_id, 'GROUP', group_i.id,**kwargs)
 
 
 def remove_template_from_network(network_id, template_id, remove_attrs, **kwargs):
@@ -778,9 +778,9 @@ def remove_template_from_network(network_id, template_id, remove_attrs, **kwargs
 
     type_ids = [tmpltype.type_id for tmpltype in template.templatetypes]
 
-    node_ids = [n.node_id for n in network.nodes]
-    link_ids = [l.link_id for l in network.links]
-    group_ids = [g.group_id for g in network.resourcegroups]
+    node_ids = [n.id for n in network.nodes]
+    link_ids = [l.id for l in network.links]
+    group_ids = [g.id for g in network.resourcegroups]
 
     if remove_attrs == 'Y':
         #find the attributes to remove
@@ -844,11 +844,11 @@ def get_matching_resource_types(resource_type, resource_id,**kwargs):
     if resource_type == 'NETWORK':
         resource_i = db.DBSession.query(Network).filter(Network.id==resource_id).one()
     elif resource_type == 'NODE':
-        resource_i = db.DBSession.query(Node).filter(Node.node_id==resource_id).one()
+        resource_i = db.DBSession.query(Node).filter(Node.id==resource_id).one()
     elif resource_type == 'LINK':
-        resource_i = db.DBSession.query(Link).filter(Link.link_id==resource_id).one()
+        resource_i = db.DBSession.query(Link).filter(Link.id==resource_id).one()
     elif resource_type == 'GROUP':
-        resource_i = db.DBSession.query(ResourceGroup).filter(ResourceGroup.resourcegroup_id==resource_id).one()
+        resource_i = db.DBSession.query(ResourceGroup).filter(ResourceGroup.id==resource_id).one()
 
     matching_types = get_types_by_attr(resource_i)
     return matching_types
@@ -998,7 +998,7 @@ def _get_links(link_ids):
         extent = 500
         while idx < len(link_ids):
             log.info("Querying %s links", len(link_ids[idx:extent]))
-            rs = db.DBSession.query(Link).options(joinedload_all('attributes')).options(joinedload_all('types')).filter(Link.link_id.in_(link_ids[idx:extent])).all()
+            rs = db.DBSession.query(Link).options(joinedload_all('attributes')).options(joinedload_all('types')).filter(Link.id.in_(link_ids[idx:extent])).all()
             log.info("Retrieved %s links", len(rs))
             links.extend(rs)
             idx = idx + 500
@@ -1008,14 +1008,14 @@ def _get_links(link_ids):
             else:
                 extent = extent + 500
     else:
-        links = db.DBSession.query(Link).options(joinedload_all('attributes')).options(joinedload_all('types')).filter(Link.link_id.in_(link_ids)).all()
+        links = db.DBSession.query(Link).options(joinedload_all('attributes')).options(joinedload_all('types')).filter(Link.id.in_(link_ids)).all()
 
     link_dict = {}
 
     for l in links:
-        l.ref_id = l.link_id
+        l.ref_id = l.id
         l.ref_key = 'LINK'
-        link_dict[l.link_id] = l
+        link_dict[l.id] = l
 
     return link_dict
 
@@ -1031,7 +1031,7 @@ def _get_nodes(node_ids):
         while idx < len(node_ids):
             log.info("Querying %s nodes", len(node_ids[idx:extent]))
 
-            rs = db.DBSession.query(Node).options(joinedload_all('attributes')).options(joinedload_all('types')).filter(Node.node_id.in_(node_ids[idx:extent])).all()
+            rs = db.DBSession.query(Node).options(joinedload_all('attributes')).options(joinedload_all('types')).filter(Node.id.in_(node_ids[idx:extent])).all()
 
             log.info("Retrieved %s nodes", len(rs))
 
@@ -1043,14 +1043,14 @@ def _get_nodes(node_ids):
             else:
                 extent = extent + 500
     else:
-        nodes = db.DBSession.query(Node).options(joinedload_all('attributes')).options(joinedload_all('types')).filter(Node.node_id.in_(node_ids)).all()
+        nodes = db.DBSession.query(Node).options(joinedload_all('attributes')).options(joinedload_all('types')).filter(Node.id.in_(node_ids)).all()
 
     node_dict = {}
 
     for n in nodes:
-        n.ref_id = n.node_id
+        n.ref_id = n.id
         n.ref_key = 'NODE'
-        node_dict[n.node_id] = n
+        node_dict[n.id] = n
 
     return node_dict
 
@@ -1065,7 +1065,7 @@ def _get_groups(group_ids):
         extent = 500
         while idx < len(group_ids):
             log.info("Querying %s groups", len(group_ids[idx:extent]))
-            rs = db.DBSession.query(ResourceGroup).options(joinedload_all('attributes')).filter(ResourceGroup.group_id.in_(group_ids[idx:extent])).all()
+            rs = db.DBSession.query(ResourceGroup).options(joinedload_all('attributes')).filter(ResourceGroup.id.in_(group_ids[idx:extent])).all()
             log.info("Retrieved %s groups", len(rs))
             groups.extend(rs)
             idx = idx + 500
@@ -1075,13 +1075,13 @@ def _get_groups(group_ids):
             else:
                 extent = extent + 500
     else:
-        groups = db.DBSession.query(ResourceGroup).options(joinedload_all('types')).options(joinedload_all('attributes')).filter(ResourceGroup.group_id.in_(group_ids))
+        groups = db.DBSession.query(ResourceGroup).options(joinedload_all('types')).options(joinedload_all('attributes')).filter(ResourceGroup.id.in_(group_ids))
     group_dict = {}
 
     for g in groups:
-        g.ref_id = g.group_id
+        g.ref_id = g.id
         g.ref_key = 'GROUP'
-        group_dict[g.group_id] = g
+        group_dict[g.id] = g
 
     return group_dict
 
@@ -1095,11 +1095,11 @@ def assign_type_to_resource(type_id, resource_type, resource_id,**kwargs):
     if resource_type == 'NETWORK':
         resource = db.DBSession.query(Network).filter(Network.id==resource_id).one()
     elif resource_type == 'NODE':
-        resource = db.DBSession.query(Node).filter(Node.node_id==resource_id).one()
+        resource = db.DBSession.query(Node).filter(Node.id==resource_id).one()
     elif resource_type == 'LINK':
-        resource = db.DBSession.query(Link).filter(Link.link_id==resource_id).one()
+        resource = db.DBSession.query(Link).filter(Link.id==resource_id).one()
     elif resource_type == 'GROUP':
-        resource = db.DBSession.query(ResourceGroup).filter(ResourceGroup.group_id==resource_id).one()
+        resource = db.DBSession.query(ResourceGroup).filter(ResourceGroup.id==resource_id).one()
     res_attrs, res_type, res_scenarios = set_resource_type(resource, type_id, **kwargs)
 
     type_i = db.DBSession.query(TemplateType).filter(TemplateType.type_id==type_id).one()
@@ -1166,10 +1166,10 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
             ref_key = ref_key,
             attr_id = attr_id,
             attr_is_var = type_attrs[attr_id]['is_var'],
-            node_id    = resource.node_id    if ref_key == 'NODE' else None,
-            link_id    = resource.link_id    if ref_key == 'LINK' else None,
-            group_id   = resource.group_id   if ref_key == 'GROUP' else None,
-            network_id = resource.id         if ref_key == 'NETWORK' else None,
+            node_id    = resource.id   if ref_key == 'NODE' else None,
+            link_id    = resource.id   if ref_key == 'LINK' else None,
+            group_id   = resource.id   if ref_key == 'GROUP' else None,
+            network_id = resource.id   if ref_key == 'NETWORK' else None,
 
         )
         new_res_attrs.append(ra_dict)
@@ -1201,10 +1201,10 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
     else:
         # add type to tResourceType if it doesn't exist already
         resource_type = dict(
-            node_id    = resource.node_id    if ref_key == 'NODE' else None,
-            link_id    = resource.link_id    if ref_key == 'LINK' else None,
-            group_id   = resource.group_id   if ref_key == 'GROUP' else None,
-            network_id = resource.id         if ref_key == 'NETWORK' else None,
+            node_id    = resource.id   if ref_key == 'NODE' else None,
+            link_id    = resource.id   if ref_key == 'LINK' else None,
+            group_id   = resource.id   if ref_key == 'GROUP' else None,
+            network_id = resource.id   if ref_key == 'NETWORK' else None,
             ref_key    = ref_key,
             type_id    = type_id,
         )

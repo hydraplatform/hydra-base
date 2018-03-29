@@ -656,8 +656,8 @@ def check_network(request_net, response_net):
     assert response_net.scenarios[0].created_by is not None
 
     for n in response_net.nodes:
-        assert n.node_x is not None
-        assert n.node_y is not None
+        assert n.x is not None
+        assert n.y is not None
         assert len(n.attributes) > 0
 
     before_times = []

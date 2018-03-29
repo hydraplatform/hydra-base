@@ -79,7 +79,7 @@ def _update_attributes(resource_i, attributes):
     if resource_i.ref_key == 'NETWORK':
         resource_attribute_qry.filter(ResourceAttr.network_id==resource_i.id)
     elif resource_i.ref_key == 'NODE':
-        resource_attribute_qry.filter(ResourceAttr.node_id==resource_i.node_id)
+        resource_attribute_qry.filter(ResourceAttr.node_id==resource_i.id)
     elif resource_i.ref_key == 'LINK':
         resource_attribute_qry.filter(ResourceAttr.link_id==resource_i.link_id)
     elif resource_i.ref_key == 'GROUP':
@@ -144,9 +144,9 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
             for ra in resource.attributes:
                 resource_attrs[resource.id].append({
                     'ref_key'     : ref_key,
-                    'node_id'     : resource_i.node_id    if ref_key=='NODE' else None,
-                    'link_id'     : resource_i.link_id    if ref_key=='LINK' else None,
-                    'group_id'    : resource_i.group_id   if ref_key=='GROUP' else None,
+                    'node_id'     : resource_i.id if ref_key=='NODE' else None,
+                    'link_id'     : resource_i.id if ref_key=='LINK' else None,
+                    'group_id'    : resource_i.id if ref_key=='GROUP' else None,
                     'network_id'  : resource_i.id if ref_key=='NETWORK' else None,
                     'attr_id'     : ra.attr_id,
                     'attr_is_var' : ra.attr_is_var,
@@ -171,10 +171,10 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
                 resource_resource_types.append(
                     {
                         'ref_key'     : ref_key,
-                        'node_id'     : resource_i.node_id    if ref_key=='NODE' else None,
-                        'link_id'     : resource_i.link_id    if ref_key=='LINK' else None,
-                        'group_id'    : resource_i.group_id   if ref_key=='GROUP' else None,
-                        'network_id'  : resource_i.id         if ref_key=='NETWORK' else None,
+                        'node_id'     : resource_i.id  if ref_key=='NODE' else None,
+                        'link_id'     : resource_i.id  if ref_key=='LINK' else None,
+                        'group_id'    : resource_i.id  if ref_key=='GROUP' else None,
+                        'network_id'  : resource_i.id  if ref_key=='NETWORK' else None,
                         'type_id'     : resource_type.id,
                     }
                 )
@@ -186,10 +186,10 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
                     if ta.attr_id not in existing_attrs:
                         resource_attrs[resource.id].append({
                             'ref_key'     : ref_key,
-                            'node_id'     : resource_i.node_id    if ref_key=='NODE' else None,
-                            'link_id'     : resource_i.link_id    if ref_key=='LINK' else None,
-                            'group_id'    : resource_i.group_id   if ref_key=='GROUP' else None,
-                            'network_id'  : resource_i.id         if ref_key=='NETWORK' else None,
+                            'node_id'     : resource_i.id  if ref_key=='NODE' else None,
+                            'link_id'     : resource_i.id  if ref_key=='LINK' else None,
+                            'group_id'    : resource_i.id  if ref_key=='GROUP' else None,
+                            'network_id'  : resource_i.id  if ref_key=='NETWORK' else None,
                             'attr_id' : ta.attr_id,
                             'attr_is_var' : ta.attr_is_var,
                         })
@@ -270,11 +270,11 @@ def _add_nodes_to_database(net_i, nodes):
     node_list = []
     for node in nodes:
         node_dict = {'network_id'   : net_i.id,
-                    'node_name' : node.name,
-                     'node_description': node.description,
+                    'name' : node.name,
+                     'description': node.description,
                      'layout'     : node.get_layout(),
-                     'node_x'     : node.x,
-                     'node_y'     : node.y,
+                     'x'     : node.x,
+                     'y'     : node.y,
                     }
         node_list.append(node_dict)
     t0 = time.time()
@@ -302,10 +302,10 @@ def _add_nodes(net_i, nodes):
 
     iface_nodes = dict()
     for n_i in net_i.nodes:
-        if iface_nodes.get(n_i.node_name) is not None:
-            raise HydraError("Duplicate Node Name: %s"%(n_i.node_name))
+        if iface_nodes.get(n_i.name) is not None:
+            raise HydraError("Duplicate Node Name: %s"%(n_i.name))
 
-        iface_nodes[n_i.node_name] = n_i
+        iface_nodes[n_i.name] = n_i
 
     for node in nodes:
         node_id_map[node.id] = iface_nodes[node.name]
@@ -327,11 +327,11 @@ def _add_links_to_database(net_i, links, node_id_map):
             raise HydraError("Node IDS (%s, %s)are incorrect!"%(node_1, node_2))
 
         link_dicts.append({'network_id' : net_i.id,
-                           'link_name' : link.name,
-                           'link_description' : link.description,
+                           'name' : link.name,
+                           'description' : link.description,
                            'layout' : link.get_layout(),
-                           'node_1_id' : node_1.node_id,
-                           'node_2_id' : node_2.node_id
+                           'node_1_id' : node_1.id,
+                           'node_2_id' : node_2.id
                           })
     if len(link_dicts) > 0:
         db.DBSession.bulk_insert_mappings(Link, link_dicts)
@@ -359,10 +359,10 @@ def _add_links(net_i, links, node_id_map):
 
     for l_i in net_i.links:
 
-        if iface_links.get(l_i.link_name) is not None:
-            raise HydraError("Duplicate Link Name: %s"%(l_i.link_name))
+        if iface_links.get(l_i.name) is not None:
+            raise HydraError("Duplicate Link Name: %s"%(l_i.name))
 
-        iface_links[l_i.link_name] = l_i
+        iface_links[l_i.name] = l_i
 
     for link in links:
         link_id_map[link.id] = iface_links[link.name]
@@ -388,8 +388,8 @@ def _add_resource_groups(net_i, resourcegroups):
         for group in resourcegroups:
 
             group_dicts.append({'network_id' : net_i.id,
-                           'group_name' : group.name,
-                           'group_description' : group.description,
+                           'name' : group.name,
+                           'description' : group.description,
                           })
 
     if len(group_dicts) > 0:
@@ -399,10 +399,10 @@ def _add_resource_groups(net_i, resourcegroups):
         iface_groups = {}
         for g_i in net_i.resourcegroups:
 
-            if iface_groups.get(g_i.group_name) is not None:
-                raise HydraError("Duplicate Resource Group: %s"%(g_i.group_name))
+            if iface_groups.get(g_i.name) is not None:
+                raise HydraError("Duplicate Resource Group: %s"%(g_i.name))
 
-            iface_groups[g_i.group_name] = g_i
+            iface_groups[g_i.name] = g_i
 
         for group in resourcegroups:
             if group.id not in group_id_map:
@@ -411,7 +411,7 @@ def _add_resource_groups(net_i, resourcegroups):
                 for ra in group.attributes:
                     group_attrs[group.id].append({
                         'ref_key' : 'GROUP',
-                        'group_id' : group_i.group_id,
+                        'group_id' : group_i.id,
                         'attr_id' : ra.attr_id,
                         'attr_is_var' : ra.attr_is_var,
                     })
@@ -667,13 +667,13 @@ def _get_all_templates(network_id, template_id):
                                        Template.template_id==TemplateType.template_id)
 
 
-    all_node_type_qry = base_qry.filter(Node.node_id==ResourceType.node_id,
+    all_node_type_qry = base_qry.filter(Node.id==ResourceType.node_id,
                                         Node.network_id==network_id)
 
-    all_link_type_qry = base_qry.filter(Link.link_id==ResourceType.link_id,
+    all_link_type_qry = base_qry.filter(Link.id==ResourceType.link_id,
                                         Link.network_id==network_id)
 
-    all_group_type_qry = base_qry.filter(ResourceGroup.group_id==ResourceType.group_id,
+    all_group_type_qry = base_qry.filter(ResourceGroup.id==ResourceType.group_id,
                                          ResourceGroup.network_id==network_id)
 
     network_type_qry = base_qry.filter(ResourceType.network_id==network_id)
@@ -889,7 +889,7 @@ def _get_nodes(network_id, template_id=None):
                             noload('network')
                         )
     if template_id is not None:
-        node_qry = node_qry.filter(ResourceType.node_id==Node.node_id,
+        node_qry = node_qry.filter(ResourceType.node_id==Node.id,
                                    TemplateType.type_id==ResourceType.type_id,
                                    TemplateType.template_id==template_id)
     node_res = db.DBSession.execute(node_qry.statement).fetchall()
@@ -911,7 +911,7 @@ def _get_links(network_id, template_id=None):
                                             noload('network')
                                         )
     if template_id is not None:
-        link_qry = link_qry.filter(ResourceType.link_id==Link.link_id,
+        link_qry = link_qry.filter(ResourceType.link_id==Link.id,
                                    TemplateType.type_id==ResourceType.type_id,
                                    TemplateType.template_id==template_id)
 
@@ -935,7 +935,7 @@ def _get_groups(network_id, template_id=None):
                                         )
 
     if template_id is not None:
-        group_qry = group_qry.filter(ResourceType.group_id==ResourceGroup.group_id,
+        group_qry = group_qry.filter(ResourceType.group_id==ResourceGroup.id,
                                      TemplateType.type_id==ResourceType.type_id,
                                      TemplateType.template_id==template_id)
 
@@ -1017,26 +1017,26 @@ def get_network(network_id, summary=False, include_data='N', scenario_ids=None, 
             all_attributes = _get_all_resource_attributes(network_id, template_id)
             log.info("Setting attributes")
             net.attributes = all_attributes['NETWORK'].get(network_id, [])
-            for node in net.nodes:
-                node.attributes = all_attributes['NODE'].get(node.node_id, [])
+            for node_i in net.nodes:
+                node_i.attributes = all_attributes['NODE'].get(node_i.id, [])
             log.info("Node attributes set")
-            for link in net.links:
-                link.attributes = all_attributes['LINK'].get(link.link_id, [])
+            for link_i in net.links:
+                link_i.attributes = all_attributes['LINK'].get(link_i.id, [])
             log.info("Link attributes set")
-            for group in net.resourcegroups:
-                group.attributes = all_attributes['GROUP'].get(group.group_id, [])
+            for group_i in net.resourcegroups:
+                group_i.attributes = all_attributes['GROUP'].get(group_i.id, [])
             log.info("Group attributes set")
 
 
         log.info("Setting types")
         all_types = _get_all_templates(network_id, template_id)
         net.types = all_types['NETWORK'].get(network_id, [])
-        for node in net.nodes:
-            node.types = all_types['NODE'].get(node.node_id, [])
-        for link in net.links:
-            link.types = all_types['LINK'].get(link.link_id, [])
-        for group in net.resourcegroups:
-            group.types = all_types['GROUP'].get(group.group_id, [])
+        for node_i in net.nodes:
+            node_i.types = all_types['NODE'].get(node_i.id, [])
+        for link_i in net.links:
+            link_i.types = all_types['LINK'].get(link_i.id, [])
+        for group_i in net.resourcegroups:
+            group_i.types = all_types['GROUP'].get(group_i.id, [])
 
         log.info("Getting scenarios")
 
@@ -1072,7 +1072,7 @@ def get_nodes(network_id, template_id=None, **kwargs):
                             joinedload_all('attributes.attr')
                         )
     if template_id is not None:
-        node_qry = node_qry.filter(ResourceType.node_id==Node.node_id,
+        node_qry = node_qry.filter(ResourceType.node_id==Node.id,
                                    TemplateType.type_id==ResourceType.type_id,
                                    TemplateType.template_id==template_id)
     nodes = node_qry.all()
@@ -1104,7 +1104,7 @@ def get_links(network_id, template_id=None, **kwargs):
                                         )
 
     if template_id is not None:
-        link_qry = link_qry.filter(ResourceType.link_id==Link.link_id,
+        link_qry = link_qry.filter(ResourceType.link_id==Link.id,
                                    TemplateType.type_id==ResourceType.type_id,
                                    TemplateType.template_id==template_id)
 
@@ -1136,7 +1136,7 @@ def get_groups(network_id, template_id=None, **kwargs):
                                             joinedload_all('attributes.attr')
                                         )
     if template_id is not None:
-        group_qry = group_qry.filter(ResourceType.group_id==ResourceGroup.group_id,
+        group_qry = group_qry.filter(ResourceType.group_id==ResourceGroup.id,
                                      TemplateType.type_id==ResourceType.type_id,
                                      TemplateType.template_id==template_id)
 
@@ -1152,9 +1152,9 @@ def get_network_simple(network_id,**kwargs):
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id,))
 
-def get_node(node_id,**kwargs):
+def get_node(node_id, scenario_id=None, **kwargs):
     try:
-        n = db.DBSession.query(Node).filter(Node.node_id==node_id).options(joinedload_all('attributes.attr')).one()
+        n = db.DBSession.query(Node).filter(Node.id==node_id).options(joinedload_all('attributes.attr')).one()
         n.types
     except NoResultFound:
         raise ResourceNotFoundError("Node %s not found"%(node_id,))
@@ -1173,7 +1173,7 @@ def get_node(node_id,**kwargs):
 
 def get_link(link_id, scenario_id=None, **kwargs):
     try:
-        l = db.DBSession.query(Link).filter(Link.link_id==link_id).options(joinedload_all('attributes.attr')).one()
+        l = db.DBSession.query(Link).filter(Link.id==link_id).options(joinedload_all('attributes.attr')).one()
         l.types
     except NoResultFound:
         raise ResourceNotFoundError("Link %s not found"%(link_id,))
@@ -1192,7 +1192,7 @@ def get_link(link_id, scenario_id=None, **kwargs):
 
 def get_resourcegroup(group_id, scenario_id=None, **kwargs):
     try:
-        rg = db.DBSession.query(ResourceGroup).filter(ResourceGroup.group_id==group_id).options(joinedload_all('attributes.attr')).one()
+        rg = db.DBSession.query(ResourceGroup).filter(ResourceGroup.id==group_id).options(joinedload_all('attributes.attr')).one()
         rg.types
     except NoResultFound:
         raise ResourceNotFoundError("ResourceGroup %s not found"%(group_id,))
@@ -1211,7 +1211,7 @@ def get_resourcegroup(group_id, scenario_id=None, **kwargs):
 
 def get_node_by_name(network_id, node_name,**kwargs):
     try:
-        n = db.DBSession.query(Node).filter(Node.node_name==node_name,
+        n = db.DBSession.query(Node).filter(Node.name==node_name,
                                          Node.network_id==network_id).\
                                          options(joinedload_all('attributes.attr')).one()
         return n
@@ -1220,7 +1220,7 @@ def get_node_by_name(network_id, node_name,**kwargs):
 
 def get_link_by_name(network_id, link_name,**kwargs):
     try:
-        l = db.DBSession.query(Link).filter(Link.link_name==link_name,
+        l = db.DBSession.query(Link).filter(Link.name==link_name,
                                          Link.network_id==network_id).\
                                          options(joinedload_all('attributes.attr')).one()
         return l
@@ -1229,7 +1229,7 @@ def get_link_by_name(network_id, link_name,**kwargs):
 
 def get_resourcegroup_by_name(network_id, group_name,**kwargs):
     try:
-        rg = db.DBSession.query(ResourceGroup).filter(ResourceGroup.group_name==group_name,
+        rg = db.DBSession.query(ResourceGroup).filter(ResourceGroup.name==group_name,
                                                    ResourceGroup.network_id==network_id).\
                                                     options(joinedload_all('attributes.attr')).one()
         return rg
@@ -1295,18 +1295,18 @@ def update_network(network,
         log.info("Updating nodes")
         t0 = time.time()
         #First add all the nodes
-        node_id_map = dict([(n.node_id, n) for n in net_i.nodes])
+        node_id_map = dict([(n.id, n) for n in net_i.nodes])
         for node in network.nodes:
             #If we get a negative or null node id, we know
             #it is a new node.
             if node.id is not None and node.id > 0:
                 n = node_id_map[node.id]
-                n.node_name        = node.name
-                n.node_description = node.description
-                n.node_x           = node.x
-                n.node_y           = node.y
-                n.status           = node.status
-                n.layout           = node.get_layout()
+                n.name        = node.name
+                n.description = node.description
+                n.x           = node.x
+                n._y          = node.y
+                n.status      = node.status
+                n.layout      = node.get_layout()
             else:
                 log.info("Adding new node %s", node.name)
                 n = net_i.add_node(node.name,
@@ -1342,7 +1342,7 @@ def update_network(network,
                 link_id_map[link.id] = l
             else:
                 l = link_id_map[link.id]
-                l.link_name       = link.name
+                l.name       = link.name
                 l.link_descripion = link.description
                 l.node_a          = node_1
                 l.node_b          = node_2
@@ -1364,8 +1364,8 @@ def update_network(network,
             #it is a new group.
             if group.id is not None and group.id > 0:
                 g_i = group_id_map[group.id]
-                g_i.group_name        = group.name
-                g_i.group_description = group.description
+                g_i.name        = group.name
+                g_i.description = group.description
                 g_i.status           = group.status
             else:
                 log.info("Adding new group %s", group.name)
@@ -1463,7 +1463,7 @@ def get_network_extents(network_id,**kwargs):
 
     @returns NetworkExtents object
     """
-    rs = db.DBSession.query(Node.node_x, Node.node_y).filter(Node.network_id==network_id).all()
+    rs = db.DBSession.query(Node.x, Node.y).filter(Node.network_id==network_id).all()
     if len(rs) == 0:
         return dict(
             network_id = network_id,
@@ -1476,8 +1476,8 @@ def get_network_extents(network_id,**kwargs):
     x_values = []
     y_values = []
     for r in rs:
-        x_values.append(r.node_x)
-        y_values.append(r.node_y)
+        x_values.append(r.x)
+        y_values.append(r.y)
 
     x_values.sort()
     y_values.sort()
@@ -1523,7 +1523,7 @@ def add_nodes(network_id, nodes,**kwargs):
 
     iface_nodes = dict()
     for n_i in node_s:
-        iface_nodes[n_i.node_name] = n_i
+        iface_nodes[n_i.name] = n_i
 
     for node in nodes:
         node_id_map[node.id] = iface_nodes[node.name]
@@ -1553,7 +1553,7 @@ def add_links(network_id, links,**kwargs):
         raise ResourceNotFoundError("Network %s not found"%(network_id))
     node_id_map=dict()
     for node in net_i.nodes:
-       node_id_map[node.node_id]=node
+       node_id_map[node.id]=node
     _add_links_to_database(net_i, links, node_id_map)
 
     net_i.project_id=net_i.project_id
@@ -1561,7 +1561,7 @@ def add_links(network_id, links,**kwargs):
     link_s =  db.DBSession.query(Link).filter(Link.network_id==network_id).all()
     iface_links = {}
     for l_i in link_s:
-        iface_links[l_i.link_name] = l_i
+        iface_links[l_i.name] = l_i
     link_attrs = _bulk_add_resource_attrs(net_i.id, 'LINK', links, iface_links)
     log.info("Nodes added in %s", get_timing(start_time))
     return link_s
@@ -1633,17 +1633,17 @@ def update_node(node,**kwargs):
     """
     user_id = kwargs.get('user_id')
     try:
-        node_i = db.DBSession.query(Node).filter(Node.node_id == node.id).one()
+        node_i = db.DBSession.query(Node).filter(Node.id == node.id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Node %s not found"%(node.id))
 
     node_i.network.check_write_permission(user_id)
 
-    node_i.node_name = node.name if node.name != None else node_i.node_name
-    node_i.node_x    = node.x if node.x is not None else node_i.node_x
-    node_i.node_y    = node.y if node.y is not None else node_i.node_y
-    node_i.node_description = node.description if node.description else node_i.node_description
-    node_i.layout           = node.get_layout() if node.layout is not None else node_i.layout
+    node_i.name = node.name if node.name != None else node_i.name
+    node_i.x    = node.x if node.x is not None else node_i.x
+    node_i.y    = node.y if node.y is not None else node_i.y
+    node_i.description = node.description if node.description else node_i.description
+    node_i.layout      = node.get_layout() if node.layout is not None else node_i.layout
 
     if node.attributes is not None:
         _update_attributes(node_i, node.attributes)
@@ -1660,7 +1660,7 @@ def set_node_status(node_id, status, **kwargs):
     """
     user_id = kwargs.get('user_id')
     try:
-        node_i = db.DBSession.query(Node).filter(Node.node_id == node_id).one()
+        node_i = db.DBSession.query(Node).filter(Node.id == node_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Node %s not found"%(node_id))
 
@@ -1729,7 +1729,7 @@ def delete_node(node_id, purge_data,**kwargs):
     """
     user_id = kwargs.get('user_id')
     try:
-        node_i = db.DBSession.query(Node).filter(Node.node_id == node_id).one()
+        node_i = db.DBSession.query(Node).filter(Node.id == node_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Node %s not found"%(node_id))
 
@@ -1755,7 +1755,7 @@ def delete_node(node_id, purge_data,**kwargs):
             log.info("Deleting node dataset %s", node_datum.dataset_id)
             db.DBSession.delete(node_datum.dataset)
 
-    log.info("Deleting node %s, id=%s", node_i.node_name, node_id)
+    log.info("Deleting node %s, id=%s", node_i.name, node_id)
 
     node_i.network.check_write_permission(user_id)
     db.DBSession.delete(node_i)
@@ -1776,8 +1776,8 @@ def add_link(network_id, link,**kwargs):
         raise ResourceNotFoundError("Network %s not found"%(network_id))
 
     try:
-        node_1 = db.DBSession.query(Node).filter(Node.node_id==link.node_1_id).one()
-        node_2 = db.DBSession.query(Node).filter(Node.node_id==link.node_2_id).one()
+        node_1 = db.DBSession.query(Node).filter(Node.id==link.node_1_id).one()
+        node_2 = db.DBSession.query(Node).filter(Node.id==link.node_2_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Nodes for link not found")
 
@@ -1828,15 +1828,15 @@ def update_link(link,**kwargs):
     user_id = kwargs.get('user_id')
     #check_perm(user_id, 'edit_topology')
     try:
-        link_i = db.DBSession.query(Link).filter(Link.link_id == link.id).one()
+        link_i = db.DBSession.query(Link).filter(Link.id == link.id).one()
         link_i.network.check_write_permission(user_id)
     except NoResultFound:
         raise ResourceNotFoundError("Link %s not found"%(link.id))
 
-    link_i.link_name = link.name
+    link_i.name = link.name
     link_i.node_1_id = link.node_1_id
     link_i.node_2_id = link.node_2_id
-    link_i.link_description = link.description
+    link_i.description = link.description
     link_i.layout           = link.get_layout()
 
     hdb.add_resource_attributes(link_i, link.attributes)
@@ -1851,7 +1851,7 @@ def set_link_status(link_id, status, **kwargs):
     user_id = kwargs.get('user_id')
     #check_perm(user_id, 'edit_topology')
     try:
-        link_i = db.DBSession.query(Link).filter(Link.link_id == link_id).one()
+        link_i = db.DBSession.query(Link).filter(Link.id == link_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Link %s not found"%(link_id))
 
@@ -1869,7 +1869,7 @@ def delete_link(link_id, purge_data,**kwargs):
     """
     user_id = kwargs.get('user_id')
     try:
-        link_i = db.DBSession.query(Link).filter(Link.link_id == link_id).one()
+        link_i = db.DBSession.query(Link).filter(Link.id == link_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Link %s not found"%(link_id))
 
@@ -1896,7 +1896,7 @@ def delete_link(link_id, purge_data,**kwargs):
             log.warn("Deleting link dataset %s", link_datum.dataset_id)
             db.DBSession.delete(link_datum.dataset)
 
-    log.info("Deleting link %s, id=%s", link_i.link_name, link_id)
+    log.info("Deleting link %s, id=%s", link_i.name, link_id)
 
     link_i.network.check_write_permission(user_id)
     db.DBSession.delete(link_i)
@@ -1961,14 +1961,14 @@ def update_group(group,**kwargs):
     """
     user_id = kwargs.get('user_id')
     try:
-        group_i = db.DBSession.query(ResourceGroup).filter(ResourceGroup.group_id == group.id).one()
+        group_i = db.DBSession.query(ResourceGroup).filter(ResourceGroup.id == group.id).one()
     except NoResultFound:
         raise ResourceNotFoundError("group %s not found"%(group.id))
 
     group_i.network.check_write_permission(user_id)
 
-    group_i.group_name = group.name if group.name != None else group_i.group_name
-    group_i.group_description = group.description if group.description else group_i.group_description
+    group_i.name = group.name if group.name != None else group_i.name
+    group_i.description = group.description if group.description else group_i.description
 
     if group.attributes is not None:
         _update_attributes(group_i, group.attributes)
@@ -1986,7 +1986,7 @@ def set_group_status(group_id, status, **kwargs):
     """
     user_id = kwargs.get('user_id')
     try:
-        group_i = db.DBSession.query(ResourceGroup).filter(ResourceGroup.group_id == group_id).one()
+        group_i = db.DBSession.query(ResourceGroup).filter(ResourceGroup.id == group_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("ResourceGroup %s not found"%(group_id))
 
@@ -2008,7 +2008,7 @@ def delete_group(group_id, purge_data,**kwargs):
     """
     user_id = kwargs.get('user_id')
     try:
-        group_i = db.DBSession.query(ResourceGroup).filter(ResourceGroup.group_id == group_id).one()
+        group_i = db.DBSession.query(ResourceGroup).filter(ResourceGroup.id == group_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Group %s not found"%(group_id))
 
@@ -2034,7 +2034,7 @@ def delete_group(group_id, purge_data,**kwargs):
             log.warn("Deleting group dataset %s", group_datum.dataset_id)
             db.DBSession.delete(group_datum.dataset)
 
-    log.info("Deleting group %s, id=%s", group_i.group_name, group_id)
+    log.info("Deleting group %s, id=%s", group_i.name, group_id)
 
     group_i.network.check_write_permission(user_id)
     db.DBSession.delete(group_i)
@@ -2281,17 +2281,17 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
                Dataset.data_type,
                null().label('metadata'),
                case([
-                    (ResourceAttr.node_id != None, Node.node_name),
-                    (ResourceAttr.link_id != None, Link.link_name),
-                    (ResourceAttr.group_id != None, ResourceGroup.group_name),
+                    (ResourceAttr.node_id != None, Node.name),
+                    (ResourceAttr.link_id != None, Link.name),
+                    (ResourceAttr.group_id != None, ResourceGroup.name),
                     (ResourceAttr.network_id != None, Network.name),
                ]).label('ref_name'),
               ).join(ResourceScenario)\
                 .join(Dataset).\
                 join(Attr, ResourceAttr.attr_id==Attr.attr_id).\
-                outerjoin(Node, ResourceAttr.node_id==Node.node_id).\
-                outerjoin(Link, ResourceAttr.link_id==Link.link_id).\
-                outerjoin(ResourceGroup, ResourceAttr.group_id==ResourceGroup.group_id).\
+                outerjoin(Node, ResourceAttr.node_id==Node.id).\
+                outerjoin(Link, ResourceAttr.link_id==Link.id).\
+                outerjoin(ResourceGroup, ResourceAttr.group_id==ResourceGroup.id).\
                 outerjoin(Network, ResourceAttr.network_id==Network.id).\
             filter(ResourceScenario.scenario_id==scenario_id)
 
@@ -2433,15 +2433,15 @@ def _clone_nodes(old_network_id, new_network_id):
     for ex_n in nodes:
         new_n = dict(
             network_id=new_network_id,
-            node_name = ex_n.node_name,
-            node_description = ex_n.node_description,
-            node_x = ex_n.node_x,
-            node_y = ex_n.node_y,
+            name = ex_n.name,
+            description = ex_n.description,
+            x = ex_n.x,
+            y = ex_n.y,
             layout = ex_n.layout,
             status = ex_n.status,
         )
 
-        old_node_name_map[ex_n.node_name] = ex_n.node_id
+        old_node_name_map[ex_n.name] = ex_n.node_id
 
         newnodes.append(new_n)
 
@@ -2452,7 +2452,7 @@ def _clone_nodes(old_network_id, new_network_id):
 
     nodes = db.DBSession.query(Node).filter(Node.network_id==new_network_id).all()
     for n in nodes:
-        old_node_id = old_node_name_map[n.node_name]
+        old_node_id = old_node_name_map[n.name]
         id_map[old_node_id] = n.node_id
 
     return id_map
@@ -2466,8 +2466,8 @@ def _clone_links(old_network_id, new_network_id, node_id_map):
     for ex_l in links:
         new_l = dict(
             network_id=new_network_id,
-            link_name = ex_l.link_name,
-            link_description = ex_l.link_description,
+            name = ex_l.name,
+            description = ex_l.description,
             node_1_id = node_id_map[ex_l.node_1_id],
             node_2_id = node_id_map[ex_l.node_2_id],
             layout = ex_l.layout,
@@ -2476,7 +2476,7 @@ def _clone_links(old_network_id, new_network_id, node_id_map):
 
         newlinks.append(new_l)
 
-        old_link_name_map[ex_l.link_name] = ex_l.link_id
+        old_link_name_map[ex_l.name] = ex_l.id
 
     db.DBSession.bulk_insert_mappings(Link, newlinks)
 
@@ -2485,7 +2485,7 @@ def _clone_links(old_network_id, new_network_id, node_id_map):
 
     links = db.DBSession.query(Link).filter(Link.network_id==new_network_id).all()
     for l in links:
-        old_link_id = old_link_name_map[l.link_name]
+        old_link_id = old_link_name_map[l.name]
         id_map[old_link_id] = l.link_id
 
     return id_map
@@ -2499,14 +2499,14 @@ def _clone_groups(old_network_id, new_network_id, node_id_map, link_id_map):
     for ex_g in groups:
         new_g = dict(
             network_id=new_network_id,
-            group_name = ex_g.group_name,
-            group_description = ex_g.group_description,
+            name = ex_g.name,
+            description = ex_g.group_description,
             status = ex_g.status,
         )
 
         newgroups.append(new_g)
 
-        old_group_name_map[ex_g.group_name] = ex_g.group_id
+        old_group_name_map[ex_g.name] = ex_g.id
 
     db.DBSession.bulk_insert_mappings(ResourceGroup, newgroups)
 
@@ -2515,7 +2515,7 @@ def _clone_groups(old_network_id, new_network_id, node_id_map, link_id_map):
 
     groups = db.DBSession.query(ResourceGroup).filter(ResourceGroup.network_id==new_network_id).all()
     for g in groups:
-        old_group_id = old_group_name_map[g.group_name]
+        old_group_id = old_group_name_map[g.name]
         id_map[old_group_id] = g.group_id
 
     return id_map
@@ -2540,7 +2540,7 @@ def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, gro
         #key is (network_id, node_id, link_id, group_id) -- only one of which can be not null for a given row
         old_ra_name_map[(newnetworkid, None, None, None, ra.attr_id)] = ra.resource_attr_id
     log.info("Cloning Node Attributes")
-    node_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.node_id==Node.node_id, Node.network_id==network_id)).all()
+    node_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.node_id==Node.id, Node.network_id==network_id)).all()
     for ra in node_ras:
         new_ras.append(dict(
             node_id=node_id_map[ra.node_id],
@@ -2553,7 +2553,7 @@ def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, gro
         ))
         old_ra_name_map[(None, node_id_map[ra.node_id], None, None, ra.attr_id)] = ra.resource_attr_id
     log.info("Cloning Link Attributes")
-    link_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.link_id==Link.link_id, Link.network_id==network_id)).all()
+    link_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.link_id==Link.id, Link.network_id==network_id)).all()
     for ra in link_ras:
         new_ras.append(dict(
             link_id=link_id_map[ra.link_id],
@@ -2567,7 +2567,7 @@ def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, gro
         old_ra_name_map[(None, None, link_id_map[ra.link_id], None, ra.attr_id)] = ra.resource_attr_id
 
     log.info("Cloning Group Attributes")
-    group_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.group_id==ResourceGroup.group_id, ResourceGroup.network_id==network_id)).all()
+    group_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.group_id==ResourceGroup.id, ResourceGroup.network_id==network_id)).all()
     for ra in group_ras:
         new_ras.append(dict(
             group_id=group_id_map[ra.group_id],
@@ -2591,16 +2591,16 @@ def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, gro
     for ra in new_network_ras:
         id_map[old_ra_name_map[(ra.network_id, ra.node_id, ra.link_id, ra.group_id, ra.attr_id)]] = ra.resource_attr_id
 
-    new_node_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.node_id==Node.node_id, Node.network_id==newnetworkid)).all()
+    new_node_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.node_id==Node.id, Node.network_id==newnetworkid)).all()
     for ra in new_node_ras:
         id_map[old_ra_name_map[(ra.network_id, ra.node_id, ra.link_id, ra.group_id, ra.attr_id)]] = ra.resource_attr_id
 
 
-    new_link_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.link_id==Link.link_id, Link.network_id==newnetworkid)).all()
+    new_link_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.link_id==Link.id, Link.network_id==newnetworkid)).all()
     for ra in new_link_ras:
         id_map[old_ra_name_map[(ra.network_id, ra.node_id, ra.link_id, ra.group_id, ra.attr_id)]] = ra.resource_attr_id
 
-    new_group_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.group_id==ResourceGroup.group_id, ResourceGroup.network_id==newnetworkid)).all()
+    new_group_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.group_id==ResourceGroup.id, ResourceGroup.network_id==newnetworkid)).all()
     for ra in new_group_ras:
         id_map[old_ra_name_map[(ra.network_id, ra.node_id, ra.link_id, ra.group_id, ra.attr_id)]] = ra.resource_attr_id
     log.info("ID map completed. Returning")
@@ -2622,7 +2622,7 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
             type_id=rt.type_id,
         ))
     log.info("Cloning Node Types")
-    node_rts = db.DBSession.query(ResourceType).filter(and_(ResourceType.node_id==Node.node_id, Node.network_id==network_id))
+    node_rts = db.DBSession.query(ResourceType).filter(and_(ResourceType.node_id==Node.id, Node.network_id==network_id))
     for rt in node_rts:
         new_ras.append(dict(
             ref_key=rt.ref_key,
@@ -2633,7 +2633,7 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
             type_id=rt.type_id,
         ))
     log.info("Cloning Link Types")
-    link_rts = db.DBSession.query(ResourceType).filter(and_(ResourceType.link_id==Link.link_id, Link.network_id==network_id))
+    link_rts = db.DBSession.query(ResourceType).filter(and_(ResourceType.link_id==Link.id, Link.network_id==network_id))
     for rt in link_rts:
         new_ras.append(dict(
             ref_key=rt.ref_key,
@@ -2645,7 +2645,7 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
         ))
 
     log.info("Cloning Group Types")
-    group_rts = db.DBSession.query(ResourceType).filter(and_(ResourceType.group_id==ResourceGroup.group_id, ResourceGroup.network_id==network_id))
+    group_rts = db.DBSession.query(ResourceType).filter(and_(ResourceType.group_id==ResourceGroup.id, ResourceGroup.network_id==network_id))
     for rt in group_rts:
         new_ras.append(dict(
             ref_key=rt.ref_key,

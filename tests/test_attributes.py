@@ -517,6 +517,3 @@ class TestAttributeGroups:
         
         assert len(all_items_in_network) == len(network_attributes)
 
-
-if __name__ == '__main__':
-    server.run()

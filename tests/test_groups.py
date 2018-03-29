@@ -38,12 +38,12 @@ class TestGroup:
         group = network.resourcegroups[0]
         s = network.scenarios[0]
 
-        resourcegroup_without_data = hb.get_resourcegroup(group.group_id)
+        resourcegroup_without_data = hb.get_resourcegroup(group.id)
 
         for ra in resourcegroup_without_data.attributes:
             assert not hasattr(ra, 'resourcescenario')
 
-        resourcegroup_with_data = hb.get_resourcegroup(group.group_id, s.scenario_id, user_id=self.user_id)
+        resourcegroup_with_data = hb.get_resourcegroup(group.id, s.scenario_id, user_id=self.user_id)
 
         attrs_with_data = []
         for ra in resourcegroup_with_data.attributes:
@@ -52,7 +52,7 @@ class TestGroup:
                     attrs_with_data.append(ra.resource_attr_id)
         assert len(attrs_with_data) > 0
 
-        group_items = hb.get_resourcegroupitems(group.group_id, s.scenario_id, user_id=self.user_id)
+        group_items = hb.get_resourcegroupitems(group.id, s.scenario_id, user_id=self.user_id)
         assert len(group_items) > 0
 
     def test_add_resourcegroup(self, session, network_with_data):
@@ -100,12 +100,12 @@ class TestGroup:
         scenario = network.scenarios[0]
 
         group    = network.resourcegroups[-1]
-        node_id = network.nodes[0].node_id
+        node_id = network.nodes[0].id
 
         item = JSONObject({})
         item.ref_key = 'NODE'
         item.ref_id  = node_id
-        item.group_id = group.group_id
+        item.group_id = group.id
 
         new_item = hb.add_resourcegroupitem(item, scenario.scenario_id, user_id=self.user_id)
 
@@ -117,32 +117,32 @@ class TestGroup:
 
         group_to_delete = net.resourcegroups[0]
 
-        hb.set_group_status(group_to_delete.group_id, 'X', user_id=self.user_id)
+        hb.set_group_status(group_to_delete.id, 'X', user_id=self.user_id)
 
         updated_net = hb.get_network(net.id, user_id=self.user_id)
 
         group_ids = []
         for g in updated_net.resourcegroups:
-            group_ids.append(g.group_id)
+            group_ids.append(g.id)
 
         assert group_to_delete.id not in group_ids
 
-        hb.set_group_status(group_to_delete.group_id, 'A', user_id=self.user_id)
+        hb.set_group_status(group_to_delete.id, 'A', user_id=self.user_id)
 
         updated_net = hb.get_network(net.id, user_id=self.user_id)
 
         group_ids = []
         for g in updated_net.resourcegroups:
-            group_ids.append(g.group_id)
+            group_ids.append(g.id)
 
-        assert group_to_delete.group_id in group_ids
+        assert group_to_delete.id in group_ids
 
 
     def test_purge_group(self, session, network_with_extra_group):
         net = network_with_extra_group 
         scenario_id = net.scenarios[0].id
-        group_id_to_delete = net.resourcegroups[-1].group_id
-        group_id_to_keep = net.resourcegroups[0].group_id
+        group_id_to_delete = net.resourcegroups[-1].id
+        group_id_to_keep = net.resourcegroups[0].id
 
         group_datasets = hb.get_resource_data('GROUP', group_id_to_delete, scenario_id)
         log.info("Deleting group %s", group_id_to_delete)
@@ -151,7 +151,7 @@ class TestGroup:
 
         updated_net = JSONObject(hb.get_network(net.id, 'Y', user_id=self.user_id))
         assert len(updated_net.resourcegroups) == 1
-        assert updated_net.resourcegroups[0].group_id == group_id_to_keep
+        assert updated_net.resourcegroups[0].id == group_id_to_keep
 
         for rs in group_datasets:
             #In these tests, all timeseries are unique to their resources,

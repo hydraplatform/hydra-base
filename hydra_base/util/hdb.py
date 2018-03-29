@@ -55,11 +55,11 @@ def add_resource_types(resource_i, types):
         rt_i.type_id     = templatetype.id
         rt_i.ref_key     = resource_i.ref_key
         if resource_i.ref_key == 'NODE':
-            rt_i.node_id      = resource_i.node_id
+            rt_i.node_id      = resource_i.id
         elif resource_i.ref_key == 'LINK':
-            rt_i.link_id      = resource_i.link_id
+            rt_i.link_id      = resource_i.id
         elif resource_i.ref_key == 'GROUP':
-            rt_i.group_id     = resource_i.group_id
+            rt_i.group_id     = resource_i.id
         resource_i.types.append(rt_i)
         new_type_ids.append(templatetype.id)
 

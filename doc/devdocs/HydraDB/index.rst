@@ -47,15 +47,15 @@ tNode
 Along with the standard id, name, description
 and status, a Node has an X, Y coordinate.
 
- * node_id: Unique identifier
+ * id: Unique identifier
  * network_id: The network in which this link resides.
- * node_name: Node name. This is UNIQUE within a network.
- * node_description: non-mandatory description
+ * name: Node name. This is UNIQUE within a network.
+ * description: non-mandatory description
  * status: A character, which can be A (active) or X (deleted)
- * node_x: The node's X-coordinate on a standard plane
- * node_y: The node's Y-coordinate on a standard plane
- * node_layout: A string describing layout parameters.
- * node_type: The name of the template to which this node belongs. For example, the 'reservoir' node_type refers to the 'reservoir' templates which may reside in multiple groups.
+ * x: The node's X-coordinate on a standard plane
+ * y: The node's Y-coordinate on a standard plane
+ * layout: A string describing layout parameters.
+ * type: The name of the template to which this node belongs. For example, the 'reservoir' type refers to the 'reservoir' templates which may reside in multiple groups.
  * cr_date: Creation date
 
 tLink
@@ -64,14 +64,14 @@ tLink
 Links belong inside a network and link two nodes. Links define the topology of the network. Along with the standard id, name and status, a link has two node ids
 and a network_id.
 
- * link_id: Unique identifier
+ * id: Unique identifier
  * network_id: The network in which this link resides.
  * status: A character, which can be A (active) or X (deleted)
  * node_1_id: Link from node 1...
  * node_2_id: ...to node 2
- * link_name: Name of the link. This is UNIQUE for links between the same 2 nodes.
- * link_description: Description of the link..
- * link_layout: A string describing layout parameters. The layout includes
+ * name: Name of the link. This is UNIQUE for links between the same 2 nodes.
+ * description: Description of the link..
+ * layout: A string describing layout parameters. The layout includes
    intermediate points.
  * cr_date: Creation date
 

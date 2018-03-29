@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 
 def _get_group(group_id):
     try:
-        return db.DBSession.query(ResourceGroup).filter(ResourceGroup.group_id==group_id).one()
+        return db.DBSession.query(ResourceGroup).filter(ResourceGroup.id==group_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("ResourceGroup %s not found"%(group_id,))
 
@@ -45,8 +45,8 @@ def add_resourcegroup(group, network_id,**kwargs):
         Add a new group to a network.
     """
     group_i                   = ResourceGroup()
-    group_i.group_name        = group.name
-    group_i.group_description = group.description
+    group_i.name              = group.name
+    group_i.description       = group.description
     group_i.status            = group.status
     group_i.network_id        = network_id
     db.DBSession.add(group_i)
@@ -69,10 +69,10 @@ def update_resourcegroup(group,**kwargs):
         Add a new group to a network.
     """
 
-    group_i                   = _get_group(group.id)
-    group_i.group_name        = group.name
-    group_i.group_description = group.description
-    group_i.status            = group.status
+    group_i                 = _get_group(group.id)
+    group_i.name            = group.name
+    group_i.description     = group.description
+    group_i.status          = group.status
     
     db.DBSession.flush()
 
@@ -86,18 +86,18 @@ def add_resourcegroupitem(group_item, scenario_id,**kwargs):
 
     if group_item.ref_key == 'NODE':
         try:
-            db.DBSession.query(Node).filter(Node.node_id==group_item.ref_id).one()
+            db.DBSession.query(Node).filter(Node.id==group_item.ref_id).one()
 
         except NoResultFound:
             raise HydraError("Invalid ref ID %s for a Node group item!"%(group_item.ref_id))
     elif group_item.ref_key == 'LINK':
         try:
-            db.DBSession.query(Link).filter(Link.link_id==group_item.ref_id).one()
+            db.DBSession.query(Link).filter(Link.id==group_item.ref_id).one()
         except NoResultFound:
             raise HydraError("Invalid ref ID %s for a Link group item!"%(group_item.ref_id))
     elif group_item.ref_key == 'GROUP':
         try:
-            db.DBSession.query(ResourceGroup).filter(ResourceGroup.group_id==group_item.ref_id).one()
+            db.DBSession.query(ResourceGroup).filter(ResourceGroup.id==group_item.ref_id).one()
         except NoResultFound:
             raise HydraError("Invalid ref ID %s for a Group group item!"%(group_item.ref_id))
     else:

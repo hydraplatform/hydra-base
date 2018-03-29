@@ -494,9 +494,9 @@ class ResourceAttr(Base, Inspect):
     ref_key = Column(String(60),  nullable=False, index=True)
     network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), index=True, nullable=True,)
     project_id  = Column(Integer(),  ForeignKey('tProject.project_id'), index=True, nullable=True,)
-    node_id     = Column(Integer(),  ForeignKey('tNode.node_id'), index=True, nullable=True)
-    link_id     = Column(Integer(),  ForeignKey('tLink.link_id'), index=True, nullable=True)
-    group_id    = Column(Integer(),  ForeignKey('tResourceGroup.group_id'), index=True, nullable=True)
+    node_id     = Column(Integer(),  ForeignKey('tNode.id'), index=True, nullable=True)
+    link_id     = Column(Integer(),  ForeignKey('tLink.id'), index=True, nullable=True)
+    group_id    = Column(Integer(),  ForeignKey('tResourceGroup.id'), index=True, nullable=True)
     attr_is_var = Column(String(1),  nullable=False, server_default=text(u"'N'"))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
@@ -579,9 +579,9 @@ class ResourceType(Base, Inspect):
     type_id = Column(Integer(), ForeignKey('tTemplateType.type_id'), primary_key=False, nullable=False)
     ref_key = Column(String(60),nullable=False)
     network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), nullable=True,)
-    node_id     = Column(Integer(),  ForeignKey('tNode.node_id'), nullable=True)
-    link_id     = Column(Integer(),  ForeignKey('tLink.link_id'), nullable=True)
-    group_id    = Column(Integer(),  ForeignKey('tResourceGroup.group_id'), nullable=True)
+    node_id     = Column(Integer(),  ForeignKey('tNode.id'), nullable=True)
+    link_id     = Column(Integer(),  ForeignKey('tLink.id'), nullable=True)
+    group_id    = Column(Integer(),  ForeignKey('tResourceGroup.id'), nullable=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
 
@@ -778,13 +778,13 @@ class Network(Base, Inspect):
             existing nodes.
         """
 
-        existing_link = get_session().query(Link).filter(Link.link_name==name, Link.network_id==self.id).first()
+        existing_link = get_session().query(Link).filter(Link.name==name, Link.network_id==self.id).first()
         if existing_link is not None:
             raise HydraError("A link with name %s is already in network %s"%(name, self.id))
 
         l = Link()
-        l.link_name        = name
-        l.link_description = desc
+        l.name        = name
+        l.description = desc
         l.layout           = str(layout) if layout is not None else None
         l.node_a           = node_1
         l.node_b           = node_2
@@ -800,16 +800,16 @@ class Network(Base, Inspect):
         """
             Add a node to a network.
         """
-        existing_node = get_session().query(Node).filter(Node.node_name==name, Node.network_id==self.id).first()
+        existing_node = get_session().query(Node).filter(Node.name==name, Node.network_id==self.id).first()
         if existing_node is not None:
             raise HydraError("A node with name %s is already in network %s"%(name, self.id))
 
         node = Node()
-        node.node_name        = name
-        node.node_description = desc
-        node.layout           = str(layout) if layout is not None else None
-        node.node_x           = node_x
-        node.node_y           = node_y
+        node.name        = name
+        node.description = desc
+        node.layout      = str(layout) if layout is not None else None
+        node.x           = node_x
+        node.y           = node_y
 
         #Do not call save here because it is likely that we may want
         #to bulk insert nodes, not one at a time.
@@ -825,14 +825,14 @@ class Network(Base, Inspect):
             Add a new group to a network.
         """
 
-        existing_group = get_session().query(ResourceGroup).filter(ResourceGroup.group_name==name, ResourceGroup.network_id==self.id).first()
+        existing_group = get_session().query(ResourceGroup).filter(ResourceGroup.name==name, ResourceGroup.network_id==self.id).first()
         if existing_group is not None:
             raise HydraError("A resource group with name %s is already in network %s"%(name, self.id))
 
-        group_i                      = ResourceGroup()
-        group_i.group_name        = name
-        group_i.group_description = desc
-        group_i.status            = status
+        group_i             = ResourceGroup()
+        group_i.name        = name
+        group_i.description = desc
+        group_i.status      = status
 
         get_session().add(group_i)
 
@@ -928,33 +928,54 @@ class Link(Base, Inspect):
     __tablename__='tLink'
 
     __table_args__ = (
-        UniqueConstraint('network_id', 'link_name', name="unique link name"),
+        UniqueConstraint('network_id', 'name', name="unique link name"),
     )
     ref_key = 'LINK'
 
-    link_id = Column(Integer(), primary_key=True, nullable=False)
+    id = Column(Integer(), primary_key=True, nullable=False)
     network_id = Column(Integer(), ForeignKey('tNetwork.id'), nullable=False)
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
-    node_1_id = Column(Integer(), ForeignKey('tNode.node_id'), nullable=False)
-    node_2_id = Column(Integer(), ForeignKey('tNode.node_id'), nullable=False)
-    link_name = Column(String(60))
-    link_description = Column(String(1000))
+    node_1_id = Column(Integer(), ForeignKey('tNode.id'), nullable=False)
+    node_2_id = Column(Integer(), ForeignKey('tNode.id'), nullable=False)
+    name = Column(String(60))
+    description = Column(String(1000))
     layout = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     network = relationship('Network', backref=backref("links", order_by=network_id, cascade="all, delete-orphan"), lazy='joined')
-    node_a = relationship('Node', foreign_keys=[node_1_id], backref=backref("links_to", order_by=link_id, cascade="all, delete-orphan"))
-    node_b = relationship('Node', foreign_keys=[node_2_id], backref=backref("links_from", order_by=link_id, cascade="all, delete-orphan"))
+    node_a = relationship('Node', foreign_keys=[node_1_id], backref=backref("links_to", order_by=id, cascade="all, delete-orphan"))
+    node_b = relationship('Node', foreign_keys=[node_2_id], backref=backref("links_from", order_by=id, cascade="all, delete-orphan"))
 
     def get_name(self):
-        return self.link_name
+        return self.name
+
+    #For backward compatibility
+    @property
+    def link_id(self):
+        return self.id
+
+    @property
+    def link_name(self):
+        return self.name
+
+    @link_name.setter
+    def link_name_setter(self, value):
+        self.name = value
+
+    @property
+    def link_description(self):
+        return self.description
+
+    @link_description.setter
+    def link_description_setter(self):
+        self.description = self.link_description
 
     def add_attribute(self, attr_id, attr_is_var='N'):
         attr = ResourceAttr()
         attr.attr_id = attr_id
         attr.attr_is_var = attr_is_var
         attr.ref_key = self.ref_key
-        attr.link_id  = self.link_id
+        attr.link_id  = self.id
         self.attributes.append(attr)
 
         return attr
@@ -978,31 +999,52 @@ class Node(Base, Inspect):
 
     __tablename__='tNode'
     __table_args__ = (
-        UniqueConstraint('network_id', 'node_name', name="unique node name"),
+        UniqueConstraint('network_id', 'name', 'status', name="unique node name"),
     )
     ref_key = 'NODE'
 
-    node_id = Column(Integer(), primary_key=True, nullable=False)
+    id = Column(Integer(), primary_key=True, nullable=False)
     network_id = Column(Integer(), ForeignKey('tNetwork.id'), nullable=False)
-    node_description = Column(String(1000))
-    node_name = Column(String(60),  nullable=False)
+    description = Column(String(1000))
+    name = Column(String(60),  nullable=False)
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
-    node_x = Column(Float(precision=10, asdecimal=True))
-    node_y = Column(Float(precision=10, asdecimal=True))
+    x = Column(Float(precision=10, asdecimal=True))
+    y = Column(Float(precision=10, asdecimal=True))
     layout = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     network = relationship('Network', backref=backref("nodes", order_by=network_id, cascade="all, delete-orphan"), lazy='joined')
 
     def get_name(self):
-        return self.node_name
+        return self.name
+
+    #For backward compatibility
+    @property
+    def node_id(self):
+        return self.id
+
+    @property
+    def node_name(self):
+        return self.name
+
+    @node_name.setter
+    def node_name_setter(self, value):
+        self.name = value
+
+    @property
+    def node_description(self):
+        return self.description
+
+    @node_description.setter
+    def node_description_setter(self):
+        self.description = self.node_description
 
     def add_attribute(self, attr_id, attr_is_var='N'):
         attr = ResourceAttr()
         attr.attr_id = attr_id
         attr.attr_is_var = attr_is_var
         attr.ref_key = self.ref_key
-        attr.node_id  = self.node_id
+        attr.id  = self.id
         self.attributes.append(attr)
 
         return attr
@@ -1026,28 +1068,49 @@ class ResourceGroup(Base, Inspect):
 
     __tablename__='tResourceGroup'
     __table_args__ = (
-        UniqueConstraint('network_id', 'group_name', name="unique resourcegroup name"),
+        UniqueConstraint('network_id', 'name', name="unique resourcegroup name"),
     )
 
     ref_key = 'GROUP'
-    group_id = Column(Integer(), primary_key=True, nullable=False)
-    group_name = Column(String(60),  nullable=False)
-    group_description = Column(String(1000))
+    id = Column(Integer(), primary_key=True, nullable=False)
+    name = Column(String(60),  nullable=False)
+    description = Column(String(1000))
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     network_id = Column(Integer(), ForeignKey('tNetwork.id'),  nullable=False)
 
-    network = relationship('Network', backref=backref("resourcegroups", order_by=group_id, cascade="all, delete-orphan"), lazy='joined')
+    network = relationship('Network', backref=backref("resourcegroups", order_by=id, cascade="all, delete-orphan"), lazy='joined')
 
     def get_name(self):
         return self.group_name
+
+    #For backward compatibility
+    @property
+    def group_id(self):
+        return self.id
+
+    @property
+    def group_name(self):
+        return self.name
+
+    @group_name.setter
+    def group_name_setter(self, value):
+        self.name = value
+
+    @property
+    def group_description(self):
+        return self.description
+
+    @group_description.setter
+    def group_description_setter(self):
+        self.description = self.group_description
 
     def add_attribute(self, attr_id, attr_is_var='N'):
         attr = ResourceAttr()
         attr.attr_id = attr_id
         attr.attr_is_var = attr_is_var
         attr.ref_key = self.ref_key
-        attr.group_id  = self.group_id
+        attr.group_id  = self.id
         self.attributes.append(attr)
 
         return attr
@@ -1057,7 +1120,7 @@ class ResourceGroup(Base, Inspect):
             Get all the items in this group, in the given scenario
         """
         items = get_session().query(ResourceGroupItem)\
-                .filter(ResourceGroupItem.group_id==self.group_id).\
+                .filter(ResourceGroupItem.group_id==self.id).\
                 filter(ResourceGroupItem.scenario_id==scenario_id).all()
 
         return items
@@ -1090,11 +1153,11 @@ class ResourceGroupItem(Base, Inspect):
     item_id = Column(Integer(), primary_key=True, nullable=False)
     ref_key = Column(String(60),  nullable=False)
 
-    node_id     = Column(Integer(),  ForeignKey('tNode.node_id'))
-    link_id     = Column(Integer(),  ForeignKey('tLink.link_id'))
-    subgroup_id = Column(Integer(),  ForeignKey('tResourceGroup.group_id'))
+    node_id     = Column(Integer(),  ForeignKey('tNode.id'))
+    link_id     = Column(Integer(),  ForeignKey('tLink.id'))
+    subgroup_id = Column(Integer(),  ForeignKey('tResourceGroup.id'))
 
-    group_id = Column(Integer(), ForeignKey('tResourceGroup.group_id'))
+    group_id = Column(Integer(), ForeignKey('tResourceGroup.id'))
     scenario_id = Column(Integer(), ForeignKey('tScenario.scenario_id'),  nullable=False, index=True)
 
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
@@ -1241,9 +1304,9 @@ class Rule(Base, Inspect):
     scenario_id = Column(Integer(), ForeignKey('tScenario.scenario_id'),  nullable=False)
 
     network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), index=True, nullable=True,)
-    node_id     = Column(Integer(),  ForeignKey('tNode.node_id'), index=True, nullable=True)
-    link_id     = Column(Integer(),  ForeignKey('tLink.link_id'), index=True, nullable=True)
-    group_id    = Column(Integer(),  ForeignKey('tResourceGroup.group_id'), index=True, nullable=True)
+    node_id     = Column(Integer(),  ForeignKey('tNode.id'), index=True, nullable=True)
+    link_id     = Column(Integer(),  ForeignKey('tLink.id'), index=True, nullable=True)
+    group_id    = Column(Integer(),  ForeignKey('tResourceGroup.id'), index=True, nullable=True)
 
     scenario = relationship('Scenario', backref=backref('rules', uselist=True, cascade="all, delete-orphan"), uselist=True, lazy='joined')
 
@@ -1269,9 +1332,9 @@ class Note(Base, Inspect):
     project_id = Column(Integer(), ForeignKey('tProject.project_id'),  index=True, nullable=True)
 
     network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), index=True, nullable=True,)
-    node_id     = Column(Integer(),  ForeignKey('tNode.node_id'), index=True, nullable=True)
-    link_id     = Column(Integer(),  ForeignKey('tLink.link_id'), index=True, nullable=True)
-    group_id    = Column(Integer(),  ForeignKey('tResourceGroup.group_id'), index=True, nullable=True)
+    node_id     = Column(Integer(),  ForeignKey('tNode.id'), index=True, nullable=True)
+    link_id     = Column(Integer(),  ForeignKey('tLink.id'), index=True, nullable=True)
+    group_id    = Column(Integer(),  ForeignKey('tResourceGroup.id'), index=True, nullable=True)
 
     scenario = relationship('Scenario', backref=backref('notes', uselist=True, cascade="all, delete-orphan"), uselist=True, lazy='joined')
     node = relationship('Node', backref=backref('notes', uselist=True, cascade="all, delete-orphan"), uselist=True, lazy='joined')
