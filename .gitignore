@@ -68,3 +68,5 @@ HydraPlugins/JSONPlugin/ImportJSON/dist/
 *.gdx
 *.lst
 *.opt
+
+.pytest_cache
