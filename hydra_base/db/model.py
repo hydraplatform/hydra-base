@@ -359,7 +359,7 @@ class AttrMap(Base, Inspect):
     attr_b = relationship("Attr", foreign_keys=[attr_id_b], backref=backref('maps_from', order_by=attr_id_b))
 
 class AttrGroup(Base, Inspect):
-    
+
     """
         **exclusive** : If 'Y' then an attribute in this group cannot be in any other groups
 
@@ -376,9 +376,9 @@ class AttrGroup(Base, Inspect):
     description      = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
     layout           = Column(Text().with_variant(mysql.TEXT(5000), 'mysql'))
     exclusive        = Column(String(1),  nullable=False, server_default=text(u"'N'"))
-    project_id       = Column(Integer(), ForeignKey('tProject.project_id'), primary_key=False, nullable=False)
+    project_id       = Column(Integer(), ForeignKey('tProject.id'), primary_key=False, nullable=False)
     cr_date          = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    
+
     project          = relationship('Project', backref=backref('attrgroups', uselist=True, cascade="all, delete-orphan"), lazy='joined')
 
 class AttrGroupItem(Base, Inspect):
@@ -493,7 +493,7 @@ class ResourceAttr(Base, Inspect):
     attr_id = Column(Integer(), ForeignKey('tAttr.attr_id'),  nullable=False)
     ref_key = Column(String(60),  nullable=False, index=True)
     network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), index=True, nullable=True,)
-    project_id  = Column(Integer(),  ForeignKey('tProject.project_id'), index=True, nullable=True,)
+    project_id  = Column(Integer(),  ForeignKey('tProject.id'), index=True, nullable=True,)
     node_id     = Column(Integer(),  ForeignKey('tNode.id'), index=True, nullable=True)
     link_id     = Column(Integer(),  ForeignKey('tLink.id'), index=True, nullable=True)
     group_id    = Column(Integer(),  ForeignKey('tResourceGroup.id'), index=True, nullable=True)
@@ -631,25 +631,25 @@ class Project(Base, Inspect):
 
 
     __table_args__ = (
-        UniqueConstraint('project_name', 'created_by', 'status', name="unique proj name"),
+        UniqueConstraint('name', 'created_by', 'status', name="unique proj name"),
     )
 
     attribute_data = []
 
-    project_id = Column(Integer(), primary_key=True, nullable=False)
-    project_name = Column(String(60),  nullable=False, unique=False)
-    project_description = Column(String(1000))
+    id = Column(Integer(), primary_key=True, nullable=False)
+    name = Column(String(60),  nullable=False, unique=False)
+    description = Column(String(1000))
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     created_by = Column(Integer(), ForeignKey('tUser.id'))
 
-    user = relationship('User', backref=backref("projects", order_by=project_id))
+    user = relationship('User', backref=backref("projects", order_by=id))
 
     def get_name(self):
         return self.project_name
 
     def get_attribute_data(self):
-        attribute_data_rs = get_session().query(ResourceScenario).join(ResourceAttr).filter(ResourceAttr.project_id==1).all()
+        attribute_data_rs = get_session().query(ResourceScenario).join(ResourceAttr).filter(ResourceAttr.project_id==self.id).all()
         self.attribute_data = attribute_data_rs
         return attribute_data_rs
 
@@ -658,7 +658,7 @@ class Project(Base, Inspect):
         attr.attr_id = attr_id
         attr.attr_is_var = attr_is_var
         attr.ref_key = self.ref_key
-        attr.project_id  = self.project_id
+        attr.project_id  = self.id
         self.attributes.append(attr)
 
         return attr
@@ -671,7 +671,7 @@ class Project(Base, Inspect):
                 break
         else:
             owner = ProjectOwner()
-            owner.project_id = self.project_id
+            owner.project_id = self.id
             owner.user_id = int(user_id)
             self.owners.append(owner)
 
@@ -704,7 +704,7 @@ class Project(Base, Inspect):
         else:
             raise PermissionError("Permission denied. User %s does not have read"
                              " access on project %s" %
-                             (user_id, self.project_id))
+                             (user_id, self.id))
 
     def check_write_permission(self, user_id):
         """
@@ -718,7 +718,7 @@ class Project(Base, Inspect):
         else:
             raise PermissionError("Permission denied. User %s does not have edit"
                              " access on project %s" %
-                             (user_id, self.project_id))
+                             (user_id, self.id))
 
     def check_share_permission(self, user_id):
         """
@@ -732,7 +732,7 @@ class Project(Base, Inspect):
         else:
             raise PermissionError("Permission denied. User %s does not have share"
                              " access on project %s" %
-                             (user_id, self.project_id))
+                             (user_id, self.id))
 
 
 
@@ -750,7 +750,7 @@ class Network(Base, Inspect):
     name = Column(String(200),  nullable=False)
     description = Column(String(1000))
     layout = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
-    project_id = Column(Integer(), ForeignKey('tProject.project_id'),  nullable=False)
+    project_id = Column(Integer(), ForeignKey('tProject.id'),  nullable=False)
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     projection = Column(String(1000))
@@ -1329,7 +1329,7 @@ class Note(Base, Inspect):
 
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     scenario_id = Column(Integer(), ForeignKey('tScenario.scenario_id'),  index=True, nullable=True)
-    project_id = Column(Integer(), ForeignKey('tProject.project_id'),  index=True, nullable=True)
+    project_id = Column(Integer(), ForeignKey('tProject.id'),  index=True, nullable=True)
 
     network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), index=True, nullable=True,)
     node_id     = Column(Integer(),  ForeignKey('tNode.id'), index=True, nullable=True)
@@ -1410,7 +1410,7 @@ class ProjectOwner(Base, Inspect):
     __tablename__='tProjectOwner'
 
     user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
-    project_id = Column(Integer(), ForeignKey('tProject.project_id'), primary_key=True, nullable=False)
+    project_id = Column(Integer(), ForeignKey('tProject.id'), primary_key=True, nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     view = Column(String(1),  nullable=False)
     edit = Column(String(1),  nullable=False)

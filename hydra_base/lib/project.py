@@ -34,7 +34,7 @@ log = logging.getLogger(__name__)
 
 def _get_project(project_id):
     try:
-        project = db.DBSession.query(Project).filter(Project.project_id==project_id).one()
+        project = db.DBSession.query(Project).filter(Project.id==project_id).one()
         return project
     except NoResultFound:
         raise ResourceNotFoundError("Project %s not found"%(project_id))
@@ -69,13 +69,13 @@ def add_project(project,**kwargs):
     except:
         existing_proj = None
 
-    if existing_proj is not None: 
+    if existing_proj is not None:
         raise HydraError("A Project with the name \"%s\" already exists"%(project.name,))
 
     #check_perm(user_id, 'add_project')
     proj_i = Project()
-    proj_i.project_name = project.name
-    proj_i.project_description = project.description
+    proj_i.name = project.name
+    proj_i.description = project.description
     proj_i.created_by = user_id
 
     attr_map = hdb.add_resource_attributes(proj_i, project.attributes)
@@ -101,8 +101,8 @@ def update_project(project,**kwargs):
 
     proj_i.check_write_permission(user_id)
 
-    proj_i.project_name        = project.name
-    proj_i.project_description = project.description
+    proj_i.name        = project.name
+    proj_i.description = project.description
 
     attr_map = hdb.add_resource_attributes(proj_i, project.attributes)
     proj_data = _add_project_attribute_data(proj_i, attr_map, project.attribute_data)
@@ -128,7 +128,7 @@ def get_project_by_name(project_name,**kwargs):
     """
     user_id = kwargs.get('user_id')
     try:
-        proj_i = db.DBSession.query(Project).filter(Project.project_name==project_name).one()
+        proj_i = db.DBSession.query(Project).filter(Project.name==project_name).one()
     except NoResultFound:
         raise ResourceNotFoundError("Project %s not found"%(project_name))
 
@@ -211,7 +211,7 @@ def get_projects(uid,**kwargs):
     #Potentially join this with an rs of projects
     #where no owner exists?
 
-    projects = db.DBSession.query(Project).join(ProjectOwner).filter(Project.status=='A', ProjectOwner.user_id==uid).options(joinedload_all('networks')).order_by('project_id').all()
+    projects = db.DBSession.query(Project).join(ProjectOwner).filter(Project.status=='A', ProjectOwner.user_id==uid).options(joinedload_all('networks')).order_by('id').all()
     for project in projects:
         project.check_read_permission(req_user_id)
 
@@ -243,6 +243,8 @@ def delete_project(project_id,**kwargs):
     db.DBSession.delete(project)
     db.DBSession.flush()
 
+    return 'OK'
+
 def get_networks(project_id, include_data='N', **kwargs):
     """
         Get all networks in a project
@@ -273,7 +275,7 @@ def get_network_project(network_id, **kwargs):
         get the project that a network is in
     """
 
-    net_proj = db.DBSession.query(Project).join(Network, and_(Project.project_id==Network.id, Network.id==network_id)).first()
+    net_proj = db.DBSession.query(Project).join(Network, and_(Project.id==Network.id, Network.id==network_id)).first()
 
     if net_proj is None:
         raise HydraError("Network %s not found"% network_id)

@@ -451,7 +451,7 @@ def add_network(network,**kwargs):
 
     insert_start = datetime.datetime.now()
 
-    proj_i = db.DBSession.query(Project).filter(Project.project_id == network.project_id).first()
+    proj_i = db.DBSession.query(Project).filter(Project.id == network.project_id).first()
     if proj_i is None:
         raise HydraError("Project ID is none. A project ID must be specified on the Network")
 
@@ -706,7 +706,7 @@ def _get_all_templates(network_id, template_id):
                                    'id':t.type_id,
                                    'template_name':t.template_name,
                                    'layout': t.layout,
-                                   'name': t.type_name, 
+                                   'name': t.type_name,
                                    'type_name': t.type_name})
 
         if t.ref_key == 'NODE':
@@ -1050,7 +1050,7 @@ def get_network(network_id, summary=False, include_data='N', scenario_ids=None, 
 
 def get_nodes(network_id, template_id=None, **kwargs):
     """
-        Get all the nodes in a network. 
+        Get all the nodes in a network.
         args:
             network_id (int): The network in which to search
             template_id (int): Only return nodes whose type is in this template.
@@ -1081,7 +1081,7 @@ def get_nodes(network_id, template_id=None, **kwargs):
 
 def get_links(network_id, template_id=None, **kwargs):
     """
-        Get all the links in a network. 
+        Get all the links in a network.
         args:
             network_id (int): The network in which to search
             template_id (int): Only return links whose type is in this template.
@@ -1114,7 +1114,7 @@ def get_links(network_id, template_id=None, **kwargs):
 
 def get_groups(network_id, template_id=None, **kwargs):
     """
-        Get all the resource groups in a network. 
+        Get all the resource groups in a network.
         args:
             network_id (int): The network in which to search
             template_id (int): Only return resource groups whose type is in this template.
@@ -1169,7 +1169,7 @@ def get_node(node_id, scenario_id=None, **kwargs):
             if rs_dict.get(ra.resource_attr_id):
                 ra.resourcescenario = rs_dict[ra.resource_attr_id]
 
-    return n 
+    return n
 
 def get_link(link_id, scenario_id=None, **kwargs):
     try:
@@ -1188,7 +1188,7 @@ def get_link(link_id, scenario_id=None, **kwargs):
             if rs_dict.get(ra.resource_attr_id):
                 ra.resourcescenario = rs_dict[ra.resource_attr_id]
 
-    return l 
+    return l
 
 def get_resourcegroup(group_id, scenario_id=None, **kwargs):
     try:
@@ -1196,7 +1196,7 @@ def get_resourcegroup(group_id, scenario_id=None, **kwargs):
         rg.types
     except NoResultFound:
         raise ResourceNotFoundError("ResourceGroup %s not found"%(group_id,))
-   
+
     if scenario_id is not None:
         res_scens = scenario.get_resource_data('GROUP', group_id, scenario_id, None)
         rs_dict = {}
@@ -1207,7 +1207,7 @@ def get_resourcegroup(group_id, scenario_id=None, **kwargs):
             if rs_dict.get(ra.resource_attr_id):
                 ra.resourcescenario = rs_dict[ra.resource_attr_id]
 
-    return rg 
+    return rg
 
 def get_node_by_name(network_id, node_name,**kwargs):
     try:
@@ -2101,7 +2101,7 @@ def get_resource(resource_type, resource_id, **kwargs):
     elif resource_type == 'NETWORK':
         network = get_network_simple(resource_id, **kwargs)
         return network
-    
+
 
 def get_resources_of_type(network_id, type_id, **kwargs):
     """
@@ -2362,7 +2362,7 @@ def clone_network(network_id, new_project=True, recipient_user_id=None, **kwargs
         log.info("Creating a new project for cloned network")
         project = Project()
         project.project_name="Proj"
-        
+
         project.set_owner(user_id)
         if recipient_user_id!=None:
             project.set_owner(recipient_user_id)
@@ -2370,13 +2370,13 @@ def clone_network(network_id, new_project=True, recipient_user_id=None, **kwargs
         db.DBSession.add(project)
         db.DBSession.flush()
 
-        project_id=project.project_id
+        project_id=project.id
         network_name=ex_net.name
     else:
         log.info("Using current project for cloned network")
         project_id=ex_net.project_id
         network_name=ex_net.name + " (Clone)"
-        
+
     log.info('Cloning Network...')
 
     newnet = Network()
@@ -2427,7 +2427,7 @@ def clone_network(network_id, new_project=True, recipient_user_id=None, **kwargs
 def _clone_nodes(old_network_id, new_network_id):
 
     nodes = db.DBSession.query(Node).filter(Node.network_id==old_network_id).all()
-    newnodes = [] 
+    newnodes = []
     old_node_name_map = {}
     id_map = {}
     for ex_n in nodes:
@@ -2448,7 +2448,7 @@ def _clone_nodes(old_network_id, new_network_id):
     db.DBSession.bulk_insert_mappings(Node, newnodes)
 
     db.DBSession.flush()
-    #map old IDS to new IDS 
+    #map old IDS to new IDS
 
     nodes = db.DBSession.query(Node).filter(Node.network_id==new_network_id).all()
     for n in nodes:
@@ -2481,7 +2481,7 @@ def _clone_links(old_network_id, new_network_id, node_id_map):
     db.DBSession.bulk_insert_mappings(Link, newlinks)
 
     db.DBSession.flush()
-    #map old IDS to new IDS 
+    #map old IDS to new IDS
 
     links = db.DBSession.query(Link).filter(Link.network_id==new_network_id).all()
     for l in links:
@@ -2511,7 +2511,7 @@ def _clone_groups(old_network_id, new_network_id, node_id_map, link_id_map):
     db.DBSession.bulk_insert_mappings(ResourceGroup, newgroups)
 
     db.DBSession.flush()
-    #map old IDS to new IDS 
+    #map old IDS to new IDS
 
     groups = db.DBSession.query(ResourceGroup).filter(ResourceGroup.network_id==new_network_id).all()
     for g in groups:
@@ -2586,7 +2586,7 @@ def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, gro
     log.info("Insertion Complete")
 
     log.info("Getting new RAs and building ID map")
-    
+
     new_network_ras = db.DBSession.query(ResourceAttr).filter(ResourceAttr.network_id==newnetworkid).all()
     for ra in new_network_ras:
         id_map[old_ra_name_map[(ra.network_id, ra.node_id, ra.link_id, ra.group_id, ra.attr_id)]] = ra.resource_attr_id
@@ -2707,7 +2707,7 @@ def _clone_scenario(old_scenario, newnetworkid, ra_id_map, node_id_map, link_id_
     db.DBSession.bulk_insert_mappings(ResourceScenario, new_rscens)
     log.info("Insertion Complete")
 
-    
+
 
     log.info("Getting old resource group items for scenario %s", old_scenario.scenario_id)
     old_rgis = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.scenario_id==old_scenario.scenario_id).all()

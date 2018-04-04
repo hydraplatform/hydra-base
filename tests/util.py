@@ -163,7 +163,7 @@ def create_template():
     typeattr_1.attr_id = link_attr_1.id
     typeattrs.append(typeattr_1)
 
-    typeattr_2 = JSONObject() 
+    typeattr_2 = JSONObject()
     typeattr_2.attr_id = link_attr_2.id
     typeattrs.append(typeattr_2)
 
@@ -184,7 +184,7 @@ def create_template():
 
     typeattrs = []
 
-    typeattr_1 = JSONObject() 
+    typeattr_1 = JSONObject()
     typeattr_1.attr_id = group_attr_1.id
     typeattrs.append(typeattr_1)
 
@@ -200,7 +200,7 @@ def create_template():
 
     new_template_i = hydra_base.add_template(template, user_id=user_id)
     new_template = JSONObject(new_template_i)
-    
+
     assert new_template.name == template.name, "Names are not the same!"
     assert new_template.id is not None, "New Template has no ID!"
     assert new_template.id > 0, "New Template has incorrect ID!"
@@ -229,7 +229,7 @@ def create_project(name=None):
         project.name = name
         project.description = "Project which contains all unit test networks"
         project = JSONObject(hydra_base.add_project(project, user_id=user_id))
-        hydra_base.share_project(project.project_id,
+        hydra_base.share_project(project.id,
                                  ["UserA", "UserB", "UserC"],
                                  'N',
                                  'Y',
@@ -471,7 +471,7 @@ def build_network(project_id=None, num_nodes=10, new_proj=True, map_projection='
 
     #For nodes, use the following:
     #A time series, where the value may be a 1-D array
-    
+
     nodes[0].attributes
     for n in nodes:
         for na in n.attributes:
@@ -860,12 +860,12 @@ def create_attribute():
         attr = hydra_base.add_attribute(attr, user_id=user_id)
 
         assert attr.attr_description == "Attribute description"
-        
+
     return attr
 
 
 def create_attributegroup(project_id, name=None, exclusive='N'):
-    
+
     if name is None:
         name =  "Attribute Group %s" % (datetime.datetime.now(),)
 

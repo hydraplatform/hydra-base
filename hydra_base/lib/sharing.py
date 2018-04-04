@@ -26,7 +26,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 def _get_project(project_id):
     try:
-        proj_i = db.DBSession.query(Project).filter(Project.project_id==project_id).one()
+        proj_i = db.DBSession.query(Project).filter(Project.id==project_id).one()
         return proj_i
     except NoResultFound:
         raise ResourceNotFoundError("Project %s not found"%(project_id,))
