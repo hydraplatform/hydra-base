@@ -22,16 +22,16 @@ def upgrade():
     if op.get_bind().dialect.name == 'mysql':
 
         # ### tNode
-        
+
         try:
             op.alter_column('tNode', 'node_id', new_column_name='id', existing_type=sa.Integer(), autoincrement=True, nullable=False)
             op.alter_column('tNode', 'node_name', new_column_name='name', existing_type=sa.String(200))
             op.alter_column('tNode', 'node_description', new_column_name='description', existing_type=sa.String(1000))
-            op.alter_column('tNode', 'node_x', new_column_name='x', existing_type=sa.String(1000))
-            op.alter_column('tNode', 'node_y', new_column_name='y', existing_type=sa.String(1000))
+            op.alter_column('tNode', 'node_x', new_column_name='x', existing_type=sa.Float(precision=10, asdecimal=True))
+            op.alter_column('tNode', 'node_y', new_column_name='y', existing_type=sa.Float(precision=10, asdecimal=True))
         except Exception as e:
             log.exception(e)
-            
+
 
 
         # ### tLink
@@ -51,9 +51,9 @@ def upgrade():
             op.alter_column('tResourceGroup', 'group_description', new_column_name='description', existing_type=sa.String(1000))
         except Exception as e:
             log.exception(e)
-    
+
     else: ## sqlite
-        try: 
+        try:
             # ## tNode
             op.create_table(
                 'tNode_new',
@@ -68,7 +68,7 @@ def upgrade():
                 sa.Column('cr_date', sa.TIMESTAMP(),  nullable=False, server_default=sa.text(u'CURRENT_TIMESTAMP')),
                 sa.UniqueConstraint('name', 'network_id', name="unique node name")
             )
-            
+
             op.execute("insert into tNode_new (id, name, description, layout, network_id, status, cr_date, x, y) select node_id, node_name, node_description, layout, network_id, status, cr_date, node_x, node_y from tNode")
 
             op.rename_table('tNode','tNode_old')
@@ -93,7 +93,7 @@ def upgrade():
                 sa.Column('cr_date', sa.TIMESTAMP(),  nullable=False, server_default=sa.text(u'CURRENT_TIMESTAMP')),
                 sa.UniqueConstraint('name', 'network_id', name="unique link name")
             )
-            
+
             op.execute("insert into tLink_new (id, name, description, layout, network_id, status, cr_date, node_1_id, node_2_id) select link_id, link_name, link_description, layout, network_id, status, cr_date, node_1_id, node_2_id from tLink")
 
             op.rename_table('tLink','tLink_old')
@@ -116,7 +116,7 @@ def upgrade():
                 sa.Column('cr_date', sa.TIMESTAMP(),  nullable=False, server_default=sa.text(u'CURRENT_TIMESTAMP')),
                 sa.UniqueConstraint('name', 'network_id', name="unique resourcegroup name")
             )
-            
+
             op.execute("insert into tResourceGroup_new (id, name, description, layout, network_id, status, cr_date) select group_id, group_name, group_description, layout, network_id, status, cr_date, from tResourceGroup")
 
             op.rename_table('tResourceGroup','tResourceGroup_old')
@@ -166,7 +166,7 @@ def downgrade():
             sa.Column('cr_date', sa.TIMESTAMP(),  nullable=False, server_default=sa.text(u'CURRENT_TIMESTAMP')),
             sa.UniqueConstraint('node_name', 'network_id', name="unique node name")
         )
-        
+
         op.execute("insert into tNode_new (node_id, node_name, node_description, layout, network_id, status, cr_date, node_x, node_y) select id, name, description, layout, network_id, status, cr_date, x, y from tNode")
 
         op.rename_table('tNode','tNode_old')
@@ -186,7 +186,7 @@ def downgrade():
             sa.Column('cr_date', sa.TIMESTAMP(),  nullable=False, server_default=sa.text(u'CURRENT_TIMESTAMP')),
             sa.UniqueConstraint('link_name', 'network_id', name="unique link name")
         )
-        
+
         op.execute("insert into tLink_new (link_id, link_name, link_description, layout, network_id, status, cr_date, node_1_id, node_2_id) select id, name, description, layout, network_id, status, cr_date, node_1_id, node_2_id from tLink")
 
         op.rename_table('tLink','tLink_old')
@@ -205,7 +205,7 @@ def downgrade():
             sa.Column('cr_date', sa.TIMESTAMP(),  nullable=False, server_default=sa.text(u'CURRENT_TIMESTAMP')),
             sa.UniqueConstraint('group_name', 'network_id', name="unique resourcegroup name")
         )
-        
+
         op.execute("insert into tResourceGroup_new (group_id, group_name, group_description, layout, network_id, status, cr_date) select id, name, description, layout, network_id, status, cr_date, from tResourceGroup")
 
         op.rename_table('tResourceGroup','tResourceGroup_old')
