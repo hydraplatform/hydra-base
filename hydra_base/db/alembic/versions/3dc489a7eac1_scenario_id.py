@@ -51,7 +51,7 @@ def upgrade():
                 sa.Column('network_id', sa.Integer(), sa.ForeignKey('tNetwork.id'), index=True),
                 sa.Column('start_time', sa.String(60)),
                 sa.Column('end_time', sa.String(60)),
-                sa.Column('locked', sa.String(1),  nullable=False, server_default=text(u"'N'")),
+                sa.Column('locked', sa.String(1),  nullable=False, server_default=sa.text(u"'N'")),
                 sa.Column('time_step', sa.String(60)),
                 sa.UniqueConstraint('network_id', 'name', name="unique scenario name"),
             )
@@ -98,7 +98,7 @@ def downgrade():
                 sa.Column('network_id', sa.Integer(), sa.ForeignKey('tNetwork.id'), index=True),
                 sa.Column('start_time', sa.String(60)),
                 sa.Column('end_time', sa.String(60)),
-                sa.Column('locked', sa.String(1),  nullable=False, server_default=text(u"'N'")),
+                sa.Column('locked', sa.String(1),  nullable=False, server_default=sa.text(u"'N'")),
                 sa.Column('time_step', sa.String(60)),
                 sa.UniqueConstraint('network_id', 'scenario_name', name="unique scenario name"),
             )
