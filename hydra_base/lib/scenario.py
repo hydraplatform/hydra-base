@@ -54,7 +54,7 @@ def _check_network_ownership(network_id, user_id):
 def _get_scenario(scenario_id, user_id):
     log.info("Getting scenario %s", scenario_id)
     try:
-        scenario_qry = db.DBSession.query(Scenario).filter(Scenario.scenario_id==scenario_id)
+        scenario_qry = db.DBSession.query(Scenario).filter(Scenario.id==scenario_id)
         scenario = scenario_qry.one()
         return scenario
     except NoResultFound:
@@ -149,13 +149,13 @@ def add_scenario(network_id, scenario,**kwargs):
 
     _check_network_ownership(network_id, user_id)
 
-    existing_scen = db.DBSession.query(Scenario).filter(Scenario.scenario_name==scenario.name, Scenario.network_id==network_id).first()
+    existing_scen = db.DBSession.query(Scenario).filter(Scenario.name==scenario.name, Scenario.network_id==network_id).first()
     if existing_scen is not None:
         raise HydraError("Scenario with name %s already exists in network %s"%(scenario.name, network_id))
 
     scen = Scenario()
-    scen.scenario_name        = scenario.name
-    scen.scenario_description = scenario.description
+    scen.name                 = scenario.name
+    scen.description          = scenario.description
     scen.layout               = scenario.get_layout()
     scen.network_id           = network_id
     scen.created_by           = user_id
@@ -184,7 +184,7 @@ def add_scenario(network_id, scenario,**kwargs):
             rs_i = ResourceScenario()
             rs_i.resource_attr_id = ra_id
             rs_i.dataset_id       = datasets[i].dataset_id
-            rs_i.scenario_id      = scen.scenario_id
+            rs_i.scenario_id      = scen.id
             rs_i.dataset = datasets[i]
             scen.resourcescenarios.append(rs_i)
 
@@ -192,7 +192,7 @@ def add_scenario(network_id, scenario,**kwargs):
         #Again doing bulk insert.
         for group_item in scenario.resourcegroupitems:
             group_item_i = ResourceGroupItem()
-            group_item_i.scenario_id = scen.scenario_id
+            group_item_i.scenario_id = scen.id
             group_item_i.group_id    = group_item.group_id
             group_item_i.ref_key     = group_item.ref_key
             if group_item.ref_key == 'NODE':
@@ -238,8 +238,8 @@ def update_scenario(scenario,update_data=True,update_groups=True,flush=True,**kw
         if end_time is not None:
             end_time = unicode(end_time)
 
-    scen.scenario_name        = scenario.name
-    scen.scenario_description = scenario.description
+    scen.name                 = scenario.name
+    scen.description          = scenario.description
     scen.layout               = scenario.get_layout()
     scen.start_time           = start_time
     scen.end_time             = end_time
@@ -304,14 +304,14 @@ def clone_scenario(scenario_id, retain_results=False, **kwargs):
 
     scen_i = _get_scenario(scenario_id, user_id)
 
-    log.info("cloning scenario %s", scen_i.scenario_name)
+    log.info("cloning scenario %s", scen_i.name)
 
-    cloned_name = "%s (clone)"%(scen_i.scenario_name)
+    cloned_name = "%s (clone)"%(scen_i.name)
 
     existing_scenarios = db.DBSession.query(Scenario).filter(Scenario.network_id==scen_i.network_id).all()
     num_cloned_scenarios = 0
     for existing_sceanrio in existing_scenarios:
-        if existing_sceanrio.scenario_name.find('clone') >= 0:
+        if existing_sceanrio.name.find('clone') >= 0:
             num_cloned_scenarios = num_cloned_scenarios + 1
 
     if num_cloned_scenarios > 0:
@@ -321,8 +321,8 @@ def clone_scenario(scenario_id, retain_results=False, **kwargs):
 
     cloned_scen = Scenario()
     cloned_scen.network_id           = scen_i.network_id
-    cloned_scen.scenario_name        = cloned_name
-    cloned_scen.scenario_description = scen_i.scenario_description
+    cloned_scen.name                 = cloned_name
+    cloned_scen.description          = scen_i.description
     cloned_scen.created_by           = kwargs['user_id']
 
     cloned_scen.start_time           = scen_i.start_time
@@ -333,7 +333,7 @@ def clone_scenario(scenario_id, retain_results=False, **kwargs):
 
     db.DBSession.flush()
 
-    cloned_scenario_id = cloned_scen.scenario_id
+    cloned_scenario_id = cloned_scen.id
     log.info("New scenario created. Scenario ID: %s", cloned_scenario_id)
 
 
@@ -596,7 +596,7 @@ def get_dataset_scenarios(dataset_id, **kwargs):
 
     scenarios = db.DBSession.query(Scenario).filter(
         Scenario.status == 'A',
-        ResourceScenario.scenario_id==Scenario.scenario_id,
+        ResourceScenario.scenario_id==Scenario.id,
         ResourceScenario.dataset_id == dataset_id).distinct().all()
 
     log.info("%s scenarios retrieved", len(scenarios))
@@ -612,7 +612,7 @@ def bulk_update_resourcedata(scenario_ids, resource_scenarios,**kwargs):
 
     res = {}
 
-    net_ids = db.DBSession.query(Scenario.network_id).filter(Scenario.scenario_id.in_(scenario_ids)).all()
+    net_ids = db.DBSession.query(Scenario.network_id).filter(Scenario.id.in_(scenario_ids)).all()
 
     if len(set(net_ids)) != 1:
         raise HydraError("Scenario IDS are not in the same network")
@@ -698,7 +698,7 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
     """
 
     if scenario is None:
-        scenario = db.DBSession.query(Scenario).filter(Scenario.scenario_id==1).one()
+        scenario = db.DBSession.query(Scenario).filter(Scenario.id==1).one()
 
     ra_id = resource_scenario.resource_attr_id
 
@@ -710,14 +710,14 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
     except NoResultFound as e:
         r_scen_i = ResourceScenario()
         r_scen_i.resource_attr_id = resource_scenario.resource_attr_id
-        r_scen_i.scenario_id      = scenario.scenario_id
+        r_scen_i.scenario_id      = scenario.id
         r_scen_i.scenario = scenario
 
         db.DBSession.add(r_scen_i)
 
 
     if scenario.locked == 'Y':
-        log.info("Scenario %s is locked",scenario.scenario_id)
+        log.info("Scenario %s is locked",scenario.id)
         return r_scen_i
 
 
@@ -1002,7 +1002,7 @@ def get_attribute_datasets(attr_id, scenario_id, **kwargs):
 
     rs_qry = db.DBSession.query(ResourceScenario).filter(
                 ResourceAttr.attr_id==attr_id,
-                ResourceScenario.scenario_id==scenario_i.scenario_id,
+                ResourceScenario.scenario_id==scenario_i.id,
                 ResourceScenario.resource_attr_id==ResourceAttr.resource_attr_id
             ).options(joinedload_all('dataset'))\
             .options(joinedload_all('resourceattr'))\
@@ -1019,7 +1019,7 @@ def get_attribute_datasets(attr_id, scenario_id, **kwargs):
 
     return resourcescenarios
 
-def get_resourcegroupitems(group_id, scenario_id, **kwargs):
+def get_resourcegroupitems(group_id, id, **kwargs):
 
     """
         Get all the items in a group, in a scenario. If group_id is None, return
@@ -1075,7 +1075,7 @@ def add_resourcegroupitems(scenario_id, items, scenario=None, **kwargs):
 
     newitems = []
     for group_item in items:
-        group_item_i = _add_resourcegroupitem(group_item, scenario.scenario_id)
+        group_item_i = _add_resourcegroupitem(group_item, scenario.id)
         newitems.append(group_item_i)
 
     db.DBSession.flush()

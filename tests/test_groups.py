@@ -43,7 +43,7 @@ class TestGroup:
         for ra in resourcegroup_without_data.attributes:
             assert not hasattr(ra, 'resourcescenario')
 
-        resourcegroup_with_data = hb.get_resourcegroup(group.id, s.scenario_id, user_id=self.user_id)
+        resourcegroup_with_data = hb.get_resourcegroup(group.id, s.id, user_id=self.user_id)
 
         attrs_with_data = []
         for ra in resourcegroup_with_data.attributes:
@@ -52,7 +52,7 @@ class TestGroup:
                     attrs_with_data.append(ra.resource_attr_id)
         assert len(attrs_with_data) > 0
 
-        group_items = hb.get_resourcegroupitems(group.id, s.scenario_id, user_id=self.user_id)
+        group_items = hb.get_resourcegroupitems(group.id, s.id, user_id=self.user_id)
         assert len(group_items) > 0
 
     def test_add_resourcegroup(self, session, network_with_data):
@@ -107,13 +107,13 @@ class TestGroup:
         item.ref_id  = node_id
         item.group_id = group.id
 
-        new_item = hb.add_resourcegroupitem(item, scenario.scenario_id, user_id=self.user_id)
+        new_item = hb.add_resourcegroupitem(item, scenario.id, user_id=self.user_id)
 
         assert new_item.node_id == node_id
 
 
     def test_set_group_status(self, session, network_with_extra_group):
-        net = network_with_extra_group 
+        net = network_with_extra_group
 
         group_to_delete = net.resourcegroups[0]
 
@@ -139,7 +139,7 @@ class TestGroup:
 
 
     def test_purge_group(self, session, network_with_extra_group):
-        net = network_with_extra_group 
+        net = network_with_extra_group
         scenario_id = net.scenarios[0].id
         group_id_to_delete = net.resourcegroups[-1].id
         group_id_to_keep = net.resourcegroups[0].id

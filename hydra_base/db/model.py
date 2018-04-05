@@ -1158,7 +1158,7 @@ class ResourceGroupItem(Base, Inspect):
     subgroup_id = Column(Integer(),  ForeignKey('tResourceGroup.id'))
 
     group_id = Column(Integer(), ForeignKey('tResourceGroup.id'))
-    scenario_id = Column(Integer(), ForeignKey('tScenario.scenario_id'),  nullable=False, index=True)
+    scenario_id = Column(Integer(), ForeignKey('tScenario.id'),  nullable=False, index=True)
 
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
@@ -1197,7 +1197,7 @@ class ResourceScenario(Base, Inspect):
     __tablename__='tResourceScenario'
 
     dataset_id = Column(Integer(), ForeignKey('tDataset.dataset_id'), nullable=False)
-    scenario_id = Column(Integer(), ForeignKey('tScenario.scenario_id'), primary_key=True, nullable=False, index=True)
+    scenario_id = Column(Integer(), ForeignKey('tScenario.id'), primary_key=True, nullable=False, index=True)
     resource_attr_id = Column(Integer(), ForeignKey('tResourceAttr.resource_attr_id'), primary_key=True, nullable=False, index=True)
     source           = Column(String(60))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
@@ -1232,12 +1232,12 @@ class Scenario(Base, Inspect):
 
     __tablename__='tScenario'
     __table_args__ = (
-        UniqueConstraint('network_id', 'scenario_name', name="unique scenario name"),
+        UniqueConstraint('network_id', 'name', name="unique scenario name"),
     )
 
-    scenario_id = Column(Integer(), primary_key=True, index=True, nullable=False)
-    scenario_name = Column(String(60),  nullable=False)
-    scenario_description = Column(String(1000))
+    id = Column(Integer(), primary_key=True, index=True, nullable=False)
+    name = Column(String(200),  nullable=False)
+    description = Column(String(1000))
     layout = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     network_id = Column(Integer(), ForeignKey('tNetwork.id'), index=True)
@@ -1248,7 +1248,7 @@ class Scenario(Base, Inspect):
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     created_by = Column(Integer(), ForeignKey('tUser.id'))
 
-    network = relationship('Network', backref=backref("scenarios", order_by=scenario_id))
+    network = relationship('Network', backref=backref("scenarios", order_by=id))
 
     def add_resource_scenario(self, resource_attr, dataset=None, source=None):
         rs_i = ResourceScenario()
@@ -1301,7 +1301,7 @@ class Rule(Base, Inspect):
     rule_text = Column('value', LargeBinary(),  nullable=True)
 
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
-    scenario_id = Column(Integer(), ForeignKey('tScenario.scenario_id'),  nullable=False)
+    scenario_id = Column(Integer(), ForeignKey('tScenario.id'),  nullable=False)
 
     network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), index=True, nullable=True,)
     node_id     = Column(Integer(),  ForeignKey('tNode.id'), index=True, nullable=True)
@@ -1328,7 +1328,7 @@ class Note(Base, Inspect):
     created_by = Column(Integer(), ForeignKey('tUser.id'))
 
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    scenario_id = Column(Integer(), ForeignKey('tScenario.scenario_id'),  index=True, nullable=True)
+    scenario_id = Column(Integer(), ForeignKey('tScenario.id'),  index=True, nullable=True)
     project_id = Column(Integer(), ForeignKey('tProject.id'),  index=True, nullable=True)
 
     network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), index=True, nullable=True,)

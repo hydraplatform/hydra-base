@@ -47,7 +47,7 @@ def _get_attr(attr_id):
         attr = db.DBSession.query(Attr).filter(Attr.attr_id==attr_id).one()
         ATTR_CACHE[attr_id] = JSONObject(attr)
         return ATTR_CACHE[attr_id]
-    
+
 
 def _check_dimension(typeattr, unit=None):
     """
@@ -223,7 +223,7 @@ def parse_xml_typeattr(type_i, attribute):
     return typeattr_i
 
 def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
-    
+
     if attribute_j.dimension is not None:
         dimension_j = attribute_j.dimension
         if dimension_j is not None:
@@ -244,7 +244,7 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
     name      = attribute_j.name.strip()
 
     attr_i = _get_attr_by_name_and_dimension(name, dimension)
-    
+
     #Get an ID for the attribute
     db.DBSession.flush()
 
@@ -260,11 +260,11 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
         typeattr_i.attr = attr_i
         type_i.typeattrs.append(typeattr_i)
         db.DBSession.add(typeattr_i)
-    
+
 
     unit = None
     if attribute_j.unit is not None:
-        typeattr_i.unit = typeattr_j.unit 
+        typeattr_i.unit = typeattr_j.unit
 
     _check_dimension(typeattr_i)
 
@@ -284,7 +284,7 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
         typeattr_i.data_type = typeattr_j.data_type
 
     if default_dataset_j is not None:
-        default = default_dataset_j 
+        default = default_dataset_j
 
         unit = default.unit
 
@@ -317,7 +317,7 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
         restriction = typeattr_j.restriction if typeattr_j.restriction is not None else typeattr_j.data_restriction
         if isinstance(restriction, dict):
             typeattr_i.data_restriction = json.dumps(restriction)
-        else: 
+        else:
             typeattr_i.data_restriction = restriction
     else:
         typeattr_i.data_restriction = None
@@ -342,13 +342,13 @@ def get_template_as_dict(template_id, **kwargs):
                               )
             ).one()
 
-    #Load all the attributes 
+    #Load all the attributes
     for type_i in template_i.templatetypes:
         for typeattr_i in type_i.typeattrs:
             typeattr_i.attr
 
     template_j = JSONObject(template_i)
-    
+
     for tmpltype_j in template_j.templatetypes:
         ##Try to load the json into an object, as it will be re-encoded as json,
         ##and we don't want double encoding:
@@ -359,7 +359,7 @@ def get_template_as_dict(template_id, **kwargs):
             typeattr_j.attr_id = typeattr_j.attr_id*-1
             attr_dict[typeattr_j.attr_id] = JSONObject(
                                    {
-                                        'name': typeattr_j.attr.attr_name, 
+                                        'name': typeattr_j.attr.attr_name,
                                         'dimension':typeattr_j.attr.attr_dimen
                                      })
 
@@ -398,7 +398,7 @@ def get_template_as_xml(template_id,**kwargs):
     template_name = etree.SubElement(template_xml, "template_name")
     template_name.text = template_i.template_name
     resources = etree.SubElement(template_xml, "resources")
-    
+
     for type_i in template_i.templatetypes:
         xml_resource    = etree.SubElement(resources, "resource")
 
@@ -410,7 +410,7 @@ def get_template_as_xml(template_id,**kwargs):
 
         alias   = etree.SubElement(xml_resource, "alias")
         alias.text   = type_i.alias
-        
+
         if type_i.layout is not None and type_i.layout != "":
             layout = _get_layout_as_etree(type_i.layout)
             xml_resource.append(layout)
@@ -450,7 +450,7 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
     template_file_j = JSONObject(template_dict)
 
     file_attributes = template_file_j.attributes
-    
+
     #Normalise attribute IDs so they're always ints (in case they're specified as strings)
     attributes_j = {}
     for k, v in file_attributes.items():
@@ -534,9 +534,9 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
 
         #Allow 'type' or 'resource_type' to be accepted
         if type_j.type is not None:
-            type_i.resource_type = type_j.type 
+            type_i.resource_type = type_j.type
         elif type_j.resource_type is not None:
-            type_i.resource_type = type_j.resource_type 
+            type_i.resource_type = type_j.resource_type
 
         if type_j.resource_type is None:
             raise HydraError("No resource type specified."
@@ -565,7 +565,7 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
             elif typeattr_j.attr is not None:
                 attr_j = typeattr_j.attr.name
             type_attrs.append(attr_j)
-                
+
         type_attrs = set(type_attrs)
 
         attrs_to_delete = existing_attrs - type_attrs
@@ -580,7 +580,7 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
                 continue
 
         #Add or update type typeattrs
-        #Support an external attribute dict or embedded attributes. 
+        #Support an external attribute dict or embedded attributes.
         for typeattr_j  in type_j.typeattrs:
             if typeattr_j.attr_id is not None:
                 attr_j = attributes_j[typeattr_j.attr_id]
@@ -1180,10 +1180,10 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
             if hasattr(resource, 'network'):
 
                 new_res_scenarios[attr_id] =  dict()
-                for s in resource.network.scenarios:
-                    new_res_scenarios[attr_id][s.scenario_id] =  dict(
+                for scenario in resource.network.scenarios:
+                    new_res_scenarios[attr_id][scenario.id] =  dict(
                         dataset_id = type_attrs[attr_id]['default_dataset_id'],
-                        scenario_id = s.scenario_id
+                        scenario_id = scenario.id
                     )
 
 
@@ -1564,7 +1564,7 @@ def add_typeattr(typeattr,**kwargs):
 
     db.DBSession.flush()
 
-    return ta 
+    return ta
 
 
 def delete_typeattr(typeattr,**kwargs):
@@ -1697,7 +1697,7 @@ def _do_validate_resourcescenario(resourcescenario, template_id=None):
         if template_id not in [r.templatetype.template_id for r in res.types]:
             raise HydraError("Template %s is not used for resource attribute %s in scenario %s"%\
                              (template_id, resourcescenario.resourceattr.attr.attr_name,
-                             resourcescenario.scenario.scenario_name))
+                             resourcescenario.scenario.name))
 
     #Validate against all the types for the resource
     for resourcetype in types:
@@ -1733,7 +1733,7 @@ def validate_network(network_id, template_id, scenario_id=None):
 
     resource_scenario_dict = {}
     if scenario_id is not None:
-        scenario = db.DBSession.query(Scenario).filter(Scenario.scenario_id==scenario_id).first()
+        scenario = db.DBSession.query(Scenario).filter(Scenario.id==scenario_id).first()
 
         if scenario is None:
             raise HydraError("Could not find scenario %s"%(scenario_id,))

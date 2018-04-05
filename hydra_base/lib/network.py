@@ -103,8 +103,8 @@ def _update_attributes(resource_i, attributes):
 
 def get_scenario_by_name(network_id, scenario_name,**kwargs):
     try:
-        scen = db.DBSession.query(Scenario).filter(and_(Scenario.network_id==network_id, func.lower(Scenario.scenario_id) == scenario_name.lower())).one()
-        return scen.scenario_id
+        scen = db.DBSession.query(Scenario).filter(and_(Scenario.network_id==network_id, func.lower(Scenario.id) == scenario_name.lower())).one()
+        return scen.id
     except NoResultFound:
         log.info("No scenario in network %s with name %s"\
                      % (network_id, scenario_name))
@@ -507,8 +507,8 @@ def add_network(network,**kwargs):
                 raise HydraError("Duplicate scenario name: %s"%(s.name))
 
             scen = Scenario()
-            scen.scenario_name        = s.name
-            scen.scenario_description = s.description
+            scen.name                 = s.name
+            scen.description          = s.description
             scen.layout               = s.get_layout()
             scen.start_time           = str(timestamp_to_ordinal(s.start_time)) if s.start_time else None
             scen.end_time             = str(timestamp_to_ordinal(s.end_time)) if s.end_time else None
@@ -792,7 +792,7 @@ def _get_all_resourcescenarios(network_id, user_id):
     ).outerjoin(DatasetOwner, and_(DatasetOwner.dataset_id==Dataset.dataset_id, DatasetOwner.user_id==user_id)).filter(
                 or_(Dataset.hidden=='N', DatasetOwner.user_id != None),
                 ResourceAttr.resource_attr_id == ResourceScenario.resource_attr_id,
-                Scenario.scenario_id==ResourceScenario.scenario_id,
+                Scenario.id==ResourceScenario.scenario_id,
                 Scenario.network_id==network_id,
                 Dataset.dataset_id==ResourceScenario.dataset_id)
 
@@ -851,7 +851,7 @@ def _get_metadata(network_id, user_id):
                 Dataset
     ).outerjoin(DatasetOwner, and_(DatasetOwner.dataset_id==Dataset.dataset_id, DatasetOwner.user_id==user_id)).filter(
                 or_(Dataset.hidden=='N', DatasetOwner.user_id != None),
-                Scenario.scenario_id==ResourceScenario.scenario_id,
+                Scenario.id==ResourceScenario.scenario_id,
                 Scenario.network_id==network_id,
                 Dataset.dataset_id==ResourceScenario.dataset_id).distinct().subquery()
 
@@ -957,7 +957,7 @@ def _get_scenarios(network_id, include_data, user_id, scenario_ids=None):
 
     if scenario_ids:
         logging.info("Filtering by scenario_ids %s",scenario_ids)
-        scen_qry = scen_qry.filter(Scenario.scenario_id.in_(scenario_ids))
+        scen_qry = scen_qry.filter(Scenario.id.in_(scenario_ids))
     extras = {'resourcescenarios': [], 'resourcegroupitems': []}
     scens = [dictobj(s,extras, 'tScenario') for s in db.DBSession.execute(scen_qry.statement).fetchall()]
 
@@ -968,10 +968,10 @@ def _get_scenarios(network_id, include_data, user_id, scenario_ids=None):
         metadata = _get_metadata(network_id, user_id)
 
     for s in scens:
-        s.resourcegroupitems = all_resource_group_items.get(s.scenario_id, [])
+        s.resourcegroupitems = all_resource_group_items.get(s.id, [])
 
         if include_data == 'Y':
-            s.resourcescenarios  = all_rs.get(s.scenario_id, [])
+            s.resourcescenarios  = all_rs.get(s.id, [])
 
             for rs in s.resourcescenarios:
                 rs.dataset.metadata = metadata.get(rs.dataset_id, {})
@@ -1387,7 +1387,7 @@ def update_network(network,
             if s.id is not None:
                 if s.id > 0:
                     try:
-                        scen_i = db.DBSession.query(Scenario).filter(Scenario.scenario_id==s.id).one()
+                        scen_i = db.DBSession.query(Scenario).filter(Scenario.id==s.id).one()
                         if scen_i.locked == 'Y':
                             errors.append('Scenario %s was not updated as it is locked'%(s.id))
                             continue
@@ -2159,7 +2159,7 @@ def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, 
         raise HydraError("Network %s does not exist"%network_id)
 
     try:
-        db.DBSession.query(Scenario).filter(Scenario.scenario_id==scenario_id, Scenario.network_id==network_id).one()
+        db.DBSession.query(Scenario).filter(Scenario.id==scenario_id, Scenario.network_id==network_id).one()
     except NoResultFound:
         raise HydraError("Scenario %s not found."%scenario_id)
 
@@ -2673,8 +2673,8 @@ def _clone_scenario(old_scenario, newnetworkid, ra_id_map, node_id_map, link_id_
     log.info("Adding scenario shell to get scenario ID")
     news = Scenario()
     news.network_id = newnetworkid
-    news.scenario_name = old_scenario.scenario_name
-    news.scenario_description = old_scenario.scenario_description
+    news.name = old_scenario.name
+    news.description = old_scenario.description
     news.layout = old_scenario.layout
     news.start_time = old_scenario.start_time
     news.end_time = old_scenario.end_time
@@ -2685,12 +2685,12 @@ def _clone_scenario(old_scenario, newnetworkid, ra_id_map, node_id_map, link_id_
 
     db.DBSession.flush()
 
-    scenario_id= news.scenario_id
+    scenario_id= news.id
     log.info("New Scenario %s created", scenario_id)
 
-    log.info("Getting old resource scenarios for scenario %s", old_scenario.scenario_id)
+    log.info("Getting old resource scenarios for scenario %s", old_scenario.id)
     old_rscen_rs = db.DBSession.query(ResourceScenario).filter(
-                                        ResourceScenario.scenario_id==old_scenario.scenario_id,
+                                        ResourceScenario.scenario_id==old_scenario.id,
                                         ResourceAttr.resource_attr_id==ResourceScenario.resource_attr_id,
                                         ResourceAttr.attr_is_var == 'N'
                                     ).all()
@@ -2709,8 +2709,8 @@ def _clone_scenario(old_scenario, newnetworkid, ra_id_map, node_id_map, link_id_
 
 
 
-    log.info("Getting old resource group items for scenario %s", old_scenario.scenario_id)
-    old_rgis = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.scenario_id==old_scenario.scenario_id).all()
+    log.info("Getting old resource group items for scenario %s", old_scenario.id)
+    old_rgis = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.scenario_id==old_scenario.id).all()
     new_rgis = []
     for old_rgi in old_rgis:
         new_rgis.append(dict(
