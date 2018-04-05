@@ -108,7 +108,7 @@ def get_dataset(dataset_id,**kwargs):
 
 
     dataset = namedtuple('Dataset', rs_dict.keys())(**rs_dict)
-    
+
     return dataset
 
 def clone_dataset(dataset_id,**kwargs):
@@ -210,7 +210,7 @@ def get_datasets(dataset_ids,**kwargs):
 
             datasets.append(namedtuple('Dataset', dataset_dict.keys())(**dataset_dict))
 
-            
+
     except NoResultFound:
         raise ResourceNotFoundError("Datasets not found.")
 
@@ -419,7 +419,7 @@ def search_datasets(dataset_id=None,
 
         dataset_dict = dataset_row._asdict()
 
-        
+
 
         if inc_val == 'N':
             dataset_dict['value'] = None
@@ -496,6 +496,8 @@ def update_dataset(dataset_id, name, data_type, val, units, dimension, metadata=
                      existing_dataset.dataset_id, dataset.dataset_id, existing_dataset.dataset_id)
             db.DBSession.delete(dataset)
             dataset = existing_dataset
+
+    db.DBSession.flush()
 
     return dataset
 
@@ -1113,4 +1115,3 @@ def delete_dataset(dataset_id,**kwargs):
 
 def read_json(json_string):
     pd.read_json(json_string)
-

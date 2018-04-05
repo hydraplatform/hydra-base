@@ -73,7 +73,7 @@ def update_resourcegroup(group,**kwargs):
     group_i.name            = group.name
     group_i.description     = group.description
     group_i.status          = group.status
-    
+
     db.DBSession.flush()
 
     return group_i
@@ -113,7 +113,7 @@ def add_resourcegroupitem(group_item, scenario_id,**kwargs):
         group_item_i.link_id = group_item.ref_id
     elif group_item.ref_key == 'GROUP':
         group_item_i.subgroup_id = group_item.ref_id
-        
+
 
     db.DBSession.add(group_item_i)
     db.DBSession.flush()
@@ -121,9 +121,9 @@ def add_resourcegroupitem(group_item, scenario_id,**kwargs):
     return group_item_i
 
 def delete_resourcegroupitem(item_id,**kwargs):
-    group_item_i = _get_item(item_id) 
+    group_item_i = _get_item(item_id)
     scenario._check_can_edit_scenario(group_item_i.scenario_id, kwargs['user_id'])
     db.DBSession.delete(group_item_i)
     db.DBSession.flush()
-   
+
     return 'OK'

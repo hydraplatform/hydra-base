@@ -754,7 +754,7 @@ class Network(Base, Inspect):
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     projection = Column(String(1000))
-    created_by = Column(Integer(), ForeignKey('tUser.id'))
+    created_by = Column(Integer(), ForeignKey('tUser.id'), nullable=False)
 
     project = relationship('Project', backref=backref("networks", order_by="asc(Network.cr_date)", cascade="all, delete-orphan"))
 
@@ -1203,7 +1203,7 @@ class ResourceScenario(Base, Inspect):
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     dataset      = relationship('Dataset', backref=backref("resourcescenarios", order_by=dataset_id))
-    scenario     = relationship('Scenario', backref=backref("resourcescenarios", order_by=resource_attr_id, cascade="all, delete-orphan"))
+    scenario     = relationship('Scenario', backref=backref("resourcescenarios", order_by=scenario_id, cascade="all, delete-orphan"))
     resourceattr = relationship('ResourceAttr', backref=backref("resourcescenarios", cascade="all, delete-orphan"), uselist=False)
 
     def get_dataset(self, user_id):
@@ -1225,6 +1225,9 @@ class ResourceScenario(Base, Inspect):
 
         return dataset
 
+    @property
+    def value(self):
+        return self.dataset
 
 class Scenario(Base, Inspect):
     """
@@ -1246,7 +1249,7 @@ class Scenario(Base, Inspect):
     locked = Column(String(1),  nullable=False, server_default=text(u"'N'"))
     time_step = Column(String(60))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    created_by = Column(Integer(), ForeignKey('tUser.id'))
+    created_by = Column(Integer(), ForeignKey('tUser.id'), nullable=False)
 
     network = relationship('Network', backref=backref("scenarios", order_by=id))
 

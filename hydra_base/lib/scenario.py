@@ -132,7 +132,7 @@ def get_scenario(scenario_id,**kwargs):
     scen_i = _get_scenario(scenario_id, user_id)
 
     scen_j = JSONObject(scen_i)
-    rscen_rs = db.DBSession.query(ResourceScenario).filter(ResourceScenario.scenario_id==scenario_id).all()
+    rscen_rs = db.DBSession.query(ResourceScenario).filter(ResourceScenario.scenario_id==scenario_id).options(joinedload_all('dataset')).all()
     rgi_rs = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.scenario_id==scenario_id).all()
 
     scen_j.resourcescenarios = [JSONObject(r) for r in rscen_rs]
@@ -172,7 +172,7 @@ def add_scenario(network_id, scenario,**kwargs):
     if scenario.resourcescenarios is not None:
         #extract the data from each resourcescenario so it can all be
         #inserted in one go, rather than one at a time
-        all_data = [r.value for r in scenario.resourcescenarios]
+        all_data = [r.dataset for r in scenario.resourcescenarios]
 
         datasets = data._bulk_insert_data(all_data, user_id=user_id)
 
@@ -251,7 +251,7 @@ def update_scenario(scenario,update_data=True,update_groups=True,flush=True,**kw
         scenario.resourcegroupitems = []
 
     if update_data is True:
-        datasets = [rs.value for rs in scenario.resourcescenarios]
+        datasets = [rs.dataset for rs in scenario.resourcescenarios]
         updated_datasets = data._bulk_insert_data(datasets, user_id, kwargs.get('app_name'))
         for i, r_scen in enumerate(scenario.resourcescenarios):
             _update_resourcescenario(scen, r_scen, dataset=updated_datasets[i], user_id=user_id, source=kwargs.get('app_name'))
@@ -436,7 +436,7 @@ def compare_scenarios(scenario_id_1, scenario_id_2,**kwargs):
     scenario_1_rs = db.DBSession.query(ResourceScenario).filter(ResourceScenario.scenario_id==scenario_id_1).all()
     scenario_2_rs = db.DBSession.query(ResourceScenario).filter(ResourceScenario.scenario_id==scenario_id_2).all()
     scenario_1_rgi = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.scenario_id==scenario_id_1).all()
-    scenario_2_rgi = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.scenario_id==scenario_id_1).all()
+    scenario_2_rgi = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.scenario_id==scenario_id_2).all()
 
     if scenario_1.network_id != scenario_2.network_id:
         raise HydraError("Cannot compare scenarios that are not"
@@ -623,7 +623,7 @@ def bulk_update_resourcedata(scenario_ids, resource_scenarios,**kwargs):
         scen_i = _get_scenario(scenario_id, user_id)
         res[scenario_id] = []
         for rs in resource_scenarios:
-            if rs.value is not None:
+            if rs.dataset is not None:
                 updated_rs = _update_resourcescenario(scen_i, rs, user_id=user_id, source=kwargs.get('app_name'))
                 res[scenario_id].append(updated_rs)
             else:
@@ -659,7 +659,7 @@ def update_resourcedata(scenario_id, resource_scenarios,**kwargs):
 
     res = []
     for rs in resource_scenarios:
-        if rs.value is not None:
+        if rs.dataset is not None:
             updated_rs = _update_resourcescenario(scen_i, rs, user_id=user_id, source=kwargs.get('app_name'))
             res.append(updated_rs)
         else:
@@ -726,7 +726,7 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
 
         return r_scen_i
 
-    dataset = resource_scenario.value
+    dataset = resource_scenario.dataset
 
     value = dataset.parse_value()
 
@@ -1047,6 +1047,8 @@ def delete_resourcegroupitems(scenario_id, item_ids, **kwargs):
         rgi = db.DBSession.query(ResourceGroupItem).\
                 filter(ResourceGroupItem.item_id==item_id).one()
         db.DBSession.delete(rgi)
+
+    db.DBSession.flush()
 
 def empty_group(group_id, scenario_id, **kwargs):
     """

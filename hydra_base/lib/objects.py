@@ -82,8 +82,10 @@ class JSONObject(dict):
                     l = [JSONObject(item, obj_dict) for item in v]
                     setattr(self, k, l)
             elif hasattr(v, '_sa_instance_state') and v != parent: #Special case for SQLAlchemy obhjects
-
-                l = JSONObject(v)
+                if v.__tablename__.lower() == 'tdataset':
+                    l = Dataset(v, obj_dict)
+                else:
+                    l = JSONObject(v, obj_dict)
                 setattr(self, k, l)
             else:
                 if k == '_sa_instance_state':# or hasattr(v, '_sa_instance_state'): #Special case for SQLAlchemy obhjects
@@ -120,7 +122,7 @@ class JSONObject(dict):
                         #We're only interested in dicts
                         if not isinstance(v, dict):
                             continue
-                        v = JSONObject(v)
+                        v = JSONObject(v, parent)
                     else:
                         v = {}
 
@@ -160,7 +162,7 @@ class JSONObject(dict):
 
                     if obj_dict.__tablename__.lower() == 'tresourceattr':
                         if k == 'resource_attr_id':
-                            setattr(self, 'id', v) 
+                            setattr(self, 'id', v)
 
                 setattr(self, unicode(k), v)
 
@@ -232,7 +234,7 @@ class Dataset(JSONObject):
 
     def __setattr__(self, name, value):
         super(Dataset, self).__setattr__(name, value)
-        
+
         #This is to avoid an infinite loop
         if self.get(name) != value:
             self[name] = value
@@ -280,7 +282,7 @@ class Dataset(JSONObject):
                 if self.get_metadata_as_dict().get('data_type') == 'hashtable':
                     try:
                         df = pd.read_json(data)
-                        data = df.transpose().to_json() 
+                        data = df.transpose().to_json()
                     except Exception:
                         noindexdata = json.loads(data)
                         indexeddata = {0:noindexdata}
