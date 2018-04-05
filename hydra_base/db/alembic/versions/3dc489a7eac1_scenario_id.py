@@ -41,14 +41,14 @@ def upgrade():
             # ## tScenario
             op.create_table(
                 'tScenario_new',
-                sa.Column('id', sa.Integer, primary_key=True),
+                sa.Column('id', sa.Integer(), primary_key=True),
                 sa.Column('name', sa.Text(200), nullable=False),
                 sa.Column('description', sa.Text(1000)),
                 sa.Column('layout', sa.Text(1000)),
                 sa.Column('status', sa.String(1),  nullable=False, server_default=sa.text(u"'A'")),
                 sa.Column('cr_date', sa.TIMESTAMP(),  nullable=False, server_default=sa.text(u'CURRENT_TIMESTAMP')),
                 sa.Column('created_by', sa.Integer(), sa.ForeignKey('tUser.id'),  nullable=False),
-                sa.Column('network_id', sa.Column(Integer(), ForeignKey('tNetwork.id'), index=True)),
+                sa.Column('network_id', sa.Integer(), sa.ForeignKey('tNetwork.id'), index=True),
                 sa.Column('start_time', sa.Column(String(60))),
                 sa.Column('end_time', sa.Column(String(60))),
                 sa.Column('locked', Column(String(1),  nullable=False, server_default=text(u"'N'"))),
@@ -88,18 +88,18 @@ def downgrade():
             # ## tScenario
             op.create_table(
                 'tScenario_new',
-                sa.Column('id', sa.Integer, primary_key=True),
+                sa.Column('id', sa.Integer(), primary_key=True),
                 sa.Column('name', sa.Text(200), nullable=False),
                 sa.Column('description', sa.Text(1000)),
                 sa.Column('layout', sa.Text(1000)),
                 sa.Column('status', sa.String(1),  nullable=False, server_default=sa.text(u"'A'")),
                 sa.Column('cr_date', sa.TIMESTAMP(),  nullable=False, server_default=sa.text(u'CURRENT_TIMESTAMP')),
                 sa.Column('created_by', sa.Integer(), sa.ForeignKey('tUser.id'),  nullable=False),
-                sa.Column('network_id', sa.Column(Integer(), ForeignKey('tNetwork.id'), index=True)),
-                sa.Column('start_time', sa.Column(String(60))),
-                sa.Column('end_time', sa.Column(String(60))),
-                sa.Column('locked', Column(String(1),  nullable=False, server_default=text(u"'N'"))),
-                sa.Column('time_step', Column(String(60))),
+                sa.Column('network_id', sa.Integer(), sa.ForeignKey('tNetwork.id'), index=True),
+                sa.Column('start_time', sa.String(60)),
+                sa.Column('end_time', sa.String(60)),
+                sa.Column('locked', sa.String(1),  nullable=False, server_default=text(u"'N'")),
+                sa.Column('time_step', sa.String(60)),
                 sa.UniqueConstraint('network_id', 'scenario_name', name="unique scenario name"),
             )
 

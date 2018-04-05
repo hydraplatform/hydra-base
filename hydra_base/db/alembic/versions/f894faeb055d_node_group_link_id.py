@@ -197,8 +197,8 @@ def downgrade():
             sa.Column('layout', sa.Text(1000)),
             sa.Column('network_id', sa.Integer(), sa.ForeignKey('tNetwork.id'),  nullable=False),
             sa.Column('status', sa.String(1),  nullable=False, server_default=sa.text(u"'A'")),
-            sa.Column('node_1_id', sa.Integer(), sa.ForeignKey('tNode.id'), nullable=False)),
-            sa.Column('node_2_id', sa.Integer(), sa.ForeignKey('tNode.id'), nullable=False)),
+            sa.Column('node_1_id', sa.Integer(), sa.ForeignKey('tNode.id'), nullable=False),
+            sa.Column('node_2_id', sa.Integer(), sa.ForeignKey('tNode.id'), nullable=False),
             sa.Column('cr_date', sa.TIMESTAMP(),  nullable=False, server_default=sa.text(u'CURRENT_TIMESTAMP')),
             sa.UniqueConstraint('link_name', 'network_id', name="unique link name")
         )
