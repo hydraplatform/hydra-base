@@ -9,6 +9,9 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import mysql
 
+import logging
+log = logging.getLogger(__name__)
+
 # revision identifiers, used by Alembic.
 revision = 'be206abd1412'
 down_revision = 'f894faeb055d'
@@ -47,6 +50,7 @@ def upgrade():
 
             op.rename_table('tProject','tProject_old')
             op.rename_table('tProject_new', 'tProject')
+            op.drop_table('tProject_old')
 
         except Exception as e:
             log.exception(e)
@@ -82,6 +86,7 @@ def downgrade():
 
             op.rename_table('tProject','tProject_old')
             op.rename_table('tProject_new', 'tProject')
+            op.drop_table('tProject_old')
 
         except Exception as e:
             log.exception(e)
