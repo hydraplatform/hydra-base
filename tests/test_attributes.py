@@ -56,9 +56,9 @@ class TestAttribute:
         assert "Multi-added Attr 2" in attribute_names
 
     def test_get_attribute_by_id(self, session, attribute):
-        
+
         existing_attr = attribute
-        
+
         retrieved_attr = hb.get_attribute_by_id(existing_attr.attr_id, user_id=self.user_id)
 
         assert existing_attr.attr_name == retrieved_attr.attr_name
@@ -76,15 +76,15 @@ class TestAttribute:
         assert existing_attr.attr_description == retrieved_attr.attr_description
 
     def test_add_network_attribute(self, session, network_with_data, attribute):
-        
+
         new_attr = attribute
-        
+
         hb.add_resource_attribute('NETWORK', network_with_data.id, new_attr.attr_id, 'Y', user_id=self.user_id)
-        
+
         updated_network = hb.get_network(network_with_data.id, user_id=self.user_id)
-        
+
         network_attr_ids = []
-        
+
         for ra in updated_network.attributes:
             network_attr_ids.append(ra.attr_id)
         assert new_attr.attr_id in network_attr_ids
@@ -99,17 +99,17 @@ class TestAttribute:
         network = network_with_data
 
         type_id = network.types[0].id
-        
+
         #Get the template type, and add a new typeattr to it
         templatetype_j = JSONObject(hb.get_templatetype(type_id))
 
         new_typeattr = JSONObject({
-            'attr_id' : attribute.attr_id 
+            'attr_id' : attribute.attr_id
         })
-        
+
         templatetype_j.typeattrs.append(new_typeattr)
 
-        hb.update_templatetype(templatetype_j) 
+        hb.update_templatetype(templatetype_j)
 
         #Record the network's resource attributes before the update
         before_net_attrs = []
@@ -118,8 +118,8 @@ class TestAttribute:
             log.info("old: %s",ra.attr_id)
 
         #Set any new resource attributes
-        hb.add_resource_attrs_from_type(type_id, 'NETWORK', network.id, user_id=self.user_id) 
-        
+        hb.add_resource_attrs_from_type(type_id, 'NETWORK', network.id, user_id=self.user_id)
+
         updated_network = hb.get_network(network.id, user_id=self.user_id)
         after_net_attrs = []
         for ra in updated_network.attributes:
@@ -145,7 +145,7 @@ class TestAttribute:
         for ra in node_attributes:
             node_attr_ids.append(ra.attr_id)
         assert attribute.attr_id in node_attr_ids
-        
+
         with pytest.raises(hb.HydraError):
             hb.add_resource_attribute('NODE', node.id, attribute.attr_id, 'Y', user_id=self.user_id)
 
@@ -158,7 +158,7 @@ class TestAttribute:
                 node_attr_ids.append(a.id)
 
         node_attributes = hb.get_all_resource_attributes('NODE', network_with_data.id, user_id=self.user_id)
-        
+
         #Check that the retrieved attributes are in the list of node attributes
         retrieved_ras = []
         for n in node_attributes:
@@ -169,20 +169,20 @@ class TestAttribute:
         template_id = network_with_data.types[0].template_id
 
         node_attributes = hb.get_all_resource_attributes('NODE', network_with_data.id, template_id, user_id=self.user_id)
-        
+
         #Check that the retrieved attributes are in the list of node attributes
         retrieved_ras = []
         for n in node_attributes:
             retrieved_ras.append(n.resource_attr_id)
         assert set(node_attr_ids) == set(retrieved_ras)
-        
+
 
     def test_add_link_attribute(self, session, network_with_data, attribute):
         link = network_with_data.links[0]
         hb.add_resource_attribute('LINK', link.id, attribute.attr_id, 'Y')
         link_attributes = hb.get_resource_attributes('LINK', link.id, user_id=self.user_id)
         network_attr_ids = []
-        
+
         for ra in link_attributes:
             network_attr_ids.append(ra.attr_id)
         assert attribute.attr_id in network_attr_ids
@@ -220,7 +220,7 @@ class TestAttribute:
                 group_attr_ids.append(a.resource_attr_id)
 
         group_attributes = hb.get_all_resource_attributes('GROUP', network_with_data.id, user_id=self.user_id)
-        
+
         #Check that the retrieved attributes are in the list of group attributes
         retrieved_ras = []
         for ra in group_attributes:
@@ -259,22 +259,22 @@ class TestAttributeMap:
 
         hb.set_attribute_mapping(attr_1.id, attr_2.id, user_id=self.user_id)
         hb.set_attribute_mapping(attr_1.id, attr_3.id, user_id=self.user_id)
-        
-        
+
+
         all_mappings_1 = hb.get_mappings_in_network(net1.id, user_id=self.user_id)
         all_mappings_2 = hb.get_mappings_in_network(net2.id, net2.id, user_id=self.user_id)
 
 
-        #print all_mappings_1 
-        #print all_mappings_2 
+        #print all_mappings_1
+        #print all_mappings_2
         assert len(all_mappings_1) == 2
         assert len(all_mappings_2) == 1
 
         node_mappings_1 = hb.get_node_mappings(node_1.id, user_id=self.user_id)
         node_mappings_2 = hb.get_node_mappings(node_1.id, node_2.id, user_id=self.user_id)
         #print "*"*100
-        #print node_mappings_1 
-        #print node_mappings_2 
+        #print node_mappings_1
+        #print node_mappings_2
         assert len(node_mappings_1) == 2
         assert len(node_mappings_2) == 1
 
@@ -284,12 +284,12 @@ class TestAttributeMap:
         assert map_exists == 'N'
         map_exists = hb.check_attribute_mapping_exists(attr_2.id, attr_3.id, user_id=self.user_id)
         assert map_exists == 'N'
-        
-       
+
+
         updated_rs = hb.update_value_from_mapping(attr_1.id, attr_2.id, s1.id, s2.id, user_id=self.user_id)
-    
+
         assert str(updated_rs.dataset.value) == str(rs_to_update_from.dataset.value)
-       
+
         log.info("Deleting %s -> %s", attr_1.id, attr_2.id)
         hb.delete_attribute_mapping(attr_1.id, attr_2.id, user_id=self.user_id)
         all_mappings_1 = hb.get_mappings_in_network(net1.id, user_id=self.user_id)
@@ -305,12 +305,12 @@ class TestAttributeGroups:
     """
 
     user_id = util.user_id
-    
+
     def test_add_attribute_group(self, session, projectmaker, attribute):
         project = projectmaker.create()
-        
+
         newgroup = JSONObject({
-            'project_id'  : project.project_id,
+            'project_id'  : project.id,
             'name'        : "Attribute Group %s" % (datetime.datetime.now(),),
             'description' : "A description of an attribute group",
             'layout'      : {"color": "green"},
@@ -318,7 +318,7 @@ class TestAttributeGroups:
         })
 
         newgroup = hb.add_attribute_group(newgroup, user_id=self.user_id)
-        
+
         retrieved_new_group = hb.get_attribute_group(newgroup.id, user_id=self.user_id)
 
         assert retrieved_new_group.name == newgroup.name
@@ -326,11 +326,11 @@ class TestAttributeGroups:
     def test_update_attribute_group(self, session, attributegroup):
 
         newname = attributegroup.name + " Updated"
-        
-        attributegroup.name = newname 
+
+        attributegroup.name = newname
 
         hb.update_attribute_group(attributegroup, user_id=self.user_id)
-        
+
         retrieved_new_group = hb.get_attribute_group(attributegroup.id, user_id=self.user_id)
 
         assert retrieved_new_group.name == newname
@@ -339,7 +339,7 @@ class TestAttributeGroups:
     def test_delete_attribute_group(self, session, attributegroup):
 
         hb.delete_attribute_group(attributegroup.id, user_id=self.user_id)
-        
+
         with pytest.raises(hb.HydraError):
             hb.get_attribute_group(attributegroup.id, user_id=self.user_id)
 
@@ -350,10 +350,10 @@ class TestAttributeGroups:
         network = network_with_data
 
         #Create two groups -- attributes which are associated with a network,
-        #and everything else. 
-        group_1 = attributegroupmaker.create(project.project_id, "Network Attributes")
-        group_2 = attributegroupmaker.create(project.project_id, "Node Attributes")
-        
+        #and everything else.
+        group_1 = attributegroupmaker.create(project.id, "Network Attributes")
+        group_2 = attributegroupmaker.create(project.id, "Node Attributes")
+
         network_attributes = []
         for netattr in network.attributes:
             network_attributes.append(JSONObject({'attr_id'    : netattr.attr_id,
@@ -372,9 +372,9 @@ class TestAttributeGroups:
 
 
         hb.add_attribute_group_items(network_attributes, user_id=self.user_id)
-        
+
         hb.add_attribute_group_items(node_attributes, user_id=self.user_id)
-        
+
         all_items_in_network = hb.get_network_attributegroup_items(network.id, user_id=self.user_id)
 
 
@@ -391,13 +391,13 @@ class TestAttributeGroups:
         network = network_with_data
 
         #Create two groups -- attributes which are associated with a network,
-        #and everything else. 
-        group_1 = attributegroupmaker.create(project.project_id, "Network Attributes", 'Y')
-        group_2 = attributegroupmaker.create(project.project_id, "Node Attributes")
-        
+        #and everything else.
+        group_1 = attributegroupmaker.create(project.id, "Network Attributes", 'Y')
+        group_2 = attributegroupmaker.create(project.id, "Node Attributes")
+
         network_attributes = []
         node_attributes = []
-        
+
         for netattr in network.attributes:
             network_attributes.append(JSONObject({'attr_id'    : netattr.attr_id,
                                        'network_id' : netattr.network_id,
@@ -421,7 +421,7 @@ class TestAttributeGroups:
 
         log.info("Adding items to group 1 (network attributes)")
         hb.add_attribute_group_items(network_attributes, user_id=self.user_id)
-        
+
         #add a group with attributes that are already in an exclusive group
         with pytest.raises(hb.HydraError):
             log.info("Adding items to group 2 (node attributes, plus network attributes)")
@@ -438,13 +438,13 @@ class TestAttributeGroups:
         network = network_with_data
 
         #Create two groups -- attributes which are associated with a network,
-        #and everything else. 
-        group_1 = attributegroupmaker.create(project.project_id, "Network Attributes", 'Y')
-        group_2 = attributegroupmaker.create(project.project_id, "Node Attributes")
-        
+        #and everything else.
+        group_1 = attributegroupmaker.create(project.id, "Network Attributes", 'Y')
+        group_2 = attributegroupmaker.create(project.id, "Node Attributes")
+
         network_attributes = []
         node_attributes = []
-        
+
         for netattr in network.attributes:
             network_attributes.append(JSONObject({'attr_id'    : netattr.attr_id,
                                        'network_id' : netattr.network_id,
@@ -468,12 +468,12 @@ class TestAttributeGroups:
 
         log.info("Adding items to group 2 (node attributes, plus network attributes)")
         hb.add_attribute_group_items(node_attributes, user_id=self.user_id)
-        
+
         #add attributes to an exclusive group that are already in another group
         with pytest.raises(hb.HydraError):
             log.info("Adding items to group 1 (network attributes)")
             hb.add_attribute_group_items(network_attributes, user_id=self.user_id)
-        
+
     def test_delete_attribute_group_items(self, session, projectmaker, network_with_data, attributegroupmaker):
         project = projectmaker.create()
 
@@ -481,10 +481,10 @@ class TestAttributeGroups:
         network = network_with_data
 
         #Create two groups -- attributes which are associated with a network,
-        #and everything else. 
-        group_1 = attributegroupmaker.create(project.project_id, "Network Attributes")
-        group_2 = attributegroupmaker.create(project.project_id, "Node Attributes")
-        
+        #and everything else.
+        group_1 = attributegroupmaker.create(project.id, "Network Attributes")
+        group_2 = attributegroupmaker.create(project.id, "Node Attributes")
+
         network_attributes = []
         for netattr in network.attributes:
             network_attributes.append(JSONObject({'attr_id'    : netattr.attr_id,
@@ -503,17 +503,16 @@ class TestAttributeGroups:
 
 
         hb.add_attribute_group_items(network_attributes, user_id=self.user_id)
-        
+
         hb.add_attribute_group_items(node_attributes, user_id=self.user_id)
-        
+
         all_items_in_network = hb.get_network_attributegroup_items(network.id, user_id=self.user_id)
 
         assert len(all_items_in_network) == len(network_attributes)+len(node_attributes)
-        
+
         #Now remove all the node attributes
         hb.delete_attribute_group_items(node_attributes, user_id=self.user_id)
-        
-        all_items_in_network = hb.get_network_attributegroup_items(network.id, user_id=self.user_id)
-        
-        assert len(all_items_in_network) == len(network_attributes)
 
+        all_items_in_network = hb.get_network_attributegroup_items(network.id, user_id=self.user_id)
+
+        assert len(all_items_in_network) == len(network_attributes)
