@@ -19,7 +19,7 @@
 
 from ..db.model import Network, Scenario, Project, User, Role, Perm, RolePerm, RoleUser, ResourceAttr, ResourceType
 from sqlalchemy.orm.exc import NoResultFound
-from .. import db 
+from .. import db
 import datetime
 import random
 import bcrypt
@@ -124,7 +124,7 @@ def create_default_net():
     try:
         net = db.DBSession.query(Network).filter(Network.id==1).one()
     except NoResultFound:
-        project = Project(project_name="Project network")
+        project = Project(project_name="Project network", created_by=1)
         net = Network(name="Default network")
         scen = Scenario(scenario_name="Default network")
         project.networks.append(net)

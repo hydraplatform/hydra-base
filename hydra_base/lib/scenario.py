@@ -705,7 +705,7 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
     log.debug("Assigning resource attribute: %s",ra_id)
     try:
         r_scen_i = db.DBSession.query(ResourceScenario).filter(
-                        ResourceScenario.scenario_id==scenario.scenario_id,
+                        ResourceScenario.scenario_id==scenario.id,
                         ResourceScenario.resource_attr_id==ra_id).one()
     except NoResultFound as e:
         r_scen_i = ResourceScenario()

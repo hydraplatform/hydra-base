@@ -32,6 +32,13 @@ def upgrade():
             log.exception(e)
 
     else: ## sqlite
+
+        # ## tProject
+        try:
+            op.drop_table('tProject_new')
+        except:
+            log.info("tProject_new isn't there")
+
         try:
             # ## tProject
             op.create_table(
@@ -39,14 +46,13 @@ def upgrade():
                 sa.Column('id', sa.Integer, primary_key=True),
                 sa.Column('name', sa.Text(200), nullable=False),
                 sa.Column('description', sa.Text(1000)),
-                sa.Column('layout', sa.Text(1000)),
                 sa.Column('status', sa.String(1),  nullable=False, server_default=sa.text(u"'A'")),
                 sa.Column('cr_date', sa.TIMESTAMP(),  nullable=False, server_default=sa.text(u'CURRENT_TIMESTAMP')),
                 sa.Column('created_by', sa.Integer(), sa.ForeignKey('tUser.id'),  nullable=False),
                 sa.UniqueConstraint('name', 'created_by', 'status', name="unique project name")
             )
 
-            op.execute("insert into tProject_new (id, name, description, layout, status, cr_date, created_by) select project_id, project_name, project_description, layout, status, cr_date, created_by from tProject")
+            op.execute("insert into tProject_new (id, name, description, status, cr_date, created_by) select project_id, project_name, project_description, status, cr_date, created_by from tProject")
 
             op.rename_table('tProject','tProject_old')
             op.rename_table('tProject_new', 'tProject')
@@ -75,14 +81,13 @@ def downgrade():
                 sa.Column('id', sa.Integer, primary_key=True),
                 sa.Column('name', sa.Text(200), nullable=False),
                 sa.Column('description', sa.Text(1000)),
-                sa.Column('layout', sa.Text(1000)),
                 sa.Column('status', sa.String(1),  nullable=False, server_default=sa.text(u"'A'")),
                 sa.Column('cr_date', sa.TIMESTAMP(),  nullable=False, server_default=sa.text(u'CURRENT_TIMESTAMP')),
                 sa.Column('created_by', sa.Integer(), sa.ForeignKey('tUser.id'),  nullable=False),
                 sa.UniqueConstraint('name', 'created_by', 'status', name="unique project name")
             )
 
-            op.execute("insert into tProject_new (project_id, project_name, project_description, layout, status, cr_date, created_by) select id, name, description, layout, status, cr_date, created_by from tProject")
+            op.execute("insert into tProject_new (project_id, project_name, project_description, status, cr_date, created_by) select id, name, description, status, cr_date, created_by from tProject")
 
             op.rename_table('tProject','tProject_old')
             op.rename_table('tProject_new', 'tProject')

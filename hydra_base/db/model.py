@@ -641,7 +641,7 @@ class Project(Base, Inspect):
     description = Column(String(1000))
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    created_by = Column(Integer(), ForeignKey('tUser.id'))
+    created_by = Column(Integer(), ForeignKey('tUser.id'), nullable=False)
 
     user = relationship('User', backref=backref("projects", order_by=id))
 

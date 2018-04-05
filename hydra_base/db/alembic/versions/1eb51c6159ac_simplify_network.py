@@ -32,6 +32,11 @@ def upgrade():
             log.exception(e)
     else:
         try:
+            op.drop_table('tNetwork_new')
+        except:
+            log.info("tNetwork_new does not exist")
+
+        try:
             op.create_table(
                 'tNetwork_new',
                 sa.Column('id', sa.Integer, primary_key=True),
@@ -51,6 +56,7 @@ def upgrade():
 
             op.rename_table('tNetwork','tNetwork_old')
             op.rename_table('tNetwork_new', 'tNetwork')
+            op.drop_table('tNetwork_old')
         except Exception as e:
             log.exception(e)
 
@@ -67,6 +73,11 @@ def downgrade():
         except Exception as e:
             log.exception(e)
     else:
+        try:
+            op.drop_table('tNetwork_new')
+        except:
+            log.info("tNetwork_new does not exist")
+
         try:
             op.create_table(
                 'tNetwork_new',
@@ -87,5 +98,6 @@ def downgrade():
 
             op.rename_table('tNetwork','tNetwork_old')
             op.rename_table('tNetwork_new', 'tNetwork')
+            op.drop_table('tNetwork_old')
         except Exception as e:
             log.exception(e)

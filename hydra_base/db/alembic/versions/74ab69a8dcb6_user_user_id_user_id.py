@@ -30,6 +30,11 @@ def upgrade():
 
     else:
         try:
+            op.drop_table('tUser_new')
+        except:
+            log.info('Table tUser_new does not exist')
+
+        try:
             op.create_table(
                 'tUser_new',
                 sa.Column('id', sa.Integer, primary_key=True, nullable=False),
@@ -45,16 +50,22 @@ def upgrade():
 
             op.rename_table('tUser', 'tuser_old')
             op.rename_table('tUser_new', 'tUser')
+            op.drop_table('tUser_old')
         except Exception as e:
             log.exception(e)
 
-def upgrade():
+def downgrade():
     if op.get_bind().dialect.name == 'mysql':
         try:
             op.alter_column('tUser', 'user_id', new_column_name='id', existing_type=sa.Integer(), autoincrement=True, nullable=False)
         except Exception as e:
             log.exception(e)
     else:
+        try:
+            op.drop_table('tUser_new')
+        except:
+            log.info('Table tUser_new does not exist')
+
         try:
             op.create_table(
                 'tUser_new',
@@ -71,5 +82,7 @@ def upgrade():
 
             op.rename_table('tUser', 'tuser_old')
             op.rename_table('tUser_new', 'tUser')
+            op.drop_table('tUser_old')
+
         except Exception as e:
             log.exception(e)

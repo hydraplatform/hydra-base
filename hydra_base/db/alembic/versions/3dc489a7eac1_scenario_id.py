@@ -31,6 +31,12 @@ def upgrade():
             log.exception(e)
 
     else: ## sqlite
+
+        try:
+            op.drop_table('tScenario_new')
+        except:
+            log.info('tScenario_new does not exist')
+
         try:
             # ## tScenario
             op.create_table(
@@ -72,6 +78,12 @@ def downgrade():
             log.exception(e)
 
     else: ## sqlite
+
+        try:
+            op.drop_table('tScenario_new')
+        except:
+            log.info('tScenario_new does not exist')
+
         try:
             # ## tScenario
             op.create_table(

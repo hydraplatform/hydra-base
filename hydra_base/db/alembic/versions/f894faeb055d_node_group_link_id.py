@@ -32,8 +32,6 @@ def upgrade():
         except Exception as e:
             log.exception(e)
 
-
-
         # ### tLink
         try:
 
@@ -53,8 +51,14 @@ def upgrade():
             log.exception(e)
 
     else: ## sqlite
+
+        # ## tNode
         try:
-            # ## tNode
+            op.drop_table('tNode_new')
+        except:
+            log.info("tNode_new isn't there")
+
+        try:
             op.create_table(
                 'tNode_new',
                 sa.Column('id', sa.Integer, primary_key=True),
@@ -73,13 +77,19 @@ def upgrade():
 
             op.rename_table('tNode','tNode_old')
             op.rename_table('tNode_new', 'tNode')
+            op.drop_table('tNode_old')
 
         except Exception as e:
             log.exception(e)
 
+        # ## tLink
+        try:
+            op.drop_table('tLink_new')
+        except:
+            log.info("tLink_new isn't there")
+
         try:
 
-            # ## tLink
             op.create_table(
                 'tLink_new',
                 sa.Column('id', sa.Integer, primary_key=True),
@@ -88,8 +98,8 @@ def upgrade():
                 sa.Column('layout', sa.Text(1000)),
                 sa.Column('network_id', sa.Integer(), sa.ForeignKey('tNetwork.id'),  nullable=False),
                 sa.Column('status', sa.String(1),  nullable=False, server_default=sa.text(u"'A'")),
-                sa.Column('node_1_id',sa.Column(Integer(), ForeignKey('tNode.id'), nullable=False)),
-                sa.Column('node_2_id', sa.Column(Integer(), ForeignKey('tNode.id'), nullable=False)),
+                sa.Column('node_1_id', sa.Integer(), sa.ForeignKey('tNode.id'), nullable=False),
+                sa.Column('node_2_id', sa.Integer(), sa.ForeignKey('tNode.id'), nullable=False),
                 sa.Column('cr_date', sa.TIMESTAMP(),  nullable=False, server_default=sa.text(u'CURRENT_TIMESTAMP')),
                 sa.UniqueConstraint('name', 'network_id', name="unique link name")
             )
@@ -98,29 +108,35 @@ def upgrade():
 
             op.rename_table('tLink','tLink_old')
             op.rename_table('tLink_new', 'tLink')
+            op.drop_table('tLink_old')
 
         except Exception as e:
             log.exception(e)
 
+        # ## tResourceGroup
+        try:
+            op.drop_table('tResourceGroup_new')
+        except:
+            log.info("tResourceGroup_new isn't there")
+
         try:
 
-            # ## tResourceGroup
             op.create_table(
                 'tResourceGroup_new',
                 sa.Column('id', sa.Integer, primary_key=True),
                 sa.Column('name', sa.Text(200), nullable=False),
                 sa.Column('description', sa.Text(1000)),
-                sa.Column('layout', sa.Text(1000)),
                 sa.Column('network_id', sa.Integer(), sa.ForeignKey('tNetwork.id'),  nullable=False),
                 sa.Column('status', sa.String(1),  nullable=False, server_default=sa.text(u"'A'")),
                 sa.Column('cr_date', sa.TIMESTAMP(),  nullable=False, server_default=sa.text(u'CURRENT_TIMESTAMP')),
                 sa.UniqueConstraint('name', 'network_id', name="unique resourcegroup name")
             )
 
-            op.execute("insert into tResourceGroup_new (id, name, description, layout, network_id, status, cr_date) select group_id, group_name, group_description, layout, network_id, status, cr_date, from tResourceGroup")
+            op.execute("insert into tResourceGroup_new (id, name, description, network_id, status, cr_date) select group_id, group_name, group_description, network_id, status, cr_date, from tResourceGroup")
 
             op.rename_table('tResourceGroup','tResourceGroup_old')
             op.rename_table('tResourceGroup_new', 'tResourceGroup')
+            op.drop_table('tResourceGroup_old')
 
         except Exception as e:
             log.exception(e)
@@ -181,8 +197,8 @@ def downgrade():
             sa.Column('layout', sa.Text(1000)),
             sa.Column('network_id', sa.Integer(), sa.ForeignKey('tNetwork.id'),  nullable=False),
             sa.Column('status', sa.String(1),  nullable=False, server_default=sa.text(u"'A'")),
-            sa.Column('node_1_id',sa.Column(Integer(), ForeignKey('tNode.id'), nullable=False)),
-            sa.Column('node_2_id', sa.Column(Integer(), ForeignKey('tNode.id'), nullable=False)),
+            sa.Column('node_1_id', sa.Integer(), sa.ForeignKey('tNode.id'), nullable=False)),
+            sa.Column('node_2_id', sa.Integer(), sa.ForeignKey('tNode.id'), nullable=False)),
             sa.Column('cr_date', sa.TIMESTAMP(),  nullable=False, server_default=sa.text(u'CURRENT_TIMESTAMP')),
             sa.UniqueConstraint('link_name', 'network_id', name="unique link name")
         )
@@ -199,14 +215,13 @@ def downgrade():
             sa.Column('group_id', sa.Integer, primary_key=True),
             sa.Column('group_name', sa.Text(200), nullable=False),
             sa.Column('group_description', sa.Text(1000)),
-            sa.Column('layout', sa.Text(1000)),
             sa.Column('network_id', sa.Integer(), sa.ForeignKey('tNetwork.id'),  nullable=False),
             sa.Column('status', sa.String(1),  nullable=False, server_default=sa.text(u"'A'")),
             sa.Column('cr_date', sa.TIMESTAMP(),  nullable=False, server_default=sa.text(u'CURRENT_TIMESTAMP')),
             sa.UniqueConstraint('group_name', 'network_id', name="unique resourcegroup name")
         )
 
-        op.execute("insert into tResourceGroup_new (group_id, group_name, group_description, layout, network_id, status, cr_date) select id, name, description, layout, network_id, status, cr_date, from tResourceGroup")
+        op.execute("insert into tResourceGroup_new (group_id, group_name, group_description, network_id, status, cr_date) select id, name, description, network_id, status, cr_date, from tResourceGroup")
 
         op.rename_table('tResourceGroup','tResourceGroup_old')
         op.rename_table('tResourceGroup_new', 'tResourceGroup')
