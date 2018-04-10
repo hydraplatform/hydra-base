@@ -7,6 +7,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import datetime
 
+@pytest.fixture()
+def dateformat():
+    return hydra_base.config.get('DEFAULT', 'datetime_format', "%Y-%m-%dT%H:%M:%S.%f000Z")
+
 
 @pytest.fixture()
 def testdb_uri(db_backend):
@@ -127,16 +131,14 @@ def attributegroup():
 def attributegroupmaker():
     class AttributeGroupMaker:
         def create(self, project_id, name=None, exclusive='N'):
-            
+
             if name is None:
                 name = 'Attribute Group %s' % (datetime.datetime.now())
 
             newgroup = util.create_attributegroup(project_id,
                                                   name=name,
                                                   exclusive=exclusive)
-            
+
             return newgroup
 
     return AttributeGroupMaker()
-    
-
