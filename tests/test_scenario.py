@@ -62,7 +62,6 @@ class TestScenario:
             'type'      : 'descriptor',
             'name'      : 'Max Capacity',
             'unit'      : 'metres / second',
-            'dimension' : 'number of units per time unit',
             'value'     : 'I am an updated test!',
         })
 
@@ -95,9 +94,9 @@ class TestScenario:
 
         for r in new_scenario.resourcescenarios:
             if r.resource_attr_id == node_attrs[0].id:
-                r.dataset = descriptor['value']
+                r.dataset = descriptor.dataset
             elif r.resource_attr_id == node_attrs[1].id:
-                r.dataset = timeseries['value']
+                r.dataset = timeseries.dataset
 
         scenario = JSONObject(hydra_base.add_scenario(network.id, new_scenario, user_id=self.user_id))
 
@@ -135,8 +134,8 @@ class TestScenario:
                                                 "updated_descriptor")
 
         for resourcescenario in scenario.resourcescenarios:
-            if resourcescenario.attr_id == descriptor['attr_id']:
-                resourcescenario.dataset = descriptor['value']
+            if resourcescenario.attr_id == descriptor.attr_id:
+                resourcescenario.dataset = descriptor.dataset
 
         updated_scenario = JSONObject(hydra_base.update_scenario(scenario, user_id=self.user_id))
 
@@ -155,7 +154,7 @@ class TestScenario:
 
         for data in updated_scenario.resourcescenarios:
             if data.attr_id == descriptor['attr_id']:
-                assert data.dataset.value == descriptor['value']['value']
+                assert data.dataset.value == descriptor.dataset.value
 
     def test_get_dataset_scenarios(self, session, network_with_data):
         """
@@ -168,7 +167,7 @@ class TestScenario:
         scenario = network.scenarios[0]
         rs = scenario.resourcescenarios
 
-        dataset_id_to_check = rs[0].dataset.dataset_id
+        dataset_id_to_check = rs[0].dataset.id
 
         dataset_scenarios = [JSONObject(s) for s in hydra_base.get_dataset_scenarios(dataset_id_to_check, user_id=self.user_id)]
 
@@ -212,9 +211,9 @@ class TestScenario:
         updated_dataset_id = None
         for resourcescenario in scenario.resourcescenarios:
             ra_id = resourcescenario.resource_attr_id
-            if ra_id == descriptor['resource_attr_id']:
-                updated_dataset_id = resourcescenario.dataset.dataset_id
-                resourcescenario.dataset = descriptor['value']
+            if ra_id == descriptor.resource_attr_id:
+                updated_dataset_id = resourcescenario.dataset.id
+                resourcescenario.dataset = descriptor.dataset
                 rs_to_update.append(resourcescenario)
             elif ra_id == val_to_delete['id']:
                 resourcescenario.dataset = None
@@ -231,8 +230,8 @@ class TestScenario:
         assert len(new_resourcescenarios) == 1
 
         for rs in new_resourcescenarios:
-            if rs.resource_attr_id == descriptor['resource_attr_id']:
-                assert rs.dataset.value == descriptor['value']['value']
+            if rs.resource_attr_id == descriptor.resource_attr_id:
+                assert rs.dataset.value == descriptor.dataset.value
 
         updated_scenario = self.get_scenario(scenario.id)
 
@@ -265,9 +264,9 @@ class TestScenario:
         ra_id = None
         ts_id = None
         for rs in scenario_1.resourcescenarios:
-            if rs.dataset.data_type == 'timeseries':
+            if rs.dataset.type == 'timeseries':
                 ra_id = rs.resource_attr_id
-                ts_id = rs.dataset.dataset_id
+                ts_id = rs.dataset.id
                 rs.dataset = None
                 ts_to_delete.append(rs)
                 break
@@ -289,7 +288,7 @@ class TestScenario:
                 assert json.loads(rs.dataset.value) == json.loads(new_value)
                 #Either the dataset is the same dataset, just updated or the dataset
                 #has been removed and linked to a previous dataset, which must have a lower ID.
-                assert rs.dataset.dataset_id <= ts_id
+                assert rs.dataset.id <= ts_id
                 break
         else:
             raise Exception("Couldn't find resource scenario. SOmething went wrong.")
@@ -366,8 +365,8 @@ class TestScenario:
         for resourcescenario in scenario.resourcescenarios:
             ra_id = resourcescenario.resource_attr_id
             if ra_id == rs['resource_attr_id']:
-                updated_dataset_id = resourcescenario.dataset['dataset_id']
-                resourcescenario.dataset = rs['value']
+                updated_dataset_id = resourcescenario.dataset.id
+                resourcescenario.dataset = rs.dataset
                 rs_to_update.append(resourcescenario)
 
         assert updated_dataset_id is not None
@@ -434,8 +433,8 @@ class TestScenario:
         for resourcescenario in scenario1_to_update.resourcescenarios:
             ra_id = resourcescenario.resource_attr_id
             if ra_id == descriptor['resource_attr_id']:
-                updated_dataset_id = resourcescenario.dataset.dataset_id
-                resourcescenario.dataset = descriptor.value
+                updated_dataset_id = resourcescenario.dataset.id
+                resourcescenario.dataset = descriptor.dataset
                 rs_to_update.append(resourcescenario)
             elif ra_id == val_to_delete['id']:
                 resourcescenario.dataset = None
@@ -459,11 +458,11 @@ class TestScenario:
         for rs in updated_scenario1_data.resourcescenarios:
             ra_id = resourcescenario.resource_attr_id
             if ra_id == descriptor['resource_attr_id']:
-                assert rs.dataset.value == descriptor['value']
+                assert rs.dataset.value == descriptor.dataset
         for rs in updated_scenario2_data.resourcescenarios:
             ra_id = resourcescenario.resource_attr_id
             if ra_id == descriptor['resource_attr_id']:
-                assert rs.dataset.value == descriptor['value']
+                assert rs.dataset.value == descriptor.dataset
 
 
 
@@ -476,7 +475,6 @@ class TestScenario:
         dataset1.type = 'timeseries'
         dataset1.name = 'my time series'
         dataset1.unit = 'feet cubed'
-        dataset1.dimension = 'cubic capacity'
 
         t1 = datetime.datetime.now()
         t2 = t1+datetime.timedelta(hours=1)
@@ -500,7 +498,6 @@ class TestScenario:
         dataset2.type = 'descriptor'
         dataset2.name = 'Max Capacity'
         dataset2.unit = 'metres / second'
-        dataset2.dimension = 'number of units per time unit'
 
         dataset2.value ='I am an updated test!'
 
@@ -535,8 +532,8 @@ class TestScenario:
 
         assert len(updated_network.scenarios[1].resourcescenarios) > 0, "Data was not cloned!"
 
-        scen_2_val = updated_network.scenarios[1].resourcescenarios[0].dataset.dataset_id
-        scen_1_val = network.scenarios[0].resourcescenarios[0].dataset.dataset_id
+        scen_2_val = updated_network.scenarios[1].resourcescenarios[0].dataset.id
+        scen_1_val = network.scenarios[0].resourcescenarios[0].dataset.id
 
         assert scen_2_val == scen_1_val, "Data was not cloned correctly"
 
@@ -579,7 +576,6 @@ class TestScenario:
             'type' : 'descriptor',
             'name' : 'Max Capacity',
             'unit' : 'metres / second',
-            'dimension' : 'number of units per time unit',
             'value' : 'I am an updated test!',
         })
 
@@ -700,19 +696,18 @@ class TestScenario:
         dataset.type = 'descriptor'
         dataset.name = 'Max Capacity'
         dataset.unit = 'metres / second'
-        dataset.dimension = 'number of units per time unit'
 
         dataset.value = 'I am an updated test!'
 
 
         locked_resource_scenarios = []
         for rs in locked_scenario.resourcescenarios:
-            if rs.dataset.data_type == 'descriptor':
+            if rs.dataset.type == 'descriptor':
                 locked_resource_scenarios.append(rs)
 
         unlocked_resource_scenarios = []
         for rs in unlocked_scenario.resourcescenarios:
-            if rs.dataset.data_type == 'descriptor':
+            if rs.dataset.type == 'descriptor':
                 unlocked_resource_scenarios.append(rs)
 
         resource_attr_id = unlocked_resource_scenarios[0].resource_attr_id
@@ -728,9 +723,8 @@ class TestScenario:
                 unlocked_resource_scenarios_value = rs.dataset
         log.info("Updating a shared dataset")
         ds = unlocked_resource_scenarios_value
-        ds.dimension = 'updated_dimension'
 
-        updated_ds = JSONObject(hydra_base.update_dataset(ds.dataset_id, ds.data_name, ds.data_type, ds.value, ds.data_units, ds.data_dimen, ds.metadata, user_id=self.user_id))
+        updated_ds = JSONObject(hydra_base.update_dataset(ds.id, ds.name, ds.type, ds.value, ds.unit, ds.metadata, user_id=self.user_id))
 
         updated_unlocked_scenario = self.get_scenario(unlocked_scenario.id)
         #This should not have changed
@@ -774,7 +768,7 @@ class TestScenario:
                 unlocked_resource_scenarios_value = rs.dataset
 
 
-        assert locked_resource_scenarios_value.data_hash != unlocked_resource_scenarios_value.data_hash
+        assert locked_resource_scenarios_value.hash != unlocked_resource_scenarios_value.hash
 
         item_to_remove = locked_scenario.resourcegroupitems[0].id
 
@@ -822,7 +816,7 @@ class TestScenario:
         for rs in s.resourcescenarios:
             if ra_dict.get(rs.resource_attr_id):
                 matching_rs = ra_dict[rs.resource_attr_id]
-                assert str(rs.dataset.data_hash) == str(matching_rs.dataset.data_hash)
+                assert str(rs.dataset.hash) == str(matching_rs.dataset.hash)
 
     def test_copy_data_from_scenario(self, session, network_with_data):
 
@@ -850,7 +844,6 @@ class TestScenario:
         dataset.type = 'descriptor'
         dataset.name = 'Max Capacity'
         dataset.unit = 'metres / second'
-        dataset.dimension = 'number of units per time unit'
 
         dataset.value = 'I am an updated test!'
 
@@ -892,13 +885,12 @@ class TestScenario:
         dataset.type = 'descriptor'
         dataset.name = 'Max Capacity'
         dataset.unit = 'metres / second'
-        dataset.dimension = 'number of units per time unit'
 
         dataset.value = 'I am an updated test!'
 
-        new_ds = hydra_base.add_dataset(dataset.type, dataset.value, dataset.unit, dataset.dimension, {}, dataset.name, flush=True, user_id=self.user_id)
+        new_ds = hydra_base.add_dataset(dataset.type, dataset.value, dataset.unit, {}, dataset.name, flush=True, user_id=self.user_id)
 
-        hydra_base.set_rs_dataset(resource_attr_id, source_scenario_id, new_ds.dataset_id, user_id=self.user_id)
+        hydra_base.set_rs_dataset(resource_attr_id, source_scenario_id, new_ds.id, user_id=self.user_id)
 
         updated_net = hydra_base.get_network(network.id, user_id=self.user_id)
 
@@ -924,7 +916,6 @@ class TestScenario:
         dataset.type = 'descriptor'
         dataset.name = 'Max Capacity'
         dataset.unit = 'metres / second'
-        dataset.dimension = 'number of units per time unit'
 
         dataset.value = 'I am an updated test!'
 

@@ -522,7 +522,7 @@ def add_network(network,**kwargs):
             scenario_resource_attrs = []
             for r_scen in s.resourcescenarios:
                 ra = all_resource_attrs[r_scen.resource_attr_id]
-                incoming_datasets.append(r_scen.value)
+                incoming_datasets.append(r_scen.dataset)
                 scenario_resource_attrs.append(ra)
 
             data_start_time = datetime.datetime.now()
@@ -773,28 +773,25 @@ def _get_all_resourcescenarios(network_id, user_id):
     """
 
     rs_qry = db.DBSession.query(
-                Dataset.data_type,
-                Dataset.data_units,
-                Dataset.data_dimen,
-                Dataset.data_name,
-                Dataset.data_hash,
+                Dataset.type,
+                Dataset.unit,
+                Dataset.name,
+                Dataset.hash,
                 Dataset.cr_date,
                 Dataset.created_by,
                 Dataset.hidden,
-                Dataset.start_time,
-                Dataset.frequency,
                 Dataset.value,
                 ResourceScenario.dataset_id,
                 ResourceScenario.scenario_id,
                 ResourceScenario.resource_attr_id,
                 ResourceScenario.source,
                 ResourceAttr.attr_id,
-    ).outerjoin(DatasetOwner, and_(DatasetOwner.dataset_id==Dataset.dataset_id, DatasetOwner.user_id==user_id)).filter(
+    ).outerjoin(DatasetOwner, and_(DatasetOwner.dataset_id==Dataset.id, DatasetOwner.user_id==user_id)).filter(
                 or_(Dataset.hidden=='N', DatasetOwner.user_id != None),
                 ResourceAttr.resource_attr_id == ResourceScenario.resource_attr_id,
                 Scenario.id==ResourceScenario.scenario_id,
                 Scenario.network_id==network_id,
-                Dataset.dataset_id==ResourceScenario.dataset_id)
+                Dataset.id==ResourceScenario.dataset_id)
 
     x = time.time()
     logging.info("Getting all resource scenarios")
@@ -816,12 +813,11 @@ def _get_all_resourcescenarios(network_id, user_id):
             pass
 
         rs_dataset = JSONDataset({
-            'dataset_id':rs.dataset_id,
-            'data_type' : rs.data_type,
-            'data_units':rs.data_units,
-            'data_dimen': rs.data_dimen,
-            'data_name':rs.data_name,
-            'data_hash':rs.data_hash,
+            'id':rs.dataset_id,
+            'type' : rs.type,
+            'unit' : rs.unit,
+            'name' : rs.name,
+            'hash' : rs.hash,
             'cr_date':rs.cr_date,
             'created_by':rs.created_by,
             'hidden':rs.hidden,
@@ -849,15 +845,15 @@ def _get_metadata(network_id, user_id):
     log.info("Getting Metadata")
     dataset_qry = db.DBSession.query(
                 Dataset
-    ).outerjoin(DatasetOwner, and_(DatasetOwner.dataset_id==Dataset.dataset_id, DatasetOwner.user_id==user_id)).filter(
+    ).outerjoin(DatasetOwner, and_(DatasetOwner.dataset_id==Dataset.id, DatasetOwner.user_id==user_id)).filter(
                 or_(Dataset.hidden=='N', DatasetOwner.user_id != None),
                 Scenario.id==ResourceScenario.scenario_id,
                 Scenario.network_id==network_id,
-                Dataset.dataset_id==ResourceScenario.dataset_id).distinct().subquery()
+                Dataset.id==ResourceScenario.dataset_id).distinct().subquery()
 
     rs_qry = db.DBSession.query(
                 Metadata
-    ).join(dataset_qry, Metadata.dataset_id==dataset_qry.c.dataset_id)
+    ).join(dataset_qry, Metadata.dataset_id==dataset_qry.c.id)
 
     x = time.time()
     logging.info("Getting all matadata")
@@ -869,9 +865,9 @@ def _get_metadata(network_id, user_id):
     metadata_dict = dict()
     for m in all_metadata:
         if metadata_dict.get(m.dataset_id):
-            metadata_dict[m.dataset_id][m.metadata_name] = unicode(m.metadata_val)
+            metadata_dict[m.dataset_id][m.key] = unicode(m.value)
         else:
-            metadata_dict[m.dataset_id] = {m.metadata_name : unicode(m.metadata_val)}
+            metadata_dict[m.dataset_id] = {m.key : unicode(m.value)}
 
     logging.info("metadata processed in %s", time.time()-x)
 
@@ -1955,9 +1951,9 @@ def add_group(network_id, group,**kwargs):
 
 def update_group(group,**kwargs):
     """
-    Update a group.
-    If new attributes are present, they will be added to the group.
-    The non-presence of attributes does not remove them.
+        Update a group.
+        If new attributes are present, they will be added to the group.
+        The non-presence of attributes does not remove them.
     """
     user_id = kwargs.get('user_id')
     try:
@@ -1975,6 +1971,7 @@ def update_group(group,**kwargs):
 
     if group.types is not None:
         hdb.add_resource_types(group_i, group.types)
+
     db.DBSession.flush()
 
     return group_i
@@ -2185,23 +2182,23 @@ def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, 
     dataset_ids      = []
     if ref_ids is not None:
         log.info("Pulling out requested info")
-        for r in all_resource_scenarios:
-            ra = r.resourceattr
+        for rs in all_resource_scenarios:
+            ra = rs.resourceattr
             if ref_key == 'NODE':
                 if ra.node_id in ref_ids:
-                    resource_scenarios.append(r)
-                    if r.dataset_id not in dataset_ids:
-                        dataset_ids.append(r.dataset_id)
+                    resource_scenarios.append(rs)
+                    if rs.dataset_id not in dataset_ids:
+                        dataset_ids.append(rs.dataset_id)
             elif ref_key == 'LINK':
                 if ra.link_id in ref_ids:
-                    resource_scenarios.append(r)
-                    if r.dataset_id not in dataset_ids:
-                        dataset_ids.append(r.dataset_id)
+                    resource_scenarios.append(rs)
+                    if rs.dataset_id not in dataset_ids:
+                        dataset_ids.append(rs.dataset_id)
             elif ref_key == 'GROUP':
                 if ra.group_id in ref_ids:
-                    resource_scenarios.append(r)
-                    if r.dataset_id not in dataset_ids:
-                        dataset_ids.append(r.dataset_id)
+                    resource_scenarios.append(rs)
+                    if rs.dataset_id not in dataset_ids:
+                        dataset_ids.append(rs.dataset_id)
             else:
                 resource_scenarios.append(ra)
         log.info("Requested info pulled out.")
@@ -2215,8 +2212,8 @@ def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, 
                             ResourceAttr.ref_key==ref_key,
                             ResourceScenario.resource_attr_id==ResourceAttr.resource_attr_id,
                             ResourceScenario.scenario_id==scenario_id,
-                            Dataset.dataset_id==ResourceScenario.dataset_id,
-                            Metadata.dataset_id==Dataset.dataset_id)
+                            Dataset.id==ResourceScenario.dataset_id,
+                            Metadata.dataset_id==Dataset.id)
 
         log.info("Querying node metadata")
         all_metadata = metadata_qry.all()
@@ -2245,11 +2242,10 @@ def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, 
                 d.check_read_permission(kwargs.get('user_id'))
            except:
                d.value      = None
-               d.frequency  = None
                d.metadata = []
         else:
             if include_metadata == 'Y':
-                rs.dataset.metadata = metadata_dict.get(d.dataset_id, [])
+                rs.dataset.metadata = metadata_dict.get(d.id, [])
 
     return resource_scenarios
 
@@ -2271,14 +2267,12 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
                ResourceAttr.attr_is_var,
                ResourceScenario.scenario_id,
                ResourceScenario.source,
-               Dataset.dataset_id,
-               Dataset.data_name,
+               Dataset.id,
+               Dataset.name,
                Dataset.value,
-               Dataset.data_dimen,
-               Dataset.data_units,
-               Dataset.frequency,
+               Dataset.unit,
                Dataset.hidden,
-               Dataset.data_type,
+               Dataset.type,
                null().label('metadata'),
                case([
                     (ResourceAttr.node_id != None, Node.name),
@@ -2306,12 +2300,12 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
 
     if include_metadata == 'Y':
         metadata_qry = db.DBSession.query(distinct(Metadata.dataset_id).label('dataset_id'),
-                                      Metadata.metadata_name,
-                                      Metadata.metadata_val).filter(
+                                      Metadata.key,
+                                      Metadata.value).filter(
                             ResourceScenario.resource_attr_id==ResourceAttr.resource_attr_id,
                             ResourceScenario.scenario_id==scenario_id,
-                            Dataset.dataset_id==ResourceScenario.dataset_id,
-                            Metadata.dataset_id==Dataset.dataset_id)
+                            Dataset.id==ResourceScenario.dataset_id,
+                            Metadata.dataset_id==Dataset.id)
 
         log.info("Querying node metadata")
         metadata = metadata_qry.all()
@@ -2330,12 +2324,11 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
         if ra.hidden == 'Y':
            try:
                 d = db.DBSession.query(Dataset).filter(
-                        Dataset.dataset_id==ra.dataset_id
+                        Dataset.id==ra.dataset_id
                     ).options(noload('metadata')).one()
                 d.check_read_permission(kwargs.get('user_id'))
            except:
                ra_dict['value']     = None
-               ra_dict['frequency'] = None
                ra_dict['metadata']  = []
         else:
             if include_metadata == 'Y':

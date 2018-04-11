@@ -664,8 +664,8 @@ def check_network(request_net, response_net):
 
     s = request_net['scenarios'][0]
     for rs0 in s['resourcescenarios']:
-        if rs0.value.type == 'timeseries':
-            val = json.loads(rs0['value']['value'])
+        if rs0.dataset.type == 'timeseries':
+            val = json.loads(rs0.dataset.value)
             before_ts_times = val.values()[0].keys()
             before_times = []
             for t in before_ts_times:
@@ -677,7 +677,7 @@ def check_network(request_net, response_net):
     after_times = []
     s = response_net.scenarios[0]
     for rs0 in s.resourcescenarios:
-        if rs0.value.data_type == 'timeseries':
+        if rs0.dataset.type == 'timeseries':
             val = json.loads(rs0.dataset.value)
             after_ts_times = val.values()[0].keys()
             after_times = []
@@ -707,7 +707,7 @@ def create_scalar(resource_attr, val=1.234):
     scenario_attr = JSONObject(dict(
         attr_id = resource_attr.attr_id,
         resource_attr_id = resource_attr.id,
-        value = dataset,
+        dataset = dataset,
     ))
 
     return scenario_attr
@@ -729,7 +729,7 @@ def create_descriptor(resource_attr, val="test"):
     scenario_attr = JSONObject(dict(
         attr_id = resource_attr.attr_id,
         resource_attr_id = resource_attr.id,
-        value = dataset,
+        dataset = dataset,
     ))
 
     return scenario_attr
@@ -771,7 +771,7 @@ def create_timeseries(resource_attr):
     scenario_attr = JSONObject(dict(
         attr_id = resource_attr.attr_id,
         resource_attr_id = resource_attr.id,
-        value = dataset,
+        dataset = dataset,
     ))
 
     return scenario_attr
@@ -799,7 +799,7 @@ def create_array(resource_attr):
     scenario_attr = JSONObject(dict(
         attr_id = resource_attr.attr_id,
         resource_attr_id = resource_attr.id,
-        value = dataset,
+        dataset = dataset,
     ))
 
     return scenario_attr

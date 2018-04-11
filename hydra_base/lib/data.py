@@ -71,24 +71,19 @@ def get_dataset(dataset_id,**kwargs):
     if dataset_id is None:
         return None
     try:
-        dataset_rs = db.DBSession.query(Dataset.dataset_id,
-                Dataset.data_type,
-                Dataset.data_units,
-                Dataset.data_dimen,
-                Dataset.data_name,
+        dataset_rs = db.DBSession.query(Dataset.id,
+                Dataset.type,
+                Dataset.unit,
+                Dataset.name,
                 Dataset.hidden,
                 Dataset.cr_date,
                 Dataset.created_by,
                 DatasetOwner.user_id,
                 null().label('metadata'),
                 case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
-                        else_=Dataset.start_time).label('start_time'),
-                case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
-                        else_=Dataset.frequency).label('frequency'),
-                case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
                         else_=Dataset.value).label('value')).filter(
-                Dataset.dataset_id==dataset_id).outerjoin(DatasetOwner,
-                                    and_(DatasetOwner.dataset_id==Dataset.dataset_id,
+                Dataset.id==dataset_id).outerjoin(DatasetOwner,
+                                    and_(DatasetOwner.dataset_id==Dataset.id,
                                     DatasetOwner.user_id==user_id)).one()
 
         rs_dict = dataset_rs._asdict()
@@ -122,14 +117,14 @@ def clone_dataset(dataset_id,**kwargs):
         return None
 
     dataset = db.DBSession.query(Dataset).filter(
-            Dataset.dataset_id==dataset_id).options(joinedload_all('metadata')).first()
+            Dataset.id==dataset_id).options(joinedload_all('metadata')).first()
 
     if dataset is None:
         raise HydraError("Dataset %s does not exist."%(dataset_id))
 
     if dataset is not None and dataset.created_by != user_id:
         owner = db.DBSession.query(DatasetOwner).filter(
-                                DatasetOwner.dataset_id==Dataset.dataset_id,
+                                DatasetOwner.dataset_id==Dataset.id,
                                 DatasetOwner.user_id==user_id).first()
         if owner is None:
             raise PermissionError("User %s is not an owner of dataset %s and therefore cannot clone it."%(user_id, dataset_id))
@@ -138,22 +133,22 @@ def clone_dataset(dataset_id,**kwargs):
 
     make_transient(dataset)
 
-    dataset.data_name = dataset.data_name + "(Clone)"
-    dataset.dataset_id = None
+    dataset.name = dataset.name + "(Clone)"
+    dataset.id = None
     dataset.cr_date = None
 
     #Try to avoid duplicate metadata entries if the entry has been cloned previously
     for m in dataset.metadata:
-        if m.metadata_name in ("clone_of", "cloned_by"):
+        if m.key in ("clone_of", "cloned_by"):
             del(m)
 
     cloned_meta = Metadata()
-    cloned_meta.metadata_name = "clone_of"
-    cloned_meta.metadata_val  = str(dataset_id)
+    cloned_meta.key = "clone_of"
+    cloned_meta.value  = str(dataset_id)
     dataset.metadata.append(cloned_meta)
     cloned_meta = Metadata()
-    cloned_meta.metadata_name = "cloned_by"
-    cloned_meta.metadata_val  = str(user_id)
+    cloned_meta.key = "cloned_by"
+    cloned_meta.value  = str(user_id)
     dataset.metadata.append(cloned_meta)
 
     dataset.set_hash()
@@ -161,7 +156,7 @@ def clone_dataset(dataset_id,**kwargs):
     db.DBSession.flush()
 
     cloned_dataset = db.DBSession.query(Dataset).filter(
-            Dataset.dataset_id==dataset.dataset_id).first()
+            Dataset.id==dataset.id).first()
 
     return cloned_dataset
 
@@ -175,24 +170,19 @@ def get_datasets(dataset_ids,**kwargs):
     if len(dataset_ids) == 0:
         return []
     try:
-        dataset_rs = db.DBSession.query(Dataset.dataset_id,
-                Dataset.data_type,
-                Dataset.data_units,
-                Dataset.data_dimen,
-                Dataset.data_name,
+        dataset_rs = db.DBSession.query(Dataset.id,
+                Dataset.type,
+                Dataset.unit,
+                Dataset.name,
                 Dataset.hidden,
                 Dataset.cr_date,
                 Dataset.created_by,
                 DatasetOwner.user_id,
                 null().label('metadata'),
                 case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
-                        else_=Dataset.start_time).label('start_time'),
-                case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
-                        else_=Dataset.frequency).label('frequency'),
-                case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
                         else_=Dataset.value).label('value')).filter(
-                Dataset.dataset_id.in_(dataset_ids)).outerjoin(DatasetOwner,
-                                    and_(DatasetOwner.dataset_id==Dataset.dataset_id,
+                Dataset.id.in_(dataset_ids)).outerjoin(DatasetOwner,
+                                    and_(DatasetOwner.dataset_id==Dataset.id,
                                     DatasetOwner.user_id==user_id)).all()
 
         #convert the value row into a string as it is returned as a binary
@@ -203,7 +193,7 @@ def get_datasets(dataset_ids,**kwargs):
                 dataset_dict['value'] = str(dataset_row.value)
 
             if dataset_row.hidden == 'N' or (dataset_row.hidden == 'Y' and dataset_row.user_id is not None):
-                metadata = db.DBSession.query(Metadata).filter(Metadata.dataset_id == dataset_row.dataset_id).all()
+                metadata = db.DBSession.query(Metadata).filter(Metadata.dataset_id == dataset_row.id).all()
                 dataset_dict['metadata'] = metadata
             else:
                 dataset_dict['metadata'] = []
@@ -222,10 +212,9 @@ def search_datasets(dataset_id=None,
                 dataset_name=None,
                 collection_name=None,
                 data_type=None,
-                dimension=None,
                 unit=None,
                 scenario_id=None,
-                metadata_name=None,
+                metadata_key=None,
                 metadata_val=None,
                 attr_id = None,
                 type_id = None,
@@ -247,10 +236,9 @@ def search_datasets(dataset_id=None,
                                   "datset_name: %s,\n"
                                   "collection_name: %s,\n"
                                   "data_type: %s,\n"
-                                  "dimension: %s,\n"
                                   "unit: %s,\n"
                                   "scenario_id: %s,\n"
-                                  "metadata_name: %s,\n"
+                                  "metadata_key: %s,\n"
                                   "metadata_val: %s,\n"
                                   "attr_id: %s,\n"
                                   "type_id: %s,\n"
@@ -262,10 +250,9 @@ def search_datasets(dataset_id=None,
                 dataset_name,
                 collection_name,
                 data_type,
-                dimension,
                 unit,
                 scenario_id,
-                metadata_name,
+                metadata_key,
                 metadata_val,
                 attr_id,
                 type_id,
@@ -280,18 +267,15 @@ def search_datasets(dataset_id=None,
 
     user_id = int(kwargs.get('user_id'))
 
-    dataset_qry = db.DBSession.query(Dataset.dataset_id,
-            Dataset.data_type,
-            Dataset.data_units,
-            Dataset.data_dimen,
-            Dataset.data_name,
+    dataset_qry = db.DBSession.query(Dataset.id,
+            Dataset.type,
+            Dataset.unit,
+            Dataset.name,
             Dataset.hidden,
             Dataset.cr_date,
             Dataset.created_by,
             DatasetOwner.user_id,
             null().label('metadata'),
-            Dataset.start_time,
-            Dataset.frequency,
             Dataset.value
     )
 
@@ -299,12 +283,12 @@ def search_datasets(dataset_id=None,
     #Only use other filters if the datset ID is not specified.
     if dataset_id is not None:
         dataset_qry = dataset_qry.filter(
-            Dataset.dataset_id==dataset_id)
+            Dataset.id==dataset_id)
 
     else:
         if dataset_name is not None:
             dataset_qry = dataset_qry.filter(
-                func.lower(Dataset.data_name).like("%%%s%%"%dataset_name.lower())
+                func.lower(Dataset.name).like("%%%s%%"%dataset_name.lower())
             )
         if collection_name is not None:
             dc = aliased(DatasetCollection)
@@ -313,25 +297,11 @@ def search_datasets(dataset_id=None,
                         func.lower(dc.collection_name).like("%%%s%%"%collection_name.lower())
                         ).join(dci,and_(
                             dci.collection_id == dc.collection_id,
-                            dci.dataset_id == Dataset.dataset_id))
+                            dci.dataset_id == Dataset.id))
 
         if data_type is not None:
             dataset_qry = dataset_qry.filter(
-                func.lower(Dataset.data_type) == data_type.lower())
-
-        #null is a valid dimension, so we need a way for the searcher
-        #to specify that they want to search for datasets with a null dimension
-        #rather than ignoring the dimension in the filter. We use 'null' to do this.
-        if dimension is not None:
-            dimension = dimension.lower()
-            if dimension == 'null':
-                dimension = None
-            if dimension is not None:
-                dataset_qry = dataset_qry.filter(
-                    func.lower(Dataset.data_dimen) == dimension)
-            else:
-                dataset_qry = dataset_qry.filter(
-                    Dataset.data_dimen == dimension)
+                func.lower(Dataset.type) == data_type.lower())
 
         #null is a valid unit, so we need a way for the searcher
         #to specify that they want to search for datasets with a null unit
@@ -342,25 +312,25 @@ def search_datasets(dataset_id=None,
                 unit = None
             if unit is not None:
                 dataset_qry = dataset_qry.filter(
-                    func.lower(Dataset.data_units) == unit)
+                    func.lower(Dataset.unit) == unit)
             else:
                 dataset_qry = dataset_qry.filter(
-                    Dataset.data_units == unit)
+                    Dataset.unit == unit)
 
         if scenario_id is not None:
             dataset_qry = dataset_qry.join(ResourceScenario,
-                                and_(ResourceScenario.dataset_id == Dataset.dataset_id,
+                                and_(ResourceScenario.dataset_id == Dataset.id,
                                 ResourceScenario.scenario_id == scenario_id))
 
         if attr_id is not None:
             dataset_qry = dataset_qry.join(
-                ResourceScenario, ResourceScenario.dataset_id == Dataset.dataset_id).join(
+                ResourceScenario, ResourceScenario.dataset_id == Dataset.id).join(
                 ResourceAttr, and_(ResourceAttr.resource_attr_id==ResourceScenario.resource_attr_id,
                                   ResourceAttr.attr_id==attr_id))
 
         if type_id is not None:
             dataset_qry = dataset_qry.join(
-                ResourceScenario, ResourceScenario.dataset_id == Dataset.dataset_id).join(
+                ResourceScenario, ResourceScenario.dataset_id == Dataset.id).join(
                 ResourceAttr, ResourceAttr.resource_attr_id==ResourceScenario.resource_attr_id).join(
                 TypeAttr, and_(TypeAttr.attr_id==ResourceAttr.attr_id, TypeAttr.type_id==type_id))
 
@@ -368,32 +338,32 @@ def search_datasets(dataset_id=None,
             stmt = db.DBSession.query(distinct(ResourceScenario.dataset_id).label('dataset_id'),
                                 literal_column("0").label('col')).subquery()
             dataset_qry = dataset_qry.outerjoin(
-                stmt, stmt.c.dataset_id == Dataset.dataset_id)
+                stmt, stmt.c.dataset_id == Dataset.id)
             dataset_qry = dataset_qry.filter(stmt.c.col == None)
         elif unconnected == 'N':
             #The dataset has to be connected to something
             stmt = db.DBSession.query(distinct(ResourceScenario.dataset_id).label('dataset_id'),
                                 literal_column("0").label('col')).subquery()
             dataset_qry = dataset_qry.join(
-                stmt, stmt.c.dataset_id == Dataset.dataset_id)
-        if metadata_name is not None and metadata_val is not None:
+                stmt, stmt.c.dataset_id == Dataset.id)
+        if metadata_key is not None and metadata_val is not None:
             dataset_qry = dataset_qry.join(Metadata,
-                                and_(Metadata.dataset_id == Dataset.dataset_id,
-                                func.lower(Metadata.metadata_name).like("%%%s%%"%metadata_name.lower()),
-                                func.lower(Metadata.metadata_val).like("%%%s%%"%metadata_val.lower())))
-        elif metadata_name is not None and metadata_val is None:
+                                and_(Metadata.dataset_id == Dataset.id,
+                                func.lower(Metadata.key).like("%%%s%%"%metadata_key.lower()),
+                                func.lower(Metadata.value).like("%%%s%%"%metadata_val.lower())))
+        elif metadata_key is not None and metadata_val is None:
             dataset_qry = dataset_qry.join(Metadata,
-                                and_(Metadata.dataset_id == Dataset.dataset_id,
-                                func.lower(Metadata.metadata_name).like("%%%s%%"%metadata_name.lower())))
-        elif metadata_name is None and metadata_val is not None:
+                                and_(Metadata.dataset_id == Dataset.id,
+                                func.lower(Metadata.key).like("%%%s%%"%metadata_key.lower())))
+        elif metadata_key is None and metadata_val is not None:
             dataset_qry = dataset_qry.join(Metadata,
-                                and_(Metadata.dataset_id == Dataset.dataset_id,
-                                func.lower(Metadata.metadata_val).like("%%%s%%"%metadata_val.lower())))
+                                and_(Metadata.dataset_id == Dataset.id,
+                                func.lower(Metadata.value).like("%%%s%%"%metadata_val.lower())))
 
     #All datasets must be joined on dataset owner so only datasets that the
     #user can see are retrieved.
     dataset_qry = dataset_qry.outerjoin(DatasetOwner,
-                                and_(DatasetOwner.dataset_id==Dataset.dataset_id,
+                                and_(DatasetOwner.dataset_id==Dataset.id,
                                 DatasetOwner.user_id==user_id))
 
     dataset_qry = dataset_qry.filter(or_(Dataset.hidden=='N', and_(DatasetOwner.user_id is not None, Dataset.hidden=='Y')))
@@ -440,7 +410,7 @@ def search_datasets(dataset_id=None,
 
     return datasets_to_return
 
-def update_dataset(dataset_id, name, data_type, val, units, dimension, metadata={}, **kwargs):
+def update_dataset(dataset_id, name, data_type, val, units, metadata={}, **kwargs):
     """
         Update an existing dataset
     """
@@ -450,7 +420,7 @@ def update_dataset(dataset_id, name, data_type, val, units, dimension, metadata=
 
     user_id = kwargs.get('user_id')
 
-    dataset = db.DBSession.query(Dataset).filter(Dataset.dataset_id==dataset_id).one()
+    dataset = db.DBSession.query(Dataset).filter(Dataset.id==dataset_id).one()
     #This dataset been seen before, so it may be attached
     #to other scenarios, which may be locked. If they are locked, we must
     #not change their data, so new data must be created for the unlocked scenarios
@@ -468,7 +438,6 @@ def update_dataset(dataset_id, name, data_type, val, units, dimension, metadata=
         dataset = add_dataset(data_type,
                                 val,
                                 units,
-                                dimension,
                                 metadata=metadata,
                                 name=name,
                                 user_id=kwargs['user_id'])
@@ -481,19 +450,18 @@ def update_dataset(dataset_id, name, data_type, val, units, dimension, metadata=
 
         dataset.set_metadata(metadata)
 
-        dataset.data_type  = data_type
-        dataset.data_units = units
-        dataset.data_name  = name
-        dataset.data_dimen = dimension
+        dataset.type  = data_type
+        dataset.unit = units
+        dataset.name  = name
         dataset.created_by = kwargs['user_id']
-        dataset.data_hash  = dataset.set_hash()
+        dataset.hash  = dataset.set_hash()
 
         #Is there a dataset in the DB already which is identical to the updated dataset?
-        existing_dataset = db.DBSession.query(Dataset).filter(Dataset.data_hash==dataset.data_hash, Dataset.dataset_id != dataset.dataset_id).first()
+        existing_dataset = db.DBSession.query(Dataset).filter(Dataset.hash==dataset.hash, Dataset.id != dataset.id).first()
         if existing_dataset is not None and existing_dataset.check_user(user_id):
             log.warn("An identical dataset %s has been found to dataset %s."
                      " Deleting dataset and returning dataset %s",
-                     existing_dataset.dataset_id, dataset.dataset_id, existing_dataset.dataset_id)
+                     existing_dataset.id, dataset.id, existing_dataset.id)
             db.DBSession.delete(dataset)
             dataset = existing_dataset
 
@@ -502,7 +470,7 @@ def update_dataset(dataset_id, name, data_type, val, units, dimension, metadata=
     return dataset
 
 
-def add_dataset(data_type, val, units, dimension, metadata={}, name="", user_id=None, flush=False):
+def add_dataset(data_type, val, units, metadata={}, name="", user_id=None, flush=False):
     """
         Data can exist without scenarios. This is the mechanism whereby
         single pieces of data can be added without doing it through a scenario.
@@ -516,19 +484,14 @@ def add_dataset(data_type, val, units, dimension, metadata={}, name="", user_id=
 
     d.set_metadata(metadata)
 
-    # Assign dimension if necessary
-    if units is not None and dimension is None:
-        dimension = hydra_units.get_unit_dimension(units)
-
-    d.data_type  = data_type
-    d.data_units = units
-    d.data_name  = name
-    d.data_dimen = dimension
+    d.type  = data_type
+    d.unit  = units
+    d.name  = name
     d.created_by = user_id
-    d.data_hash  = d.set_hash()
+    d.hash  = d.set_hash()
 
     try:
-        existing_dataset = db.DBSession.query(Dataset).filter(Dataset.data_hash==d.data_hash).one()
+        existing_dataset = db.DBSession.query(Dataset).filter(Dataset.hash==d.hash).one()
         if existing_dataset.check_user(user_id):
             d = existing_dataset
         else:
@@ -546,7 +509,7 @@ def bulk_insert_data(data, **kwargs):
     datasets = _bulk_insert_data(data, user_id=kwargs.get('user_id'), source=kwargs.get('app_name'))
     #This line exists to make the db.DBSession 'dirty',
     #thereby telling it to flush the bulk insert.
-    datasets[0].data_name = datasets[0].data_name
+    datasets[0].name = datasets[0].name
 
     db.DBSession.flush()
 
@@ -559,7 +522,7 @@ def _make_new_dataset(dataset_dict):
     new_dataset = copy.deepcopy(dataset_dict)
     new_dataset['metadata']['created_at'] = datetime.datetime.now()
     new_hash = generate_data_hash(new_dataset)
-    new_dataset['data_hash'] = new_hash
+    new_dataset['hash'] = new_hash
 
     return new_dataset
 
@@ -586,8 +549,8 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
     metadata         = {}
     #This is what gets returned.
     for d in bulk_data:
-        dataset_dict = new_data[d.data_hash]
-        current_hash = d.data_hash
+        dataset_dict = new_data[d.hash]
+        current_hash = d.hash
 
         #if this piece of data is already in the DB, then
         #there is no need to insert it!
@@ -598,7 +561,7 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
             if dataset.check_user(user_id) == False:
                 new_dataset = _make_new_dataset(dataset_dict)
                 new_datasets.append(new_dataset)
-                metadata[new_dataset['data_hash']] = dataset_dict['metadata']
+                metadata[new_dataset['hash']] = dataset_dict['metadata']
             else:
                 hash_id_map[current_hash] = dataset#existing_data[current_hash]
         elif current_hash in hash_id_map:
@@ -618,9 +581,9 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
     #inserts
     new_data_hashes = []
     for d in new_datasets:
-        if d['data_hash'] not in new_data_hashes:
+        if d['hash'] not in new_data_hashes:
             new_data_for_insert.append(d)
-            new_data_hashes.append(d['data_hash'])
+            new_data_hashes.append(d['hash'])
 
     if len(new_data_for_insert) > 0:
     	#If we're working with mysql, we have to lock the table..
@@ -651,7 +614,7 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
 
     returned_ids = []
     for d in bulk_data:
-        returned_ids.append(hash_id_map[d.data_hash])
+        returned_ids.append(hash_id_map[d.hash])
 
     log.info("Done bulk inserting data. %s datasets", len(returned_ids))
 
@@ -665,9 +628,9 @@ def _insert_metadata(metadata_hash_dict, dataset_id_hash_dict):
     for _hash, _metadata_dict in metadata_hash_dict.items():
         for k, v in _metadata_dict.items():
             metadata = {}
-            metadata['metadata_name']  = str(k)
-            metadata['metadata_val']  = str(v)
-            metadata['dataset_id']      = dataset_id_hash_dict[_hash].dataset_id
+            metadata['key']  = str(k)
+            metadata['value']  = str(v)
+            metadata['dataset_id']      = dataset_id_hash_dict[_hash].id
             metadata_list.append(metadata)
 
     db.DBSession.execute(Metadata.__table__.insert(), metadata_list)
@@ -684,19 +647,11 @@ def _process_incoming_data(data, user_id=None, source=None):
             continue
 
         data_dict = {
-            'data_type': d.type,
-            'data_name': d.name,
-            'data_units': d.unit,
+            'type': d.type,
+            'name': d.name,
+            'unit': d.unit,
             'created_by': user_id,
-            'frequency': None,
-            'start_time': None,
         }
-
-        # Assign dimension if necessary
-        if d.unit is not None and d.dimension in (None, 'dimensionless'):
-            data_dict['data_dimen'] = hydra_units.get_unit_dimension(d.unit)
-        else:
-            data_dict['data_dimen'] = d.dimension
 
         db_val = _get_db_val(d.type, val)
         data_dict['value'] = db_val
@@ -717,10 +672,10 @@ def _process_incoming_data(data, user_id=None, source=None):
 
         data_dict['metadata'] = metadata_dict
 
-        d.data_hash = generate_data_hash(data_dict)
+        d.hash = generate_data_hash(data_dict)
 
-        data_dict['data_hash'] = d.data_hash
-        datasets[d.data_hash] = data_dict
+        data_dict['hash'] = d.hash
+        datasets[d.hash] = data_dict
 
     return datasets
 
@@ -774,7 +729,7 @@ def _get_existing_data(hashes):
         extent =qry_in_threshold
         while idx < len(str_hashes):
             log.info("Querying %s datasets", len(str_hashes[idx:extent]))
-            rs = db.DBSession.query(Dataset).filter(Dataset.data_hash.in_(str_hashes[idx:extent])).all()
+            rs = db.DBSession.query(Dataset).filter(Dataset.hash.in_(str_hashes[idx:extent])).all()
             datasets.extend(rs)
             idx = idx + qry_in_threshold
 
@@ -783,11 +738,11 @@ def _get_existing_data(hashes):
             else:
                 extent = extent + qry_in_threshold
     else:
-        datasets = db.DBSession.query(Dataset).filter(Dataset.data_hash.in_(str_hashes))
+        datasets = db.DBSession.query(Dataset).filter(Dataset.hash.in_(str_hashes))
 
 
     for r in datasets:
-        hash_dict[r.data_hash] = r
+        hash_dict[r.hash] = r
 
     log.info("Retrieved %s datasets", len(hash_dict))
 
@@ -807,7 +762,7 @@ def _get_datasets(dataset_ids):
         extent =qry_in_threshold
         while idx < len(dataset_ids):
             log.info("Querying %s datasets", len(dataset_ids[idx:extent]))
-            rs = db.DBSession.query(Dataset).filter(Dataset.dataset_id.in_(dataset_ids[idx:extent])).all()
+            rs = db.DBSession.query(Dataset).filter(Dataset.id.in_(dataset_ids[idx:extent])).all()
             datasets.extend(rs)
             idx = idx + qry_in_threshold
 
@@ -816,11 +771,11 @@ def _get_datasets(dataset_ids):
             else:
                 extent = extent + qry_in_threshold
     else:
-        datasets = db.DBSession.query(Dataset).filter(Dataset.dataset_id.in_(dataset_ids))
+        datasets = db.DBSession.query(Dataset).filter(Dataset.id.in_(dataset_ids))
 
 
     for r in datasets:
-        dataset_dict[r.dataset_id] = r
+        dataset_dict[r.id] = r
 
     log.info("Retrieved %s datasets", len(dataset_dict))
 
@@ -980,7 +935,7 @@ def get_collection_datasets(collection_id,**kwargs):
     """
         Get all the datasets from the collection with the specified name
     """
-    collection_datasets = db.DBSession.query(Dataset).filter(Dataset.dataset_id==DatasetCollectionItem.dataset_id,
+    collection_datasets = db.DBSession.query(Dataset).filter(Dataset.id==DatasetCollectionItem.dataset_id,
                                         DatasetCollectionItem.collection_id==DatasetCollection.collection_id,
                                         DatasetCollection.collection_id==collection_id).all()
     return collection_datasets
@@ -996,7 +951,7 @@ def get_val_at_time(dataset_id, timestamps,**kwargs):
     t = []
     for time in timestamps:
         t.append(get_datetime(time))
-    dataset_i = db.DBSession.query(Dataset).filter(Dataset.dataset_id==dataset_id).one()
+    dataset_i = db.DBSession.query(Dataset).filter(Dataset.id==dataset_id).one()
     #for time in t:
     #    data.append(td.get_val(timestamp=time))
 
@@ -1028,7 +983,7 @@ def get_multiple_vals_at_time(dataset_ids, timestamps,**kwargs):
         if type(data) is list:
             for i, t in enumerate(timestamps):
                 ret_data[t] = data[i]
-        return_vals['dataset_%s'%dataset_i.dataset_id] = ret_data
+        return_vals['dataset_%s'%dataset_i.id] = ret_data
 
     return return_vals
 
@@ -1073,7 +1028,7 @@ def get_vals_between_times(dataset_id, start_time, end_time, timestep,increment,
         except:
             raise HydraError("Unable to get times. Please check to and from times.")
 
-    td = db.DBSession.query(Dataset).filter(Dataset.dataset_id==dataset_id).one()
+    td = db.DBSession.query(Dataset).filter(Dataset.id==dataset_id).one()
     log.debug("Number of times to fetch: %s", len(times))
 
     data = td.get_val(timestamp=times)
@@ -1098,7 +1053,7 @@ def delete_dataset(dataset_id,**kwargs):
         CAUTION! Use with care, as this cannot be undone easily.
     """
     try:
-        d = db.DBSession.query(Dataset).filter(Dataset.dataset_id==dataset_id).one()
+        d = db.DBSession.query(Dataset).filter(Dataset.id==dataset_id).one()
     except NoResultFound:
         raise HydraError("Dataset %s does not exist."%dataset_id)
 

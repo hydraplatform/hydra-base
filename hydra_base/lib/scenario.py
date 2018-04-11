@@ -70,7 +70,7 @@ def set_rs_dataset(resource_attr_id, scenario_id, dataset_id, **kwargs):
     if rs is None:
         raise ResourceNotFoundError("Resource scenario for resource attr %s not found in scenario %s"%(resource_attr_id, scenario_id))
 
-    dataset = db.DBSession.query(Dataset).filter(Dataset.dataset_id==dataset_id).first()
+    dataset = db.DBSession.query(Dataset).filter(Dataset.id==dataset_id).first()
 
     if dataset is None:
         raise ResourceNotFoundError("Dataset %s not found"%(dataset_id,))
@@ -183,7 +183,7 @@ def add_scenario(network_id, scenario,**kwargs):
         for i, ra_id in enumerate(resource_attr_ids):
             rs_i = ResourceScenario()
             rs_i.resource_attr_id = ra_id
-            rs_i.dataset_id       = datasets[i].dataset_id
+            rs_i.dataset_id       = datasets[i].id
             rs_i.scenario_id      = scen.id
             rs_i.dataset = datasets[i]
             scen.resourcescenarios.append(rs_i)
@@ -404,12 +404,10 @@ def _get_dataset_as_dict(rs, user_id):
         rs.dataset.check_read_permission(user_id)
     except PermissionError:
            dataset['value']      = None
-           dataset['frequency']  = None
-           dataset['start_time'] = None
            dataset['metadata'] = {}
 
     for m in rs.dataset.metadata:
-        dataset['metadata'][m.metadata_name] = m.metadata_val
+        dataset['metadata'][m.key] = m.value
 
     return dataset
 
@@ -588,7 +586,7 @@ def unlock_scenario(scenario_id, **kwargs):
 def get_dataset_scenarios(dataset_id, **kwargs):
 
     try:
-        db.DBSession.query(Dataset).filter(Dataset.dataset_id==dataset_id).one()
+        db.DBSession.query(Dataset).filter(Dataset.id==dataset_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Dataset %s not found"%dataset_id)
 
@@ -622,6 +620,7 @@ def bulk_update_resourcedata(scenario_ids, resource_scenarios,**kwargs):
 
         scen_i = _get_scenario(scenario_id, user_id)
         res[scenario_id] = []
+
         for rs in resource_scenarios:
             if rs.dataset is not None:
                 updated_rs = _update_resourcescenario(scen_i, rs, user_id=user_id, source=kwargs.get('app_name'))
@@ -737,18 +736,7 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
         return None
 
     metadata = dataset.get_metadata_as_dict(source=source, user_id=user_id)
-    dimension = dataset.dimension
     data_unit = dataset.unit
-
-    # Assign dimension if necessary
-    # It happens that dimension is and empty string. We set it to
-    # None to achieve consistency in the DB.
-    if data_unit is not None and dimension is None or \
-            data_unit is not None and len(dimension) == 0:
-        dimension = hydra_units.get_unit_dimension(data_unit)
-    else:
-        if dimension is None or len(dimension) == 0:
-            dimension = None
 
     data_hash = dataset.get_hash(value, metadata)
 
@@ -757,7 +745,6 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
                  value,
                  data_unit,
                  dataset.name,
-                 dataset.dimension,
                  metadata=metadata,
                  data_hash=data_hash,
                  user_id=user_id,
@@ -765,7 +752,7 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
     return r_scen_i
 
 def assign_value(rs, data_type, val,
-                 units, name, dimension, metadata={}, data_hash=None, user_id=None, source=None):
+                 units, name, metadata={}, data_hash=None, user_id=None, source=None):
     """
         Insert or update a piece of data in a scenario.
         If the dataset is being shared by other resource scenarios, a new dataset is inserted.
@@ -787,11 +774,11 @@ def assign_value(rs, data_type, val,
     if rs.dataset is not None:
 
         #Has this dataset changed?
-        if rs.dataset.data_hash == data_hash:
+        if rs.dataset.hash == data_hash:
             log.debug("Dataset has not changed. Returning.")
             return
 
-        connected_rs = db.DBSession.query(ResourceScenario).filter(ResourceScenario.dataset_id==rs.dataset.dataset_id).all()
+        connected_rs = db.DBSession.query(ResourceScenario).filter(ResourceScenario.dataset_id==rs.dataset.id).all()
         #If there's no RS found, then the incoming rs is new, so the dataset can be altered
         #without fear of affecting something else.
         if len(connected_rs) == 0:
@@ -807,16 +794,15 @@ def assign_value(rs, data_type, val,
 
     if update_dataset is True:
         log.info("Updating dataset '%s'", name)
-        dataset = data.update_dataset(rs.dataset.dataset_id, name, data_type, val, units, dimension, metadata, **dict(user_id=user_id))
+        dataset = data.update_dataset(rs.dataset.id, name, data_type, val, units, metadata, **dict(user_id=user_id))
         rs.dataset = dataset
-        rs.dataset_id = dataset.dataset_id
-        log.info("Set RS dataset id to %s"%dataset.dataset_id)
+        rs.dataset_id = dataset.id
+        log.info("Set RS dataset id to %s"%dataset.id)
     else:
         log.info("Creating new dataset %s in scenario %s", name, rs.scenario_id)
         dataset = data.add_dataset(data_type,
                                 val,
                                 units,
-                                dimension,
                                 metadata=metadata,
                                 name=name,
                                 **dict(user_id=user_id))
@@ -849,9 +835,6 @@ def add_data_to_attribute(scenario_id, resource_attr_id, dataset,**kwargs):
 
     data_type = dataset.type.lower()
 
-    start_time = None
-    frequency  = None
-
     value = dataset.parse_value()
 
     dataset_metadata = dataset.get_metadata_as_dict(user_id=kwargs.get('user_id'),
@@ -862,7 +845,7 @@ def add_data_to_attribute(scenario_id, resource_attr_id, dataset,**kwargs):
 
     data_hash = dataset.get_hash(value, dataset_metadata)
 
-    assign_value(r_scen_i, data_type, value, dataset.unit, dataset.name, dataset.dimension,
+    assign_value(r_scen_i, data_type, value, dataset.unit, dataset.name,
                           metadata=dataset_metadata, data_hash=data_hash, user_id=user_id)
 
     db.DBSession.flush()
@@ -875,7 +858,7 @@ def get_scenario_data(scenario_id,**kwargs):
     """
     user_id = kwargs.get('user_id')
 
-    scenario_data = db.DBSession.query(Dataset).filter(Dataset.dataset_id==ResourceScenario.dataset_id, ResourceScenario.scenario_id==scenario_id).options(joinedload_all('metadata')).distinct().all()
+    scenario_data = db.DBSession.query(Dataset).filter(Dataset.id==ResourceScenario.dataset_id, ResourceScenario.scenario_id==scenario_id).options(joinedload_all('metadata')).distinct().all()
 
     for sd in scenario_data:
        if sd.hidden == 'Y':
@@ -883,8 +866,6 @@ def get_scenario_data(scenario_id,**kwargs):
                 sd.check_read_permission(user_id)
            except:
                sd.value      = None
-               sd.frequency  = None
-               sd.start_time = None
                sd.metadata = []
 
     db.DBSession.expunge_all()
@@ -916,8 +897,6 @@ def get_attribute_data(attr_ids, node_ids, **kwargs):
                 rs.dataset.check_read_permission(kwargs.get('user_id'))
            except:
                rs.dataset.value      = None
-               rs.dataset.frequency  = None
-               rs.dataset.start_time = None
        db.DBSession.expunge(rs)
 
     return node_attrs, resource_scenarios
@@ -933,7 +912,7 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id=None, expunge_sessio
     user_id = kwargs.get('user_id')
 
     resource_data_qry = db.DBSession.query(ResourceScenario).filter(
-        ResourceScenario.dataset_id   == Dataset.dataset_id,
+        ResourceScenario.dataset_id   == Dataset.id,
         ResourceAttr.resource_attr_id == ResourceScenario.resource_attr_id,
         ResourceScenario.scenario_id == scenario_id,
         ResourceAttr.ref_key == ref_key,
@@ -968,8 +947,6 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id=None, expunge_sessio
                 rs.dataset.check_read_permission(user_id)
            except:
                rs.dataset.value      = None
-               rs.dataset.frequency  = None
-               rs.dataset.start_time = None
 
     if expunge_session == True:
         db.DBSession.expunge_all()

@@ -119,7 +119,7 @@ class TestProject:
             "Update did not work correctly."
 
         rs_to_check = updated_project.get_attribute_data()[0]
-        assert rs_to_check.dataset.data_type == 'descriptor' and \
+        assert rs_to_check.dataset.type == 'descriptor' and \
                rs_to_check.dataset.value == 'just project desscriptor', \
                "There is an inconsistency with the attributes."
 
@@ -186,7 +186,7 @@ class TestProject:
 
         net2 = networkmaker.create(project_id=proj.id)
         nets = hb.get_networks(proj.id, user_id=self.user_id)
-        
+
         test_net = nets[0]
         assert test_net.scenarios is not None
         test_scenario = test_net.scenarios[0]

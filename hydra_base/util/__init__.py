@@ -47,9 +47,9 @@ def count_levels(value):
 
 def flatten_dict(value, target_depth=1, depth=None):
     """
-        Take a hashtable with multiple nested dicts and return a 
-        dict where the keys are a concatenation of each sub-key. 
-        
+        Take a hashtable with multiple nested dicts and return a
+        dict where the keys are a concatenation of each sub-key.
+
         The depth of the returned array is dictated by target_depth, defaulting to 1
 
         ex: {'a' : {'b':1, 'c': 2}} ==> {'a_b': 1, 'a_c': 2}
@@ -57,7 +57,7 @@ def flatten_dict(value, target_depth=1, depth=None):
         Assumes a constant structure actoss all sub-dicts. i.e. there isn't
         one sub-dict with values that are both numbers and sub-dicts.
     """
-    
+
     #failsafe in case someone specified null
     if target_depth is None:
         target_depth = 1
@@ -99,7 +99,7 @@ def to_named_tuple(keys, values):
 
     return tuple_instance
 
-    
+
 
 def generate_data_hash(dataset_dict):
 
@@ -107,11 +107,10 @@ def generate_data_hash(dataset_dict):
     if d.get('metadata') is None:
         d['metadata'] = {}
 
-    hash_string = "%s %s %s %s %s %s"%(
-                                str(d['data_name']),
-                                str(d['data_units']),
-                                str(d['data_dimen']),
-                                str(d['data_type']),
+    hash_string = "%s %s %s %s %s"%(
+                                str(d['name']),
+                                str(d['unit']),
+                                str(d['type']),
                                 d['value'],
                                 d['metadata'])
 
@@ -128,7 +127,7 @@ def get_val(dataset, timestamp=None):
         Turn the string value of a dataset into an appropriate
         value, be it a decimal value, array or time series.
 
-        If a timestamp is passed to this function, 
+        If a timestamp is passed to this function,
         return the values appropriate to the requested times.
 
         If the timestamp is *before* the start of the timeseries data, return None
@@ -140,18 +139,18 @@ def get_val(dataset, timestamp=None):
         for example) or as a single python dictionary
 
     """
-    if dataset.data_type == 'array':
+    if dataset.type == 'array':
         try:
             return json.loads(dataset.value)
         except ValueError:
             #Didn't work? Maybe because it was compressed.
             val = zlib.decompress(dataset.value)
             return json.loads(val)
-    elif dataset.data_type == 'descriptor':
+    elif dataset.type == 'descriptor':
         return str(dataset.value)
-    elif dataset.data_type == 'scalar':
+    elif dataset.type == 'scalar':
         return Decimal(str(dataset.value))
-    elif dataset.data_type == 'timeseries':
+    elif dataset.type == 'timeseries':
 
         try:
             #The data might be compressed.
@@ -162,7 +161,7 @@ def get_val(dataset, timestamp=None):
         seasonal_year = config.get('DEFAULT','seasonal_year', '1678')
         seasonal_key = config.get('DEFAULT', 'seasonal_key', '9999')
         val = dataset.value.replace(seasonal_key, seasonal_year)
-        
+
         timeseries = pd.read_json(val, convert_axes=True)
 
         if timestamp is None:
@@ -172,8 +171,8 @@ def get_val(dataset, timestamp=None):
                 idx = timeseries.index
                 #Seasonal timeseries are stored in the year
                 #1678 (the lowest year pandas allows for valid times).
-                #Therefore if the timeseries is seasonal, 
-                #the request must be a seasonal request, not a 
+                #Therefore if the timeseries is seasonal,
+                #the request must be a seasonal request, not a
                 #standard request
 
                 if type(idx) == pd.DatetimeIndex:

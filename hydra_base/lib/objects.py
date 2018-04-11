@@ -70,7 +70,7 @@ class JSONObject(dict):
                 setattr(self, k, dict_layout)
             elif isinstance(v, dict):
                 #TODO what is a better way to identify a dataset?
-                if 'data_units' in v:
+                if 'unit' in v:
                     setattr(self, k, Dataset(v, obj_dict))
                 else:
                     setattr(self, k, JSONObject(v, obj_dict))
@@ -219,16 +219,6 @@ class Dataset(JSONObject):
         # Keys that start and end with "__" won't be retrievable via attributes
         if name.startswith('__') and name.endswith('__'):
             return super(JSONObject, self).__getattr__(name)
-        elif name == 'id':
-            return self.get('dataset_id', None)
-        elif name == 'name':
-            return self.get('data_name', None)
-        elif name == 'unit':
-            return self.get('data_units', None)
-        elif name == 'dimension':
-            return self.get('data_dimen', None)
-        elif name == 'type':
-            return self.get('data_type', None)
         else:
             return self.get(name, None)
 
@@ -238,18 +228,6 @@ class Dataset(JSONObject):
         #This is to avoid an infinite loop
         if self.get(name) != value:
             self[name] = value
-
-
-        if name == 'id':
-            self['dataset_id'] = value
-        elif name == 'name':
-            self['data_name'] = value
-        elif name == 'unit':
-            self['data_units'] = value
-        elif name == 'dimension':
-            self['data_dimen'] = value
-        elif name == 'type':
-            self['data_type'] = value
 
     def parse_value(self):
         """
@@ -357,12 +335,11 @@ class Dataset(JSONObject):
         else:
             value = val
 
-        dataset_dict = {'data_name' : self.name,
-                    'data_units': self.unit,
-                    'data_dimen': self.dimension,
-                    'data_type' : self.type.lower(),
-                    'value'     : value,
-                    'metadata'  : metadata,}
+        dataset_dict = {'name'     : self.name,
+                        'unit'     : self.unit,
+                        'type'     : self.type.lower(),
+                        'value'    : value,
+                        'metadata' : metadata,}
 
         data_hash = generate_data_hash(dataset_dict)
 

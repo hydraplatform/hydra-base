@@ -78,21 +78,17 @@ class Dataset(Base, Inspect):
     """
     __tablename__='tDataset'
 
-    dataset_id = Column(Integer(), primary_key=True, index=True, nullable=False)
-    data_type = Column(String(60),  nullable=False)
-    data_units = Column(String(60))
-    data_dimen = Column(String(60), server_default='dimensionless')
-    data_name = Column(String(60),  nullable=False)
-    data_hash = Column(BIGINT(),  nullable=False, unique=True)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    id         = Column(Integer(), primary_key=True, index=True, nullable=False)
+    name       = Column(String(60),  nullable=False)
+    type       = Column(String(60),  nullable=False)
+    unit       = Column(String(60))
+    hash       = Column(BIGINT(),  nullable=False, unique=True)
+    cr_date    = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     created_by = Column(Integer(), ForeignKey('tUser.id'))
-    hidden = Column(String(1),  nullable=False, server_default=text(u"'N'"))
+    hidden     = Column(String(1),  nullable=False, server_default=text(u"'N'"))
+    value      = Column('value', Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
 
-    start_time = Column(String(60),  nullable=True)
-    frequency = Column(String(10),  nullable=True)
-    value = Column('value', Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
-
-    user = relationship('User', backref=backref("datasets", order_by=dataset_id))
+    user = relationship('User', backref=backref("datasets", order_by=id))
 
     def set_metadata(self, metadata_dict):
         """
@@ -106,20 +102,20 @@ class Dataset(Base, Inspect):
             return
         existing_metadata = []
         for m in self.metadata:
-            existing_metadata.append(m.metadata_name)
-            if m.metadata_name in metadata_dict:
-                if m.metadata_val != metadata_dict[m.metadata_name]:
-                    m.metadata_val = metadata_dict[m.metadata_name]
+            existing_metadata.append(m.key)
+            if m.key in metadata_dict:
+                if m.value != metadata_dict[m.key]:
+                    m.value = metadata_dict[m.key]
 
 
         for k, v in metadata_dict.items():
             if k not in existing_metadata:
-                m_i = Metadata(metadata_name=str(k),metadata_val=str(v))
+                m_i = Metadata(key=str(k),value=str(v))
                 self.metadata.append(m_i)
 
         metadata_to_delete =  set(existing_metadata).difference(set(metadata_dict.keys()))
         for m in self.metadata:
-            if m.metadata_name in metadata_to_delete:
+            if m.key in metadata_to_delete:
                 get_session().delete(m)
 
     def get_val(self, timestamp=None):
@@ -183,25 +179,24 @@ class Dataset(Base, Inspect):
         if metadata is None:
             metadata = self.get_metadata_as_dict()
 
-        dataset_dict = dict(data_name = self.data_name,
-                           data_units = self.data_units,
-                           data_dimen = self.data_dimen,
-                           data_type  = self.data_type,
+        dataset_dict = dict(name      = self.name,
+                           unit       = self.unit,
+                           type       = self.type,
                            value      = self.value,
                            metadata   = metadata)
 
         data_hash = generate_data_hash(dataset_dict)
 
-        self.data_hash = data_hash
+        self.hash = data_hash
 
         return data_hash
 
     def get_metadata_as_dict(self):
         metadata = {}
         for r in self.metadata:
-            val = str(r.metadata_val)
+            val = str(r.value)
 
-            metadata[str(r.metadata_name)] = val
+            metadata[str(r.key)] = val
 
         return metadata
 
@@ -213,7 +208,7 @@ class Dataset(Base, Inspect):
                 break
         else:
             owner = DatasetOwner()
-            owner.dataset_id = self.dataset_id
+            owner.dataset_id = self.id
             owner.user_id = int(user_id)
             self.owners.append(owner)
 
@@ -245,7 +240,7 @@ class Dataset(Base, Inspect):
         else:
             raise PermissionError("Permission denied. User %s does not have read"
                              " access on dataset %s" %
-                             (user_id, self.dataset_id))
+                             (user_id, self.id))
 
     def check_user(self, user_id):
         """
@@ -273,7 +268,7 @@ class Dataset(Base, Inspect):
         else:
             raise PermissionError("Permission denied. User %s does not have edit"
                              " access on dataset %s" %
-                             (user_id, self.dataset_id))
+                             (user_id, self.id))
 
     def check_share_permission(self, user_id):
         """
@@ -287,7 +282,7 @@ class Dataset(Base, Inspect):
         else:
             raise PermissionError("Permission denied. User %s does not have share"
                              " access on dataset %s" %
-                             (user_id, self.dataset_id))
+                             (user_id, self.id))
 
 class DatasetCollection(Base, Inspect):
     """
@@ -306,7 +301,7 @@ class DatasetCollectionItem(Base, Inspect):
     __tablename__='tDatasetCollectionItem'
 
     collection_id = Column(Integer(), ForeignKey('tDatasetCollection.collection_id'), primary_key=True, nullable=False)
-    dataset_id = Column(Integer(), ForeignKey('tDataset.dataset_id'), primary_key=True, nullable=False)
+    dataset_id = Column(Integer(), ForeignKey('tDataset.id'), primary_key=True, nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     collection = relationship('DatasetCollection', backref=backref("items", order_by=dataset_id, cascade="all, delete-orphan"))
@@ -318,9 +313,9 @@ class Metadata(Base, Inspect):
 
     __tablename__='tMetadata'
 
-    dataset_id = Column(Integer(), ForeignKey('tDataset.dataset_id',  ondelete='CASCADE'), primary_key=True, nullable=False, index=True)
-    metadata_name = Column(String(60), primary_key=True, nullable=False)
-    metadata_val = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=False)
+    dataset_id = Column(Integer(), ForeignKey('tDataset.id',  ondelete='CASCADE'), primary_key=True, nullable=False, index=True)
+    key       = Column(String(60), primary_key=True, nullable=False)
+    value     = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=False)
 
     dataset = relationship('Dataset', backref=backref("metadata", order_by=dataset_id, cascade="all, delete-orphan"))
 
@@ -452,7 +447,7 @@ class TypeAttr(Base, Inspect):
 
     attr_id = Column(Integer(), ForeignKey('tAttr.attr_id'), primary_key=True, nullable=False)
     type_id = Column(Integer(), ForeignKey('tTemplateType.type_id', ondelete='CASCADE'), primary_key=True, nullable=False)
-    default_dataset_id = Column(Integer(), ForeignKey('tDataset.dataset_id'))
+    default_dataset_id = Column(Integer(), ForeignKey('tDataset.id'))
     attr_is_var        = Column(String(1), server_default=text(u"'N'"))
     data_type          = Column(String(60))
     data_restriction   = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
@@ -1196,7 +1191,7 @@ class ResourceScenario(Base, Inspect):
 
     __tablename__='tResourceScenario'
 
-    dataset_id = Column(Integer(), ForeignKey('tDataset.dataset_id'), nullable=False)
+    dataset_id = Column(Integer(), ForeignKey('tDataset.id'), nullable=False)
     scenario_id = Column(Integer(), ForeignKey('tScenario.id'), primary_key=True, nullable=False, index=True)
     resource_attr_id = Column(Integer(), ForeignKey('tResourceAttr.resource_attr_id'), primary_key=True, nullable=False, index=True)
     source           = Column(String(60))
@@ -1207,20 +1202,15 @@ class ResourceScenario(Base, Inspect):
     resourceattr = relationship('ResourceAttr', backref=backref("resourcescenarios", cascade="all, delete-orphan"), uselist=False)
 
     def get_dataset(self, user_id):
-        dataset = get_session().query(Dataset.dataset_id,
-                Dataset.data_type,
-                Dataset.data_units,
-                Dataset.data_dimen,
-                Dataset.data_name,
+        dataset = get_session().query(Dataset.id,
+                Dataset.type,
+                Dataset.unit,
+                Dataset.name,
                 Dataset.hidden,
                 case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
-                        else_=Dataset.start_time).label('start_time'),
-                case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
-                        else_=Dataset.frequency).label('frequency'),
-                case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
                         else_=Dataset.value).label('value')).filter(
-                Dataset.dataset_id==self.dataset_id).outerjoin(DatasetOwner,
-                                    and_(Dataset.dataset_id==DatasetOwner.dataset_id,
+                Dataset.id==self.id).outerjoin(DatasetOwner,
+                                    and_(Dataset.id==DatasetOwner.dataset_id,
                                     DatasetOwner.user_id==user_id)).one()
 
         return dataset
@@ -1260,10 +1250,10 @@ class Scenario(Base, Inspect):
         else:
             rs_i.resource_attr_id = resource_attr.resource_attr_id
 
-        if dataset.dataset_id is None:
+        if dataset.id is None:
             rs_i.dataset = dataset
         else:
-            rs_i.dataset_id = dataset.dataset_id
+            rs_i.dataset_id = dataset.id
         rs_i.source = source
         self.resourcescenarios.append(rs_i)
 
@@ -1445,7 +1435,7 @@ class DatasetOwner(Base, Inspect):
     __tablename__='tDatasetOwner'
 
     user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
-    dataset_id = Column(Integer(), ForeignKey('tDataset.dataset_id'), primary_key=True, nullable=False)
+    dataset_id = Column(Integer(), ForeignKey('tDataset.id'), primary_key=True, nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     view = Column(String(1),  nullable=False)
     edit = Column(String(1),  nullable=False)
@@ -1594,10 +1584,9 @@ def create_resourcedata_view():
         ResourceAttr.group_id,
         ResourceScenario.scenario_id,
         ResourceScenario.dataset_id,
-        Dataset.data_units,
-        Dataset.data_dimen,
-        Dataset.data_name,
-        Dataset.data_type,
-        Dataset.value]).where(ResourceScenario.resource_attr_id==ResourceAttr.attr_id).where(ResourceAttr.attr_id==Attr.attr_id).where(ResourceScenario.dataset_id==Dataset.dataset_id)
+        Dataset.unit,
+        Dataset.name,
+        Dataset.type,
+        Dataset.value]).where(ResourceScenario.resource_attr_id==ResourceAttr.attr_id).where(ResourceAttr.attr_id==Attr.attr_id).where(ResourceScenario.dataset_id==Dataset.id)
 
     stuff_view = view("vResourceData", Base.metadata, view_qry)
