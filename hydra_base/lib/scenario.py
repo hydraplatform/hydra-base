@@ -973,7 +973,7 @@ def get_attribute_datasets(attr_id, scenario_id, **kwargs):
     scenario_i = _get_scenario(scenario_id, user_id)
 
     try:
-        a = db.DBSession.query(Attr).filter(Attr.attr_id == attr_id).one()
+        a = db.DBSession.query(Attr).filter(Attr.id == attr_id).one()
     except NoResultFound:
         raise HydraError("Attribute %s not found"%(attr_id,))
 
@@ -996,7 +996,7 @@ def get_attribute_datasets(attr_id, scenario_id, **kwargs):
 
     return resourcescenarios
 
-def get_resourcegroupitems(group_id, id, **kwargs):
+def get_resourcegroupitems(group_id, scenario_id, **kwargs):
 
     """
         Get all the items in a group, in a scenario. If group_id is None, return

@@ -183,7 +183,7 @@ class TestTemplates:
 
     def test_get_xml(self, template_json_object):
         xml_tmpl = template_json_object
-        
+
         db_template = hb.get_template_as_xml(xml_tmpl.id)
 
         assert db_template is not None
@@ -203,9 +203,9 @@ class TestTemplates:
         log.info("Loading XML template")
         # Upload the xml file initally to avoid having to manage 2 template files
         xml_tmpl = template_json_object
-        
+
         template_dict = hb.get_template_as_dict(xml_tmpl.id)
-       
+
         # Error that there's already a template with this name.
         with pytest.raises(HydraError):
             hb.import_template_dict(template_dict, allow_update=False)
@@ -261,7 +261,7 @@ class TestTemplates:
             assert t.attr_id in (link_attr_1.id, link_attr_2.id);
             "Node types were not added correctly!"
 
-        return new_template_j 
+        return new_template_j
 
     @pytest.mark.xfail(reason='Not sure why this is not working. Needs more investigation.')
     def test_update_template(self, session):
@@ -287,7 +287,7 @@ class TestTemplates:
         type_2.alias = "Link type 2 alias"
         type_2.resource_type = 'LINK'
         type_2.typeattrs = []
-        
+
         tattr_1 = JSONObject()
         tattr_1.attr_id = attr_1.id
         tattr_1.unit      = 'bar'
@@ -348,7 +348,7 @@ class TestTemplates:
             hb.update_template(updated_template_j)
 
     def test_delete_template(self, session, network_with_data, template2):
-        
+
         network = network_with_data
         new_template = template2
 
@@ -358,30 +358,30 @@ class TestTemplates:
         retrieved_template_j = JSONObject(retrieved_template_i)
 
         hb.apply_template_to_network(retrieved_template_j.id, network.id)
-        
+
         updated_network = hb.get_network(network.id, user_id=self.user_id)
         assert len(updated_network.types) == 2
-        
+
         expected_net_type = None
         for t in new_template.templatetypes:
             if t.resource_type == 'NETWORK':
                 expected_net_type = t.id
 
         network_type = updated_network.types[1].type_id
-        
+
         assert expected_net_type == network_type
 
         hb.delete_template(new_template.id)
 
         with pytest.raises(HydraError):
             hb.get_template(new_template.id)
-        
+
         network_deleted_templatetypes = hb.get_network(network.id, user_id=self.user_id)
-        
+
         assert len(network_deleted_templatetypes.types) == 1
 
     def test_add_type(self, session, template2):
-        
+
         template = template2
 
         attr_1 = util.create_attr("link_attr_1", dimension='Pressure')
@@ -423,7 +423,7 @@ class TestTemplates:
 
         assert len(new_type_j.typeattrs) == 3, "Resource type attrs did not add correctly"
 
-        return new_type_j 
+        return new_type_j
 
     def test_update_type(self, session, template2):
 
@@ -478,7 +478,7 @@ class TestTemplates:
         assert new_type_j.id > 0, "New type has incorrect ID!"
         assert new_type_j.typeattrs[0].description == "Updated typeattr description"
         assert new_type_j.typeattrs[-1].properties['update_type_test_property'] == "property value"
- 
+
         assert len(updated_type_j.typeattrs) == 3, "Template type attrs did not update correctly"
 
     @pytest.mark.xfail(reason="This gives a SQLAlchemy error about failing to flush. Not sure how to debug.")
@@ -490,7 +490,7 @@ class TestTemplates:
 
         templatetype = new_template.templatetypes[0]
         hb.delete_templatetype(templatetype.type_id)
-    
+
         updated_template = JSONObject(hb.get_template(new_template.template_id))
 
         for tmpltype in updated_template.templatetypes:
@@ -537,7 +537,7 @@ class TestTemplates:
         tattr_3.properties = {"add_typeattr_test_property": "property value"}
 
         log.info("Adding Test Type attribute")
-        
+
         hb.add_typeattr(tattr_3)
 
         updated_type = JSONObject(hb.get_templatetype(new_type.id, user_id=self.user_id))
@@ -547,7 +547,7 @@ class TestTemplates:
         assert eval(updated_type.typeattrs[-1].properties)['add_typeattr_test_property'] == "property value"
 
     def test_delete_typeattr(self, session, template2):
-        
+
         template = template2
 
         attr_1 = util.create_attr("link_attr_1", dimension='Pressure')
@@ -572,7 +572,7 @@ class TestTemplates:
         tattr_2.type_id = new_type.id
 
         hb.delete_typeattr(tattr_2)
-        
+
         updated_type = JSONObject(hb.get_templatetype(new_type.id))
 
         log.info(len(updated_type.typeattrs))
@@ -710,9 +710,9 @@ class TestTemplates:
 
         remove_result = hb.remove_type_from_resource(templatetype.type_id, 'NODE', node_to_assign.node_id)
         assert remove_result == 'OK'
-        
+
         updated_node_j = JSONObject(hb.get_node(node_to_assign.node_id))
- 
+
         assert updated_node_j.types is None or str(result1_j.type_id) not in [str(x.type_id) for x in updated_node_j.types]
 
     def test_create_template_from_network(self, session, network_with_data):
@@ -769,7 +769,7 @@ class TestTemplates:
         hb.apply_template_to_network(template.id, network.id)
 
         network = hb.get_network(network.id, user_id=self.user_id)
-       
+
         assert len(network.types) == 2
         assert network.types[1].type_name == 'Network Type'
         for l in network.links:
@@ -788,7 +788,7 @@ class TestTemplates:
     def test_apply_template_to_network_twice(self, session, template2, network_with_data):
         net_to_update = network_with_data
         template = template2
-       
+
         # Test the links as it's easier
         empty_links = []
         for l in net_to_update.links:
@@ -823,7 +823,7 @@ class TestTemplates:
         hb.apply_template_to_network(template.id, network.id)
 
         network = hb.get_network(network.id, user_id=self.user_id)
-       
+
         assert len(network.types) == 2
         assert network.types[1].name == 'Network Type'
         for l in network.links:
@@ -840,7 +840,7 @@ class TestTemplates:
     def test_remove_template_from_network(self, session, network_with_data):
         network = network_with_data
         template_id = network.types[0].template_id
-       
+
         # Test the links as it's easier
         empty_links = []
         for l in network.links:
@@ -868,7 +868,7 @@ class TestTemplates:
     def test_remove_template_and_attributes_from_network(self, session, template2, network_with_data):
         network = network_with_data
         template = template2
-       
+
         # Test the links as it's easier
         empty_links = []
         for l in network.links:
@@ -892,7 +892,7 @@ class TestTemplates:
         network_2 = hb.get_network(network.id, user_id=self.user_id)
 
         assert len(network_2.types) == 1
-        
+
         link_attrs = []
         for tt in template.templatetypes:
             if tt.resource_type != 'LINK':
@@ -906,27 +906,28 @@ class TestTemplates:
             if l.id in empty_links:
                 assert l.types is None
             if l.attributes is not None:
-                for a in l.attributes:
-                    assert a.attr_id not in link_attrs
+                for la in l.attributes:
+                    assert la.attr_id not in link_attrs
 
+        node_attrs = []
         for tt in template.templatetypes:
             if tt.resource_type != 'NODE':
                 continue
             for ta in tt.typeattrs:
                 attr_id = ta.attr_id
-                if attr_id not in link_attrs:
-                    link_attrs.append(attr_id)
-                link_attrs.append(ta.attr_id)
+                if attr_id not in node_attrs:
+                    node_attrs.append(attr_id)
+                node_attrs.append(ta.attr_id)
 
         for n in network_2.nodes:
             assert len(n.types) == 1
             if n.attributes is not None:
-                for a in n.attributes:
-                    assert a.attr_id not in link_attrs
+                for node_attr in n.attributes:
+                    assert node_attr.attr_id not in node_attrs
 
     def test_validate_attr(self, session, network_with_data):
         network = network_with_data
-        
+
         scenario = network.scenarios[0]
         rs_ids = [rs.resource_attr_id for rs in scenario.resourcescenarios]
         template_id = network.nodes[0].types[0].template_id
@@ -934,8 +935,8 @@ class TestTemplates:
         for n in network.nodes:
             node_type = hb.get_templatetype(n.types[0].id)
             for ra in n.attributes:
-                for attr in node_type.typeattrs:
-                    if ra.attr_id == attr.attr_id and ra.id in rs_ids and attr.data_restriction is not None:
+                for type_attr in node_type.typeattrs:
+                    if ra.attr_id == type_attr.attr_id and ra.id in rs_ids and type_attr.data_restriction is not None:
                 #        logging.info("Validating RA %s in scenario %s", ra.id, scenario.id)
                         error = hb.validate_attr(ra.id, scenario.id, template_id)
                         assert error.ref_id == n.id
@@ -943,7 +944,7 @@ class TestTemplates:
 
     def test_validate_attrs(self, session, network_with_data):
         network = network_with_data
-        
+
         scenario = network.scenarios[0]
 
         ra_ids = []
@@ -959,18 +960,18 @@ class TestTemplates:
 
     def test_validate_scenario(self, session, network_with_data):
         network = network_with_data
-        
+
         scenario = network.scenarios[0]
         template_id = network.nodes[0].types[0].template_id
 
         errors = hb.validate_scenario(scenario.id,template_id)
 
-        assert len(errors) > 0 
+        assert len(errors) > 0
 
     @pytest.mark.xfail(reason="Network actually has three errors not one.")
     def test_validate_network(self, session, network_with_data_new_template):
         network = network_with_data_new_template
-        
+
         util.update_template(network.types[0].template_id)
 
         scenario = network.scenarios[0]
@@ -1012,7 +1013,7 @@ class TestTemplates:
         """
         template_1 = template2
         template_2 = template3
-        
+
         diff_type_1_id = None
         same_type_1_id = None
         for typ in template_1.templatetypes:
@@ -1036,7 +1037,7 @@ class TestTemplates:
                         ta.unit = "cm^3"
                     elif ta.attr.name == 'link_attr_1':
                         same_type_2_id = typ.type_id
-        
+
         # Before updating template 2, check compatibility of types, where T1 has
         # a unit, but t2 does not.
         errors_diff = hb.check_type_compatibility(diff_type_1_id, diff_type_2_id)

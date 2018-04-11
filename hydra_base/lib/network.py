@@ -585,9 +585,9 @@ def _get_all_resource_attributes(network_id, template_id=None):
                                ResourceAttr.group_id.label('group_id'),
                                ResourceAttr.network_id.label('network_id'),
                                ResourceAttr.attr_id.label('attr_id'),
-                               Attr.attr_name.label('attr_name'),
-                               Attr.attr_dimen.label('attr_dimen'),
-                              ).filter(Attr.attr_id==ResourceAttr.attr_id)
+                               Attr.name.label('name'),
+                               Attr.dimension.label('dimension'),
+                              ).filter(Attr.id==ResourceAttr.attr_id)
 
 
     all_node_attribute_qry = base_qry.join(Node).filter(Node.network_id==network_id)
@@ -2256,7 +2256,7 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
 
     rs_qry = db.DBSession.query(
                ResourceAttr.attr_id,
-               Attr.attr_name,
+               Attr.name,
                ResourceAttr.resource_attr_id,
                ResourceAttr.ref_key,
                ResourceAttr.network_id,
@@ -2282,7 +2282,7 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
                ]).label('ref_name'),
               ).join(ResourceScenario)\
                 .join(Dataset).\
-                join(Attr, ResourceAttr.attr_id==Attr.attr_id).\
+                join(Attr, ResourceAttr.attr_id==Attr.id).\
                 outerjoin(Node, ResourceAttr.node_id==Node.id).\
                 outerjoin(Link, ResourceAttr.link_id==Link.id).\
                 outerjoin(ResourceGroup, ResourceAttr.group_id==ResourceGroup.id).\

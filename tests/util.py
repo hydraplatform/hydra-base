@@ -277,7 +277,7 @@ def create_attr(name="Test attribute", dimension="dimensionless"):
     attr_i = hydra_base.get_attribute_by_name_and_dimension(name, dimension, user_id=user_id)
     if attr_i is None:
         attr = JSONObject({'name'  : name,
-                'dimen' : dimension
+                'dimension' : dimension
                })
         attr = JSONObject(hydra_base.add_attribute(attr, user_id=user_id))
     else:
@@ -699,7 +699,6 @@ def create_scalar(resource_attr, val=1.234):
         type = 'scalar',
         name = 'Flow speed',
         unit = 'm s^-1',
-        dimension = 'Speed',
         hidden = 'N',
         value = val,
     ))
@@ -721,7 +720,6 @@ def create_descriptor(resource_attr, val="test"):
         type = 'descriptor',
         name = 'Flow speed',
         unit = 'm s^-1',
-        dimension = 'Speed',
         hidden = 'N',
         value = val,
     ))
@@ -762,7 +760,6 @@ def create_timeseries(resource_attr):
         type = 'timeseries',
         name = 'my time series',
         unit = 'cm^3',
-        dimension = 'Volume',
         hidden = 'N',
         value = json.dumps(ts_val),
         metadata = metadata
@@ -790,7 +787,6 @@ def create_array(resource_attr):
         type = 'array',
         name = 'my array',
         unit = 'bar',
-        dimension = 'Pressure',
         hidden = 'N',
         value = arr,
         metadata = metadata_array,
@@ -812,12 +808,12 @@ def create_attributes():
     dimension = "Volumetric flow rate"
     attrs = []
     attr1 = JSONObject({'name'  : name1,
-            'dimen' : dimension,
+            'dimension' : dimension,
             'description' : "Attribute 1 from a test of adding multiple attributes",
             })
     attrs.append(attr1)
     attr2 = JSONObject({'name' : name2,
-             'dimen' : dimension,
+             'dimension' : dimension,
             'description' : "Attribute 2 from a test of adding multiple attributes",
             })
     attrs.append(attr2)
@@ -825,9 +821,9 @@ def create_attributes():
     existing_attrs = []
 
     for a in attrs:
-        log.info("Getting attribute %s, %s", a.name, a.dimen)
+        log.info("Getting attribute %s, %s", a.name, a.dimension)
         attr = hydra_base.get_attribute_by_name_and_dimension(a.name,
-                                                          a.dimen,
+                                                          a.dimension,
                                                           user_id=user_id)
         existing_attrs.append(attr)
 
@@ -840,10 +836,10 @@ def create_attributes():
         attrs = hydra_base.add_attributes(attrs, user_id=user_id)
         assert len(attrs) == 2
         for a in attrs:
-            assert a.attr_id is not None
+            assert a.id is not None
 
-    assert attrs[0].attr_description ==  "Attribute 1 from a test of adding multiple attributes"
-    assert attrs[1].attr_description ==  "Attribute 2 from a test of adding multiple attributes"
+    assert attrs[0].description ==  "Attribute 1 from a test of adding multiple attributes"
+    assert attrs[1].description ==  "Attribute 2 from a test of adding multiple attributes"
 
     return attrs
 
@@ -854,12 +850,12 @@ def create_attribute():
     attr = hydra_base.get_attribute_by_name_and_dimension(name, "Volumetric flow rate", user_id=user_id)
     if attr is None:
         attr = JSONObject({'name'  : name,
-                'dimen' : dimension,
+                'dimension' : dimension,
                 'description' : "Attribute description",
                })
         attr = hydra_base.add_attribute(attr, user_id=user_id)
 
-        assert attr.attr_description == "Attribute description"
+        assert attr.description == "Attribute description"
 
     return attr
 
