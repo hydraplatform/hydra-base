@@ -221,10 +221,9 @@ def create_project(name=None):
     if name is None:
         name = "Unittest Project"
 
-    try:
-        p = JSONObject(hydra_base.get_project_by_name(name, user_id=user_id))
-        return p
-    except Exception:
+    user_projects = hydra_base.get_project_by_name(name, user_id=user_id)
+
+    if len(user_projects) == 0:
         project = JSONObject()
         project.name = name
         project.description = "Project which contains all unit test networks"
@@ -236,6 +235,8 @@ def create_project(name=None):
                                  user_id=user_id)
 
         return project
+    else:
+        return user_projects[0]
 
 
 def create_link(link_id, node_1_name, node_2_name, node_1_id, node_2_id):
@@ -289,6 +290,7 @@ def build_network(project_id=None, num_nodes=10, new_proj=True, map_projection='
     start = datetime.datetime.now()
     if project_id is None:
         proj_name = None
+
         if new_proj is True:
             proj_name = "Test Project @ %s"%(datetime.datetime.now())
             project_id = create_project(name=proj_name).id
@@ -359,7 +361,7 @@ def build_network(project_id=None, num_nodes=10, new_proj=True, map_projection='
         type_summary = JSONObject(dict(
             template_id = template.id,
             template_name = template.name,
-            id = node_type.type_id,
+            id = node_type.id,
             name = node_type.name
         ))
 
@@ -409,7 +411,7 @@ def build_network(project_id=None, num_nodes=10, new_proj=True, map_projection='
                 type_summary = JSONObject()
                 type_summary.template_id = template.id
                 type_summary.template_name = template.name
-                type_summary.id = link_type.type_id
+                type_summary.id = link_type.id
                 type_summary.name = link_type.name
 
                 type_summary_arr.append(type_summary)
@@ -540,7 +542,7 @@ def build_network(project_id=None, num_nodes=10, new_proj=True, map_projection='
     net_type_summary = JSONObject(dict(
         template_id = template.id,
         template_name = template.name,
-        id = network_type.type_id,
+        id = network_type.id,
         name = network_type.name,
     ))
     net_type_summary_arr.append(net_type_summary)
@@ -570,6 +572,7 @@ def create_network_with_data(project_id=None, num_nodes=10,
         It assigns a descriptor, array and timeseries to the
         attributes node.
     """
+
     network=build_network(project_id, num_nodes, new_proj=new_proj,
                                map_projection=map_projection)
 

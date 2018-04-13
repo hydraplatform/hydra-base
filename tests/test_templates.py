@@ -197,7 +197,6 @@ class TestTemplates:
 
         xmlschema.assertValid(xml_tree)
 
-    @pytest.mark.xfail(reason='Not sure why this is not working. Needs more investigation.')
     def test_get_dict(self, template_json_object):
 
         log.info("Loading XML template")
@@ -223,14 +222,25 @@ class TestTemplates:
         updated_template = JSONObject(hb.import_template_dict(template_dict))
 
         log.info("Updating a type's name")
-        assert updated_template['templatetypes'][-1]['name'] == typename + "_updated"
+        type_names = []
+
+        for templatetype in updated_template.templatetypes:
+            type_names.append(templatetype.name)
+
+        assert len(type_names) == 2
+        assert typename + "_updated" in type_names and typename not in type_names
 
         # Now put it back to the original name so other tests will work
         log.info("Reverting the type's name")
         template_dict['template']['templatetypes'][0].name = typename
         updated_template = JSONObject(hb.import_template_dict(template_dict))
 
-        assert updated_template['templatetypes'][-1]['name'] == typename
+        type_names = []
+        for templatetype in updated_template.templatetypes:
+            type_names.append(templatetype.name)
+
+        assert len(type_names) == 2
+        assert typename in type_names and typename + "_updated" not in type_names
 
         log.info("Checking to ensure Template has been updated correctly...")
         # one final check to ensure that the type has been deleted
@@ -264,6 +274,9 @@ class TestTemplates:
         return new_template_j
 
     def test_update_template(self, session):
+
+        #Only applicable for tests.
+        hb.template.ATTR_CACHE = {}
 
         attr_1 = util.create_attr("link_attr_1", dimension='Pressure')
         attr_2 = util.create_attr("link_attr_2", dimension='Speed')
@@ -348,6 +361,9 @@ class TestTemplates:
 
     def test_delete_template(self, session, network_with_data, template2):
 
+        #Only applicable for tests. TODO: make this not rubbish.
+        hb.template.ATTR_CACHE = {}
+
         network = network_with_data
         new_template = template2
 
@@ -358,6 +374,8 @@ class TestTemplates:
 
         hb.apply_template_to_network(retrieved_template_j.id, network.id)
 
+        hb.db.DBSession.expunge_all()
+
         updated_network = hb.get_network(network.id, user_id=self.user_id)
         assert len(updated_network.types) == 2
 
@@ -366,7 +384,7 @@ class TestTemplates:
             if t.resource_type == 'NETWORK':
                 expected_net_type = t.id
 
-        network_type = updated_network.types[1].type_id
+        network_type = updated_network.types[1].id
 
         assert expected_net_type == network_type
 
@@ -374,6 +392,8 @@ class TestTemplates:
 
         with pytest.raises(HydraError):
             hb.get_template(new_template.id)
+
+        hb.db.DBSession.expunge_all()
 
         network_deleted_templatetypes = hb.get_network(network.id, user_id=self.user_id)
 
@@ -391,7 +411,7 @@ class TestTemplates:
         templatetype.name = "Test type name @ %s"%(datetime.datetime.now())
         templatetype.alias = "%s alias" % templatetype.name
         templatetype.resource_type = 'LINK'
-        templatetype.template_id = template.template_id
+        templatetype.template_id = template.id
         templatetype.layout = {"color": "red", "shapefile": "blah.shp"}
 
         templatetype.typeattrs = []
@@ -435,9 +455,8 @@ class TestTemplates:
         templatetype = JSONObject()
         templatetype.name = "Test type name @ %s" % (datetime.datetime.now())
         templatetype.alias = templatetype.name + " alias"
-        templatetype.template_id = template.template_id
-        templatetype.resource_type = 'NODE'
         templatetype.template_id = template.id
+        templatetype.resource_type = 'NODE'
 
         tattr_1 = JSONObject()
         tattr_1.attr_id = attr_1.id
@@ -483,13 +502,13 @@ class TestTemplates:
     def test_delete_type(self, session, template2):
         new_template = template2
 
-        retrieved_template = hb.get_template(new_template.template_id)
+        retrieved_template = hb.get_template(new_template.id)
         assert retrieved_template is not None
 
         templatetype = new_template.templatetypes[0]
-        hb.delete_templatetype(templatetype.type_id)
+        hb.delete_templatetype(templatetype.id)
 
-        updated_template = JSONObject(hb.get_template(new_template.template_id))
+        updated_template = JSONObject(hb.get_template(new_template.id))
 
         for tmpltype in updated_template.templatetypes:
             assert tmpltype.id != templatetype.id
@@ -513,7 +532,7 @@ class TestTemplates:
         templatetype = JSONObject()
         templatetype.name = "Test type name @ %s"%(datetime.datetime.now())
         templatetype.alias = templatetype.name + " alias"
-        templatetype.template_id = template2.template_id
+        templatetype.template_id = template2.id
         templatetype.resource_type = 'NODE'
 
         tattr_1 = JSONObject()
@@ -586,7 +605,7 @@ class TestTemplates:
         assert len(templates) > 0, "Templates were not retrieved!"
 
     def test_get_template(self, session, template2):
-        new_template = JSONObject(hb.get_template(template2.template_id))
+        new_template = JSONObject(hb.get_template(template2.id))
 
         assert new_template.name == template2.name, "Names are not the same! Retrieval by ID did not work!"
 
@@ -627,8 +646,8 @@ class TestTemplates:
             node.y = y[i]
 
             type_summary = JSONObject()
-            type_summary.template_id = template.id
-            type_summary.template_name = template.name
+            type_summary.id = template.id
+            type_summary.name = template.name
             type_summary.id = type_id
             type_summary.name = type_name
 
@@ -654,7 +673,7 @@ class TestTemplates:
         new_net = hb.get_network(net_summary.id, user_id=self.user_id)
 
         for node in new_net.nodes:
-            assert node.types is not None and node.types[0].type_name == "Node type"; "type was not added correctly!"
+            assert node.types is not None and node.types[0].name == "Node type"; "type was not added correctly!"
 
     def test_find_matching_resource_types(self, session, network_with_data):
 
@@ -672,7 +691,6 @@ class TestTemplates:
 
         assert node_to_check.types[0].id in matching_type_ids, "TemplateType ID not found in matching types!"
 
-    @pytest.mark.xfail(reason="This fails the type_id assertion at the end. Not sure why.")
     def test_assign_type_to_resource(self, session, template2, network_with_data):
         network = network_with_data
         template = template2
@@ -680,14 +698,16 @@ class TestTemplates:
 
         node_to_assign = network.nodes[0]
 
-        result = JSONObject(hb.assign_type_to_resource(templatetype.type_id, 'NODE', node_to_assign.node_id))
-        node = hb.get_node(node_to_assign.node_id)
+        result = JSONObject(hb.assign_type_to_resource(templatetype.id, 'NODE', node_to_assign.id))
 
-        assert node.types is not None, 'Assigning type did not work properly.'
+        hb.db.DBSession.expunge_all()
 
-        assert str(result.type_id) in [str(x.type_id) for x in node.types]
+        node = hb.get_node(node_to_assign.id)
 
-    @pytest.mark.xfail(reason="Recursion error in JSONObject.__init__")
+        assert len(node.types) == 2, 'Assigning type did not work properly.'
+
+        assert str(result.id) in [str(x.type_id) for x in node.types]
+
     def test_remove_type_from_resource(self, session, template2, network_with_data):
         network = network_with_data
         template = template2
@@ -695,23 +715,25 @@ class TestTemplates:
 
         node_to_assign = network.nodes[0]
 
-        result1_i = hb.assign_type_to_resource(templatetype.id, 'NODE', node_to_assign.node_id)
+        result1_i = hb.assign_type_to_resource(templatetype.id, 'NODE', node_to_assign.id)
+
+        hb.db.DBSession.expunge_all()
 
         result1_j = JSONObject(result1_i)
 
-        node_j = JSONObject(hb.get_node(node_to_assign.node_id))
+        node_j = JSONObject(hb.get_node(node_to_assign.id))
 
         assert node_j.types is not None, \
             'Assigning type did not work properly.'
 
-        assert str(result1_j.type_id) in [str(x.type_id) for x in node_j.types]
+        assert str(result1_j.id) in [str(x.type_id) for x in node_j.types]
 
-        remove_result = hb.remove_type_from_resource(templatetype.type_id, 'NODE', node_to_assign.node_id)
+        remove_result = hb.remove_type_from_resource(templatetype.id, 'NODE', node_to_assign.id)
         assert remove_result == 'OK'
 
-        updated_node_j = JSONObject(hb.get_node(node_to_assign.node_id))
+        updated_node_j = JSONObject(hb.get_node(node_to_assign.id))
 
-        assert updated_node_j.types is None or str(result1_j.type_id) not in [str(x.type_id) for x in updated_node_j.types]
+        assert updated_node_j.types is None or str(result1_j.id) not in [str(x.type_id) for x in updated_node_j.types]
 
     def test_create_template_from_network(self, session, network_with_data):
         network = network_with_data
@@ -729,7 +751,6 @@ class TestTemplates:
 
         xmlschema.assertValid(xml_tree)
 
-    @pytest.mark.xfail(reason="Gives a KeyError when updating the attributes.")
     def test_apply_template_to_network(self, session, template2, network_with_data):
         net_to_update = network_with_data
         template = template2
@@ -769,20 +790,19 @@ class TestTemplates:
         network = hb.get_network(network.id, user_id=self.user_id)
 
         assert len(network.types) == 2
-        assert network.types[1].type_name == 'Network Type'
+        assert network.types[1].name == 'Network Type'
         for l in network.links:
             if l.id in empty_links:
                 assert l.types is not None
                 assert len(l.types) == 1
-                assert l.types[0].type_name == 'Link type'
+                assert l.types[0].name == 'Link type'
 
         # THe assignment of the template hasn't affected the nodes
         # as they do not have the appropriate attributes.
         for n in network.nodes:
             assert len(n.types) == 1
-            assert n.types[0].template_name == 'Default Template'
+            assert n.types[0].name == 'Default Node'
 
-    @pytest.mark.xfail(reason="Gives a KeyError when updating the attributes.")
     def test_apply_template_to_network_twice(self, session, template2, network_with_data):
         net_to_update = network_with_data
         template = template2
@@ -818,6 +838,7 @@ class TestTemplates:
             assert n.types[0].name == 'Default Node'
 
         hb.apply_template_to_network(template.id, network.id)
+        hb.db.DBSession.expunge_all()
         hb.apply_template_to_network(template.id, network.id)
 
         network = hb.get_network(network.id, user_id=self.user_id)
@@ -832,9 +853,9 @@ class TestTemplates:
 
         for n in network.nodes:
             assert len(n.types) == 1
-            assert n.types[0].template_name == 'Default Template'
+            assert n.types[0].name == 'Default Node'
 
-    @pytest.mark.xfail(reason="Unique constraint failure.")
+
     def test_remove_template_from_network(self, session, network_with_data):
         network = network_with_data
         template_id = network.types[0].template_id
@@ -847,7 +868,9 @@ class TestTemplates:
 
         for n in network.nodes:
             assert len(n.types) == 1
-            assert n.types[0].type_name == "Default Node"
+            assert n.types[0].name == "Default Node"
+
+        hb.db.DBSession.expunge_all()
 
         hb.apply_template_to_network(template_id, network.id)
 
@@ -875,10 +898,12 @@ class TestTemplates:
 
         for n in network.nodes:
             assert len(n.types) == 1
-            assert n.types[0].type_name == 'Default Node'
+            assert n.types[0].name == 'Default Node'
 
         network_1 = hb.get_network(network.id, user_id=self.user_id)
         assert len(network_1.types) == 1
+
+        hb.db.DBSession.expunge_all()
 
         hb.apply_template_to_network(template.id, network.id)
 
@@ -886,6 +911,8 @@ class TestTemplates:
         assert len(network_3.types) == 2
 
         hb.remove_template_from_network(network.id, template.id, 'Y')
+
+        hb.db.DBSession.expunge_all()
 
         network_2 = hb.get_network(network.id, user_id=self.user_id)
 
@@ -966,9 +993,8 @@ class TestTemplates:
 
         assert len(errors) > 0
 
-    @pytest.mark.xfail(reason="Network actually has three errors not one.")
-    def test_validate_network(self, session, network_with_data_new_template):
-        network = network_with_data_new_template
+    def test_validate_network(self, session, network_with_data):
+        network = network_with_data
 
         util.update_template(network.types[0].template_id)
 
@@ -976,8 +1002,9 @@ class TestTemplates:
         template = network.nodes[0].types[0]
         # Validate the network without data: should pass as the network is built
         # based on the template in these unit tests
-        errors1 = hb.validate_network(network['id'], template['template_id'])
-
+        hb.db.DBSession.flush()
+        hb.db.DBSession.expunge_all()
+        errors1 = hb.validate_network(network.id, template.template_id)
         # The network should have an error, saying that the template has net_attr_c,
         # but the network does not
         assert len(errors1) == 1
@@ -988,8 +1015,8 @@ class TestTemplates:
         # of the dataset used. In addition, node_attr_1 specified a unit of 'm^3'
         # whereas the timeseries in the data is in 'cm^3', so each will fail on unit
         # mismatch also.
-        errors2 = hb.validate_network(network['id'], template['template_id'],
-                                                  scenario['id'])
+        errors2 = hb.validate_network(network.id, template.template_id,
+                                                  scenario.id)
 
         assert len(errors2) > 0
         # every node should have an associated error, plus the network error from above
@@ -1000,7 +1027,6 @@ class TestTemplates:
             except AssertionError:
                 assert err.startswith("Dimension mismatch")
 
-    @pytest.mark.xfail(reason='Unit dimensions not working correctly.')
     def test_type_compatibility(self, session, template2, template3):
         """
             Check function that thests whether two types are compatible -- the
@@ -1018,10 +1044,10 @@ class TestTemplates:
             if typ.typeattrs:
                 for ta in typ.typeattrs:
                     if ta.attr.name == 'node_attr_1':
-                        diff_type_1_id = typ.type_id
+                        diff_type_1_id = typ.id
                         ta.unit = "m^3"
                     elif ta.attr.name == 'link_attr_1':
-                        same_type_1_id = typ.type_id
+                        same_type_1_id = typ.id
 
         updated_template_1 = JSONObject(hb.update_template(template_1))
 
@@ -1031,10 +1057,10 @@ class TestTemplates:
             if typ.typeattrs:
                 for ta in typ.typeattrs:
                     if ta.attr.name == 'node_attr_1':
-                        diff_type_2_id = typ.type_id
+                        diff_type_2_id = typ.id
                         ta.unit = "cm^3"
                     elif ta.attr.name == 'link_attr_1':
-                        same_type_2_id = typ.type_id
+                        same_type_2_id = typ.id
 
         # Before updating template 2, check compatibility of types, where T1 has
         # a unit, but t2 does not.

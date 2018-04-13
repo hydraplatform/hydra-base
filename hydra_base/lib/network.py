@@ -54,7 +54,7 @@ class dictobj(dict):
         for k, v in extras.items():
             self[k] = v
             setattr(self, k, v)
-
+        print obj_dict
         for k, v in obj_dict.items():
             self[k] = v
             setattr(self, k, v)
@@ -157,7 +157,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
     all_types = db.DBSession.query(TemplateType).options(joinedload('typeattrs')).all()
     type_dict = {}
     for t in all_types:
-        type_dict[t.type_id] = t.typeattrs
+        type_dict[t.id] = t.typeattrs
     #Holds all the attributes supposed to be on a resource based on its specified
     #type
     resource_resource_types = []
@@ -658,13 +658,13 @@ def _get_all_templates(network_id, template_id):
                                ResourceType.link_id.label('link_id'),
                                ResourceType.group_id.label('group_id'),
                                ResourceType.network_id.label('network_id'),
-                               Template.template_name.label('template_name'),
-                               Template.template_id.label('template_id'),
-                               TemplateType.type_id.label('type_id'),
+                               Template.name.label('template_name'),
+                               Template.id.label('template_id'),
+                               TemplateType.id.label('type_id'),
                                TemplateType.layout.label('layout'),
-                               TemplateType.type_name.label('type_name'),
-                              ).filter(TemplateType.type_id==ResourceType.type_id,
-                                       Template.template_id==TemplateType.template_id)
+                               TemplateType.name.label('type_name'),
+                              ).filter(TemplateType.id==ResourceType.type_id,
+                                       Template.id==TemplateType.template_id)
 
 
     all_node_type_qry = base_qry.filter(Node.id==ResourceType.node_id,
@@ -699,15 +699,12 @@ def _get_all_templates(network_id, template_id):
     network_type_dict = dict()
 
     for t in all_types:
-
         templatetype = JSONObject({
                                     'template_id':t.template_id,
-                                    'type_id':t.type_id,
                                    'id':t.type_id,
                                    'template_name':t.template_name,
                                    'layout': t.layout,
-                                   'name': t.type_name,
-                                   'type_name': t.type_name})
+                                   'name': t.type_name,})
 
         if t.ref_key == 'NODE':
             nodetype = node_type_dict.get(t.node_id, [])
@@ -886,7 +883,7 @@ def _get_nodes(network_id, template_id=None):
                         )
     if template_id is not None:
         node_qry = node_qry.filter(ResourceType.node_id==Node.id,
-                                   TemplateType.type_id==ResourceType.type_id,
+                                   TemplateType.id==ResourceType.type_id,
                                    TemplateType.template_id==template_id)
     node_res = db.DBSession.execute(node_qry.statement).fetchall()
 
@@ -908,7 +905,7 @@ def _get_links(network_id, template_id=None):
                                         )
     if template_id is not None:
         link_qry = link_qry.filter(ResourceType.link_id==Link.id,
-                                   TemplateType.type_id==ResourceType.type_id,
+                                   TemplateType.id==ResourceType.type_id,
                                    TemplateType.template_id==template_id)
 
     link_res = db.DBSession.execute(link_qry.statement).fetchall()
@@ -932,7 +929,7 @@ def _get_groups(network_id, template_id=None):
 
     if template_id is not None:
         group_qry = group_qry.filter(ResourceType.group_id==ResourceGroup.id,
-                                     TemplateType.type_id==ResourceType.type_id,
+                                     TemplateType.id==ResourceType.type_id,
                                      TemplateType.template_id==template_id)
 
     group_res = db.DBSession.execute(group_qry.statement).fetchall()
@@ -1069,7 +1066,7 @@ def get_nodes(network_id, template_id=None, **kwargs):
                         )
     if template_id is not None:
         node_qry = node_qry.filter(ResourceType.node_id==Node.id,
-                                   TemplateType.type_id==ResourceType.type_id,
+                                   TemplateType.id==ResourceType.type_id,
                                    TemplateType.template_id==template_id)
     nodes = node_qry.all()
 
@@ -1101,7 +1098,7 @@ def get_links(network_id, template_id=None, **kwargs):
 
     if template_id is not None:
         link_qry = link_qry.filter(ResourceType.link_id==Link.id,
-                                   TemplateType.type_id==ResourceType.type_id,
+                                   TemplateType.id==ResourceType.type_id,
                                    TemplateType.template_id==template_id)
 
     links = link_qry.all()
@@ -1133,7 +1130,7 @@ def get_groups(network_id, template_id=None, **kwargs):
                                         )
     if template_id is not None:
         group_qry = group_qry.filter(ResourceType.group_id==ResourceGroup.id,
-                                     TemplateType.type_id==ResourceType.type_id,
+                                     TemplateType.id==ResourceType.type_id,
                                      TemplateType.template_id==template_id)
 
     groups = group_qry.all()
@@ -1238,7 +1235,7 @@ def get_network_by_name(project_id, network_name,**kwargs):
     """
 
     try:
-        res = db.DBSession.query(Network.id).filter(func.lower(Network.name).like(network_name.lower()), Network.project_id == project_id).options(joinedload_all('attributes.attr')).one()
+        res = db.DBSession.query(Network.id).filter(func.lower(Network.name).like(network_name.lower()), Network.project_id == project_id).one()
         net = get_network(res.id, 'Y', None, **kwargs)
         return net
     except NoResultFound:

@@ -100,7 +100,7 @@ class Dataset(Base, Inspect):
         """
         if metadata_dict is None:
             return
-            
+
         existing_metadata = []
         for m in self.metadata:
             existing_metadata.append(m.key)
@@ -316,7 +316,7 @@ class Metadata(Base, Inspect):
 
     dataset_id = Column(Integer(), ForeignKey('tDataset.id',  ondelete='CASCADE'), primary_key=True, nullable=False, index=True)
     key       = Column(String(60), primary_key=True, nullable=False)
-    value     = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=False)
+    value     = Column(Text(1000).with_variant(mysql.TEXT(1000), 'mysql'),  nullable=False)
 
     dataset = relationship('Dataset', backref=backref("metadata", order_by=dataset_id, cascade="all, delete-orphan"))
 
@@ -416,8 +416,8 @@ class Template(Base, Inspect):
 
     __tablename__='tTemplate'
 
-    template_id = Column(Integer(), primary_key=True, nullable=False)
-    template_name = Column(String(60),  nullable=False, unique=True)
+    id = Column(Integer(), primary_key=True, nullable=False)
+    name = Column(String(60),  nullable=False, unique=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     layout = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
 
@@ -427,18 +427,18 @@ class TemplateType(Base, Inspect):
 
     __tablename__='tTemplateType'
     __table_args__ = (
-        UniqueConstraint('template_id', 'type_name', 'resource_type', name="unique type name"),
+        UniqueConstraint('template_id', 'name', 'resource_type', name="unique type name"),
     )
 
-    type_id = Column(Integer(), primary_key=True, nullable=False)
-    type_name = Column(String(60),  nullable=False)
-    template_id = Column(Integer(), ForeignKey('tTemplate.template_id'), nullable=False)
+    id = Column(Integer(), primary_key=True, nullable=False)
+    name = Column(String(60),  nullable=False)
+    template_id = Column(Integer(), ForeignKey('tTemplate.id'), nullable=False)
     resource_type = Column(String(60))
     alias = Column(String(100))
     layout = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
-    template = relationship('Template', backref=backref("templatetypes", order_by=type_id, cascade="all, delete-orphan"))
+    template = relationship('Template', backref=backref("templatetypes", order_by=id, cascade="all, delete-orphan"))
 
 class TypeAttr(Base, Inspect):
     """
@@ -447,7 +447,7 @@ class TypeAttr(Base, Inspect):
     __tablename__='tTypeAttr'
 
     attr_id = Column(Integer(), ForeignKey('tAttr.id'), primary_key=True, nullable=False)
-    type_id = Column(Integer(), ForeignKey('tTemplateType.type_id', ondelete='CASCADE'), primary_key=True, nullable=False)
+    type_id = Column(Integer(), ForeignKey('tTemplateType.id', ondelete='CASCADE'), primary_key=True, nullable=False)
     default_dataset_id = Column(Integer(), ForeignKey('tDataset.id'))
     attr_is_var        = Column(String(1), server_default=text(u"'N'"))
     data_type          = Column(String(60))
@@ -572,7 +572,7 @@ class ResourceType(Base, Inspect):
 
     )
     resource_type_id = Column(Integer, primary_key=True, nullable=False)
-    type_id = Column(Integer(), ForeignKey('tTemplateType.type_id'), primary_key=False, nullable=False)
+    type_id = Column(Integer(), ForeignKey('tTemplateType.id'), primary_key=False, nullable=False)
     ref_key = Column(String(60),nullable=False)
     network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), nullable=True,)
     node_id     = Column(Integer(),  ForeignKey('tNode.id'), nullable=True)

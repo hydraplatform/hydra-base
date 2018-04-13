@@ -95,7 +95,7 @@ def get_template_attributes(template_id, **kwargs):
     """
 
     try:
-        attrs_i = db.DBSession.query(Attr).filter(TemplateType.template_id==template_id).filter(TypeAttr.type_id==TemplateType.type_id).filter(Attr.id==TypeAttr.id).all()
+        attrs_i = db.DBSession.query(Attr).filter(TemplateType.template_id==template_id).filter(TypeAttr.type_id==TemplateType.id).filter(Attr.id==TypeAttr.id).all()
         log.info(attrs_i)
         return attrs_i
     except NoResultFound:
@@ -248,7 +248,7 @@ def _get_attr(attr_id):
 
 def _get_templatetype(type_id):
     try:
-        typ = db.DBSession.query(TemplateType).filter(TemplateType.type_id == type_id).one()
+        typ = db.DBSession.query(TemplateType).filter(TemplateType.id == type_id).one()
         return typ
     except NoResultFound:
         raise ResourceNotFoundError("Template Type with ID %s not found"%(type_id,))
@@ -399,7 +399,7 @@ def get_all_resource_attributes(ref_key, network_id, template_id=None, **kwargs)
     if template_id is not None:
         attr_ids = []
         rs = db.DBSession.query(TypeAttr).join(TemplateType,
-                                            TemplateType.type_id==TypeAttr.type_id).filter(
+                                            TemplateType.id==TypeAttr.type_id).filter(
                                                 TemplateType.template_id==template_id).all()
         for r in rs:
             attr_ids.append(r.attr_id)
