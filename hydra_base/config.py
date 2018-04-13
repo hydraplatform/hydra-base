@@ -69,24 +69,24 @@ def load_config():
 
     modulepath = os.path.dirname(os.path.abspath(__file__))
 
-    localfile = os.getcwd() + '/hydra.ini'
+    localfile = os.path.join(os.getcwd(), 'hydra.ini')
     localfiles = glob.glob(localfile)
 
-    repofile = modulepath + '/hydra.ini'
+    repofile = os.path.join(modulepath, 'hydra.ini')
     repofiles = glob.glob(repofile)
 
     if os.name == 'nt':
         import winpaths
-        userfile = os.path.expanduser('~') + '/AppData/Local/hydra.ini'
+        userfile = os.path.join(os.path.expanduser('~'),'AppData','Local','hydra.ini')
         userfiles = glob.glob(userfile)
 
-        sysfile = winpaths.get_common_documents() + '/Hydra/hydra.ini'
+        sysfile = os.path.join(winpaths.get_common_documents(), 'Hydra','hydra.ini')
         sysfiles = glob.glob(sysfile)
     else:
-        userfile = os.path.expanduser('~') + '/.config/hydra/hydra.ini'
+        userfile = os.path.join(os.path.expanduser('~'), '.hydra', 'hydra.ini')
         userfiles = glob.glob(userfile)
 
-        sysfile = '/etc/hydra/hydra.ini'
+        sysfile = os.path.join('etc','hydra','hydra.ini')
         sysfiles = glob.glob(sysfile)
 
 
@@ -94,14 +94,14 @@ def load_config():
         logging.debug("Repofile: %s"%ini_file)
         config.read(ini_file)
     for ini_file in sysfiles:
-        logging.info("Sysfile: %s"%ini_file)
+        logging.debug("Sysfile: %s"%ini_file)
         config.read(ini_file)
     for ini_file in userfiles:
-        logging.info("Userfile: %s"%ini_file)
+        logging.debug("Userfile: %s"%ini_file)
         config.read(ini_file)
     for ini_file in localfiles:
         logging.info("Localfile: %s"%ini_file)
-        config.read(ini_file)
+        config.debug(ini_file)
 
     if os.name == 'nt':
         set_windows_env_variables(config)
