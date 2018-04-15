@@ -167,9 +167,20 @@ def update_attribute(attr,**kwargs):
         attr.dimen = 'dimensionless'
 
     log.debug("Adding attribute: %s", attr.name)
-    attr_i = _get_attr(Attr.attr_id)
+    attr_i = _get_attr(attr.attr_id)
     attr_i.attr_name = attr.name
-    attr_i.attr_dimen = attr.dimension
+
+    if hasattr(attr, 'dimen'):
+        # if the attribute found is "dimen"
+        attr_i.attr_dimen = attr.dimen
+    else:
+        if hasattr(attr, 'dimension'):
+            # if the attribute found is "dimension"
+            attr_i.attr_dimen = attr.dimension
+        else:
+            # No attribute "dimen | dimension" found!
+            attr_i.attr_dimen = ""
+
     attr_i.attr_description = attr.description
 
     #Make sure an update hasn't caused an inconsistency.
@@ -241,6 +252,7 @@ def get_attributes(**kwargs):
 
 def _get_attr(attr_id):
     try:
+        log.info("%s", attr_id)
         attr = db.DBSession.query(Attr).filter(Attr.attr_id == attr_id).one()
         return attr
     except NoResultFound:
