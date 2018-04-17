@@ -571,7 +571,7 @@ class ResourceType(Base, Inspect):
         UniqueConstraint('group_id', 'type_id', name = 'group_type_1'),
 
     )
-    resource_type_id = Column(Integer, primary_key=True, nullable=False)
+    id = Column(Integer, primary_key=True, nullable=False)
     type_id = Column(Integer(), ForeignKey('tTemplateType.id'), primary_key=False, nullable=False)
     ref_key = Column(String(60),nullable=False)
     network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), nullable=True,)
