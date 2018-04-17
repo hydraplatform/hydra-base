@@ -203,13 +203,11 @@ in the appropriate data table using data_id. It knows which table to access
 using the data_type column. Ex: data_id = 1 and data_type = 'descriptor' means
 look in tDescriptor for data_id 1.
 
- * dataset_id: Unique identifier
- * data_id: Reference to a row in one of the data tables.
- * data_type: Defines which data table to look in. Must be one of: ('descriptor', 'timeseries', 'eqtimeseries', 'scalar', 'array')
- * data_units: What is this data type measured in?
- * data_name: A name for this data
- * data_dimen: Dimension -- for comparison with dimension in tAttr.
- * data_hash: The hash of the datum. This hash is generated using python's hash() function, as used in hash tables. Allows for easy comparison of data.
+ * id: Unique identifier
+ * type: Defines which data table to look in. Must be one of: ('descriptor', 'timeseries', 'eqtimeseries', 'scalar', 'array')
+ * unit: What is this data type measured in?
+ * name: A name for this data
+ * hash: The hash of the datum. This hash is generated using python's hash() function, as used in hash tables. Allows for easy comparison of data.
  * hidden: Flag to indicate whether this dataset has been hidden by its owner.
  * value: Contains the actual value. This will usually be a single value or a JSON string.
  * cr_date: Creation date
@@ -219,8 +217,8 @@ tDatasetCollection
 
 Collections datasets into named sets for easy & convenient categorisation.
 
- * collection_name: The human-readable name of the collection or category
- * collection_id  : Unique identifier for the collection. PK.
+ * name: The human-readable name of the collection or category
+ * id  : Unique identifier for the collection. PK.
 
 tDatasetCollectionItem
 ^^^^^^^^^^^^^^^^^^^^^^

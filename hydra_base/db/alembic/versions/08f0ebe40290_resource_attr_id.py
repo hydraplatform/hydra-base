@@ -19,7 +19,7 @@ depends_on = None
 def upgrade():
     if op.get_bind().dialect.name == 'mysql':
 
-        # ### tProject
+        # ### tResourceAttrt
 
         try:
             op.alter_column('tResourceAttr', 'resource_attr_id', new_column_name='id', existing_type=sa.Integer(), autoincrement=True, nullable=False)
@@ -71,7 +71,7 @@ def downgrade():
         # ### tProject
 
         try:
-            op.alter_column('tResourceAttr', 'id', new_column_name='resource_attr_id', existing_type=sa.Integer(), autoincrement=True, nullable=False)
+            op.alter_column('tResourceAttr', 'id', new_column_name='resource_attr_id', existing_type=sa.Integer(), primary_key=True, autoincrement=True, nullable=False)
         except Exception as e:
             log.exception(e)
 

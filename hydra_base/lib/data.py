@@ -294,9 +294,9 @@ def search_datasets(dataset_id=None,
             dc = aliased(DatasetCollection)
             dci = aliased(DatasetCollectionItem)
             dataset_qry = dataset_qry.join(dc,
-                        func.lower(dc.collection_name).like("%%%s%%"%collection_name.lower())
+                        func.lower(dc.name).like("%%%s%%"%collection_name.lower())
                         ).join(dci,and_(
-                            dci.collection_id == dc.collection_id,
+                            dci.collection_id == dc.id,
                             dci.dataset_id == Dataset.id))
 
         if data_type is not None:
@@ -792,7 +792,7 @@ def _get_collection(collection_id):
         :param collection ID
     """
     try:
-        collection = db.DBSession.query(DatasetCollection).filter(DatasetCollection.collection_id==collection_id).one()
+        collection = db.DBSession.query(DatasetCollection).filter(DatasetCollection.id==collection_id).one()
         return collection
     except NoResultFound:
         raise ResourceNotFoundError("No dataset collection found with id %s"%collection_id)
@@ -885,7 +885,7 @@ def check_dataset_in_collection(dataset_id, collection_id, **kwargs):
 
 def get_dataset_collection(collection_id,**kwargs):
     try:
-        collection = db.DBSession.query(DatasetCollection).filter(DatasetCollection.collection_id==collection_id).one()
+        collection = db.DBSession.query(DatasetCollection).filter(DatasetCollection.id==collection_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("No dataset collection found with id %s"%collection_id)
 
@@ -893,7 +893,7 @@ def get_dataset_collection(collection_id,**kwargs):
 
 def get_dataset_collection_by_name(collection_name,**kwargs):
     try:
-        collection = db.DBSession.query(DatasetCollection).filter(DatasetCollection.collection_name==collection_name).one()
+        collection = db.DBSession.query(DatasetCollection).filter(DatasetCollection.name==collection_name).one()
     except NoResultFound:
         raise ResourceNotFoundError("No dataset collection found with name %s"%collection_name)
 
@@ -901,7 +901,7 @@ def get_dataset_collection_by_name(collection_name,**kwargs):
 
 def add_dataset_collection(collection,**kwargs):
 
-    coln_i = DatasetCollection(collection_name=collection.name)
+    coln_i = DatasetCollection(name=collection.name)
 
     for dataset_id in collection.dataset_ids:
         datasetitem = DatasetCollectionItem(dataset_id=dataset_id)
@@ -913,7 +913,7 @@ def add_dataset_collection(collection,**kwargs):
 def delete_dataset_collection(collection_id,**kwargs):
 
     try:
-        collection = db.DBSession.query(DatasetCollection).filter(DatasetCollection.collection_id==collection_id).one()
+        collection = db.DBSession.query(DatasetCollection).filter(DatasetCollection.id==collection_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("No dataset collection found with id %s"%collection_id)
 
@@ -925,7 +925,7 @@ def get_collections_like_name(collection_name,**kwargs):
         Get all the datasets from the collection with the specified name
     """
     try:
-        collections = db.DBSession.query(DatasetCollection).filter(DatasetCollection.collection_name.like("%%%s%%"%collection_name.lower())).all()
+        collections = db.DBSession.query(DatasetCollection).filter(DatasetCollection.name.like("%%%s%%"%collection_name.lower())).all()
     except NoResultFound:
         raise ResourceNotFoundError("No dataset collection found with name %s"%collection_name)
 
@@ -936,8 +936,8 @@ def get_collection_datasets(collection_id,**kwargs):
         Get all the datasets from the collection with the specified name
     """
     collection_datasets = db.DBSession.query(Dataset).filter(Dataset.id==DatasetCollectionItem.dataset_id,
-                                        DatasetCollectionItem.collection_id==DatasetCollection.collection_id,
-                                        DatasetCollection.collection_id==collection_id).all()
+                                        DatasetCollectionItem.collection_id==DatasetCollection.id,
+                                        DatasetCollection.id==collection_id).all()
     return collection_datasets
 
 def get_val_at_time(dataset_id, timestamps,**kwargs):

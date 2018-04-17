@@ -291,8 +291,8 @@ class DatasetCollection(Base, Inspect):
 
     __tablename__='tDatasetCollection'
 
-    collection_id = Column(Integer(), primary_key=True, nullable=False)
-    collection_name = Column(String(60),  nullable=False)
+    id = Column(Integer(), primary_key=True, nullable=False)
+    name = Column(String(60),  nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
 class DatasetCollectionItem(Base, Inspect):
@@ -301,7 +301,7 @@ class DatasetCollectionItem(Base, Inspect):
 
     __tablename__='tDatasetCollectionItem'
 
-    collection_id = Column(Integer(), ForeignKey('tDatasetCollection.collection_id'), primary_key=True, nullable=False)
+    collection_id = Column(Integer(), ForeignKey('tDatasetCollection.id'), primary_key=True, nullable=False)
     dataset_id = Column(Integer(), ForeignKey('tDataset.id'), primary_key=True, nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 

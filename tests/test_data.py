@@ -415,7 +415,7 @@ class TestDataCollection:
     def test_get_collection_datasets(self, session, network_with_dataset_collection):
         collections = hb.get_collections_like_name('test')
 
-        datasets = hb.get_collection_datasets(collections[-1].collection_id)
+        datasets = hb.get_collection_datasets(collections[-1].id)
 
         assert len(datasets) > 0, "Datasets were not retrieved correctly!"
 
@@ -423,7 +423,7 @@ class TestDataCollection:
 
         collection = network_with_dataset_collection
 
-        assert collection.collection_id is not None, "Dataset collection does not have an ID!"
+        assert collection.id is not None, "Dataset collection does not have an ID!"
         assert len(collection.items) == 2, "Dataset collection does not have any items!"
 
     def test_delete_collection(self, session, network_with_dataset_collection):
@@ -433,28 +433,28 @@ class TestDataCollection:
         # Get all collections and make sure this collection is present
         all_collections_pre = hb.get_all_dataset_collections()
 
-        all_collection_ids_pre = [c.collection_id for c in all_collections_pre]
+        all_collection_ids_pre = [c.id for c in all_collections_pre]
 
-        assert collection.collection_id in all_collection_ids_pre
+        assert collection.id in all_collection_ids_pre
 
         # Delete the collection
-        hb.delete_dataset_collection(collection.collection_id)
+        hb.delete_dataset_collection(collection.id)
 
         # Get all the collections again and make sure the deleted collection is not present
         all_collections_post = hb.get_all_dataset_collections()
-        all_collection_ids_post = [c.collection_id for c in all_collections_post]
+        all_collection_ids_post = [c.id for c in all_collections_post]
 
-        assert collection.collection_id not in all_collection_ids_post
+        assert collection.id not in all_collection_ids_post
 
         with pytest.raises(ResourceNotFoundError):
-            hb.get_dataset_collection(collection.collection_id)
+            hb.get_dataset_collection(collection.id)
 
     def test_get_all_collections(self, session, network_with_dataset_collection):
 
         collection = network_with_dataset_collection
 
         collections = hb.get_all_dataset_collections()
-        assert collection.collection_id in [g.collection_id for g in collections]
+        assert collection.id in [dc.id for dc in collections]
 
     def test_add_dataset_to_collection(self, session, network_with_data, collection_json_object):
 
@@ -488,17 +488,17 @@ class TestDataCollection:
             previous_dataset_ids.append(item.dataset_id)
 
         # This acts as a test for the 'check_dataset_in_collection' code
-        assert hb.check_dataset_in_collection(dataset_id_to_add, newly_added_collection.collection_id) == 'N'
-        assert hb.check_dataset_in_collection(99999, newly_added_collection.collection_id) == 'N'
+        assert hb.check_dataset_in_collection(dataset_id_to_add, newly_added_collection.id) == 'N'
+        assert hb.check_dataset_in_collection(99999, newly_added_collection.id) == 'N'
 
         with pytest.raises(ResourceNotFoundError):
             hb.check_dataset_in_collection(99999, 99999)
 
-        hb.add_dataset_to_collection(dataset_id_to_add, newly_added_collection.collection_id)
+        hb.add_dataset_to_collection(dataset_id_to_add, newly_added_collection.id)
 
-        assert hb.check_dataset_in_collection(dataset_id_to_add, newly_added_collection.collection_id) == 'Y'
+        assert hb.check_dataset_in_collection(dataset_id_to_add, newly_added_collection.id) == 'Y'
 
-        updated_collection = hb.get_dataset_collection(newly_added_collection.collection_id)
+        updated_collection = hb.get_dataset_collection(newly_added_collection.id)
 
         new_dataset_ids = []
         for item in updated_collection.items:
@@ -536,9 +536,9 @@ class TestDataCollection:
         for item in newly_added_collection.items:
             previous_dataset_ids.append(item.dataset_id)
 
-        hb.add_datasets_to_collection(dataset_ids_to_add, newly_added_collection.collection_id)
+        hb.add_datasets_to_collection(dataset_ids_to_add, newly_added_collection.id)
 
-        updated_collection = hb.get_dataset_collection(newly_added_collection.collection_id)
+        updated_collection = hb.get_dataset_collection(newly_added_collection.id)
 
         new_dataset_ids = []
         for item in updated_collection.items:
@@ -570,9 +570,9 @@ class TestDataCollection:
         for item in collection.items:
             previous_dataset_ids.append(item.dataset_id)
 
-        hb.remove_dataset_from_collection(dataset_id, collection.collection_id)
+        hb.remove_dataset_from_collection(dataset_id, collection.id)
 
-        updated_collection = hb.get_dataset_collection(collection.collection_id)
+        updated_collection = hb.get_dataset_collection(collection.id)
 
         new_dataset_ids = []
         for item in updated_collection.items:
@@ -608,7 +608,7 @@ class TestDataCollection:
                 if rs.dataset_id == dataset_id:
                     hb.delete_resourcedata(scenario_id, rs, user_id=self.user_id)
 
-        new_collection = hb.get_dataset_collection(newly_added_collection.collection_id)
+        new_collection = hb.get_dataset_collection(newly_added_collection.id)
 
         new_dataset_ids = []
         for item in new_collection.items:
@@ -620,7 +620,7 @@ class TestDataCollection:
 
         dataset_qry = hb.db.DBSession.query(hb.db.model.Dataset).filter(hb.db.model.Dataset.id==dataset_id).all()
 
-        updated_collection = hb.get_dataset_collection(newly_added_collection.collection_id)
+        updated_collection = hb.get_dataset_collection(newly_added_collection.id)
         updated_dataset_ids = []
         for item in updated_collection.items:
             updated_dataset_ids.append(item.dataset_id)
