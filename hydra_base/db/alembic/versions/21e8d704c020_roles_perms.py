@@ -9,6 +9,9 @@ from alembic import op
 import sqlalchemy as sa
 
 
+import logging
+log = logging.getLogger(__name__)
+
 # revision identifiers, used by Alembic.
 revision = '21e8d704c020'
 down_revision = 'd0c45fdc4fac'
