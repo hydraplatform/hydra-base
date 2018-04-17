@@ -257,7 +257,7 @@ tUser
 
 Save access credentials for each user
 
- * user_id: unique identifier
+ * id: unique identifier
  * username: Username
  * password: Password
  * cr_date: Creation date
@@ -267,9 +267,9 @@ tRole
   
 Define roles
   
- * role_id: Unique identifier 
- * role_name: Role name
- * role_code: Role code. Unique. Used for easier identification
+ * id: Unique identifier 
+ * name: Role name
+ * code: Role code. Unique. Used for easier identification
  * cr_date: Creation date
 
 tPerm
@@ -277,9 +277,9 @@ tPerm
   
 Define particular permissions
 
- * perm_id: Unique identifier
- * perm_name: Permission Name
- * perm_code: Permission code. Unique. Used for easier identification
+ * id: Unique identifier
+ * name: Permission Name
+ * code: Permission code. Unique. Used for easier identification
  * cr_date: Creation date
 
 tRoleUser

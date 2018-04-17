@@ -93,15 +93,15 @@ def make_root_user():
         db.DBSession.add(user)
 
     try:
-        role = db.DBSession.query(Role).filter(Role.role_code=='admin').one()
+        role = db.DBSession.query(Role).filter(Role.code=='admin').one()
     except NoResultFound:
         raise HydraError("Admin role not found.")
 
     try:
-        userrole = db.DBSession.query(RoleUser).filter(RoleUser.role_id==role.role_id,
+        userrole = db.DBSession.query(RoleUser).filter(RoleUser.role_id==role.id,
                                                    RoleUser.user_id==user.id).one()
     except NoResultFound:
-        userrole = RoleUser(role_id=role.role_id,user_id=user.id)
+        userrole = RoleUser(role_id=role.id,user_id=user.id)
         user.roleusers.append(userrole)
         db.DBSession.add(userrole)
     db.DBSession.flush()
@@ -227,12 +227,12 @@ def create_default_users_and_perms():
 
     perm_dict = {}
     for code, name in default_perms:
-        perm = Perm(perm_code=code, perm_name=name)
+        perm = Perm(code=code, name=name)
         perm_dict[code] = perm
         db.DBSession.add(perm)
     role_dict = {}
     for code, name in default_roles:
-        role = Role(role_code=code, role_name=name)
+        role = Role(code=code, name=name)
         role_dict[code] = role
         db.DBSession.add(role)
 

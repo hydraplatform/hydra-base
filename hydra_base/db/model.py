@@ -1445,9 +1445,9 @@ class Perm(Base, Inspect):
 
     __tablename__='tPerm'
 
-    perm_id = Column(Integer(), primary_key=True, nullable=False)
-    perm_code = Column(String(60),  nullable=False)
-    perm_name = Column(String(60),  nullable=False)
+    id = Column(Integer(), primary_key=True, nullable=False)
+    code = Column(String(60),  nullable=False)
+    name = Column(String(60),  nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     roleperms = relationship('RolePerm', lazy='joined')
 
@@ -1457,9 +1457,9 @@ class Role(Base, Inspect):
 
     __tablename__='tRole'
 
-    role_id = Column(Integer(), primary_key=True, nullable=False)
-    role_code = Column(String(60),  nullable=False)
-    role_name = Column(String(60),  nullable=False)
+    id = Column(Integer(), primary_key=True, nullable=False)
+    code = Column(String(60),  nullable=False)
+    name = Column(String(60),  nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     roleperms = relationship('RolePerm', lazy='joined', cascade='all')
     roleusers = relationship('RoleUser', lazy='joined', cascade='all')
@@ -1475,8 +1475,8 @@ class RolePerm(Base, Inspect):
 
     __tablename__='tRolePerm'
 
-    perm_id = Column(Integer(), ForeignKey('tPerm.perm_id'), primary_key=True, nullable=False)
-    role_id = Column(Integer(), ForeignKey('tRole.role_id'), primary_key=True, nullable=False)
+    perm_id = Column(Integer(), ForeignKey('tPerm.id'), primary_key=True, nullable=False)
+    role_id = Column(Integer(), ForeignKey('tRole.id'), primary_key=True, nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     perm = relationship('Perm', lazy='joined')
@@ -1489,7 +1489,7 @@ class RoleUser(Base, Inspect):
     __tablename__='tRoleUser'
 
     user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
-    role_id = Column(Integer(), ForeignKey('tRole.role_id'), primary_key=True, nullable=False)
+    role_id = Column(Integer(), ForeignKey('tRole.id'), primary_key=True, nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     user = relationship('User', lazy='joined')

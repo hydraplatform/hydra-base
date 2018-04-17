@@ -47,7 +47,7 @@ def _get_user(user_id, **kwargs):
 
 def _get_role(role_id,**kwargs):
     try:
-        role_i = db.DBSession.query(Role).filter(Role.role_id==role_id).one()
+        role_i = db.DBSession.query(Role).filter(Role.id==role_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Role %s does not exist"%role_id)
 
@@ -55,7 +55,7 @@ def _get_role(role_id,**kwargs):
 
 def _get_perm(perm_id,**kwargs):
     try:
-        perm_i = db.DBSession.query(Perm).filter(Perm.perm_id==perm_id).one()
+        perm_i = db.DBSession.query(Perm).filter(Perm.id==perm_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Permission %s does not exist"%perm_id)
 
@@ -66,7 +66,7 @@ def get_username(uid,**kwargs):
         Return the username of a given user_id
     """
     rs = db.DBSession.query(User.username).filter(User.id==uid).one()
-    
+
     if rs is None:
         raise ResourceNotFoundError("User with ID %s not found"%uid)
 
@@ -87,19 +87,19 @@ def add_user(user, **kwargs):
     """
     #check_perm(kwargs.get('user_id'), 'add_user')
     u = User()
-    
+
     u.username     = user.username
     u.display_name = user.display_name
-    
+
     user_id = _get_user_id(u.username)
 
-    #If the user is already there, cannot add another with 
+    #If the user is already there, cannot add another with
     #the same username.
     if user_id is not None:
         raise HydraError("User %s already exists!"%user.username)
 
     u.password = bcrypt.hashpw(str(user.password).encode('utf-8'), bcrypt.gensalt())
-    
+
     db.DBSession.add(u)
     db.DBSession.flush()
 
@@ -143,7 +143,7 @@ def get_user_by_name(uname,**kwargs):
     try:
         user_i = db.DBSession.query(User).filter(User.username==uname).one()
         return user_i
-    except NoResultFound:    
+    except NoResultFound:
         return None
 
 def delete_user(deleted_user_id,**kwargs):
@@ -154,7 +154,7 @@ def delete_user(deleted_user_id,**kwargs):
     try:
         user_i = db.DBSession.query(User).filter(User.id==deleted_user_id).one()
         db.DBSession.delete(user_i)
-    except NoResultFound:    
+    except NoResultFound:
         raise ResourceNotFoundError("User (user_id=%s) does not exist"%(deleted_user_id))
 
 
@@ -166,7 +166,7 @@ def add_role(role,**kwargs):
         Add a new role
     """
     #check_perm(kwargs.get('user_id'), 'add_role')
-    role_i = Role(role_name=role.name, role_code=role.code)
+    role_i = Role(name=role.name, code=role.code)
     db.DBSession.add(role_i)
     db.DBSession.flush()
 
@@ -178,9 +178,9 @@ def delete_role(role_id,**kwargs):
     """
     #check_perm(kwargs.get('user_id'), 'edit_role')
     try:
-        role_i = db.DBSession.query(Role).filter(Role.role_id==role_id).one()
+        role_i = db.DBSession.query(Role).filter(Role.id==role_id).one()
         db.DBSession.delete(role_i)
-    except InvalidRequestError:    
+    except InvalidRequestError:
         raise ResourceNotFoundError("Role (role_id=%s) does not exist"%(role_id))
 
     return 'OK'
@@ -190,7 +190,7 @@ def add_perm(perm,**kwargs):
         Add a permission
     """
     #check_perm(kwargs.get('user_id'), 'add_perm')
-    perm_i = Perm(perm_name=perm.name, perm_code=perm.code)
+    perm_i = Perm(name=perm.name, code=perm.code)
     db.DBSession.add(perm_i)
     db.DBSession.flush()
 
@@ -203,16 +203,16 @@ def delete_perm(perm_id,**kwargs):
 
     #check_perm(kwargs.get('user_id'), 'edit_perm')
     try:
-        perm_i = db.DBSession.query(Perm).filter(Perm.perm_id==perm_id).one()
+        perm_i = db.DBSession.query(Perm).filter(Perm.id==perm_id).one()
         db.DBSession.delete(perm_i)
-    except InvalidRequestError:    
+    except InvalidRequestError:
         raise ResourceNotFoundError("Permission (id=%s) does not exist"%(perm_id))
 
-    return 'OK' 
+    return 'OK'
 
 
 def set_user_role(new_user_id, role_id, **kwargs):
-    """ 
+    """
         Apply `role_id` to `new_user_id`
 
         Note this function returns the `Role` instance associated with `role_id`
@@ -224,7 +224,7 @@ def set_user_role(new_user_id, role_id, **kwargs):
         roleuser_i = RoleUser(user_id=new_user_id, role_id=role_id)
         role_i.roleusers.append(roleuser_i)
         db.DBSession.flush()
-    except: # Will occur if the foreign keys do not exist    
+    except: # Will occur if the foreign keys do not exist
         raise ResourceNotFoundError("User or Role does not exist")
 
     return role_i
@@ -239,7 +239,7 @@ def delete_user_role(deleted_user_id, role_id,**kwargs):
         _get_role(role_id)
         roleuser_i = db.DBSession.query(RoleUser).filter(RoleUser.user_id==deleted_user_id, RoleUser.role_id==role_id).one()
         db.DBSession.delete(roleuser_i)
-    except NoResultFound:    
+    except NoResultFound:
         raise ResourceNotFoundError("User Role does not exist")
 
     return 'OK'
@@ -253,11 +253,11 @@ def set_role_perm(role_id, perm_id,**kwargs):
     _get_perm(perm_id)
     role_i = _get_role(role_id)
     roleperm_i = RolePerm(role_id=role_id, perm_id=perm_id)
-    
+
     role_i.roleperms.append(roleperm_i)
 
     db.DBSession.flush()
-    
+
     return role_i
 
 def delete_role_perm(role_id, perm_id,**kwargs):
@@ -271,7 +271,7 @@ def delete_role_perm(role_id, perm_id,**kwargs):
     try:
         roleperm_i = db.DBSession.query(RolePerm).filter(RolePerm.role_id==role_id, RolePerm.perm_id==perm_id).one()
         db.DBSession.delete(roleperm_i)
-    except NoResultFound:    
+    except NoResultFound:
         raise ResourceNotFoundError("Role Perm does not exist")
 
     return 'OK'
@@ -283,15 +283,15 @@ def update_role(role,**kwargs):
     """
     #check_perm(kwargs.get('user_id'), 'edit_role')
     try:
-        role_i = db.DBSession.query(Role).filter(Role.role_id==role.id).one()
-        role_i.role_name = role.name
-        role_i.role_code = role.code
-    except NoResultFound:    
+        role_i = db.DBSession.query(Role).filter(Role.id==role.id).one()
+        role_i.name = role.name
+        role_i.code = role.code
+    except NoResultFound:
         raise ResourceNotFoundError("Role (role_id=%s) does not exist"%(role.id))
 
     for perm in role.permissions:
         _get_perm(perm.id)
-        roleperm_i = RolePerm(role_id=role.id, 
+        roleperm_i = RolePerm(role_id=role.id,
                               perm_id=perm.id
                               )
 
@@ -308,7 +308,7 @@ def update_role(role,**kwargs):
     db.DBSession.flush()
     return role_i
 
-        
+
 def get_all_users(**kwargs):
     """
         Get the username & ID of all users.
@@ -337,21 +337,21 @@ def get_role(role_id,**kwargs):
         Get a role by its ID.
     """
     try:
-        role = db.DBSession.query(Role).filter(Role.role_id==role_id).one()
+        role = db.DBSession.query(Role).filter(Role.id==role_id).one()
         return role
-    except NoResultFound: 
+    except NoResultFound:
         raise HydraError("Role not found (role_id=%s)", role_id)
-    
+
 def get_user_roles(uid,**kwargs):
     """
         Get the roles for a user.
         @param user_id
     """
     try:
-        user_roles = db.DBSession.query(Role).filter(Role.role_id==RoleUser.role_id,
+        user_roles = db.DBSession.query(Role).filter(Role.id==RoleUser.role_id,
                                                   RoleUser.user_id==uid).all()
         return user_roles
-    except NoResultFound: 
+    except NoResultFound:
         raise HydraError("Roles not found for user (user_id=%s)", uid)
 
 def get_user_permissions(uid, **kwargs):
@@ -362,12 +362,12 @@ def get_user_permissions(uid, **kwargs):
     try:
         _get_user(uid)
 
-        user_perms = db.DBSession.query(Perm).filter(Perm.perm_id==RolePerm.perm_id,
-                                                  RolePerm.role_id==Role.role_id,
-                                                  Role.role_id==RoleUser.role_id,
+        user_perms = db.DBSession.query(Perm).filter(Perm.id==RolePerm.perm_id,
+                                                  RolePerm.role_id==Role.id,
+                                                  Role.id==RoleUser.role_id,
                                                   RoleUser.user_id==uid).all()
         return user_perms
-    except: 
+    except:
         raise HydraError("Permissions not found for user (user_id=%s)", uid)
 
 def get_role_by_code(role_code,**kwargs):
@@ -375,11 +375,11 @@ def get_role_by_code(role_code,**kwargs):
         Get a role by its code
     """
     try:
-        role = db.DBSession.query(Role).filter(Role.role_code==role_code).one()
+        role = db.DBSession.query(Role).filter(Role.code==role_code).one()
         return role
     except NoResultFound:
         raise ResourceNotFoundError("Role not found (role_code=%s)"%(role_code))
-    
+
 
 def get_perm(perm_id,**kwargs):
     """
@@ -387,18 +387,18 @@ def get_perm(perm_id,**kwargs):
     """
 
     try:
-        perm = db.DBSession.query(Perm).filter(Perm.perm_id==perm_id).one()
+        perm = db.DBSession.query(Perm).filter(Perm.id==perm_id).one()
         return perm
     except NoResultFound:
         raise ResourceNotFoundError("Permission not found (perm_id=%s)"%(perm_id))
 
 def get_perm_by_code(perm_code,**kwargs):
     """
-        Get a permission by its code 
+        Get a permission by its code
     """
 
     try:
-        perm = db.DBSession.query(Perm).filter(Perm.perm_code==perm_code).one()
+        perm = db.DBSession.query(Perm).filter(Perm.code==perm_code).one()
         return perm
     except NoResultFound:
         raise ResourceNotFoundError("Permission not found (perm_code=%s)"(perm_code))

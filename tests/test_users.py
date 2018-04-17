@@ -76,10 +76,10 @@ class TestUser:
         role = role_json_object
         new_role = hydra_base.add_role(role)
 
-        assert new_role.role_id is not None, "Role does not have an ID!"
-        assert new_role.role_name == role.name, "Role are not the same!"
+        assert new_role.id is not None, "Role does not have an ID!"
+        assert new_role.name == role.name, "Role are not the same!"
 
-        delete_result = hydra_base.delete_role(new_role.role_id)
+        delete_result = hydra_base.delete_role(new_role.id)
 
         assert delete_result == 'OK', "Role was not removed!"
 
@@ -89,10 +89,10 @@ class TestUser:
 
         new_perm = hydra_base.add_perm(perm)
 
-        assert new_perm.perm_id is not None, "Perm does not have an ID!"
-        assert new_perm.perm_name == perm.name, "Perm are not the same!"
+        assert new_perm.id is not None, "Perm does not have an ID!"
+        assert new_perm.name == perm.name, "Perm are not the same!"
 
-        delete_result = hydra_base.delete_perm(new_perm.perm_id)
+        delete_result = hydra_base.delete_perm(new_perm.id)
 
         assert delete_result == 'OK', "perm was not removed!"
 
@@ -108,12 +108,12 @@ class TestUser:
 
         # Apply role to the user
         # NB `set_user_role` returns a `Role` instance not a `RoleUser` instance
-        role_with_users = hydra_base.set_user_role(new_user.id, new_role.role_id)
+        role_with_users = hydra_base.set_user_role(new_user.id, new_role.id)
 
         assert role_with_users is not None, "Role user was not set correctly"
         assert role_with_users.roleusers[0].user_id == new_user.id, "User was not added to role correctly."
 
-        delete_result = hydra_base.delete_user_role(new_user.id, new_role.role_id)
+        delete_result = hydra_base.delete_user_role(new_user.id, new_role.id)
 
         assert delete_result == 'OK', "Role User was not removed!"
 
@@ -131,16 +131,16 @@ class TestUser:
         new_role = hydra_base.add_role(role)
         new_perm = hydra_base.add_perm(perm)
 
-        role_with_perms = hydra_base.set_role_perm(new_role.role_id, new_perm.perm_id)
+        role_with_perms = hydra_base.set_role_perm(new_role.id, new_perm.id)
 
         assert role_with_perms is not None, "Role perm was not set correctly"
-        assert role_with_perms.roleperms[0].perm_id == new_perm.perm_id, "Perm was not added to role correctly."
+        assert role_with_perms.roleperms[0].perm_id == new_perm.id, "Perm was not added to role correctly."
 
-        delete_result = hydra_base.delete_role_perm(new_role.role_id, new_perm.perm_id)
+        delete_result = hydra_base.delete_role_perm(new_role.id, new_perm.id)
 
         assert delete_result == 'OK', "Role Perm was not removed!"
 
-        delete_result = hydra_base.delete_perm(new_perm.perm_id)
+        delete_result = hydra_base.delete_perm(new_perm.id)
 
         assert delete_result == 'OK', "Role Perm was not removed!"
 
@@ -175,11 +175,11 @@ class TestUser:
 
         check_perm = perms[0]
 
-        single_perm = hydra_base.get_perm(check_perm.perm_id)
+        single_perm = hydra_base.get_perm(check_perm.id)
 
-        assert single_perm.perm_id == check_perm.perm_id
-        assert single_perm.perm_code == check_perm.perm_code
-        assert single_perm.perm_name == check_perm.perm_name
+        assert single_perm.id == check_perm.id
+        assert single_perm.code == check_perm.code
+        assert single_perm.name == check_perm.name
 
         # Check invalid ID raises an error
         with pytest.raises(hydra_base.exceptions.ResourceNotFoundError):
@@ -189,18 +189,18 @@ class TestUser:
         roles = hydra_base.get_all_roles()
         assert len(roles) >= 6
 
-        role_codes = set([r.role_code for r in roles])
+        role_codes = set([r.code for r in roles])
         core_set = set(['admin', 'dev', 'modeller', 'manager', 'grad', 'decision'])
         assert core_set.issubset(role_codes)
         for r in roles:
-            if r.role_code == 'admin':
+            if r.code == 'admin':
                 assert len(r.roleperms) >= 10
                 check_role = r
 
-        single_role = hydra_base.get_role(check_role.role_id)
-        assert check_role.role_id == single_role.role_id
-        assert check_role.role_code == single_role.role_code
-        assert check_role.role_name == single_role.role_name
+        single_role = hydra_base.get_role(check_role.id)
+        assert check_role.id == single_role.id
+        assert check_role.code == single_role.code
+        assert check_role.name == single_role.name
         assert len(check_role.roleperms) == len(single_role.roleperms)
 
         # Check invalid ID raises an error
@@ -210,7 +210,7 @@ class TestUser:
     def test_get_user_roles(self, session):
         roles = hydra_base.get_user_roles(1)
         assert len(roles) == 1
-        assert roles[0].role_code == 'admin'
+        assert roles[0].code == 'admin'
 
     def test_get_user_permissions(self, session):
         permissions = hydra_base.get_user_permissions(1)

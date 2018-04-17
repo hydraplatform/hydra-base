@@ -59,7 +59,7 @@ def create_user(name):
     #make the user an admin user by default
     role =  JSONObject(hydra_base.get_role_by_code('admin', user_id=user_id))
 
-    hydra_base.set_user_role(new_user.id, role.role_id, user_id=user_id)
+    hydra_base.set_user_role(new_user.id, role.id, user_id=user_id)
 
     return new_user
 
