@@ -100,6 +100,7 @@ class Dataset(Base, Inspect):
         """
         if metadata_dict is None:
             return
+
         existing_metadata = []
         for m in self.metadata:
             existing_metadata.append(m.key)
@@ -315,7 +316,7 @@ class Metadata(Base, Inspect):
 
     dataset_id = Column(Integer(), ForeignKey('tDataset.id',  ondelete='CASCADE'), primary_key=True, nullable=False, index=True)
     key       = Column(String(60), primary_key=True, nullable=False)
-    value     = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=False)
+    value     = Column(Text(1000).with_variant(mysql.TEXT(1000), 'mysql'),  nullable=False)
 
     dataset = relationship('Dataset', backref=backref("metadata", order_by=dataset_id, cascade="all, delete-orphan"))
 
@@ -332,13 +333,13 @@ class Attr(Base, Inspect):
     __tablename__='tAttr'
 
     __table_args__ = (
-        UniqueConstraint('attr_name', 'attr_dimen', name="unique name dimension"),
+        UniqueConstraint('name', 'dimension', name="unique name dimension"),
     )
 
-    attr_id           = Column(Integer(), primary_key=True, nullable=False)
-    attr_name         = Column(String(60),  nullable=False)
-    attr_dimen        = Column(String(60), server_default=text(u"'dimensionless'"))
-    attr_description  = Column(String(1000))
+    id           = Column(Integer(), primary_key=True, nullable=False)
+    name         = Column(String(60),  nullable=False)
+    dimension    = Column(String(60), server_default=text(u"'dimensionless'"))
+    description  = Column(String(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
 class AttrMap(Base, Inspect):
@@ -347,8 +348,8 @@ class AttrMap(Base, Inspect):
 
     __tablename__='tAttrMap'
 
-    attr_id_a = Column(Integer(), ForeignKey('tAttr.attr_id'), primary_key=True, nullable=False)
-    attr_id_b = Column(Integer(), ForeignKey('tAttr.attr_id'), primary_key=True, nullable=False)
+    attr_id_a = Column(Integer(), ForeignKey('tAttr.id'), primary_key=True, nullable=False)
+    attr_id_b = Column(Integer(), ForeignKey('tAttr.id'), primary_key=True, nullable=False)
 
     attr_a = relationship("Attr", foreign_keys=[attr_id_a], backref=backref('maps_to', order_by=attr_id_a))
     attr_b = relationship("Attr", foreign_keys=[attr_id_b], backref=backref('maps_from', order_by=attr_id_b))
@@ -385,7 +386,7 @@ class AttrGroupItem(Base, Inspect):
     __tablename__='tAttrGroupItem'
 
     group_id    = Column(Integer(), ForeignKey('tAttrGroup.id'), primary_key=True, nullable=False)
-    attr_id    = Column(Integer(), ForeignKey('tAttr.attr_id'), primary_key=True, nullable=False)
+    attr_id    = Column(Integer(), ForeignKey('tAttr.id'), primary_key=True, nullable=False)
     network_id    = Column(Integer(), ForeignKey('tNetwork.id'), primary_key=True, nullable=False)
 
     group = relationship('AttrGroup', backref=backref('items', uselist=True, cascade="all, delete-orphan"), lazy='joined')
@@ -400,8 +401,8 @@ class ResourceAttrMap(Base, Inspect):
 
     network_a_id       = Column(Integer(), ForeignKey('tNetwork.id'), primary_key=True, nullable=False)
     network_b_id       = Column(Integer(), ForeignKey('tNetwork.id'), primary_key=True, nullable=False)
-    resource_attr_id_a = Column(Integer(), ForeignKey('tResourceAttr.resource_attr_id'), primary_key=True, nullable=False)
-    resource_attr_id_b = Column(Integer(), ForeignKey('tResourceAttr.resource_attr_id'), primary_key=True, nullable=False)
+    resource_attr_id_a = Column(Integer(), ForeignKey('tResourceAttr.id'), primary_key=True, nullable=False)
+    resource_attr_id_b = Column(Integer(), ForeignKey('tResourceAttr.id'), primary_key=True, nullable=False)
 
     resourceattr_a = relationship("ResourceAttr", foreign_keys=[resource_attr_id_a])
     resourceattr_b = relationship("ResourceAttr", foreign_keys=[resource_attr_id_b])
@@ -415,8 +416,8 @@ class Template(Base, Inspect):
 
     __tablename__='tTemplate'
 
-    template_id = Column(Integer(), primary_key=True, nullable=False)
-    template_name = Column(String(60),  nullable=False, unique=True)
+    id = Column(Integer(), primary_key=True, nullable=False)
+    name = Column(String(60),  nullable=False, unique=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     layout = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
 
@@ -426,18 +427,18 @@ class TemplateType(Base, Inspect):
 
     __tablename__='tTemplateType'
     __table_args__ = (
-        UniqueConstraint('template_id', 'type_name', 'resource_type', name="unique type name"),
+        UniqueConstraint('template_id', 'name', 'resource_type', name="unique type name"),
     )
 
-    type_id = Column(Integer(), primary_key=True, nullable=False)
-    type_name = Column(String(60),  nullable=False)
-    template_id = Column(Integer(), ForeignKey('tTemplate.template_id'), nullable=False)
+    id = Column(Integer(), primary_key=True, nullable=False)
+    name = Column(String(60),  nullable=False)
+    template_id = Column(Integer(), ForeignKey('tTemplate.id'), nullable=False)
     resource_type = Column(String(60))
     alias = Column(String(100))
     layout = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
-    template = relationship('Template', backref=backref("templatetypes", order_by=type_id, cascade="all, delete-orphan"))
+    template = relationship('Template', backref=backref("templatetypes", order_by=id, cascade="all, delete-orphan"))
 
 class TypeAttr(Base, Inspect):
     """
@@ -445,8 +446,8 @@ class TypeAttr(Base, Inspect):
 
     __tablename__='tTypeAttr'
 
-    attr_id = Column(Integer(), ForeignKey('tAttr.attr_id'), primary_key=True, nullable=False)
-    type_id = Column(Integer(), ForeignKey('tTemplateType.type_id', ondelete='CASCADE'), primary_key=True, nullable=False)
+    attr_id = Column(Integer(), ForeignKey('tAttr.id'), primary_key=True, nullable=False)
+    type_id = Column(Integer(), ForeignKey('tTemplateType.id', ondelete='CASCADE'), primary_key=True, nullable=False)
     default_dataset_id = Column(Integer(), ForeignKey('tDataset.id'))
     attr_is_var        = Column(String(1), server_default=text(u"'N'"))
     data_type          = Column(String(60))
@@ -463,7 +464,7 @@ class TypeAttr(Base, Inspect):
     def get_attr(self):
 
         if self.attr is None:
-            attr = get_session().query(Attr).filter(Attr.attr_id==self.attr_id).first()
+            attr = get_session().query(Attr).filter(Attr.id==self.attr_id).first()
         else:
             attr = self.attr
 
@@ -484,8 +485,8 @@ class ResourceAttr(Base, Inspect):
         UniqueConstraint('group_id',   'attr_id', name = 'group_attr_1'),
     )
 
-    resource_attr_id = Column(Integer(), primary_key=True, nullable=False)
-    attr_id = Column(Integer(), ForeignKey('tAttr.attr_id'),  nullable=False)
+    id = Column(Integer(), primary_key=True, nullable=False)
+    attr_id = Column(Integer(), ForeignKey('tAttr.id'),  nullable=False)
     ref_key = Column(String(60),  nullable=False, index=True)
     network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), index=True, nullable=True,)
     project_id  = Column(Integer(),  ForeignKey('tProject.id'), index=True, nullable=True,)
@@ -571,7 +572,7 @@ class ResourceType(Base, Inspect):
 
     )
     resource_type_id = Column(Integer, primary_key=True, nullable=False)
-    type_id = Column(Integer(), ForeignKey('tTemplateType.type_id'), primary_key=False, nullable=False)
+    type_id = Column(Integer(), ForeignKey('tTemplateType.id'), primary_key=False, nullable=False)
     ref_key = Column(String(60),nullable=False)
     network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), nullable=True,)
     node_id     = Column(Integer(),  ForeignKey('tNode.id'), nullable=True)
@@ -649,14 +650,14 @@ class Project(Base, Inspect):
         return attribute_data_rs
 
     def add_attribute(self, attr_id, attr_is_var='N'):
-        attr = ResourceAttr()
-        attr.attr_id = attr_id
-        attr.attr_is_var = attr_is_var
-        attr.ref_key = self.ref_key
-        attr.project_id  = self.id
-        self.attributes.append(attr)
+        res_attr = ResourceAttr()
+        res_attr.attr_id = attr_id
+        res_attr.attr_is_var = attr_is_var
+        res_attr.ref_key = self.ref_key
+        res_attr.project_id  = self.id
+        self.attributes.append(res_attr)
 
-        return attr
+        return res_attr
 
     def set_owner(self, user_id, read='Y', write='Y', share='Y'):
 
@@ -757,14 +758,14 @@ class Network(Base, Inspect):
         return self.name
 
     def add_attribute(self, attr_id, attr_is_var='N'):
-        attr = ResourceAttr()
-        attr.attr_id = attr_id
-        attr.attr_is_var = attr_is_var
-        attr.ref_key = self.ref_key
-        attr.network_id  = self.id
-        self.attributes.append(attr)
+        res_attr = ResourceAttr()
+        res_attr.attr_id = attr_id
+        res_attr.attr_is_var = attr_is_var
+        res_attr.ref_key = self.ref_key
+        res_attr.network_id  = self.id
+        self.attributes.append(res_attr)
 
-        return attr
+        return res_attr
 
     def add_link(self, name, desc, layout, node_1, node_2):
         """
@@ -966,14 +967,14 @@ class Link(Base, Inspect):
         self.description = self.link_description
 
     def add_attribute(self, attr_id, attr_is_var='N'):
-        attr = ResourceAttr()
-        attr.attr_id = attr_id
-        attr.attr_is_var = attr_is_var
-        attr.ref_key = self.ref_key
-        attr.link_id  = self.id
-        self.attributes.append(attr)
+        res_attr = ResourceAttr()
+        res_attr.attr_id = attr_id
+        res_attr.attr_is_var = attr_is_var
+        res_attr.ref_key = self.ref_key
+        res_attr.link_id  = self.id
+        self.attributes.append(res_attr)
 
-        return attr
+        return res_attr
 
     def check_read_permission(self, user_id):
         """
@@ -1035,14 +1036,14 @@ class Node(Base, Inspect):
         self.description = self.node_description
 
     def add_attribute(self, attr_id, attr_is_var='N'):
-        attr = ResourceAttr()
-        attr.attr_id = attr_id
-        attr.attr_is_var = attr_is_var
-        attr.ref_key = self.ref_key
-        attr.id  = self.id
-        self.attributes.append(attr)
+        res_attr = ResourceAttr()
+        res_attr.attr_id = attr_id
+        res_attr.attr_is_var = attr_is_var
+        res_attr.ref_key = self.ref_key
+        res_attr.node_id  = self.id
+        self.attributes.append(res_attr)
 
-        return attr
+        return res_attr
 
     def check_read_permission(self, user_id):
         """
@@ -1101,14 +1102,14 @@ class ResourceGroup(Base, Inspect):
         self.description = self.group_description
 
     def add_attribute(self, attr_id, attr_is_var='N'):
-        attr = ResourceAttr()
-        attr.attr_id = attr_id
-        attr.attr_is_var = attr_is_var
-        attr.ref_key = self.ref_key
-        attr.group_id  = self.id
-        self.attributes.append(attr)
+        res_attr = ResourceAttr()
+        res_attr.attr_id = attr_id
+        res_attr.attr_is_var = attr_is_var
+        res_attr.ref_key = self.ref_key
+        res_attr.group_id  = self.id
+        self.attributes.append(res_attr)
 
-        return attr
+        return res_attr
 
     def get_items(self, scenario_id):
         """
@@ -1193,7 +1194,7 @@ class ResourceScenario(Base, Inspect):
 
     dataset_id = Column(Integer(), ForeignKey('tDataset.id'), nullable=False)
     scenario_id = Column(Integer(), ForeignKey('tScenario.id'), primary_key=True, nullable=False, index=True)
-    resource_attr_id = Column(Integer(), ForeignKey('tResourceAttr.resource_attr_id'), primary_key=True, nullable=False, index=True)
+    resource_attr_id = Column(Integer(), ForeignKey('tResourceAttr.id'), primary_key=True, nullable=False, index=True)
     source           = Column(String(60))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
@@ -1245,10 +1246,10 @@ class Scenario(Base, Inspect):
 
     def add_resource_scenario(self, resource_attr, dataset=None, source=None):
         rs_i = ResourceScenario()
-        if resource_attr.resource_attr_id is None:
+        if resource_attr.id is None:
             rs_i.resourceattr = resource_attr
         else:
-            rs_i.resource_attr_id = resource_attr.resource_attr_id
+            rs_i.resource_attr_id = resource_attr.id
 
         if dataset.id is None:
             rs_i.dataset = dataset
@@ -1574,10 +1575,10 @@ def create_resourcedata_view():
 
 
     view_qry = select([
-        ResourceAttr.resource_attr_id,
+        ResourceAttr.id,
         ResourceAttr.attr_id,
-        Attr.attr_name,
-        ResourceAttr.resource_attr_id,
+        Attr.name,
+        ResourceAttr.id,
         ResourceAttr.network_id,
         ResourceAttr.node_id,
         ResourceAttr.link_id,
@@ -1587,6 +1588,6 @@ def create_resourcedata_view():
         Dataset.unit,
         Dataset.name,
         Dataset.type,
-        Dataset.value]).where(ResourceScenario.resource_attr_id==ResourceAttr.attr_id).where(ResourceAttr.attr_id==Attr.attr_id).where(ResourceScenario.dataset_id==Dataset.id)
+        Dataset.value]).where(ResourceScenario.resource_attr_id==ResourceAttr.attr_id).where(ResourceAttr.attr_id==Attr.id).where(ResourceScenario.dataset_id==Dataset.id)
 
     stuff_view = view("vResourceData", Base.metadata, view_qry)

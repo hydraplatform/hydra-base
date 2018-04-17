@@ -49,7 +49,7 @@ class TestGroup:
         for ra in resourcegroup_with_data.attributes:
             if hasattr(ra, 'resourcescenario'):
                 if ra.resourcescenario:
-                    attrs_with_data.append(ra.resource_attr_id)
+                    attrs_with_data.append(ra.id)
         assert len(attrs_with_data) > 0
 
         group_items = hb.get_resourcegroupitems(group.id, s.id, user_id=self.user_id)

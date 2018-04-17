@@ -615,14 +615,14 @@ def validate_resource_attributes(resource, attributes, template, check_unit=True
                         errors.append("Error in data. Template says that %s on %s is a %s, but data suggests it is a %s"%
                             (attr['name'], resource['name'], tmpl_attr.get('data_type'), res_attr.get('type')))
 
-            attr_dimen = "dimensionless" if attr.get('dimen') is None else attr.get('dimen')
-            tmpl_attr_dimen = "dimensionless" if tmpl_attr.get('dimension') is None else tmpl_attr.get('dimension')
+            attr_dimension = 'dimensionless' if attr.get('dimension') is None else attr.get('dimension')
+            tmpl_attr_dimension = 'dimensionless' if tmpl_attr.get('dimension') is None else tmpl_attr.get('dimension')
 
-            if attr_dimen.lower() != tmpl_attr_dimen.lower():
+            if attr_dimension.lower() != tmpl_attr_dimension.lower():
                 errors.append("Dimension mismatch on resource %s for attribute %s"
                               " (template says %s on type %s, data says %s)"%
                               (resource['name'], attr.get('name'),
-                               tmpl_attr.get('dimension'), res_user_type, attr_dimen))
+                               tmpl_attr.get('dimension'), res_user_type, attr_dimension))
 
             if check_unit is True:
                 if tmpl_attr.get('unit') is not None:

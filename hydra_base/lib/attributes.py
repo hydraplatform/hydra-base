@@ -84,7 +84,7 @@ def get_attribute_by_id(attr_id, **kwargs):
     """
 
     try:
-        attr_i = db.DBSession.query(Attr).filter(Attr.attr_id==attr_id).one()
+        attr_i = db.DBSession.query(Attr).filter(Attr.id==attr_id).one()
         return attr_i
     except NoResultFound:
         return None
@@ -95,7 +95,7 @@ def get_template_attributes(template_id, **kwargs):
     """
 
     try:
-        attrs_i = db.DBSession.query(Attr).filter(TemplateType.template_id==template_id).filter(TypeAttr.type_id==TemplateType.type_id).filter(Attr.attr_id==TypeAttr.attr_id).all()
+        attrs_i = db.DBSession.query(Attr).filter(TemplateType.template_id==template_id).filter(TypeAttr.type_id==TemplateType.id).filter(Attr.id==TypeAttr.id).all()
         log.info(attrs_i)
         return attrs_i
     except NoResultFound:
@@ -109,7 +109,7 @@ def get_attribute_by_name_and_dimension(name, dimension='dimensionless',**kwargs
     """
 
     try:
-        attr_i = db.DBSession.query(Attr).filter(and_(Attr.attr_name==name, or_(Attr.attr_dimen==dimension, Attr.attr_dimen == ''))).one()
+        attr_i = db.DBSession.query(Attr).filter(and_(Attr.name==name, or_(Attr.dimension==dimension, Attr.dimension == ''))).one()
         log.info("Attribute retrieved")
         return attr_i
     except NoResultFound:
@@ -131,17 +131,17 @@ def add_attribute(attr,**kwargs):
     """
     log.debug("Adding attribute: %s", attr.name)
 
-    if attr.dimen is None or attr.dimen.lower() == 'dimensionless':
+    if attr.dimension is None or attr.dimension.lower() == 'dimensionless':
         log.info("Setting 'dimesionless' on attribute %s", attr.name)
-        attr.dimen = 'dimensionless'
+        attr.dimension = 'dimensionless'
 
     try:
-        attr_i = db.DBSession.query(Attr).filter(Attr.attr_name == attr.name,
-                                              Attr.attr_dimen == attr.dimen).one()
+        attr_i = db.DBSession.query(Attr).filter(Attr.name == attr.name,
+                                              Attr.dimension == attr.dimension).one()
         log.info("Attr already exists")
     except NoResultFound:
-        attr_i = Attr(attr_name = attr.name, attr_dimen = attr.dimen)
-        attr_i.attr_description = attr.description
+        attr_i = Attr(name = attr.name, dimension = attr.dimension)
+        attr_i.description = attr.description
         db.DBSession.add(attr_i)
         db.DBSession.flush()
         log.info("New attr added")
@@ -162,18 +162,18 @@ def update_attribute(attr,**kwargs):
 
     """
 
-    if attr.dimen is None or attr.dimen.lower() == 'dimensionless':
+    if attr.dimension is None or attr.dimension.lower() == 'dimensionless':
         log.info("Setting 'dimesionless' on attribute %s", attr.name)
-        attr.dimen = 'dimensionless'
+        attr.dimension = 'dimensionless'
 
     log.debug("Adding attribute: %s", attr.name)
-    attr_i = _get_attr(Attr.attr_id)
-    attr_i.attr_name = attr.name
-    attr_i.attr_dimen = attr.dimension
-    attr_i.attr_description = attr.description
+    attr_i = _get_attr(Attr.id)
+    attr_i.name = attr.name
+    attr_i.dimension = attr.dimension
+    attr_i.description = attr.description
 
     #Make sure an update hasn't caused an inconsistency.
-    check_attr_dimension(attr_i.attr_id)
+    check_sion(attr_i.id)
 
     db.DBSession.flush()
     return attr_i
@@ -202,25 +202,25 @@ def add_attributes(attrs,**kwargs):
     all_attrs = db.DBSession.query(Attr).all()
     attr_dict = {}
     for attr in all_attrs:
-        attr_dict[(attr.attr_name, attr.attr_dimen)] = attr
+        attr_dict[(attr.name, attr.dimension)] = attr
 
     attrs_to_add = []
     existing_attrs = []
     for potential_new_attr in attrs:
-        if potential_new_attr.dimen is None or potential_new_attr.dimen.lower() == 'dimensionless':
-            potential_new_attr.dimen = 'dimensionless'
+        if potential_new_attr.dimension is None or potential_new_attr.dimension.lower() == 'dimensionless':
+            potential_new_attr.dimension = 'dimensionless'
 
-        if attr_dict.get((potential_new_attr.name, potential_new_attr.dimen)) is None:
+        if attr_dict.get((potential_new_attr.name, potential_new_attr.dimension)) is None:
             attrs_to_add.append(potential_new_attr)
         else:
-            existing_attrs.append(attr_dict.get((potential_new_attr.name, potential_new_attr.dimen)))
+            existing_attrs.append(attr_dict.get((potential_new_attr.name, potential_new_attr.dimension)))
 
     new_attrs = []
     for attr in attrs_to_add:
         attr_i = Attr()
-        attr_i.attr_name = attr.name
-        attr_i.attr_dimen = attr.dimen
-        attr_i.attr_description = attr.description
+        attr_i.name = attr.name
+        attr_i.dimension = attr.dimension
+        attr_i.description = attr.description
         db.DBSession.add(attr_i)
         new_attrs.append(attr_i)
 
@@ -235,20 +235,20 @@ def get_attributes(**kwargs):
         Get all attributes
     """
 
-    attrs = db.DBSession.query(Attr).order_by(Attr.attr_name).all()
+    attrs = db.DBSession.query(Attr).order_by(Attr.name).all()
 
     return attrs
 
 def _get_attr(attr_id):
     try:
-        attr = db.DBSession.query(Attr).filter(Attr.attr_id == attr_id).one()
+        attr = db.DBSession.query(Attr).filter(Attr.id == attr_id).one()
         return attr
     except NoResultFound:
         raise ResourceNotFoundError("Attribute with ID %s not found"%(attr_id,))
 
 def _get_templatetype(type_id):
     try:
-        typ = db.DBSession.query(TemplateType).filter(TemplateType.type_id == type_id).one()
+        typ = db.DBSession.query(TemplateType).filter(TemplateType.id == type_id).one()
         return typ
     except NoResultFound:
         raise ResourceNotFoundError("Template Type with ID %s not found"%(type_id,))
@@ -259,7 +259,7 @@ def update_resource_attribute(resource_attr_id, is_var, **kwargs):
     """
     user_id = kwargs.get('user_id')
     try:
-        ra = db.DBSession.query(ResourceAttr).filter(ResourceAttr.resource_attr_id == resource_attr_id).one()
+        ra = db.DBSession.query(ResourceAttr).filter(ResourceAttr.id == resource_attr_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Resource Attribute %s not found"%(resource_attr_id))
 
@@ -275,7 +275,7 @@ def delete_resource_attribute(resource_attr_id, **kwargs):
     """
     user_id = kwargs.get('user_id')
     try:
-        ra = db.DBSession.query(ResourceAttr).filter(ResourceAttr.resource_attr_id == resource_attr_id).one()
+        ra = db.DBSession.query(ResourceAttr).filter(ResourceAttr.id == resource_attr_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Resource Attribute %s not found"%(resource_attr_id))
 
@@ -293,7 +293,7 @@ def add_resource_attribute(resource_type, resource_id, attr_id, is_var,**kwargs)
         to be filled in by the simulator.
     """
 
-    attr = db.DBSession.query(Attr).filter(Attr.attr_id==attr_id).first()
+    attr = db.DBSession.query(Attr).filter(Attr.id==attr_id).first()
 
     if attr is None:
         raise ResourceNotFoundError("Attribute with ID %s does not exist."%attr_id)
@@ -318,7 +318,7 @@ def add_resource_attribute(resource_type, resource_id, attr_id, is_var,**kwargs)
     for ra in resource_attrs:
         if ra.attr_id == attr_id:
             raise HydraError("Duplicate attribute. %s %s already has attribute %s"
-                             %(resource_type, resource_i.get_name(), attr.attr_name))
+                             %(resource_type, resource_i.get_name(), attr.name))
 
     attr_is_var = 'Y' if is_var else 'N'
 
@@ -351,8 +351,8 @@ def add_resource_attrs_from_type(type_id, resource_type, resource_id,**kwargs):
     resource_attrs = resourceattr_qry.all()
 
     attrs = {}
-    for attr in resource_attrs:
-        attrs[attr.attr_id] = attr
+    for res_attr in resource_attrs:
+        attrs[res_attr.attr_id] = res_attr
 
     new_resource_attrs = []
     for item in type_i.typeattrs:
@@ -399,7 +399,7 @@ def get_all_resource_attributes(ref_key, network_id, template_id=None, **kwargs)
     if template_id is not None:
         attr_ids = []
         rs = db.DBSession.query(TypeAttr).join(TemplateType,
-                                            TemplateType.type_id==TypeAttr.type_id).filter(
+                                            TemplateType.id==TypeAttr.type_id).filter(
                                                 TemplateType.template_id==template_id).all()
         for r in rs:
             attr_ids.append(r.attr_id)
@@ -451,11 +451,11 @@ def check_attr_dimension(attr_id, **kwargs):
     attr_i = _get_attr(attr_id)
 
     datasets = db.DBSession.query(Dataset).filter(Dataset.id==ResourceScenario.dataset_id,
-                                               ResourceScenario.resource_attr_id == ResourceAttr.resource_attr_id,
+                                               ResourceScenario.resource_attr_id == ResourceAttr.id,
                                                ResourceAttr.attr_id == attr_id).all()
     bad_datasets = []
     for d in datasets:
-        if units.get_unit_dimension(d.unit) != attr_i.attr_dimen:
+        if units.get_unit_dimension(d.unit) != attr_i.dimension:
             bad_datasets.append(d.id)
 
     if len(bad_datasets) > 0:
@@ -471,7 +471,7 @@ def get_resource_attribute(resource_attr_id, **kwargs):
     """
 
     resource_attr_qry = db.DBSession.query(ResourceAttr).filter(
-        ResourceAttr.resource_attr_id == resource_attr_id,
+        ResourceAttr.id == resource_attr_id,
         )
 
     resource_attr = resource_attr_qry.first()
@@ -560,20 +560,20 @@ def get_node_mappings(node_id, node_2_id=None, **kwargs):
     qry = db.DBSession.query(ResourceAttrMap).filter(
         or_(
             and_(
-                ResourceAttrMap.resource_attr_id_a == ResourceAttr.resource_attr_id,
+                ResourceAttrMap.resource_attr_id_a == ResourceAttr.id,
                 ResourceAttr.node_id == node_id),
             and_(
-                ResourceAttrMap.resource_attr_id_b == ResourceAttr.resource_attr_id,
+                ResourceAttrMap.resource_attr_id_b == ResourceAttr.id,
                 ResourceAttr.node_id == node_id)))
 
     if node_2_id is not None:
         aliased_ra = aliased(ResourceAttr, name="ra2")
         qry = qry.filter(or_(
             and_(
-                ResourceAttrMap.resource_attr_id_a == aliased_ra.resource_attr_id,
+                ResourceAttrMap.resource_attr_id_a == aliased_ra.id,
                 aliased_ra.node_id == node_2_id),
             and_(
-                ResourceAttrMap.resource_attr_id_b == aliased_ra.resource_attr_id,
+                ResourceAttrMap.resource_attr_id_b == aliased_ra.id,
                 aliased_ra.node_id == node_2_id)))
 
     return qry.all()
@@ -586,20 +586,20 @@ def get_link_mappings(link_id, link_2_id=None, **kwargs):
     qry = db.DBSession.query(ResourceAttrMap).filter(
         or_(
             and_(
-                ResourceAttrMap.resource_attr_id_a == ResourceAttr.resource_attr_id,
+                ResourceAttrMap.resource_attr_id_a == ResourceAttr.id,
                 ResourceAttr.link_id == link_id),
             and_(
-                ResourceAttrMap.resource_attr_id_b == ResourceAttr.resource_attr_id,
+                ResourceAttrMap.resource_attr_id_b == ResourceAttr.id,
                 ResourceAttr.link_id == link_id)))
 
     if link_2_id is not None:
         aliased_ra = aliased(ResourceAttr, name="ra2")
         qry = qry.filter(or_(
             and_(
-                ResourceAttrMap.resource_attr_id_a == aliased_ra.resource_attr_id,
+                ResourceAttrMap.resource_attr_id_a == aliased_ra.id,
                 aliased_ra.link_id == link_2_id),
             and_(
-                ResourceAttrMap.resource_attr_id_b == aliased_ra.resource_attr_id,
+                ResourceAttrMap.resource_attr_id_b == aliased_ra.id,
                 aliased_ra.link_id == link_2_id)))
 
     return qry.all()
@@ -614,20 +614,20 @@ def get_network_mappings(network_id, network_2_id=None, **kwargs):
     qry = db.DBSession.query(ResourceAttrMap).filter(
         or_(
             and_(
-                ResourceAttrMap.resource_attr_id_a == ResourceAttr.resource_attr_id,
+                ResourceAttrMap.resource_attr_id_a == ResourceAttr.id,
                 ResourceAttr.network_id == network_id),
             and_(
-                ResourceAttrMap.resource_attr_id_b == ResourceAttr.resource_attr_id,
+                ResourceAttrMap.resource_attr_id_b == ResourceAttr.id,
                 ResourceAttr.network_id == network_id)))
 
     if network_2_id is not None:
         aliased_ra = aliased(ResourceAttr, name="ra2")
         qry = qry.filter(or_(
             and_(
-                ResourceAttrMap.resource_attr_id_a == aliased_ra.resource_attr_id,
+                ResourceAttrMap.resource_attr_id_a == aliased_ra.id,
                 aliased_ra.network_id == network_2_id),
             and_(
-                ResourceAttrMap.resource_attr_id_b == aliased_ra.resource_attr_id,
+                ResourceAttrMap.resource_attr_id_b == aliased_ra.id,
                 aliased_ra.network_id == network_2_id)))
 
     return qry.all()

@@ -325,13 +325,13 @@ def search_datasets(dataset_id=None,
         if attr_id is not None:
             dataset_qry = dataset_qry.join(
                 ResourceScenario, ResourceScenario.dataset_id == Dataset.id).join(
-                ResourceAttr, and_(ResourceAttr.resource_attr_id==ResourceScenario.resource_attr_id,
+                ResourceAttr, and_(ResourceAttr.id==ResourceScenario.resource_attr_id,
                                   ResourceAttr.attr_id==attr_id))
 
         if type_id is not None:
             dataset_qry = dataset_qry.join(
                 ResourceScenario, ResourceScenario.dataset_id == Dataset.id).join(
-                ResourceAttr, ResourceAttr.resource_attr_id==ResourceScenario.resource_attr_id).join(
+                ResourceAttr, ResourceAttr.id==ResourceScenario.resource_attr_id).join(
                 TypeAttr, and_(TypeAttr.attr_id==ResourceAttr.attr_id, TypeAttr.type_id==type_id))
 
         if unconnected == 'Y':

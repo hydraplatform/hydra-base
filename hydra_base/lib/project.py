@@ -64,12 +64,10 @@ def add_project(project,**kwargs):
     """
     user_id = kwargs.get('user_id')
 
-    try:
-        existing_proj = get_project_by_name(project.name,user_id=user_id)
-    except:
-        existing_proj = None
 
-    if existing_proj is not None:
+    existing_proj = get_project_by_name(project.name,user_id=user_id)
+
+    if len(existing_proj) > 0:
         raise HydraError("A Project with the name \"%s\" already exists"%(project.name,))
 
     #check_perm(user_id, 'add_project')
@@ -127,14 +125,20 @@ def get_project_by_name(project_name,**kwargs):
         get a project complexmodel
     """
     user_id = kwargs.get('user_id')
-    try:
-        proj_i = db.DBSession.query(Project).filter(Project.name==project_name).one()
-    except NoResultFound:
-        raise ResourceNotFoundError("Project %s not found"%(project_name))
 
-    proj_i.check_read_permission(user_id)
+    projects_i = db.DBSession.query(Project).join(ProjectOwner).filter(
+                                                    Project.name==project_name,
+                                                    ProjectOwner.user_id==user_id).order_by('name').all()
 
-    return proj_i
+    ret_projects = []
+    for project_i in projects_i:
+        try:
+            project_i.check_read_permission(user_id)
+            ret_projects.append(project_i)
+        except:
+            log.info("Can't return project %s. User %s does not have permission to read it.", project_i.id, user_id)
+
+    return ret_projects
 
 def to_named_tuple(obj, visited_children=None, back_relationships=None, levels=None, ignore=[], extras={}):
     """

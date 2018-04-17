@@ -43,7 +43,7 @@ def upgrade():
 
         try:
             op.alter_column('tMetadata', 'metadata_name', new_column_name='key', existing_type=sa.String(60), nullable=False)
-            op.alter_column('tMetadata', 'metadata_val', new_column_name='value', existing_type=sa.Text().with_variant(mysql.TEXT(4294967295), 'mysql'), nullable=False)
+            op.alter_column('tMetadata', 'metadata_val', new_column_name='value', existing_type=sa.Text(1000).with_variant(mysql.TEXT(1000), 'mysql'), nullable=False)
         except Exception as e:
             log.exception(e)
 

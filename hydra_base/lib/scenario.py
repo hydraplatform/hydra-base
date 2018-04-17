@@ -341,7 +341,7 @@ def clone_scenario(scenario_id, retain_results=False, **kwargs):
     if retain_results is False:
         old_rscen_rs = db.DBSession.query(ResourceScenario).filter(
                                         ResourceScenario.scenario_id==scenario_id,
-                                        ResourceAttr.resource_attr_id==ResourceScenario.resource_attr_id,
+                                        ResourceAttr.id==ResourceScenario.resource_attr_id,
                                         ResourceAttr.attr_is_var == 'N'
                                     ).all()
     else:
@@ -885,7 +885,7 @@ def get_attribute_data(attr_ids, node_ids, **kwargs):
 
     ra_ids = []
     for ra in node_attrs:
-        ra_ids.append(ra.resource_attr_id)
+        ra_ids.append(ra.id)
 
 
     resource_scenarios = db.DBSession.query(ResourceScenario).filter(ResourceScenario.resource_attr_id.in_(ra_ids)).options(joinedload('resourceattr')).options(joinedload_all('dataset.metadata')).order_by(ResourceScenario.scenario_id).all()
@@ -913,7 +913,7 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id=None, expunge_sessio
 
     resource_data_qry = db.DBSession.query(ResourceScenario).filter(
         ResourceScenario.dataset_id   == Dataset.id,
-        ResourceAttr.resource_attr_id == ResourceScenario.resource_attr_id,
+        ResourceAttr.id == ResourceScenario.resource_attr_id,
         ResourceScenario.scenario_id == scenario_id,
         ResourceAttr.ref_key == ref_key,
         or_(
@@ -973,14 +973,14 @@ def get_attribute_datasets(attr_id, scenario_id, **kwargs):
     scenario_i = _get_scenario(scenario_id, user_id)
 
     try:
-        a = db.DBSession.query(Attr).filter(Attr.attr_id == attr_id).one()
+        a = db.DBSession.query(Attr).filter(Attr.id == attr_id).one()
     except NoResultFound:
         raise HydraError("Attribute %s not found"%(attr_id,))
 
     rs_qry = db.DBSession.query(ResourceScenario).filter(
                 ResourceAttr.attr_id==attr_id,
                 ResourceScenario.scenario_id==scenario_i.id,
-                ResourceScenario.resource_attr_id==ResourceAttr.resource_attr_id
+                ResourceScenario.resource_attr_id==ResourceAttr.id
             ).options(joinedload_all('dataset'))\
             .options(joinedload_all('resourceattr'))\
             .options(joinedload_all('resourceattr.node'))\
@@ -996,7 +996,7 @@ def get_attribute_datasets(attr_id, scenario_id, **kwargs):
 
     return resourcescenarios
 
-def get_resourcegroupitems(group_id, id, **kwargs):
+def get_resourcegroupitems(group_id, scenario_id, **kwargs):
 
     """
         Get all the items in a group, in a scenario. If group_id is None, return

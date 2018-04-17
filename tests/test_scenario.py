@@ -805,17 +805,17 @@ class TestScenario:
                     all_matching_ras.append(ra)
                     continue
 
-        retrieved_ras = hydra_base.get_attribute_datasets(attr_id, s.id, user_id=self.user_id)
+        retrieved_resource_scenarios = hydra_base.get_attribute_datasets(attr_id, s.id, user_id=self.user_id)
 
-        ra_dict  = {}
-        for ra in retrieved_ras:
-            ra_dict[ra.resource_attr_id] = ra
+        rs_dict  = {}
+        for rs in retrieved_resource_scenarios:
+            rs_dict[rs.resource_attr_id] = rs
 
-        assert len(retrieved_ras) == len(all_matching_ras)
+        assert len(retrieved_resource_scenarios) == len(all_matching_ras)
 
         for rs in s.resourcescenarios:
-            if ra_dict.get(rs.resource_attr_id):
-                matching_rs = ra_dict[rs.resource_attr_id]
+            if rs_dict.get(rs.resource_attr_id):
+                matching_rs = rs_dict[rs.resource_attr_id]
                 assert str(rs.dataset.hash) == str(matching_rs.dataset.hash)
 
     def test_copy_data_from_scenario(self, session, network_with_data):

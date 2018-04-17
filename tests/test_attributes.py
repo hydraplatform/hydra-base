@@ -50,7 +50,7 @@ class TestAttribute:
         all_attributes = hb.get_attributes(user_id=self.user_id)
         attribute_names = []
         for a in all_attributes:
-            attribute_names.append(a.attr_name)
+            attribute_names.append(a.name)
 
         assert "Multi-added Attr 1" in attribute_names
         assert "Multi-added Attr 2" in attribute_names
@@ -59,27 +59,27 @@ class TestAttribute:
 
         existing_attr = attribute
 
-        retrieved_attr = hb.get_attribute_by_id(existing_attr.attr_id, user_id=self.user_id)
+        retrieved_attr = hb.get_attribute_by_id(existing_attr.id, user_id=self.user_id)
 
-        assert existing_attr.attr_name == retrieved_attr.attr_name
-        assert existing_attr.attr_dimen == retrieved_attr.attr_dimen
-        assert existing_attr.attr_description == retrieved_attr.attr_description
+        assert existing_attr.name        == retrieved_attr.name
+        assert existing_attr.dimension   == retrieved_attr.dimension
+        assert existing_attr.description == retrieved_attr.description
 
     def test_get_attribute_by_name_and_dimension(self, session, attribute):
         existing_attr = attribute
         retrieved_attr = hb.get_attribute_by_name_and_dimension(
-                                            existing_attr.attr_name,
-                                            existing_attr.attr_dimen,
+                                            existing_attr.name,
+                                            existing_attr.dimension,
                                             user_id=self.user_id)
 
-        assert existing_attr.attr_id == retrieved_attr.attr_id
-        assert existing_attr.attr_description == retrieved_attr.attr_description
+        assert existing_attr.id == retrieved_attr.id
+        assert existing_attr.description == retrieved_attr.description
 
     def test_add_network_attribute(self, session, network_with_data, attribute):
 
         new_attr = attribute
 
-        hb.add_resource_attribute('NETWORK', network_with_data.id, new_attr.attr_id, 'Y', user_id=self.user_id)
+        hb.add_resource_attribute('NETWORK', network_with_data.id, new_attr.id, 'Y', user_id=self.user_id)
 
         updated_network = hb.get_network(network_with_data.id, user_id=self.user_id)
 
@@ -87,7 +87,7 @@ class TestAttribute:
 
         for ra in updated_network.attributes:
             network_attr_ids.append(ra.attr_id)
-        assert new_attr.attr_id in network_attr_ids
+        assert new_attr.id in network_attr_ids
 
     def test_add_network_attrs_from_type(self, session, network_with_data, attribute):
         """
@@ -104,7 +104,7 @@ class TestAttribute:
         templatetype_j = JSONObject(hb.get_templatetype(type_id))
 
         new_typeattr = JSONObject({
-            'attr_id' : attribute.attr_id
+            'attr_id' : attribute.id
         })
 
         templatetype_j.typeattrs.append(new_typeattr)
@@ -130,24 +130,24 @@ class TestAttribute:
 
     def test_add_node_attribute(self, session, network_with_data, attribute):
         node = network_with_data.nodes[0]
-        hb.add_resource_attribute('NODE', node.id, attribute.attr_id, 'Y', user_id=self.user_id)
+        hb.add_resource_attribute('NODE', node.id, attribute.id, 'Y', user_id=self.user_id)
         node_attributes = hb.get_resource_attributes('NODE', node.id, user_id=self.user_id)
         network_attr_ids = []
         for ra in node_attributes:
             network_attr_ids.append(ra.attr_id)
-        assert attribute.attr_id in network_attr_ids
+        assert attribute.id in network_attr_ids
 
     def test_add_duplicate_node_attribute(self, session, network_with_data, attribute):
         node = network_with_data.nodes[0]
-        hb.add_resource_attribute('NODE', node.id, attribute.attr_id, 'Y', user_id=self.user_id)
+        hb.add_resource_attribute('NODE', node.id, attribute.id, 'Y', user_id=self.user_id)
         node_attributes = hb.get_resource_attributes('NODE', node.id, user_id=self.user_id)
         node_attr_ids = []
         for ra in node_attributes:
             node_attr_ids.append(ra.attr_id)
-        assert attribute.attr_id in node_attr_ids
+        assert attribute.id in node_attr_ids
 
         with pytest.raises(hb.HydraError):
-            hb.add_resource_attribute('NODE', node.id, attribute.attr_id, 'Y', user_id=self.user_id)
+            hb.add_resource_attribute('NODE', node.id, attribute.id, 'Y', user_id=self.user_id)
 
     def test_get_all_node_attributes(self, session, network_with_data):
 
@@ -161,8 +161,8 @@ class TestAttribute:
 
         #Check that the retrieved attributes are in the list of node attributes
         retrieved_ras = []
-        for n in node_attributes:
-            retrieved_ras.append(n.resource_attr_id)
+        for na in node_attributes:
+            retrieved_ras.append(na.id)
 
         assert set(node_attr_ids) == set(retrieved_ras)
 
@@ -172,59 +172,59 @@ class TestAttribute:
 
         #Check that the retrieved attributes are in the list of node attributes
         retrieved_ras = []
-        for n in node_attributes:
-            retrieved_ras.append(n.resource_attr_id)
+        for na in node_attributes:
+            retrieved_ras.append(na.id)
         assert set(node_attr_ids) == set(retrieved_ras)
 
 
     def test_add_link_attribute(self, session, network_with_data, attribute):
         link = network_with_data.links[0]
-        hb.add_resource_attribute('LINK', link.id, attribute.attr_id, 'Y')
+        hb.add_resource_attribute('LINK', link.id, attribute.id, 'Y')
         link_attributes = hb.get_resource_attributes('LINK', link.id, user_id=self.user_id)
         network_attr_ids = []
 
         for ra in link_attributes:
             network_attr_ids.append(ra.attr_id)
-        assert attribute.attr_id in network_attr_ids
+        assert attribute.id in network_attr_ids
 
     def test_get_all_link_attributes(self, session, network_with_data):
 
         #Get all the node attributes in the network
         link_attr_ids = []
-        for n in network_with_data.links:
-            for a in n.attributes:
-                link_attr_ids.append(a.resource_attr_id)
+        for l in network_with_data.links:
+            for la in l.attributes:
+                link_attr_ids.append(la.id)
         link_attributes = hb.get_all_resource_attributes('LINK', network_with_data.id, user_id=self.user_id)
         #Check that the retrieved attributes are in the list of node attributes
         retrieved_ras = []
-        for n in link_attributes:
-            retrieved_ras.append(n.resource_attr_id)
+        for la in link_attributes:
+            retrieved_ras.append(la.id)
         assert set(link_attr_ids) == set(retrieved_ras)
 
 
     def test_add_group_attribute(self, session, network_with_data, attribute):
         group = network_with_data.resourcegroups[0]
-        hb.add_resource_attribute('GROUP', group.id, attribute.attr_id, 'Y', user_id=self.user_id)
+        hb.add_resource_attribute('GROUP', group.id, attribute.id, 'Y', user_id=self.user_id)
         group_attrs = hb.get_resource_attributes('GROUP', group.id, user_id=self.user_id)
         group_attr_ids = []
-        for ra in group_attrs:
-            group_attr_ids.append(ra.attr_id)
-        assert attribute.attr_id in group_attr_ids
+        for ga in group_attrs:
+            group_attr_ids.append(ga.attr_id)
+        assert attribute.id in group_attr_ids
 
     def test_get_all_group_attributes(self, session, network_with_data):
 
         #Get all the node attributes in the network
         group_attr_ids = []
         for g in network_with_data.resourcegroups:
-            for a in g.attributes:
-                group_attr_ids.append(a.resource_attr_id)
+            for ga in g.attributes:
+                group_attr_ids.append(ga.id)
 
         group_attributes = hb.get_all_resource_attributes('GROUP', network_with_data.id, user_id=self.user_id)
 
         #Check that the retrieved attributes are in the list of group attributes
         retrieved_ras = []
-        for ra in group_attributes:
-            retrieved_ras.append(ra.resource_attr_id)
+        for ga in group_attributes:
+            retrieved_ras.append(ga.id)
         assert set(group_attr_ids) == set(retrieved_ras)
 
 class TestAttributeMap:
