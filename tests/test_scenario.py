@@ -148,7 +148,7 @@ class TestScenario:
         assert updated_scenario.time_step  == scenario.time_step
         assert len(updated_scenario.resourcegroupitems) > 0
         for i in updated_scenario.resourcegroupitems:
-            if i.item_id == item_to_edit.id:
+            if i.id == item_to_edit.id:
                 assert i.node_id == node2.node_id
         assert len(updated_scenario.resourcescenarios) > 0
 
@@ -581,7 +581,7 @@ class TestScenario:
 
         hydra_base.add_data_to_attribute(scenario_id, resource_attr_id, dataset, user_id=self.user_id)
 
-        item_to_remove = new_scenario.resourcegroupitems[0].item_id
+        item_to_remove = new_scenario.resourcegroupitems[0].id
 
         hydra_base.db.DBSession.expunge_all()
 

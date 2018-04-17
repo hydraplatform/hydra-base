@@ -35,7 +35,7 @@ def _get_group(group_id):
 
 def _get_item(item_id):
     try:
-        item = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.item_id==item_id).one()
+        item = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.id==item_id).one()
         return item
     except NoResultFound:
         raise ResourceNotFoundError("ResourceGroupItem %s not found"%(item_id,))

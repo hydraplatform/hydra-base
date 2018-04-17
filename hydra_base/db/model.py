@@ -1146,7 +1146,7 @@ class ResourceGroupItem(Base, Inspect):
         UniqueConstraint('group_id', 'subgroup_id', 'scenario_id', name = 'subgroup_group_1'),
     )
 
-    item_id = Column(Integer(), primary_key=True, nullable=False)
+    id = Column(Integer(), primary_key=True, nullable=False)
     ref_key = Column(String(60),  nullable=False)
 
     node_id     = Column(Integer(),  ForeignKey('tNode.id'))
@@ -1159,12 +1159,12 @@ class ResourceGroupItem(Base, Inspect):
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     group = relationship('ResourceGroup', foreign_keys=[group_id], backref=backref("items", order_by=group_id))
-    scenario = relationship('Scenario', backref=backref("resourcegroupitems", order_by=item_id, cascade="all, delete-orphan"))
+    scenario = relationship('Scenario', backref=backref("resourcegroupitems", order_by=id, cascade="all, delete-orphan"))
 
     #These need to have backrefs to allow the deletion of networks & projects
     #--There needs to be a connection between the items & the resources to allow it
-    node = relationship('Node', backref=backref("resourcegroupitems", order_by=item_id, cascade="all, delete-orphan"))
-    link = relationship('Link', backref=backref("resourcegroupitems", order_by=item_id, cascade="all, delete-orphan"))
+    node = relationship('Node', backref=backref("resourcegroupitems", order_by=id, cascade="all, delete-orphan"))
+    link = relationship('Link', backref=backref("resourcegroupitems", order_by=id, cascade="all, delete-orphan"))
     subgroup = relationship('ResourceGroup', foreign_keys=[subgroup_id])
 
 

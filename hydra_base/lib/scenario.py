@@ -1022,7 +1022,7 @@ def delete_resourcegroupitems(scenario_id, item_ids, **kwargs):
     _get_scenario(scenario_id, user_id)
     for item_id in item_ids:
         rgi = db.DBSession.query(ResourceGroupItem).\
-                filter(ResourceGroupItem.item_id==item_id).one()
+                filter(ResourceGroupItem.id==item_id).one()
         db.DBSession.delete(rgi)
 
     db.DBSession.flush()
@@ -1067,7 +1067,7 @@ def _add_resourcegroupitem(group_item, scenario_id):
     """
     if group_item.id and group_item.id > 0:
         try:
-            group_item_i = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.item_id == group_item.id).one()
+            group_item_i = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.id == group_item.id).one()
         except NoResultFound:
             raise ResourceNotFoundError("ResourceGroupItem %s not found" % (group_item.id))
 
