@@ -1279,20 +1279,19 @@ class Rule(Base, Inspect):
 
     __tablename__='tRule'
     __table_args__ = (
-        UniqueConstraint('scenario_id', 'rule_name', name="unique rule name"),
+        UniqueConstraint('scenario_id', 'name', name="unique rule name"),
     )
 
 
-    rule_id = Column(Integer(), primary_key=True, nullable=False)
+    id = Column(Integer(), primary_key=True, nullable=False)
 
-    rule_name = Column(String(60), nullable=False)
-    rule_description = Column(String(1000), nullable=False)
+    name = Column(String(60), nullable=False)
+    description = Column(String(1000), nullable=False)
 
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     ref_key = Column(String(60),  nullable=False, index=True)
 
-
-    rule_text = Column('value', LargeBinary(),  nullable=True)
+    value = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
 
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     scenario_id = Column(Integer(), ForeignKey('tScenario.id'),  nullable=False)
@@ -1313,18 +1312,13 @@ class Note(Base, Inspect):
 
     __tablename__='tNote'
 
-    note_id = Column(Integer(), primary_key=True, nullable=False)
-
+    id = Column(Integer(), primary_key=True, nullable=False)
     ref_key = Column(String(60),  nullable=False, index=True)
-
-    note_text = Column('note_text', LargeBinary(),  nullable=True)
-
+    value = Column(LargeBinary(),  nullable=True)
     created_by = Column(Integer(), ForeignKey('tUser.id'))
-
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     scenario_id = Column(Integer(), ForeignKey('tScenario.id'),  index=True, nullable=True)
     project_id = Column(Integer(), ForeignKey('tProject.id'),  index=True, nullable=True)
-
     network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), index=True, nullable=True,)
     node_id     = Column(Integer(),  ForeignKey('tNode.id'), index=True, nullable=True)
     link_id     = Column(Integer(),  ForeignKey('tLink.id'), index=True, nullable=True)

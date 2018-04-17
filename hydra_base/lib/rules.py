@@ -24,7 +24,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 def _get_rule(rule_id):
     try:
-        rule_i = db.DBSession.query(Rule).filter(Rule.rule_id == rule_id).one()
+        rule_i = db.DBSession.query(Rule).filter(Rule.id == rule_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Rule %s not found"%rule_id)
     return rule_i
@@ -56,10 +56,10 @@ def add_rule(scenario_id, rule, **kwargs):
         raise HydraError("Ref Key %s not recognised.")
 
     rule_i.scenario_id = scenario_id
-    rule_i.rule_name   = rule.name
-    rule_i.rule_description = rule.description
+    rule_i.name   = rule.name
+    rule_i.description = rule.description
 
-    rule_i.rule_text = rule.text
+    rule_i.value = rule.value
 
     db.DBSession.add(rule_i)
     db.DBSession.flush()
@@ -84,10 +84,10 @@ def update_rule(rule, **kwargs):
         raise HydraError("Ref Key %s not recognised.")
 
     rule_i.scenario_id = rule.scenario_id
-    rule_i.rule_name   = rule.name
-    rule_i.rule_description = rule.description
+    rule_i.name   = rule.name
+    rule_i.description = rule.description
 
-    rule_i.rule_text = rule.text
+    rule_i.value = rule.value
 
     db.DBSession.flush()
 
@@ -110,6 +110,6 @@ def activate_rule(rule_id, **kwargs):
 
 def purge_rule(rule_id, **kwargs):
     rule_i = _get_rule(rule_id)
-    
+
     db.DBSession.delete(rule_i)
     db.DBSession.flush()

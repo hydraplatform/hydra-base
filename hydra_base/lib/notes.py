@@ -24,7 +24,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 def _get_note(note_id):
     try:
-        note_i = db.DBSession.query(Note).filter(Note.note_id == note_id).one()
+        note_i = db.DBSession.query(Note).filter(Note.id == note_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Note %s not found"%note_id)
     return note_i
@@ -52,7 +52,7 @@ def get_notes(ref_key, ref_id, **kwargs):
 
     note_rs = notes.all()
 
-    return note_rs 
+    return note_rs
 
 def get_note(note_id, **kwargs):
     """
@@ -69,8 +69,8 @@ def add_note(note, **kwargs):
     note_i.ref_key = note.ref_key
 
     note_i.set_ref(note.ref_key, note.ref_id)
-    
-    note_i.note_text = note.text
+
+    note_i.value = note.value
 
     note_i.created_by = kwargs.get('user_id')
 
@@ -81,7 +81,7 @@ def add_note(note, **kwargs):
 
 def update_note(note, **kwargs):
     """
-    Update a note 
+    Update a note
     """
     note_i = _get_note(note.id)
 
@@ -90,7 +90,7 @@ def update_note(note, **kwargs):
 
     note_i.set_ref(note.ref_key, note.ref_id)
 
-    note_i.note_text = note.text
+    note_i.value = note.value
 
     db.DBSession.flush()
 
@@ -101,7 +101,7 @@ def purge_note(note_id, **kwargs):
     Remove a note from the DB permenantly
     """
     note_i = _get_note(note_id)
-    
+
     db.DBSession.delete(note_i)
-    
+
     db.DBSession.flush()
