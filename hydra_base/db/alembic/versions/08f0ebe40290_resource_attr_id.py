@@ -8,6 +8,8 @@ Create Date: 2018-04-16 14:49:24.202974
 from alembic import op
 import sqlalchemy as sa
 
+import logging
+log = logging.getLogger(__name__)
 
 # revision identifiers, used by Alembic.
 revision = '08f0ebe40290'
