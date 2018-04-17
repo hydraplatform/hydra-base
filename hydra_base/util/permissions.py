@@ -31,15 +31,15 @@ def check_perm(user_id, permission_code):
         error is thrown.
     """
     try:
-        perm = db.DBSession.query(Perm).filter(Perm.perm_code==permission_code).one()
+        perm = db.DBSession.query(Perm).filter(Perm.code==permission_code).one()
     except NoResultFound:
         raise PermissionError("No permission %s"%(permission_code))
 
 
     try:
         res = db.DBSession.query(User).join(RoleUser, RoleUser.user_id==User.id).\
-            join(Perm, Perm.perm_id==perm.perm_id).\
-            join(RolePerm, RolePerm.perm_id==Perm.perm_id).filter(User.id==user_id).one()
+            join(Perm, Perm.id==perm.id).\
+            join(RolePerm, RolePerm.perm_id==Perm.id).filter(User.id==user_id).one()
     except NoResultFound:
         raise PermissionError("Permission denied. User %s does not have permission %s"%
                         (user_id, permission_code))
