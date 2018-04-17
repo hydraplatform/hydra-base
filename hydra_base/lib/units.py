@@ -72,7 +72,7 @@ class Units(object):
                             '../'
                              'static',
                              'unit_definitions.xml')
-            
+
         builtin_unitfile = config.get("unit_conversion",
                                        "default_file",
                                        default_builtin_unitfile_location)
@@ -88,10 +88,10 @@ class Units(object):
 
         with open(user_unitfile) as f:
             self.usertree = etree.parse(f).getroot()
-      
+
         with open(builtin_unitfile) as f:
             self.unittree = etree.parse(f).getroot()
-      
+
         for element in self.usertree:
             self.unittree.append(deepcopy(element))
             self.userdimensions.append(element.get('name'))
@@ -411,12 +411,12 @@ def convert_dataset(dataset_id, to_unit,**kwargs):
     returns the dataset ID of new dataset.
     """
 
-    ds_i = db.DBSession.query(Dataset).filter(Dataset.dataset_id==dataset_id).one()
+    ds_i = db.DBSession.query(Dataset).filter(Dataset.id==dataset_id).one()
 
-    dataset_type = ds_i.data_type
+    dataset_type = ds_i.type
 
     dsval = ds_i.get_val()
-    old_unit = ds_i.data_units
+    old_unit = ds_i.unit
 
     if old_unit is not None:
         if dataset_type == 'scalar':
@@ -436,27 +436,26 @@ def convert_dataset(dataset_id, to_unit,**kwargs):
                 new_val.append(ts_time, newarr)
         elif dataset_type == 'descriptor':
             raise HydraError('Cannot convert descriptor.')
-        
+
         new_dataset = Dataset()
-        new_dataset.data_units = to_unit
+        new_dataset.unit = to_unit
         new_dataset.set_val(dataset_type, new_val)
-        new_dataset.data_dimen = ds_i.data_dimen
-        new_dataset.data_name  = ds_i.data_name
-        new_dataset.data_type  = ds_i.data_type
+        new_dataset.name  = ds_i.name
+        new_dataset.type  = ds_i.type
         new_dataset.hidden     = 'N'
         new_dataset.set_metadata(ds_i.get_metadata_as_dict())
         new_dataset.set_hash()
 
-        existing_ds = db.DBSession.query(Dataset).filter(Dataset.data_hash==new_dataset.data_hash).first()
+        existing_ds = db.DBSession.query(Dataset).filter(Dataset.hash==new_dataset.hash).first()
 
         if existing_ds is not None:
             db.DBSession.expunge_all()
-            return existing_ds.dataset_id
-        
+            return existing_ds.id
+
         db.DBSession.add(new_dataset)
         db.DBSession.flush()
 
-        return new_dataset.dataset_id
+        return new_dataset.id
 
     else:
         raise HydraError('Dataset has no units.')
@@ -517,12 +516,12 @@ def validate_resource_attributes(resource, attributes, template, check_unit=True
         The template should take the form of a dictionary, as should the
         resources.
 
-        *check_unit*:  Make sure that if a unit is specified in the template, it 
-                     is the same in the data 
-        *exact_match*: Enure that all the attributes in the template are in 
-                     the data also. By default this is false, meaning a subset 
+        *check_unit*:  Make sure that if a unit is specified in the template, it
+                     is the same in the data
+        *exact_match*: Enure that all the attributes in the template are in
+                     the data also. By default this is false, meaning a subset
                      of the template attributes may be specified in the data.
-                     An attribute specified in the data *must* be defined in 
+                     An attribute specified in the data *must* be defined in
                      the template.
 
         @returns a list of error messages. An empty list indicates no
@@ -599,7 +598,7 @@ def validate_resource_attributes(resource, attributes, template, check_unit=True
             errors.append("An attribute mismatch has occurred. Attr %s is not "
                           "defined in the data but is present on resource %s"
                           %(res_attr['attr_id'], resource['name']))
-            continue 
+            continue
 
         #If an attribute is not specified in the template, then throw an error
         if tmpl_attrs.get(attr['name']) is None:
@@ -611,18 +610,18 @@ def validate_resource_attributes(resource, attributes, template, check_unit=True
             tmpl_attr = tmpl_attrs[attr['name']]
 
             if tmpl_attr.get('data_type') is not None:
-                if res_attr.get('data_type') is not None:
-                    if tmpl_attr.get('data_type') != res_attr.get('data_type'):
+                if res_attr.get('type') is not None:
+                    if tmpl_attr.get('data_type') != res_attr.get('type'):
                         errors.append("Error in data. Template says that %s on %s is a %s, but data suggests it is a %s"%
-                            (attr['name'], resource['name'], tmpl_attr.get('data_type'), res_attr.get('data_type')))
+                            (attr['name'], resource['name'], tmpl_attr.get('data_type'), res_attr.get('type')))
 
             attr_dimen = "dimensionless" if attr.get('dimen') is None else attr.get('dimen')
             tmpl_attr_dimen = "dimensionless" if tmpl_attr.get('dimension') is None else tmpl_attr.get('dimension')
-            
+
             if attr_dimen.lower() != tmpl_attr_dimen.lower():
                 errors.append("Dimension mismatch on resource %s for attribute %s"
                               " (template says %s on type %s, data says %s)"%
-                              (resource['name'], attr.get('name'), 
+                              (resource['name'], attr.get('name'),
                                tmpl_attr.get('dimension'), res_user_type, attr_dimen))
 
             if check_unit is True:

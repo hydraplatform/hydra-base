@@ -213,7 +213,7 @@ def parse_xml_typeattr(type_i, attribute):
                                unit,
                                dimension,
                                name="%s Default"%attr.attr_name,)
-        typeattr_i.default_dataset_id = dataset.dataset_id
+        typeattr_i.default_dataset_id = dataset.id
 
     if attribute.find('restrictions') is not None:
         typeattr_i.data_restriction = str(dataset_util.get_restriction_as_dict(attribute.find('restrictions')))
@@ -311,7 +311,7 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
                                unit,
                                dimension,
                                name= name)
-        typeattr_i.default_dataset_id = dataset_i.dataset_id
+        typeattr_i.default_dataset_id = dataset_i.id
 
     if typeattr_j.restriction is not None or typeattr_j.data_restriction is not None:
         restriction = typeattr_j.restriction if typeattr_j.restriction is not None else typeattr_j.data_restriction
@@ -367,9 +367,9 @@ def get_template_as_dict(template_id, **kwargs):
                 typeattr_j.default_dataset_id = typeattr_j.default_dataset_id * -1
                 dataset_dict[typeattr_j.default_dataset_id] = JSONObject(
                             {
-                                'name'     : typeattr_j.default_dataset.data_name,
-                                'type'     : typeattr_j.default_dataset.data_type,
-                                'unit'     : typeattr_j.default_dataset.data_units,
+                                'name'     : typeattr_j.default_dataset.name,
+                                'type'     : typeattr_j.default_dataset.type,
+                                'unit'     : typeattr_j.default_dataset.unit,
                                 'value'    : typeattr_j.default_dataset.value,
                                 'metadata' : typeattr_j.default_dataset.metadata
                             })
@@ -1823,12 +1823,11 @@ def _validate_resource(resource, tmpl_types, resource_scenarios=[]):
             if rs is None:
                 continue
             attr_name = rs.resourceattr.attr.attr_name
-            rs_unit = rs.dataset.data_units
-            rs_dimension = rs.dataset.data_dimen
+            rs_unit = rs.dataset.unit
             type_dimension = ta_dict[rs.resourceattr.attr_id].attr.attr_dimen
             type_unit = ta_dict[rs.resourceattr.attr_id].unit
 
-            if rs_dimension != type_dimension:
+            if units.get_unit_dimension(rs_unit) != type_dimension:
                 errors.append("Dimension mismatch on %s %s, attribute %s: "
                               "%s on attribute, %s on type"%
                              ( resource.ref_key, resource.get_name(), attr_name,

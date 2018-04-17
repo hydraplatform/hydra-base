@@ -47,7 +47,7 @@ def _get_user(username):
 
 def _get_dataset(dataset_id):
     try:
-        dataset_i = db.DBSession.query(Dataset).filter(Dataset.dataset_id==dataset_id).one()
+        dataset_i = db.DBSession.query(Dataset).filter(Dataset.id==dataset_id).one()
         return dataset_i
     except NoResultFound:
         raise ResourceNotFoundError("Dataset %s not found"%(dataset_id))
@@ -254,7 +254,7 @@ def hide_dataset(dataset_id, exceptions, read, write, share,**kwargs):
     if dataset_i.created_by != int(user_id):
         raise HydraError('Permission denied. '
                         'User %s is not the owner of dataset %s'
-                        %(user_id, dataset_i.data_name))
+                        %(user_id, dataset_i.name))
 
     dataset_i.hidden = 'Y'
     if exceptions is not None:
@@ -279,7 +279,7 @@ def unhide_dataset(dataset_id,**kwargs):
     if dataset_i.created_by != int(user_id):
         raise HydraError('Permission denied. '
                         'User %s is not the owner of dataset %s'
-                        %(user_id, dataset_i.data_name))
+                        %(user_id, dataset_i.name))
 
     dataset_i.hidden = 'N'
     db.DBSession.flush()

@@ -99,8 +99,8 @@ class TestTimeSeries:
         s = network['scenarios'][0]
         assert len(s['resourcescenarios']) > 0
         for rs in s['resourcescenarios']:
-            if rs['value']['type'] == 'timeseries':
-                rs['value']['value'] = relative_timeseries
+            if rs['dataset']['type'] == 'timeseries':
+                rs['dataset']['value'] = relative_timeseries
 
         new_network_summary = hb.add_network(network, user_id=self.user_id)
         new_net = hb.get_network(new_network_summary.id, user_id=self.user_id, include_data='Y')
@@ -123,8 +123,8 @@ class TestTimeSeries:
 
         s = network['scenarios'][0]
         for rs in s['resourcescenarios']:
-            if rs['value']['type'] == 'timeseries':
-                rs['value']['value'] = arbitrary_timeseries
+            if rs['dataset']['type'] == 'timeseries':
+                rs['dataset']['value'] = arbitrary_timeseries
 
         new_network_summary = hb.add_network(network, user_id=self.user_id)
         new_net = hb.get_network(new_network_summary.id, user_id=self.user_id)
@@ -145,8 +145,8 @@ class TestTimeSeries:
         s = network['scenarios'][0]
         assert len(s['resourcescenarios']) > 0
         for rs in s['resourcescenarios']:
-            if rs['value']['type'] == 'timeseries':
-                rs['value']['value'] = relative_timeseries
+            if rs['dataset']['type'] == 'timeseries':
+                rs['dataset']['value'] = relative_timeseries
 
         new_network_summary = hb.add_network(network, user_id=self.user_id)
         new_net = hb.get_network(new_network_summary.id, user_id=self.user_id, include_data='Y')
@@ -181,8 +181,8 @@ class TestTimeSeries:
 
         s = network['scenarios'][0]
         for rs in s['resourcescenarios']:
-            if rs['value']['type'] == 'timeseries':
-                rs['value']['value'] = seasonal_timeseries
+            if rs['dataset']['type'] == 'timeseries':
+                rs['dataset']['value'] = seasonal_timeseries
 
         new_network_summary = hb.add_network(network, user_id=self.user_id)
         new_net = hb.get_network(new_network_summary.id, user_id=self.user_id, include_data='Y')
@@ -237,10 +237,10 @@ class TestTimeSeries:
     def test_multiple_vals_at_time(self, session, network_with_data, seasonal_timeseries):
 
         s = network_with_data['scenarios'][0]
-    
+
         for rs in s['resourcescenarios']:
-            if rs['value']['data_type'] == 'timeseries':
-                rs['value']['value'] = seasonal_timeseries
+            if rs['dataset']['type'] == 'timeseries':
+                rs['dataset']['value'] = seasonal_timeseries
 
         hb.update_network(network_with_data, user_id=self.user_id)
         new_net = hb.get_network(network_with_data.id, user_id=self.user_id, include_data='Y')
@@ -390,10 +390,10 @@ def network_with_dataset_collection(network_with_data, collection_json_object):
 
     collection = collection_json_object
 
-    group_dataset_ids = [scenario_data[0].dataset_id, ]
+    group_dataset_ids = [scenario_data[0].id, ]
     for d in scenario_data:
-        if d.data_type == 'timeseries' and d.dataset_id not in group_dataset_ids:
-            group_dataset_ids.append(d.dataset_id)
+        if d.type == 'timeseries' and d.id not in group_dataset_ids:
+            group_dataset_ids.append(d.id)
             break
 
     collection.dataset_ids = group_dataset_ids
@@ -466,16 +466,16 @@ class TestDataCollection:
 
         collection = collection_json_object
 
-        group_dataset_ids = [scenario_data[0].dataset_id, ]
+        group_dataset_ids = [scenario_data[0].id, ]
         for d in scenario_data:
-            if d.data_type == 'timeseries' and d.dataset_id not in group_dataset_ids:
-                group_dataset_ids.append(d.dataset_id)
+            if d.type == 'timeseries' and d.id not in group_dataset_ids:
+                group_dataset_ids.append(d.id)
                 break
 
         dataset_id_to_add = None
         for d in scenario_data:
-            if d.data_type == 'array' and d.dataset_id not in group_dataset_ids:
-                dataset_id_to_add = d.dataset_id
+            if d.type == 'array' and d.id not in group_dataset_ids:
+                dataset_id_to_add = d.id
                 break
 
         collection.dataset_ids = group_dataset_ids
@@ -505,7 +505,7 @@ class TestDataCollection:
             new_dataset_ids.append(item.dataset_id)
 
         assert set(new_dataset_ids) - set(previous_dataset_ids) == set([dataset_id_to_add])
-                
+
     def test_add_datasets_to_collection(self, session, network_with_data, collection_json_object):
 
         network = network_with_data
@@ -516,16 +516,16 @@ class TestDataCollection:
 
         collection = collection_json_object
 
-        group_dataset_ids = [scenario_data[0].dataset_id, ]
+        group_dataset_ids = [scenario_data[0].id, ]
         for d in scenario_data:
-            if d.data_type == 'timeseries' and d.dataset_id not in group_dataset_ids:
-                group_dataset_ids.append(d.dataset_id)
+            if d.type == 'timeseries' and d.id not in group_dataset_ids:
+                group_dataset_ids.append(d.id)
                 break
 
         dataset_ids_to_add = []
         for d in scenario_data:
-            if d.data_type == 'array' and d.dataset_id not in group_dataset_ids:
-                dataset_ids_to_add.append(d.dataset_id)
+            if d.type == 'array' and d.id not in group_dataset_ids:
+                dataset_ids_to_add.append(d.id)
 
         collection.dataset_ids = group_dataset_ids
         collection.name = 'test soap collection %s'%(datetime.datetime.now())
@@ -545,7 +545,7 @@ class TestDataCollection:
             new_dataset_ids.append(item.dataset_id)
 
         assert set(new_dataset_ids) - set(previous_dataset_ids) == set(dataset_ids_to_add)
-        
+
     def test_remove_dataset_from_collection(self, session, network_with_data):
 
         network = network_with_data
@@ -554,11 +554,11 @@ class TestDataCollection:
         scenario_data = hb.get_scenario_data(scenario_id)
 
         collection = collection_json_object
-        dataset_id = scenario_data[0].dataset_id
+        dataset_id = scenario_data[0].id
         group_dataset_ids = [dataset_id, ]
         for d in scenario_data:
-            if d.data_type == 'timeseries' and d.dataset_id not in group_dataset_ids:
-                group_dataset_ids.append(d.dataset_id)
+            if d.type == 'timeseries' and d.id not in group_dataset_ids:
+                group_dataset_ids.append(d.id)
                 break
 
         collection.dataset_ids = group_dataset_ids
@@ -591,11 +591,11 @@ class TestDataCollection:
         dataset_id = None
         group_dataset_ids = []
         for d in scenario_data:
-            if dataset_id is None and d.data_type == 'timeseries':
-                dataset_id = d.dataset_id
-                group_dataset_ids.append(d.dataset_id)
-            elif d.data_type == 'timeseries' and d.dataset_id not in group_dataset_ids:
-                group_dataset_ids.append(d.dataset_id)
+            if dataset_id is None and d.type == 'timeseries':
+                dataset_id = d.id
+                group_dataset_ids.append(d.id)
+            elif d.type == 'timeseries' and d.id not in group_dataset_ids:
+                group_dataset_ids.append(d.id)
 
         collection.dataset_ids = group_dataset_ids
         collection.name = 'test soap collection %s' % (datetime.datetime.now())
@@ -617,8 +617,8 @@ class TestDataCollection:
         assert dataset_id in new_dataset_ids
 
         hb.delete_dataset(dataset_id)
-        
-        dataset_qry = hb.db.DBSession.query(hb.db.model.Dataset).filter(hb.db.model.Dataset.dataset_id==dataset_id).all()
+
+        dataset_qry = hb.db.DBSession.query(hb.db.model.Dataset).filter(hb.db.model.Dataset.id==dataset_id).all()
 
         updated_collection = hb.get_dataset_collection(newly_added_collection.collection_id)
         updated_dataset_ids = []
@@ -626,5 +626,3 @@ class TestDataCollection:
             updated_dataset_ids.append(item.dataset_id)
 
         assert dataset_id not in updated_dataset_ids
-
-

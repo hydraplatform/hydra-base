@@ -40,7 +40,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from ..exceptions import HydraError, ResourceNotFoundError
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import aliased
-
+from . import units
 
 def _get_network(network_id):
     try:
@@ -450,13 +450,13 @@ def check_attr_dimension(attr_id, **kwargs):
     """
     attr_i = _get_attr(attr_id)
 
-    datasets = db.DBSession.query(Dataset).filter(Dataset.dataset_id==ResourceScenario.dataset_id,
+    datasets = db.DBSession.query(Dataset).filter(Dataset.id==ResourceScenario.dataset_id,
                                                ResourceScenario.resource_attr_id == ResourceAttr.resource_attr_id,
                                                ResourceAttr.attr_id == attr_id).all()
     bad_datasets = []
     for d in datasets:
-        if d.data_dimen != attr_i.attr_dimen:
-            bad_datasets.append(d.dataset_id)
+        if units.get_unit_dimension(d.unit) != attr_i.attr_dimen:
+            bad_datasets.append(d.id)
 
     if len(bad_datasets) > 0:
         raise HydraError("Datasets %s have a different dimension to attribute %s"%(bad_datasets, attr_id))
