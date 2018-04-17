@@ -75,7 +75,7 @@ def add_resource_attributes(resource_i, attributes):
         if ra.id < 0:
             ra_i = resource_i.add_attribute(ra.attr_id, ra.attr_is_var)
         else:
-            ra_i = db.DBSession.query(ResourceAttr).filter(ResourceAttr.resource_attr_id==ra.id).one()
+            ra_i = db.DBSession.query(ResourceAttr).filter(ResourceAttr.id==ra.id).one()
             ra_i.attr_is_var = ra.attr_is_var
 
         resource_attrs[ra.id] = ra_i

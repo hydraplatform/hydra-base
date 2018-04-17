@@ -401,8 +401,8 @@ class ResourceAttrMap(Base, Inspect):
 
     network_a_id       = Column(Integer(), ForeignKey('tNetwork.id'), primary_key=True, nullable=False)
     network_b_id       = Column(Integer(), ForeignKey('tNetwork.id'), primary_key=True, nullable=False)
-    resource_attr_id_a = Column(Integer(), ForeignKey('tResourceAttr.resource_attr_id'), primary_key=True, nullable=False)
-    resource_attr_id_b = Column(Integer(), ForeignKey('tResourceAttr.resource_attr_id'), primary_key=True, nullable=False)
+    resource_attr_id_a = Column(Integer(), ForeignKey('tResourceAttr.id'), primary_key=True, nullable=False)
+    resource_attr_id_b = Column(Integer(), ForeignKey('tResourceAttr.id'), primary_key=True, nullable=False)
 
     resourceattr_a = relationship("ResourceAttr", foreign_keys=[resource_attr_id_a])
     resourceattr_b = relationship("ResourceAttr", foreign_keys=[resource_attr_id_b])
@@ -485,7 +485,7 @@ class ResourceAttr(Base, Inspect):
         UniqueConstraint('group_id',   'attr_id', name = 'group_attr_1'),
     )
 
-    resource_attr_id = Column(Integer(), primary_key=True, nullable=False)
+    id = Column(Integer(), primary_key=True, nullable=False)
     attr_id = Column(Integer(), ForeignKey('tAttr.id'),  nullable=False)
     ref_key = Column(String(60),  nullable=False, index=True)
     network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), index=True, nullable=True,)
@@ -1040,7 +1040,7 @@ class Node(Base, Inspect):
         res_attr.attr_id = attr_id
         res_attr.attr_is_var = attr_is_var
         res_attr.ref_key = self.ref_key
-        res_attr.id  = self.id
+        res_attr.node_id  = self.id
         self.attributes.append(res_attr)
 
         return res_attr
@@ -1194,7 +1194,7 @@ class ResourceScenario(Base, Inspect):
 
     dataset_id = Column(Integer(), ForeignKey('tDataset.id'), nullable=False)
     scenario_id = Column(Integer(), ForeignKey('tScenario.id'), primary_key=True, nullable=False, index=True)
-    resource_attr_id = Column(Integer(), ForeignKey('tResourceAttr.resource_attr_id'), primary_key=True, nullable=False, index=True)
+    resource_attr_id = Column(Integer(), ForeignKey('tResourceAttr.id'), primary_key=True, nullable=False, index=True)
     source           = Column(String(60))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
@@ -1246,10 +1246,10 @@ class Scenario(Base, Inspect):
 
     def add_resource_scenario(self, resource_attr, dataset=None, source=None):
         rs_i = ResourceScenario()
-        if resource_attr.resource_attr_id is None:
+        if resource_attr.id is None:
             rs_i.resourceattr = resource_attr
         else:
-            rs_i.resource_attr_id = resource_attr.resource_attr_id
+            rs_i.resource_attr_id = resource_attr.id
 
         if dataset.id is None:
             rs_i.dataset = dataset
@@ -1575,10 +1575,10 @@ def create_resourcedata_view():
 
 
     view_qry = select([
-        ResourceAttr.resource_attr_id,
+        ResourceAttr.id,
         ResourceAttr.attr_id,
         Attr.name,
-        ResourceAttr.resource_attr_id,
+        ResourceAttr.id,
         ResourceAttr.network_id,
         ResourceAttr.node_id,
         ResourceAttr.link_id,

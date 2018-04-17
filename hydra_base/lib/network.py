@@ -87,7 +87,7 @@ def _update_attributes(resource_i, attributes):
 
     resource_attributes = resource_attribute_qry.all()
 
-    attr_id_map = dict([(ra_i.resource_attr_id, ra_i) for ra_i in resource_attributes])
+    attr_id_map = dict([(ra_i.id, ra_i) for ra_i in resource_attributes])
 
     #ra is for ResourceAttr
     for ra in attributes:
@@ -575,8 +575,8 @@ def _get_all_resource_attributes(network_id, template_id=None):
         Return these attributes as a dictionary, keyed on type (NODE, LINK, GROUP)
         then by ID of the node or link.
     """
-    base_qry = db.DBSession.query(ResourceAttr.resource_attr_id.label('resource_attr_id'),
-                               ResourceAttr.resource_attr_id.label('id'),
+    base_qry = db.DBSession.query(
+                               ResourceAttr.id.label('id'),
                                ResourceAttr.ref_key.label('ref_key'),
                                ResourceAttr.cr_date.label('cr_date'),
                                ResourceAttr.attr_is_var.label('attr_is_var'),
@@ -785,7 +785,7 @@ def _get_all_resourcescenarios(network_id, user_id):
                 ResourceAttr.attr_id,
     ).outerjoin(DatasetOwner, and_(DatasetOwner.dataset_id==Dataset.id, DatasetOwner.user_id==user_id)).filter(
                 or_(Dataset.hidden=='N', DatasetOwner.user_id != None),
-                ResourceAttr.resource_attr_id == ResourceScenario.resource_attr_id,
+                ResourceAttr.id == ResourceScenario.resource_attr_id,
                 Scenario.id==ResourceScenario.scenario_id,
                 Scenario.network_id==network_id,
                 Dataset.id==ResourceScenario.dataset_id)
@@ -1159,8 +1159,8 @@ def get_node(node_id, scenario_id=None, **kwargs):
             rs_dict[rs.resource_attr_id] = rs
 
         for ra in n.attributes:
-            if rs_dict.get(ra.resource_attr_id):
-                ra.resourcescenario = rs_dict[ra.resource_attr_id]
+            if rs_dict.get(ra.id):
+                ra.resourcescenario = rs_dict[ra.id]
 
     return n
 
@@ -1178,8 +1178,8 @@ def get_link(link_id, scenario_id=None, **kwargs):
             rs_dict[rs.resource_attr_id] = rs
 
         for ra in l.attributes:
-            if rs_dict.get(ra.resource_attr_id):
-                ra.resourcescenario = rs_dict[ra.resource_attr_id]
+            if rs_dict.get(ra.id):
+                ra.resourcescenario = rs_dict[ra.id]
 
     return l
 
@@ -1197,8 +1197,8 @@ def get_resourcegroup(group_id, scenario_id=None, **kwargs):
             rs_dict[rs.resource_attr_id] = rs
 
         for ra in rg.attributes:
-            if rs_dict.get(ra.resource_attr_id):
-                ra.resourcescenario = rs_dict[ra.resource_attr_id]
+            if rs_dict.get(ra.id):
+                ra.resourcescenario = rs_dict[ra.id]
 
     return rg
 
@@ -1598,10 +1598,10 @@ def add_node(network_id, node,**kwargs):
         if len(res_attrs) > 0:
             db.DBSession.bulk_insert_mappings(ResourceAttr, res_attrs)
 
-            new_res_attrs = db.DBSession.query(ResourceAttr).order_by(ResourceAttr.resource_attr_id.desc()).limit(len(res_attrs)).all()
+            new_res_attrs = db.DBSession.query(ResourceAttr).order_by(ResourceAttr.id.desc()).limit(len(res_attrs)).all()
             all_rs = []
             for ra in new_res_attrs:
-                ra_id = ra.resource_attr_id
+                ra_id = ra.id
                 if ra.attr_id in res_scenarios:
                     rs_list = res_scenarios[ra.attr_id]
                     for rs in rs_list:
@@ -1687,7 +1687,7 @@ def _unique_data_qry(count=1):
                                 rs.dataset_id==subqry.c.dataset_id)
                             ).\
                     filter(
-                        rs.resource_attr_id == ResourceAttr.resource_attr_id
+                        rs.resource_attr_id == ResourceAttr.id
                     )
     return unique_data
 
@@ -1737,7 +1737,7 @@ def delete_node(node_id, purge_data,**kwargs):
         #we can say this datset is unique to this node.
         count = db.DBSession.query(ResourceScenario.dataset_id).distinct(
             ResourceScenario.resource_attr_id,
-            ResourceScenario.dataset_id).filter(ResourceScenario.resource_attr_id==ResourceAttr.resource_attr_id,
+            ResourceScenario.dataset_id).filter(ResourceScenario.resource_attr_id==ResourceAttr.id,
                                                ResourceAttr.node_id==node_id).count()
 
         node_data_qry = _unique_data_qry(count)
@@ -1797,10 +1797,10 @@ def add_link(network_id, link,**kwargs):
         if len(res_attrs) > 0:
             db.DBSession.bulk_insert_mappings(ResourceAttr, res_attrs)
 
-            new_res_attrs = db.DBSession.query(ResourceAttr).order_by(ResourceAttr.resource_attr_id.desc()).limit(len(res_attrs)).all()
+            new_res_attrs = db.DBSession.query(ResourceAttr).order_by(ResourceAttr.id.desc()).limit(len(res_attrs)).all()
             all_rs = []
             for ra in new_res_attrs:
-                ra_id = ra.resource_attr_id
+                ra_id = ra.id
                 if ra.attr_id in res_scenarios:
                     rs_list = res_scenarios[ra.attr_id]
                     for rs in rs_list:
@@ -1878,7 +1878,7 @@ def delete_link(link_id, purge_data,**kwargs):
         count = db.DBSession.query(ResourceScenario.dataset_id).distinct(
             ResourceScenario.resource_attr_id,
             ResourceScenario.dataset_id).filter(
-                    ResourceScenario.resource_attr_id==ResourceAttr.resource_attr_id,
+                    ResourceScenario.resource_attr_id==ResourceAttr.id,
                     ResourceAttr.link_id==link_id).count()
 
         link_data_qry = _unique_data_qry(count)
@@ -1928,10 +1928,10 @@ def add_group(network_id, group,**kwargs):
         if len(res_attrs) > 0:
             db.DBSession.bulk_insert_mappings(ResourceAttr, res_attrs)
 
-            new_res_attrs = db.DBSession.query(ResourceAttr).order_by(ResourceAttr.resource_attr_id.desc()).limit(len(res_attrs)).all()
+            new_res_attrs = db.DBSession.query(ResourceAttr).order_by(ResourceAttr.id.desc()).limit(len(res_attrs)).all()
             all_rs = []
             for ra in new_res_attrs:
-                ra_id = ra.resource_attr_id
+                ra_id = ra.id
                 if ra.attr_id in res_scenarios:
                     rs_list = res_scenarios[ra.attr_id]
                     for rs in rs_list:
@@ -2018,7 +2018,7 @@ def delete_group(group_id, purge_data,**kwargs):
         count = db.DBSession.query(ResourceScenario.dataset_id).distinct(
             ResourceScenario.resource_attr_id,
             ResourceScenario.dataset_id).filter(
-                    ResourceScenario.resource_attr_id==ResourceAttr.resource_attr_id,
+                    ResourceScenario.resource_attr_id==ResourceAttr.id,
                     ResourceAttr.group_id==group_id).count()
         group_data_qry = _unique_data_qry(count)
         group_data_qry = group_data_qry.filter(ResourceAttr.group_id==group_id)
@@ -2158,7 +2158,7 @@ def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, 
         raise HydraError("Scenario %s not found."%scenario_id)
 
     rs_qry = db.DBSession.query(ResourceScenario).filter(
-                            ResourceAttr.resource_attr_id==ResourceScenario.resource_attr_id,
+                            ResourceAttr.id==ResourceScenario.resource_attr_id,
                             ResourceScenario.scenario_id==scenario_id,
                             ResourceAttr.ref_key==ref_key)\
             .join(ResourceScenario.dataset)\
@@ -2207,7 +2207,7 @@ def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, 
     if include_metadata == 'Y':
         metadata_qry = db.DBSession.query(Metadata).filter(
                             ResourceAttr.ref_key==ref_key,
-                            ResourceScenario.resource_attr_id==ResourceAttr.resource_attr_id,
+                            ResourceScenario.resource_attr_id==ResourceAttr.id,
                             ResourceScenario.scenario_id==scenario_id,
                             Dataset.id==ResourceScenario.dataset_id,
                             Metadata.dataset_id==Dataset.id)
@@ -2254,7 +2254,7 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
     rs_qry = db.DBSession.query(
                ResourceAttr.attr_id,
                Attr.name,
-               ResourceAttr.resource_attr_id,
+               ResourceAttr.id,
                ResourceAttr.ref_key,
                ResourceAttr.network_id,
                ResourceAttr.node_id,
@@ -2299,7 +2299,7 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
         metadata_qry = db.DBSession.query(distinct(Metadata.dataset_id).label('dataset_id'),
                                       Metadata.key,
                                       Metadata.value).filter(
-                            ResourceScenario.resource_attr_id==ResourceAttr.resource_attr_id,
+                            ResourceScenario.resource_attr_id==ResourceAttr.id,
                             ResourceScenario.scenario_id==scenario_id,
                             Dataset.id==ResourceScenario.dataset_id,
                             Metadata.dataset_id==Dataset.id)
@@ -2528,7 +2528,7 @@ def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, gro
             attr_is_var=ra.attr_is_var,
         ))
         #key is (network_id, node_id, link_id, group_id) -- only one of which can be not null for a given row
-        old_ra_name_map[(newnetworkid, None, None, None, ra.attr_id)] = ra.resource_attr_id
+        old_ra_name_map[(newnetworkid, None, None, None, ra.attr_id)] = ra.id
     log.info("Cloning Node Attributes")
     node_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.node_id==Node.id, Node.network_id==network_id)).all()
     for ra in node_ras:
@@ -2541,7 +2541,7 @@ def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, gro
             attr_is_var=ra.attr_is_var,
             ref_key=ra.ref_key,
         ))
-        old_ra_name_map[(None, node_id_map[ra.node_id], None, None, ra.attr_id)] = ra.resource_attr_id
+        old_ra_name_map[(None, node_id_map[ra.node_id], None, None, ra.attr_id)] = ra.id
     log.info("Cloning Link Attributes")
     link_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.link_id==Link.id, Link.network_id==network_id)).all()
     for ra in link_ras:
@@ -2554,7 +2554,7 @@ def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, gro
             attr_is_var=ra.attr_is_var,
             ref_key=ra.ref_key,
         ))
-        old_ra_name_map[(None, None, link_id_map[ra.link_id], None, ra.attr_id)] = ra.resource_attr_id
+        old_ra_name_map[(None, None, link_id_map[ra.link_id], None, ra.attr_id)] = ra.id
 
     log.info("Cloning Group Attributes")
     group_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.group_id==ResourceGroup.id, ResourceGroup.network_id==network_id)).all()
@@ -2568,7 +2568,7 @@ def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, gro
             attr_is_var=ra.attr_is_var,
             ref_key=ra.ref_key,
         ))
-        old_ra_name_map[(None, None, None, group_id_map[ra.group_id], ra.attr_id)] = ra.resource_attr_id
+        old_ra_name_map[(None, None, None, group_id_map[ra.group_id], ra.attr_id)] = ra.id
 
     log.info("Inserting new resource attributes")
     db.DBSession.bulk_insert_mappings(ResourceAttr, new_ras)
@@ -2579,20 +2579,20 @@ def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, gro
 
     new_network_ras = db.DBSession.query(ResourceAttr).filter(ResourceAttr.network_id==newnetworkid).all()
     for ra in new_network_ras:
-        id_map[old_ra_name_map[(ra.network_id, ra.node_id, ra.link_id, ra.group_id, ra.attr_id)]] = ra.resource_attr_id
+        id_map[old_ra_name_map[(ra.network_id, ra.node_id, ra.link_id, ra.group_id, ra.attr_id)]] = ra.id
 
     new_node_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.node_id==Node.id, Node.network_id==newnetworkid)).all()
     for ra in new_node_ras:
-        id_map[old_ra_name_map[(ra.network_id, ra.node_id, ra.link_id, ra.group_id, ra.attr_id)]] = ra.resource_attr_id
+        id_map[old_ra_name_map[(ra.network_id, ra.node_id, ra.link_id, ra.group_id, ra.attr_id)]] = ra.id
 
 
     new_link_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.link_id==Link.id, Link.network_id==newnetworkid)).all()
     for ra in new_link_ras:
-        id_map[old_ra_name_map[(ra.network_id, ra.node_id, ra.link_id, ra.group_id, ra.attr_id)]] = ra.resource_attr_id
+        id_map[old_ra_name_map[(ra.network_id, ra.node_id, ra.link_id, ra.group_id, ra.attr_id)]] = ra.id
 
     new_group_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.group_id==ResourceGroup.id, ResourceGroup.network_id==newnetworkid)).all()
     for ra in new_group_ras:
-        id_map[old_ra_name_map[(ra.network_id, ra.node_id, ra.link_id, ra.group_id, ra.attr_id)]] = ra.resource_attr_id
+        id_map[old_ra_name_map[(ra.network_id, ra.node_id, ra.link_id, ra.group_id, ra.attr_id)]] = ra.id
     log.info("ID map completed. Returning")
 
     return id_map
@@ -2681,7 +2681,7 @@ def _clone_scenario(old_scenario, newnetworkid, ra_id_map, node_id_map, link_id_
     log.info("Getting old resource scenarios for scenario %s", old_scenario.id)
     old_rscen_rs = db.DBSession.query(ResourceScenario).filter(
                                         ResourceScenario.scenario_id==old_scenario.id,
-                                        ResourceAttr.resource_attr_id==ResourceScenario.resource_attr_id,
+                                        ResourceAttr.id==ResourceScenario.resource_attr_id,
                                         ResourceAttr.attr_is_var == 'N'
                                     ).all()
 

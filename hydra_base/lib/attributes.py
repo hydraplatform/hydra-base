@@ -259,7 +259,7 @@ def update_resource_attribute(resource_attr_id, is_var, **kwargs):
     """
     user_id = kwargs.get('user_id')
     try:
-        ra = db.DBSession.query(ResourceAttr).filter(ResourceAttr.resource_attr_id == resource_attr_id).one()
+        ra = db.DBSession.query(ResourceAttr).filter(ResourceAttr.id == resource_attr_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Resource Attribute %s not found"%(resource_attr_id))
 
@@ -275,7 +275,7 @@ def delete_resource_attribute(resource_attr_id, **kwargs):
     """
     user_id = kwargs.get('user_id')
     try:
-        ra = db.DBSession.query(ResourceAttr).filter(ResourceAttr.resource_attr_id == resource_attr_id).one()
+        ra = db.DBSession.query(ResourceAttr).filter(ResourceAttr.id == resource_attr_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Resource Attribute %s not found"%(resource_attr_id))
 
@@ -451,7 +451,7 @@ def check_attr_dimension(attr_id, **kwargs):
     attr_i = _get_attr(attr_id)
 
     datasets = db.DBSession.query(Dataset).filter(Dataset.id==ResourceScenario.dataset_id,
-                                               ResourceScenario.resource_attr_id == ResourceAttr.resource_attr_id,
+                                               ResourceScenario.resource_attr_id == ResourceAttr.id,
                                                ResourceAttr.attr_id == attr_id).all()
     bad_datasets = []
     for d in datasets:
@@ -471,7 +471,7 @@ def get_resource_attribute(resource_attr_id, **kwargs):
     """
 
     resource_attr_qry = db.DBSession.query(ResourceAttr).filter(
-        ResourceAttr.resource_attr_id == resource_attr_id,
+        ResourceAttr.id == resource_attr_id,
         )
 
     resource_attr = resource_attr_qry.first()
@@ -560,20 +560,20 @@ def get_node_mappings(node_id, node_2_id=None, **kwargs):
     qry = db.DBSession.query(ResourceAttrMap).filter(
         or_(
             and_(
-                ResourceAttrMap.resource_attr_id_a == ResourceAttr.resource_attr_id,
+                ResourceAttrMap.resource_attr_id_a == ResourceAttr.id,
                 ResourceAttr.node_id == node_id),
             and_(
-                ResourceAttrMap.resource_attr_id_b == ResourceAttr.resource_attr_id,
+                ResourceAttrMap.resource_attr_id_b == ResourceAttr.id,
                 ResourceAttr.node_id == node_id)))
 
     if node_2_id is not None:
         aliased_ra = aliased(ResourceAttr, name="ra2")
         qry = qry.filter(or_(
             and_(
-                ResourceAttrMap.resource_attr_id_a == aliased_ra.resource_attr_id,
+                ResourceAttrMap.resource_attr_id_a == aliased_ra.id,
                 aliased_ra.node_id == node_2_id),
             and_(
-                ResourceAttrMap.resource_attr_id_b == aliased_ra.resource_attr_id,
+                ResourceAttrMap.resource_attr_id_b == aliased_ra.id,
                 aliased_ra.node_id == node_2_id)))
 
     return qry.all()
@@ -586,20 +586,20 @@ def get_link_mappings(link_id, link_2_id=None, **kwargs):
     qry = db.DBSession.query(ResourceAttrMap).filter(
         or_(
             and_(
-                ResourceAttrMap.resource_attr_id_a == ResourceAttr.resource_attr_id,
+                ResourceAttrMap.resource_attr_id_a == ResourceAttr.id,
                 ResourceAttr.link_id == link_id),
             and_(
-                ResourceAttrMap.resource_attr_id_b == ResourceAttr.resource_attr_id,
+                ResourceAttrMap.resource_attr_id_b == ResourceAttr.id,
                 ResourceAttr.link_id == link_id)))
 
     if link_2_id is not None:
         aliased_ra = aliased(ResourceAttr, name="ra2")
         qry = qry.filter(or_(
             and_(
-                ResourceAttrMap.resource_attr_id_a == aliased_ra.resource_attr_id,
+                ResourceAttrMap.resource_attr_id_a == aliased_ra.id,
                 aliased_ra.link_id == link_2_id),
             and_(
-                ResourceAttrMap.resource_attr_id_b == aliased_ra.resource_attr_id,
+                ResourceAttrMap.resource_attr_id_b == aliased_ra.id,
                 aliased_ra.link_id == link_2_id)))
 
     return qry.all()
@@ -614,20 +614,20 @@ def get_network_mappings(network_id, network_2_id=None, **kwargs):
     qry = db.DBSession.query(ResourceAttrMap).filter(
         or_(
             and_(
-                ResourceAttrMap.resource_attr_id_a == ResourceAttr.resource_attr_id,
+                ResourceAttrMap.resource_attr_id_a == ResourceAttr.id,
                 ResourceAttr.network_id == network_id),
             and_(
-                ResourceAttrMap.resource_attr_id_b == ResourceAttr.resource_attr_id,
+                ResourceAttrMap.resource_attr_id_b == ResourceAttr.id,
                 ResourceAttr.network_id == network_id)))
 
     if network_2_id is not None:
         aliased_ra = aliased(ResourceAttr, name="ra2")
         qry = qry.filter(or_(
             and_(
-                ResourceAttrMap.resource_attr_id_a == aliased_ra.resource_attr_id,
+                ResourceAttrMap.resource_attr_id_a == aliased_ra.id,
                 aliased_ra.network_id == network_2_id),
             and_(
-                ResourceAttrMap.resource_attr_id_b == aliased_ra.resource_attr_id,
+                ResourceAttrMap.resource_attr_id_b == aliased_ra.id,
                 aliased_ra.network_id == network_2_id)))
 
     return qry.all()

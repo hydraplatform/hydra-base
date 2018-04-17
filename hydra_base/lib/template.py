@@ -1809,7 +1809,7 @@ def _validate_resource(resource, tmpl_types, resource_scenarios=[]):
             errors.append("Resource %s does not have attribute %s"%
                           (resource.get_name(), ta_dict[ta].attr.name))
 
-    resource_attr_ids = set([ra.resource_attr_id for ra in resource.attributes])
+    resource_attr_ids = set([ra.id for ra in resource.attributes])
     #if data is included, check to make sure each dataset conforms
     #to the boundaries specified in the template: i.e. that it has
     #the correct dimension and (if specified) unit.

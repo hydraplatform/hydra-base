@@ -969,7 +969,7 @@ class NetworkTest(server.SoapServerTest):
         all_resource_data = self.client.service.get_all_resource_data(s.id, include_values='Y')
         log.info(all_resource_data.ResourceData[0])
         for ra in all_resource_data.ResourceData:
-            assert int(ra.resource_attr_id) in all_ras 
+            assert int(ra.id) in all_ras 
 
         truncated_resource_data = self.client.service.get_all_resource_data(s.id, include_values='Y', include_metadata='Y', page_start=0, page_end=1)
         assert len(truncated_resource_data.ResourceData) == 1

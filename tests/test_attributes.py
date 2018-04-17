@@ -161,8 +161,8 @@ class TestAttribute:
 
         #Check that the retrieved attributes are in the list of node attributes
         retrieved_ras = []
-        for n in node_attributes:
-            retrieved_ras.append(n.resource_attr_id)
+        for na in node_attributes:
+            retrieved_ras.append(na.id)
 
         assert set(node_attr_ids) == set(retrieved_ras)
 
@@ -172,8 +172,8 @@ class TestAttribute:
 
         #Check that the retrieved attributes are in the list of node attributes
         retrieved_ras = []
-        for n in node_attributes:
-            retrieved_ras.append(n.resource_attr_id)
+        for na in node_attributes:
+            retrieved_ras.append(na.id)
         assert set(node_attr_ids) == set(retrieved_ras)
 
 
@@ -191,14 +191,14 @@ class TestAttribute:
 
         #Get all the node attributes in the network
         link_attr_ids = []
-        for n in network_with_data.links:
-            for a in n.attributes:
-                link_attr_ids.append(a.resource_attr_id)
+        for l in network_with_data.links:
+            for la in l.attributes:
+                link_attr_ids.append(la.id)
         link_attributes = hb.get_all_resource_attributes('LINK', network_with_data.id, user_id=self.user_id)
         #Check that the retrieved attributes are in the list of node attributes
         retrieved_ras = []
-        for n in link_attributes:
-            retrieved_ras.append(n.resource_attr_id)
+        for la in link_attributes:
+            retrieved_ras.append(la.id)
         assert set(link_attr_ids) == set(retrieved_ras)
 
 
@@ -207,8 +207,8 @@ class TestAttribute:
         hb.add_resource_attribute('GROUP', group.id, attribute.id, 'Y', user_id=self.user_id)
         group_attrs = hb.get_resource_attributes('GROUP', group.id, user_id=self.user_id)
         group_attr_ids = []
-        for ra in group_attrs:
-            group_attr_ids.append(ra.attr_id)
+        for ga in group_attrs:
+            group_attr_ids.append(ga.attr_id)
         assert attribute.id in group_attr_ids
 
     def test_get_all_group_attributes(self, session, network_with_data):
@@ -216,15 +216,15 @@ class TestAttribute:
         #Get all the node attributes in the network
         group_attr_ids = []
         for g in network_with_data.resourcegroups:
-            for a in g.attributes:
-                group_attr_ids.append(a.resource_attr_id)
+            for ga in g.attributes:
+                group_attr_ids.append(ga.id)
 
         group_attributes = hb.get_all_resource_attributes('GROUP', network_with_data.id, user_id=self.user_id)
 
         #Check that the retrieved attributes are in the list of group attributes
         retrieved_ras = []
-        for ra in group_attributes:
-            retrieved_ras.append(ra.resource_attr_id)
+        for ga in group_attributes:
+            retrieved_ras.append(ga.id)
         assert set(group_attr_ids) == set(retrieved_ras)
 
 class TestAttributeMap:
