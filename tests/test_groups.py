@@ -41,13 +41,13 @@ class TestGroup:
         resourcegroup_without_data = hb.get_resourcegroup(group.id)
 
         for ra in resourcegroup_without_data.attributes:
-            assert not hasattr(ra, 'resourcescenario')
+            assert not hasattr(ra, 'resourcescenario') or ra.resourcescenario is None
 
         resourcegroup_with_data = hb.get_resourcegroup(group.id, s.id, user_id=self.user_id)
 
         attrs_with_data = []
         for ra in resourcegroup_with_data.attributes:
-            if hasattr(ra, 'resourcescenario'):
+            if hasattr(ra, 'resourcescenario') and ra.resourcescenario is not None:
                 if ra.resourcescenario:
                     attrs_with_data.append(ra.id)
         assert len(attrs_with_data) > 0

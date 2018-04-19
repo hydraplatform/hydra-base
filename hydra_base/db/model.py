@@ -69,6 +69,9 @@ def get_timestamp(ordinal):
 #***************************************************
 
 class Inspect(object):
+    _parents = []
+    _children = []
+
     def get_columns_and_relationships(self):
         return inspect(self).attrs.keys()
 
@@ -89,6 +92,9 @@ class Dataset(Base, Inspect):
     value      = Column('value', Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
 
     user = relationship('User', backref=backref("datasets", order_by=id))
+
+    _parents  = ['tResourceScenario']
+    _children = ['tMetadata']
 
     def set_metadata(self, metadata_dict):
         """
@@ -295,6 +301,9 @@ class DatasetCollection(Base, Inspect):
     name = Column(String(60),  nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
+    _parents  = ['tDataset']
+    _children = ['tDatasetCollectionItem']
+
 class DatasetCollectionItem(Base, Inspect):
     """
     """
@@ -307,6 +316,9 @@ class DatasetCollectionItem(Base, Inspect):
 
     collection = relationship('DatasetCollection', backref=backref("items", order_by=dataset_id, cascade="all, delete-orphan"))
     dataset = relationship('Dataset', backref=backref("collectionitems", order_by=dataset_id,  cascade="all, delete-orphan"))
+
+    _parents  = ['tDatasetCollection']
+    _children = []
 
 class Metadata(Base, Inspect):
     """
@@ -321,7 +333,8 @@ class Metadata(Base, Inspect):
     dataset = relationship('Dataset', backref=backref("metadata", order_by=dataset_id, cascade="all, delete-orphan"))
 
 
-
+    _parents  = ['tDataset']
+    _children = []
 #********************************************************
 #Attributes & Templates
 #********************************************************
@@ -377,6 +390,10 @@ class AttrGroup(Base, Inspect):
 
     project          = relationship('Project', backref=backref('attrgroups', uselist=True, cascade="all, delete-orphan"), lazy='joined')
 
+
+    _parents  = ['tProject']
+    _children = []
+
 class AttrGroupItem(Base, Inspect):
     """
         Items within an attribute group. Groupings are network dependent, and you can't
@@ -392,6 +409,10 @@ class AttrGroupItem(Base, Inspect):
     group = relationship('AttrGroup', backref=backref('items', uselist=True, cascade="all, delete-orphan"), lazy='joined')
     attr = relationship('Attr')
     network = relationship('Network', backref=backref('attrgroupitems', uselist=True, cascade="all, delete-orphan"), lazy='joined')
+
+
+    _parents  = ['tAttrGroup']
+    _children = []
 
 class ResourceAttrMap(Base, Inspect):
     """
@@ -421,6 +442,9 @@ class Template(Base, Inspect):
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     layout = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
 
+    _parents  = []
+    _children = ['tTemplateType']
+
 class TemplateType(Base, Inspect):
     """
     """
@@ -439,6 +463,10 @@ class TemplateType(Base, Inspect):
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     template = relationship('Template', backref=backref("templatetypes", order_by=id, cascade="all, delete-orphan"))
+
+
+    _parents  = ['tTemplate']
+    _children = ['tTypeAttr']
 
 class TypeAttr(Base, Inspect):
     """
@@ -460,6 +488,9 @@ class TypeAttr(Base, Inspect):
     attr = relationship('Attr')
     templatetype = relationship('TemplateType',  backref=backref("typeattrs", order_by=attr_id, cascade="all, delete-orphan"))
     default_dataset = relationship('Dataset')
+
+    _parents  = ['tTemplateType']
+    _children = []
 
     def get_attr(self):
 
@@ -503,6 +534,8 @@ class ResourceAttr(Base, Inspect):
     link = relationship('Link', backref=backref('attributes', uselist=True, cascade="all, delete-orphan"), uselist=False)
     resourcegroup = relationship('ResourceGroup', backref=backref('attributes', uselist=True, cascade="all, delete-orphan"), uselist=False)
 
+    _parents  = ['tNode', 'tLink', 'tResourceGroup', 'tNetwork', 'tProject']
+    _children = []
 
     def get_network(self):
         """
@@ -588,6 +621,9 @@ class ResourceType(Base, Inspect):
     link = relationship('Link', backref=backref('types', uselist=True, cascade="all, delete-orphan"), uselist=False)
     resourcegroup = relationship('ResourceGroup', backref=backref('types', uselist=True, cascade="all, delete-orphan"), uselist=False)
 
+    _parents  = ['tNode', 'tLink', 'tResourceGroup', 'tNetwork', 'tProject', 'tTemplateType']
+    _children = []
+
     def get_resource(self):
         ref_key = self.ref_key
         if ref_key == 'PROJECT':
@@ -640,6 +676,9 @@ class Project(Base, Inspect):
     created_by = Column(Integer(), ForeignKey('tUser.id'), nullable=False)
 
     user = relationship('User', backref=backref("projects", order_by=id))
+
+    _parents  = []
+    _children = ['tNetwork']
 
     def get_name(self):
         return self.project_name
@@ -753,6 +792,9 @@ class Network(Base, Inspect):
     created_by = Column(Integer(), ForeignKey('tUser.id'), nullable=False)
 
     project = relationship('Project', backref=backref("networks", order_by="asc(Network.cr_date)", cascade="all, delete-orphan"))
+
+    _parents  = ['tNode', 'tLink', 'tResourceGroup']
+    _children = ['tProject']
 
     def get_name(self):
         return self.name
@@ -942,6 +984,9 @@ class Link(Base, Inspect):
     node_a = relationship('Node', foreign_keys=[node_1_id], backref=backref("links_to", order_by=id, cascade="all, delete-orphan"))
     node_b = relationship('Node', foreign_keys=[node_2_id], backref=backref("links_from", order_by=id, cascade="all, delete-orphan"))
 
+    _parents  = ['tNetwork']
+    _children = ['tResourceAttr', 'tResourceType']
+
     def get_name(self):
         return self.name
 
@@ -1011,6 +1056,9 @@ class Node(Base, Inspect):
 
     network = relationship('Network', backref=backref("nodes", order_by=network_id, cascade="all, delete-orphan"), lazy='joined')
 
+    _parents  = ['tNetwork']
+    _children = ['tResourceAttr', 'tResourceType']
+
     def get_name(self):
         return self.name
 
@@ -1076,6 +1124,9 @@ class ResourceGroup(Base, Inspect):
     network_id = Column(Integer(), ForeignKey('tNetwork.id'),  nullable=False)
 
     network = relationship('Network', backref=backref("resourcegroups", order_by=id, cascade="all, delete-orphan"), lazy='joined')
+
+    _parents  = ['tNetwork']
+    _children = ['tResourceAttr', 'tResourceType']
 
     def get_name(self):
         return self.group_name
@@ -1167,6 +1218,8 @@ class ResourceGroupItem(Base, Inspect):
     link = relationship('Link', backref=backref("resourcegroupitems", order_by=id, cascade="all, delete-orphan"))
     subgroup = relationship('ResourceGroup', foreign_keys=[subgroup_id])
 
+    _parents  = ['tResourceGroup', 'tScenario']
+    _children = []
 
     def get_resource(self):
         ref_key = self.ref_key
@@ -1201,6 +1254,9 @@ class ResourceScenario(Base, Inspect):
     dataset      = relationship('Dataset', backref=backref("resourcescenarios", order_by=dataset_id))
     scenario     = relationship('Scenario', backref=backref("resourcescenarios", order_by=scenario_id, cascade="all, delete-orphan"))
     resourceattr = relationship('ResourceAttr', backref=backref("resourcescenarios", cascade="all, delete-orphan"), uselist=False)
+
+    _parents  = ['tScenario', 'tResourceAttr']
+    _children = ['tDataset']
 
     def get_dataset(self, user_id):
         dataset = get_session().query(Dataset.id,
@@ -1243,6 +1299,9 @@ class Scenario(Base, Inspect):
     created_by = Column(Integer(), ForeignKey('tUser.id'), nullable=False)
 
     network = relationship('Network', backref=backref("scenarios", order_by=id))
+
+    _parents  = ['tNetwork']
+    _children = ['tResourceScenario']
 
     def add_resource_scenario(self, resource_attr, dataset=None, source=None):
         rs_i = ResourceScenario()
@@ -1303,6 +1362,9 @@ class Rule(Base, Inspect):
 
     scenario = relationship('Scenario', backref=backref('rules', uselist=True, cascade="all, delete-orphan"), uselist=True, lazy='joined')
 
+    _parents  = ['tScenario', 'tNode', 'tLink', 'tProject', 'tNetwork', 'tResourceGroup']
+    _children = []
+
 class Note(Base, Inspect):
     """
         A note is an arbitrary piece of text which can be applied
@@ -1330,6 +1392,9 @@ class Note(Base, Inspect):
     group = relationship('ResourceGroup', backref=backref('notes', uselist=True, cascade="all, delete-orphan"), uselist=True, lazy='joined')
     network = relationship('Network', backref=backref('notes', uselist=True, cascade="all, delete-orphan"), uselist=True, lazy='joined')
     project = relationship('Project', backref=backref('notes', uselist=True, cascade="all, delete-orphan"), uselist=True, lazy='joined')
+
+    _parents  = ['tScenario', 'tNode', 'tLink', 'tProject', 'tNetwork', 'tResourceGroup']
+    _children = []
 
     def set_ref(self, ref_key, ref_id):
         """
@@ -1407,6 +1472,9 @@ class ProjectOwner(Base, Inspect):
     user = relationship('User')
     project = relationship('Project', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
 
+    _parents  = ['tProject', 'tUser']
+    _children = []
+
 class NetworkOwner(Base, Inspect):
     """
     """
@@ -1422,6 +1490,9 @@ class NetworkOwner(Base, Inspect):
 
     user = relationship('User')
     network = relationship('Network', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
+
+    _parents  = ['tNetwork', 'tUser']
+    _children = []
 
 class DatasetOwner(Base, Inspect):
     """
@@ -1439,6 +1510,9 @@ class DatasetOwner(Base, Inspect):
     user = relationship('User')
     dataset = relationship('Dataset', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
 
+    _parents  = ['tDataset', 'tUser']
+    _children = []
+
 class Perm(Base, Inspect):
     """
     """
@@ -1450,6 +1524,9 @@ class Perm(Base, Inspect):
     name = Column(String(60),  nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     roleperms = relationship('RolePerm', lazy='joined')
+
+    _parents  = ['tRole', 'tPerm']
+    _children = []
 
 class Role(Base, Inspect):
     """
@@ -1463,6 +1540,9 @@ class Role(Base, Inspect):
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     roleperms = relationship('RolePerm', lazy='joined', cascade='all')
     roleusers = relationship('RoleUser', lazy='joined', cascade='all')
+
+    _parents  = []
+    _children = ['tRolePerm', 'tRoleUser']
 
     @property
     def permissions(self):
@@ -1482,6 +1562,9 @@ class RolePerm(Base, Inspect):
     perm = relationship('Perm', lazy='joined')
     role = relationship('Role', lazy='joined')
 
+    _parents  = ['tRole', 'tPerm']
+    _children = []
+
 class RoleUser(Base, Inspect):
     """
     """
@@ -1494,6 +1577,9 @@ class RoleUser(Base, Inspect):
 
     user = relationship('User', lazy='joined')
     role = relationship('Role', lazy='joined')
+
+    _parents  = ['tRole', 'tUser']
+    _children = []
 
 class User(Base, Inspect):
     """
@@ -1509,6 +1595,9 @@ class User(Base, Inspect):
     last_edit = Column(TIMESTAMP())
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     roleusers = relationship('RoleUser', lazy='joined')
+
+    _parents  = []
+    _children = ['tRoleUser']
 
     def validate_password(self, password):
         if bcrypt.hashpw(password.encode('utf-8'), self.password.encode('utf-8')) == self.password.encode('utf-8'):

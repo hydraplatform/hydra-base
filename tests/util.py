@@ -1,8 +1,10 @@
-# (c) Copyright 2013, 2014, University of Manchester
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
+# (c) Copyright 2013 to 2017 University of Manchester
 #
 # HydraPlatform is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
+# it under the terms of the GNU Lesser General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
@@ -11,11 +13,9 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
+# You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 import logging
 
 import hydra_base
@@ -484,16 +484,17 @@ def build_network(project_id=None, num_nodes=10, new_proj=True, map_projection='
                 elif na['attr_id'] == node_type.typeattrs[2].attr_id:
                     scalar = create_scalar(na)
                     scenario_data.append(scalar)
-
+    count = 0
     for l in links:
         for na in l.attributes:
             if na['attr_id'] == link_type.typeattrs[0].attr_id:
                 array      = create_array(na)
                 scenario_data.append(array)
+                count = count + 1
             elif na['attr_id'] == link_type.typeattrs[1].attr_id:
                 descriptor = create_descriptor(na)
                 scenario_data.append(descriptor)
-
+                count = count + 1
 
     grp_timeseries = create_timeseries(group_attrs[0])
 
@@ -585,7 +586,8 @@ def create_network_with_data(project_id=None, num_nodes=10,
     if ret_full_net is True:
         log.info("Fetching new network...:")
         start = datetime.datetime.now()
-        response_net = JSONObject(hydra_base.get_network(response_network_summary.id, include_data='Y', user_id=user_id))
+        net = hydra_base.get_network(response_network_summary.id, include_data='Y', user_id=user_id)
+        response_net = JSONObject(net)
         log.info("Network Retrieval took: %s"%(datetime.datetime.now()-start))
         check_network(network, response_net)
         return response_net
@@ -652,7 +654,6 @@ def get_network(network_id=None):
 
 
 def check_network(request_net, response_net):
-
     assert response_net.layout == request_net['layout']
 
 
