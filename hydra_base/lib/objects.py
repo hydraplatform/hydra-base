@@ -35,7 +35,7 @@ class JSONObject(dict):
         A dictionary object whose attributes can be accesed via a '.'.
         Pass in a nested dictionary, a SQLAlchemy object or a JSON string.
     """
-    def __init__(self, obj_dict={}, parent=None):
+    def __init__(self, obj_dict={}, parent=None, extras={}):
 
         if isinstance(obj_dict, str) or isinstance(obj_dict, unicode):
             try:
@@ -81,7 +81,13 @@ class JSONObject(dict):
                 else:
                     l = [JSONObject(item, obj_dict) for item in v]
                     setattr(self, k, l)
-            elif hasattr(v, '_sa_instance_state') and v != parent: #Special case for SQLAlchemy obhjects
+            #Special case for SQLAlchemy objects, to stop them recursing up and down
+            elif hasattr(v, '_sa_instance_state')\
+                    and v._sa_instance_state is not None\
+                    and v != parent\
+                    and hasattr(obj_dict, '_parents')\
+                    and obj_dict._parents is not None\
+                    and v.__tablename__ not in obj_dict._parents:
                 if v.__tablename__.lower() == 'tdataset':
                     l = Dataset(v, obj_dict)
                 else:
@@ -109,62 +115,14 @@ class JSONObject(dict):
                 except:
                     pass
 
-                if k == 'layout':
-                    if v is not None:
-                        #Check if the layout is valid json or evaluates to a dict.
-                        try:
-                            v = json.loads(v)
-                        except:
-                            try:
-                                v = eval(v)
-                            except:
-                                continue
-                        #We're only interested in dicts
-                        if not isinstance(v, dict):
-                            continue
-                        v = JSONObject(v, parent)
-                    else:
-                        v = {}
-
                 if isinstance(v, datetime):
                     v = unicode(v)
 
-                #Put in 'id' where a DB table has mytable_id, for example
-                #Turn something like 'tProject.project_id' into 'tProject.id'
-                if hasattr(obj_dict, '__tablename__') and obj_dict.__tablename__ is not None:
-                    #compare with tResourceAttr => resourceattr
-                    formattedname = obj_dict.__tablename__.lower()[1:]
-                    if k.find('_id') >= 0:
-                        formattedk = k.replace('_', '')
-                        #turn resource_attr_id => resourceattr
-                        if formattedk[0:-2] == formattedname:
-                            setattr(self, 'id', v)
-
-                    if k.find('_name') >= 0:
-                        setattr(self, 'name', v)
-
-                    if k.find('_description') >= 0:
-                        setattr(self, 'description', v)
-
-                    if obj_dict.__tablename__.lower() == 'ttemplatetype':
-                        if k == 'type_id':
-                            setattr(self, 'id', v)
-                        if k == 'type_name':
-                            setattr(self, 'name', v)
-
-                    if obj_dict.__tablename__.lower() == 'tresourcegroup':
-                        if k == 'group_id':
-                            setattr(self, 'id', v)
-                        if k == 'group_name':
-                            setattr(self, 'name', v)
-                        if k == 'group_description':
-                            setattr(self, 'description', v)
-
-                    if obj_dict.__tablename__.lower() == 'tresourceattr':
-                        if k == 'resource_attr_id':
-                            setattr(self, 'id', v)
-
                 setattr(self, unicode(k), v)
+
+        for k, v in extras.items():
+            self[k] = v
+            setattr(self, k, v)
 
     def __getattr__(self, name):
         # Make sure that "special" methods are returned as before.
