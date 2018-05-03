@@ -133,6 +133,9 @@ def get_user(uid, **kwargs):
     """
         Get a user by ID
     """
+    user_id=kwargs.get('user_id')
+    if uid is None:
+        uid = user_id
     user_i = _get_user(uid)
     return user_i
 
@@ -142,6 +145,17 @@ def get_user_by_name(uname,**kwargs):
     """
     try:
         user_i = db.DBSession.query(User).filter(User.username==uname).one()
+        return user_i
+    except NoResultFound:
+        return None
+
+def get_user_by_id(uid,**kwargs):
+    """
+        Get a user by username
+    """
+    user_id = kwargs.get('user_id')
+    try:
+        user_i = _get_user(uid)
         return user_i
     except NoResultFound:
         return None
@@ -224,7 +238,8 @@ def set_user_role(new_user_id, role_id, **kwargs):
         roleuser_i = RoleUser(user_id=new_user_id, role_id=role_id)
         role_i.roleusers.append(roleuser_i)
         db.DBSession.flush()
-    except: # Will occur if the foreign keys do not exist
+    except Exception as e: # Will occur if the foreign keys do not exist
+        log.exception(e)
         raise ResourceNotFoundError("User or Role does not exist")
 
     return role_i
