@@ -1141,9 +1141,11 @@ def get_node(node_id, scenario_id=None, **kwargs):
     try:
         n = db.DBSession.query(Node).filter(Node.id==node_id).options(joinedload_all('attributes.attr')).one()
         n.types
+        for t in n.types:
+            t.templatetype.typeattrs
     except NoResultFound:
         raise ResourceNotFoundError("Node %s not found"%(node_id,))
-    
+
     n = JSONObject(n)
 
     if scenario_id is not None:
@@ -1162,6 +1164,8 @@ def get_link(link_id, scenario_id=None, **kwargs):
     try:
         l = db.DBSession.query(Link).filter(Link.id==link_id).options(joinedload_all('attributes.attr')).one()
         l.types
+        for t in l.types:
+            t.templatetype.typeattrs
     except NoResultFound:
         raise ResourceNotFoundError("Link %s not found"%(link_id,))
 
@@ -1185,7 +1189,7 @@ def get_resourcegroup(group_id, scenario_id=None, **kwargs):
         rg.types
     except NoResultFound:
         raise ResourceNotFoundError("ResourceGroup %s not found"%(group_id,))
-    
+
     rg = JSONObject(rg)
 
     if scenario_id is not None:
@@ -1615,11 +1619,15 @@ def add_node(network_id, node,**kwargs):
     return new_node
 #########################################################################
 
-def update_node(node,**kwargs):
+def update_node(node, flush=True, **kwargs):
     """
     Update a node.
     If new attributes are present, they will be added to the node.
     The non-presence of attributes does not remove them.
+
+    The flush argument indicates whether dbsession.flush should be called. THis
+    is set to False when update_node is called from another function which does
+    the flush.
 
     """
     user_id = kwargs.get('user_id')
@@ -1641,9 +1649,33 @@ def update_node(node,**kwargs):
 
     if node.types is not None:
         hdb.add_resource_types(node_i, node.types)
-    db.DBSession.flush()
+
+    if flush is True:
+        db.DBSession.flush()
 
     return node_i
+
+
+def update_nodes(nodes,**kwargs):
+    """
+    Update multiple nodes.
+    If new attributes are present, they will be added to the node.
+    The non-presence of attributes does not remove them.
+
+    %TODO:merge this with the 'update_nodes' functionality in the 'update_netework'
+    function, so we're not duplicating functionality. D.R.Y!
+
+    returns: a list of updated nodes
+    """
+    user_id = kwargs.get('user_id')
+    updated_nodes = []
+    for n in nodes:
+        updated_node_i = update_node(n, flush=False, user_id=user_id)
+        updated_nodes.append(updated_node_i)
+
+    db.DBSession.flush()
+
+    return updated_nodes
 
 def set_node_status(node_id, status, **kwargs):
     """
@@ -2180,7 +2212,7 @@ def get_all_link_data(network_id, scenario_id, link_ids=None, include_metadata='
         link_data.append(resource_attr)
 
     return link_data
-    
+
 
 def get_all_group_data(network_id, scenario_id, group_ids=None, include_metadata='N', **kwargs):
     resource_scenarios = get_attributes_for_resource(network_id, scenario_id, 'GROUP', ref_ids=group_ids, include_metadata='N', **kwargs)
