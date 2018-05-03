@@ -138,7 +138,7 @@ def ordinal_to_timestamp(date):
             return date
 
     day = int(date)
-    time = date - day
+    time = Decimal(str(date - day))
     time_in_secs_ms = (time * Decimal(86400)).quantize(Decimal('.000001'),
                                                        rounding=ROUND_HALF_UP)
 
