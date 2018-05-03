@@ -621,7 +621,7 @@ class ResourceType(Base, Inspect):
     link = relationship('Link', backref=backref('types', uselist=True, cascade="all, delete-orphan"), uselist=False)
     resourcegroup = relationship('ResourceGroup', backref=backref('types', uselist=True, cascade="all, delete-orphan"), uselist=False)
 
-    _parents  = ['tNode', 'tLink', 'tResourceGroup', 'tNetwork', 'tProject', 'tTemplateType']
+    _parents  = ['tNode', 'tLink', 'tResourceGroup', 'tNetwork', 'tProject']
     _children = []
 
     def get_resource(self):

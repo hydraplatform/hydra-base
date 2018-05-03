@@ -93,6 +93,14 @@ class JSONObject(dict):
                 else:
                     l = JSONObject(v, obj_dict)
                 setattr(self, k, l)
+            #Special case for SQLAlchemy objects, to stop them recursing up and down
+            elif hasattr(v, '_sa_instance_state')\
+                    and v._sa_instance_state is not None\
+                    and v != parent\
+                    and hasattr(obj_dict, '_parents')\
+                    and obj_dict._parents is not None\
+                    and v.__tablename__ in obj_dict._parents:
+                continue
             else:
                 if k == '_sa_instance_state':# or hasattr(v, '_sa_instance_state'): #Special case for SQLAlchemy obhjects
                     continue
