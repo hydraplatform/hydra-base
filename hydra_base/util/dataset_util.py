@@ -225,6 +225,23 @@ def validate_ENUM(in_value, restriction):
         if value not in restriction:
             raise ValidationError("ENUM : %s"%(restriction))
 
+
+def validate_BOOL(in_value, restriction):
+    """
+        Validation for the generic Boolean type consisting of arbitrary
+        'true' and 'false' values.
+    """
+    value = _get_val(in_value)
+    if type(value) is list:
+        for subval in value:
+            if type(subval) is tuple:
+                subval = subval[1]
+            validate_BOOL(subval, restriction)
+    else:
+        if value not in restriction:
+            raise ValidationError("BOOL")
+
+
 def validate_BOOLYN(in_value, restriction):
     """
         Restriction is not used here. It is just present to be
@@ -596,6 +613,7 @@ def validate_EQUALTIMESTEPS(value, restriction):
 
 validation_func_map = dict(
     ENUM = validate_ENUM,
+    BOOL = validate_BOOL,
     BOOLYN = validate_BOOLYN,
     BOOL10 = validate_BOOL10,
     NUMPLACES = validate_NUMPLACES,
