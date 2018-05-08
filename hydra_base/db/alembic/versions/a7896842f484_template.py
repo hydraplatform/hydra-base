@@ -15,6 +15,9 @@ down_revision = 'f579b06e9cc2'
 branch_labels = None
 depends_on = None
 
+import logging
+log = logging.getLogger(__name__)
+
 
 def upgrade():
     if op.get_bind().dialect.name == 'mysql':
@@ -50,10 +53,10 @@ def upgrade():
                 sa.Column('id', sa.Integer, primary_key=True),
                 sa.Column('name', sa.Text(60), nullable=False),
                 sa.Column('cr_date', sa.TIMESTAMP(),  nullable=False, server_default=sa.text(u'CURRENT_TIMESTAMP')),
-                sa.Column('layout', sa.Text().with_variant(mysql.TEXT(1000), 'mysql')),
+                sa.Column('layout', sa.Text(1000)),
             )
 
-            op.execute("insert into tTemplate_new (template_id, template_name, cr_date, layout) select id, name, cr_date, layout from tTemplate")
+            op.execute("insert into tTemplate_new (id, name, cr_date, layout) select template_id, template_name, cr_date, layout from tTemplate")
 
             op.rename_table('tTemplate','tTemplate_old')
             op.rename_table('tTemplate_new', 'tTemplate')
@@ -77,11 +80,11 @@ def upgrade():
                 sa.Column('template_id', sa.Integer(), sa.ForeignKey('tTemplate.id'), nullable=False),
                 sa.Column('resource_type', sa.String(60)),
                 sa.Column('alias', sa.String(100)),
-                sa.Column('layout', sa.Text().with_variant(mysql.TEXT(1000), 'mysql')),
+                sa.Column('layout', sa.Text(1000)),
                 sa.Column('cr_date', sa.TIMESTAMP(),  nullable=False, server_default=sa.text(u'CURRENT_TIMESTAMP')),
                 sa.UniqueConstraint('template_id', 'name', 'resource_type', name="unique type name"),
             )
-            op.execute("insert into tTemplateType_new (type_name, type_id, template_id, resource_type, alias, layout, cr_date) select name, id, template_id, resource_type, alias, layout, cr_date from tTemplateType")
+            op.execute("insert into tTemplateType_new (name, id, template_id, resource_type, alias, layout, cr_date) select type_name, type_id, template_id, resource_type, alias, layout, cr_date from tTemplateType")
 
             op.rename_table('tTemplateType','tTemplateType_old')
             op.rename_table('tTemplateType_new', 'tTemplateType')

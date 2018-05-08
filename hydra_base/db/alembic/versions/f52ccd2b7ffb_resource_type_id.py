@@ -15,6 +15,9 @@ down_revision = 'a48ad41579de'
 branch_labels = None
 depends_on = None
 
+import logging
+log = logging.getLogger(__name__)
+
 
 def upgrade():
     if op.get_bind().dialect.name == 'mysql':
@@ -38,14 +41,14 @@ def upgrade():
             # ## tResourceType
             op.create_table(
                 'tResourceType_new',
-                    sa.Column('id', sa.Column(Integer, primary_key=True, nullable=False)),
-                    sa.Column('type_id', sa.Column(Integer(), sa.ForeignKey('tTemplateType.id'), primary_key=False, nullable=False)),
-                    sa.Column('ref_key', sa.Column(String(60),nullable=False)),
-                    sa.Column('network_id', sa.Column(Integer(),  sa.ForeignKey('tNetwork.id'), nullable=True)),
-                    sa.Column('node_id', sa.Column(Integer(),  sa.ForeignKey('tNode.id'), nullable=True)),
-                    sa.Column('link_id', sa.Column(Integer(),  sa.ForeignKey('tLink.id'), nullable=True)),
-                    sa.Column('group_id', sa.Column(Integer(),  sa.ForeignKey('tResourceGroup.id'), nullable=True)),
-                    sa.Column('cr_date', sa.Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))),
+                    sa.Column('id', sa.Integer(), primary_key=True, nullable=False),
+                    sa.Column('type_id', sa.Integer(), sa.ForeignKey('tTemplateType.id'), primary_key=False, nullable=False),
+                    sa.Column('ref_key', sa.String(60)),
+                    sa.Column('network_id', sa.Integer(),  sa.ForeignKey('tNetwork.id'), nullable=True),
+                    sa.Column('node_id', sa.Integer(),  sa.ForeignKey('tNode.id'), nullable=True),
+                    sa.Column('link_id', sa.Integer(),  sa.ForeignKey('tLink.id'), nullable=True),
+                    sa.Column('group_id', sa.Integer(),  sa.ForeignKey('tResourceGroup.id'), nullable=True),
+                    sa.Column('cr_date', sa.TIMESTAMP(),  nullable=False, server_default=sa.text(u'CURRENT_TIMESTAMP')),
                     sa.UniqueConstraint('network_id', 'type_id', name='net_type_1'),
                     sa.UniqueConstraint('node_id', 'type_id', name='node_type_1'),
                     sa.UniqueConstraint('link_id', 'type_id',  name = 'link_type_1'),
