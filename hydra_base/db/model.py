@@ -29,7 +29,7 @@ BIGINT,\
 Float,\
 Text
 
-from sqlalchemy import inspect
+from sqlalchemy import inspect, func
 
 from ..exceptions import HydraError, PermissionError
 
@@ -46,6 +46,8 @@ from sqlalchemy import UniqueConstraint, and_
 from sqlalchemy.dialects import mysql
 
 import pandas as pd
+
+from sqlalchemy.orm import validates
 
 import json
 import zlib
