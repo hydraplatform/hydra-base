@@ -410,7 +410,7 @@ def search_datasets(dataset_id=None,
 
     return datasets_to_return
 
-def update_dataset(dataset_id, name, data_type, val, units, metadata={}, **kwargs):
+def update_dataset(dataset_id, name, data_type, val, units, metadata={}, flush=True, **kwargs):
     """
         Update an existing dataset
     """
@@ -464,8 +464,8 @@ def update_dataset(dataset_id, name, data_type, val, units, metadata={}, **kwarg
                      existing_dataset.id, dataset.id, existing_dataset.id)
             db.DBSession.delete(dataset)
             dataset = existing_dataset
-
-    db.DBSession.flush()
+    if flush==True:
+        db.DBSession.flush()
 
     return dataset
 

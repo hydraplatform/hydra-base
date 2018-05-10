@@ -249,10 +249,11 @@ def update_scenario(scenario,update_data=True,update_groups=True,flush=True,**kw
         scenario.resourcescenarios = []
     if scenario.resourcegroupitems == None:
         scenario.resourcegroupitems = []
-
+    
     if update_data is True:
         datasets = [rs.dataset for rs in scenario.resourcescenarios]
         updated_datasets = data._bulk_insert_data(datasets, user_id, kwargs.get('app_name'))
+        log.info(sorted([rs.resource_attr_id for rs in scenario.resourcescenarios]))
         for i, r_scen in enumerate(scenario.resourcescenarios):
             _update_resourcescenario(scen, r_scen, dataset=updated_datasets[i], user_id=user_id, source=kwargs.get('app_name'))
 
@@ -695,7 +696,6 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
 
         returns a ResourceScenario object.
     """
-
     if scenario is None:
         scenario = db.DBSession.query(Scenario).filter(Scenario.id==1).one()
 
@@ -707,6 +707,7 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
                         ResourceScenario.scenario_id==scenario.id,
                         ResourceScenario.resource_attr_id==ra_id).one()
     except NoResultFound as e:
+        log.info("Creating new RS")
         r_scen_i = ResourceScenario()
         r_scen_i.resource_attr_id = resource_scenario.resource_attr_id
         r_scen_i.scenario_id      = scenario.id
@@ -732,7 +733,7 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
     log.info("Assigning %s to resource attribute: %s", value, ra_id)
 
     if value is None:
-        log.info("Cannot set data on resource attribute %s",ra_id)
+        log.info("Cannot set data on resource attribute %s",ra)
         return None
 
     metadata = dataset.get_metadata_as_dict(source=source, user_id=user_id)
@@ -794,7 +795,7 @@ def assign_value(rs, data_type, val,
 
     if update_dataset is True:
         log.info("Updating dataset '%s'", name)
-        dataset = data.update_dataset(rs.dataset.id, name, data_type, val, units, metadata, **dict(user_id=user_id))
+        dataset = data.update_dataset(rs.dataset.id, name, data_type, val, units, metadata, flush=False, **dict(user_id=user_id))
         rs.dataset = dataset
         rs.dataset_id = dataset.id
         log.info("Set RS dataset id to %s"%dataset.id)
@@ -990,11 +991,25 @@ def get_attribute_datasets(attr_id, scenario_id, **kwargs):
 
     resourcescenarios = rs_qry.all()
 
+    json_rs = []
     #Load the metadata too
     for rs in resourcescenarios:
         rs.dataset.metadata
+        tmp_rs = JSONObject(rs)
+        tmp_rs.resourceattr=JSONObject(rs.resourceattr)
+        if rs.resourceattr.node_id is not None:
+            tmp_rs.resourceattr.node = JSONObject(rs.resourceattr.node)
+        elif rs.resourceattr.link_id is not None:
+            tmp_rs.resourceattr.link = JSONObject(rs.resourceattr.link)
+        elif rs.resourceattr.group_id is not None:
+            tmp_rs.resourceattr.resourcegroup = JSONObject(rs.resourceattr.resourcegroup)
+        elif rs.resourceattr.network_id is not None:
+            tmp_rs.resourceattr.network = JSONObject(rs.resourceattr.network)
 
-    return resourcescenarios
+        json_rs.append(tmp_rs)
+    
+
+    return json_rs
 
 def get_resourcegroupitems(group_id, scenario_id, **kwargs):
 

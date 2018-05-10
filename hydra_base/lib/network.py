@@ -1187,6 +1187,8 @@ def get_resourcegroup(group_id, scenario_id=None, **kwargs):
     try:
         rg = db.DBSession.query(ResourceGroup).filter(ResourceGroup.id==group_id).options(joinedload_all('attributes.attr')).one()
         rg.types
+        for t in rg.types:
+            t.templatetype.typeattrs
     except NoResultFound:
         raise ResourceNotFoundError("ResourceGroup %s not found"%(group_id,))
 
