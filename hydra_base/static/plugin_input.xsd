@@ -5,9 +5,15 @@
                 <xs:element name="plugin_name" type="xs:string"/>
                 <xs:element name="plugin_dir" type="xs:string"/>
                 <xs:element name="plugin_description" type="xs:string"/>
-                <xs:element name="plugin_epilog" type="xs:string"/>
-                <xs:element name="smallicon" type="xs:string"/>
-                <xs:element name="largeicon" type="xs:string"/>
+                <xs:element name="plugin_category" type="xs:string"/>
+                <xs:element name="plugin_command" type="xs:string"/>
+                <xs:element name="plugin_shell" type="xs:string"/>
+                <xs:element name="plugin_nativelogextension" type="xs:string" minOccurs="0" maxOccurs="1"/>
+                <xs:element name="plugin_nativeoutputextension" type="xs:string" minOccurs="0" maxOccurs="1"/>
+                <xs:element name="plugin_location" type="xs:string"/>
+                <xs:element name="plugin_epilog" type="xs:string" minOccurs="0" maxOccurs="1"/>
+                <xs:element name="smallicon" type="xs:string" minOccurs="0" maxOccurs="1"/>
+                <xs:element name="largeicon" type="xs:string" minOccurs="0" maxOccurs="1"/>
                 <xs:element name="mandatory_args">
                     <xs:complexType>
                         <xs:sequence>
