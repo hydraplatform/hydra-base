@@ -449,7 +449,7 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
     #Normalise attribute IDs so they're always ints (in case they're specified as strings)
     attributes_j = {}
     for k, v in file_attributes.items():
-        attributes_j[int(k)] = v
+        attributes_j[int(k)] = JSONObject(v)
 
     template_name = template_j.name
 
@@ -748,6 +748,51 @@ def apply_template_to_network(template_id, network_id, **kwargs):
 
     db.DBSession.flush()
 
+def set_network_template(template_id, network_id, **kwargs):
+    """
+       Apply an existing template to a network. Used when a template has changed, and additional attributes
+       must be added to the network's elements.
+    """
+
+    resource_types = []
+
+    #There should only ever be one matching type, but if there are more,
+    #all we can do is pick the first one.
+    try:
+        network_type = db.DBSession.query(ResourceType).filter(ResourceType.ref_key=='NETWORK',
+                                                            ResourceType.network_id==network_id,
+                                                            ResourceType.type_id==TemplateType.type_id,
+                                                            TemplateType.template_id==template_id).one()
+        resource_types.append(network_type)
+
+    except NoResultFound:
+        log.info("No network type to set.")
+        pass
+
+    node_types = db.DBSession.query(ResourceType).filter(ResourceType.ref_key=='NODE',
+                                                        ResourceType.node_id==Node.node_id,
+                                                        Node.network_id==network_id,
+                                                        ResourceType.type_id==TemplateType.type_id,
+                                                        TemplateType.template_id==template_id).all()
+    link_types = db.DBSession.query(ResourceType).filter(ResourceType.ref_key=='LINK',
+                                                        ResourceType.link_id==Link.link_id,
+                                                        Link.network_id==network_id,
+                                                        ResourceType.type_id==TemplateType.type_id,
+                                                        TemplateType.template_id==template_id).all()
+    group_types = db.DBSession.query(ResourceType).filter(ResourceType.ref_key=='GROUP',
+                                                        ResourceType.group_id==ResourceGroup.group_id,
+                                                        ResourceGroup.network_id==network_id,
+                                                        ResourceType.type_id==TemplateType.type_id,
+                                                        TemplateType.template_id==template_id).all()
+
+    resource_types.extend(node_types)
+    resource_types.extend(link_types)
+    resource_types.extend(group_types)
+
+    assign_types_to_resources(resource_types)
+
+    log.info("Finished setting network template")
+
 def remove_template_from_network(network_id, template_id, remove_attrs, **kwargs):
     """
         Remove all resource types in a network relating to the specified
@@ -911,14 +956,23 @@ def assign_types_to_resources(resource_types,**kwargs):
 
     log.info("Retrieved all the appropriate resources")
     if len(res_types) > 0:
-        db.DBSession.execute(ResourceType.__table__.insert(), res_types)
+        new_types = db.DBSession.execute(ResourceType.__table__.insert(), res_types)
     if len(res_attrs) > 0:
-        db.DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
-    if len(res_scenarios) > 0:
-        db.DBSession.execute(ResourceScenario.__table__.insert(), res_scenarios)
+        new_res_attrs = db.DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
+        new_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.resource_attr_id>=new_res_attrs.lastrowid, ResourceAttr.resource_attr_id<(new_res_attrs.lastrowid+len(res_attrs)))).all()
 
+    ra_map = {}
+    for ra in new_ras:
+        ra_map[(ra.ref_key, ra.attr_id, ra.node_id, ra.link_id, ra.group_id, ra.network_id)] = ra.resource_attr_id
+
+    for rs in res_scenarios:
+        rs['resource_attr_id'] = ra_map[(rs['ref_key'], rs['attr_id'], rs['node_id'], rs['link_id'], rs['group_id'], rs['network_id'])]
+
+    if len(res_scenarios) > 0:
+        new_scenarios = db.DBSession.execute(ResourceScenario.__table__.insert(), res_scenarios)
     #Make DBsession 'dirty' to pick up the inserts by doing a fake delete.
-    db.DBSession.query(Attr).filter(Attr.id==None).delete()
+
+    db.DBSession.query(ResourceAttr).filter(ResourceAttr.attr_id==None).delete()
 
     ret_val = [t for t in types.values()]
     return ret_val
@@ -1156,7 +1210,7 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
     #This is a dict as the length of the list may not match the new_res_attrs
     #Keyed on attr_id, as resource_attr_id doesn't exist yet, and there should only
     #be one attr_id per template.
-    new_res_scenarios = {}
+    new_res_scenarios = []
     for attr_id in missing_attr_ids:
         ra_dict = dict(
             ref_key = ref_key,
@@ -1176,11 +1230,18 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
             if hasattr(resource, 'network'):
 
                 new_res_scenarios[attr_id] =  dict()
-                for scenario in resource.network.scenarios:
-                    new_res_scenarios[attr_id][scenario.id] =  dict(
+                for s in resource.network.scenarios:
+                    new_res_scenarios.append(dict(
                         dataset_id = type_attrs[attr_id]['default_dataset_id'],
-                        scenario_id = scenario.id
-                    )
+                        scenario_id = s.scenario_id,
+                        #Not stored in the DB, but needed to connect the RA ID later.
+                        attr_id = attr_id,
+                        ref_key = ref_key,
+                        node_id    = ra_dict['node_id'],
+                        link_id    = ra_dict['link_id'],
+                        group_id   = ra_dict['group_id'],
+                        network_id = ra_dict['network_id'],
+                    ))
 
 
     resource_type = None

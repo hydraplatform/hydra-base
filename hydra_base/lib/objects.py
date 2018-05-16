@@ -70,7 +70,7 @@ class JSONObject(dict):
                 setattr(self, k, dict_layout)
             elif isinstance(v, dict):
                 #TODO what is a better way to identify a dataset?
-                if 'unit' in v:
+                if 'unit' in v or 'metadata' in v or 'type' in v:
                     setattr(self, k, Dataset(v, obj_dict))
                 else:
                     setattr(self, k, JSONObject(v, obj_dict))
@@ -174,7 +174,7 @@ class ResourceScenario(JSONObject):
     def __init__(self, rs):
         super(ResourceScenario, self).__init__(rs)
         for k, v in rs.items():
-            if k == 'value':
+            if k == 'dataset':
                 setattr(self, k, Dataset(v))
 
 
@@ -185,11 +185,15 @@ class Dataset(JSONObject):
         # Keys that start and end with "__" won't be retrievable via attributes
         if name.startswith('__') and name.endswith('__'):
             return super(JSONObject, self).__getattr__(name)
+
         else:
             return self.get(name, None)
 
     def __setattr__(self, name, value):
         super(Dataset, self).__setattr__(name, value)
+
+        if name =='value':
+            value = str(value)
 
         #This is to avoid an infinite loop
         if self.get(name) != value:
