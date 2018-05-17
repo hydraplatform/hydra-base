@@ -102,9 +102,10 @@ class JSONObject(dict):
                     and v.__tablename__ in obj_dict._parents:
                 continue
             else:
-                if k == '_sa_instance_state':# or hasattr(v, '_sa_instance_state'): #Special case for SQLAlchemy obhjects
+                if k == '_sa_instance_state':
                     continue
-                if type(v) == type(parent):
+
+                if parent is not None and type(v) == type(parent):
                     continue
 
                 try:
