@@ -296,7 +296,7 @@ def _add_nodes(net_i, nodes):
     node_id_map = dict()
 
     if nodes is None or len(nodes) == 0:
-        return node_id_map, node_attrs
+        return node_id_map, node_attrs, {}
 
     _add_nodes_to_database(net_i, nodes)
 
@@ -348,7 +348,7 @@ def _add_links(net_i, links, node_id_map):
     link_id_map = dict()
 
     if links is None or len(links) == 0:
-        return link_id_map, link_attrs
+        return link_id_map, link_attrs, {}
 
     #Then add all the links.
 #################################################################
@@ -380,7 +380,7 @@ def _add_resource_groups(net_i, resourcegroups):
     group_id_map = dict()
 
     if resourcegroups is None or len(resourcegroups)==0:
-        return group_id_map, group_attrs
+        return group_id_map, group_attrs, {}
     #Then add all the groups.
     log.info("Adding groups to network")
     group_dicts = []
