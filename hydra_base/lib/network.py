@@ -123,6 +123,9 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
     #List of resource attributes
     resource_attrs = {}
 
+    #Default ra / dataset pairings.
+    defaults = {}
+
     #First get all the attributes assigned from the csv files.
     t0 = time.time()
     for resource in resources:
@@ -156,6 +159,9 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
             for resource_type in resource.types:
                 #Go through all the resource types and add the appropriate resource
                 #type entries
+
+                ref_id = resource_i.id
+
                 resource_resource_types.append(
                     {
                         'ref_key'     : ref_key,
@@ -181,6 +187,9 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
                             'attr_id' : ta.attr_id,
                             'attr_is_var' : ta.attr_is_var,
                         })
+
+                        if ta.default_dataset_id is not None:
+                            defaults[(ref_id, ta.attr_id)] =  {'dataset_id':ta.default_dataset_id}
 
     if len(resource_resource_types) > 0:
         db.DBSession.bulk_insert_mappings(ResourceType, resource_resource_types)
@@ -230,6 +239,9 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
 
         resource_attr_dict[(ref_id, resource_attr.attr_id)] = resource_attr
 
+        if defaults.get((ref_id, resource_attr.attr_id)):
+            defaults[(ref_id, resource_attr.attr_id)]['id'] = resource_attr.id
+
     logging.info("Processing Query results took %s"%(datetime.datetime.now() - start_time))
 
 
@@ -250,7 +262,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
                 resource_attrs[ra.id] = resource_attr_dict[(ref_id, ra.attr_id)]
     logging.info("Resource attributes added in %s"%(datetime.datetime.now() - start_time))
     logging.debug(" resource_attrs   size: %s" % len(resource_attrs))
-    return resource_attrs
+    return resource_attrs, defaults
 
 def _add_nodes_to_database(net_i, nodes):
     #First add all the nodes
@@ -298,11 +310,11 @@ def _add_nodes(net_i, nodes):
     for node in nodes:
         node_id_map[node.id] = iface_nodes[node.name]
 
-    node_attrs = _bulk_add_resource_attrs(net_i.id, 'NODE', nodes, iface_nodes)
+    node_attrs, defaults = _bulk_add_resource_attrs(net_i.id, 'NODE', nodes, iface_nodes)
 
     log.info("Nodes added in %s", get_timing(start_time))
 
-    return node_id_map, node_attrs
+    return node_id_map, node_attrs, defaults
 
 def _add_links_to_database(net_i, links, node_id_map):
     log.info("Adding links to network")
@@ -355,10 +367,10 @@ def _add_links(net_i, links, node_id_map):
     for link in links:
         link_id_map[link.id] = iface_links[link.name]
 
-    link_attrs = _bulk_add_resource_attrs(net_i.id, 'LINK', links, iface_links)
+    link_attrs, defaults = _bulk_add_resource_attrs(net_i.id, 'LINK', links, iface_links)
     log.info("Links added in %s", get_timing(start_time))
 
-    return link_id_map, link_attrs
+    return link_id_map, link_attrs, defaults
 
 def _add_resource_groups(net_i, resourcegroups):
     start_time = datetime.datetime.now()
@@ -407,10 +419,10 @@ def _add_resource_groups(net_i, resourcegroups):
             group_id_map[group.id] = group_i
 
 
-        group_attrs = _bulk_add_resource_attrs(net_i.id, 'GROUP', resourcegroups, iface_groups)
+        group_attrs, defaults = _bulk_add_resource_attrs(net_i.id, 'GROUP', resourcegroups, iface_groups)
     log.info("Groups added in %s", get_timing(start_time))
 
-    return group_id_map, group_attrs
+    return group_id_map, group_attrs, defaults
 
 
 def add_network(network,**kwargs):
@@ -469,20 +481,22 @@ def add_network(network,**kwargs):
     all_resource_attrs = {}
 
     name_map = {network.name:net_i}
-    network_attrs = _bulk_add_resource_attrs(net_i.id, 'NETWORK', [network], name_map)
+    network_attrs, defaults = _bulk_add_resource_attrs(net_i.id, 'NETWORK', [network], name_map)
     hdb.add_resource_types(net_i, network.types)
 
     all_resource_attrs.update(network_attrs)
 
     log.info("Network attributes added in %s", get_timing(start_time))
-    node_id_map, node_attrs = _add_nodes(net_i, network.nodes)
+    node_id_map, node_attrs, node_datasets = _add_nodes(net_i, network.nodes)
     all_resource_attrs.update(node_attrs)
 
-    link_id_map, link_attrs = _add_links(net_i, network.links, node_id_map)
+    link_id_map, link_attrs, link_datasets = _add_links(net_i, network.links, node_id_map)
     all_resource_attrs.update(link_attrs)
 
-    grp_id_map, grp_attrs = _add_resource_groups(net_i, network.resourcegroups)
+    grp_id_map, grp_attrs, grp_datasets = _add_resource_groups(net_i, network.resourcegroups)
     all_resource_attrs.update(grp_attrs)
+
+    defaults = grp_datasets.values() + link_datasets.values() + node_datasets.values()
 
     start_time = datetime.datetime.now()
 
@@ -514,6 +528,11 @@ def add_network(network,**kwargs):
                 scenario_resource_attrs.append(ra)
 
             data_start_time = datetime.datetime.now()
+
+            for default in defaults:
+                scen.add_resource_scenario(JSONObject(default),
+                                           JSONObject({'id':default['dataset_id']}),
+                                           source=kwargs.get('app_name'))
 
             datasets = data._bulk_insert_data(
                                               incoming_datasets,
@@ -1197,6 +1216,9 @@ def get_resourcegroup(group_id, scenario_id=None, **kwargs):
         rg.types
         for t in rg.types:
             t.templatetype.typeattrs
+            for ta in t.templatetype.typeattrs:
+                if ta.default_dataset_id is not None:
+                    ta.default_dataset
     except NoResultFound:
         raise ResourceNotFoundError("ResourceGroup %s not found"%(group_id,))
 
