@@ -392,11 +392,12 @@ def _add_resource_groups(net_i, resourcegroups):
                            'description' : group.description,
                           })
 
+    iface_groups = {}
+
     if len(group_dicts) > 0:
         db.DBSession.bulk_insert_mappings(ResourceGroup, group_dicts)
         log.info("Resource Groups added in %s", get_timing(start_time))
 
-        iface_groups = {}
         for g_i in net_i.resourcegroups:
 
             if iface_groups.get(g_i.name) is not None:
@@ -416,10 +417,8 @@ def _add_resource_groups(net_i, resourcegroups):
                         'attr_is_var' : ra.attr_is_var,
                     })
                 group_id_map[group.id] = group_i
-            group_id_map[group.id] = group_i
 
-
-        group_attrs, defaults = _bulk_add_resource_attrs(net_i.id, 'GROUP', resourcegroups, iface_groups)
+    group_attrs, defaults = _bulk_add_resource_attrs(net_i.id, 'GROUP', resourcegroups, iface_groups)
     log.info("Groups added in %s", get_timing(start_time))
 
     return group_id_map, group_attrs, defaults
