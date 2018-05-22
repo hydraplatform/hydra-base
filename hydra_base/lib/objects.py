@@ -25,6 +25,9 @@ log = logging.getLogger(__name__)
 from datetime import datetime
 from ..exceptions import HydraError
 
+from HydraTypes.Registry import HydraObjectFactory, HydraTypeError
+from HydraTypes.Registry import Scalar
+
 from ..util import generate_data_hash, get_layout_as_dict, get_layout_as_string
 from .. import config
 import zlib
@@ -212,6 +215,8 @@ class Dataset(JSONObject):
             else:
                 log.debug("Parsing %s", data)
 
+            log.info("[Dataset] type: {0}  value: {1}  as_json: {2}".format(self.type, self.value, self.as_json()))
+
             if self.type == 'descriptor':
                 #Hack to work with hashtables. REMOVE AFTER DEMO
                 if self.get_metadata_as_dict().get('data_type') == 'hashtable':
@@ -223,13 +228,27 @@ class Dataset(JSONObject):
                         indexeddata = {0:noindexdata}
                         data = json.dumps(indexeddata)
                 return data
+            # Placeholder for future dispatch...
+            elif self.type in ("scalar", "array", "timeseries"):
+                return HydraObjectFactory.valueFromDataset(self)
+
+            # The earlier way...
+            """
             elif self.type == 'scalar':
-                return data
+#                s = Scalar(self.value)
+#                log.info("[Dataset::Scalar] value: {0}".format(s.value))
+#                log.info("[Dataset::Scalar] data:  {0}".format(data))
+#                return data
+                return HydraObjectFactory.valueFromDataset(self)
             elif self.type == 'timeseries':
+                log.info("[Dataset::Timeseries] value: {0}".format(self.value))
+                log.info("[Dataset::Timeseries] data:  {0}".format(data))
+                log.info("[Dataset::Timeseries] vFD:   {0}".format(HydraObjectFactory.valueFromDataset(self)))
                 timeseries_pd = pd.read_json(data, convert_axes=False)
                 #Epoch doesn't work here because dates before 1970 are not
                 # supported in read_json. Ridiculous.
                 ts = timeseries_pd.to_json(date_format='iso', date_unit='ns')
+                log.info("[Dataset::Timeseries] ts:    {0}".format(ts))
 
                 #if len(data) > int(config.get('db', 'compression_threshold', 1000)):
                 #    return zlib.compress(ts)
@@ -237,11 +256,15 @@ class Dataset(JSONObject):
                 return ts
             elif self.type == 'array':
                 #check to make sure this is valid json
-                json.loads(data)
+##                json.loads(data)
                 #if len(data) > int(config.get('db', 'compression_threshold', 1000)):
                 #    return zlib.compress(data)
                 #else:
-                return data
+                log.info("[Dataset::Array] value: {0}  data:{1}".format(self.value, data))
+                log.info("[Dataset::Array] vFD:   {0}".format(HydraObjectFactory.valueFromDataset(self)))
+                return HydraObjectFactory.valueFromDataset(self)
+##                return data
+            """
         except Exception as e:
             log.exception(e)
             raise HydraError("Error parsing value %s: %s"%(self.value, e))
