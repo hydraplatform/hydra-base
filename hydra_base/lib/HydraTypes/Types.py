@@ -2,10 +2,11 @@ import json
 import pandas as pd
 from abc import ABCMeta, abstractmethod, abstractproperty
 
-from Encodings import BooleanJSON, ScalarJSON, EnumJSON, ArrayJSON
+from Encodings import ScalarJSON, ArrayJSON, DescriptorJSON, DataframeJSON
+from hydra_base.exceptions import HydraError
 
 
-class HydraTypeError(Exception):
+class HydraTypeError(HydraError):
     def __init__(self, instance):
         pass
 
@@ -30,6 +31,10 @@ class DataType(object):
     def json(self):
         pass
 
+    @abstractmethod
+    def fromDataset(self):
+        pass
+
 
 class Scalar(DataType):
     tag      = "SCALAR"
@@ -48,58 +53,14 @@ class Scalar(DataType):
         return cls(*[js[arg] for arg in cls.ctor_fmt])
 
     @classmethod
-    def fromDataset(cls, dset):
-        return cls(dset.value)
+    def fromDataset(cls, value, metadata=None):
+        return cls(value)
 
     def validate(self):
         try:
             float(self.value)
         except ValueError as e:
             raise HydraTypeError(self)
-
-
-
-class Boolean(DataType):
-    tag      = "BOOL"
-    skeleton = "[%s, %s]"
-    json     = BooleanJSON()
-
-    def __init__(self, *args, **kwargs):
-        encstr = kwargs.get("encstr")
-        if encstr:
-            self.json = encstr
-        else:
-            self.true, self.false = args[0], args[1]
-        self.validate()
-
-    def validate(self):
-        if self.true == None or self.false == None or self.true == self.false:
-            raise HydraTypeError(self)
-
-
-class Enumeration(DataType):
-    tag      = "ENUM"
-    skeleton = "[%s, ...]"
-    json     = EnumJSON()
-
-    def __init__(self, *args, **kwargs):
-        encstr = kwargs.get("encstr")
-        if encstr:
-            self.json = encstr
-        else:
-            self.values = args[0]
-            self.validate()
-
-    def validate(self):
-        if len(set(self.values)) != len(self.values):
-            self.errmsg = "Duplicate element"
-            raise HydraTypeError(self)
-
-    def __getitem__(self, idx):
-        return self.values[idx]
-
-    def __setitem__(self, idx, val):
-        self.values[idx] = val
 
 
 
@@ -117,8 +78,8 @@ class Timeseries(DataType):
         pass
 
     @classmethod
-    def fromDataset(cls, dset):
-        ts = pd.read_json(unicode(dset.value), convert_axes=False)
+    def fromDataset(cls, value, metadata=None):
+        ts = pd.read_json(unicode(value), convert_axes=False)
         return cls(ts)
 
     
@@ -136,5 +97,49 @@ class Array(DataType):
         json.loads(self.value)
 
     @classmethod
-    def fromDataset(cls, dset):
-        return cls(dset.value)
+    def fromDataset(cls, value, metadata=None):
+        return cls(value)
+
+
+class Descriptor(DataType):
+    tag      = "DESCRIPTOR"
+    skeleton = "%s"
+    json     = DescriptorJSON()
+
+    def __init__(self, data):
+        self.value = data
+        self.validate()
+
+    def validate(self):
+        pass
+
+    @classmethod
+    def fromDataset(cls, value, metadata=None):
+        if metadata and metadata.get('data_type') == 'hashtable':
+            try:
+                df = pd.read_json(unicode(value))
+                data = df.transpose().to_json()
+            except Exception:
+                noindexdata = json.loads(unicode(value))
+                indexeddata = {0:noindexdata}
+                data = json.dumps(indexeddata)
+            return cls(data)
+        else:
+            return cls(unicode(value))
+
+
+class Dataframe(DataType):
+    tag      = "DATAFRAME"
+    skeleton = "%s"
+    json     = DataframeJSON()
+
+    def __init__(self, data):
+        self.value = data
+        self.validate()
+
+    def validate(self):
+        pass
+
+    @classmethod
+    def fromDataset(cls, value, metadata=None):
+        return cls(value)

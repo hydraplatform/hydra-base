@@ -26,7 +26,6 @@ from datetime import datetime
 from ..exceptions import HydraError
 
 from HydraTypes.Registry import HydraObjectFactory, HydraTypeError
-from HydraTypes.Registry import Scalar
 
 from ..util import generate_data_hash, get_layout_as_dict, get_layout_as_string
 from .. import config
@@ -217,20 +216,29 @@ class Dataset(JSONObject):
 
             log.info("[Dataset] type: {0}  value: {1}  as_json: {2}".format(self.type, self.value, self.as_json()))
 
+            """
             if self.type == 'descriptor':
                 #Hack to work with hashtables. REMOVE AFTER DEMO
                 if self.get_metadata_as_dict().get('data_type') == 'hashtable':
                     try:
+                        log.info("Transposing...")
                         df = pd.read_json(data)
                         data = df.transpose().to_json()
                     except Exception:
                         noindexdata = json.loads(data)
                         indexeddata = {0:noindexdata}
                         data = json.dumps(indexeddata)
+
+                log.info("[Dataset::Descriptor] value: {0}".format(self.value))
+                log.info("[Dataset::Descriptor] data:  {0}".format(data))
+                log.info("[Dataset::Descriptor] vFD:   {0}".format(HydraObjectFactory.valueFromDataset(self)))
                 return data
             # Placeholder for future dispatch...
             elif self.type in ("scalar", "array", "timeseries"):
                 return HydraObjectFactory.valueFromDataset(self)
+            """
+            # Single point of object creation, HydraObjectFactory responsible for dispatch...
+            return HydraObjectFactory.valueFromDataset(self.type, self.value, self.get_metadata_as_dict())
 
             # The earlier way...
             """
@@ -284,26 +292,25 @@ class Dataset(JSONObject):
         if self.metadata is None or self.metadata == "":
             return {}
 
-        metadata_dict = {}
+        metadata_dict = self.metadata if isinstance(self.metadata, dict) else json.loads(self.metadata)
 
-        if isinstance(self.metadata, dict):
-            metadata_dict = self.metadata
-        else:
-            metadata_dict = json.loads(self.metadata)
-
-        #These should be set on all datasests by default, but we don't
-        #want to enforce this rigidly
+        # These should be set on all datasets by default, but we don't
+        # want to enforce this rigidly
         metadata_keys = [m.lower() for m in metadata_dict]
         if user_id is not None and 'user_id' not in metadata_keys:
             metadata_dict['user_id'] = unicode(user_id)
-
+ 
         if source is not None and 'source' not in metadata_keys:
             metadata_dict['source'] = unicode(source)
 
-        for k, v in metadata_dict.items():
-            metadata_dict[k] = unicode(v)
+        """ Extensible but slightly cryptic alternative...
+        for attr in ("user_id", "source"):
+            if eval(attr) and attr not in map(str.lower, metadata_dict):
+                metadata_dict[attr] = unicode(eval(attr))
+        """
 
-        return metadata_dict
+        return { k : unicode(v) for k, v in metadata_dict.iteritems() }
+
 
     def get_hash(self, val, metadata):
 

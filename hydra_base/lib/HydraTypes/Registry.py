@@ -2,12 +2,13 @@ import json
 import inspect
 import sys
 
-from Types import Array, Boolean, Enumeration, Scalar, Timeseries, HydraTypeError
+from Types import Array, Scalar, Timeseries, Descriptor, Dataframe, HydraTypeError
 from Types import DataType as Datatype_Base
 
 
 def isHydraType(cls):
-   return inspect.isclass(cls) and cls is not Datatype_Base and Datatype_Base in inspect.getmro(cls)
+    """ Predicate for inspect.getmembers(): defines what constitutes a 'Hydra Type' """
+    return inspect.isclass(cls) and cls is not Datatype_Base and Datatype_Base in inspect.getmro(cls)
 
 
 hydra_types = tuple(cls for _,cls in inspect.getmembers(sys.modules[__name__], isHydraType))
@@ -34,15 +35,18 @@ class HydraObjectFactory(object):
     @staticmethod
     def getData(dset, tmap=typemap):
         # TODO: modify type.fromJSON to match dset.as_json
+        # TODO: also consider whether this func actually necessary
         obj = tmap[dset.type.upper()].fromJSON(dset.as_json())
         return obj.value
 
+
     @staticmethod
-    def valueFromDataset(dset, tmap=typemap):
-        obj = tmap[dset.type.upper()].fromDataset(dset)
+    def valueFromDataset(datatype, value, metadata=None, tmap=typemap):
+        obj = tmap[datatype.upper()].fromDataset(value, metadata=metadata)
         return obj.value
 
 
+    """ Unused """
     @staticmethod
     def clone(src, tmap=typemap):
         return tmap[src.tag](encstr=src.json)
