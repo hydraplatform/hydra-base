@@ -48,9 +48,7 @@ class Scalar(DataType):
 
     @classmethod
     def fromJSON(cls, encstr):
-        js = json.loads(encstr)[cls.tag]
-        print(js, js["value"])
-        return cls(*[js[arg] for arg in cls.ctor_fmt])
+        pass
 
     @classmethod
     def fromDataset(cls, value, metadata=None):
@@ -94,7 +92,8 @@ class Array(DataType):
         self.validate()
 
     def validate(self):
-        json.loads(self.value)
+        j = json.loads(self.value)
+        assert isinstance(j, list)
 
     @classmethod
     def fromDataset(cls, value, metadata=None):

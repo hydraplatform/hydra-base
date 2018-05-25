@@ -40,10 +40,15 @@ class HydraObjectFactory(object):
         return obj.value
 
 
-    @staticmethod
-    def valueFromDataset(datatype, value, metadata=None, tmap=typemap):
-        obj = tmap[datatype.upper()].fromDataset(value, metadata=metadata)
+    @classmethod
+    def valueFromDataset(cls, datatype, value, metadata=None, tmap=typemap):
+        obj = cls.fromDataset(datatype, value, metadata=metadata, tmap=tmap)
         return obj.value
+
+
+    @staticmethod
+    def fromDataset(datatype, value, metadata=None, tmap=typemap):
+        return tmap[datatype.upper()].fromDataset(value, metadata=metadata)
 
 
     """ Unused """

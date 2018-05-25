@@ -214,7 +214,7 @@ class Dataset(JSONObject):
             else:
                 log.debug("Parsing %s", data)
 
-            log.info("[Dataset] type: {0}  value: {1}  as_json: {2}".format(self.type, self.value, self.as_json()))
+            log.info("[Dataset] type: {0}  value: {1} ({2})  as_json: {3}".format(self.type, self.value, type(self.value), self.as_json()))
 
             """
             if self.type == 'descriptor':
