@@ -141,4 +141,5 @@ class Dataframe(DataType):
 
     @classmethod
     def fromDataset(cls, value, metadata=None):
-        return cls(value)
+        ts = pd.read_json(unicode(value), convert_axes=False)
+        return cls(ts)

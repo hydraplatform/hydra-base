@@ -32,14 +32,6 @@ class HydraObjectFactory(object):
             print("Invalid Hydra Type: {0}".format(tag))
 
 
-    @staticmethod
-    def getData(dset, tmap=typemap):
-        # TODO: modify type.fromJSON to match dset.as_json
-        # TODO: also consider whether this func actually necessary
-        obj = tmap[dset.type.upper()].fromJSON(dset.as_json())
-        return obj.value
-
-
     @classmethod
     def valueFromDataset(cls, datatype, value, metadata=None, tmap=typemap):
         obj = cls.fromDataset(datatype, value, metadata=metadata, tmap=tmap)
@@ -50,8 +42,3 @@ class HydraObjectFactory(object):
     def fromDataset(datatype, value, metadata=None, tmap=typemap):
         return tmap[datatype.upper()].fromDataset(value, metadata=metadata)
 
-
-    """ Unused """
-    @staticmethod
-    def clone(src, tmap=typemap):
-        return tmap[src.tag](encstr=src.json)

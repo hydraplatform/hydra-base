@@ -193,89 +193,25 @@ class Dataset(JSONObject):
             Turn the value of an incoming dataset into a hydra-friendly value.
         """
         try:
-            #attr_data.value is a dictionary,
-            #but the keys have namespaces which must be stripped.
-
-
             if self.value is None:
                 log.warn("Cannot parse dataset. No value specified.")
                 return None
 
+            # attr_data.value is a dictionary but the keys have namespaces which must be stripped
             data = unicode(self.value)
 
-            if data.upper().strip() == 'NULL':
-                return 'NULL'
-
-            if data.strip() == '':
+            if data.upper().strip() in ("NULL", ""):
                 return "NULL"
 
-            if len(data) > 100:
-                log.debug("Parsing %s", data[0:100])
-            else:
-                log.debug("Parsing %s", data)
+            data = data[0:100]
+            log.debug("[Dataset.parse_value] Parsing %s", data)
 
-            log.info("[Dataset] type: {0}  value: {1} ({2})  as_json: {3}".format(self.type, self.value, type(self.value), self.as_json()))
-
-            """
-            if self.type == 'descriptor':
-                #Hack to work with hashtables. REMOVE AFTER DEMO
-                if self.get_metadata_as_dict().get('data_type') == 'hashtable':
-                    try:
-                        log.info("Transposing...")
-                        df = pd.read_json(data)
-                        data = df.transpose().to_json()
-                    except Exception:
-                        noindexdata = json.loads(data)
-                        indexeddata = {0:noindexdata}
-                        data = json.dumps(indexeddata)
-
-                log.info("[Dataset::Descriptor] value: {0}".format(self.value))
-                log.info("[Dataset::Descriptor] data:  {0}".format(data))
-                log.info("[Dataset::Descriptor] vFD:   {0}".format(HydraObjectFactory.valueFromDataset(self)))
-                return data
-            # Placeholder for future dispatch...
-            elif self.type in ("scalar", "array", "timeseries"):
-                return HydraObjectFactory.valueFromDataset(self)
-            """
-            # Single point of object creation, HydraObjectFactory responsible for dispatch...
             return HydraObjectFactory.valueFromDataset(self.type, self.value, self.get_metadata_as_dict())
 
-            # The earlier way...
-            """
-            elif self.type == 'scalar':
-#                s = Scalar(self.value)
-#                log.info("[Dataset::Scalar] value: {0}".format(s.value))
-#                log.info("[Dataset::Scalar] data:  {0}".format(data))
-#                return data
-                return HydraObjectFactory.valueFromDataset(self)
-            elif self.type == 'timeseries':
-                log.info("[Dataset::Timeseries] value: {0}".format(self.value))
-                log.info("[Dataset::Timeseries] data:  {0}".format(data))
-                log.info("[Dataset::Timeseries] vFD:   {0}".format(HydraObjectFactory.valueFromDataset(self)))
-                timeseries_pd = pd.read_json(data, convert_axes=False)
-                #Epoch doesn't work here because dates before 1970 are not
-                # supported in read_json. Ridiculous.
-                ts = timeseries_pd.to_json(date_format='iso', date_unit='ns')
-                log.info("[Dataset::Timeseries] ts:    {0}".format(ts))
-
-                #if len(data) > int(config.get('db', 'compression_threshold', 1000)):
-                #    return zlib.compress(ts)
-                #else:
-                return ts
-            elif self.type == 'array':
-                #check to make sure this is valid json
-##                json.loads(data)
-                #if len(data) > int(config.get('db', 'compression_threshold', 1000)):
-                #    return zlib.compress(data)
-                #else:
-                log.info("[Dataset::Array] value: {0}  data:{1}".format(self.value, data))
-                log.info("[Dataset::Array] vFD:   {0}".format(HydraObjectFactory.valueFromDataset(self)))
-                return HydraObjectFactory.valueFromDataset(self)
-##                return data
-            """
         except Exception as e:
             log.exception(e)
             raise HydraError("Error parsing value %s: %s"%(self.value, e))
+
 
     def get_metadata_as_dict(self, user_id=None, source=None):
         """
@@ -294,20 +230,10 @@ class Dataset(JSONObject):
 
         metadata_dict = self.metadata if isinstance(self.metadata, dict) else json.loads(self.metadata)
 
-        # These should be set on all datasets by default, but we don't
-        # want to enforce this rigidly
-        metadata_keys = [m.lower() for m in metadata_dict]
-        if user_id is not None and 'user_id' not in metadata_keys:
-            metadata_dict['user_id'] = unicode(user_id)
- 
-        if source is not None and 'source' not in metadata_keys:
-            metadata_dict['source'] = unicode(source)
-
-        """ Extensible but slightly cryptic alternative...
+        # These should be set on all datasets by default, but we don't enforce this rigidly
         for attr in ("user_id", "source"):
             if eval(attr) and attr not in map(str.lower, metadata_dict):
                 metadata_dict[attr] = unicode(eval(attr))
-        """
 
         return { k : unicode(v) for k, v in metadata_dict.iteritems() }
 

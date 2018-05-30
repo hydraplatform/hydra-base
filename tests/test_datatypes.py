@@ -16,11 +16,14 @@ log = logging.getLogger("objects")
 
 """ Type arguments """
 
-scalar_valid_values   = [ 46, -1, 0, 7.7, -0.0 ]
-scalar_invalid_values = [ "one", None, pd, {} ]
+scalar_valid_values       = [ 46, -1, 0, 7.7, -0.0 ]
+scalar_invalid_values     = [ "one", None, pd, {} ]
 
-array_valid_values    = [ [-2, -1, 0, 1, 2], range(32), [ 0.5e-3, 0.5, 0.5e3 ] ]
-array_invalid_values  = [ "otheriterable", xrange(32), 77, {} ]
+array_valid_values        = [ [-2, -1, 0, 1, 2], range(32), [ 0.5e-3, 0.5, 0.5e3 ] ]
+array_invalid_values      = [ "otheriterable", xrange(32), 77, {} ]
+
+timeseries_valid_values   = [ ["JAN", "FEB", "MAR"], range(12) ]
+timeseries_invalid_values = [ "otheriterable", xrange(12), pd, set() ]
 
 
 """ Scalar type tests """
@@ -85,6 +88,20 @@ def test_raw_array(make_array):
     assert make_array.obj.value == str(make_array.fixarg)
     assert make_array.obj.validate() is None
 
+
+""" Timeseries type tests """
+
+@pytest.mark.parametrize("value", timeseries_valid_values)
+def test_create_timeseries(value):
+    timeseries_dataset = hb.lib.objects.Dataset({'type':'timeseries', 'value': json.dumps(value)})
+    value = timeseries_dataset.parse_value()
+
+
+@pytest.mark.parametrize("value", timeseries_invalid_values)
+def test_fail_create_timeseries(value):
+    with pytest.raises( (HydraError, TypeError, ValueError) ):
+        timeseries_dataset = hb.lib.objects.Dataset({'type':'timeseries', 'value': json.dumps(value)})
+        value = timeseries_dataset.parse_value()
 
 
 if __name__ == "__main__":
