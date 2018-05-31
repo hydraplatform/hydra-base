@@ -93,7 +93,6 @@ class Array(DataType):
 
     def validate(self):
         j = json.loads(self.value)
-        assert isinstance(j, list)
 
     @classmethod
     def fromDataset(cls, value, metadata=None):

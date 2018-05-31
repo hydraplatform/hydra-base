@@ -231,9 +231,12 @@ class Dataset(JSONObject):
         metadata_dict = self.metadata if isinstance(self.metadata, dict) else json.loads(self.metadata)
 
         # These should be set on all datasets by default, but we don't enforce this rigidly
-        for attr in ("user_id", "source"):
-            if eval(attr) and attr not in map(str.lower, metadata_dict):
-                metadata_dict[attr] = unicode(eval(attr))
+        metadata_keys = [m.lower() for m in metadata_dict]
+        if user_id is not None and 'user_id' not in metadata_keys:
+            metadata_dict['user_id'] = unicode(user_id)
+
+        if source is not None and 'source' not in metadata_keys:
+            metadata_dict['source'] = unicode(source)
 
         return { k : unicode(v) for k, v in metadata_dict.iteritems() }
 
