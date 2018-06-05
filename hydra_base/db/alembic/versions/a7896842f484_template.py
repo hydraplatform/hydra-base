@@ -51,7 +51,7 @@ def upgrade():
             op.create_table(
                 'tTemplate_new',
                 sa.Column('id', sa.Integer, primary_key=True),
-                sa.Column('name', sa.Text(60), nullable=False),
+                sa.Column('name', sa.Text(60), nullable=False, unique=True),
                 sa.Column('cr_date', sa.TIMESTAMP(),  nullable=False, server_default=sa.text(u'CURRENT_TIMESTAMP')),
                 sa.Column('layout', sa.Text(1000)),
             )
@@ -76,7 +76,7 @@ def upgrade():
             op.create_table(
                 'tTemplateType_new',
                 sa.Column('id', sa.Integer(), primary_key=True, nullable=False),
-                sa.Column('name', sa.String(60),  nullable=False),
+                sa.Column('name', sa.String(60),  nullable=False, unique=True),
                 sa.Column('template_id', sa.Integer(), sa.ForeignKey('tTemplate.id'), nullable=False),
                 sa.Column('resource_type', sa.String(60)),
                 sa.Column('alias', sa.String(100)),
