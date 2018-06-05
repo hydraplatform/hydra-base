@@ -39,3 +39,12 @@ class DataframeJSON(object):
 
     def __set__(self, instance, encstr):
         pass
+
+
+""" Descriptor for Timeseries JSON encoding/decoding"""
+class TimeseriesJSON(object):
+    def __get__(self, instance, owner):
+        return "{}"
+
+    def __set__(self, instance, encstr):
+        pass

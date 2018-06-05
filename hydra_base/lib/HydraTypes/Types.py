@@ -1,8 +1,10 @@
 import json
 import pandas as pd
 from abc import ABCMeta, abstractmethod, abstractproperty
+from datetime import datetime
+import collections
 
-from Encodings import ScalarJSON, ArrayJSON, DescriptorJSON, DataframeJSON
+from Encodings import ScalarJSON, ArrayJSON, DescriptorJSON, DataframeJSON, TimeseriesJSON
 from hydra_base.exceptions import HydraError
 
 
@@ -61,27 +63,6 @@ class Scalar(DataType):
             raise HydraTypeError(self)
 
 
-
-class Timeseries(DataType):
-    tag      = "TIMESERIES"
-    skeleton = "[%s, ...]"
-    json     = None
-
-
-    def __init__(self, ts):
-        self.value = ts.to_json(date_format='iso', date_unit='ns')
-        self.validate()
-
-    def validate(self):
-        pass
-
-    @classmethod
-    def fromDataset(cls, value, metadata=None):
-        ts = pd.read_json(unicode(value), convert_axes=False)
-        return cls(ts)
-
-    
-
 class Array(DataType):
     tag      = "ARRAY"
     skeleton = "[%f, ...]"
@@ -93,6 +74,7 @@ class Array(DataType):
 
     def validate(self):
         j = json.loads(self.value)
+        assert len(j) > 1
 
     @classmethod
     def fromDataset(cls, value, metadata=None):
@@ -142,3 +124,42 @@ class Dataframe(DataType):
     def fromDataset(cls, value, metadata=None):
         ts = pd.read_json(unicode(value), convert_axes=False)
         return cls(ts)
+
+
+class Timeseries(DataType):
+    tag      = "TIMESERIES"
+    skeleton = "[%s, ...]"
+    json     = TimeseriesJSON()
+    months   = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+
+
+    def __init__(self, ts):
+        self.value = ts.to_json(date_format='iso', date_unit='ns')
+        self.validate()
+
+    def validate(self):
+        print("[self.value] {0} ({1})".format(self.value, type(self.value)))
+        jd = json.loads(self.value, object_pairs_hook=collections.OrderedDict)
+        base_ts = pd.Timestamp("01-01-1970")
+        for k,v in jd.iteritems():
+            print("[v] {0} ({1})".format(v, type(v)))
+            for date in (unicode(d) for d in v.values()):
+                try:
+                    _ = pd.Timestamp(date)
+                except pd.errors.OutOfBoundsDatetime as e:
+                    if date in self.months:
+                        _ = pd.Timestamp("{0} {1}".format(date, datetime.now().year))
+
+                print(_, type(_))
+                assert isinstance(_, base_ts.__class__)
+
+
+    @classmethod
+    def fromDataset(cls, value, metadata=None):
+        print("[value] {0} ({1})".format(value, type(value)))
+        ordered_jo = json.loads(unicode(value), object_pairs_hook=collections.OrderedDict)
+        print("[ordered_jo[ {0} ({1})".format(ordered_jo, type(ordered_jo)))
+        ts = pd.read_json(unicode(value), convert_axes=False)
+        return cls(ts)
+
+

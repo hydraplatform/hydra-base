@@ -20,10 +20,10 @@ scalar_valid_values       = [ 46, -1, 0, 7.7, -0.0 ]
 scalar_invalid_values     = [ "one", None, pd, {} ]
 
 array_valid_values        = [ [-2, -1, 0, 1, 2], range(32), [ 0.5e-3, 0.5, 0.5e3 ] ]
-array_invalid_values      = [ "otheriterable", xrange(32), 77, {} ]
+array_invalid_values      = [ xrange(32), 77, {} ]
 
-timeseries_valid_values   = [ ["JAN", "FEB", "MAR"], range(12) ]
-timeseries_invalid_values = [ "otheriterable", xrange(12), pd, set() ]
+timeseries_valid_values   = [ ["JAN", "FEB", "MAR", "APR"], ["1979 Feb 2 0100", "01:00 2 Feb 1979"], ["2012", "2013", "2014"], ("18:00 31 August 1977",) ]
+timeseries_invalid_values = [ "otheriterable", xrange(12), pd, set(), ["01:00 30 Feb 1979"] ]
 
 
 """ Scalar type tests """
@@ -105,4 +105,5 @@ def test_fail_create_timeseries(value):
 
 
 if __name__ == "__main__":
+#    pytest.main(['-v', '-s', __file__])
     pytest.main(['-v', __file__])
