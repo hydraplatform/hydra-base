@@ -1493,27 +1493,35 @@ def get_network_extents(network_id,**kwargs):
     if len(rs) == 0:
         return dict(
             network_id = network_id,
-            min_x = None,
-            max_x = None,
-            min_y = None,
-            max_y = None,
+            min_x=None,
+            max_x=None,
+            min_y=None,
+            max_y=None,
         )
 
-    x_values = []
-    y_values = []
-    for r in rs:
-        x_values.append(r.x)
-        y_values.append(r.y)
+    # Compute min/max extent of the network.
+    x = [r.x for r in rs if r.x is not None]
+    if len(x) > 0:
+        x_min = min(x)
+        x_max = max(x)
+    else:
+        # Default x extent if all None values
+        x_min, x_max = 0, 1
 
-    x_values.sort()
-    y_values.sort()
+    y = [r.y for r in rs if r.y is not None]
+    if len(y) > 0:
+        y_min = min(y)
+        y_max = max(y)
+    else:
+        # Default y extent if all None values
+        y_min, y_max = 0, 1
 
     ne = JSONObject(dict(
         network_id = network_id,
-        min_x = x_values[0],
-        max_x = x_values[-1],
-        min_y = y_values[0],
-        max_y = y_values[-1],
+        min_x=x_min,
+        max_x=x_max,
+        min_y=y_min,
+        max_y=y_max,
     ))
     return ne
 
