@@ -39,6 +39,7 @@ from .lib.static import *
 from .lib.template import *
 from .lib.units import *
 from .lib.users import *
+from .lib.service import *
 
 
 from . import hydra_logging
