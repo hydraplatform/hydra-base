@@ -114,7 +114,12 @@ def login_user(username, password):
     except NoResultFound:
         raise HydraError(username)
 
-    if bcrypt.hashpw(password.encode('utf-8'), user_i.password.encode('utf-8')) == user_i.password.encode('utf-8'):
+    userPassword = ""
+    try:
+        userPassword = user_i.password.encode('utf-8')
+    except:
+        userPassword = user_i.password
+    if bcrypt.hashpw(password.encode('utf-8'), userPassword) == userPassword:
         user_i.last_login = datetime.datetime.now()
         return user_i.id
     else:
