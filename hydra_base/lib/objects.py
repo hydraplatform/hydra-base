@@ -204,7 +204,7 @@ class Dataset(JSONObject):
                 return "NULL"
 
             data = data[0:100]
-            log.debug("[Dataset.parse_value] Parsing %s", data)
+            log.info("[Dataset.parse_value] Parsing %s (%s)", data, type(data))
 
             return HydraObjectFactory.valueFromDataset(self.type, self.value, self.get_metadata_as_dict())
 
