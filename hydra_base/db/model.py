@@ -50,7 +50,6 @@ import pandas as pd
 from sqlalchemy.orm import validates
 
 import json
-import zlib
 from .. import config
 import logging
 import bcrypt
@@ -150,8 +149,9 @@ class Dataset(Base, Inspect):
             if not isinstance(val, str) and not isinstance(val, unicode):
                 val = json.dumps(val)
 
-            if len(val) > config.get('DATA', 'compression_threshold', 1000):
-                self.value = zlib.compress(val)
+            #TODO: Design a mechanism to store this data in a scaleable way.
+            if len(val) > config.get('DATA', 'compression_threshold', 5000):
+                self.value = val
             else:
                 self.value = val
         elif data_type == 'timeseries':
@@ -173,8 +173,10 @@ class Dataset(Base, Inspect):
                 #Epoch doesn't work here because dates before 1970 are not supported
                 #in read_json. Ridiculous.
                 json_value =  timeseries_pd.to_json(date_format='iso', date_unit='ns')
-                if len(json_value) > config.get('DATA', 'compression_threshold', 1000):
-                    self.value = zlib.compress(json_value)
+
+                #TODO: Design a mechanism to store this data in a scaleable way.
+                if len(json_value) > config.get('DATA', 'compression_threshold', 5000):
+                    self.value = json_value
                 else:
                     self.value = json_value
             else:

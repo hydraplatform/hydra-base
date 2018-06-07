@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 
 from decimal import Decimal
 import pandas as pd
-import zlib
+
 import json
 from .. import config
 
@@ -140,23 +140,16 @@ def get_val(dataset, timestamp=None):
 
     """
     if dataset.type == 'array':
-        try:
-            return json.loads(dataset.value)
-        except ValueError:
-            #Didn't work? Maybe because it was compressed.
-            val = zlib.decompress(dataset.value)
-            return json.loads(val)
+        #TODO: design a mechansim to retrieve this data if it's stored externally
+        return json.loads(dataset.value)
+
     elif dataset.type == 'descriptor':
         return str(dataset.value)
     elif dataset.type == 'scalar':
         return Decimal(str(dataset.value))
     elif dataset.type == 'timeseries':
-
-        try:
-            #The data might be compressed.
-            val = zlib.decompress(dataset.value)
-        except Exception as e:
-            val = dataset.value
+        #TODO: design a mechansim to retrieve this data if it's stored externally
+        val = dataset.value
 
         seasonal_year = config.get('DEFAULT','seasonal_year', '1678')
         seasonal_key = config.get('DEFAULT', 'seasonal_key', '9999')

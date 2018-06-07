@@ -44,8 +44,6 @@ from sqlalchemy.sql import null
 
 from collections import namedtuple
 
-import zlib
-
 import logging
 log = logging.getLogger(__name__)
 
@@ -802,10 +800,6 @@ def _get_all_resourcescenarios(network_id, user_id):
         rs_attr = JSONObject({'attr_id':rs.attr_id})
 
         value = rs.value
-        try:
-            value = zlib.decompress(value)
-        except:
-            pass
 
         rs_dataset = JSONDataset({
             'id':rs.dataset_id,
