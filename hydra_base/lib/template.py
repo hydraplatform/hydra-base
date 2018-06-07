@@ -364,8 +364,11 @@ def get_template_as_dict(template_id, **kwargs):
                                 'metadata' : typeattr_j.default_dataset.metadata
                             })
 
-            del(typeattr_j.default_dataset)
-            del(typeattr_j.attr)
+            if hasattr(typeattr_j, 'default_dataset') and typeattr_j.default_dataset is not None:
+                del(typeattr_j['default_dataset'])
+
+            if hasattr(typeattr_j, 'attr') and typeattr_j.attr is not None:
+                del(typeattr_j['attr'])
 
     output_data = {'attributes': attr_dict, 'datasets':dataset_dict, 'template': template_j}
 
