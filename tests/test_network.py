@@ -34,8 +34,6 @@ class TestNetwork:
         Test for network-based functionality
     """
 
-    user_id = util.user_id
-
     def test_get_resources_of_type(self, session, network_with_data):
         """
             Test for the retrieval of all the resources of a specified
@@ -51,7 +49,7 @@ class TestNetwork:
                     type_id = l.types[0].id
                 link_ids.append(l.id)
 
-        resources_of_type = hb.get_resources_of_type(net.id, type_id, user_id=self.user_id)
+        resources_of_type = hb.get_resources_of_type(net.id, type_id, user_id=pytest.root_user_id)
 
         assert len(resources_of_type[1]) == 4
 
@@ -89,7 +87,7 @@ class TestNetwork:
 
         template_id = net.nodes[0].types[0].template_id
 
-        filtered_net = hb.get_network(net.id, template_id=template_id, user_id=self.user_id)
+        filtered_net = hb.get_network(net.id, template_id=template_id, user_id=pytest.root_user_id)
         logging.info("%s nodes after"%(len(filtered_net.nodes)))
         #All the nodes are in this template, so return them all
         assert len(filtered_net.nodes) == 10
@@ -117,17 +115,17 @@ class TestNetwork:
         net = networkmaker.create(map_projection='EPSG:21781')
         scenario_id = net.scenarios[0].id
 
-        clone = hb.clone_scenario(scenario_id, user_id=self.user_id)
-        new_scenario = hb.get_scenario(clone.id, user_id=self.user_id)
+        clone = hb.clone_scenario(scenario_id, user_id=pytest.root_user_id)
+        new_scenario = hb.get_scenario(clone.id, user_id=pytest.root_user_id)
 
-        full_network = hb.get_network(new_scenario.network_id, user_id=self.user_id)
+        full_network = hb.get_network(new_scenario.network_id, user_id=pytest.root_user_id)
 
         for s in full_network.scenarios:
             assert len(s.resourcescenarios) == 0
 
         scen_ids = []
         scen_ids.append(scenario_id)
-        partial_network = hb.get_network(new_scenario.network_id, True, 'Y', scen_ids, user_id=self.user_id)
+        partial_network = hb.get_network(new_scenario.network_id, True, 'Y', scen_ids, user_id=pytest.root_user_id)
 
         assert len(partial_network.scenarios) == 1
         assert len(full_network.scenarios)    == 2
@@ -136,14 +134,14 @@ class TestNetwork:
             assert len(s.resourcescenarios) > 0
 
         with pytest.raises(hb.exceptions.HydraError):
-            hb.get_network_by_name(net.project_id, "I am not a network", user_id=self.user_id)
+            hb.get_network_by_name(net.project_id, "I am not a network", user_id=pytest.root_user_id)
 
-        net_by_name = hb.get_network_by_name(net.project_id, net.name, user_id=self.user_id)
+        net_by_name = hb.get_network_by_name(net.project_id, net.name, user_id=pytest.root_user_id)
         assert net_by_name.id == full_network.id
 
-        no_net_exists = hb.network_exists(net.project_id, "I am not a network", user_id=self.user_id)
+        no_net_exists = hb.network_exists(net.project_id, "I am not a network", user_id=pytest.root_user_id)
         assert no_net_exists == 'N'
-        net_exists = hb.network_exists(net.project_id, net.name, user_id=self.user_id)
+        net_exists = hb.network_exists(net.project_id, net.name, user_id=pytest.root_user_id)
         assert net_exists == 'Y'
         assert full_network.projection == 'EPSG:21781'
 
@@ -154,7 +152,7 @@ class TestNetwork:
         """
         net = network_with_data
 
-        extents = hb.get_network_extents(net.id, user_id=self.user_id)
+        extents = hb.get_network_extents(net.id, user_id=pytest.root_user_id)
 
         assert extents.min_x == 10
         assert extents.max_x == 100
@@ -199,11 +197,11 @@ class TestNetwork:
         network.nodes = nodes
         network.links = links
 
-        new_net = hb.add_network(network, user_id=self.user_id)
+        new_net = hb.add_network(network, user_id=pytest.root_user_id)
 
         hb.db.DBSession.expunge_all()
 
-        net = JSONObject(hb.get_network(new_net.id, user_id=self.user_id))
+        net = JSONObject(hb.get_network(new_net.id, user_id=pytest.root_user_id))
 
         new_network = copy.deepcopy(net)
 
@@ -220,7 +218,7 @@ class TestNetwork:
         new_network.description = \
             'A different network for SOAP unit tests.'
 
-        updated_network = JSONObject(hb.update_network(new_network, user_id=self.user_id))
+        updated_network = JSONObject(hb.update_network(new_network, user_id=pytest.root_user_id))
 
         assert net.id == updated_network.id, \
             'network_id has changed on update.'
@@ -276,7 +274,7 @@ class TestNetwork:
         network.nodes = nodes
         network.links = links
 
-        network = hb.add_network(network, user_id=self.user_id)
+        network = hb.add_network(network, user_id=pytest.root_user_id)
         links = []
 
         link = JSONObject()
@@ -295,9 +293,9 @@ class TestNetwork:
         link2.node_2_id = network.nodes[2].id
         links.append(link2)
 
-        new_links=hb.add_links(network.id, links, user_id=self.user_id)
+        new_links=hb.add_links(network.id, links, user_id=pytest.root_user_id)
 
-        new_network = hb.get_network(network.id, user_id=self.user_id)
+        new_network = hb.get_network(network.id, user_id=pytest.root_user_id)
 
         assert len(network.links)+len(links) == len(new_network.links); "new nodes were not added correctly_2",
 
@@ -339,8 +337,8 @@ class TestNetwork:
         network.nodes = nodes
         network.links = links
 
-        network = hb.add_network(network, user_id=self.user_id)
-        network = hb.get_network(network.id, user_id=self.user_id)
+        network = hb.add_network(network, user_id=pytest.root_user_id)
+        network = hb.get_network(network.id, user_id=pytest.root_user_id)
 
         link = JSONObject()
         link.id = i * -1
@@ -363,7 +361,7 @@ class TestNetwork:
 
         link.types = type_summary_arr
 
-        new_link = hb.add_link(network.id, link, user_id=self.user_id)
+        new_link = hb.add_link(network.id, link, user_id=pytest.root_user_id)
 
         link_attr_ids = []
         for resource_attr in new_link.attributes:
@@ -372,7 +370,7 @@ class TestNetwork:
         for typeattr in tmpl.templatetypes[1].typeattrs:
             assert typeattr.attr_id in link_attr_ids
 
-        new_network = hb.get_network(network.id, user_id=self.user_id)
+        new_network = hb.get_network(network.id, user_id=pytest.root_user_id)
 
         assert len(new_network.links) == len(network.links)+1; "New node was not added correctly"
         return new_network
@@ -414,8 +412,8 @@ class TestNetwork:
         network.nodes = nodes
         network.links = links
 
-        network = hb.add_network(network, user_id=self.user_id)
-        network = hb.get_network(network.id, user_id=self.user_id)
+        network = hb.add_network(network, user_id=pytest.root_user_id)
+        network = hb.get_network(network.id, user_id=pytest.root_user_id)
 
         node = JSONObject()
         new_node_num = nnodes + 1
@@ -440,7 +438,7 @@ class TestNetwork:
 
         node.types = type_summary_arr
 
-        new_node = hb.add_node(network.id, node, user_id=self.user_id)
+        new_node = hb.add_node(network.id, node, user_id=pytest.root_user_id)
 
         node_attr_ids = []
         for resource_attr in new_node.attributes:
@@ -449,7 +447,7 @@ class TestNetwork:
         for typeattr in tmpl.templatetypes[0].typeattrs:
             assert typeattr.attr_id in node_attr_ids
 
-        new_network = hb.get_network(network.id, user_id=self.user_id)
+        new_network = hb.get_network(network.id, user_id=pytest.root_user_id)
 
         assert len(new_network.nodes) == len(network.nodes)+1; "new node was not added correctly"
 
@@ -496,8 +494,8 @@ class TestNetwork:
         network.nodes = nodes
         network.links = links
 
-        network = hb.add_network(network, user_id=self.user_id)
-        network = hb.get_network(network.id, user_id=self.user_id)
+        network = hb.add_network(network, user_id=pytest.root_user_id)
+        network = hb.get_network(network.id, user_id=pytest.root_user_id)
         nodes = []
 
         for i in range (1200):
@@ -510,8 +508,8 @@ class TestNetwork:
              node1.y = 101+i
              nodes.append(node1)
 
-        new_nodes=hb.add_nodes(network.id, nodes, user_id=self.user_id)
-        new_network = hb.get_network(network.id, user_id=self.user_id)
+        new_nodes=hb.add_nodes(network.id, nodes, user_id=pytest.root_user_id)
+        new_network = hb.get_network(network.id, user_id=pytest.root_user_id)
 
         assert len(network.nodes)+len(nodes) == len(new_network.nodes); "new nodes were not added correctly_2",
 
@@ -526,9 +524,9 @@ class TestNetwork:
         node_to_update.name = "Updated Node Name"
         node_to_update.layout      = {'app': ["Unit Test1", "Unit Test2"]}
 
-        new_node = hb.update_node(node_to_update, user_id=self.user_id)
+        new_node = hb.update_node(node_to_update, user_id=pytest.root_user_id)
 
-        new_network = JSONObject(hb.get_network(network.id, user_id=self.user_id))
+        new_network = JSONObject(hb.get_network(network.id, user_id=pytest.root_user_id))
 
         updated_node = None
         for n in new_network.nodes:
@@ -543,9 +541,9 @@ class TestNetwork:
 
         node_to_delete = network.nodes[0]
 
-        hb.set_node_status(node_to_delete.id, 'X', user_id=self.user_id)
+        hb.set_node_status(node_to_delete.id, 'X', user_id=pytest.root_user_id)
 
-        new_network = hb.get_network(network.id, user_id=self.user_id)
+        new_network = hb.get_network(network.id, user_id=pytest.root_user_id)
 
         node_ids = []
         for n in new_network.nodes:
@@ -555,9 +553,9 @@ class TestNetwork:
             node_ids.append(l.node_2_id)
         assert node_to_delete.id not in node_ids
 
-        hb.set_node_status(node_to_delete.id, 'A', user_id=self.user_id)
+        hb.set_node_status(node_to_delete.id, 'A', user_id=pytest.root_user_id)
 
-        new_network = hb.get_network(network.id, user_id=self.user_id)
+        new_network = hb.get_network(network.id, user_id=pytest.root_user_id)
 
         node_ids = []
         for n in new_network.nodes:
@@ -577,9 +575,9 @@ class TestNetwork:
         link_to_update.name = "Updated link Name"
         link_to_update.layout      = {'app': ["Unit Test1", "Unit Test2"]}
 
-        new_link = hb.update_link(link_to_update, user_id=self.user_id)
+        new_link = hb.update_link(link_to_update, user_id=pytest.root_user_id)
 
-        new_network = hb.get_network(network.id, user_id=self.user_id)
+        new_network = hb.get_network(network.id, user_id=pytest.root_user_id)
 
         updated_link = None
         for l in new_network.links:
@@ -595,17 +593,17 @@ class TestNetwork:
 
         link_to_delete = network.links[0]
         
-        hb.set_link_status(link_to_delete.id, 'X', user_id=self.user_id)
+        hb.set_link_status(link_to_delete.id, 'X', user_id=pytest.root_user_id)
 
-        new_network = JSONObject(hb.get_network(network.id, user_id=self.user_id))
+        new_network = JSONObject(hb.get_network(network.id, user_id=pytest.root_user_id))
 
         link_ids = []
         for l in new_network.links:
             link_ids.append(l.id)
         assert link_to_delete.id not in link_ids
 
-        hb.set_link_status(link_to_delete.id, 'A', user_id=self.user_id)
-        new_network = hb.get_network(network.id, user_id=self.user_id)
+        hb.set_link_status(link_to_delete.id, 'A', user_id=pytest.root_user_id)
+        new_network = hb.get_network(network.id, user_id=pytest.root_user_id)
         link_ids = []
         for l in new_network.links:
             link_ids.append(l.id)
@@ -618,9 +616,9 @@ class TestNetwork:
         link_to_delete = network.links[0]
         
         #'N' is for purge_data
-        hb.delete_link(link_to_delete.id, 'N', user_id=self.user_id)
+        hb.delete_link(link_to_delete.id, 'N', user_id=pytest.root_user_id)
 
-        new_network = hb.get_network(network.id, user_id=self.user_id)
+        new_network = hb.get_network(network.id, user_id=pytest.root_user_id)
 
         link_ids = []
         for l in new_network.links:
@@ -628,7 +626,7 @@ class TestNetwork:
         assert link_to_delete.id not in link_ids
 
         with pytest.raises(hb.exceptions.HydraError):
-            hb.get_link(link_to_delete.id, user_id=self.user_id)
+            hb.get_link(link_to_delete.id, user_id=pytest.root_user_id)
 
     def test_set_network_status(self, session, projectmaker):
         project = projectmaker.create('test')
@@ -668,38 +666,38 @@ class TestNetwork:
         network.nodes = nodes
         network.links = links
 
-        network = hb.add_network(network, user_id=self.user_id)
+        network = hb.add_network(network, user_id=pytest.root_user_id)
 
-        hb.set_network_status(network.id, 'X', user_id=self.user_id)
+        hb.set_network_status(network.id, 'X', user_id=pytest.root_user_id)
 
-        assert hb.get_network(network.id, user_id=self.user_id).status == 'X', \
+        assert hb.get_network(network.id, user_id=pytest.root_user_id).status == 'X', \
             'Deleting network did not work correctly.'
 
-        hb.set_network_status(network.id, 'A', user_id=self.user_id)
+        hb.set_network_status(network.id, 'A', user_id=pytest.root_user_id)
 
-        assert hb.get_network(network.id, user_id=self.user_id).status == 'A', \
+        assert hb.get_network(network.id, user_id=pytest.root_user_id).status == 'A', \
             'Reactivating network did not work correctly.'
 
     def test_delete_network(self, session, projectmaker, network_with_data):
 
-        network = hb.get_network(network_with_data.id, user_id=self.user_id)
+        network = hb.get_network(network_with_data.id, user_id=pytest.root_user_id)
 
-        hb.delete_network(network_with_data.id, 'N', user_id=self.user_id)
+        hb.delete_network(network_with_data.id, 'N', user_id=pytest.root_user_id)
 
         with pytest.raises(hb.exceptions.HydraError):
-            hb.get_network(network.id, user_id=self.user_id)
+            hb.get_network(network.id, user_id=pytest.root_user_id)
 
     def test_get_node(self, session, network_with_data):
         network = network_with_data
         n = network.nodes[0]
         s = network.scenarios[0]
 
-        node_without_data = hb.get_node(n.id, user_id=self.user_id)
+        node_without_data = hb.get_node(n.id, user_id=pytest.root_user_id)
 
         for ra in node_without_data.attributes:
             assert not hasattr(ra, 'resourcescenario') or ra.resourcescenario is None
 
-        node_with_data = hb.get_node(n.id, s.id, user_id=self.user_id)
+        node_with_data = hb.get_node(n.id, s.id, user_id=pytest.root_user_id)
 
         attrs_with_data = []
         for ra in node_with_data.attributes:
@@ -713,12 +711,12 @@ class TestNetwork:
         l = network.links[-1]
         s = network.scenarios[0]
 
-        link_without_data = hb.get_link(l.id, user_id=self.user_id)
+        link_without_data = hb.get_link(l.id, user_id=pytest.root_user_id)
 
         for ra in link_without_data.attributes:
             assert not hasattr(ra, 'resourcescenario') or ra.resourcescenario is None
 
-        link_with_data = hb.get_link(l.id, s.id, user_id=self.user_id)
+        link_with_data = hb.get_link(l.id, s.id, user_id=pytest.root_user_id)
 
         attrs_with_data = []
         for ra in link_with_data.attributes:
@@ -738,16 +736,16 @@ class TestNetwork:
             if l.node_2_id == node_to_delete.id:
                 link_ids.append(l.id)
 
-        hb.set_node_status(node_to_delete.id, 'X', user_id=self.user_id)
+        hb.set_node_status(node_to_delete.id, 'X', user_id=pytest.root_user_id)
 
-        hb.clean_up_network(network.id, user_id=self.user_id)
+        hb.clean_up_network(network.id, user_id=pytest.root_user_id)
 
         with pytest.raises(hb.exceptions.HydraError):
-            hb.get_node(node_to_delete.id, user_id=self.user_id)
+            hb.get_node(node_to_delete.id, user_id=pytest.root_user_id)
 
         for l in link_ids:
             with pytest.raises(hb.exceptions.HydraError):
-                hb.get_link(l, user_id=self.user_id)
+                hb.get_link(l, user_id=pytest.root_user_id)
 
     def test_validate_topology(self, session, projectmaker):
         project = projectmaker.create('test')
@@ -787,9 +785,9 @@ class TestNetwork:
         network.nodes = nodes
         network.links = links
 
-        network = hb.add_network(network, user_id=self.user_id)
+        network = hb.add_network(network, user_id=pytest.root_user_id)
 
-        result = hb.validate_network_topology(network.id, user_id=self.user_id)
+        result = hb.validate_network_topology(network.id, user_id=pytest.root_user_id)
         assert len(result) == 1#This means orphan nodes are present
 
     def test_consistency_of_update(self, session, network_with_data):
@@ -806,11 +804,11 @@ class TestNetwork:
         for node in net.nodes:
             assert node.types is not None and  len(node.types) > 0
 
-        original_net = hb.get_network(net.id, user_id=self.user_id)
+        original_net = hb.get_network(net.id, user_id=pytest.root_user_id)
 
-        updated_net_summary = hb.update_network(net, user_id=self.user_id)
+        updated_net_summary = hb.update_network(net, user_id=pytest.root_user_id)
 
-        updated_net = hb.get_network(updated_net_summary.id, user_id=self.user_id)
+        updated_net = hb.get_network(updated_net_summary.id, user_id=pytest.root_user_id)
 
         for node in updated_net.nodes:
             assert node.types is not None and  len(node.types) > 0
@@ -856,36 +854,36 @@ class TestNetwork:
                 group_ras.append(ra.id)
 
 
-        new_node_ras = hb.get_all_node_data(net.id, s.id, user_id=self.user_id)
+        new_node_ras = hb.get_all_node_data(net.id, s.id, user_id=pytest.root_user_id)
         for ra in new_node_ras:
             assert ra.resourcescenario is not None
             assert ra.id in node_ras
 
 
         node_id_filter = [net.nodes[0].id, net.nodes[1].id]
-        new_node_ras = hb.get_all_node_data(net.id, s.id, node_id_filter, user_id=self.user_id)
+        new_node_ras = hb.get_all_node_data(net.id, s.id, node_id_filter, user_id=pytest.root_user_id)
         for ra in new_node_ras:
             assert ra.resourcescenario is not None
             assert ra.id in node_ras
 
-        new_link_ras = hb.get_all_link_data(net.id, s.id, user_id=self.user_id)
+        new_link_ras = hb.get_all_link_data(net.id, s.id, user_id=pytest.root_user_id)
         for ra in new_link_ras:
             assert ra.resourcescenario is not None
             assert ra.id in link_ras
 
         link_id_filter = [net.links[0].id, net.links[1].id]
-        new_link_ras = hb.get_all_link_data(net.id, s.id, link_id_filter, user_id=self.user_id)
+        new_link_ras = hb.get_all_link_data(net.id, s.id, link_id_filter, user_id=pytest.root_user_id)
         for ra in new_link_ras:
             assert ra.resourcescenario is not None
             assert ra.id in link_ras
 
-        new_group_ras = hb.get_all_group_data(net.id, s.id, user_id=self.user_id)
+        new_group_ras = hb.get_all_group_data(net.id, s.id, user_id=pytest.root_user_id)
         for ra in new_group_ras:
             assert ra.resourcescenario is not None
             assert ra.id in group_ras
 
         group_id_filter = [net.resourcegroups[0].id]
-        new_group_ras = hb.get_all_group_data(net.id, s.id, group_id_filter, user_id=self.user_id)
+        new_group_ras = hb.get_all_group_data(net.id, s.id, group_id_filter, user_id=pytest.root_user_id)
         for ra in new_group_ras:
             assert ra.resourcescenario is not None
             assert ra.id in group_ras
@@ -908,12 +906,12 @@ class TestNetwork:
                 all_ras.append(ra.id)
 
 
-        all_resource_data = hb.get_all_resource_data(s.id, include_values='Y', user_id=self.user_id)
+        all_resource_data = hb.get_all_resource_data(s.id, include_values='Y', user_id=pytest.root_user_id)
         log.info(all_resource_data[0])
         for rd in all_resource_data:
             assert int(rd.resource_attr_id) in all_ras
 
-        truncated_resource_data = hb.get_all_resource_data(s.id, include_values='Y', include_metadata='Y', page_start=0, page_end=1, user_id=self.user_id)
+        truncated_resource_data = hb.get_all_resource_data(s.id, include_values='Y', include_metadata='Y', page_start=0, page_end=1, user_id=pytest.root_user_id)
         assert len(truncated_resource_data) == 1
 
 
@@ -922,15 +920,15 @@ class TestNetwork:
     def test_delete_node(self, session, network_with_data):
         net = network_with_data
         scenario_id = net.scenarios[0].id
-        hb.clone_scenario(scenario_id, user_id=self.user_id)
+        hb.clone_scenario(scenario_id, user_id=pytest.root_user_id)
 
         node_id_to_delete = net.nodes[0].id
 
         node_datasets = hb.get_resource_data('NODE', node_id_to_delete, scenario_id)
         log.info("Deleting node %s", node_id_to_delete)
-        hb.delete_node(node_id_to_delete, 'Y', user_id=self.user_id)
+        hb.delete_node(node_id_to_delete, 'Y', user_id=pytest.root_user_id)
 
-        updated_net = hb.get_network(net.id, 'Y', user_id=self.user_id)
+        updated_net = hb.get_network(net.id, 'Y', user_id=pytest.root_user_id)
 
         remaining_node_ids = [n.id for n in updated_net.nodes]
 
@@ -947,18 +945,18 @@ class TestNetwork:
             d = rs.value
             if d.type == 'timeseries':
                 with pytest.raises(hb.exceptions.HydraError):
-                    hb.get_dataset(d.id, user_id=self.user_id)
+                    hb.get_dataset(d.id, user_id=pytest.root_user_id)
 
     def test_delete_link(self, session, network_with_data):
         net = network_with_data
         scenario_id = net.scenarios[0].id
         link_id_to_delete = net.links[0].id
 
-        link_datasets = hb.get_resource_data('LINK', link_id_to_delete, scenario_id, user_id=self.user_id)
+        link_datasets = hb.get_resource_data('LINK', link_id_to_delete, scenario_id, user_id=pytest.root_user_id)
         log.info("Deleting link %s", link_id_to_delete)
-        hb.delete_link(link_id_to_delete, 'N', user_id=self.user_id)
+        hb.delete_link(link_id_to_delete, 'N', user_id=pytest.root_user_id)
 
-        updated_net = hb.get_network(net.id, 'Y', user_id=self.user_id)
+        updated_net = hb.get_network(net.id, 'Y', user_id=pytest.root_user_id)
 
         remaining_link_ids = [n.id for n in updated_net.links]
 
@@ -971,7 +969,7 @@ class TestNetwork:
             d = rs.value
             if d.type == 'timeseries':
                 with pytest.raises(hb.exceptions.HydraError):
-                    hb.get_dataset(d.id, user_id=self.user_id)
+                    hb.get_dataset(d.id, user_id=pytest.root_user_id)
 
 if __name__ == '__main__':
     server.run()

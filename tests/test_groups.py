@@ -30,9 +30,6 @@ class TestGroup:
     """
         Test for network-based functionality
     """
-    # Todo make this a fixture?
-    user_id = util.user_id
-
     def test_get_resourcegroup(self, session, network_with_data):
         network = network_with_data
         group = network.resourcegroups[0]
@@ -43,7 +40,7 @@ class TestGroup:
         for ra in resourcegroup_without_data.attributes:
             assert not hasattr(ra, 'resourcescenario') or ra.resourcescenario is None
 
-        resourcegroup_with_data = hb.get_resourcegroup(group.id, s.id, user_id=self.user_id)
+        resourcegroup_with_data = hb.get_resourcegroup(group.id, s.id, user_id=pytest.root_user_id)
 
         attrs_with_data = []
         for ra in resourcegroup_with_data.attributes:
@@ -52,7 +49,7 @@ class TestGroup:
                     attrs_with_data.append(ra.id)
         assert len(attrs_with_data) > 0
 
-        group_items = hb.get_resourcegroupitems(group.id, s.id, user_id=self.user_id)
+        group_items = hb.get_resourcegroupitems(group.id, s.id, user_id=pytest.root_user_id)
         assert len(group_items) > 0
 
     def test_add_resourcegroup(self, session, network_with_data):
@@ -66,7 +63,7 @@ class TestGroup:
         group.description = 'test new group'
 
         template_id = network.types[0].template_id
-        template = JSONObject(hb.get_template(template_id, user_id=self.user_id))
+        template = JSONObject(hb.get_template(template_id, user_id=pytest.root_user_id))
 
         type_summary_arr = []
 
@@ -80,7 +77,7 @@ class TestGroup:
 
         group.types = type_summary_arr
 
-        new_group = hb.add_group(network.id, group, user_id=self.user_id)
+        new_group = hb.add_group(network.id, group, user_id=pytest.root_user_id)
 
         group_attr_ids = []
         for resource_attr in new_group.attributes:
@@ -89,7 +86,7 @@ class TestGroup:
         for typeattr in template.templatetypes[2].typeattrs:
             assert typeattr.attr_id in group_attr_ids
 
-        new_network = hb.get_network(network.id, user_id=self.user_id)
+        new_network = hb.get_network(network.id, user_id=pytest.root_user_id)
 
         assert len(new_network.resourcegroups) == len(network.resourcegroups)+1; "new resource group was not added correctly"
 
@@ -107,7 +104,7 @@ class TestGroup:
         item.ref_id  = node_id
         item.group_id = group.id
 
-        new_item = hb.add_resourcegroupitem(item, scenario.id, user_id=self.user_id)
+        new_item = hb.add_resourcegroupitem(item, scenario.id, user_id=pytest.root_user_id)
 
         assert new_item.node_id == node_id
 
@@ -117,9 +114,9 @@ class TestGroup:
 
         group_to_delete = net.resourcegroups[0]
 
-        hb.set_group_status(group_to_delete.id, 'X', user_id=self.user_id)
+        hb.set_group_status(group_to_delete.id, 'X', user_id=pytest.root_user_id)
 
-        updated_net = hb.get_network(net.id, user_id=self.user_id)
+        updated_net = hb.get_network(net.id, user_id=pytest.root_user_id)
 
         group_ids = []
         for g in updated_net.resourcegroups:
@@ -127,9 +124,9 @@ class TestGroup:
 
         assert group_to_delete.id not in group_ids
 
-        hb.set_group_status(group_to_delete.id, 'A', user_id=self.user_id)
+        hb.set_group_status(group_to_delete.id, 'A', user_id=pytest.root_user_id)
 
-        updated_net = hb.get_network(net.id, user_id=self.user_id)
+        updated_net = hb.get_network(net.id, user_id=pytest.root_user_id)
 
         group_ids = []
         for g in updated_net.resourcegroups:
@@ -147,9 +144,9 @@ class TestGroup:
         group_datasets = hb.get_resource_data('GROUP', group_id_to_delete, scenario_id)
         log.info("Deleting group %s", group_id_to_delete)
 
-        hb.delete_resourcegroup(group_id_to_delete, user_id=self.user_id)
+        hb.delete_resourcegroup(group_id_to_delete, user_id=pytest.root_user_id)
 
-        updated_net = JSONObject(hb.get_network(net.id, 'Y', user_id=self.user_id))
+        updated_net = JSONObject(hb.get_network(net.id, 'Y', user_id=pytest.root_user_id))
         assert len(updated_net.resourcegroups) == 1
         assert updated_net.resourcegroups[0].id == group_id_to_keep
 

@@ -87,9 +87,6 @@ class TestTimeSeries:
     """
         Test for timeseries-based functionality
     """
-    # Todo make this a fixture?
-    user_id = util.user_id
-
     #@pytest.mark.xfail(reason='Relative timesteps are being converted to timestamps. ')
     def test_relative_timeseries(self, session, network, relative_timeseries):
         """
@@ -102,8 +99,8 @@ class TestTimeSeries:
             if rs['dataset']['type'] == 'timeseries':
                 rs['dataset']['value'] = relative_timeseries
 
-        new_network_summary = hb.add_network(network, user_id=self.user_id)
-        new_net = hb.get_network(new_network_summary.id, user_id=self.user_id, include_data='Y')
+        new_network_summary = hb.add_network(network, user_id=pytest.root_user_id)
+        new_net = hb.get_network(new_network_summary.id, user_id=pytest.root_user_id, include_data='Y')
 
         new_s = new_net['scenarios'][0]
         new_rss = new_s['resourcescenarios']
@@ -126,8 +123,8 @@ class TestTimeSeries:
             if rs['dataset']['type'] == 'timeseries':
                 rs['dataset']['value'] = arbitrary_timeseries
 
-        new_network_summary = hb.add_network(network, user_id=self.user_id)
-        new_net = hb.get_network(new_network_summary.id, user_id=self.user_id)
+        new_network_summary = hb.add_network(network, user_id=pytest.root_user_id)
+        new_net = hb.get_network(new_network_summary.id, user_id=pytest.root_user_id)
 
         new_s = new_net.scenarios[0]
         new_rss = new_s.resourcescenarios
@@ -148,8 +145,8 @@ class TestTimeSeries:
             if rs['dataset']['type'] == 'timeseries':
                 rs['dataset']['value'] = relative_timeseries
 
-        new_network_summary = hb.add_network(network, user_id=self.user_id)
-        new_net = hb.get_network(new_network_summary.id, user_id=self.user_id, include_data='Y')
+        new_network_summary = hb.add_network(network, user_id=pytest.root_user_id)
+        new_net = hb.get_network(new_network_summary.id, user_id=pytest.root_user_id, include_data='Y')
         scenario = new_net.scenarios[0]
         val_to_query = None
         for d in scenario.resourcescenarios:
@@ -184,8 +181,8 @@ class TestTimeSeries:
             if rs['dataset']['type'] == 'timeseries':
                 rs['dataset']['value'] = seasonal_timeseries
 
-        new_network_summary = hb.add_network(network, user_id=self.user_id)
-        new_net = hb.get_network(new_network_summary.id, user_id=self.user_id, include_data='Y')
+        new_network_summary = hb.add_network(network, user_id=pytest.root_user_id)
+        new_net = hb.get_network(new_network_summary.id, user_id=pytest.root_user_id, include_data='Y')
 
         scenario = new_net.scenarios[0]
         val_to_query = None
@@ -242,8 +239,8 @@ class TestTimeSeries:
             if rs['dataset']['type'] == 'timeseries':
                 rs['dataset']['value'] = seasonal_timeseries
 
-        hb.update_network(network_with_data, user_id=self.user_id)
-        new_net = hb.get_network(network_with_data.id, user_id=self.user_id, include_data='Y')
+        hb.update_network(network_with_data, user_id=pytest.root_user_id)
+        new_net = hb.get_network(network_with_data.id, user_id=pytest.root_user_id, include_data='Y')
 
         scenario = new_net.scenarios[0]
         val_to_query = None
@@ -606,7 +603,7 @@ class TestDataCollection:
         for s in network.scenarios:
             for rs in s.resourcescenarios:
                 if rs.dataset_id == dataset_id:
-                    hb.delete_resourcedata(scenario_id, rs, user_id=self.user_id)
+                    hb.delete_resourcedata(scenario_id, rs, user_id=pytest.root_user_id)
 
         new_collection = hb.get_dataset_collection(newly_added_collection.id)
 
