@@ -438,11 +438,11 @@ def convert_dataset(dataset_id, to_unit,**kwargs):
             raise HydraError('Cannot convert descriptor.')
 
         new_dataset = Dataset()
-        new_dataset.unit = to_unit
-        new_dataset.set_val(dataset_type, new_val)
-        new_dataset.name  = ds_i.name
-        new_dataset.type  = ds_i.type
-        new_dataset.hidden     = 'N'
+        new_dataset.type   = ds_i.type
+        new_dataset.value  = new_val
+        new_dataset.name   = ds_i.name
+        new_dataset.unit   = to_unit
+        new_dataset.hidden = 'N'
         new_dataset.set_metadata(ds_i.get_metadata_as_dict())
         new_dataset.set_hash()
 

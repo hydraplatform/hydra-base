@@ -25,6 +25,10 @@ class DataType(object):
     def tag(self):
         pass
 
+    @abstractproperty
+    def value(self):
+        pass
+
     @abstractmethod
     def validate(self):
         pass
@@ -38,6 +42,7 @@ class DataType(object):
         pass
 
 
+
 class Scalar(DataType):
     tag      = "SCALAR"
     ctor_fmt = ("value",)
@@ -49,10 +54,6 @@ class Scalar(DataType):
         self.validate()
 
     @classmethod
-    def fromJSON(cls, encstr):
-        pass
-
-    @classmethod
     def fromDataset(cls, value, metadata=None):
         return cls(value)
 
@@ -61,6 +62,14 @@ class Scalar(DataType):
             float(self.value)
         except ValueError as e:
             raise HydraTypeError(self)
+
+    def get_value(self):
+        return str(self._value)
+
+    def set_value(self, val):
+        self._value = val
+
+    value = property(get_value, set_value)
 
 
 class Array(DataType):
@@ -72,13 +81,22 @@ class Array(DataType):
         self.value = encstr
         self.validate()
 
-    def validate(self):
-        j = json.loads(self.value)
-        assert len(j) > 1
-
     @classmethod
     def fromDataset(cls, value, metadata=None):
         return cls(value)
+
+    def validate(self):
+        j = json.loads(self.value)
+        assert len(j) > 0
+
+    def get_value(self):
+        return self._value
+
+    def set_value(self, val):
+        self._value = val
+
+    value = property(get_value, set_value)
+
 
 
 class Descriptor(DataType):
@@ -89,9 +107,6 @@ class Descriptor(DataType):
     def __init__(self, data):
         self.value = data
         self.validate()
-
-    def validate(self):
-        pass
 
     @classmethod
     def fromDataset(cls, value, metadata=None):
@@ -108,6 +123,18 @@ class Descriptor(DataType):
             return cls(unicode(value))
 
 
+    def validate(self):
+        pass
+
+    def get_value(self):
+        return self._value
+
+    def set_value(self, val):
+        self._value = val
+
+    value = property(get_value, set_value)
+
+
 class Dataframe(DataType):
     tag      = "DATAFRAME"
     skeleton = "%s"
@@ -117,13 +144,21 @@ class Dataframe(DataType):
         self.value = data
         self.validate()
 
-    def validate(self):
-        pass
-
     @classmethod
     def fromDataset(cls, value, metadata=None):
         ts = pd.read_json(unicode(value), convert_axes=False)
         return cls(ts)
+
+    def validate(self):
+        assert self.value
+
+    def get_value(self):
+        return self._value.to_json()
+
+    def set_value(self, val):
+        self._value = val
+
+    value = property(get_value, set_value)
 
 
 class Timeseries(DataType):
@@ -135,6 +170,15 @@ class Timeseries(DataType):
     def __init__(self, ts):
         self.value = ts.to_json(date_format='iso', date_unit='ns')
         self.validate()
+
+    @classmethod
+    def fromDataset(cls, value, metadata=None):
+        print("[value] {0} ({1})".format(value, type(value)))
+        ordered_jo = json.loads(unicode(value), object_pairs_hook=collections.OrderedDict)
+        print("[ordered_jo[ {0} ({1})".format(ordered_jo, type(ordered_jo)))
+        ts = pd.DataFrame.from_dict(ordered_jo, orient="index")
+        return cls(ts)
+
 
     def validate(self):
         print("[self.value] {0} ({1})".format(self.value, type(self.value)))
@@ -150,11 +194,10 @@ class Timeseries(DataType):
                 assert isinstance(ts, base_ts.__class__)
 
 
-    @classmethod
-    def fromDataset(cls, value, metadata=None):
-        print("[value] {0} ({1})".format(value, type(value)))
-        ordered_jo = json.loads(unicode(value), object_pairs_hook=collections.OrderedDict)
-        print("[ordered_jo[ {0} ({1})".format(ordered_jo, type(ordered_jo)))
-        ts = pd.DataFrame.from_dict(ordered_jo, orient="index")
-        return cls(ts)
+    def get_value(self):
+        return self._value
 
+    def set_value(self, val):
+        self._value = val
+
+    value = property(get_value, set_value)

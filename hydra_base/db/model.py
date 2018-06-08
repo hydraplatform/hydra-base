@@ -143,45 +143,6 @@ class Dataset(Base, Inspect):
         val = get_val(self, timestamp)
         return val
 
-    def set_val(self, data_type, val):
-        if data_type in ('descriptor','scalar'):
-            self.value = str(val)
-        elif data_type == 'array':
-            if not isinstance(val, str) and not isinstance(val, unicode):
-                val = json.dumps(val)
-
-            if len(val) > config.get('DATA', 'compression_threshold', 1000):
-                self.value = zlib.compress(val)
-            else:
-                self.value = val
-        elif data_type == 'timeseries':
-            if type(val) == list:
-                test_val_keys = []
-                test_vals = []
-                for time, value in val:
-                    try:
-                        v = eval(value)
-                    except:
-                        v = value
-                    try:
-                        test_val_keys.append(get_datetime(time))
-                    except:
-                        test_val_keys.append(time)
-                    test_vals.append(v)
-
-                timeseries_pd = pd.DataFrame(test_vals, index=pd.Series(test_val_keys))
-                #Epoch doesn't work here because dates before 1970 are not supported
-                #in read_json. Ridiculous.
-                json_value =  timeseries_pd.to_json(date_format='iso', date_unit='ns')
-                if len(json_value) > config.get('DATA', 'compression_threshold', 1000):
-                    self.value = zlib.compress(json_value)
-                else:
-                    self.value = json_value
-            else:
-                self.value = val
-        else:
-            raise HydraError("Invalid data type %s"%(data_type,))
-
     def set_hash(self,metadata=None):
 
 
