@@ -401,8 +401,6 @@ def network_with_dataset_collection(network_with_data, collection_json_object):
 
 
 class TestDataCollection:
-    # Todo make this a fixture?
-    user_id = util.user_id
 
     def test_get_collections_like_name(self, session, network_with_dataset_collection):
         collections = hb.get_collections_like_name('test')

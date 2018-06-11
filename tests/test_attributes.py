@@ -226,7 +226,6 @@ class TestAttribute:
 
 class TestAttributeMap:
 
-    user_id = util.user_id
     def test_set_attribute_mapping(self, session, networkmaker):
         net1 = networkmaker.create()
         net2 = networkmaker.create()
@@ -300,8 +299,6 @@ class TestAttributeGroups:
     """
         Test for attribute-based functionality
     """
-
-    user_id = util.user_id
 
     def test_add_attribute_group(self, session, projectmaker, attribute):
         project = projectmaker.create()

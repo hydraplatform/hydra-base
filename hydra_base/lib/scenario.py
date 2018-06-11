@@ -249,6 +249,9 @@ def update_scenario(scenario,update_data=True,update_groups=True,flush=True,**kw
     if scenario.resourcegroupitems == None:
         scenario.resourcegroupitems = []
 
+    #lazy load resourcescenarios from the DB
+    scen.resourcescenarios
+
     if update_data is True:
         datasets = [rs.dataset for rs in scenario.resourcescenarios]
         updated_datasets = data._bulk_insert_data(datasets, user_id, kwargs.get('app_name'))
@@ -256,6 +259,9 @@ def update_scenario(scenario,update_data=True,update_groups=True,flush=True,**kw
         for i, r_scen in enumerate(scenario.resourcescenarios):
             _update_resourcescenario(scen, r_scen, dataset=updated_datasets[i], user_id=user_id, source=kwargs.get('app_name'))
 
+    #lazy load resource grou items from the DB
+    scen.resourcegroupitems
+    
     if update_groups is True:
         #Get all the exiting resource group items for this scenario.
         #THen process all the items sent to this handler.
