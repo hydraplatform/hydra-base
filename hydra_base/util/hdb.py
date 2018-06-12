@@ -104,10 +104,13 @@ def make_root_user():
         userrole = RoleUser(role_id=role.id,user_id=user.id)
         user.roleusers.append(userrole)
         db.DBSession.add(userrole)
+
+    user_id = user.id
+
     db.DBSession.flush()
     transaction.commit()
 
-    return user.id
+    return user_id
 
 
 def login_user(username, password):

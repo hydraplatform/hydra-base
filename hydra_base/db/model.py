@@ -23,7 +23,6 @@ text,\
 Integer,\
 String,\
 LargeBinary,\
-Text,\
 TIMESTAMP,\
 BIGINT,\
 Float,\
@@ -332,7 +331,7 @@ class Metadata(Base, Inspect):
 
     dataset_id = Column(Integer(), ForeignKey('tDataset.id',  ondelete='CASCADE'), primary_key=True, nullable=False, index=True)
     key       = Column(String(60), primary_key=True, nullable=False)
-    value     = Column(Text(1000).with_variant(mysql.TEXT(1000), 'mysql'),  nullable=False)
+    value     = Column(String(1000),  nullable=False)
 
     dataset = relationship('Dataset', backref=backref("metadata", order_by=dataset_id, cascade="all, delete-orphan"))
 
@@ -386,8 +385,8 @@ class AttrGroup(Base, Inspect):
 
     id               = Column(Integer(), primary_key=True, nullable=False, index=True)
     name             = Column(String(200), nullable=False)
-    description      = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
-    layout           = Column(Text().with_variant(mysql.TEXT(5000), 'mysql'))
+    description      = Column(String(1000))
+    layout           = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
     exclusive        = Column(String(1),  nullable=False, server_default=text(u"'N'"))
     project_id       = Column(Integer(), ForeignKey('tProject.id'), primary_key=False, nullable=False)
     cr_date          = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
@@ -444,7 +443,7 @@ class Template(Base, Inspect):
     id = Column(Integer(), primary_key=True, nullable=False)
     name = Column(String(60),  nullable=False, unique=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    layout = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
+    layout  = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
 
     _parents  = []
     _children = ['tTemplateType']
@@ -463,7 +462,7 @@ class TemplateType(Base, Inspect):
     template_id = Column(Integer(), ForeignKey('tTemplate.id'), nullable=False)
     resource_type = Column(String(60))
     alias = Column(String(100))
-    layout = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
+    layout  = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     template = relationship('Template', backref=backref("templatetypes", order_by=id, cascade="all, delete-orphan"))
@@ -483,10 +482,10 @@ class TypeAttr(Base, Inspect):
     default_dataset_id = Column(Integer(), ForeignKey('tDataset.id'))
     attr_is_var        = Column(String(1), server_default=text(u"'N'"))
     data_type          = Column(String(60))
-    data_restriction   = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
+    data_restriction   = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
     unit               = Column(String(60))
-    description        = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
-    properties         = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
+    description        = Column(String(1000))
+    properties         = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     attr = relationship('Attr')
@@ -788,11 +787,11 @@ class Network(Base, Inspect):
     id = Column(Integer(), primary_key=True, nullable=False)
     name = Column(String(200),  nullable=False)
     description = Column(String(1000))
-    layout = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
+    layout  = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
     project_id = Column(Integer(), ForeignKey('tProject.id'),  nullable=False)
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    projection = Column(String(1000))
+    projection = Column(String(200))
     created_by = Column(Integer(), ForeignKey('tUser.id'), nullable=False)
 
     project = relationship('Project', backref=backref("networks", order_by="asc(Network.cr_date)", cascade="all, delete-orphan"))
@@ -981,7 +980,7 @@ class Link(Base, Inspect):
     node_2_id = Column(Integer(), ForeignKey('tNode.id'), nullable=False)
     name = Column(String(60))
     description = Column(String(1000))
-    layout = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
+    layout  = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     network = relationship('Network', backref=backref("links", order_by=network_id, cascade="all, delete-orphan"), lazy='joined')
@@ -1055,7 +1054,7 @@ class Node(Base, Inspect):
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     x = Column(Float(precision=10, asdecimal=True))
     y = Column(Float(precision=10, asdecimal=True))
-    layout = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
+    layout  = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     network = relationship('Network', backref=backref("nodes", order_by=network_id, cascade="all, delete-orphan"), lazy='joined')
@@ -1292,7 +1291,7 @@ class Scenario(Base, Inspect):
     id = Column(Integer(), primary_key=True, index=True, nullable=False)
     name = Column(String(200),  nullable=False)
     description = Column(String(1000))
-    layout = Column(Text().with_variant(mysql.TEXT(1000), 'mysql'))
+    layout  = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     network_id = Column(Integer(), ForeignKey('tNetwork.id'), index=True)
     start_time = Column(String(60))
