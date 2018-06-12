@@ -151,7 +151,6 @@ class TestProject:
 
     def test_delete(self, session, network_with_data):
         net = network_with_data
-        print session.dirty
         project_id = net.project_id
         log.info("Purging project %s", project_id)
         res = hb.delete_project(project_id, user_id=pytest.root_user_id)
