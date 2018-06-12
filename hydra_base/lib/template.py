@@ -1949,7 +1949,7 @@ def get_network_as_xml_template(network_id,**kwargs):
     for node_i in net_i.nodes:
         node_attributes = node_i.attributes
         attr_ids = [res_attr.attr_id for res_attr in node_attributes]
-        if attr_ids>0 and attr_ids not in existing_types['NODE']:
+        if len(attr_ids) > 0 and attr_ids not in existing_types['NODE']:
 
             node_resource    = etree.Element("resource")
 
@@ -1973,7 +1973,7 @@ def get_network_as_xml_template(network_id,**kwargs):
     for link_i in net_i.links:
         link_attributes = link_i.attributes
         attr_ids = [link_attr.attr_id for link_attr in link_attributes]
-        if attr_ids>0 and attr_ids not in existing_types['LINK']:
+        if len(attr_ids) > 0 and attr_ids not in existing_types['LINK']:
             link_resource    = etree.Element("resource")
 
             resource_type   = etree.SubElement(link_resource, "type")
@@ -1996,7 +1996,7 @@ def get_network_as_xml_template(network_id,**kwargs):
     for group_i in net_i.resourcegroups:
         group_attributes = group_i.attributes
         attr_ids = [group_attr.attr_id for group_attr in group_attributes]
-        if attr_ids>0 and attr_ids not in existing_types['GROUP']:
+        if len(attr_ids) > 0 and attr_ids not in existing_types['GROUP']:
             group_resource    = etree.Element("resource")
 
             resource_type   = etree.SubElement(group_resource, "type")
