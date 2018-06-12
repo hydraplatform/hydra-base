@@ -47,6 +47,14 @@ from collections import namedtuple
 import logging
 log = logging.getLogger(__name__)
 
+# Python 2 and 3 compatible string checking
+# TODO remove this when Python2 support is dropped.
+try:
+    unicode
+except NameError:
+    unicode = str
+
+
 def _update_attributes(resource_i, attributes):
     if attributes is None:
         return dict()
@@ -485,7 +493,7 @@ def add_network(network,**kwargs):
     grp_id_map, grp_attrs, grp_datasets = _add_resource_groups(net_i, network.resourcegroups)
     all_resource_attrs.update(grp_attrs)
 
-    defaults = grp_datasets.values() + link_datasets.values() + node_datasets.values()
+    defaults = list(grp_datasets.values()) + list(link_datasets.values()) + list(node_datasets.values())
 
     start_time = datetime.datetime.now()
 

@@ -108,7 +108,7 @@ class TestTimeSeries:
         assert len(new_rss) > 0
         for new_rs in new_rss:
             if new_rs.value.type == 'timeseries':
-                ret_ts_dict = json.loads(new_rs.value.value).values()[0]
+                ret_ts_dict = list(json.loads(new_rs.value.value).values())[0]
                 client_ts   = json.loads(relative_timeseries)['0']
                 for new_timestep in client_ts.keys():
                     # TODO this bit appears broken. Somewhere in hydra the timesteps
@@ -131,7 +131,7 @@ class TestTimeSeries:
         for new_rs in new_rss:
             if new_rs.value.type == 'timeseries':
                 ret_ts_dict = {}
-                ret_ts_dict = json.loads(new_rs.value.value).values()[0]
+                ret_ts_dict = list(json.loads(new_rs.value.value).values())[0]
                 client_ts   = json.loads(arbitrary_timeseries)['0']
                 for new_timestep in client_ts.keys():
                     assert ret_ts_dict[new_timestep] == client_ts[new_timestep]
@@ -191,7 +191,7 @@ class TestTimeSeries:
                 val_to_query = d.value
                 break
 
-        val_a = json.loads(val_to_query.value).values()[0]
+        val_a = list(json.loads(val_to_query.value).values())[0]
 
         jan_val = hb.get_val_at_time(
             val_to_query.id,
@@ -210,7 +210,7 @@ class TestTimeSeries:
             [datetime.datetime(2000, 10, 10, 00, 00, 00), ]
            )
 
-        local_val = json.loads(val_to_query.value).values()[0]
+        local_val = list(json.loads(val_to_query.value).values())[0]
         assert json.loads(jan_val.data) == local_val['9999-01-01']
         assert json.loads(feb_val.data) == local_val['9999-02-01']
         assert json.loads(mar_val.data) == local_val['9999-03-01']
@@ -299,8 +299,7 @@ class TestTimeSeries:
                 val_to_query = d.value
                 break
 
-        val_a = json.loads(val_to_query.value)['index'].values()[0]
-        val_b = json.loads(val_to_query.value)['index'].values()[1]
+        val_a, val_b = list(json.loads(val_to_query.value)['index'].values())[:2]
 
         now = datetime.datetime.now()
 

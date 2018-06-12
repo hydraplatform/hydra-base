@@ -40,6 +40,7 @@ def _get_attr(attr_id):
     attr = db.DBSession.query(Attr).filter(Attr.id==attr_id).one()
     return JSONObject(attr)
 
+
 def _check_dimension(typeattr, unit=None):
     """
         Check that the unit and dimension on a type attribute match.
@@ -54,7 +55,6 @@ def _check_dimension(typeattr, unit=None):
 
     if unit is not None and dimension is not None:
         unit_dimen = units.get_unit_dimension(unit)
-
         if unit_dimen.lower() != dimension.lower():
             raise HydraError("Unit %s has dimension %s, but attribute has dimension %s"%
                             (unit, unit_dimen, dimension))
@@ -412,7 +412,7 @@ def get_template_as_xml(template_id,**kwargs):
 
         resources.append(xml_resource)
 
-    xml_string = etree.tostring(template_xml)
+    xml_string = etree.tostring(template_xml, encoding="unicode")
 
     return xml_string
 
@@ -1677,7 +1677,7 @@ def validate_attr(resource_attr_id, scenario_id, template_id=None):
                  dataset_id       = rs.dataset_id,
                  scenario_id=scenario_id,
                  template_id=template_id,
-                 error_text=e.message))
+                 error_text=e.args[0]))
     return error
 
 def validate_attrs(resource_attr_ids, scenario_id, template_id=None):
@@ -1707,7 +1707,8 @@ def validate_attrs(resource_attr_ids, scenario_id, template_id=None):
                      dataset_id       = rs.dataset_id,
                      scenario_id      = scenario_id,
                      template_id      = template_id,
-                     error_text       = e.message)
+                     error_text       = e.args[0])
+
             errors.append(error)
 
     return errors
@@ -1739,7 +1740,7 @@ def validate_scenario(scenario_id, template_id=None):
                      dataset_id       = rs.dataset_id,
                      scenario_id=scenario_id,
                      template_id=template_id,
-                     error_text=e.message)
+                     error_text=e.args[0])
             errors.append(error)
 
     return errors
@@ -2015,7 +2016,7 @@ def get_network_as_xml_template(network_id,**kwargs):
             existing_types['GROUP'].append(attr_ids)
             resources.append(group_resource)
 
-    xml_string = etree.tostring(template_xml)
+    xml_string = etree.tostring(template_xml, encoding="unicode")
 
     return xml_string
 
@@ -2073,7 +2074,7 @@ def get_etree_layout_as_dict(layout_tree):
         value = val_element.text.strip()
         if value == '':
             children = val_element.getchildren()
-            value = etree.tostring(children[0], pretty_print=True)
+            value = etree.tostring(children[0], pretty_print=True, encoding="unicode")
         layout_dict[name] = value
     return layout_dict
 

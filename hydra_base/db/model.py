@@ -54,6 +54,14 @@ import logging
 import bcrypt
 log = logging.getLogger(__name__)
 
+# Python 2 and 3 compatible string checking
+# TODO remove this when Python2 support is dropped.
+try:
+    basestring
+except NameError:
+    basestring = str
+
+
 def get_timestamp(ordinal):
     """
         Turn an ordinal timestamp into a datetime string.
@@ -145,7 +153,7 @@ class Dataset(Base, Inspect):
         if data_type in ('descriptor','scalar'):
             self.value = str(val)
         elif data_type == 'array':
-            if not isinstance(val, str) and not isinstance(val, unicode):
+            if not isinstance(val, basestring):
                 val = json.dumps(val)
 
             #TODO: Design a mechanism to store this data in a scaleable way.

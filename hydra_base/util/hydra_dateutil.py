@@ -60,7 +60,7 @@ def get_datetime(timestamp):
     try:
         float(timestamp)
         timestamp_is_float = True
-    except (ValueError, TypeError), e:
+    except (ValueError, TypeError):
         pass
 
     if timestamp_is_float == True:

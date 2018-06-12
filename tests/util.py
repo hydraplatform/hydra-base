@@ -667,9 +667,10 @@ def check_network(request_net, response_net):
 
     s = request_net['scenarios'][0]
     for rs0 in s['resourcescenarios']:
+
         if rs0.dataset.type == 'timeseries':
             val = json.loads(rs0.dataset.value)
-            before_ts_times = val.values()[0].keys()
+            before_ts_times = list(val.values())[0].keys()
             before_times = []
             for t in before_ts_times:
                 try:
@@ -682,7 +683,7 @@ def check_network(request_net, response_net):
     for rs0 in s.resourcescenarios:
         if rs0.dataset.type == 'timeseries':
             val = json.loads(rs0.dataset.value)
-            after_ts_times = val.values()[0].keys()
+            after_ts_times = list(val.values())[0].keys()
             after_times = []
             for t in after_ts_times:
                 try:
