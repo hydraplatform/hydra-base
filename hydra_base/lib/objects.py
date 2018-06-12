@@ -27,7 +27,6 @@ from ..exceptions import HydraError
 
 from ..util import generate_data_hash, get_layout_as_dict, get_layout_as_string
 from .. import config
-import zlib
 import pandas as pd
 
 # Python 2 and 3 compatible string checking
@@ -243,17 +242,12 @@ class Dataset(JSONObject):
                 #Epoch doesn't work here because dates before 1970 are not
                 # supported in read_json. Ridiculous.
                 ts = timeseries_pd.to_json(date_format='iso', date_unit='ns')
-
-                #if len(data) > int(config.get('db', 'compression_threshold', 1000)):
-                #    return zlib.compress(ts)
-                #else:
+                #TODO: Design a mechanism to access this data in a scaleable way if it's stored externally
                 return ts
             elif self.type == 'array':
                 #check to make sure this is valid json
+                #TODO: Design a mechanism to access this data in a scaleable way if it's stored externally
                 json.loads(data)
-                #if len(data) > int(config.get('db', 'compression_threshold', 1000)):
-                #    return zlib.compress(data)
-                #else:
                 return data
         except Exception as e:
             log.exception(e)

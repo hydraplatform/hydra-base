@@ -40,8 +40,6 @@ class HydraBaseTest:
 
         self.fmt = config.get('DEFAULT', 'datetime_format', "%Y-%m-%dT%H:%M:%S.%f000Z")
 
-        self.user_id = config.get('DEFAULT', 'root_user_id', 2)
-
         yield  # perform the test
         # now tear down
         self.tearDown()

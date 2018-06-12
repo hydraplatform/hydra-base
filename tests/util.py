@@ -27,8 +27,7 @@ import json
 
 import datetime
 
-global user_id
-user_id = config.get('DEFAULT', 'root_user_id', 1)
+import pytest
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.ERROR)
@@ -54,18 +53,18 @@ def create_user(name):
         display_name = "test useer",
     ))
 
-    new_user = JSONObject(hydra_base.add_user(user, user_id=user_id))
+    new_user = JSONObject(hydra_base.add_user(user, user_id=pytest.root_user_id))
 
     #make the user an admin user by default
-    role =  JSONObject(hydra_base.get_role_by_code('admin', user_id=user_id))
+    role =  JSONObject(hydra_base.get_role_by_code('admin', user_id=pytest.root_user_id))
 
-    hydra_base.set_user_role(new_user.id, role.id, user_id=user_id)
+    hydra_base.set_user_role(new_user.id, role.id, user_id=pytest.root_user_id)
 
     return new_user
 
 def update_template(template_id):
 
-    template = JSONObject(hydra_base.get_template(template_id, user_id=user_id))
+    template = JSONObject(hydra_base.get_template(template_id, user_id=pytest.root_user_id))
     new_net_attr    = create_attr("net_attr_d", dimension='Monetary Value')
 
     for tmpltype in template.templatetypes:
@@ -78,7 +77,7 @@ def update_template(template_id):
             tmpltype.typeattrs.append(typeattr_1)
             break
 
-    template = hydra_base.update_template(template, user_id=user_id)
+    template = hydra_base.update_template(template, user_id=pytest.root_user_id)
 
 
 def create_template():
@@ -198,7 +197,7 @@ def create_template():
 
     template.types = types
 
-    new_template_i = hydra_base.add_template(template, user_id=user_id)
+    new_template_i = hydra_base.add_template(template, user_id=pytest.root_user_id)
     new_template = JSONObject(new_template_i)
 
     assert new_template.name == template.name, "Names are not the same!"
@@ -221,18 +220,18 @@ def create_project(name=None):
     if name is None:
         name = "Unittest Project"
 
-    user_projects = hydra_base.get_project_by_name(name, user_id=user_id)
+    user_projects = hydra_base.get_project_by_name(name, user_id=pytest.root_user_id)
 
     if len(user_projects) == 0:
         project = JSONObject()
         project.name = name
         project.description = "Project which contains all unit test networks"
-        project = JSONObject(hydra_base.add_project(project, user_id=user_id))
+        project = JSONObject(hydra_base.add_project(project, user_id=pytest.root_user_id))
         hydra_base.share_project(project.id,
                                  ["UserA", "UserB", "UserC"],
                                  'N',
                                  'Y',
-                                 user_id=user_id)
+                                 user_id=pytest.root_user_id)
 
         return project
     else:
@@ -275,12 +274,12 @@ def create_node(node_id, attributes=None, node_name="Test Node Name"):
 
 
 def create_attr(name="Test attribute", dimension="dimensionless"):
-    attr_i = hydra_base.get_attribute_by_name_and_dimension(name, dimension, user_id=user_id)
+    attr_i = hydra_base.get_attribute_by_name_and_dimension(name, dimension, user_id=pytest.root_user_id)
     if attr_i is None:
         attr = JSONObject({'name'  : name,
                 'dimension' : dimension
                })
-        attr = JSONObject(hydra_base.add_attribute(attr, user_id=user_id))
+        attr = JSONObject(hydra_base.add_attribute(attr, user_id=pytest.root_user_id))
     else:
         attr = JSONObject(attr_i)
     return attr
@@ -580,13 +579,13 @@ def create_network_with_data(project_id=None, num_nodes=10,
     #log.debug(network)
     start = datetime.datetime.now()
     log.info("Creating network...")
-    response_network_summary = JSONObject(hydra_base.add_network(network, user_id=user_id))
-    hydra_base.db.commit_transaction()
+    response_network_summary = JSONObject(hydra_base.add_network(network, user_id=pytest.root_user_id))
+    hydra_base.db.DBSession.commit()
     log.info("Network Creation took: %s"%(datetime.datetime.now()-start))
     if ret_full_net is True:
         log.info("Fetching new network...:")
         start = datetime.datetime.now()
-        net = hydra_base.get_network(response_network_summary.id, include_data='Y', user_id=user_id)
+        net = hydra_base.get_network(response_network_summary.id, include_data='Y', user_id=pytest.root_user_id)
         response_net = JSONObject(net)
         log.info("Network Retrieval took: %s"%(datetime.datetime.now()-start))
         check_network(network, response_net)
@@ -619,7 +618,7 @@ def create_network_with_extra_group(project_id=None,
     group.description = 'test new group'
 
     template_id = network.types[0].template_id
-    template = JSONObject(hydra_base.get_template(template_id, user_id=user_id))
+    template = JSONObject(hydra_base.get_template(template_id, user_id=pytest.root_user_id))
 
     type_summary_arr = []
 
@@ -633,13 +632,13 @@ def create_network_with_extra_group(project_id=None,
 
     group.types = type_summary_arr
 
-    new_group = hydra_base.add_group(network.id, group, user_id=user_id)
+    new_group = hydra_base.add_group(network.id, group, user_id=pytest.root_user_id)
 
     group_attr_ids = []
     for resource_attr in new_group.attributes:
         group_attr_ids.append(resource_attr.attr_id)
 
-    updated_network = hydra_base.get_network(network.id, user_id=user_id)
+    updated_network = hydra_base.get_network(network.id, user_id=pytest.root_user_id)
 
     return updated_network
 
@@ -648,7 +647,7 @@ def get_network(network_id=None):
     """
         Get a network with all data.
     """
-    network=JSONObject(hydra_base.get_network(network_id, user_id=user_id))
+    network=JSONObject(hydra_base.get_network(network_id, user_id=pytest.root_user_id))
     return network
 
 
@@ -829,7 +828,7 @@ def create_attributes():
         log.info("Getting attribute %s, %s", a.name, a.dimension)
         attr = hydra_base.get_attribute_by_name_and_dimension(a.name,
                                                           a.dimension,
-                                                          user_id=user_id)
+                                                          user_id=pytest.root_user_id)
         existing_attrs.append(attr)
 
 
@@ -838,7 +837,7 @@ def create_attributes():
             attrs = existing_attrs
             break
     else:
-        attrs = hydra_base.add_attributes(attrs, user_id=user_id)
+        attrs = hydra_base.add_attributes(attrs, user_id=pytest.root_user_id)
         assert len(attrs) == 2
         for a in attrs:
             assert a.id is not None
@@ -852,13 +851,13 @@ def create_attribute():
 
     name = "Test add Attr"
     dimension = "Volumetric flow rate"
-    attr = hydra_base.get_attribute_by_name_and_dimension(name, "Volumetric flow rate", user_id=user_id)
+    attr = hydra_base.get_attribute_by_name_and_dimension(name, "Volumetric flow rate", user_id=pytest.root_user_id)
     if attr is None:
         attr = JSONObject({'name'  : name,
                 'dimension' : dimension,
                 'description' : "Attribute description",
                })
-        attr = hydra_base.add_attribute(attr, user_id=user_id)
+        attr = hydra_base.add_attribute(attr, user_id=pytest.root_user_id)
 
         assert attr.description == "Attribute description"
 
@@ -878,5 +877,5 @@ def create_attributegroup(project_id, name=None, exclusive='N'):
             'exclusive'   : exclusive,
         })
 
-    newgroup = hydra_base.add_attribute_group(newgroup, user_id=user_id)
+    newgroup = hydra_base.add_attribute_group(newgroup, user_id=pytest.root_user_id)
     return newgroup

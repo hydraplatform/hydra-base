@@ -44,8 +44,6 @@ from sqlalchemy.sql import null
 
 from collections import namedtuple
 
-import zlib
-
 import logging
 log = logging.getLogger(__name__)
 
@@ -810,10 +808,6 @@ def _get_all_resourcescenarios(network_id, user_id):
         rs_attr = JSONObject({'attr_id':rs.attr_id})
 
         value = rs.value
-        try:
-            value = zlib.decompress(value)
-        except:
-            pass
 
         rs_dataset = JSONDataset({
             'id':rs.dataset_id,
@@ -1742,8 +1736,7 @@ def set_node_status(node_id, status, **kwargs):
 def _unique_data_qry(count=1):
     rs = aliased(ResourceScenario)
 
-    log.critical(count)
-    subqry=db.DBSession.query(rs.resource_attr_id,
+    subqry=db.DBSession.query(
                            rs.dataset_id,
                            func.count(rs.dataset_id).label('dataset_count')).\
                                 group_by(rs.dataset_id).\
@@ -1752,8 +1745,7 @@ def _unique_data_qry(count=1):
 
     unique_data = db.DBSession.query(rs).\
                         join(subqry,
-                                and_(rs.resource_attr_id==subqry.c.resource_attr_id,
-                                rs.dataset_id==subqry.c.dataset_id)
+                                and_(rs.dataset_id==subqry.c.dataset_id)
                             ).\
                     filter(
                         rs.resource_attr_id == ResourceAttr.id
@@ -1809,7 +1801,7 @@ def delete_node(node_id, purge_data,**kwargs):
     if purge_data == 'Y':
         #Find the number of times a a resource and dataset combination
         #occurs. If this equals the number of times the dataset appears, then
-        #we can say this datset is unique to this node.
+        #we can say this dataset is unique to this node.
         count = db.DBSession.query(ResourceScenario.dataset_id).distinct(
             ResourceScenario.resource_attr_id,
             ResourceScenario.dataset_id).filter(ResourceScenario.resource_attr_id==ResourceAttr.id,

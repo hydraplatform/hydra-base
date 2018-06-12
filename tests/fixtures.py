@@ -5,7 +5,12 @@ import util
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
 import datetime
+
+
+def pytest_namespace():
+    return {'root_user_id': 1}
 
 @pytest.fixture()
 def dateformat():
@@ -42,6 +47,7 @@ def db(engine, request):
 @pytest.fixture(scope='function')
 def session(db, engine, request):
     """Creates a new database session for a test."""
+
     db.metadata.bind = engine
 
     DBSession = sessionmaker(bind=engine, autoflush=False, autocommit=False)
@@ -59,7 +65,9 @@ def session(db, engine, request):
 
     # Now apply the default users and roles
     create_default_users_and_perms()
-    make_root_user()
+    root_user_id = make_root_user()
+
+    pytest.root_user_id = root_user_id
 
     # Add some users
     util.create_user("UserA")

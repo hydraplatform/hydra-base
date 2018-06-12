@@ -32,7 +32,8 @@ install_requires=[
     "lxml",
     "mysql-connector-python",
     "python-dateutil",
-    "cheroot"
+    "cheroot",
+    "beaker"
     ]
 
 if platform.system() == "Windows":  # only add winpaths when platform is Windows so that setup.py is universal

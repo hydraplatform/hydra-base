@@ -40,7 +40,6 @@ from . import data
 from ..util.hydra_dateutil import timestamp_to_ordinal
 from collections import namedtuple
 from copy import deepcopy
-import zlib
 
 from .objects import JSONObject
 
@@ -249,7 +248,10 @@ def update_scenario(scenario,update_data=True,update_groups=True,flush=True,**kw
         scenario.resourcescenarios = []
     if scenario.resourcegroupitems == None:
         scenario.resourcegroupitems = []
-    
+
+    #lazy load resourcescenarios from the DB
+    scen.resourcescenarios
+
     if update_data is True:
         datasets = [rs.dataset for rs in scenario.resourcescenarios]
         updated_datasets = data._bulk_insert_data(datasets, user_id, kwargs.get('app_name'))
@@ -257,6 +259,9 @@ def update_scenario(scenario,update_data=True,update_groups=True,flush=True,**kw
         for i, r_scen in enumerate(scenario.resourcescenarios):
             _update_resourcescenario(scen, r_scen, dataset=updated_datasets[i], user_id=user_id, source=kwargs.get('app_name'))
 
+    #lazy load resource grou items from the DB
+    scen.resourcegroupitems
+    
     if update_groups is True:
         #Get all the exiting resource group items for this scenario.
         #THen process all the items sent to this handler.
@@ -938,10 +943,8 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id=None, expunge_sessio
     resource_data = resource_data_qry.all()
 
     for rs in resource_data:
-        try:
-            rs.dataset.value = zlib.decompress(rs.dataset.value)
-        except zlib.error:
-            pass
+
+        #TODO: Design a mechanism to read the value of the dataset if it's stored externally
 
         if rs.dataset.hidden == 'Y':
            try:
@@ -1007,7 +1010,7 @@ def get_attribute_datasets(attr_id, scenario_id, **kwargs):
             tmp_rs.resourceattr.network = JSONObject(rs.resourceattr.network)
 
         json_rs.append(tmp_rs)
-    
+
 
     return json_rs
 

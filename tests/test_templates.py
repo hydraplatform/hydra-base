@@ -144,26 +144,6 @@ class TestTemplates:
     """
         Test for templates
     """
-    # Todo make this a fixture?
-    user_id = util.user_id
-
-    # def set_template(self, session, template):
-    #     if template is None:
-    #         self.template = self.test_add_template()
-    #     else:
-    #         self.template = template
-    #
-    # def get_template(self, session):
-    #     if hasattr(self, 'template'):
-    #         try:
-    #             hb.get_template(self.template.id)
-    #             return self.template
-    #         except:
-    #             self.template = self.test_add_template()
-    #     else:
-    #         self.template = self.test_add_template()
-    #     return self.template
-
     def test_add_xml(self, template_json_object):
         new_tmpl = template_json_object
 
@@ -376,7 +356,7 @@ class TestTemplates:
 
         hb.db.DBSession.expunge_all()
 
-        updated_network = hb.get_network(network.id, user_id=self.user_id)
+        updated_network = hb.get_network(network.id, user_id=pytest.root_user_id)
         assert len(updated_network.types) == 2
 
         expected_net_type = None
@@ -395,7 +375,7 @@ class TestTemplates:
 
         hb.db.DBSession.expunge_all()
 
-        network_deleted_templatetypes = hb.get_network(network.id, user_id=self.user_id)
+        network_deleted_templatetypes = hb.get_network(network.id, user_id=pytest.root_user_id)
 
         assert len(network_deleted_templatetypes.types) == 1
 
@@ -557,7 +537,7 @@ class TestTemplates:
 
         hb.add_typeattr(tattr_3)
 
-        updated_type = JSONObject(hb.get_templatetype(new_type.id, user_id=self.user_id))
+        updated_type = JSONObject(hb.get_templatetype(new_type.id, user_id=pytest.root_user_id))
 
         assert len(updated_type.typeattrs) == 3, "Type attr did not add correctly"
 
@@ -669,8 +649,8 @@ class TestTemplates:
         network.name = 'Test @ %s'%(datetime.datetime.now())
         network.description = 'A network for SOAP unit tests.'
 
-        net_summary = hb.add_network(network, user_id=self.user_id)
-        new_net = hb.get_network(net_summary.id, user_id=self.user_id)
+        net_summary = hb.add_network(network, user_id=pytest.root_user_id)
+        new_net = hb.get_network(net_summary.id, user_id=pytest.root_user_id)
 
         for node in new_net.nodes:
             assert node.types is not None and node.types[0].name == "Node type"; "type was not added correctly!"
@@ -779,7 +759,7 @@ class TestTemplates:
                 link.attributes.append(link_ra_1)
                 link.attributes.append(link_ra_2)
 
-        network = hb.update_network(net_to_update, user_id=self.user_id)
+        network = hb.update_network(net_to_update, user_id=pytest.root_user_id)
 
         for n in network.nodes:
             assert len(n.types) == 1
@@ -787,7 +767,7 @@ class TestTemplates:
 
         hb.apply_template_to_network(template.id, network.id)
 
-        network = hb.get_network(network.id, user_id=self.user_id)
+        network = hb.get_network(network.id, user_id=pytest.root_user_id)
 
         assert len(network.types) == 2
         assert network.types[1].name == 'Network Type'
@@ -831,7 +811,7 @@ class TestTemplates:
                 link.attributes.append(link_ra_1)
                 link.attributes.append(link_ra_2)
 
-        network = hb.update_network(net_to_update, user_id=self.user_id)
+        network = hb.update_network(net_to_update, user_id=pytest.root_user_id)
 
         for n in network.nodes:
             assert len(n.types) == 1
@@ -841,7 +821,7 @@ class TestTemplates:
         hb.db.DBSession.expunge_all()
         hb.apply_template_to_network(template.id, network.id)
 
-        network = hb.get_network(network.id, user_id=self.user_id)
+        network = hb.get_network(network.id, user_id=pytest.root_user_id)
 
         assert len(network.types) == 2
         assert network.types[1].name == 'Network Type'
@@ -876,7 +856,7 @@ class TestTemplates:
 
         hb.remove_template_from_network(network.id, template_id, 'N')
 
-        network_2 = hb.get_network(network.id, user_id=self.user_id)
+        network_2 = hb.get_network(network.id, user_id=pytest.root_user_id)
 
         assert len(network_2.types) == 0
         for l in network_2.links:
@@ -900,21 +880,21 @@ class TestTemplates:
             assert len(n.types) == 1
             assert n.types[0].name == 'Default Node'
 
-        network_1 = hb.get_network(network.id, user_id=self.user_id)
+        network_1 = hb.get_network(network.id, user_id=pytest.root_user_id)
         assert len(network_1.types) == 1
 
         hb.db.DBSession.expunge_all()
 
         hb.apply_template_to_network(template.id, network.id)
 
-        network_3 = hb.get_network(network.id, user_id=self.user_id)
+        network_3 = hb.get_network(network.id, user_id=pytest.root_user_id)
         assert len(network_3.types) == 2
 
         hb.remove_template_from_network(network.id, template.id, 'Y')
 
         hb.db.DBSession.expunge_all()
 
-        network_2 = hb.get_network(network.id, user_id=self.user_id)
+        network_2 = hb.get_network(network.id, user_id=pytest.root_user_id)
 
         assert len(network_2.types) == 1
 

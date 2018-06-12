@@ -32,21 +32,19 @@ log = logging.getLogger(__name__)
 
 class TestScenario:
 
-    user_id = util.user_id
-
     def get_scenario(self, scenario_id):
         """
             Utility function wrapper for a function that's called regularly
             Introduced as the JSONObject wrapper can be controlled more easily
         """
-        return JSONObject(hydra_base.get_scenario(scenario_id, user_id=self.user_id))
+        return JSONObject(hydra_base.get_scenario(scenario_id, user_id=pytest.root_user_id))
 
     def clone_scenario(self, scenario_id):
         """
             Utility function wrapper for a function tat's called regularly.
             Introduced as the JSONObject wrapper can be controlled more easily
         """
-        return JSONObject(hydra_base.clone_scenario(scenario_id, user_id=self.user_id))
+        return JSONObject(hydra_base.clone_scenario(scenario_id, user_id=pytest.root_user_id))
 
     def test_update(self, session, network_with_data):
 
@@ -65,7 +63,7 @@ class TestScenario:
             'value'     : 'I am an updated test!',
         })
 
-        new_resource_scenario = hydra_base.add_data_to_attribute(scenario_id, resource_attr_id, dataset, user_id=self.user_id)
+        new_resource_scenario = hydra_base.add_data_to_attribute(scenario_id, resource_attr_id, dataset, user_id=pytest.root_user_id)
 
         assert new_resource_scenario.dataset.value == 'I am an updated test!', "Value was not updated correctly!!"
 
@@ -98,7 +96,7 @@ class TestScenario:
             elif r.resource_attr_id == node_attrs[1].id:
                 r.dataset = timeseries.dataset
 
-        scenario = JSONObject(hydra_base.add_scenario(network.id, new_scenario, user_id=self.user_id))
+        scenario = JSONObject(hydra_base.add_scenario(network.id, new_scenario, user_id=pytest.root_user_id))
 
         assert scenario is not None
         assert len(scenario.resourcegroupitems) > 0
@@ -137,7 +135,7 @@ class TestScenario:
             if resourcescenario.attr_id == descriptor.attr_id:
                 resourcescenario.dataset = descriptor.dataset
 
-        updated_scenario = JSONObject(hydra_base.update_scenario(scenario, user_id=self.user_id))
+        updated_scenario = JSONObject(hydra_base.update_scenario(scenario, user_id=pytest.root_user_id))
 
         assert updated_scenario is not None
         assert updated_scenario.id == scenario.id
@@ -169,7 +167,7 @@ class TestScenario:
 
         dataset_id_to_check = rs[0].dataset.id
 
-        dataset_scenarios = [JSONObject(s) for s in hydra_base.get_dataset_scenarios(dataset_id_to_check, user_id=self.user_id)]
+        dataset_scenarios = [JSONObject(s) for s in hydra_base.get_dataset_scenarios(dataset_id_to_check, user_id=pytest.root_user_id)]
 
         assert len(dataset_scenarios) == 1
 
@@ -178,7 +176,7 @@ class TestScenario:
         clone = self.clone_scenario(scenario.id)
         new_scenario = self.get_scenario(clone.id)
 
-        dataset_scenarios = [JSONObject(s) for s in hydra_base.get_dataset_scenarios(dataset_id_to_check, user_id=self.user_id)]
+        dataset_scenarios = [JSONObject(s) for s in hydra_base.get_dataset_scenarios(dataset_id_to_check, user_id=pytest.root_user_id)]
 
         assert len(dataset_scenarios) == 2
 
@@ -225,7 +223,7 @@ class TestScenario:
         #instead making JSONObject more robust at dealing with recursion
         hydra_base.db.DBSession.expunge_all()
 
-        new_resourcescenarios = [JSONObject(rs) for rs in hydra_base.update_resourcedata(scenario.id, rs_to_update, user_id=self.user_id)]
+        new_resourcescenarios = [JSONObject(rs) for rs in hydra_base.update_resourcedata(scenario.id, rs_to_update, user_id=pytest.root_user_id)]
 
         assert len(new_resourcescenarios) == 1
 
@@ -278,9 +276,9 @@ class TestScenario:
                 ts_to_update.append(rs)
                 break
 
-        hydra_base.update_resourcedata(scenario_1.id, ts_to_delete, user_id=self.user_id)
+        hydra_base.update_resourcedata(scenario_1.id, ts_to_delete, user_id=pytest.root_user_id)
 
-        hydra_base.update_resourcedata(scenario_2.id, ts_to_update, user_id=self.user_id)
+        hydra_base.update_resourcedata(scenario_2.id, ts_to_update, user_id=pytest.root_user_id)
 
         scenario_2_updated_1 = self.get_scenario(scenario_2.id)
         for rs in scenario_2_updated_1.resourcescenarios:
@@ -317,7 +315,7 @@ class TestScenario:
         hydra_base.db.DBSession.expunge_all()
 
         #Update the value
-        updated_data = hydra_base.update_resourcedata(scenario_1.id, rs_to_update, user_id=self.user_id)
+        updated_data = hydra_base.update_resourcedata(scenario_1.id, rs_to_update, user_id=pytest.root_user_id)
 
         new_resourcescenarios = [JSONObject(rs) for rs in updated_data]
 
@@ -337,7 +335,7 @@ class TestScenario:
         rs_to_update = self._get_rs_to_update(scenario_2, scalar)
 
         new_resourcescenarios = hydra_base.update_resourcedata(scenario_2.id,
-                                                                        rs_to_update, user_id=self.user_id)
+                                                                        rs_to_update, user_id=pytest.root_user_id)
         rs_2_id = None
         #Check that scenario 2 has been updated correctly.
         updated_scenario_2 = self.get_scenario(scenario_2.id)
@@ -395,13 +393,13 @@ class TestScenario:
                 resourcescenario.dataset.name = 'I am an updated dataset name'
                 rs_to_update.append(resourcescenario)
 
-        hydra_base.get_attributes_for_resource(network.id, scenario.id, 'NODE', [node1.id], user_id=self.user_id)
+        hydra_base.get_attributes_for_resource(network.id, scenario.id, 'NODE', [node1.id], user_id=pytest.root_user_id)
 
-        hydra_base.update_resourcedata(scenario.id, rs_to_update, user_id=self.user_id)
+        hydra_base.update_resourcedata(scenario.id, rs_to_update, user_id=pytest.root_user_id)
 
         hydra_base.db.DBSession.expunge_all()
 
-        new_node_data = [JSONObject(d) for d in hydra_base.get_attributes_for_resource(network.id, scenario.id, 'NODE', [node1.id], user_id=self.user_id)]
+        new_node_data = [JSONObject(d) for d in hydra_base.get_attributes_for_resource(network.id, scenario.id, 'NODE', [node1.id], user_id=pytest.root_user_id)]
 
         for new_val in new_node_data:
             if new_val.dataset.value == updated_val:
@@ -446,7 +444,7 @@ class TestScenario:
         scenario_ids.append(scenario1_to_update.id)
         scenario_ids.append(scenario2_to_update.id)
 
-        result = hydra_base.bulk_update_resourcedata(scenario_ids, rs_to_update, user_id=self.user_id)
+        result = hydra_base.bulk_update_resourcedata(scenario_ids, rs_to_update, user_id=pytest.root_user_id)
 
         assert len(result) == 2
 
@@ -503,7 +501,7 @@ class TestScenario:
 
         data.append(dataset2)
 
-        new_datasets = [Dataset(d) for d in hydra_base.bulk_insert_data(data, user_id=self.user_id)]
+        new_datasets = [Dataset(d) for d in hydra_base.bulk_insert_data(data, user_id=pytest.root_user_id)]
 
         assert len(new_datasets) == 2, "Data was not added correctly!"
 
@@ -516,7 +514,7 @@ class TestScenario:
 
         #self.create_constraint(network)
 
-        network = JSONObject(hydra_base.get_network(network.id, include_data='Y', user_id=self.user_id))
+        network = JSONObject(hydra_base.get_network(network.id, include_data='Y', user_id=pytest.root_user_id))
 
         scenario = network.scenarios[0]
         scenario_id = scenario.id
@@ -525,7 +523,7 @@ class TestScenario:
         new_scenario = self.get_scenario(clone.id)
 
 
-        updated_network = JSONObject(hydra_base.get_network(new_scenario.network_id, include_data='Y', user_id=self.user_id))
+        updated_network = JSONObject(hydra_base.get_network(new_scenario.network_id, include_data='Y', user_id=pytest.root_user_id))
 
 
         assert len(updated_network.scenarios) == 2, "The network should have two scenarios!"
@@ -559,7 +557,7 @@ class TestScenario:
 
     #    self.create_constraint(network)
 
-        network = JSONObject(hydra_base.get_network(network.id, user_id=self.user_id))
+        network = JSONObject(hydra_base.get_network(network.id, user_id=pytest.root_user_id))
 
         scenario = network.scenarios[0]
         scenario_id = scenario.id
@@ -579,15 +577,15 @@ class TestScenario:
             'value' : 'I am an updated test!',
         })
 
-        hydra_base.add_data_to_attribute(scenario_id, resource_attr_id, dataset, user_id=self.user_id)
+        hydra_base.add_data_to_attribute(scenario_id, resource_attr_id, dataset, user_id=pytest.root_user_id)
 
         item_to_remove = new_scenario.resourcegroupitems[0].id
 
         hydra_base.db.DBSession.expunge_all()
 
-        hydra_base.delete_resourcegroupitem(item_to_remove, user_id=self.user_id)
+        hydra_base.delete_resourcegroupitem(item_to_remove, user_id=pytest.root_user_id)
 
-        updated_network = JSONObject(hydra_base.get_network(new_scenario.network_id, user_id=self.user_id))
+        updated_network = JSONObject(hydra_base.get_network(new_scenario.network_id, user_id=pytest.root_user_id))
 
         scenarios = updated_network.scenarios
 
@@ -599,7 +597,7 @@ class TestScenario:
             else:
                 scenario_2 = s
 
-        scenario_diff = JSONObject(hydra_base.compare_scenarios(scenario_1.id, scenario_2.id, user_id=self.user_id))
+        scenario_diff = JSONObject(hydra_base.compare_scenarios(scenario_1.id, scenario_2.id, user_id=pytest.root_user_id))
 
         #print "Comparison result: %s"%(scenario_diff)
 
@@ -617,16 +615,16 @@ class TestScenario:
     def test_purge_scenario(self, session, network_with_data):
 
         #Make a network with 2 scenarios
-        hydra_base.clone_scenario(network_with_data.scenarios[0].id, user_id=self.user_id)
-        net = hydra_base.get_network(network_with_data.id, user_id=self.user_id)
+        hydra_base.clone_scenario(network_with_data.scenarios[0].id, user_id=pytest.root_user_id)
+        net = hydra_base.get_network(network_with_data.id, user_id=pytest.root_user_id)
 
         scenarios_before = net.scenarios
 
         assert len(scenarios_before) == 2
 
-        hydra_base.purge_scenario(scenarios_before[1].id, user_id=self.user_id)
+        hydra_base.purge_scenario(scenarios_before[1].id, user_id=pytest.root_user_id)
 
-        updated_net = JSONObject(hydra_base.get_network(net.id, user_id=self.user_id))
+        updated_net = JSONObject(hydra_base.get_network(net.id, user_id=pytest.root_user_id))
 
         scenarios_after = updated_net.scenarios
 
@@ -640,32 +638,32 @@ class TestScenario:
     def test_delete_scenario(self, session, network_with_data):
 
         #Make a network with 2 scenarios
-        hydra_base.clone_scenario(network_with_data.scenarios[0].id, user_id=self.user_id)
-        net = hydra_base.get_network(network_with_data.id, user_id=self.user_id)
+        hydra_base.clone_scenario(network_with_data.scenarios[0].id, user_id=pytest.root_user_id)
+        net = hydra_base.get_network(network_with_data.id, user_id=pytest.root_user_id)
 
         scenarios_before = net.scenarios
 
         assert len(scenarios_before) == 2
 
-        hydra_base.set_scenario_status(scenarios_before[1].id, 'X', user_id=self.user_id)
+        hydra_base.set_scenario_status(scenarios_before[1].id, 'X', user_id=pytest.root_user_id)
 
-        updated_net = JSONObject(hydra_base.get_network(net.id, user_id=self.user_id))
+        updated_net = JSONObject(hydra_base.get_network(net.id, user_id=pytest.root_user_id))
 
         scenarios_after_delete = updated_net.scenarios
 
         assert len(scenarios_after_delete) == 1
 
-        hydra_base.set_scenario_status(scenarios_before[1].id, 'A', user_id=self.user_id)
+        hydra_base.set_scenario_status(scenarios_before[1].id, 'A', user_id=pytest.root_user_id)
 
-        updated_net2 = JSONObject(hydra_base.get_network(net.id, user_id=self.user_id))
+        updated_net2 = JSONObject(hydra_base.get_network(net.id, user_id=pytest.root_user_id))
 
         scenarios_after_reactivate = updated_net2.scenarios
 
         assert len(scenarios_after_reactivate) == 2
 
-        hydra_base.set_scenario_status(scenarios_before[1].id, 'X', user_id=self.user_id)
-        hydra_base.clean_up_network(net.id, user_id=self.user_id)
-        updated_net3 = JSONObject(hydra_base.get_network(net.id, user_id=self.user_id))
+        hydra_base.set_scenario_status(scenarios_before[1].id, 'X', user_id=pytest.root_user_id)
+        hydra_base.clean_up_network(net.id, user_id=pytest.root_user_id)
+        updated_net3 = JSONObject(hydra_base.get_network(net.id, user_id=pytest.root_user_id))
         scenarios_after_cleanup = updated_net3.scenarios
         assert len(scenarios_after_cleanup) == 1
         with pytest.raises(hydra_base.HydraError):
@@ -675,7 +673,7 @@ class TestScenario:
 
         network =  network_with_data
 
-        network = hydra_base.get_network(network.id, user_id=self.user_id)
+        network = hydra_base.get_network(network.id, user_id=pytest.root_user_id)
 
         scenario_to_lock = network.scenarios[0]
         scenario_id = scenario_to_lock.id
@@ -685,7 +683,7 @@ class TestScenario:
         unlocked_scenario = self.get_scenario(clone.id)
 
         log.info("Locking scenario")
-        hydra_base.lock_scenario(scenario_id, user_id=self.user_id)
+        hydra_base.lock_scenario(scenario_id, user_id=pytest.root_user_id)
 
         locked_scenario = self.get_scenario(scenario_id)
 
@@ -724,7 +722,7 @@ class TestScenario:
         log.info("Updating a shared dataset")
         ds = unlocked_resource_scenarios_value
 
-        updated_ds = JSONObject(hydra_base.update_dataset(ds.id, ds.name, ds.type, ds.value, ds.unit, ds.metadata, user_id=self.user_id))
+        updated_ds = JSONObject(hydra_base.update_dataset(ds.id, ds.name, ds.type, ds.value, ds.unit, ds.metadata, user_id=pytest.root_user_id))
 
         updated_unlocked_scenario = self.get_scenario(unlocked_scenario.id)
         #This should not have changed
@@ -742,13 +740,13 @@ class TestScenario:
                 unlocked_resource_scenarios_value = rs.dataset
 
         with pytest.raises(hydra_base.HydraError):
-            hydra_base.add_data_to_attribute(scenario_id, resource_attr_id, dataset, user_id=self.user_id)
+            hydra_base.add_data_to_attribute(scenario_id, resource_attr_id, dataset, user_id=pytest.root_user_id)
 
         #THe most complicated situation is this:
         #Change a dataset in an unlocked scenario, which is shared by a locked scenario.
         #The original dataset should stay connected to the locked scenario and a new
         #dataset should be created for the edited scenario.
-        hydra_base.add_data_to_attribute(unlocked_scenario.id, resource_attr_id, dataset, user_id=self.user_id)
+        hydra_base.add_data_to_attribute(unlocked_scenario.id, resource_attr_id, dataset, user_id=pytest.root_user_id)
 
         updated_unlocked_scenario = self.get_scenario(unlocked_scenario.id)
 
@@ -773,10 +771,10 @@ class TestScenario:
         item_to_remove = locked_scenario.resourcegroupitems[0].id
 
         with pytest.raises(hydra_base.HydraError):
-            hydra_base.delete_resourcegroupitem(item_to_remove, user_id=self.user_id)
+            hydra_base.delete_resourcegroupitem(item_to_remove, user_id=pytest.root_user_id)
 
         log.info("Locking scenario")
-        hydra_base.unlock_scenario(scenario_id, user_id=self.user_id)
+        hydra_base.unlock_scenario(scenario_id, user_id=pytest.root_user_id)
 
         locked_scenario = self.get_scenario(scenario_id)
 
@@ -805,7 +803,7 @@ class TestScenario:
                     all_matching_ras.append(ra)
                     continue
 
-        retrieved_resource_scenarios = hydra_base.get_attribute_datasets(attr_id, s.id, user_id=self.user_id)
+        retrieved_resource_scenarios = hydra_base.get_attribute_datasets(attr_id, s.id, user_id=pytest.root_user_id)
 
         rs_dict  = {}
         for rs in retrieved_resource_scenarios:
@@ -829,7 +827,7 @@ class TestScenario:
         network =  network_with_data
 
 
-        network = hydra_base.get_network(network.id, user_id=self.user_id)
+        network = hydra_base.get_network(network.id, user_id=pytest.root_user_id)
 
         scenario = network.scenarios[0]
         source_scenario_id = scenario.id
@@ -849,15 +847,15 @@ class TestScenario:
 
         hydra_base.db.DBSession.expunge_all()
 
-        hydra_base.add_data_to_attribute(source_scenario_id, resource_attr_id, dataset, user_id=self.user_id)
+        hydra_base.add_data_to_attribute(source_scenario_id, resource_attr_id, dataset, user_id=pytest.root_user_id)
 
-        scenario_diff = JSONObject(hydra_base.compare_scenarios(source_scenario_id, cloned_scenario.id, user_id=self.user_id))
+        scenario_diff = JSONObject(hydra_base.compare_scenarios(source_scenario_id, cloned_scenario.id, user_id=pytest.root_user_id))
 
         assert len(scenario_diff.resourcescenarios) == 1, "Data comparison was not successful!"
 
-        hydra_base.copy_data_from_scenario([resource_attr_id], cloned_scenario.id, source_scenario_id, user_id=self.user_id)
+        hydra_base.copy_data_from_scenario([resource_attr_id], cloned_scenario.id, source_scenario_id, user_id=pytest.root_user_id)
 
-        scenario_diff = JSONObject(hydra_base.compare_scenarios(source_scenario_id, cloned_scenario.id, user_id=self.user_id))
+        scenario_diff = JSONObject(hydra_base.compare_scenarios(source_scenario_id, cloned_scenario.id, user_id=pytest.root_user_id))
 
         assert len(scenario_diff.resourcescenarios) == 0, "Scenario update was not successful!"
 
@@ -870,7 +868,7 @@ class TestScenario:
         network =  network_with_data
 
 
-        network = hydra_base.get_network(network.id, user_id=self.user_id)
+        network = hydra_base.get_network(network.id, user_id=pytest.root_user_id)
 
         scenario = network.scenarios[0]
         source_scenario_id = scenario.id
@@ -888,11 +886,11 @@ class TestScenario:
 
         dataset.value = 'I am an updated test!'
 
-        new_ds = hydra_base.add_dataset(dataset.type, dataset.value, dataset.unit, {}, dataset.name, flush=True, user_id=self.user_id)
+        new_ds = hydra_base.add_dataset(dataset.type, dataset.value, dataset.unit, {}, dataset.name, flush=True, user_id=pytest.root_user_id)
 
-        hydra_base.set_rs_dataset(resource_attr_id, source_scenario_id, new_ds.id, user_id=self.user_id)
+        hydra_base.set_rs_dataset(resource_attr_id, source_scenario_id, new_ds.id, user_id=pytest.root_user_id)
 
-        updated_net = hydra_base.get_network(network.id, user_id=self.user_id)
+        updated_net = hydra_base.get_network(network.id, user_id=pytest.root_user_id)
 
         updated_scenario = updated_net.scenarios[0]
         scenario_rs = updated_scenario.resourcescenarios
@@ -919,9 +917,9 @@ class TestScenario:
 
         dataset.value = 'I am an updated test!'
 
-        updated_resource_scenario = hydra_base.add_data_to_attribute(scenario_id, resource_attr_id, dataset, user_id=self.user_id)
+        updated_resource_scenario = hydra_base.add_data_to_attribute(scenario_id, resource_attr_id, dataset, user_id=pytest.root_user_id)
 
-        new_resource_scenario = hydra_base.add_data_to_attribute(scenario_id, empty_ra.id, dataset, user_id=self.user_id)
+        new_resource_scenario = hydra_base.add_data_to_attribute(scenario_id, empty_ra.id, dataset, user_id=pytest.root_user_id)
 
         assert updated_resource_scenario.dataset.value == 'I am an updated test!', "Value was not updated correctly!!"
         assert new_resource_scenario.dataset.value == 'I am an updated test!', "Value was not updated correctly!!"

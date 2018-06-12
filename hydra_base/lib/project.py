@@ -48,11 +48,15 @@ def _add_project_attribute_data(project_i, attr_map, attribute_data):
     #meaning we can add the data directly here.
     resource_scenarios = []
     for attr in attribute_data:
-
-        rscen = scenario._update_resourcescenario(None, attr)
         if attr.resource_attr_id < 0:
             ra_i = attr_map[attr.resource_attr_id]
-            rscen.resourceattr = ra_i
+            attr.resource_attr_id = ra_i.id
+
+        rscen = scenario._update_resourcescenario(None, attr)
+
+        #if attr.resource_attr_id < 0:
+        #    ra_i = attr_map[attr.resource_attr_id]
+        #    rscen.resourceattr = ra_i
 
         resource_scenarios.append(rscen)
     return resource_scenarios
@@ -77,6 +81,7 @@ def add_project(project,**kwargs):
     proj_i.created_by = user_id
 
     attr_map = hdb.add_resource_attributes(proj_i, project.attributes)
+    db.DBSession.flush() #Needed to get the resource attr's ID
     proj_data = _add_project_attribute_data(proj_i, attr_map, project.attribute_data)
     proj_i.attribute_data = proj_data
 

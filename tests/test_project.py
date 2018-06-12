@@ -34,8 +34,6 @@ class TestProject:
     """
         Test for working with projects in Hydra
     """
-    # Todo make this a fixture?
-    user_id = util.user_id
 
     def add_attributes(self, proj):
         #Create some attributes, which we can then use to put data on our nodes
@@ -90,12 +88,12 @@ class TestProject:
         project = self.add_attributes(project)
         project = self.add_data(project)
 
-        new_project_i = hb.add_project(project, user_id=self.user_id)
+        new_project_i = hb.add_project(project, user_id=pytest.root_user_id)
 
         #TODO: Fix issue in JSONObject caused by unusual project structure causing a recursion issue when loading attribute_data
         hb.db.DBSession.expunge_all()
 
-        project_i = hb.get_project(new_project_i.id, user_id=self.user_id)
+        project_i = hb.get_project(new_project_i.id, user_id=pytest.root_user_id)
 
         project_j = JSONObject(project_i)
 
@@ -104,7 +102,7 @@ class TestProject:
         new_project.description = \
             'An updated project created through the Hydra Base interface.'
 
-        updated_project = hb.update_project(new_project, user_id=self.user_id)
+        updated_project = hb.update_project(new_project, user_id=pytest.root_user_id)
 
         assert project_j.id == updated_project.id, \
             "project_id changed on update."
@@ -128,9 +126,9 @@ class TestProject:
         project.name = 'Test Project %s'%(datetime.datetime.now())
         project.description = \
             'A project created through the SOAP interface.'
-        project = hb.add_project(project, user_id=self.user_id)
+        project = hb.add_project(project, user_id=pytest.root_user_id)
 
-        new_project = hb.get_project(project.id, user_id=self.user_id)
+        new_project = hb.get_project(project.id, user_id=pytest.root_user_id)
 
         assert new_project.name == project.name, \
             "project_name is not loaded correctly."
@@ -142,26 +140,26 @@ class TestProject:
         project.name = 'SOAP test %s'%(datetime.datetime.now())
         project.description = \
             'A project created through the SOAP interface.'
-        project = hb.add_project(project, user_id=self.user_id)
+        project = hb.add_project(project, user_id=pytest.root_user_id)
 
-        hb.set_project_status(project.id, 'X', user_id=self.user_id)
+        hb.set_project_status(project.id, 'X', user_id=pytest.root_user_id)
 
-        proj = hb.get_project(project.id, user_id=self.user_id)
+        proj = hb.get_project(project.id, user_id=pytest.root_user_id)
 
         assert proj.status == 'X', \
             'Deleting project did not work correctly.'
 
     def test_delete(self, session, network_with_data):
         net = network_with_data
-
+        print session.dirty
         project_id = net.project_id
         log.info("Purging project %s", project_id)
-        res = hb.delete_project(project_id, user_id=self.user_id)
+        res = hb.delete_project(project_id, user_id=pytest.root_user_id)
 
         assert res == 'OK'
         log.info("Trying to get project %s. Should fail.",project_id)
         with pytest.raises(hb.HydraError):
-            hb.get_project(project_id, user_id=self.user_id)
+            hb.get_project(project_id, user_id=pytest.root_user_id)
 
     def test_get_projects(self, session):
 
@@ -170,9 +168,9 @@ class TestProject:
         project.name = 'SOAP test %s'%(datetime.datetime.now())
         project.description = \
             'A project created through the SOAP interface.'
-        project = hb.add_project(project, user_id=self.user_id)
+        project = hb.add_project(project, user_id=pytest.root_user_id)
 
-        projects = hb.get_projects(self.user_id, user_id=self.user_id)
+        projects = hb.get_projects(pytest.root_user_id, user_id=pytest.root_user_id)
 
         assert len(projects) > 0, "Projects for user were not retrieved."
 
@@ -185,7 +183,7 @@ class TestProject:
         net1 = networkmaker.create(project_id=proj.id)
 
         net2 = networkmaker.create(project_id=proj.id)
-        nets = hb.get_networks(proj.id, user_id=self.user_id)
+        nets = hb.get_networks(proj.id, user_id=pytest.root_user_id)
 
         test_net = nets[0]
         assert test_net.scenarios is not None
@@ -197,7 +195,7 @@ class TestProject:
 
         assert len(nets) == 2, "Networks were not retrieved correctly"
 
-        nets = hb.get_networks(proj.id, include_data='Y', user_id=self.user_id)
+        nets = hb.get_networks(proj.id, include_data='Y', user_id=pytest.root_user_id)
 
         test_scenario = nets[0].scenarios[0]
         assert len(test_scenario.resourcescenarios) > 0
