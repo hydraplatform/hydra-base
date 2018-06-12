@@ -493,16 +493,17 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
 
     types_to_delete = existing_types - new_types
     log.info("Types to delete: %s", types_to_delete)
-
+    log.info(type_name_map)
     for type_to_delete in types_to_delete:
         type_id = type_name_map[type_to_delete]
         try:
             for i, tt in enumerate(template_i.templatetypes):
                 if tt.id == type_id:
+                    type_i = template_i.templatetypes[i]
                     del(template_i.templatetypes[i])
-            log.info("Deleting type %s (%s)", type_i.name, type_i.id)
-            del(type_name_map[type_to_delete])
-            db.DBSession.delete(type_i)
+                    log.info("Deleting type %s (%s)", type_i.name, type_i.id)
+                    del(type_name_map[type_to_delete])
+                    db.DBSession.delete(type_i)
         except NoResultFound:
             pass
 
@@ -1344,6 +1345,11 @@ def update_template(template,**kwargs):
     """
     tmpl = db.DBSession.query(Template).filter(Template.id==template.id).one()
     tmpl.name = template.name
+
+    #Lazy load the rest of the template
+    for tt in tmpl.templatetypes:
+        for ta in tt.typeattrs:
+            ta.attr
 
     if template.layout:
         tmpl.layout = get_layout_as_string(template.layout)
