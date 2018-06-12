@@ -105,9 +105,11 @@ def make_root_user():
         user.roleusers.append(userrole)
         db.DBSession.add(userrole)
 
-    user_id = user.id
 
     db.DBSession.flush()
+    
+    user_id = user.id
+    
     transaction.commit()
 
     return user_id
