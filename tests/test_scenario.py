@@ -87,13 +87,13 @@ class TestScenario:
         #A simple string (Descriptor)
         #A time series, where the value may be a 1-D array
         #A multi-dimensional array.
-        descriptor = util.create_descriptor(node_attrs[0], "new_descriptor")
-        timeseries = util.create_timeseries(node_attrs[1])
+        descriptor = util.create_descriptor(util.get_by_name('node_attr_a', node_attrs), "new_descriptor")
+        timeseries = util.create_timeseries(util.get_by_name('node_attr_b', node_attrs))
 
         for r in new_scenario.resourcescenarios:
-            if r.resource_attr_id == node_attrs[0].id:
+            if r.resource_attr_id == util.get_by_name('node_attr_a', node_attrs).id:
                 r.dataset = descriptor.dataset
-            elif r.resource_attr_id == node_attrs[1].id:
+            elif r.resource_attr_id == util.get_by_name('node_attr_b', node_attrs).id:
                 r.dataset = timeseries.dataset
 
         scenario = JSONObject(hydra_base.add_scenario(network.id, new_scenario, user_id=pytest.root_user_id))
@@ -128,7 +128,7 @@ class TestScenario:
         assert scenario.resourcegroupitems[-1].node_id != node2.node_id
         scenario.resourcegroupitems[-1].node_id   = node2.node_id
 
-        descriptor = util.create_descriptor(node1.attributes[0],
+        descriptor = util.create_descriptor(util.get_by_name('node_attr_a', node1.attributes),
                                                 "updated_descriptor")
 
         for resourcescenario in scenario.resourcescenarios:
@@ -198,12 +198,12 @@ class TestScenario:
 
         #Identify 2 nodes to play around with -- the first and last in the list.
         node1 = network.nodes[0]
+        node1attr = util.get_by_name('node_attr_a', node1.attributes)
         node2 = network.nodes[-1]
+        val_to_delete = util.get_by_name('node_attr_a', node2.attributes)
 
-        descriptor = util.create_descriptor(node1.attributes[0],
+        descriptor = util.create_descriptor(node1attr,
                                                 "updated_descriptor")
-
-        val_to_delete = node2.attributes[0]
 
         rs_to_update = []
         updated_dataset_id = None
@@ -219,10 +219,6 @@ class TestScenario:
 
         assert updated_dataset_id is not None
 
-        #TODO: avoid haveing to explicitly tell the DB to forget about existing relationships,
-        #instead making JSONObject more robust at dealing with recursion
-        hydra_base.db.DBSession.expunge_all()
-
         new_resourcescenarios = [JSONObject(rs) for rs in hydra_base.update_resourcedata(scenario.id, rs_to_update, user_id=pytest.root_user_id)]
 
         assert len(new_resourcescenarios) == 1
@@ -234,6 +230,10 @@ class TestScenario:
         updated_scenario = self.get_scenario(scenario.id)
 
         num_new_rs = len(updated_scenario.resourcescenarios)
+
+        if num_new_rs != num_old_rs - 1:
+            import pudb; pudb.set_trace()
+
         assert num_new_rs == num_old_rs - 1
 
 
@@ -298,14 +298,15 @@ class TestScenario:
         """
         network = network_with_data
 
-        scenario_1 = network.scenarios[0]
+        scenario_1 = util.get_by_name("Scenario 1", network.scenarios)
         scenario_2 = self.clone_scenario(scenario_1.id)
         scenario_2 = self.get_scenario(scenario_2.id)
 
         #Identify 2 nodes to play around with -- the first and last in the list.
         node1 = network.nodes[0]
+  
 
-        descriptor = util.create_descriptor(node1.attributes[0],
+        descriptor = util.create_descriptor(util.get_by_name('node_attr_a', node1.attributes),
                                                 "updated_descriptor")
 
         rs_to_update = self._get_rs_to_update(scenario_1, descriptor)
@@ -330,7 +331,7 @@ class TestScenario:
                     rs_1_id = u_rs.dataset
                     break
 
-        scalar = util.create_descriptor(node1.attributes[0], 200)
+        scalar = util.create_descriptor(util.get_by_name('node_attr_a', node1.attributes), 200)
 
         rs_to_update = self._get_rs_to_update(scenario_2, scalar)
 
@@ -381,7 +382,7 @@ class TestScenario:
         scenario = network.scenarios[0]
         node1 = network.nodes[0]
 
-        ra_to_update = node1.attributes[0].id
+        ra_to_update = util.get_by_name('node_attr_a', node1.attributes).id
 
         updated_val = None
 
@@ -419,12 +420,15 @@ class TestScenario:
 
         #Identify 2 nodes to play around with -- the first and last in the list.
         node1 = network1.nodes[0]
+
+        node1attr = util.get_by_name('node_attr_a', node1.attributes)
+
         node2 = network1.nodes[-1]
 
-        descriptor = util.create_descriptor(node1.attributes[0],
+        descriptor = util.create_descriptor(util.get_by_name('node_attr_a', node1.attributes),
                                                 "updated_descriptor")
 
-        val_to_delete = node2.attributes[0]
+        val_to_delete = util.get_by_name('node_attr_a', node2.attributes)
 
         rs_to_update = []
         updated_dataset_id = None
@@ -792,7 +796,7 @@ class TestScenario:
 
         nodes = new_net.nodes
 
-        resource_attr = nodes[0].attributes[0]
+        resource_attr = util.get_by_name('node_attr_a', nodes[0].attributes)
 
         attr_id = resource_attr.attr_id
 

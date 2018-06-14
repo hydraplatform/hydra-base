@@ -364,9 +364,9 @@ class TestTemplates:
             if t.resource_type == 'NETWORK':
                 expected_net_type = t.id
 
-        network_type = updated_network.types[1].id
+        network_types = [t.id for t in updated_network.types]
 
-        assert expected_net_type == network_type
+        assert expected_net_type in network_types
 
         hb.delete_template(new_template.id)
 
@@ -770,7 +770,7 @@ class TestTemplates:
         network = hb.get_network(network.id, user_id=pytest.root_user_id)
 
         assert len(network.types) == 2
-        assert network.types[1].name == 'Network Type'
+        assert 'Network Type' in [t.name for t in network.types]
         for l in network.links:
             if l.id in empty_links:
                 assert l.types is not None
@@ -824,7 +824,9 @@ class TestTemplates:
         network = hb.get_network(network.id, user_id=pytest.root_user_id)
 
         assert len(network.types) == 2
-        assert network.types[1].name == 'Network Type'
+
+        assert 'Network Type' in [t.name for t in network.types]
+
         for l in network.links:
             if l.id in empty_links:
                 assert l.types is not None

@@ -18,7 +18,7 @@
 #
 
 import logging
-from util import update_template
+from util import update_template, get_by_name
 from fixtures import *
 import copy
 import json
@@ -237,12 +237,12 @@ class TestAttributeMap:
         s2 = net2.scenarios[0]
 
         node_1 = net1.nodes[0]
-        node_2 = net2.nodes[0]
-        node_3 = net3.nodes[0]
+        node_2 = net2.nodes[1]
+        node_3 = net3.nodes[2]
 
-        attr_1 = node_1.attributes[0]
-        attr_2 = node_2.attributes[1]
-        attr_3 = node_3.attributes[2]
+        attr_1 = get_by_name('node_attr_a', node_1.attributes)
+        attr_2 = get_by_name('node_attr_b', node_2.attributes)
+        attr_3 = get_by_name('node_attr_c', node_3.attributes)
 
         rs_to_update_from = None
         for rs in s1.resourcescenarios:

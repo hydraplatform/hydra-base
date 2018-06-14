@@ -879,3 +879,15 @@ def create_attributegroup(project_id, name=None, exclusive='N'):
 
     newgroup = hydra_base.add_attribute_group(newgroup, user_id=pytest.root_user_id)
     return newgroup
+
+def get_by_name(name, entity_list):
+    """
+        given a list of JSONObjects with a name attribute, return the JSONObeect with the 
+        specified name
+    """
+    entity_dict = {}
+    for e in entity_list:
+        entity_dict[e.name] = e
+
+    return entity_dict[name]
+
