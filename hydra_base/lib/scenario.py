@@ -132,9 +132,15 @@ def get_scenario(scenario_id,**kwargs):
 
     scen_j = JSONObject(scen_i)
     rscen_rs = db.DBSession.query(ResourceScenario).filter(ResourceScenario.scenario_id==scenario_id).options(joinedload_all('dataset')).all()
+
+    #lazy load resource attributes and attributes
+    for rs in rscen_rs:
+        rs.resourceattr
+        rs.resourceattr.attr
+
     rgi_rs = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.scenario_id==scenario_id).all()
 
-    scen_j.resourcescenarios = [JSONObject(r) for r in rscen_rs]
+    scen_j.resourcescenarios = [JSONObject(r, extras={'resourceattr':r.resourceattr}) for r in rscen_rs]
     scen_j.resourcegroupitems =[JSONObject(r) for r in rgi_rs]
 
     return scen_j

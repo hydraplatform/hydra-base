@@ -17,11 +17,8 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
-from ..db.model import User
 from .. import util
 from .. import config
-from ..exceptions import HydraError, ResourceNotFoundError
-from sqlalchemy.orm.exc import NoResultFound
 
 from beaker import session
 

@@ -142,7 +142,6 @@ class JSONObject(dict):
                 setattr(self, unicode(k), v)
 
         for k, v in extras.items():
-            self[k] = v
             setattr(self, k, v)
 
     def __getattr__(self, name):
