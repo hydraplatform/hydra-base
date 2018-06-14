@@ -1229,11 +1229,10 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
         if type_attrs[attr_id]['default_dataset_id'] is not None:
             if hasattr(resource, 'network'):
 
-                new_res_scenarios[attr_id] =  dict()
                 for s in resource.network.scenarios:
                     new_res_scenarios.append(dict(
                         dataset_id = type_attrs[attr_id]['default_dataset_id'],
-                        scenario_id = s.scenario_id,
+                        scenario_id = s.id,
                         #Not stored in the DB, but needed to connect the RA ID later.
                         attr_id = attr_id,
                         ref_key = ref_key,

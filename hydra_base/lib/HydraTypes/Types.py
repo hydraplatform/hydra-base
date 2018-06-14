@@ -1,4 +1,5 @@
 import json
+import math
 import pandas as pd
 from abc import ABCMeta, abstractmethod, abstractproperty
 from datetime import datetime
@@ -8,13 +9,8 @@ from Encodings import ScalarJSON, ArrayJSON, DescriptorJSON, DataframeJSON, Time
 from hydra_base.exceptions import HydraError
 
 
-class HydraTypeError(HydraError):
-    def __init__(self, instance):
-        pass
-
-
-""" Abstract base class for data types"""
 class DataType(object):
+    """ The DataType class serves as an abstract base class for data types"""
     __metaclass__ = ABCMeta
 
     @abstractproperty
@@ -58,10 +54,8 @@ class Scalar(DataType):
         return cls(value)
 
     def validate(self):
-        try:
-            float(self.value)
-        except ValueError as e:
-            raise HydraTypeError(self)
+        f = float(self.value)
+        assert not math.isnan(f) # Excludes NaN etc
 
     def get_value(self):
         return str(self._value)
@@ -87,7 +81,10 @@ class Array(DataType):
 
     def validate(self):
         j = json.loads(self.value)
-        assert len(j) > 0
+        assert len(j) > 0           # Sized
+        assert iter(j) is not None  # Iterable
+        assert j.__getitem__        # Container
+        assert not isinstance(j, basestring) # Exclude strs py2 only
 
     def get_value(self):
         return self._value
@@ -100,6 +97,7 @@ class Array(DataType):
 
 
 class Descriptor(DataType):
+    """ Unused obsolete type """
     tag      = "DESCRIPTOR"
     skeleton = "%s"
     json     = DescriptorJSON()
@@ -146,11 +144,22 @@ class Dataframe(DataType):
 
     @classmethod
     def fromDataset(cls, value, metadata=None):
-        ts = pd.read_json(unicode(value), convert_axes=False)
-        return cls(ts)
+        try:
+            ordered_jo = json.loads(unicode(value), object_pairs_hook=collections.OrderedDict)
+            df = pd.DataFrame.from_dict(ordered_jo)
+        except ValueError as e:
+            """ Raised on scalar types used as pd.DataFrame values
+                in absence of index arg
+            """
+            raise HydraError(e.message)
+
+        return cls(df)
+
 
     def validate(self):
-        assert self.value
+        assert isinstance(self._value, pd.DataFrame)
+        assert not self._value.empty
+
 
     def get_value(self):
         return self._value.to_json()
@@ -166,32 +175,25 @@ class Timeseries(DataType):
     skeleton = "[%s, ...]"
     json     = TimeseriesJSON()
 
-
     def __init__(self, ts):
         self.value = ts.to_json(date_format='iso', date_unit='ns')
         self.validate()
 
     @classmethod
     def fromDataset(cls, value, metadata=None):
-        print("[value] {0} ({1})".format(value, type(value)))
         ordered_jo = json.loads(unicode(value), object_pairs_hook=collections.OrderedDict)
-        print("[ordered_jo[ {0} ({1})".format(ordered_jo, type(ordered_jo)))
         ts = pd.DataFrame.from_dict(ordered_jo, orient="index")
         return cls(ts)
 
 
     def validate(self):
-        print("[self.value] {0} ({1})".format(self.value, type(self.value)))
         base_ts = pd.Timestamp("01-01-1970")
         jd = json.loads(self.value, object_pairs_hook=collections.OrderedDict)
         for k,v in jd.iteritems():
-            print("[v] {0} ({1})".format(v, type(v)))
-            print("[d]...")
-            print([unicode(d) for d in v])
             for date in (unicode(d) for d in v.keys()):
                 ts = pd.Timestamp(date)
                 print(ts, type(ts))
-                assert isinstance(ts, base_ts.__class__)
+                assert isinstance(ts, base_ts.__class__) # Same type as known valid ts
 
 
     def get_value(self):

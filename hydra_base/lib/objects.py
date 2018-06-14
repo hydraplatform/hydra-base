@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 from datetime import datetime
 from ..exceptions import HydraError
 
-from HydraTypes.Registry import HydraObjectFactory, HydraTypeError
+from HydraTypes.Registry import HydraObjectFactory
 
 from ..util import generate_data_hash, get_layout_as_dict, get_layout_as_string
 from .. import config

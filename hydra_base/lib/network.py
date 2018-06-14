@@ -1151,6 +1151,8 @@ def get_network_simple(network_id,**kwargs):
     try:
         n = db.DBSession.query(Network).filter(Network.id==network_id).options(joinedload_all('attributes.attr')).one()
         n.types
+        for t in n.types:
+            t.templatetype.typeattrs
         return n
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id,))
@@ -1161,6 +1163,11 @@ def get_node(node_id, scenario_id=None, **kwargs):
         n.types
         for t in n.types:
             t.templatetype.typeattrs
+            for ta in t.templatetype.typeattrs:
+                if ta.default_dataset_id:
+                    ta.default_dataset
+                    ta.default_dataset.metadata
+
     except NoResultFound:
         raise ResourceNotFoundError("Node %s not found"%(node_id,))
 
@@ -1184,6 +1191,11 @@ def get_link(link_id, scenario_id=None, **kwargs):
         l.types
         for t in l.types:
             t.templatetype.typeattrs
+            for ta in t.templatetype.typeattrs:
+                if ta.default_dataset_id:
+                    ta.default_dataset
+                    ta.default_dataset.metadata
+
     except NoResultFound:
         raise ResourceNotFoundError("Link %s not found"%(link_id,))
 
@@ -1210,6 +1222,7 @@ def get_resourcegroup(group_id, scenario_id=None, **kwargs):
             for ta in t.templatetype.typeattrs:
                 if ta.default_dataset_id is not None:
                     ta.default_dataset
+                    ta.default_dataset.metadata
     except NoResultFound:
         raise ResourceNotFoundError("ResourceGroup %s not found"%(group_id,))
 
@@ -1616,7 +1629,7 @@ def add_node(network_id, node,**kwargs):
             if rt is not None:
                 res_types.append(rt)#rt is one object
             res_attrs.extend(ra)#ra is a list of objects
-            res_scenarios.update(rs)#rs is a dict
+            res_scenarios.update(rs[0])
 
         if len(res_types) > 0:
             db.DBSession.bulk_insert_mappings(ResourceType, res_types)

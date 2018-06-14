@@ -2,7 +2,7 @@ import json
 import inspect
 import sys
 
-from Types import Array, Scalar, Timeseries, Descriptor, Dataframe, HydraTypeError
+from Types import Array, Scalar, Timeseries, Descriptor, Dataframe
 from Types import DataType as Datatype_Base
 
 
@@ -18,18 +18,7 @@ typemap     = { t.tag : t for t in hydra_types }
 class HydraObjectFactory(object):
     @staticmethod
     def fromJSON(encstr, tmap=typemap):
-        tag = ""
-        try:
-            jo = json.loads(encstr)
-            tag = jo.keys()[0]
-        except ValueError:
-            print("Malformed JSON: {0}".format(encstr))
-            return 
-
-        try:
-            return tmap[tag](encstr=encstr)
-        except KeyError:
-            print("Invalid Hydra Type: {0}".format(tag))
+        pass
 
 
     @classmethod
