@@ -1,3 +1,11 @@
+"""
+  Types that can be represented by a dataset are defined here
+
+  Each Hydra type must subclass DataType and implement the
+  required abstract properties and methods.  The form of each
+  class' constructor is not part of the interface and is left
+  to the implementer.
+"""
 import json
 import math
 import six
@@ -16,33 +24,47 @@ class DataType(object):
 
     @abstractproperty
     def skeleton(self):
+        """ Reserved for future use """
         pass
 
     @abstractproperty
     def tag(self):
+        """ A str which uniquely identifies this type and serves as its key in
+            the Registry.typemap dict
+        """
         pass
 
     @abstractproperty
     def value(self):
+        """ This type's representation of the value contained within
+            a dataset of the same type
+        """
         pass
 
     @abstractmethod
     def validate(self):
+        """ Raises (any) exception if the dataset's value argument
+            cannot be correctly represented as this type
+        """
         pass
 
     @abstractmethod
     def json(self):
+        """ Reserved for future use """
         pass
 
     @abstractmethod
     def fromDataset(self):
+        """ Factory method which performs any required transformations
+            on a dataset argument, invokes the type's ctor, and returns
+            the resulting instance
+        """
         pass
 
 
 
 class Scalar(DataType):
     tag      = "SCALAR"
-    ctor_fmt = ("value",)
     skeleton = "[%f]"
     json     = ScalarJSON()
 
