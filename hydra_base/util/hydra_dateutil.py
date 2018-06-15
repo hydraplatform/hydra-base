@@ -18,6 +18,7 @@
 
 from datetime import datetime, timedelta
 import logging
+import six
 from decimal import Decimal, ROUND_HALF_UP
 from dateutil.parser import parse
 from .. import config
@@ -130,7 +131,7 @@ def ordinal_to_timestamp(date):
     if date is None:
         return None
 
-    if type(date) in (str, unicode):
+    if(isinstance(date, six.string_types)):
         try:
             date = Decimal(date)
         except:

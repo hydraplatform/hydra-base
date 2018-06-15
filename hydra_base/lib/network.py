@@ -20,6 +20,7 @@
 import datetime
 import time
 import json
+import six
 
 from ..exceptions import HydraError, ResourceNotFoundError
 from . import scenario
@@ -860,9 +861,9 @@ def _get_metadata(network_id, user_id):
     metadata_dict = dict()
     for m in all_metadata:
         if metadata_dict.get(m.dataset_id):
-            metadata_dict[m.dataset_id][m.key] = unicode(m.value)
+            metadata_dict[m.dataset_id][m.key] = six.text_type(m.value)
         else:
-            metadata_dict[m.dataset_id] = {m.key : unicode(m.value)}
+            metadata_dict[m.dataset_id] = {m.key : six.text_type(m.value)}
 
     logging.info("metadata processed in %s", time.time()-x)
 

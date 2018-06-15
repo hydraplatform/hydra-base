@@ -18,6 +18,7 @@
 #
 
 import json
+import six
 
 import logging
 log = logging.getLogger(__name__)
@@ -39,7 +40,7 @@ class JSONObject(dict):
     """
     def __init__(self, obj_dict={}, parent=None, extras={}):
 
-        if isinstance(obj_dict, str) or isinstance(obj_dict, unicode):
+        if isinstance(obj_dict, six.string_types):
             try:
                 obj = json.loads(obj_dict)
                 assert isinstance(obj, dict), "JSON string does not evaluate to a dict"
@@ -127,9 +128,9 @@ class JSONObject(dict):
                     pass
 
                 if isinstance(v, datetime):
-                    v = unicode(v)
+                    v = six.text_type(v)
 
-                setattr(self, unicode(k), v)
+                setattr(self, six.text_type(k), v)
 
         for k, v in extras.items():
             self[k] = v
@@ -160,7 +161,7 @@ class JSONObject(dict):
     #Only for type attrs. How best to generalise this?
     def get_properties(self):
         if self.get('properties') and self.get('properties') is not None:
-            return unicode(self.properties)
+            return six.text_type(self.properties)
         else:
             return None
 
@@ -198,7 +199,7 @@ class Dataset(JSONObject):
                 return None
 
             # attr_data.value is a dictionary but the keys have namespaces which must be stripped
-            data = unicode(self.value)
+            data = six.text_type(self.value)
 
             if data.upper().strip() in ("NULL", ""):
                 return "NULL"
@@ -233,12 +234,12 @@ class Dataset(JSONObject):
         # These should be set on all datasets by default, but we don't enforce this rigidly
         metadata_keys = [m.lower() for m in metadata_dict]
         if user_id is not None and 'user_id' not in metadata_keys:
-            metadata_dict['user_id'] = unicode(user_id)
+            metadata_dict['user_id'] = six.text_type(user_id)
 
         if source is not None and 'source' not in metadata_keys:
-            metadata_dict['source'] = unicode(source)
+            metadata_dict['source'] = six.text_type(source)
 
-        return { k : unicode(v) for k, v in metadata_dict.iteritems() }
+        return { k : six.text_type(v) for k, v in metadata_dict.iteritems() }
 
 
     def get_hash(self, val, metadata):

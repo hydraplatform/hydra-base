@@ -1,5 +1,6 @@
 import json
 import math
+import six
 import pandas as pd
 from abc import ABCMeta, abstractmethod, abstractproperty
 from datetime import datetime
@@ -84,7 +85,7 @@ class Array(DataType):
         assert len(j) > 0           # Sized
         assert iter(j) is not None  # Iterable
         assert j.__getitem__        # Container
-        assert not isinstance(j, basestring) # Exclude strs py2 only
+        assert not isinstance(j, six.string_types) # Exclude strs
 
     def get_value(self):
         return self._value
@@ -110,15 +111,15 @@ class Descriptor(DataType):
     def fromDataset(cls, value, metadata=None):
         if metadata and metadata.get('data_type') == 'hashtable':
             try:
-                df = pd.read_json(unicode(value))
+                df = pd.read_json(six.text_type(value))
                 data = df.transpose().to_json()
             except Exception:
-                noindexdata = json.loads(unicode(value))
+                noindexdata = json.loads(six.text_type(value))
                 indexeddata = {0:noindexdata}
                 data = json.dumps(indexeddata)
             return cls(data)
         else:
-            return cls(unicode(value))
+            return cls(six.text_type(value))
 
 
     def validate(self):
@@ -145,7 +146,7 @@ class Dataframe(DataType):
     @classmethod
     def fromDataset(cls, value, metadata=None):
         try:
-            ordered_jo = json.loads(unicode(value), object_pairs_hook=collections.OrderedDict)
+            ordered_jo = json.loads(six.text_type(value), object_pairs_hook=collections.OrderedDict)
             df = pd.DataFrame.from_dict(ordered_jo)
         except ValueError as e:
             """ Raised on scalar types used as pd.DataFrame values
@@ -181,7 +182,7 @@ class Timeseries(DataType):
 
     @classmethod
     def fromDataset(cls, value, metadata=None):
-        ordered_jo = json.loads(unicode(value), object_pairs_hook=collections.OrderedDict)
+        ordered_jo = json.loads(six.text_type(value), object_pairs_hook=collections.OrderedDict)
         ts = pd.DataFrame.from_dict(ordered_jo, orient="index")
         return cls(ts)
 
@@ -190,7 +191,7 @@ class Timeseries(DataType):
         base_ts = pd.Timestamp("01-01-1970")
         jd = json.loads(self.value, object_pairs_hook=collections.OrderedDict)
         for k,v in jd.iteritems():
-            for date in (unicode(d) for d in v.keys()):
+            for date in (six.text_type(d) for d in v.keys()):
                 ts = pd.Timestamp(date)
                 print(ts, type(ts))
                 assert isinstance(ts, base_ts.__class__) # Same type as known valid ts
