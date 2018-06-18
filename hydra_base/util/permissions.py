@@ -59,7 +59,7 @@ def required_perms(*req_perms):
         @wraps(wfunc)
         def wrapped(*args, **kwargs):
             user_id = kwargs.get("user_id")
-	    for perm in req_perms:
+            for perm in req_perms:
                 check_perm(user_id, perm)
 
             return wfunc(*args, **kwargs)
