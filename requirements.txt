@@ -1,0 +1,11 @@
+sqlalchemy
+psycopg2
+zope.sqlalchemy>=0.4
+pandas
+numpy
+bcrypt
+lxml
+mysql-connector-python
+python-dateutil
+cheroot
+beaker
