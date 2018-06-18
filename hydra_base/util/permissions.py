@@ -17,10 +17,13 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
+from functools import wraps
 from .. import db
 from ..db.model import Perm, User, RolePerm, RoleUser
 from sqlalchemy.orm.exc import NoResultFound
 from ..exceptions import PermissionError
+
+
 
 def check_perm(user_id, permission_code):
     """
@@ -33,7 +36,7 @@ def check_perm(user_id, permission_code):
     try:
         perm = db.DBSession.query(Perm).filter(Perm.code==permission_code).one()
     except NoResultFound:
-        raise PermissionError("No permission %s"%(permission_code))
+        raise PermissionError("Nonexistent permission type: %s"%(permission_code))
 
 
     try:
@@ -43,3 +46,24 @@ def check_perm(user_id, permission_code):
     except NoResultFound:
         raise PermissionError("Permission denied. User %s does not have permission %s"%
                         (user_id, permission_code))
+
+
+
+def required_perms(*req_perms):
+    """
+       Decorator applied to functions requiring caller to possess permission
+       Takes args tuple of required perms and raises PermissionsError
+       via check_perm if these are not a subset of user perms
+    """
+    def dec_wrapper(wfunc):
+        @wraps(wfunc)
+        def wrapped(*args, **kwargs):
+            user_id = kwargs.get("user_id")
+	    for perm in req_perms:
+                check_perm(user_id, perm)
+
+            return wfunc(*args, **kwargs)
+
+        return wrapped
+    return dec_wrapper
+

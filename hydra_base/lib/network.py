@@ -26,7 +26,7 @@ from . import scenario
 from . import data
 from .objects import JSONObject, Dataset as JSONDataset
 
-from ..util.permissions import check_perm
+from ..util.permissions import check_perm, required_perms
 from . import template
 from ..db.model import Project, Network, Scenario, Node, Link, ResourceGroup,\
         ResourceAttr, Attr, ResourceType, ResourceGroupItem, Dataset, Metadata, DatasetOwner,\
@@ -422,6 +422,7 @@ def _add_resource_groups(net_i, resourcegroups):
     return group_id_map, group_attrs, defaults
 
 
+@required_perms("add_network")
 def add_network(network,**kwargs):
     """
     Takes an entire network complex model and saves it to the DB.  This
@@ -439,9 +440,6 @@ def add_network(network,**kwargs):
 
     """
     db.DBSession.autoflush = False
-    user_id = kwargs.get('user_id')
-
-    check_perm(user_id, 'add_network')
 
     start_time = datetime.datetime.now()
     log.debug("Adding network")
@@ -456,6 +454,7 @@ def add_network(network,**kwargs):
     if existing_net is not None:
         raise HydraError("A network with the name %s is already in project %s"%(network.name, network.project_id))
 
+    user_id = kwargs.get('user_id')
     proj_i.check_write_permission(user_id)
 
     net_i = Network()
