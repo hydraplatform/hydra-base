@@ -189,6 +189,19 @@ class Dataframe(DataType):
 
     def set_value(self, val):
         self._value = val
+        try:
+            """ Use validate test to confirm is pd.DataFrame... """
+            self.validate()
+        except AssertionError:
+            """ ...otherwise attempt as json..."""
+            try:
+                ordered_jo = json.loads(six.text_type(val), object_pairs_hook=collections.OrderedDict)
+                df = pd.DataFrame.from_dict(ordered_jo)
+                self._value = df
+                self.validate()
+            except Exception as e:
+                """ ...and fail if neither """
+                raise HydraError(e.message)
 
     value = property(get_value, set_value)
 
@@ -199,7 +212,7 @@ class Timeseries(DataType):
     json     = TimeseriesJSON()
 
     def __init__(self, ts):
-        self.value = ts.to_json(date_format='iso', date_unit='ns')
+        self.value = ts
         self.validate()
 
     @classmethod
@@ -220,7 +233,7 @@ class Timeseries(DataType):
 
 
     def get_value(self):
-        return self._value
+        return self._value.to_json(date_format='iso', date_unit='ns')
 
     def set_value(self, val):
         self._value = val
