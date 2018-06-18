@@ -24,6 +24,7 @@ from decimal import Decimal
 import pandas as pd
 
 import json
+import six
 from .. import config
 
 from collections import namedtuple
@@ -228,7 +229,7 @@ def get_layout_as_string(layout):
     if isinstance(layout, dict):
         return json.dumps(layout)
 
-    if isinstance(layout, basestring):
+    if(isinstance(layout, six.string_types)):
         try:
             return get_layout_as_string(json.loads(layout))
         except:
@@ -245,7 +246,7 @@ def get_layout_as_dict(layout):
     if isinstance(layout, dict):
         return layout
 
-    if isinstance(layout, basestring):
+    if(isinstance(layout, six.string_types)):
         try:
             return get_layout_as_dict(json.loads(layout))
         except:

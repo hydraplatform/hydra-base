@@ -18,6 +18,7 @@
 #
 
 import logging
+import six
 from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
 from .. import db
 from ..db.model import Scenario,\
@@ -229,19 +230,19 @@ def update_scenario(scenario,update_data=True,update_groups=True,flush=True,**kw
 
     start_time = None
     if isinstance(scenario.start_time, float):
-        start_time = str(scenario.start_time)
+        start_time = six.text_type(scenario.start_time)
     else:
         start_time = timestamp_to_ordinal(scenario.start_time)
         if start_time is not None:
-            start_time = str(start_time)
+            start_time = six.text_type(start_time)
 
     end_time = None
     if isinstance(scenario.end_time, float):
-        end_time = str(scenario.end_time)
+        end_time = six.text_type(scenario.end_time)
     else:
         end_time = timestamp_to_ordinal(scenario.end_time)
         if end_time is not None:
-            end_time = str(end_time)
+            end_time = six.text_type(end_time)
 
     scen.name                 = scenario.name
     scen.description          = scenario.description

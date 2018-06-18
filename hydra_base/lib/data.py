@@ -446,11 +446,10 @@ def update_dataset(dataset_id, name, data_type, val, units, metadata={}, flush=T
 
     else:
 
-        dataset.set_val(data_type, val)
-
+        dataset.type  = data_type
+        dataset.value = val
         dataset.set_metadata(metadata)
 
-        dataset.type  = data_type
         dataset.unit = units
         dataset.name  = name
         dataset.created_by = kwargs['user_id']
@@ -480,11 +479,10 @@ def add_dataset(data_type, val, units, metadata={}, name="", user_id=None, flush
 
     d = Dataset()
 
-    d.set_val(data_type, val)
-
+    d.type  = data_type
+    d.value = val
     d.set_metadata(metadata)
 
-    d.type  = data_type
     d.unit  = units
     d.name  = name
     d.created_by = user_id

@@ -18,6 +18,7 @@
 #
 
 import json
+import six
 
 import logging
 log = logging.getLogger(__name__)
@@ -25,22 +26,11 @@ log = logging.getLogger(__name__)
 from datetime import datetime
 from ..exceptions import HydraError
 
+from HydraTypes.Registry import HydraObjectFactory
+
 from ..util import generate_data_hash, get_layout_as_dict, get_layout_as_string
 from .. import config
 import pandas as pd
-
-# Python 2 and 3 compatible string checking
-# TODO remove this when Python2 support is dropped.
-try:
-    basestring
-except NameError:
-    basestring = str
-
-try:
-    unicode
-except NameError:
-    unicode = str
-
 
 class JSONObject(dict):
     """
@@ -49,7 +39,7 @@ class JSONObject(dict):
     """
     def __init__(self, obj_dict={}, parent=None, extras={}):
 
-        if isinstance(obj_dict, basestring):
+        if isinstance(obj_dict, six.string_types):
             try:
                 obj = json.loads(obj_dict)
                 assert isinstance(obj, dict), "JSON string does not evaluate to a dict"
@@ -137,9 +127,9 @@ class JSONObject(dict):
                     pass
 
                 if isinstance(v, datetime):
-                    v = unicode(v)
+                    v = six.text_type(v)
 
-                setattr(self, unicode(k), v)
+                setattr(self, six.text_type(k), v)
 
         for k, v in extras.items():
             setattr(self, k, v)
@@ -169,7 +159,7 @@ class JSONObject(dict):
     #Only for type attrs. How best to generalise this?
     def get_properties(self):
         if self.get('properties') and self.get('properties') is not None:
-            return unicode(self.properties)
+            return six.text_type(self.properties)
         else:
             return None
 
@@ -194,7 +184,7 @@ class Dataset(JSONObject):
 
     def __setattr__(self, name, value):
         if name == 'value':
-            value = str(value)
+            value = six.text_type(value)
         super(Dataset, self).__setattr__(name, value)
 
     def parse_value(self):
@@ -202,55 +192,25 @@ class Dataset(JSONObject):
             Turn the value of an incoming dataset into a hydra-friendly value.
         """
         try:
-            #attr_data.value is a dictionary,
-            #but the keys have namespaces which must be stripped.
-
-
             if self.value is None:
                 log.warn("Cannot parse dataset. No value specified.")
                 return None
 
-            data = unicode(self.value)
+            # attr_data.value is a dictionary but the keys have namespaces which must be stripped
+            data = six.text_type(self.value)
 
-            if data.upper().strip() == 'NULL':
-                return 'NULL'
-
-            if data.strip() == '':
+            if data.upper().strip() in ("NULL", ""):
                 return "NULL"
 
-            if len(data) > 100:
-                log.debug("Parsing %s", data[0:100])
-            else:
-                log.debug("Parsing %s", data)
+            data = data[0:100]
+            log.info("[Dataset.parse_value] Parsing %s (%s)", data, type(data))
 
-            if self.type == 'descriptor':
-                #Hack to work with hashtables. REMOVE AFTER DEMO
-                if self.get_metadata_as_dict().get('data_type') == 'hashtable':
-                    try:
-                        df = pd.read_json(data)
-                        data = df.transpose().to_json()
-                    except Exception:
-                        noindexdata = json.loads(data)
-                        indexeddata = {0:noindexdata}
-                        data = json.dumps(indexeddata)
-                return data
-            elif self.type == 'scalar':
-                return data
-            elif self.type == 'timeseries':
-                timeseries_pd = pd.read_json(data, convert_axes=False)
-                #Epoch doesn't work here because dates before 1970 are not
-                # supported in read_json. Ridiculous.
-                ts = timeseries_pd.to_json(date_format='iso', date_unit='ns')
-                #TODO: Design a mechanism to access this data in a scaleable way if it's stored externally
-                return ts
-            elif self.type == 'array':
-                #check to make sure this is valid json
-                #TODO: Design a mechanism to access this data in a scaleable way if it's stored externally
-                json.loads(data)
-                return data
+            return HydraObjectFactory.valueFromDataset(self.type, self.value, self.get_metadata_as_dict())
+
         except Exception as e:
             log.exception(e)
             raise HydraError("Error parsing value %s: %s"%(self.value, e))
+
 
     def get_metadata_as_dict(self, user_id=None, source=None):
         """
@@ -267,26 +227,18 @@ class Dataset(JSONObject):
         if self.metadata is None or self.metadata == "":
             return {}
 
-        metadata_dict = {}
+        metadata_dict = self.metadata if isinstance(self.metadata, dict) else json.loads(self.metadata)
 
-        if isinstance(self.metadata, dict):
-            metadata_dict = self.metadata
-        else:
-            metadata_dict = json.loads(self.metadata)
-
-        #These should be set on all datasests by default, but we don't
-        #want to enforce this rigidly
+        # These should be set on all datasets by default, but we don't enforce this rigidly
         metadata_keys = [m.lower() for m in metadata_dict]
         if user_id is not None and 'user_id' not in metadata_keys:
-            metadata_dict['user_id'] = unicode(user_id)
+            metadata_dict['user_id'] = six.text_type(user_id)
 
         if source is not None and 'source' not in metadata_keys:
-            metadata_dict['source'] = unicode(source)
+            metadata_dict['source'] = six.text_type(source)
 
-        for k, v in metadata_dict.items():
-            metadata_dict[k] = unicode(v)
+        return { k : six.text_type(v) for k, v in metadata_dict.iteritems() }
 
-        return metadata_dict
 
     def get_hash(self, val, metadata):
 
