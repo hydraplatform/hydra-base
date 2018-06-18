@@ -9,8 +9,8 @@ import json
 import inspect
 import sys
 
-from Types import Array, Scalar, Timeseries, Descriptor, Dataframe
-from Types import DataType as Datatype_Base
+from .Types import Array, Scalar, Timeseries, Descriptor, Dataframe
+from .Types import DataType as Datatype_Base
 
 
 def isHydraType(cls):
@@ -45,6 +45,7 @@ class HydraObjectFactory(object):
     def fromDataset(datatype, value, metadata=None, tmap=typemap):
         """
           Return a representation of dataset argument as an instance
+
           of the class corresponding to its datatype
         """
         return tmap[datatype.upper()].fromDataset(value, metadata=metadata)

@@ -14,7 +14,7 @@ from abc import ABCMeta, abstractmethod, abstractproperty
 from datetime import datetime
 import collections
 
-from Encodings import ScalarJSON, ArrayJSON, DescriptorJSON, DataframeJSON, TimeseriesJSON
+from .Encodings import ScalarJSON, ArrayJSON, DescriptorJSON, DataframeJSON, TimeseriesJSON
 from hydra_base.exceptions import HydraError
 
 
@@ -218,14 +218,14 @@ class Timeseries(DataType):
     @classmethod
     def fromDataset(cls, value, metadata=None):
         ordered_jo = json.loads(six.text_type(value), object_pairs_hook=collections.OrderedDict)
-        ts = pd.DataFrame.from_dict(ordered_jo, orient="index")
+        ts = pd.DataFrame.from_dict(ordered_jo)
         return cls(ts)
 
 
     def validate(self):
         base_ts = pd.Timestamp("01-01-1970")
         jd = json.loads(self.value, object_pairs_hook=collections.OrderedDict)
-        for k,v in jd.iteritems():
+        for k,v in jd.items():
             for date in (six.text_type(d) for d in v.keys()):
                 ts = pd.Timestamp(date)
                 print(ts, type(ts))

@@ -1214,7 +1214,7 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
     #This is a dict as the length of the list may not match the new_res_attrs
     #Keyed on attr_id, as resource_attr_id doesn't exist yet, and there should only
     #be one attr_id per template.
-    new_res_scenarios = []
+    new_res_scenarios = {}
     for attr_id in missing_attr_ids:
         ra_dict = dict(
             ref_key = ref_key,
@@ -1234,7 +1234,7 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
             if hasattr(resource, 'network'):
 
                 for s in resource.network.scenarios:
-                    new_res_scenarios.append(dict(
+                    new_res_scenarios[attr_id][scenario.id] =  dict(
                         dataset_id = type_attrs[attr_id]['default_dataset_id'],
                         scenario_id = s.id,
                         #Not stored in the DB, but needed to connect the RA ID later.
@@ -1244,7 +1244,7 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
                         link_id    = ra_dict['link_id'],
                         group_id   = ra_dict['group_id'],
                         network_id = ra_dict['network_id'],
-                    ))
+                    )
 
 
     resource_type = None

@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 from datetime import datetime
 from ..exceptions import HydraError
 
-from HydraTypes.Registry import HydraObjectFactory
+from .HydraTypes.Registry import HydraObjectFactory
 
 from ..util import generate_data_hash, get_layout_as_dict, get_layout_as_string
 from .. import config
@@ -237,7 +237,7 @@ class Dataset(JSONObject):
         if source is not None and 'source' not in metadata_keys:
             metadata_dict['source'] = six.text_type(source)
 
-        return { k : six.text_type(v) for k, v in metadata_dict.iteritems() }
+        return { k : six.text_type(v) for k, v in metadata_dict.items() }
 
 
     def get_hash(self, val, metadata):

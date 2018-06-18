@@ -753,7 +753,7 @@ def create_timeseries(resource_attr):
 
     val_3 = [3.0, None, None]
 
-    ts_val = {"index": {t1.strftime(fmt): val_1,
+    ts_val = {"test_column": {t1.strftime(fmt): val_1,
                   t2.strftime(fmt): val_2,
                   t3.strftime(fmt): val_3}}
 

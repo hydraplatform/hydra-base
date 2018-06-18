@@ -1639,7 +1639,7 @@ def add_node(network_id, node,**kwargs):
             if rt is not None:
                 res_types.append(rt)#rt is one object
             res_attrs.extend(ra)#ra is a list of objects
-            res_scenarios.update(rs[0])
+            res_scenarios.update(rs)
 
         if len(res_types) > 0:
             db.DBSession.bulk_insert_mappings(ResourceType, res_types)
