@@ -23,6 +23,7 @@ from dateutil.parser import parse
 from .. import config
 import pandas as pd
 
+import six
 
 log = logging.getLogger(__name__)
 
@@ -130,7 +131,7 @@ def ordinal_to_timestamp(date):
     if date is None:
         return None
 
-    if type(date) in (str, unicode):
+    if isinstance(date, six.string_types):
         try:
             date = Decimal(date)
         except:
