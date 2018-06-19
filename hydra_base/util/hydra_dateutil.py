@@ -22,6 +22,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from dateutil.parser import parse
 from .. import config
 import pandas as pd
+import six
 
 
 log = logging.getLogger(__name__)
@@ -130,7 +131,7 @@ def ordinal_to_timestamp(date):
     if date is None:
         return None
 
-    if type(date) in (str, unicode):
+    if isinstance(date, six.string_types):
         try:
             date = Decimal(date)
         except:
@@ -215,7 +216,7 @@ def guess_timefmt(datestr):
         - Be aware that in a file with comma separated values you should not
           use a date format that contains commas.
     """
-    
+
     if isinstance(datestr, float) or isinstance(datestr, int):
         return None
 
@@ -302,7 +303,7 @@ def reindex_timeseries(ts_string, new_timestamps):
     #Reindexing can't work if it's not a list
     if not isinstance(new_timestamps, list):
         new_timestamps = [new_timestamps]
-    
+
     #Convert the incoming timestamps to datetimes
     #if they are not datetimes.
     new_timestamps_converted = []
@@ -315,7 +316,7 @@ def reindex_timeseries(ts_string, new_timestamps):
     seasonal_key = config.get('DEFAULT', 'seasonal_key', '9999')
 
     ts = ts_string.replace(seasonal_key, seasonal_year)
-    
+
     timeseries = pd.read_json(ts)
 
     idx = timeseries.index
