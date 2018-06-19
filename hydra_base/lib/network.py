@@ -1792,6 +1792,40 @@ def purge_network(network_id, purge_data,**kwargs):
     db.DBSession.flush()
     return 'OK'
 
+
+def _purge_datasets_unique_to_resource(ref_key, ref_id):
+    """
+        Find the number of times a a resource and dataset combination
+        occurs. If this equals the number of times the dataset appears, then
+        we can say this dataset is unique to this resource, therefore it can be deleted
+    """
+    count_qry = db.DBSession.query(ResourceScenario.dataset_id,
+                                   func.count(ResourceScenario.dataset_id)).group_by(
+                                       ResourceScenario.dataset_id).filter(
+                                       ResourceScenario.resource_attr_id==ResourceAttr.id)
+
+    if ref_key == 'NODE':
+        count_qry.filter(ResourceAttr.node_id==ref_id)
+    elif ref_key == 'LINK':
+        count_qry.filter(ResourceAttr.link_id==ref_id)
+    elif ref_key == 'GROUP':
+        count_qry.filter(ResourceAttr.group_id==ref_id)
+
+    count_rs = count_qry.all()
+
+    for dataset_id, count in count_rs:
+        full_dataset_count = db.DBSession.query(ResourceScenario).filter(ResourceScenario.dataset_id==dataset_id).count()
+        if full_dataset_count == count:
+            """First delete all the resource scenarios"""
+            datasets_rs_to_delete = db.DBSession.query(ResourceScenario).filter(ResourceScenario.dataset_id==dataset_id).all()
+            for dataset_rs in datasets_rs_to_delete:
+                db.DBSession.delete(dataset_rs)
+
+            """Then delete all the datasets"""
+            dataset_to_delete = db.DBSession.query(Dataset).filter(Dataset.id==dataset_id).one()
+            log.info("Deleting %s dataset %s (%s)", ref_key, dataset_to_delete.name, dataset_to_delete.id)
+            db.DBSession.delete(dataset_to_delete)
+
 def delete_node(node_id, purge_data,**kwargs):
     """
         Remove node from DB completely
@@ -1812,21 +1846,7 @@ def delete_node(node_id, purge_data,**kwargs):
         db.DBSession.delete(gi)
 
     if purge_data == 'Y':
-        #Find the number of times a a resource and dataset combination
-        #occurs. If this equals the number of times the dataset appears, then
-        #we can say this dataset is unique to this node.
-        count = db.DBSession.query(ResourceScenario.dataset_id).distinct(
-            ResourceScenario.resource_attr_id,
-            ResourceScenario.dataset_id).filter(ResourceScenario.resource_attr_id==ResourceAttr.id,
-                                               ResourceAttr.node_id==node_id).count()
-
-        node_data_qry = _unique_data_qry(count)
-        node_data_qry = node_data_qry.filter(ResourceAttr.node_id==node_id)
-        node_data = node_data_qry.all()
-
-        for node_datum in node_data:
-            log.info("Deleting node dataset %s", node_datum.dataset_id)
-            db.DBSession.delete(node_datum.dataset)
+        _purge_datasets_unique_to_resource('NODE', node_id)
 
     log.info("Deleting node %s, id=%s", node_i.name, node_id)
 
@@ -1952,22 +1972,7 @@ def delete_link(link_id, purge_data,**kwargs):
         db.DBSession.delete(gi)
 
     if purge_data == 'Y':
-        #Find the number of times a a resource and dataset combination
-        #occurs. If this equals the number of times the dataset appears, then
-        #we can say this datset is unique to this link.
-        count = db.DBSession.query(ResourceScenario.dataset_id).distinct(
-            ResourceScenario.resource_attr_id,
-            ResourceScenario.dataset_id).filter(
-                    ResourceScenario.resource_attr_id==ResourceAttr.id,
-                    ResourceAttr.link_id==link_id).count()
-
-        link_data_qry = _unique_data_qry(count)
-        link_data_qry = link_data_qry.filter(ResourceAttr.link_id==link_id)
-        link_data = link_data_qry.all()
-
-        for link_datum in link_data:
-            log.warn("Deleting link dataset %s", link_datum.dataset_id)
-            db.DBSession.delete(link_datum.dataset)
+        _purge_datasets_unique_to_resource('LINK', link_id)
 
     log.info("Deleting link %s, id=%s", link_i.name, link_id)
 
@@ -2092,21 +2097,7 @@ def delete_group(group_id, purge_data,**kwargs):
         db.DBSession.delete(gi)
 
     if purge_data == 'Y':
-        #Find the number of times a a resource and dataset combination
-        #occurs. If this equals the number of times the dataset appears, then
-        #we can say this datset is unique to this group.
-        count = db.DBSession.query(ResourceScenario.dataset_id).distinct(
-            ResourceScenario.resource_attr_id,
-            ResourceScenario.dataset_id).filter(
-                    ResourceScenario.resource_attr_id==ResourceAttr.id,
-                    ResourceAttr.group_id==group_id).count()
-        group_data_qry = _unique_data_qry(count)
-        group_data_qry = group_data_qry.filter(ResourceAttr.group_id==group_id)
-        group_data = group_data_qry.all()
-
-        for group_datum in group_data:
-            log.warn("Deleting group dataset %s", group_datum.dataset_id)
-            db.DBSession.delete(group_datum.dataset)
+        _purge_datasets_unique_to_resource('GROUP', group_id)
 
     log.info("Deleting group %s, id=%s", group_i.name, group_id)
 

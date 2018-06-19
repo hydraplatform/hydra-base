@@ -13,9 +13,13 @@ import pandas as pd
 from abc import ABCMeta, abstractmethod, abstractproperty
 from datetime import datetime
 import collections
+from hydra_base import config
 
 from .Encodings import ScalarJSON, ArrayJSON, DescriptorJSON, DataframeJSON, TimeseriesJSON
 from hydra_base.exceptions import HydraError
+
+import logging
+log = logging.getLogger(__name__)
 
 
 class DataType(object):
@@ -174,7 +178,7 @@ class Dataframe(DataType):
             """ Raised on scalar types used as pd.DataFrame values
                 in absence of index arg
             """
-            raise HydraError(e.message)
+            raise HydraError(str(e))
 
         return cls(df)
 
@@ -201,7 +205,7 @@ class Dataframe(DataType):
                 self.validate()
             except Exception as e:
                 """ ...and fail if neither """
-                raise HydraError(e.message)
+                raise HydraError(str(e))
 
     value = property(get_value, set_value)
 
@@ -224,9 +228,17 @@ class Timeseries(DataType):
 
     def validate(self):
         base_ts = pd.Timestamp("01-01-1970")
+        #TODO: We need a more permanent solution to seasonal/repeating timeseries
+        seasonal_year = config.get('DEFAULT','seasonal_year', '1678')
+        seasonal_key = config.get('DEFAULT', 'seasonal_key', '9999')
         jd = json.loads(self.value, object_pairs_hook=collections.OrderedDict)
         for k,v in jd.items():
             for date in (six.text_type(d) for d in v.keys()):
+                #A date with '9999' in it is a special case, but is an invalid year
+                #for pandas, so replace it with the first year allowed by pandas -- 1678
+                if date.find(seasonal_key) >= 0:
+                    date = date.replace(seasonal_key, seasonal_year)
+
                 ts = pd.Timestamp(date)
                 print(ts, type(ts))
                 assert isinstance(ts, base_ts.__class__) # Same type as known valid ts

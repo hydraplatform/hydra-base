@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 
 
 @pytest.fixture()
-def relative_timeseries():
+def relative_dataframe():
     """
         Create a timeseries which has relative timesteps:
         1, 2, 3 as opposed to timestamps
@@ -47,7 +47,7 @@ def relative_timeseries():
 
 
 @pytest.fixture()
-def arbitrary_timeseries():
+def arbitrary_dataframe():
     """
         Create a timeseries which has relative timesteps:
         1, 2, 3 as opposed to timestamps
@@ -88,7 +88,7 @@ class TestTimeSeries:
         Test for timeseries-based functionality
     """
     #@pytest.mark.xfail(reason='Relative timesteps are being converted to timestamps. ')
-    def test_relative_timeseries(self, session, network, relative_timeseries):
+    def test_relative_dataframe(self, session, network, relative_dataframe):
         """
             Test for relative timeseries for example, x number of hours from hour 0.
         """
@@ -96,8 +96,8 @@ class TestTimeSeries:
         s = network['scenarios'][0]
         assert len(s['resourcescenarios']) > 0
         for rs in s['resourcescenarios']:
-            if rs['dataset']['type'] == 'timeseries':
-                rs['dataset']['value'] = relative_timeseries
+            if rs['dataset']['type'] == 'dataframe':
+                rs['dataset']['value'] = relative_dataframe
 
         new_network_summary = hb.add_network(network, user_id=pytest.root_user_id)
         new_net = hb.get_network(new_network_summary.id, user_id=pytest.root_user_id, include_data='Y')
@@ -107,21 +107,21 @@ class TestTimeSeries:
 
         assert len(new_rss) > 0
         for new_rs in new_rss:
-            if new_rs.value.type == 'timeseries':
+            if new_rs.value.type == 'dataframe':
                 ret_ts_dict = list(json.loads(new_rs.value.value).values())[0]
-                client_ts   = json.loads(relative_timeseries)['0']
+                client_ts   = json.loads(relative_dataframe)['0']
                 for new_timestep in client_ts.keys():
                     # TODO this bit appears broken. Somewhere in hydra the timesteps
                     # are convert to timestamps.
                     assert ret_ts_dict.get(new_timestep) == client_ts[new_timestep]
 
 
-    def test_arbitrary_timeseries(self, session, network, arbitrary_timeseries):
+    def test_arbitrary_dataframe(self, session, network, arbitrary_dataframe):
 
         s = network['scenarios'][0]
         for rs in s['resourcescenarios']:
-            if rs['dataset']['type'] == 'timeseries':
-                rs['dataset']['value'] = arbitrary_timeseries
+            if rs['dataset']['type'] == 'dataframe':
+                rs['dataset']['value'] = arbitrary_dataframe
 
         new_network_summary = hb.add_network(network, user_id=pytest.root_user_id)
         new_net = hb.get_network(new_network_summary.id, user_id=pytest.root_user_id)
@@ -132,25 +132,25 @@ class TestTimeSeries:
             if new_rs.value.type == 'timeseries':
                 ret_ts_dict = {}
                 ret_ts_dict = list(json.loads(new_rs.value.value).values())[0]
-                client_ts   = json.loads(arbitrary_timeseries)['0']
+                client_ts   = json.loads(arbitrary_dataframe)['0']
                 for new_timestep in client_ts.keys():
                     assert ret_ts_dict[new_timestep] == client_ts[new_timestep]
 
-    def test_get_relative_data_between_times(self, session, network, relative_timeseries):
+    def test_get_relative_data_between_times(self, session, network, relative_dataframe):
 
-        # TODO The following is shared with `test_relative_timeseries` it could be put in a fixture
+        # TODO The following is shared with `test_relative_dataframe` it could be put in a fixture
         s = network['scenarios'][0]
         assert len(s['resourcescenarios']) > 0
         for rs in s['resourcescenarios']:
-            if rs['dataset']['type'] == 'timeseries':
-                rs['dataset']['value'] = relative_timeseries
+            if rs['dataset']['type'] == 'dataframe':
+                rs['dataset']['value'] = relative_dataframe
 
         new_network_summary = hb.add_network(network, user_id=pytest.root_user_id)
         new_net = hb.get_network(new_network_summary.id, user_id=pytest.root_user_id, include_data='Y')
         scenario = new_net.scenarios[0]
         val_to_query = None
         for d in scenario.resourcescenarios:
-            if d.value.type == 'timeseries':
+            if d.value.type == 'dataframe':
                 val_to_query = d.value
                 break
 
@@ -299,7 +299,7 @@ class TestTimeSeries:
                 val_to_query = d.value
                 break
 
-        val_a, val_b = list(json.loads(val_to_query.value)['index'].values())[:2]
+        val_a, val_b = list(json.loads(val_to_query.value)['test_column'].values())[:2]
 
         now = datetime.datetime.now()
 

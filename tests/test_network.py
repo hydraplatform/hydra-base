@@ -72,7 +72,7 @@ class TestNetwork:
         #The type has only 2 attributes, so these are the only
         #ones which should be returned.
         for n in net.nodes:
-            assert len(n.attributes) == 3
+            assert len(n.attributes) == 4
         #only 4 of the links in the network have a type, so only these
         #4 should be returned.
         logging.info("%s links before"%(len(net.links)))
@@ -94,7 +94,7 @@ class TestNetwork:
         #The type has only 2 attributes, so these are the only
         #ones which should be returned.
         for n in filtered_net.nodes:
-            assert len(n.attributes) == 3
+            assert len(n.attributes) == 4
         #only 4 of the links in the network have a type, so only these
         #4 should be returned.
         logging.info("%s links after"%(len(filtered_net.links)))
@@ -704,7 +704,7 @@ class TestNetwork:
             if hasattr(ra, 'resourcescenario') and ra.resourcescenario is not None:
                 if ra.resourcescenario:
                     attrs_with_data.append(ra.id)
-        assert len(attrs_with_data) == 2
+        assert len(attrs_with_data) == 3
 
     def test_get_link(self, session, network_with_data):
         network = network_with_data
@@ -945,7 +945,7 @@ class TestNetwork:
             d = rs.value
             if d.type == 'timeseries':
                 with pytest.raises(hb.exceptions.HydraError):
-                    hb.get_dataset(d.id, user_id=pytest.root_user_id)
+                    dataset = hb.get_dataset(d.id, user_id=pytest.root_user_id)
 
     def test_delete_link(self, session, network_with_data):
         net = network_with_data

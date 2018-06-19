@@ -254,7 +254,7 @@ class TestScenario:
         scenario_2 = self.clone_scenario(scenario_1.id)
         scenario_2 = self.get_scenario(scenario_2.id)
 
-        new_value = json.dumps({"index": {"1.0":"test", "2.0":"update"}})
+        new_value = json.dumps({"index": {"2000-01-01":"test", "2000-02-01":"update"}})
 
         #Delete a timeseries from one scenario, so there's only 1 reference to that
         #dataset in tResourceSceanrio.

@@ -680,7 +680,7 @@ def _process_incoming_data(data, user_id=None, source=None):
 def _get_db_val(data_type, val):
     if data_type in ('descriptor','scalar'):
         return str(val)
-    elif data_type in ('timeseries', 'array'):
+    elif data_type in ('timeseries', 'array', 'dataframe'):
         return val
     else:
         raise HydraError("Invalid data type %s"%(data_type,))

@@ -89,8 +89,9 @@ def create_template():
     link_attr_3  = create_attr("link_attr_c", dimension='Length')
     node_attr_1  = create_attr("node_attr_a", dimension='Volume')
     node_attr_2  = create_attr("node_attr_b", dimension='Speed')
-    node_attr_3  = create_attr("node_attr_c", dimension='Cost')
-    group_attr_1 = create_attr("grp_attr_1", dimension='Cost')
+    node_attr_3  = create_attr("node_attr_c", dimension='Monetary value')
+    node_attr_4  = create_attr("node_attr_d", dimension='Volumetric flow rate')
+    group_attr_1 = create_attr("grp_attr_1", dimension='Monetary value')
     group_attr_2 = create_attr("grp_attr_2", dimension='Displacement')
 
     template = JSONObject()
@@ -145,6 +146,11 @@ def create_template():
     typeattr_3 = JSONObject()
     typeattr_3.attr_id = node_attr_3.id
     typeattrs.append(typeattr_3)
+
+    typeattr_4 = JSONObject()
+    typeattr_4.attr_id = node_attr_4.id
+    typeattr_4.unit = "m^3 s^-1"
+    typeattrs.append(typeattr_4)
 
     node_type.typeattrs = typeattrs
 
@@ -206,7 +212,7 @@ def create_template():
 
     assert len(new_template.templatetypes) == len(types), "Resource types did not add correctly"
     for t in new_template.templatetypes[1].typeattrs:
-        assert t.attr_id in (node_attr_1.id, node_attr_2.id, node_attr_3.id);
+        assert t.attr_id in (node_attr_1.id, node_attr_2.id, node_attr_3.id, node_attr_4.id);
         "Node types were not added correctly!"
 
     for t in new_template.templatetypes[2].typeattrs:
@@ -354,8 +360,16 @@ def build_network(project_id=None, num_nodes=10, new_proj=True, map_projection='
             attr_is_var = 'N',
         ))
         ra_index = ra_index + 1
+        node_ra4         = JSONObject(dict(
+            ref_key = 'NODE',
+            ref_id  = None,
+            attr_id = node_type.typeattrs[3].attr_id,
+            id      = ra_index * -1,
+            attr_is_var = 'N',
+        ))
+        ra_index = ra_index + 1
 
-        node.attributes = [node_ra1, node_ra2, node_ra3]
+        node.attributes = [node_ra1, node_ra2, node_ra3, node_ra4]
 
         type_summary = JSONObject(dict(
             template_id = template.id,
@@ -483,6 +497,9 @@ def build_network(project_id=None, num_nodes=10, new_proj=True, map_projection='
                 elif na['attr_id'] == node_type.typeattrs[2].attr_id:
                     scalar = create_scalar(na)
                     scenario_data.append(scalar)
+                elif na['attr_id'] == node_type.typeattrs[3].attr_id:
+                    dataframe = create_dataframe(na)
+                    scenario_data.append(dataframe)
     count = 0
     for l in links:
         for na in l.attributes:
@@ -723,7 +740,7 @@ def create_descriptor(resource_attr, val="test"):
         id=None,
         type = 'descriptor',
         name = 'Flow speed',
-        unit = 'm s^-1',
+        unit = 'm s^-1', # This does not match the type on purpose, to test validation
         hidden = 'N',
         value = val,
     ))
@@ -763,7 +780,39 @@ def create_timeseries(resource_attr):
         id=None,
         type = 'timeseries',
         name = 'my time series',
-        unit = 'cm^3',
+        unit = 'cm^3', # This does not match the type on purpose, to test validation
+        hidden = 'N',
+        value = json.dumps(ts_val),
+        metadata = metadata
+    ))
+
+    scenario_attr = JSONObject(dict(
+        attr_id = resource_attr.attr_id,
+        resource_attr_id = resource_attr.id,
+        dataset = dataset,
+    ))
+
+    return scenario_attr
+
+def create_dataframe(resource_attr):
+    #A scenario attribute is a piece of data associated
+    #with a resource attribute.
+
+    val_1 = "df_a"
+    val_2 = "df_b"
+    val_3 = "df_c"
+
+    ts_val = {"test_column": {'key1': val_1,
+                  'key2': val_2,
+                  'key3': val_3}}
+
+    metadata = {'created_by': 'Test user'}
+
+    dataset = Dataset(dict(
+        id=None,
+        type = 'dataframe',
+        name = 'my data frame',
+        unit = 'm^3 s^-1',
         hidden = 'N',
         value = json.dumps(ts_val),
         metadata = metadata
