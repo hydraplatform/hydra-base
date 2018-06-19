@@ -14,13 +14,20 @@ import logging
 log = logging.getLogger("objects")
 
 
+def generator(size):
+    """
+        To avoid python 2/3 compatibility issues, use a custom generator instead of 'range' directly
+    """
+    for i in range(size):
+        yield i
+
 """ Type arguments """
 
 scalar_valid_values       = [ 46, -1, 0, 7.7, -0.0 ]
 scalar_invalid_values     = [ "one", None, pd, {} ]
 
 array_valid_values        = [ [-2, -1, 0, 1, 2], list(range(32)), [ 0.5e-3, 0.5, 0.5e3 ] ]
-array_invalid_values      = [ range(32), 77, {}, "justastring" ]
+array_invalid_values      = [ generator(32), 77, {}, "justastring" ]
 
 timeseries_valid_values   = [ {"0": {"1979 Feb 2 0100":7, "01:00 2 Feb 1979":9}}, {"0":{"2012":12, "2013":13, "2014":14}}, {"0":{"18:00 31 August 1977":100}} ]
 timeseries_invalid_values = [ "otheriterable", list(range(12)), {"JAN":1, "FEB":2, "MAR":3, "APR":4}, set(), ["01:00 30 Feb 1979"] ]
@@ -72,6 +79,7 @@ def test_create_array(value):
 @pytest.mark.parametrize("value", array_invalid_values)
 def test_fail_create_array(value):
     with pytest.raises( (HydraError, TypeError) ):
+        print(value)
         array_dataset = hb.lib.objects.Dataset({'type':'array', 'value': json.dumps(value)})
         value = array_dataset.parse_value()
 
