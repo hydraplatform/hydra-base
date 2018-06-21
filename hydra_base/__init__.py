@@ -45,7 +45,7 @@ from .lib.service import *
 from . import hydra_logging
 hydra_logging.init()
 
-from .db import connect
+from .db import connect, commit_transaction, rollback_transaction
 
 log = logging.getLogger(__name__)
 
