@@ -681,6 +681,7 @@ def add_attribute_group(attributegroup, **kwargs):
                 'exclusive'  : 'N' (or 'Y' )          (optional, default to 'N')
             }
     """
+    log.info("attributegroup.project_id %s",attributegroup.project_id) # It is None while it should be valued
     user_id=kwargs.get('user_id')
     project_i = db.DBSession.query(Project).filter(Project.id==attributegroup.project_id).one()
     project_i.check_write_permission(user_id)
