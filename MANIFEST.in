@@ -1,3 +1,4 @@
 include *.txt
-include static/*
+global-include *.xml
+graft static
 recursive-include examples *.txt *.py
