@@ -1,0 +1,3 @@
+include *.txt
+include static/*
+recursive-include examples *.txt *.py
