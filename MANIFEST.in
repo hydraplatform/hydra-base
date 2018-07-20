@@ -1,5 +1,5 @@
 include *.txt
-global-include *.xml
-global-include *.ini
+global-include *.xml *.xsd
+global-include *.ini *.conf *.mako *.sql
 graft static
 recursive-include examples *.txt *.py
