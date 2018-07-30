@@ -121,56 +121,16 @@ def login_user(username, password):
     except NoResultFound:
         raise HydraError(username)
 
-    row2dict = lambda r: {c.name: str(getattr(r, c.name)) for c in r.__table__.columns}
-    list_of_dicts = row2dict(user_i)
-    print(list_of_dicts)
+    # row2dict = lambda r: {c.name: str(getattr(r, c.name)) for c in r.__table__.columns}
+    # list_of_dicts = row2dict(user_i)
+    # print(list_of_dicts)
     userPassword = ""
     try:
         userPassword = user_i.password.encode('utf-8')
-        print("1) ", userPassword )
     except:
         userPassword = user_i.password
-        print("2) ", userPassword)
 
-    print("username ", username)
-    print("password ", password)
-    print("str(password).encode('utf-8') ", str(password).encode('utf-8'))
-    print("user_i.password ", user_i.password)
-    print("userPassword ", userPassword)
-
-    pw0 = bcrypt.hashpw(userPassword, userPassword)
-    print("pw0 = bcrypt.hashpw(userPassword, userPassword)", pw0)
-
-    pw02 = bcrypt.hashpw(password.encode('utf-8'), userPassword)
-    print("pw02 = bcrypt.hashpw(password.encode('utf-8'), userPassword)", pw02)
-
-
-
-    pw1 = bcrypt.hashpw(str(user_i.password).encode('utf-8'), bcrypt.gensalt())
-    print("1.a bcrypt.hashpw(str(user.password).encode('utf-8'), bcrypt.gensalt())",pw1)
-    pw1b = bcrypt.hashpw(str(user_i.password).encode('utf-8'), pw1)
-    print("1.b bcrypt.hashpw(str(user.password).encode('utf-8'), pw1)",pw1b)
-
-    pw1c = bcrypt.hashpw(userPassword, pw1)
-    print("1.c bcrypt.hashpw(userPassword, pw1)",pw1c)
-
-
-    pw2 = bcrypt.hashpw(str(user_i.password).encode('utf-8'), bcrypt.gensalt())
-    print("2. bcrypt.hashpw(str(user.password).encode('utf-8'), bcrypt.gensalt())",pw2)
-
-
-
-    print("bcrypt.hashpw(password.encode('utf-8'), userPassword)", bcrypt.hashpw(str(password).encode('utf-8'), userPassword))
-    # print("bcrypt.hashpw(userPassword, password.encode('utf-8'))", bcrypt.hashpw(userPassword, str(password).encode('utf-8')))
-    # print("bcrypt.hashpw(password.encode('utf-8'), user_i.password)", bcrypt.hashpw(str(password).encode('utf-8'), user_i.password))
-    print("bcrypt.hashpw(password.encode('utf-8'), , bcrypt.gensalt())", bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()))
-    print("bcrypt.checkpw(password.encode('utf-8'), userPassword)", bcrypt.checkpw(password.encode('utf-8'), userPassword))
-    print("bcrypt.checkpw(password, userPassword)", bcrypt.checkpw(password, userPassword))
-
-
-
-    #if bcrypt.hashpw(password.encode('utf-8'), userPassword) == userPassword:
-    if bcrypt.checkpw(password.encode('utf-8'), userPassword):
+    if bcrypt.hashpw(password.encode('utf-8'), userPassword) == userPassword:
         user_i.last_login = datetime.datetime.now()
         return user_i.id
     else:
