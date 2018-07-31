@@ -143,6 +143,7 @@ def create_default_net():
         net.scenarios.append(scen)
         db.DBSession.add(net)
     db.DBSession.flush()
+    transaction.commit()
     return net
 
 
