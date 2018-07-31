@@ -27,8 +27,7 @@ from sqlalchemy import create_engine,\
         DDL
 from sqlalchemy.engine import reflection
 import logging
-from mysql.connector.connection import MySQLConnection
-import .config
+from hydra_base import config
 from subprocess import Popen
 from sqlalchemy.types import DECIMAL, NUMERIC
 from sqlalchemy.dialects.mysql.base import DOUBLE
@@ -42,8 +41,6 @@ def connect():
     """
         return an inspector object
     """
-   # MySQLConnection.get_characterset_info = MySQLConnection.get_charset
-
     db = create_engine(engine_name, echo=True)
     db.connect()
     
@@ -110,7 +107,7 @@ def run():
         audit_table = create_audit_table(t)
         audit_tables.append(audit_table)
         
-    create_sqlite_backup_db(audit_tables)
+    #create_sqlite_backup_db(audit_tables)
     create_triggers(db, tables)
     metadata.create_all()
 
@@ -170,7 +167,7 @@ def create_triggers(db, tables):
                                 d.*,
                                 '%(action)s',
                                 NULL,
-                                date('now')
+                                NOW()
                             FROM
                                 %(table_name)s
                                 AS d
