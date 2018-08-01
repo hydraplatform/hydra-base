@@ -118,10 +118,28 @@ def load_config():
         hydra_base = os.environ.get('HYDRA_BASE_DIR', modulepath)
     config.set('DEFAULT', 'hydra_base_dir', os.path.expanduser(hydra_base))
 
+    read_values_from_environment(config, 'mysqld', 'server_name')
+
 
     CONFIG = config
 
     return config
+
+def read_values_from_environment(config, section_key, options_key):
+    #####################################
+    # Settings for docker ENV variables #
+    #####################################
+    env_var_name='HYDRA_DOCKER__' + section_key + '__' + options_key
+
+    env_value = os.environ.get(env_var_name, '-')
+    if (env_value == '-'):
+        print("Non presente")
+    else:
+        # Substitute the server_name with the end variable
+        print("Presente")
+        config.set(section_key, options_key, env_value)
+
+    print(env_var_name)
 
 def set_windows_env_variables(config):
     import winpaths
@@ -164,4 +182,3 @@ def getint(section, option, default=None):
         return CONFIG.getint(section, option)
     except:
         return default
-
