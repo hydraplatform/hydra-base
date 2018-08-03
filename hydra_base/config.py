@@ -132,10 +132,7 @@ def read_values_from_environment(config, section_key, options_key):
     env_var_name='HYDRA_DOCKER__' + section_key + '__' + options_key
 
     env_value = os.environ.get(env_var_name, '-')
-    if (env_value == '-'):
-        # Env variable not defined
-        # print("Non presente")
-    else:
+    if (env_value != '-'):
         # Substitute the server_name with the end variable
         # print("Presente")
         config.set(section_key, options_key, env_value)
