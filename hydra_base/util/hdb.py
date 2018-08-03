@@ -121,9 +121,6 @@ def login_user(username, password):
     except NoResultFound:
         raise HydraError(username)
 
-    # row2dict = lambda r: {c.name: str(getattr(r, c.name)) for c in r.__table__.columns}
-    # list_of_dicts = row2dict(user_i)
-    # print(list_of_dicts)
     userPassword = ""
     try:
         userPassword = user_i.password.encode('utf-8')
@@ -135,7 +132,6 @@ def login_user(username, password):
         return user_i.id
     else:
         raise HydraError(username)
-
 def create_default_net():
     try:
         net = db.DBSession.query(Network).filter(Network.id==1).one()
