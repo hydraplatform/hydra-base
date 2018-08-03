@@ -107,9 +107,9 @@ def make_root_user():
 
 
     db.DBSession.flush()
-    
+
     user_id = user.id
-    
+
     transaction.commit()
 
     return user_id
@@ -126,6 +126,7 @@ def login_user(username, password):
         userPassword = user_i.password.encode('utf-8')
     except:
         userPassword = user_i.password
+
     if bcrypt.hashpw(password.encode('utf-8'), userPassword) == userPassword:
         user_i.last_login = datetime.datetime.now()
         return user_i.id
