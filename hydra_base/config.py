@@ -133,13 +133,13 @@ def read_values_from_environment(config, section_key, options_key):
 
     env_value = os.environ.get(env_var_name, '-')
     if (env_value == '-'):
-        print("Non presente")
+        # Env variable not defined
+        # print("Non presente")
     else:
         # Substitute the server_name with the end variable
-        print("Presente")
+        # print("Presente")
         config.set(section_key, options_key, env_value)
 
-    print(env_var_name)
 
 def set_windows_env_variables(config):
     import winpaths
