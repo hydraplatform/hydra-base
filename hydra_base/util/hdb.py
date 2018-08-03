@@ -132,6 +132,7 @@ def login_user(username, password):
         return user_i.id
     else:
         raise HydraError(username)
+
 def create_default_net():
     try:
         net = db.DBSession.query(Network).filter(Network.id==1).one()
