@@ -24,7 +24,7 @@ class HydraError(Exception):
         # Call the base class constructor with the parameters it needs
         self.code = error_codes.get(self.__error_code__, '0000')
         self.message = message # Added for Py3
-        super().__init__({"message": message, "code": self.code})
+        super(HydraError, self).__init__({"message": message, "code": self.code})
 
 
 class HydraDBError(HydraError):
