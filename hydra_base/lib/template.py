@@ -1332,8 +1332,8 @@ def add_template(template, **kwargs):
 
     db.DBSession.add(tmpl)
 
-    if hasattr(template, 'types') and template.types is not None or hasattr(template, 'templatetypes') and template.templatetypes is not None:
-        types = template.types if template.types is not None else template.templatetypes
+    if template.templatetypes is not None:
+        types = template.templatetypes
         for templatetype in types:
             ttype = _update_templatetype(templatetype)
             tmpl.templatetypes.append(ttype)
