@@ -167,13 +167,13 @@ def update_attribute(attr,**kwargs):
         attr.dimension = 'dimensionless'
 
     log.debug("Adding attribute: %s", attr.name)
-    attr_i = _get_attr(Attr.id)
+    attr_i = _get_attr(attr.id)
     attr_i.name = attr.name
     attr_i.dimension = attr.dimension
     attr_i.description = attr.description
 
     #Make sure an update hasn't caused an inconsistency.
-    check_sion(attr_i.id)
+    #check_sion(attr_i.id)
 
     db.DBSession.flush()
     return attr_i
