@@ -641,7 +641,7 @@ def _process_incoming_data(data, user_id=None, source=None):
 
         if val is None:
             log.info("Cannot parse data (dataset_id=%s). "
-                         "Value not available.",d)
+                         "Value not available.",d.id)
             continue
 
         data_dict = {
