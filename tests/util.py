@@ -201,7 +201,7 @@ def create_template():
 
     types.append(group_type)
 
-    template.types = types
+    template.templatetypes = types
 
     new_template_i = hydra_base.add_template(template, user_id=pytest.root_user_id)
     new_template = JSONObject(new_template_i)
