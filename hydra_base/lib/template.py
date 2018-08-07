@@ -1498,10 +1498,8 @@ def _set_typeattr(typeattr, existing_ta = None):
     ta.type_id = typeattr.type_id
     ta.data_type = typeattr.data_type
 
-    if typeattr.default_dataset_id is not None:
+    if hasattr(typeattr, 'default_dataset_id') and typeattr.default_dataset_id is not None:
         ta.default_dataset_id = typeattr.default_dataset_id
-    elif typeattr.default_dataset is not None:
-        ta.default_dataset_id = typeattr.default_dataset.id
 
     ta.description        = typeattr.description
 
