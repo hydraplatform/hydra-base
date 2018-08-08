@@ -180,8 +180,7 @@ class TestScenario:
 
         assert len(dataset_scenarios) == 2
 
-        assert dataset_scenarios[0].id == scenario.id
-        assert dataset_scenarios[1].id == new_scenario.id
+        assert set([scenario.id, new_scenario.id]) == set([s.id for s in dataset_scenarios])
 
     def test_update_resourcedata(self, session, network_with_data):
         """
