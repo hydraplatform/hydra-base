@@ -1558,7 +1558,7 @@ class User(Base, Inspect):
 
     id = Column(Integer(), primary_key=True, nullable=False)
     username = Column(String(60),  nullable=False, unique=True)
-    password = Column(String(1000),  nullable=False)
+    password = Column(LargeBinary(),  nullable=False)
     display_name = Column(String(60),  nullable=False, server_default=text(u"''"))
     last_login = Column(TIMESTAMP())
     last_edit = Column(TIMESTAMP())

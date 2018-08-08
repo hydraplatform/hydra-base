@@ -43,7 +43,7 @@ def upgrade():
             sa.PrimaryKeyConstraint('group_id', 'attr_id', 'network_id')
         )
     except Exception as e:
-        print "Unable to add attr group tables: %s"%(str(e))
+        print("Unable to add attr group tables: %s"%(str(e)))
 
     try:
         op.create_foreign_key(None, 'tLink', 'tNetwork', ['network_id'], ['id'])
@@ -59,7 +59,7 @@ def upgrade():
         op.create_foreign_key(None, 'tRule', 'tNetwork', ['network_id'], ['id'])
         op.create_foreign_key(None, 'tScenario', 'tNetwork', ['network_id'], ['id'])
     except Exception as e:
-        print "Unable to set foreign keys: %s" % str(e)
+        print ("Unable to set foreign keys: %s" % str(e))
     # ### end Alembic commands ###
 
 

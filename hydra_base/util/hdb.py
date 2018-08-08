@@ -87,8 +87,11 @@ def make_root_user():
     try:
         user = db.DBSession.query(User).filter(User.username=='root').one()
     except NoResultFound:
+
+        root_pwd = bcrypt.hashpw(b'', bcrypt.gensalt())
+
         user = User(username='root',
-                    password=bcrypt.hashpw(b'', bcrypt.gensalt()),
+                    password=root_pwd,
                     display_name='Root User')
         db.DBSession.add(user)
 
@@ -124,10 +127,15 @@ def login_user(username, password):
     userPassword = ""
     try:
         userPassword = user_i.password.encode('utf-8')
-    except:
+    except AttributeError:
         userPassword = user_i.password
 
-    if bcrypt.hashpw(password.encode('utf-8'), userPassword) == userPassword:
+    try:
+        password = password.encode('utf-8')
+    except AttributeError:
+        pass
+
+    if bcrypt.hashpw(password, userPassword) == userPassword:
         user_i.last_login = datetime.datetime.now()
         return user_i.id
     else:
