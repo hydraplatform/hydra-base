@@ -8,6 +8,9 @@ except:
 
 import platform
 import sys
+import os
+from packaging.version import Version
+
 py_version = sys.version_info[:2]
 
 try:
@@ -36,12 +39,18 @@ install_requires=[
     "beaker"
     ]
 
+# get version string from __init__.py
+with open(os.path.join(os.path.dirname(__file__), "hydra_base", "__init__.py")) as f:
+    for line in f:
+        if line.startswith("__version__"):
+            version = Version(line.split("=")[1].strip().strip("\"'"))
+
 if platform.system() == "Windows":  # only add winpaths when platform is Windows so that setup.py is universal
     install_requires.append("winpaths")
 
 setup(
     name='hydra-base',
-    version='0.1.1',
+    version=str(version),
     description='A data manager for networks',
     author='Stephen Knox',
     author_email='stephen.knox@manchester.ac.uk',
@@ -62,5 +71,4 @@ setup(
                 ]
     },
     zip_safe=False,
-    dependency_links=['http://dev.mysql.com/get/Downloads/Connector-Python/mysql-connector-python-2.1.4.zip'],
 )
