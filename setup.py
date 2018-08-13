@@ -30,7 +30,7 @@ install_requires=[
     "numpy",
     "bcrypt",
     "lxml",
-    "mysql-connector-python",
+    "mysqlclient",
     "python-dateutil",
     "cheroot",
     "beaker"
