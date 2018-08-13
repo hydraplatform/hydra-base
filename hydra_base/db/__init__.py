@@ -38,14 +38,38 @@ DBSession = None
 global engine
 engine = None
 
+def create_mysql_db(db_url):
+    """
+        To simplify deployment, create the mysql DB if it's not thre.
+        Accepts a URL with or without a DB name stated, and returns a db url
+        containing the db name for use in the main sqlalchemy engine.
+    """
+    #automatically create the mysql DB if it's not there.
+    db_name = config.get('mysqld', 'db_name', 'hydradb')
+    if db_url.find('mysql') >= 0:
+        if db_url.find(db_name) >= 0:
+            no_db_url = "/".join(db_url.split("/")[0:-1])
+        else:
+            no_db_url = db_url
+            db_url = no_db_url + "/" + db_name
+        
+        if config.get('mysqld', 'auto_create', 'Y') == 'Y':
+            tmp_engine = create_engine(no_db_url)
+            log.warn("Creating database {0} as it does not exist.".format(db_name))
+            tmp_engine.execute("CREATE DATABASE IF NOT EXISTS {0}".format(db_name))
+
+    return db_url
+
 def connect(db_url=None):
     if db_url is None:
         db_url = config.get('mysqld', 'url')
 
     log.info("Connecting to database: %s", db_url)
 
+    db_url = create_mysql_db(db_url)
+
     global engine
-    engine = create_engine(db_url) 
+    engine = create_engine(db_url)
 
     maker = sessionmaker(bind=engine, autoflush=False, autocommit=False,
                      extension=ZopeTransactionExtension())
