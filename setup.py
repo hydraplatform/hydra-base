@@ -41,7 +41,7 @@ if platform.system() == "Windows":  # only add winpaths when platform is Windows
 
 setup(
     name='hydra-base',
-    version='0.1',
+    version='0.1.1',
     description='A data manager for networks',
     author='Stephen Knox',
     author_email='stephen.knox@manchester.ac.uk',
