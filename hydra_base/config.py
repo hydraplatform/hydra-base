@@ -101,7 +101,15 @@ def load_config():
         config.read(ini_file)
     for ini_file in localfiles:
         logging.info("Localfile: %s"%ini_file)
-        config.debug(ini_file)
+        config.read(ini_file)
+
+    env_value = os.environ.get('HYDRA_CONFIG')
+    if env_value is not None:
+        if os.path.exists(env_value):
+            config.read(ini_file)
+        else:
+            logging.warning('HYDRA_CONFIG set as %s but file does not exist', env_value)
+
 
     if os.name == 'nt':
         set_windows_env_variables(config)
