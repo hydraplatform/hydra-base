@@ -22,9 +22,19 @@ import logging
 log = logging.getLogger(__name__)
 
 
+class DataTypeMeta(ABCMeta):
+    def __new__(cls, clsname, bases, attrs):
+        newclass = super(DataTypeMeta, cls).__new__(cls, clsname, bases, attrs)
+        # Register class with hydra
+        from .Registry import typemap
+        typemap[newclass.tag] = newclass
+        log.info('Registering data type "{}".'.format(newclass.tag))
+        return newclass
+
+
+@six.add_metaclass(DataTypeMeta)
 class DataType(object):
     """ The DataType class serves as an abstract base class for data types"""
-    __metaclass__ = ABCMeta
 
     @abstractproperty
     def skeleton(self):
@@ -58,7 +68,7 @@ class DataType(object):
         pass
 
     @abstractmethod
-    def fromDataset(self):
+    def fromDataset(cls, value, metadata=None):
         """ Factory method which performs any required transformations
             on a dataset argument, invokes the type's ctor, and returns
             the resulting instance
@@ -73,6 +83,7 @@ class Scalar(DataType):
     json     = ScalarJSON()
 
     def __init__(self, value):
+        super(Scalar, self).__init__()
         self.value = value
         self.validate()
 
@@ -99,6 +110,7 @@ class Array(DataType):
     json     = ArrayJSON()
 
     def __init__(self, encstr):
+        super(Array, self).__init__()
         self.value = encstr
         self.validate()
 
@@ -130,6 +142,7 @@ class Descriptor(DataType):
     json     = DescriptorJSON()
 
     def __init__(self, data):
+        super(Descriptor, self).__init__()
         self.value = data
         self.validate()
 
@@ -166,6 +179,7 @@ class Dataframe(DataType):
     json     = DataframeJSON()
 
     def __init__(self, data):
+        super(Dataframe, self).__init__()
         self.value = data
         self.validate()
 
@@ -216,6 +230,7 @@ class Timeseries(DataType):
     json     = TimeseriesJSON()
 
     def __init__(self, ts):
+        super(Timeseries, self).__init__()
         self.value = ts
         self.validate()
 
