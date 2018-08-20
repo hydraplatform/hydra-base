@@ -19,7 +19,7 @@
 
 from .. import db
 from ..db.model import Template, TemplateType, TypeAttr, Attr, Network, Node, Link, ResourceGroup, ResourceType, ResourceAttr, ResourceScenario, Scenario
-from .objects import JSONObject
+from .objects import JSONObject, Dataset
 from .data import add_dataset
 
 from ..exceptions import HydraError, ResourceNotFoundError
@@ -299,7 +299,6 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
         dataset_i = add_dataset(data_type,
                                val,
                                unit,
-                               dimension,
                                name= name)
         typeattr_i.default_dataset_id = dataset_i.id
 
@@ -442,8 +441,12 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
     template_file_j = template_dict
 
     file_attributes = template_file_j.get('attributes')
-    default_datasets_j = template_file_j.get('datasets')
+    file_datasets   = template_file_j.get('datasets', {})
     template_j = JSONObject(template_file_j.get('template', {}))
+
+    default_datasets_j = {}
+    for k, v in file_datasets.items(): 
+        default_datasets_j[int(k)] = Dataset(v)
 
     if file_attributes is None or default_datasets_j is None or len(template_j) == 0:
         raise HydraError("Invalid template. The template must have the following structure: " +
