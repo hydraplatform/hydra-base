@@ -478,7 +478,7 @@ def add_network(network,**kwargs):
     all_resource_attrs = {}
 
     name_map = {network.name:net_i}
-    network_attrs, defaults = _bulk_add_resource_attrs(net_i.id, 'NETWORK', [network], name_map)
+    network_attrs, network_defaults = _bulk_add_resource_attrs(net_i.id, 'NETWORK', [network], name_map)
     hdb.add_resource_types(net_i, network.types)
 
     all_resource_attrs.update(network_attrs)
@@ -493,7 +493,8 @@ def add_network(network,**kwargs):
     grp_id_map, grp_attrs, grp_datasets = _add_resource_groups(net_i, network.resourcegroups)
     all_resource_attrs.update(grp_attrs)
 
-    defaults = list(grp_datasets.values()) + list(link_datasets.values()) + list(node_datasets.values())
+    defaults = list(grp_datasets.values()) + list(link_datasets.values()) \
+        + list(node_datasets.values()) + list(network_defaults.values())
 
     start_time = datetime.datetime.now()
 
