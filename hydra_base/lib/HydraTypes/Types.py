@@ -134,9 +134,7 @@ class Array(DataType):
     value = property(get_value, set_value)
 
 
-
 class Descriptor(DataType):
-    """ Unused obsolete type """
     tag      = "DESCRIPTOR"
     skeleton = "%s"
     json     = DescriptorJSON()
