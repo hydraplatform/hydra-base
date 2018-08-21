@@ -20,7 +20,6 @@
 import datetime
 import sys
 from ..util.hydra_dateutil import get_datetime
-from .HydraTypes.Registry import typemap
 import logging
 from ..db.model import Dataset, Metadata, DatasetOwner, DatasetCollection,\
         DatasetCollectionItem, ResourceScenario, ResourceAttr, TypeAttr
@@ -652,8 +651,7 @@ def _process_incoming_data(data, user_id=None, source=None):
             'created_by': user_id,
         }
 
-        db_val = _get_db_val(d.type, val)
-        data_dict['value'] = db_val
+        data_dict['value'] = val
 
         if d.metadata is not None:
             if isinstance(d.metadata, dict):
@@ -679,14 +677,9 @@ def _process_incoming_data(data, user_id=None, source=None):
     return datasets
 
 
-def _get_db_val(data_type, val):
-    data_klass = typemap[data_type.upper()]
-    data = data_klass(val)
-    return data.value
-
-
 def get_metadata(dataset_ids, **kwargs):
     return _get_metadata(dataset_ids)
+
 
 def _get_metadata(dataset_ids):
     """
