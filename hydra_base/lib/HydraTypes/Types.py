@@ -25,10 +25,15 @@ log = logging.getLogger(__name__)
 class DataTypeMeta(ABCMeta):
     def __new__(cls, clsname, bases, attrs):
         newclass = super(DataTypeMeta, cls).__new__(cls, clsname, bases, attrs)
+
         # Register class with hydra
         from .Registry import typemap
-        typemap[newclass.tag] = newclass
-        log.info('Registering data type "{}".'.format(newclass.tag))
+        if clsname != 'DataType':
+            if newclass.tag in typemap:
+                raise ValueError('Type with tag "{}" already registered.'.format(newclass.tag))
+            else:
+                typemap[newclass.tag] = newclass
+                log.info('Registering data type "{}".'.format(newclass.tag))
         return newclass
 
 
@@ -74,7 +79,6 @@ class DataType(object):
             the resulting instance
         """
         pass
-
 
 
 class Scalar(DataType):

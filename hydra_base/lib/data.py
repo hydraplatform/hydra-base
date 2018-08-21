@@ -20,6 +20,7 @@
 import datetime
 import sys
 from ..util.hydra_dateutil import get_datetime
+from .HydraTypes.Registry import typemap
 import logging
 from ..db.model import Dataset, Metadata, DatasetOwner, DatasetCollection,\
         DatasetCollectionItem, ResourceScenario, ResourceAttr, TypeAttr
@@ -677,13 +678,12 @@ def _process_incoming_data(data, user_id=None, source=None):
 
     return datasets
 
+
 def _get_db_val(data_type, val):
-    if data_type in ('descriptor','scalar'):
-        return str(val)
-    elif data_type in ('timeseries', 'array', 'dataframe'):
-        return val
-    else:
-        raise HydraError("Invalid data type %s"%(data_type,))
+    data_klass = typemap[data_type.upper()]
+    data = data_klass(val)
+    return data.value
+
 
 def get_metadata(dataset_ids, **kwargs):
     return _get_metadata(dataset_ids)
