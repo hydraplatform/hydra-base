@@ -651,8 +651,7 @@ def _process_incoming_data(data, user_id=None, source=None):
             'created_by': user_id,
         }
 
-        db_val = _get_db_val(d.type, val)
-        data_dict['value'] = db_val
+        data_dict['value'] = val
 
         if d.metadata is not None:
             if isinstance(d.metadata, dict):
@@ -677,16 +676,10 @@ def _process_incoming_data(data, user_id=None, source=None):
 
     return datasets
 
-def _get_db_val(data_type, val):
-    if data_type in ('descriptor','scalar'):
-        return str(val)
-    elif data_type in ('timeseries', 'array', 'dataframe'):
-        return val
-    else:
-        raise HydraError("Invalid data type %s"%(data_type,))
 
 def get_metadata(dataset_ids, **kwargs):
     return _get_metadata(dataset_ids)
+
 
 def _get_metadata(dataset_ids):
     """
