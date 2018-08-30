@@ -125,6 +125,26 @@ def get_project(project_id,**kwargs):
 
     return proj_i
 
+def get_project_by_network_id(network_id,**kwargs):
+    """
+        get a project complexmodel by a network_id
+    """
+    user_id = kwargs.get('user_id')
+
+    projects_i = db.DBSession.query(Project).join(ProjectOwner).join(Network, Project.id==Network.project_id).filter(
+                                                    Network.id==network_id,
+                                                    ProjectOwner.user_id==user_id).order_by('name').all()
+
+    ret_project = None
+    for project_i in projects_i:
+        try:
+            project_i.check_read_permission(user_id)
+            ret_project = project_i
+        except:
+            log.info("Can't return project %s. User %s does not have permission to read it.", project_i.id, user_id)
+    return ret_project
+
+
 def get_project_by_name(project_name,**kwargs):
     """
         get a project complexmodel
