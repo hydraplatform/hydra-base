@@ -284,7 +284,8 @@ def delete_resource_attribute(resource_attr_id, **kwargs):
     db.DBSession.flush()
     return 'OK'
 
-def add_resource_attribute(resource_type, resource_id, attr_id, is_var,**kwargs):
+
+def add_resource_attribute(resource_type, resource_id, attr_id, is_var, error_on_duplicate=True, **kwargs):
     """
         Add a resource attribute attribute to a resource.
 
@@ -318,6 +319,9 @@ def add_resource_attribute(resource_type, resource_id, attr_id, is_var,**kwargs)
 
     for ra in resource_attrs:
         if ra.attr_id == attr_id:
+            if not error_on_duplicate:
+                return ra
+
             raise HydraError("Duplicate attribute. %s %s already has attribute %s"
                              %(resource_type, resource_i.get_name(), attr.name))
 
