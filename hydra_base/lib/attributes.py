@@ -284,7 +284,8 @@ def delete_resource_attribute(resource_attr_id, **kwargs):
     db.DBSession.flush()
     return 'OK'
 
-def add_resource_attribute(resource_type, resource_id, attr_id, is_var,**kwargs):
+
+def add_resource_attribute(resource_type, resource_id, attr_id, is_var, error_on_duplicate=True, **kwargs):
     """
         Add a resource attribute attribute to a resource.
 
@@ -303,24 +304,28 @@ def add_resource_attribute(resource_type, resource_id, attr_id, is_var,**kwargs)
     resourceattr_qry = db.DBSession.query(ResourceAttr).filter(ResourceAttr.ref_key==resource_type)
 
     if resource_type == 'NETWORK':
-        resourceattr_qry.filter(ResourceAttr.network_id==resource_id)
+        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.network_id==resource_id)
     elif resource_type == 'NODE':
-        resourceattr_qry.filter(ResourceAttr.node_id==resource_id)
+        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.node_id==resource_id)
     elif resource_type == 'LINK':
-        resourceattr_qry.filter(ResourceAttr.link_id==resource_id)
+        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.link_id==resource_id)
     elif resource_type == 'GROUP':
-        resourceattr_qry.filter(ResourceAttr.group_id==resource_id)
+        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.group_id==resource_id)
     elif resource_type == 'PROJECT':
-        resourceattr_qry.filter(ResourceAttr.project_id==resource_id)
-
+        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.project_id==resource_id)
+    else:
+        raise HydraError('Resource type "{}" not recognised.'.format(resource_type))
     resource_attrs = resourceattr_qry.all()
 
     for ra in resource_attrs:
         if ra.attr_id == attr_id:
+            if not error_on_duplicate:
+                return ra
+
             raise HydraError("Duplicate attribute. %s %s already has attribute %s"
                              %(resource_type, resource_i.get_name(), attr.name))
 
-    attr_is_var = 'Y' if is_var else 'N'
+    attr_is_var = 'Y' if is_var == 'Y' else 'N'
 
     new_ra = resource_i.add_attribute(attr_id, attr_is_var)
     db.DBSession.flush()
