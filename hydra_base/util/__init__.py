@@ -49,7 +49,7 @@ def count_levels(value):
     elif len(value) == 0:
         return 0 #An emptu dict has 0
     else:
-        nextval = value.values()[0]
+        nextval = list(value.values())[0]
         return 1 + count_levels(nextval)
 
 def flatten_dict(value, target_depth=1, depth=None):
@@ -69,15 +69,15 @@ def flatten_dict(value, target_depth=1, depth=None):
     if target_depth is None:
         target_depth = 1
 
-    values = value.values()
+    values = list(value.values())
     if len(values) == 0:
         return {}
     else:
         if depth is None:
             depth = count_levels(value)
 
-        if isinstance(values[0], dict):
-            subval = values[0].values()[0]
+        if isinstance(values[0], dict) and len(values[0]) > 0:
+            subval = list(values[0].values())[0]
             if not isinstance(subval, dict) != 'object':
                 return value
 

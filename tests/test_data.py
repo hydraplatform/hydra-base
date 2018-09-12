@@ -620,3 +620,39 @@ class TestDataCollection:
             updated_dataset_ids.append(item.dataset_id)
 
         assert dataset_id not in updated_dataset_ids
+
+class TestiUtilities:
+    """
+        Test hydra's internal utilities relating to data transformations etc.
+    """
+
+    def test_count_levels(self):
+        empty     = {}
+        one_level = {'a':1}
+        two_levels = {'a': {'b': 2}}
+        two_levels_empty = {'a': {'b':{}}}
+
+        assert hb.util.count_levels(empty) == 0
+        assert hb.util.count_levels(one_level) == 1
+        assert hb.util.count_levels(two_levels) == 2
+        assert hb.util.count_levels(two_levels_empty) == 2
+
+    def test_flatten_dict(self):
+        empty     = {}
+        one_level = {'a':1}
+        two_levels = {'a': {'b': 2}}
+        two_levels_flat = {'a_b': 2}
+        two_levels_empty = {'a': {'b':{}}}
+        two_levels_empty_flat = {'a_b': {}}
+
+        assert hb.util.flatten_dict(empty) == empty
+        assert hb.util.flatten_dict(one_level) == one_level
+        assert hb.util.flatten_dict(two_levels) == two_levels_flat
+        assert hb.util.flatten_dict(two_levels_empty) == two_levels_empty_flat
+
+
+
+
+
+    
+
