@@ -88,7 +88,7 @@ def flatten_dict(value, target_depth=1, depth=None):
             for k in value.keys():
                 subval = flatten_dict(value[k], target_depth, depth-1)
                 for k1 in subval.keys():
-                    flatval[k+"_"+k1] = subval[k1];
+                    flatval[str(k)+"_"+str(k1)] = subval[k1];
             return flatval
         else:
             return value

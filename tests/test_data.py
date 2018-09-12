@@ -625,30 +625,25 @@ class TestiUtilities:
     """
         Test hydra's internal utilities relating to data transformations etc.
     """
-
-    def test_count_levels(self):
-        empty     = {}
-        one_level = {'a':1}
-        two_levels = {'a': {'b': 2}}
-        two_levels_empty = {'a': {'b':{}}}
-
-        assert hb.util.count_levels(empty) == 0
-        assert hb.util.count_levels(one_level) == 1
-        assert hb.util.count_levels(two_levels) == 2
-        assert hb.util.count_levels(two_levels_empty) == 2
-
-    def test_flatten_dict(self):
-        empty     = {}
-        one_level = {'a':1}
-        two_levels = {'a': {'b': 2}}
-        two_levels_flat = {'a_b': 2}
-        two_levels_empty = {'a': {'b':{}}}
-        two_levels_empty_flat = {'a_b': {}}
-
-        assert hb.util.flatten_dict(empty) == empty
-        assert hb.util.flatten_dict(one_level) == one_level
-        assert hb.util.flatten_dict(two_levels) == two_levels_flat
-        assert hb.util.flatten_dict(two_levels_empty) == two_levels_empty_flat
+    @pytest.mark.parametrize("test_input,expected", [
+        ({}, 0),
+        ({'a':1}, 1),
+        ({'a': {'b': 2}}, 2),
+        ({'a': {'b':{}}}, 2),
+        ({1: {2: 2}}, 2),
+    ])
+    def test_count_levels(self, test_input, expected):
+        assert hb.util.count_levels(test_input) == expected
+    
+    @pytest.mark.parametrize("test_input,expected", [
+        ({}, {}),
+        ({'a':1}, {'a':1}),
+        ({'a': {'b': 2}}, {'a_b': 2}),
+        ({'a': {'b':{}}}, {'a_b': {}}),
+        ({1: {2: 2}}, {'1_2': 2}),
+    ])
+    def test_flatten_dict(self, test_input, expected):
+        assert hb.util.flatten_dict(test_input) == expected
 
 
 
