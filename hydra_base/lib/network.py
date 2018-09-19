@@ -1685,10 +1685,10 @@ def update_node(node, flush=True, **kwargs):
 
     node_i.network.check_write_permission(user_id)
 
-    node_i.name = node.name if node.name != None else node_i.name
+    node_i.name = node.name if node.name is not None else node_i.name
     node_i.x    = node.x if node.x is not None else node_i.x
     node_i.y    = node.y if node.y is not None else node_i.y
-    node_i.description = node.description if node.description else node_i.description
+    node_i.description = node.description if node.description is not None else node_i.description
     node_i.layout      = node.get_layout() if node.layout is not None else node_i.layout
 
     if node.attributes is not None:
@@ -1926,15 +1926,23 @@ def update_link(link,**kwargs):
         link_i.network.check_write_permission(user_id)
     except NoResultFound:
         raise ResourceNotFoundError("Link %s not found"%(link.id))
+    
+    #Each of thiese should be updateable independently
+    if link.name is not None:
+        link_i.name = link.name
+    if link.node_1_id is not None:
+        link_i.node_1_id = link.node_1_id
+    if link.node_2_id is not None:
+        link_i.node_2_id = link.node_2_id
+    if link.description is not None:
+        link_i.description = link.description
+    if link.layout is not None:
+        link_i.layout  = link.get_layout()
+    if link.attributes is not None:
+        hdb.add_resource_attributes(link_i, link.attributes)
+    if link.types is not None:
+        hdb.add_resource_types(link_i, link.types)
 
-    link_i.name = link.name
-    link_i.node_1_id = link.node_1_id
-    link_i.node_2_id = link.node_2_id
-    link_i.description = link.description
-    link_i.layout           = link.get_layout()
-
-    hdb.add_resource_attributes(link_i, link.attributes)
-    hdb.add_resource_types(link_i, link.types)
     db.DBSession.flush()
     return link_i
 
