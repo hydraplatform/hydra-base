@@ -595,9 +595,9 @@ class TestTemplates:
         assert new_template.name == template2.name, "Names are not the same! Retrieval by name did not work!"
 
     def test_get_template_by_name_bad(self, session):
-        new_template = hb.get_template_by_name("Not a template!")
 
-        assert new_template is None
+        with pytest.raises(HydraError):
+            new_template = hb.get_template_by_name("Not a template!")
 
     def test_add_resource_type(self, session, template2):
 
