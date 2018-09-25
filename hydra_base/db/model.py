@@ -1497,6 +1497,9 @@ class Perm(Base, Inspect):
     _parents  = ['tRole', 'tPerm']
     _children = []
 
+    def __repr__(self):
+        return "{0} ({1})".format(self.name, self.code)
+
 class Role(Base, Inspect):
     """
     """
@@ -1517,6 +1520,9 @@ class Role(Base, Inspect):
     def permissions(self):
         return set([rp.perm for rp in self.roleperms])
 
+    def __repr__(self):
+        return "{0} ({1})".format(self.name, self.code)
+
 
 class RolePerm(Base, Inspect):
     """
@@ -1534,6 +1540,9 @@ class RolePerm(Base, Inspect):
     _parents  = ['tRole', 'tPerm']
     _children = []
 
+    def __repr__(self):
+        return "{0}".format(self.perm)
+
 class RoleUser(Base, Inspect):
     """
     """
@@ -1549,6 +1558,9 @@ class RoleUser(Base, Inspect):
 
     _parents  = ['tRole', 'tUser']
     _children = []
+
+    def __repr__(self):
+        return "{0}".format(self.role.name)
 
 class User(Base, Inspect):
     """
@@ -1588,6 +1600,9 @@ class User(Base, Inspect):
         for ur in self.roleusers:
             roles.append(ur.role)
         return set(roles)
+
+    def __repr__(self):
+        return "{0}".format(self.username)
 
 
 def create_resourcedata_view():
