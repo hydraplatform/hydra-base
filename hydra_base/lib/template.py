@@ -1442,7 +1442,7 @@ def get_template_by_name(name,**kwargs):
         return tmpl_i
     except NoResultFound:
         log.info("%s is not a valid identifier for a template",name)
-        return None
+        raise HydraError('Template "%s" not found'%name)
 
 def add_templatetype(templatetype,**kwargs):
     """
