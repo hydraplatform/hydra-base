@@ -132,7 +132,7 @@ def get_scenario(scenario_id,**kwargs):
     scen_i = _get_scenario(scenario_id, user_id)
 
     scen_j = JSONObject(scen_i)
-    rscen_rs = db.DBSession.query(ResourceScenario).filter(ResourceScenario.scenario_id==scenario_id).options(joinedload_all('dataset')).all()
+    rscen_rs = db.DBSession.query(ResourceScenario).filter(ResourceScenario.scenario_id==scenario_id).options(joinedload_all('dataset.metadata')).all()
 
     #lazy load resource attributes and attributes
     for rs in rscen_rs:
