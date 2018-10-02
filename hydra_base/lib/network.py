@@ -2481,6 +2481,7 @@ def clone_network(network_id, new_project=True, recipient_user_id=None, **kwargs
         log.info("Creating a new project for cloned network")
         project = Project()
         project.name="Proj"
+        project.created_by = user_id
 
         project.set_owner(user_id)
         if recipient_user_id!=None:
