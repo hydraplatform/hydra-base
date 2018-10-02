@@ -410,23 +410,23 @@ def search_datasets(dataset_id=None,
 
     return datasets_to_return
 
-def update_dataset(dataset_id, name, data_type, val, units, metadata={}, flush=True, **kwargs):
+def update_dataset(dataset, flush=True, **kwargs):
     """
         Update an existing dataset
     """
 
-    if dataset_id is None:
+    if dataset.id is None:
         raise HydraError("Dataset must have an ID to be updated.")
 
     user_id = kwargs.get('user_id')
 
-    dataset = db.DBSession.query(Dataset).filter(Dataset.id==dataset_id).one()
+    dataset_i = db.DBSession.query(Dataset).filter(Dataset.id==dataset.id).one()
     #This dataset been seen before, so it may be attached
     #to other scenarios, which may be locked. If they are locked, we must
     #not change their data, so new data must be created for the unlocked scenarios
     locked_scenarios = []
     unlocked_scenarios = []
-    for dataset_rs in dataset.resourcescenarios:
+    for dataset_rs in dataset_i.resourcescenarios:
         if dataset_rs.scenario.locked == 'Y':
             locked_scenarios.append(dataset_rs)
         else:
@@ -435,41 +435,42 @@ def update_dataset(dataset_id, name, data_type, val, units, metadata={}, flush=T
     #Are any of these scenarios locked?
     if len(locked_scenarios) > 0:
         #If so, create a new dataset and assign to all unlocked datasets.
-        dataset = add_dataset(data_type,
-                                val,
-                                units,
-                                metadata=metadata,
-                                name=name,
+        dataset = add_dataset(dataset,
                                 user_id=kwargs['user_id'])
         for unlocked_rs in unlocked_scenarios:
             unlocked_rs.dataset = dataset
 
     else:
 
-        dataset.type  = data_type
-        dataset.value = val
-        dataset.set_metadata(metadata)
+        dataset_i.type  = dataset.type
+        dataset_i.value = dataset.value
+        dataset_i.set_metadata(dataset.get_metadata_as_dict())
 
-        dataset.unit = units
-        dataset.name  = name
-        dataset.created_by = kwargs['user_id']
-        dataset.hash  = dataset.set_hash()
+        dataset_i.unit = dataset.unit
+        dataset_i.name  = dataset.name
+
+        #Only the owner of a dataset can hide it.
+        if dataset_i.created_by == kwargs['user_id']:
+            dataset_i.hidden  = dataset.hidden
+
+        dataset_i.created_by = kwargs['user_id']
+        dataset_i.hash  = dataset_i.set_hash()
 
         #Is there a dataset in the DB already which is identical to the updated dataset?
-        existing_dataset = db.DBSession.query(Dataset).filter(Dataset.hash==dataset.hash, Dataset.id != dataset.id).first()
-        if existing_dataset is not None and existing_dataset.check_user(user_id):
+        existing_dataset_i = db.DBSession.query(Dataset).filter(Dataset.hash==dataset_i.hash, Dataset.id != dataset_i.id).first()
+        if existing_dataset_i is not None and existing_dataset_i.check_user(user_id):
             log.warn("An identical dataset %s has been found to dataset %s."
                      " Deleting dataset and returning dataset %s",
-                     existing_dataset.id, dataset.id, existing_dataset.id)
-            db.DBSession.delete(dataset)
+                     existing_dataset_i.id, dataset_i.id, existing_dataset_i.id)
+            db.DBSession.delete(dataset_i)
             dataset = existing_dataset
     if flush==True:
         db.DBSession.flush()
 
-    return dataset
+    return dataset_i
 
 
-def add_dataset(data_type, val, units, metadata={}, name="", user_id=None, flush=False):
+def add_dataset(dataset, user_id=None, flush=False):
     """
         Data can exist without scenarios. This is the mechanism whereby
         single pieces of data can be added without doing it through a scenario.
@@ -479,19 +480,20 @@ def add_dataset(data_type, val, units, metadata={}, name="", user_id=None, flush
 
     d = Dataset()
 
-    d.type  = data_type
-    d.value = val
-    d.set_metadata(metadata)
+    d.type  = dataset.type
+    d.value = dataset.value
+    d.set_metadata(dataset.get_metadata_as_dict())
 
-    d.unit  = units
-    d.name  = name
+    d.unit  = dataset.unit
+    d.name  = dataset.get('name', '')
+    d.hidden  = dataset.get('hidden', 'N')
     d.created_by = user_id
     d.hash  = d.set_hash()
 
     try:
-        existing_dataset = db.DBSession.query(Dataset).filter(Dataset.hash==d.hash).one()
-        if existing_dataset.check_user(user_id):
-            d = existing_dataset
+        existing_dataset_i = db.DBSession.query(Dataset).filter(Dataset.hash==d.hash).one()
+        if existing_dataset_i.check_user(user_id):
+            d = existing_dataset_i
         else:
             d.set_metadata({'created_at': datetime.datetime.now()})
             d.set_hash()
@@ -648,6 +650,7 @@ def _process_incoming_data(data, user_id=None, source=None):
             'type': d.type,
             'name': d.name,
             'unit': d.unit,
+            'hidden': d.hidden,
             'created_by': user_id,
         }
 

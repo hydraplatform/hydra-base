@@ -238,7 +238,7 @@ def set_network_permission(network_id, usernames, read, write, share,**kwargs):
         net_i.set_owner(user_i.id, read=read, write=write, share=share)
     db.DBSession.flush()
 
-def hide_dataset(dataset_id, exceptions, read, write, share,**kwargs):
+def hide_dataset(dataset_id, exceptions=[], read='Y', write='Y', share='Y',**kwargs):
     """
         Hide a particular piece of data so it can only be seen by its owner.
         Only an owner can hide (and unhide) data.

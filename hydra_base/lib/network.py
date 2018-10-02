@@ -789,7 +789,7 @@ def _get_all_resourcescenarios(network_id, user_id):
                 ResourceScenario.source,
                 ResourceAttr.attr_id,
     ).outerjoin(DatasetOwner, and_(DatasetOwner.dataset_id==Dataset.id, DatasetOwner.user_id==user_id)).filter(
-                or_(Dataset.hidden=='N', DatasetOwner.user_id != None),
+                or_(and_(Dataset.hidden=='Y', Dataset.created_by==user_id), Dataset.hidden=='N', DatasetOwner.user_id != None), #If the dataset has the hidden flag set to true and user is not the creator of the datset, then they must be in the DatasetOwner
                 ResourceAttr.id == ResourceScenario.resource_attr_id,
                 Scenario.id==ResourceScenario.scenario_id,
                 Scenario.network_id==network_id,

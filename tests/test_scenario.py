@@ -725,7 +725,7 @@ class TestScenario:
         log.info("Updating a shared dataset")
         ds = unlocked_resource_scenarios_value
 
-        updated_ds = JSONObject(hydra_base.update_dataset(ds.id, ds.name, ds.type, ds.value, ds.unit, ds.metadata, user_id=pytest.root_user_id))
+        updated_ds = JSONObject(hydra_base.update_dataset(ds, user_id=pytest.root_user_id))
 
         updated_unlocked_scenario = self.get_scenario(unlocked_scenario.id)
         #This should not have changed
@@ -889,7 +889,7 @@ class TestScenario:
 
         dataset.value = 'I am an updated test!'
 
-        new_ds = hydra_base.add_dataset(dataset.type, dataset.value, dataset.unit, {}, dataset.name, flush=True, user_id=pytest.root_user_id)
+        new_ds = hydra_base.add_dataset(dataset, flush=True, user_id=pytest.root_user_id)
 
         hydra_base.set_rs_dataset(resource_attr_id, source_scenario_id, new_ds.id, user_id=pytest.root_user_id)
 

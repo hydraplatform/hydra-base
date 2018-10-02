@@ -19,7 +19,7 @@
 
 from .. import db
 from ..db.model import Template, TemplateType, TypeAttr, Attr, Network, Node, Link, ResourceGroup, ResourceType, ResourceAttr, ResourceScenario, Scenario
-from .objects import JSONObject, Dataset
+from .objects import JSONObject, Dataset as JSONDataset
 from .data import add_dataset
 
 from ..exceptions import HydraError, ResourceNotFoundError
@@ -199,10 +199,15 @@ def parse_xml_typeattr(type_i, attribute):
         except:
             data_type = 'descriptor'
 
-        dataset = add_dataset(data_type,
-                               val,
-                               unit,
-                               name="%s Default"%attr.name)
+        new_dataset = JSONDataset({
+            'type': data_type,
+            'name': "%s Default"%attr.name,
+            'unit': unit,
+            'value': val,
+            'hidden': 'N',
+        })
+
+        dataset = add_dataset(new_dataset)
         typeattr_i.default_dataset_id = dataset.id
 
     if attribute.find('restrictions') is not None:
@@ -291,15 +296,19 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
                 raise HydraError("Default value has a unit of %s but the attribute"
                              " says the unit should be: %s"%(typeattr_i.unit, unit))
 
-        val  = default.value
-
         data_type = default.type
         name = default.name if default.name is not None else "%s Default"%attr_i.name
 
-        dataset_i = add_dataset(data_type,
-                               val,
-                               unit,
-                               name= name)
+        new_dataset = JSONDataset({
+            'type': data_type,
+            'name': name,
+            'unit': unit,
+            'value': default.value,
+            'hidden': 'N',
+        })
+
+        dataset_i = add_dataset(new_dataset)
+
         typeattr_i.default_dataset_id = dataset_i.id
 
     if typeattr_j.restriction is not None or typeattr_j.data_restriction is not None:
@@ -446,7 +455,7 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
 
     default_datasets_j = {}
     for k, v in file_datasets.items(): 
-        default_datasets_j[int(k)] = Dataset(v)
+        default_datasets_j[int(k)] = JSONDataset(v)
 
     if file_attributes is None or default_datasets_j is None or len(template_j) == 0:
         raise HydraError("Invalid template. The template must have the following structure: " +

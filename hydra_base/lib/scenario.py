@@ -42,7 +42,7 @@ from ..util.hydra_dateutil import timestamp_to_ordinal
 from collections import namedtuple
 from copy import deepcopy
 
-from .objects import JSONObject
+from .objects import JSONObject, Dataset as JSONDataset
 
 log = logging.getLogger(__name__)
 
@@ -141,7 +141,7 @@ def get_scenario(scenario_id,**kwargs):
 
     rgi_rs = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.scenario_id==scenario_id).all()
 
-    scen_j.resourcescenarios = [JSONObject(r, extras={'resourceattr':r.resourceattr}) for r in rscen_rs]
+    scen_j.resourcescenarios = [JSONObject(r, extras={'resourceattr':JSONObject(r.resourceattr)}) for r in rscen_rs]
     scen_j.resourcegroupitems =[JSONObject(r) for r in rgi_rs]
 
     return scen_j
@@ -417,7 +417,8 @@ def _get_dataset_as_dict(rs, user_id):
         rs.dataset.check_read_permission(user_id)
     except PermissionError:
            dataset['value']      = None
-           dataset['metadata'] = {}
+    
+    dataset['metadata'] = {}
 
     for m in rs.dataset.metadata:
         dataset['metadata'][m.key] = m.value
@@ -765,7 +766,7 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
     return r_scen_i
 
 def assign_value(rs, data_type, val,
-                 units, name, metadata={}, data_hash=None, user_id=None, source=None):
+                 units, name, metadata={}, data_hash=None, hidden='N', user_id=None, source=None):
     """
         Insert or update a piece of data in a scenario.
         If the dataset is being shared by other resource scenarios, a new dataset is inserted.
@@ -807,19 +808,32 @@ def assign_value(rs, data_type, val,
 
     if update_dataset is True:
         log.info("Updating dataset '%s'", name)
-        dataset = data.update_dataset(rs.dataset.id, name, data_type, val, units, metadata, flush=False, **dict(user_id=user_id))
-        rs.dataset = dataset
-        rs.dataset_id = dataset.id
-        log.info("Set RS dataset id to %s"%dataset.id)
+        updated_dataset = JSONDataset({
+            'id': rs.dataset.id,
+            'name': name,
+            'unit': units,
+            'type': data_type,
+            'metadata': metadata,
+            'value': val,
+            'hidden': hidden,
+        })
+        dataset_i = data.update_dataset(updated_dataset, flush=False, **dict(user_id=user_id))
+        rs.dataset = dataset_i
+        rs.dataset_id = dataset_i.id
+        log.info("Set RS dataset id to %s"%dataset_i.id)
     else:
+        new_dataset = JSONDataset({
+            'name': name,
+            'unit': units,
+            'type': data_type,
+            'metadata': metadata,
+            'value': val,
+            'hidden': hidden,
+        })
         log.info("Creating new dataset %s in scenario %s", name, rs.scenario_id)
-        dataset = data.add_dataset(data_type,
-                                val,
-                                units,
-                                metadata=metadata,
-                                name=name,
+        dataset_i = data.add_dataset(new_dataset,
                                 **dict(user_id=user_id))
-        rs.dataset = dataset
+        rs.dataset = dataset_i
         rs.source = source
 
     db.DBSession.flush()

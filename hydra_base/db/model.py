@@ -208,6 +208,10 @@ class Dataset(Base, Inspect):
         """
             Check whether this user can read this dataset
         """
+        
+        #This user created the dataset
+        if int(self.created_by) == int(user_id):
+            return
 
         for owner in self.owners:
             if int(owner.user_id) == int(user_id):
