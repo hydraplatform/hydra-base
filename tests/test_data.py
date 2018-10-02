@@ -263,7 +263,8 @@ class TestTimeSeries:
             qry_times,
            )
 
-        return_val = seasonal_vals['dataset_%s'%val_to_query.id]
+        #TODO: Figure out why the mysqlclient library with python 2.7.14 was causing this to break
+        return_val = seasonal_vals['dataset_%s'%int(val_to_query.id)]
 
         dataset_vals = val_a['0']
 
