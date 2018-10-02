@@ -1450,7 +1450,7 @@ def get_template_by_name(name,**kwargs):
         tmpl_i = db.DBSession.query(Template).filter(Template.name == name).options(joinedload_all('templatetypes.typeattrs.default_dataset.metadata')).one()
         return tmpl_i
     except NoResultFound:
-        log.info("%s is not a valid identifier for a template",name)
+        log.info("Template with name %s not found",name)
         raise HydraError('Template "%s" not found'%name)
 
 def add_templatetype(templatetype,**kwargs):
