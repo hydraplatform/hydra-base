@@ -21,12 +21,13 @@ from ..exceptions import ResourceNotFoundError
 from . import scenario
 import logging
 from ..exceptions import PermissionError, HydraError
-from ..db.model import Project, ProjectOwner, Network
+from ..db.model import Project, ProjectOwner, Network, NetworkOwner
 from .. import db
 from . import network
+from .objects import JSONObject
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.orm import class_mapper, joinedload_all
-from sqlalchemy import and_
+from sqlalchemy.orm import class_mapper, joinedload_all, noload
+from sqlalchemy import and_, or_
 from ..util import hdb
 from sqlalchemy.util import KeyedTuple
 
@@ -233,21 +234,42 @@ def to_named_tuple(obj, visited_children=None, back_relationships=None, levels=N
 
 def get_projects(uid,**kwargs):
     """
-        get a project complexmodel
+        Get all the projects owned by the specified user.
+        These include projects created by the user, but also ones shared with the user.
+        For shared projects, only include networks in those projects which are accessible to the user.
     """
     req_user_id = kwargs.get('user_id')
 
-    #Potentially join this with an rs of projects
-    #where no owner exists?
+    ##Don't load the project's networks. Load them separately, as the networks
+    #must be checked individually for ownership
+    projects_i = db.DBSession.query(Project).join(ProjectOwner)\
+                                                 .filter(Project.status=='A',
+                                                        or_(ProjectOwner.user_id==uid,
+                                                           Project.created_by==uid))\
+                                                 .options(noload('networks'))\
+                                                 .order_by('id').all()
 
-    projects = db.DBSession.query(Project).join(ProjectOwner).filter(Project.status=='A', ProjectOwner.user_id==uid).options(joinedload_all('networks')).order_by('id').all()
-    for project in projects:
-        project.check_read_permission(req_user_id)
+    #Load each 
+    projects_j = []
+    for project_i in projects_i:
+        #Ensure the requesting user is allowed to see the project
+        project_i.check_read_permission(req_user_id)
 
-    ret_projects = [to_named_tuple(p, ignore=['user'], extras={'attribute_data':[]}, levels=1) for p in projects]
+        networks_i = db.DBSession.query(Network).join(NetworkOwner)\
+                                .filter(Network.project_id==project_i.id,
+                                        Network.status=='A',
+                                        or_(Network.created_by==uid,\
+                                            NetworkOwner.user_id==uid))
+
+        for network_i in networks_i:
+            network_i.check_read_permission(req_user_id)
+        
+        project_j = JSONObject(project_i)
+        project_j.networks = [JSONObject(network_i) for network_i in networks_i]
+        projects_j.append(project_j)
 
 
-    return ret_projects
+    return projects_j
 
 
 def set_project_status(project_id, status, **kwargs):
