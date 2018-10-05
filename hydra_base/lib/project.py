@@ -260,6 +260,9 @@ def get_projects(uid,**kwargs):
                                         Network.status=='A',
                                         or_(Network.created_by==uid,\
                                             NetworkOwner.user_id==uid))
+
+        for network_i in networks_i:
+            network_i.check_read_permission(req_user_id)
         
         project_j = JSONObject(project_i)
         project_j.networks = [JSONObject(network_i) for network_i in networks_i]
