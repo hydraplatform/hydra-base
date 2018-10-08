@@ -268,7 +268,7 @@ def update_scenario(scenario,update_data=True,update_groups=True,flush=True,**kw
 
     #lazy load resource grou items from the DB
     scen.resourcegroupitems
-    
+
     if update_groups is True:
         #Get all the exiting resource group items for this scenario.
         #THen process all the items sent to this handler.
@@ -387,8 +387,9 @@ def clone_scenario(scenario_id, retain_results=False, **kwargs):
             group_id = old_rgi.group_id,
             scenario_id=cloned_scenario_id,
         ))
-
-    db.DBSession.execute(ResourceGroupItem.__table__.insert(), new_rgis)
+    if len(new_rgis) > 0:
+        db.DBSession.execute(ResourceGroupItem.__table__.insert(), new_rgis)
+        
     log.info("Cloning finished.")
 
     log.info("Retrieving cloned scenario")
