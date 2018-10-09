@@ -1926,7 +1926,7 @@ def update_link(link,**kwargs):
         link_i.network.check_write_permission(user_id)
     except NoResultFound:
         raise ResourceNotFoundError("Link %s not found"%(link.id))
-    
+
     #Each of thiese should be updateable independently
     if link.name is not None:
         link_i.name = link.name
@@ -2466,7 +2466,7 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
 
     return return_data
 
-def clone_network(network_id, new_project=True, recipient_user_id=None, **kwargs):
+def clone_network(network_id, new_project=True, recipient_user_id=None, network_name=None, project_name=None, **kwargs):
     """
 
     """
@@ -2474,20 +2474,20 @@ def clone_network(network_id, new_project=True, recipient_user_id=None, **kwargs
     user_id = kwargs['user_id']
 
     ex_net = db.DBSession.query(Network).filter(Network.id==network_id).one()
-    
 
     ex_net.check_read_permission(user_id)
 
     if new_project == True:
-        
+
         log.info("Creating a new project for cloned network")
 
         ex_proj = db.DBSession.query(Project).filter(Project.id==ex_net.project_id).one()
 
         user = db.DBSession.query(User).filter(User.id==user_id).one()
-        
+
         project = Project()
-        project_name=ex_proj.name + " (Cloned by %s)" % user.display_name
+        if project_name is None or project_name=="":
+            project_name=ex_proj.name + " (Cloned by %s)" % user.display_name
 
         #check a project with this name doesn't already exist:
         ex_project =  db.DBSession.query(Project).filter(Project.name==project_name,
@@ -2500,40 +2500,30 @@ def clone_network(network_id, new_project=True, recipient_user_id=None, **kwargs
             project.created_by = user_id
 
             project.set_owner(user_id)
-        
+
         if recipient_user_id!=None:
             project.set_owner(recipient_user_id)
 
         db.DBSession.add(project)
         db.DBSession.flush()
 
-
         project_id=project.id
-        network_name=ex_net.name
+        if network_name is None or network_name == "":
+            network_name=ex_net.name
     else:
         log.info("Using current project for cloned network")
         project_id=ex_net.project_id
-        network_name=ex_net.name + " (Clone)"
+        if network_name is None or network_name == "":
+            network_name=ex_net.name
 
     log.info('Cloning Network...')
-    
+
     #Find if there's any projects with this name in the project already
-    ex_network =  db.DBSession.query(Network).filter(Network.name==network_name).all()
+    ex_network =  db.DBSession.query(Network).filter(Network.project_id==project_id,
+                                                     Network.name.like("{0}%".format(network_name))).all()
+
     if len(ex_network) > 0:
-        if recipient_user_id == None:
-            network_name = network_name + " " + len(ex_network)
-        else:
-            #Now ensure that the network hasn't been shared with this user before
-            recipient_user = db.DBSession.query(User).filter(User.id==recipient_user_id).one()
-            updated_network_name = network_name + " " + recipient_user.display_name
-            
-            ex_recipient_network =  db.DBSession.query(Network).filter(Network.name==updated_network_name).all()
-            if len(ex_recipient_network) > 0:
-                network_name = updated_network_name + " " + str(len(ex_recipient_network))
-            else:
-                #It hasn't so append their display name at the end.
-                network_name = updated_network_name
- 
+        network_name = network_name + " " + str(len(ex_network))
 
     newnet = Network()
 
