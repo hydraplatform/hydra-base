@@ -210,10 +210,16 @@ class Dataframe(DataType):
                 raise ValueError("Dataframe has no columns")
 
             #Assume all sub-dicts have the same set of keys
-            index = list(ordered_jo[cols[0]].keys())
+            if isinstance(ordered_jo[cols[0]], list):
+                index = range(len(ordered_jo[cols[0]]))
+            else:
+                index = list(ordered_jo[cols[0]].keys())
             data = []
             for c in cols:
-                data.append(ordered_jo[c].values())
+                if isinstance(ordered_jo[c], list):
+                    data.append(ordered_jo[c])
+                else:
+                    data.append(ordered_jo[c].values())
 
             #This goes in 'sideways' (cols=index, index=cols), so it needs to be transposed after to keep
             #the correct structure
