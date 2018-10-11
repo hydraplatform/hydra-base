@@ -187,17 +187,44 @@ class Dataframe(DataType):
 
     @classmethod
     def fromDataset(cls, value, metadata=None):
+
+        df = cls._create_dataframe(value)
+
+        return cls(df)
+
+    @classmethod
+    def _create_dataframe(cls, value):
+        """
+            Builds a dataframe from the value
+        """
         try:
+
             ordered_jo = json.loads(six.text_type(value), object_pairs_hook=collections.OrderedDict)
-            df = pd.DataFrame.from_dict(ordered_jo)
+
+            #Pandas does not maintain the order of dicts, so we must break the dict
+            #up and put it into the dataframe manually to maintain the order.
+
+            cols = list(ordered_jo.keys())
+
+            if len(cols) == 0:
+                raise ValueError("Dataframe has no columns")
+
+            #Assume all sub-dicts have the same set of keys
+            index = list(ordered_jo[cols[0]].keys())
+            data = []
+            for c in cols:
+                data.append(ordered_jo[c].values())
+
+            #This goes in 'sideways' (cols=index, index=cols), so it needs to be transposed after to keep
+            #the correct structure
+            df = pd.DataFrame(data, columns=index, index=cols).transpose()
+
         except ValueError as e:
             """ Raised on scalar types used as pd.DataFrame values
                 in absence of index arg
             """
             raise HydraError(str(e))
-
-        return cls(df)
-
+        return df
 
     def validate(self):
         assert isinstance(self._value, pd.DataFrame)
@@ -215,8 +242,7 @@ class Dataframe(DataType):
         except AssertionError:
             """ ...otherwise attempt as json..."""
             try:
-                ordered_jo = json.loads(six.text_type(val), object_pairs_hook=collections.OrderedDict)
-                df = pd.DataFrame.from_dict(ordered_jo)
+                df = self.__class__._create_dataframe(val)
                 self._value = df
                 self.validate()
             except Exception as e:
