@@ -2375,6 +2375,47 @@ def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, 
 
     return resource_scenarios
 
+def get_all_resource_attributes_in_network(attr_id, network_id, **kwargs):
+    """
+        Find every resource attribute in the network matching the supplied attr_id
+    """
+
+    user_id = kwargs.get('user_id')
+
+    try:
+        a = db.DBSession.query(Attr).filter(Attr.id == attr_id).one()
+    except NoResultFound:
+        raise HydraError("Attribute %s not found"%(attr_id,))
+
+    ra_qry = db.DBSession.query(ResourceAttr).filter(
+                ResourceAttr.attr_id==attr_id,
+                or_(Network.id == network_id,
+                Node.network_id==network_id,
+                Link.network_id==network_id,
+                ResourceGroup.network_id==network_id)
+            ).outerjoin('node')\
+             .outerjoin('link')\
+             .outerjoin('network')\
+             .outerjoin('resourcegroup')\
+             .options(joinedload_all('node'))\
+             .options(joinedload_all('link'))\
+             .options(joinedload_all('resourcegroup'))\
+             .options(joinedload_all('network'))
+            
+    resourceattrs = ra_qry.all()
+
+    json_ra = []
+    #Load the metadata too
+    for ra in resourceattrs:
+        json_ra.append(JSONObject(ra, extras={'node':JSONObject(ra.node) if ra.node else None,
+                                               'link':JSONObject(ra.link) if ra.link else None,
+                                               'resourcegroup':JSONObject(ra.resourcegroup) if ra.resourcegroup else None,
+                                               'network':JSONObject(ra.network) if ra.network else None}))
+
+
+    return json_ra
+
+
 def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, page_end=None, **kwargs):
     """
         A function which returns the data for all resources in a network.

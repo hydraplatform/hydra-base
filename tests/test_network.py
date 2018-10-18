@@ -57,6 +57,27 @@ class TestNetwork:
             assert r.ref_key == 'LINK'
             assert r.id in link_ids
 
+    def test_get_all_resource_attributes_in_network(self, session, network_with_data):
+        """
+            Test to retrieve all the resourceattributes relating to the specified
+            attribute ID in the network, regardless of what node, link group etc
+            they belong to.
+        """
+        test_attr_id = None
+        for a in network_with_data.nodes[0].attributes:
+            test_attr_id = a.attr_id
+            break
+
+
+        all_network_resource_attrs = hb.get_all_resource_attributes_in_network(test_attr_id,
+                                                                network_with_data.id,
+                                                                user_id=pytest.root_user_id)
+
+        #Find the attribute that ALL nodes have.
+        assert len(all_network_resource_attrs) == len(network_with_data.nodes)
+
+
+
 
     def test_get_network_with_template(self, session, network_with_data):
         """
