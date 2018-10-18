@@ -372,7 +372,8 @@ def clone_scenario(scenario_id, retain_results=False, **kwargs):
             source = kwargs.get('app_name', old_rscen.source)
         ))
 
-    db.DBSession.execute(ResourceScenario.__table__.insert(), new_rscens)
+    if len(new_rscens) > 0:
+        db.DBSession.execute(ResourceScenario.__table__.insert(), new_rscens)
 
     log.info("ResourceScenarios cloned")
 
@@ -389,7 +390,7 @@ def clone_scenario(scenario_id, retain_results=False, **kwargs):
         ))
     if len(new_rgis) > 0:
         db.DBSession.execute(ResourceGroupItem.__table__.insert(), new_rgis)
-        
+
     log.info("Cloning finished.")
 
     log.info("Retrieving cloned scenario")
