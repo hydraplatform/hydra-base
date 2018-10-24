@@ -18,7 +18,7 @@
 #
 
 from ..exceptions import HydraError, ResourceNotFoundError
-from . import scenario
+from . import scenario, network
 
 from .. import db
 from ..db.model import ResourceGroup, ResourceGroupItem, Node, Link
@@ -53,11 +53,14 @@ def add_resourcegroup(group, network_id,**kwargs):
     db.DBSession.flush()
     return group_i
 
-def delete_resourcegroup(group_id,**kwargs):
+def delete_resourcegroup(group_id, purge_data='N', **kwargs):
     """
         Add a new group to a scenario.
     """
     group_i = _get_group(group_id)
+
+    if purge_data == 'Y':
+        network._purge_datasets_unique_to_resource('GROUP', group_id)
     #This should cascaded to delete all the group items.
     db.DBSession.delete(group_i)
     db.DBSession.flush()

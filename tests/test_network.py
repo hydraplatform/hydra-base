@@ -631,24 +631,6 @@ class TestNetwork:
         assert link_to_delete.id in link_ids
 
 
-    def test_delete_link(self, session, network_with_data):
-        network = network_with_data
-
-        link_to_delete = network.links[0]
-        
-        #'N' is for purge_data
-        hb.delete_link(link_to_delete.id, 'N', user_id=pytest.root_user_id)
-
-        new_network = hb.get_network(network.id, user_id=pytest.root_user_id)
-
-        link_ids = []
-        for l in new_network.links:
-            link_ids.append(l.id)
-        assert link_to_delete.id not in link_ids
-
-        with pytest.raises(hb.exceptions.HydraError):
-            hb.get_link(link_to_delete.id, user_id=pytest.root_user_id)
-
     def test_set_network_status(self, session, projectmaker):
         project = projectmaker.create('test')
         network = JSONObject()
@@ -975,13 +957,16 @@ class TestNetwork:
 
         link_datasets = hb.get_resource_data('LINK', link_id_to_delete, scenario_id, user_id=pytest.root_user_id)
         log.info("Deleting link %s", link_id_to_delete)
-        hb.delete_link(link_id_to_delete, 'N', user_id=pytest.root_user_id)
+        hb.delete_link(link_id_to_delete, 'Y', user_id=pytest.root_user_id)
 
         updated_net = hb.get_network(net.id, 'Y', user_id=pytest.root_user_id)
 
         remaining_link_ids = [n.id for n in updated_net.links]
 
         assert link_id_to_delete not in remaining_link_ids
+
+        with pytest.raises(hb.exceptions.HydraError):
+            hb.get_link(link_id_to_delete, user_id=pytest.root_user_id)
 
         for rs in link_datasets:
             #In these tests, all timeseries are unique to their resources,

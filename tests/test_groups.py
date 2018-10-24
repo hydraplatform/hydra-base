@@ -144,7 +144,7 @@ class TestGroup:
         group_datasets = hb.get_resource_data('GROUP', group_id_to_delete, scenario_id)
         log.info("Deleting group %s", group_id_to_delete)
 
-        hb.delete_resourcegroup(group_id_to_delete, user_id=pytest.root_user_id)
+        hb.delete_resourcegroup(group_id_to_delete, 'Y', user_id=pytest.root_user_id)
 
         updated_net = JSONObject(hb.get_network(net.id, 'Y', user_id=pytest.root_user_id))
         assert len(updated_net.resourcegroups) == 1
@@ -155,9 +155,9 @@ class TestGroup:
             #so after removing the group no timeseries to which it was attached
             #should still exist.
             d = rs.value
-            with pytest.raises(hb.HydraError):
-                if d.type == 'timeseries':
-                    hb.get_dataset(d.dataset_id)
+            if d.type == 'timeseries':
+                with pytest.raises(hb.HydraError):
+                    hb.get_dataset(d.id, user_id=pytest.root_user_id)
 
 
 if __name__ == '__main__':

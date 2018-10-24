@@ -300,7 +300,7 @@ class TestScenario:
 
         #Identify 2 nodes to play around with -- the first and last in the list.
         node1 = network.nodes[0]
-  
+
 
         descriptor = util.create_descriptor(util.get_by_name('node_attr_a', node1.attributes),
                                                 "updated_descriptor")
@@ -547,6 +547,37 @@ class TestScenario:
         assert len(scen_1_resourcegroupitems) == len(scen_2_resourcegroupitems)
 
         return updated_network
+
+
+    def test_create_child(self, session, network_with_data):
+
+        network =  network_with_data
+
+        assert len(network.scenarios) == 1, "The network should have only one scenario!"
+
+        #self.create_constraint(network)
+
+        network = JSONObject(hydra_base.get_network(network.id, include_data='Y', user_id=pytest.root_user_id))
+
+        scenario = network.scenarios[0]
+        scenario_id = scenario.id
+
+        child = hydra_base.create_child_scenario(scenario_id, "Scenario {0}".format(len(network.scenarios)+1), user_id=pytest.root_user_id)
+
+        updated_network = JSONObject(hydra_base.get_network(network.id, include_data='Y', user_id=pytest.root_user_id))
+
+        assert len(updated_network.scenarios) == 2, "The network should have two scenarios!"
+
+        assert len(updated_network.scenarios[1].resourcescenarios) == 0, "There's data in the child but there shouldn't be"
+        
+        #Check that the new scenario contains all its data (that of its parent)
+        new_scenario = hydra_base.get_scenario(child.id, get_parent_data=True)
+        assert len(new_scenario.resourcescenarios) == len(scenario.resourcescenarios)
+
+        #Check that the new scenario contains no data (as we've requested only its own data)
+        new_scenario = hydra_base.get_scenario(child.id)
+        assert len(new_scenario.resourcescenarios) == 0
+
 
     def test_compare(self, session, network_with_data):
 
