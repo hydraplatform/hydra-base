@@ -327,9 +327,20 @@ def create_child_scenario(scenario_id, child_name, **kwargs):
     log.info("Creating child scenario of %s", scen_i.name)
 
     existing_scenarios = db.DBSession.query(Scenario).filter(Scenario.network_id==scen_i.network_id).all()
-    for existing_scenario in existing_scenarios:
-        if existing_scenario.name == child_name:
-            raise HydraError("A scenario with the name {0} already exists in this network. ".format(child_name))
+    if child_name is not None:
+        for existing_scenario in existing_scenarios:
+            if existing_scenario.name == child_name:
+                raise HydraError("A scenario with the name {0} already exists in this network. ".format(child_name))
+    else:
+        child_name = "%s (child)"%(scen_i.name)
+        num_child_scenarios = 0
+        for existing_scenario in existing_scenarios:
+            if existing_scenario.name.find(child_name) >= 0:
+                num_child_scenarios = num_child_scenarios + 1
+
+        if num_child_scenarios > 0:
+            child_name = child_name + " %s"%(num_child_scenarios)
+
 
     child_scen = Scenario()
     child_scen.network_id           = scen_i.network_id
