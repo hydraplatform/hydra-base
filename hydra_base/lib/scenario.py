@@ -616,8 +616,7 @@ def get_resource_scenario(resource_attr_id, scenario_id, get_parent_data=False, 
         if rs_i.resource_attr_id == resource_attr_id:
             rs_i.dataset
             rs_i.dataset.metadata
-            break
-        return rs
+            return rs_i
     else:
         raise ResourceNotFoundError("resource scenario for %s not found in scenario %s"%(resource_attr_id, scenario_id))
 
