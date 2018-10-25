@@ -569,9 +569,9 @@ class TestScenario:
         assert len(updated_network.scenarios) == 2, "The network should have two scenarios!"
        
         #Use a loop to check as postgres does not guarantee ordered responses
-        for s in updated_network.scenarios[1]:
+        for s in updated_network.scenarios:
             if s.id == child.id:
-                assert len(updated_network.scenarios[1].resourcescenarios) == 0, "There's data in the child but there shouldn't be"
+                assert len(s.resourcescenarios) == 0, "There's data in the child but there shouldn't be"
         
         #Check that the new scenario contains all its data (that of its parent)
         new_scenario = hydra_base.get_scenario(child.id, get_parent_data=True)

@@ -22,9 +22,8 @@ def upgrade():
     if op.get_bind().dialect.name == 'mysql':
 
         # ### tScenario
-
         try:
-            op.add_column('tScenario', sa.Column(sa.Integer(), sa.ForeignKey('tScenario.id'), nullable=True))
+            op.add_column('tScenario', sa.Column('parent_id', sa.Integer(), sa.ForeignKey('tScenario.id'), nullable=True))
         except Exception as e:
             log.exception(e)
 
@@ -109,10 +108,3 @@ def downgrade():
         except Exception as e:
             log.exception(e)
 
-
-def upgrade():
-    pass
-
-
-def downgrade():
-    pass
