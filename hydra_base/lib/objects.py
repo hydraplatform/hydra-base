@@ -81,7 +81,10 @@ class JSONObject(dict):
                 if k == 'metadata' and obj_dict is not None:
                     setattr(self, k, JSONObject(obj_dict.get_metadata_as_dict()))
                 else:
-                    l = [JSONObject(item, obj_dict) for item in v]
+                    if (len(v) > 0 and isinstance(v[0], float)):
+                        l = v
+                    else:
+                        l = [JSONObject(item, obj_dict) for item in v]
                     setattr(self, k, l)
             #Special case for SQLAlchemy objects, to stop them recursing up and down
             elif hasattr(v, '_sa_instance_state')\
