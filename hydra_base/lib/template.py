@@ -1370,6 +1370,8 @@ def update_template(template,**kwargs):
                 _update_templatetype(templatetype, type_i)
                 existing_templatetypes.append(type_i.id)
             else:
+                #Give it a template ID if it doesn't have one
+                templatetype.template_id = template.id
                 new_templatetype_i = _update_templatetype(templatetype)
                 existing_templatetypes.append(new_templatetype_i.id)
 
