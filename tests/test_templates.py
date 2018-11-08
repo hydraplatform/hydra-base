@@ -311,6 +311,14 @@ class TestTemplates:
         new_template_j.templatetypes[0].name = "Test type 3"
         updated_type_id = new_template_j.templatetypes[0].id
 
+        #add a new type
+        new_type = JSONObject()
+        new_type.name = "New Node type"
+        new_type.alias = "New Node type alias"
+        new_type.resource_type = 'NODE'
+        new_type.typeattrs = []
+        new_template_j.templatetypes.append(new_type)
+
         #add an template attr to one of the types
         tattr_3 = JSONObject()
         tattr_3.attr_id = attr_3.id
