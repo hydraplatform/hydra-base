@@ -412,6 +412,7 @@ def _get_dataset_as_dict(rs, user_id):
 
     dataset = deepcopy(rs.dataset.__dict__)
 
+    dataset['metadata'] = {}
 
     del dataset['_sa_instance_state']
 
