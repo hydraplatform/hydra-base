@@ -720,7 +720,7 @@ class Project(Base, Inspect):
         """
             Check whether this user can read this project
         """
-        
+
         if _is_admin(user_id):
             return
 
@@ -957,7 +957,7 @@ class Network(Base, Inspect):
         """
             Check whether this user can write this project
         """
-        
+
         if _is_admin(user_id):
             return
 
@@ -1650,6 +1650,7 @@ class User(Base, Inspect):
         """
             Check that the user has a role with the code 'admin'
         """
+        log.info(self.roleusers)
         for ur in self.roleusers:
             if ur.role.code == 'admin':
                 return True
