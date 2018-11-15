@@ -47,10 +47,6 @@ def create_mysql_db(db_url):
     #automatically create the mysql DB if it's not there.
     db_name = config.get('mysqld', 'db_name', 'hydradb')
 
-    log.info("create_mysql_db(db_url)")
-    log.info(db_url)
-
-
     if db_url.find('mysql') >= 0:
         url_items = db_url.split("/")
         if db_url.find(db_name) >= 0:
@@ -73,8 +69,6 @@ def create_mysql_db(db_url):
     return db_url
 
 def connect(db_url=None):
-    log.info("__init__,connect")
-    log.info(db_url)
     if db_url is None:
         db_url = config.get('mysqld', 'url')
         db_url = create_mysql_db(db_url)

@@ -253,7 +253,6 @@ def get_projects(uid,**kwargs):
     projects_j = []
     for project_i in projects_i:
         #Ensure the requesting user is allowed to see the project
-        #log.info("get_projects p:%s, uid: %s", project_i.id, req_user_id)
         project_i.check_read_permission(req_user_id)
 
         networks_i = db.DBSession.query(Network).join(NetworkOwner)\
@@ -264,7 +263,7 @@ def get_projects(uid,**kwargs):
 
         for network_i in networks_i:
             network_i.check_read_permission(req_user_id)
-
+        
         project_j = JSONObject(project_i)
         project_j.networks = [JSONObject(network_i) for network_i in networks_i]
         projects_j.append(project_j)

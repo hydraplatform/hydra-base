@@ -81,7 +81,6 @@ def _is_admin(user_id):
     """
     user = get_session().query(User).filter(User.id==user_id).one()
 
-
     if user.is_admin():
         return True
     else:
@@ -720,6 +719,7 @@ class Project(Base, Inspect):
         """
             Check whether this user can read this project
         """
+
         if _is_admin(user_id):
             return
 
@@ -956,7 +956,7 @@ class Network(Base, Inspect):
         """
             Check whether this user can write this project
         """
-
+        
         if _is_admin(user_id):
             return
 
