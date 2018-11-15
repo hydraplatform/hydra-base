@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-
 from sqlalchemy import Column,\
 ForeignKey,\
 text,\
@@ -81,6 +80,7 @@ def _is_admin(user_id):
         Is the specified user an admin
     """
     user = get_session().query(User).filter(User.id==user_id).one()
+
 
     if user.is_admin():
         return True
@@ -720,7 +720,6 @@ class Project(Base, Inspect):
         """
             Check whether this user can read this project
         """
-
         if _is_admin(user_id):
             return
 
@@ -1650,7 +1649,6 @@ class User(Base, Inspect):
         """
             Check that the user has a role with the code 'admin'
         """
-        log.info(self.roleusers)
         for ur in self.roleusers:
             if ur.role.code == 'admin':
                 return True
