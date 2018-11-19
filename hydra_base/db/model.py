@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-
 from sqlalchemy import Column,\
 ForeignKey,\
 text,\
@@ -720,7 +719,7 @@ class Project(Base, Inspect):
         """
             Check whether this user can read this project
         """
-        
+
         if _is_admin(user_id):
             return
 
@@ -957,7 +956,7 @@ class Network(Base, Inspect):
         """
             Check whether this user can write this project
         """
-        
+
         if _is_admin(user_id):
             return
 
@@ -1607,6 +1606,28 @@ class RoleUser(Base, Inspect):
     def __repr__(self):
         return "{0}".format(self.role.name)
 
+
+class UserCookieConsent(Base, Inspect):
+    """
+    """
+
+    __tablename__='tUserCookieConsent'
+
+    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
+    country_code = Column(String(10), primary_key=True, nullable=False)
+    status = Column(String(1),nullable=False, server_default=text(u"''"))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+
+    #user = relationship('User', foreign_keys=[user_id])
+    user = relationship('User', lazy='joined')
+
+    _parents  = ['tUser']
+    _children = []
+
+    def __repr__(self):
+        return "{0}".format(self.status)
+
+
 class User(Base, Inspect):
     """
     """
@@ -1621,6 +1642,7 @@ class User(Base, Inspect):
     last_edit = Column(TIMESTAMP())
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     roleusers = relationship('RoleUser', lazy='joined')
+    cookie_consents = relationship('UserCookieConsent', lazy='joined')
 
     _parents  = []
     _children = ['tRoleUser']
@@ -1645,6 +1667,18 @@ class User(Base, Inspect):
         for ur in self.roleusers:
             roles.append(ur.role)
         return set(roles)
+
+    # @property
+    # def cookie_consent(self):
+    #     """Return the cookie_consents for that user."""
+    #     cookie_consents = []
+    #     for ucc in self.cookie_consents:
+    #         cookie_consents.append({
+    #             country_code: ucc.country_code,
+    #             status: ucc.status
+    #         })
+    #     log.warn(cookie_consents)
+    #     return set(cookie_consents)
 
     def is_admin(self):
         """
