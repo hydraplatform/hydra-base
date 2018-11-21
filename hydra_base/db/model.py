@@ -830,7 +830,7 @@ class Network(Base, Inspect):
         l = Link()
         l.name        = name
         l.description = desc
-        l.layout           = str(layout) if layout is not None else None
+        l.layout           = json.dumps(layout) if layout is not None else None
         l.node_a           = node_1
         l.node_b           = node_2
 
@@ -905,6 +905,7 @@ class Network(Base, Inspect):
         return owner
 
     def unset_owner(self, user_id):
+
         owner = None
         if str(user_id) == str(self.created_by):
             log.warn("Cannot unset %s as owner, as they created the network", user_id)
