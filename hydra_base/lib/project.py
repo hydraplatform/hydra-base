@@ -254,6 +254,8 @@ def get_projects(uid,**kwargs):
     for project_i in projects_i:
         #Ensure the requesting user is allowed to see the project
         project_i.check_read_permission(req_user_id)
+        #lazy load owners
+        project_i.owners
 
         networks_i = db.DBSession.query(Network).join(NetworkOwner)\
                                 .filter(Network.project_id==project_i.id,
