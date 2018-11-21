@@ -74,6 +74,9 @@ class JSONObject(dict):
                 #TODO what is a better way to identify a dataset?
                 if 'unit' in v or 'metadata' in v or 'type' in v:
                     setattr(self, k, Dataset(v, obj_dict))
+                #The value on a dataset should remain untouched
+                elif k == 'value':
+                    setattr(self, k, v)
                 else:
                     setattr(self, k, JSONObject(v, obj_dict))
             elif isinstance(v, list):
