@@ -20,9 +20,6 @@
 import json
 import six
 
-import logging
-log = logging.getLogger(__name__)
-
 from datetime import datetime
 from ..exceptions import HydraError
 
@@ -31,6 +28,9 @@ from .HydraTypes.Registry import HydraObjectFactory
 from ..util import generate_data_hash, get_layout_as_dict, get_layout_as_string
 from .. import config
 import pandas as pd
+
+import logging
+log = logging.getLogger(__name__)
 
 class JSONObject(dict):
     """
