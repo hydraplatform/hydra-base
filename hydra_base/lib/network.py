@@ -999,6 +999,8 @@ def get_network(network_id, summary=False, include_data='N', scenario_ids=None, 
     log.debug("getting network %s"%network_id)
     user_id = kwargs.get('user_id')
 
+    network_id = int(network_id)
+
     try:
         log.debug("Querying Network %s", network_id)
         net_i = db.DBSession.query(Network).filter(
