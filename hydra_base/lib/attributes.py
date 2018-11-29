@@ -202,7 +202,7 @@ def add_attributes(attrs,**kwargs):
     all_attrs = db.DBSession.query(Attr).all()
     attr_dict = {}
     for attr in all_attrs:
-        attr_dict[(attr.name, attr.dimension)] = attr
+        attr_dict[(attr.name.lower(), attr.dimension.lower())] = attr
 
     attrs_to_add = []
     existing_attrs = []
@@ -210,10 +210,10 @@ def add_attributes(attrs,**kwargs):
         if potential_new_attr.dimension is None or potential_new_attr.dimension.lower() == 'dimensionless':
             potential_new_attr.dimension = 'dimensionless'
 
-        if attr_dict.get((potential_new_attr.name, potential_new_attr.dimension)) is None:
+        if attr_dict.get((potential_new_attr.name.lower(), potential_new_attr.dimension.lower())) is None:
             attrs_to_add.append(potential_new_attr)
         else:
-            existing_attrs.append(attr_dict.get((potential_new_attr.name, potential_new_attr.dimension)))
+            existing_attrs.append(attr_dict.get((potential_new_attr.name.lower(), potential_new_attr.dimension.lower())))
 
     new_attrs = []
     for attr in attrs_to_add:
