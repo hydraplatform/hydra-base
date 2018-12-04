@@ -2509,8 +2509,13 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
 
     return return_data
 
-def clone_network(network_id, new_project=True, recipient_user_id=None, network_name=None, project_name=None, **kwargs):
+def clone_network(network_id, recipient_user_id=None, new_network_name=None, project_id=None, project_name=None,  new_project=True, **kwargs):
     """
+     Create an exact clone of the specified network for the specified user.
+
+     If project_id is specified, put the new network in there.
+
+     Otherwise create a new project with the specified name and put it in there.
 
     """
 
@@ -2520,7 +2525,7 @@ def clone_network(network_id, new_project=True, recipient_user_id=None, network_
 
     ex_net.check_read_permission(user_id)
 
-    if new_project == True:
+    if project_id is None and new_project == True:
 
         log.info("Creating a new project for cloned network")
 
@@ -2551,27 +2556,27 @@ def clone_network(network_id, new_project=True, recipient_user_id=None, network_
         db.DBSession.flush()
 
         project_id=project.id
-        if network_name is None or network_name == "":
-            network_name=ex_net.name
-    else:
+
+    elif project_id is None:
         log.info("Using current project for cloned network")
         project_id=ex_net.project_id
-        if network_name is None or network_name == "":
-            network_name=ex_net.name
+
+    if new_network_name is None or new_network_name == "":
+        new_network_name=ex_net.name
 
     log.info('Cloning Network...')
 
     #Find if there's any projects with this name in the project already
     ex_network =  db.DBSession.query(Network).filter(Network.project_id==project_id,
-                                                     Network.name.like("{0}%".format(network_name))).all()
+                                                     Network.name.like("{0}%".format(new_network_name))).all()
 
     if len(ex_network) > 0:
-        network_name = network_name + " " + str(len(ex_network))
+        new_network_name = new_network_name + " " + str(len(ex_network))
 
     newnet = Network()
 
     newnet.project_id = project_id
-    newnet.name = network_name
+    newnet.name = new_network_name 
     newnet.description = ex_net.description
     newnet.layout = ex_net.layout
     newnet.status = ex_net.status
