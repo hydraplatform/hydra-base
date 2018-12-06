@@ -232,22 +232,59 @@ def to_named_tuple(obj, visited_children=None, back_relationships=None, levels=N
     return result
 
 
-def get_projects(uid,**kwargs):
+
+
+def get_projects(uid, **kwargs):
     """
         Get all the projects owned by the specified user.
         These include projects created by the user, but also ones shared with the user.
         For shared projects, only include networks in those projects which are accessible to the user.
+        If "include_shared_projects" is false then
     """
     req_user_id = kwargs.get('user_id')
+    options = {
+        'include_shared_projects': True,
+        'include_shared_networks': True
+    }
+    options.update(kwargs)
+    log.info("hydra-base.project.get_projects 1")
+    log.info("kwargs")
+    log.info(kwargs)
+    log.info("options")
+    log.info(options)
+    import pudb; pudb.set_trace()
 
     ##Don't load the project's networks. Load them separately, as the networks
     #must be checked individually for ownership
-    projects_i = db.DBSession.query(Project).join(ProjectOwner)\
-                                                 .filter(Project.status=='A',
-                                                        or_(ProjectOwner.user_id==uid,
-                                                           Project.created_by==uid))\
-                                                 .options(noload('networks'))\
-                                                 .order_by('id').all()
+    projects_qry = db.DBSession.query(Project)
+
+    if options["include_shared_projects"] is True:
+        projects_qry = projects_qry.join(ProjectOwner).filter(Project.status=='A',
+                                                            or_(ProjectOwner.user_id==uid,
+                                                                Project.created_by==uid))
+    else:
+        projects_qry = projects_qry.join(ProjectOwner).filter(Project.status=='A',
+                                                                Project.created_by==uid)
+
+    projects_qry = projects_qry.options(noload('networks')).order_by('id')
+    projects_i = projects_qry.all()
+
+# def get_projects(uid,**kwargs):
+#     """
+#         Get all the projects owned by the specified user.
+#         These include projects created by the user, but also ones shared with the user.
+#         For shared projects, only include networks in those projects which are accessible to the user.
+#     """
+#     req_user_id = kwargs.get('user_id')
+#
+#     ##Don't load the project's networks. Load them separately, as the networks
+#     #must be checked individually for ownership
+#     projects_i = db.DBSession.query(Project).join(ProjectOwner)\
+#                                                  .filter(Project.status=='A',
+#                                                         or_(ProjectOwner.user_id==uid,
+#                                                            Project.created_by==uid))\
+#                                                  .options(noload('networks'))\
+#                                                  .order_by('id').all()
 
     #Load each
     projects_j = []
@@ -255,15 +292,31 @@ def get_projects(uid,**kwargs):
         #Ensure the requesting user is allowed to see the project
         project_i.check_read_permission(req_user_id)
 
-        networks_i = db.DBSession.query(Network).join(NetworkOwner)\
-                                .filter(Network.project_id==project_i.id,
-                                        Network.status=='A',
-                                        or_(Network.created_by==uid,\
-                                            NetworkOwner.user_id==uid))
+        networks_qry = db.DBSession.query(Network).join(NetworkOwner)
+        if options["include_shared_networks"] is True:
+            networks_qry = networks_qry.filter(
+                    Network.project_id==project_i.id,
+                    Network.status=='A',
+                    or_(Network.created_by==uid,\
+                        NetworkOwner.user_id==uid)
+            )
+        else:
+            networks_qry = networks_qry.filter(
+                    Network.project_id==project_i.id,
+                    Network.status=='A',
+                    Network.created_by==uid
+            )
+        networks_i = networks_qry.all()
+
+        # networks_i = db.DBSession.query(Network).join(NetworkOwner)\
+        #                         .filter(Network.project_id==project_i.id,
+        #                                 Network.status=='A',
+        #                                 or_(Network.created_by==uid,\
+        #                                     NetworkOwner.user_id==uid))
 
         for network_i in networks_i:
             network_i.check_read_permission(req_user_id)
-        
+
         project_j = JSONObject(project_i)
         project_j.networks = [JSONObject(network_i) for network_i in networks_i]
         projects_j.append(project_j)

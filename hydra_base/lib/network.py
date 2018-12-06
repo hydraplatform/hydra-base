@@ -93,7 +93,7 @@ def get_scenario_by_name(network_id, scenario_name,**kwargs):
         scen = db.DBSession.query(Scenario).filter(and_(Scenario.network_id==network_id, func.lower(Scenario.id) == scenario_name.lower())).one()
         return scen.id
     except NoResultFound:
-        log.info("No scenario in network %s with name %s"\
+        log.debug("No scenario in network %s with name %s"\
                      % (network_id, scenario_name))
         return None
 
@@ -192,9 +192,9 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
 
     if len(resource_resource_types) > 0:
         db.DBSession.bulk_insert_mappings(ResourceType, resource_resource_types)
-    logging.info("%s ResourceTypes inserted in %s secs", len(resource_resource_types), str(time.time() - t0))
+    logging.debug("%s ResourceTypes inserted in %s secs", len(resource_resource_types), str(time.time() - t0))
 
-    logging.info("Resource attributes from types added in %s"%(datetime.datetime.now() - start_time))
+    logging.debug("Resource attributes from types added in %s"%(datetime.datetime.now() - start_time))
 
     if len(resource_attrs) > 0:
         all_resource_attrs = []
@@ -203,11 +203,11 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
 
         if len(all_resource_attrs) > 0:
             db.DBSession.bulk_insert_mappings(ResourceAttr, all_resource_attrs)
-            logging.info("ResourceAttr insert took %s secs"% str(time.time() - t0))
+            logging.debug("ResourceAttr insert took %s secs"% str(time.time() - t0))
         else:
             logging.warn("No attributes on any %s....", ref_key.lower())
 
-    logging.info("Resource attributes insertion from types done in %s"%(datetime.datetime.now() - start_time))
+    logging.debug("Resource attributes insertion from types done in %s"%(datetime.datetime.now() - start_time))
 
     #Now that the attributes are in, we need to map the attributes in the DB
     #to the attributes in the incoming data so that the resource scenarios
@@ -223,7 +223,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
         res_qry = res_qry.filter(ResourceAttr.network_id==network_id)
 
     real_resource_attrs = res_qry.all()
-    logging.info("retrieved %s entries in %s"%(len(real_resource_attrs), datetime.datetime.now() - start_time))
+    logging.debug("retrieved %s entries in %s"%(len(real_resource_attrs), datetime.datetime.now() - start_time))
 
     resource_attr_dict = {}
     for resource_attr in real_resource_attrs:
@@ -241,7 +241,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
         if defaults.get((ref_id, resource_attr.attr_id)):
             defaults[(ref_id, resource_attr.attr_id)]['id'] = resource_attr.id
 
-    logging.info("Processing Query results took %s"%(datetime.datetime.now() - start_time))
+    logging.debug("Processing Query results took %s"%(datetime.datetime.now() - start_time))
 
 
     resource_attrs = {}
@@ -259,13 +259,13 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
         if resource.attributes is not None:
             for ra in resource.attributes:
                 resource_attrs[ra.id] = resource_attr_dict[(ref_id, ra.attr_id)]
-    logging.info("Resource attributes added in %s"%(datetime.datetime.now() - start_time))
+    logging.debug("Resource attributes added in %s"%(datetime.datetime.now() - start_time))
     logging.debug(" resource_attrs   size: %s" % len(resource_attrs))
     return resource_attrs, defaults
 
 def _add_nodes_to_database(net_i, nodes):
     #First add all the nodes
-    log.info("Adding nodes to network %s", net_i.id)
+    log.debug("Adding nodes to network %s", net_i.id)
     node_list = []
     for node in nodes:
         node_dict = {'network_id'   : net_i.id,
@@ -280,7 +280,7 @@ def _add_nodes_to_database(net_i, nodes):
     if len(node_list):
         db.DBSession.bulk_insert_mappings(Node, node_list)
     db.DBSession.flush()
-    logging.info("Node insert took %s secs"% str(time.time() - t0))
+    logging.debug("Node insert took %s secs"% str(time.time() - t0))
 
 def _add_nodes(net_i, nodes):
 
@@ -311,12 +311,12 @@ def _add_nodes(net_i, nodes):
 
     node_attrs, defaults = _bulk_add_resource_attrs(net_i.id, 'NODE', nodes, iface_nodes)
 
-    log.info("Nodes added in %s", get_timing(start_time))
+    log.debug("Nodes added in %s", get_timing(start_time))
 
     return node_id_map, node_attrs, defaults
 
 def _add_links_to_database(net_i, links, node_id_map):
-    log.info("Adding links to network")
+    log.debug("Adding links to network")
     link_dicts = []
     for link in links:
         node_1 = node_id_map.get(link.node_1_id)
@@ -353,7 +353,7 @@ def _add_links(net_i, links, node_id_map):
 #################################################################
     _add_links_to_database(net_i, links, node_id_map)
 ###################################################################
-    log.info("Links added in %s", get_timing(start_time))
+    log.debug("Links added in %s", get_timing(start_time))
     iface_links = {}
 
     for l_i in net_i.links:
@@ -367,7 +367,7 @@ def _add_links(net_i, links, node_id_map):
         link_id_map[link.id] = iface_links[link.name]
 
     link_attrs, defaults = _bulk_add_resource_attrs(net_i.id, 'LINK', links, iface_links)
-    log.info("Links added in %s", get_timing(start_time))
+    log.debug("Links added in %s", get_timing(start_time))
 
     return link_id_map, link_attrs, defaults
 
@@ -381,7 +381,7 @@ def _add_resource_groups(net_i, resourcegroups):
     if resourcegroups is None or len(resourcegroups)==0:
         return group_id_map, group_attrs, {}
     #Then add all the groups.
-    log.info("Adding groups to network")
+    log.debug("Adding groups to network")
     group_dicts = []
     if resourcegroups:
         for group in resourcegroups:
@@ -395,7 +395,7 @@ def _add_resource_groups(net_i, resourcegroups):
 
     if len(group_dicts) > 0:
         db.DBSession.bulk_insert_mappings(ResourceGroup, group_dicts)
-        log.info("Resource Groups added in %s", get_timing(start_time))
+        log.debug("Resource Groups added in %s", get_timing(start_time))
 
         for g_i in net_i.resourcegroups:
 
@@ -418,7 +418,7 @@ def _add_resource_groups(net_i, resourcegroups):
                 group_id_map[group.id] = group_i
 
     group_attrs, defaults = _bulk_add_resource_attrs(net_i.id, 'GROUP', resourcegroups, iface_groups)
-    log.info("Groups added in %s", get_timing(start_time))
+    log.debug("Groups added in %s", get_timing(start_time))
 
     return group_id_map, group_attrs, defaults
 
@@ -483,7 +483,7 @@ def add_network(network,**kwargs):
 
     all_resource_attrs.update(network_attrs)
 
-    log.info("Network attributes added in %s", get_timing(start_time))
+    log.debug("Network attributes added in %s", get_timing(start_time))
     node_id_map, node_attrs, node_datasets = _add_nodes(net_i, network.nodes)
     all_resource_attrs.update(node_attrs)
 
@@ -500,7 +500,7 @@ def add_network(network,**kwargs):
 
     scenario_names = []
     if network.scenarios is not None:
-        log.info("Adding scenarios to network")
+        log.debug("Adding scenarios to network")
         for s in network.scenarios:
 
             if s.name in scenario_names:
@@ -538,12 +538,12 @@ def add_network(network,**kwargs):
                                               kwargs.get('app_name')
                                              )
 
-            log.info("Data bulk insert took %s", get_timing(data_start_time))
+            log.debug("Data bulk insert took %s", get_timing(data_start_time))
             ra_start_time = datetime.datetime.now()
             for i, ra in enumerate(scenario_resource_attrs):
                 scen.add_resource_scenario(ra, datasets[i], source=kwargs.get('app_name'))
 
-            log.info("Resource scenarios added in  %s", get_timing(ra_start_time))
+            log.debug("Resource scenarios added in  %s", get_timing(ra_start_time))
 
             item_start_time = datetime.datetime.now()
             if s.resourcegroupitems is not None:
@@ -563,14 +563,14 @@ def add_network(network,**kwargs):
                                          group_item.ref_key)
 
                     scen.resourcegroupitems.append(group_item_i)
-            log.info("Group items insert took %s", get_timing(item_start_time))
+            log.debug("Group items insert took %s", get_timing(item_start_time))
             net_i.scenarios.append(scen)
 
-    log.info("Scenarios added in %s", get_timing(start_time))
+    log.debug("Scenarios added in %s", get_timing(start_time))
     net_i.set_owner(user_id)
 
     db.DBSession.flush()
-    log.info("Insertion of network took: %s",(datetime.datetime.now()-insert_start))
+    log.debug("Insertion of network took: %s",(datetime.datetime.now()-insert_start))
 
     return net_i
 
@@ -611,12 +611,12 @@ def _get_all_resource_attributes(network_id, template_id=None):
         network_attribute_qry = network_attribute_qry.join(ResourceType, ResourceAttr.network_id==ResourceType.network_id).join(TemplateType).join(TypeAttr).filter(TemplateType.template_id==template_id).filter(ResourceAttr.attr_id==TypeAttr.attr_id)
 
     x = time.time()
-    logging.info("Getting all attributes using execute")
+    logging.debug("Getting all attributes using execute")
     attribute_qry = all_node_attribute_qry.union(all_link_attribute_qry, all_group_attribute_qry, network_attribute_qry)
     all_attributes = db.DBSession.execute(attribute_qry.statement).fetchall()
-    log.info("%s attrs retrieved in %s", len(all_attributes), time.time()-x)
+    log.debug("%s attrs retrieved in %s", len(all_attributes), time.time()-x)
 
-    logging.info("Attributes retrieved. Processing results...")
+    logging.debug("Attributes retrieved. Processing results...")
     x = time.time()
     node_attr_dict = dict()
     link_attr_dict = dict()
@@ -648,7 +648,7 @@ def _get_all_resource_attributes(network_id, template_id=None):
         'NETWORK': network_attr_dict,
     }
 
-    logging.info("Attributes processed in %s", time.time()-x)
+    logging.debug("Attributes processed in %s", time.time()-x)
     return all_attributes
 
 def _get_all_templates(network_id, template_id):
@@ -690,13 +690,13 @@ def _get_all_templates(network_id, template_id):
         all_group_type_qry = all_group_type_qry.filter(Template.id==template_id)
 
     x = time.time()
-    log.info("Getting all types")
+    log.debug("Getting all types")
     type_qry = all_node_type_qry.union(all_link_type_qry, all_group_type_qry, network_type_qry)
     all_types = db.DBSession.execute(type_qry.statement).fetchall()
-    log.info("%s types retrieved in %s", len(all_types), time.time()-x)
+    log.debug("%s types retrieved in %s", len(all_types), time.time()-x)
 
 
-    log.info("Attributes retrieved. Processing results...")
+    log.debug("Attributes retrieved. Processing results...")
     x = time.time()
     node_type_dict = dict()
     link_type_dict = dict()
@@ -736,7 +736,7 @@ def _get_all_templates(network_id, template_id):
         'NETWORK': network_type_dict,
     }
 
-    logging.info("Attributes processed in %s", time.time()-x)
+    logging.debug("Attributes processed in %s", time.time()-x)
     return all_types
 
 
@@ -750,12 +750,12 @@ def _get_all_group_items(network_id):
     item_qry = base_qry.join(Scenario).filter(Scenario.network_id==network_id)
 
     x = time.time()
-    logging.info("Getting all items")
+    logging.debug("Getting all items")
     all_items = db.DBSession.execute(item_qry.statement).fetchall()
-    log.info("%s groups jointly retrieved in %s", len(all_items), time.time()-x)
+    log.debug("%s groups jointly retrieved in %s", len(all_items), time.time()-x)
 
 
-    logging.info("items retrieved. Processing results...")
+    logging.debug("items retrieved. Processing results...")
     x = time.time()
     item_dict = dict()
     for item in all_items:
@@ -764,7 +764,7 @@ def _get_all_group_items(network_id):
         items.append(item)
         item_dict[item.scenario_id] = items
 
-    logging.info("items processed in %s", time.time()-x)
+    logging.debug("items processed in %s", time.time()-x)
 
     return item_dict
 
@@ -796,12 +796,12 @@ def _get_all_resourcescenarios(network_id, user_id):
                 Dataset.id==ResourceScenario.dataset_id)
 
     x = time.time()
-    logging.info("Getting all resource scenarios")
+    logging.debug("Getting all resource scenarios")
     all_rs = db.DBSession.execute(rs_qry.statement).fetchall()
-    log.info("%s resource scenarios retrieved in %s", len(all_rs), time.time()-x)
+    log.debug("%s resource scenarios retrieved in %s", len(all_rs), time.time()-x)
 
 
-    logging.info("resource scenarios retrieved. Processing results...")
+    logging.debug("resource scenarios retrieved. Processing results...")
     x = time.time()
     rs_dict = dict()
     for rs in all_rs:
@@ -830,7 +830,7 @@ def _get_all_resourcescenarios(network_id, user_id):
         scenario_rs.append(rs_obj)
         rs_dict[rs.scenario_id] = scenario_rs
 
-    logging.info("resource scenarios processed in %s", time.time()-x)
+    logging.debug("resource scenarios processed in %s", time.time()-x)
 
     return rs_dict
 
@@ -840,7 +840,7 @@ def _get_metadata(network_id, user_id):
         Get all the metadata in a network, across all scenarios
         returns a dictionary of dict objects, keyed on dataset ID
     """
-    log.info("Getting Metadata")
+    log.debug("Getting Metadata")
     dataset_qry = db.DBSession.query(
                 Dataset
     ).outerjoin(DatasetOwner, and_(DatasetOwner.dataset_id==Dataset.id, DatasetOwner.user_id==user_id)).filter(
@@ -854,11 +854,11 @@ def _get_metadata(network_id, user_id):
     ).join(dataset_qry, Metadata.dataset_id==dataset_qry.c.id)
 
     x = time.time()
-    logging.info("Getting all matadata")
+    logging.debug("Getting all matadata")
     all_metadata = db.DBSession.execute(rs_qry.statement).fetchall()
-    log.info("%s metadata jointly retrieved in %s",len(all_metadata), time.time()-x)
+    log.debug("%s metadata jointly retrieved in %s",len(all_metadata), time.time()-x)
 
-    logging.info("metadata retrieved. Processing results...")
+    logging.debug("metadata retrieved. Processing results...")
     x = time.time()
     metadata_dict = dict()
     for m in all_metadata:
@@ -867,7 +867,7 @@ def _get_metadata(network_id, user_id):
         else:
             metadata_dict[m.dataset_id] = {m.key : six.text_type(m.value)}
 
-    logging.info("metadata processed in %s", time.time()-x)
+    logging.debug("metadata processed in %s", time.time()-x)
 
     return metadata_dict
 
@@ -961,7 +961,7 @@ def _get_scenarios(network_id, include_data, user_id, scenario_ids=None):
                         Scenario.status == 'A')
 
     if scenario_ids:
-        logging.info("Filtering by scenario_ids %s",scenario_ids)
+        logging.debug("Filtering by scenario_ids %s",scenario_ids)
         scen_qry = scen_qry.filter(Scenario.id.in_(scenario_ids))
     extras = {'resourcescenarios': [], 'resourcegroupitems': []}
     scens = [JSONObject(s,extras=extras) for s in db.DBSession.execute(scen_qry.statement).fetchall()]
@@ -1021,20 +1021,20 @@ def get_network(network_id, summary=False, include_data='N', scenario_ids=None, 
 
         if summary is False:
             all_attributes = _get_all_resource_attributes(network_id, template_id)
-            log.info("Setting attributes")
+            log.debug("Setting attributes")
             net.attributes = all_attributes['NETWORK'].get(network_id, [])
             for node_i in net.nodes:
                 node_i.attributes = all_attributes['NODE'].get(node_i.id, [])
-            log.info("Node attributes set")
+            log.debug("Node attributes set")
             for link_i in net.links:
                 link_i.attributes = all_attributes['LINK'].get(link_i.id, [])
-            log.info("Link attributes set")
+            log.debug("Link attributes set")
             for group_i in net.resourcegroups:
                 group_i.attributes = all_attributes['GROUP'].get(group_i.id, [])
-            log.info("Group attributes set")
+            log.debug("Group attributes set")
 
 
-        log.info("Setting types")
+        log.debug("Setting types")
         all_types = _get_all_templates(network_id, template_id)
         net.types = all_types['NETWORK'].get(network_id, [])
         for node_i in net.nodes:
@@ -1044,7 +1044,7 @@ def get_network(network_id, summary=False, include_data='N', scenario_ids=None, 
         for group_i in net.resourcegroups:
             group_i.types = all_types['GROUP'].get(group_i.id, [])
 
-        log.info("Getting scenarios")
+        log.debug("Getting scenarios")
 
         net.scenarios = _get_scenarios(network_id, include_data, user_id, scenario_ids)
 
@@ -1302,7 +1302,7 @@ def update_network(network,
     """
         Update an entire network
     """
-    log.info("Updating Network %s", network.name)
+    log.debug("Updating Network %s", network.name)
     user_id = kwargs.get('user_id')
     #check_perm('update_network')
 
@@ -1326,7 +1326,7 @@ def update_network(network,
     node_id_map = dict()
 
     if network.nodes is not None and update_nodes is True:
-        log.info("Updating nodes")
+        log.debug("Updating nodes")
         t0 = time.time()
         #First add all the nodes
         node_id_map = dict([(n.id, n) for n in net_i.nodes])
@@ -1342,7 +1342,7 @@ def update_network(network,
                 n.status      = node.status
                 n.layout      = node.get_layout()
             else:
-                log.info("Adding new node %s", node.name)
+                log.debug("Adding new node %s", node.name)
                 n = net_i.add_node(node.name,
                                    node.description,
                                    node.get_layout(),
@@ -1353,11 +1353,11 @@ def update_network(network,
 
             all_resource_attrs.update(_update_attributes(n, node.attributes))
             hdb.add_resource_types(n, node.types)
-        log.info("Updating nodes took %s", time.time() - t0)
+        log.debug("Updating nodes took %s", time.time() - t0)
 
     link_id_map = dict()
     if network.links is not None and update_links is True:
-        log.info("Updating links")
+        log.debug("Updating links")
         t0 = time.time()
         link_id_map = dict([(l.link_id, l) for l in net_i.links])
         for link in network.links:
@@ -1366,7 +1366,7 @@ def update_network(network,
             node_2 = node_id_map[link.node_2_id]
 
             if link.id is None or link.id < 0:
-                log.info("Adding new link %s", link.name)
+                log.debug("Adding new link %s", link.name)
                 l = net_i.add_link(link.name,
                                    link.description,
                                    link.get_layout(),
@@ -1385,12 +1385,12 @@ def update_network(network,
 
             all_resource_attrs.update(_update_attributes(l, link.attributes))
             hdb.add_resource_types(l, link.types)
-        log.info("Updating links took %s", time.time() - t0)
+        log.debug("Updating links took %s", time.time() - t0)
 
     group_id_map = dict()
     #Next all the groups
     if network.resourcegroups is not None and update_groups is True:
-        log.info("Updating groups")
+        log.debug("Updating groups")
         t0 = time.time()
         group_id_map = dict([(g.group_id, g) for g in net_i.resourcegroups])
         for group in network.resourcegroups:
@@ -1402,7 +1402,7 @@ def update_network(network,
                 g_i.description = group.description
                 g_i.status           = group.status
             else:
-                log.info("Adding new group %s", group.name)
+                log.debug("Adding new group %s", group.name)
                 g_i = net_i.add_group(group.name,
                                    group.description,
                                    group.status)
@@ -1412,7 +1412,7 @@ def update_network(network,
             all_resource_attrs.update(_update_attributes(g_i, group.attributes))
             hdb.add_resource_types(g_i, group.types)
             group_id_map[group.id] = g_i
-        log.info("Updating groups took %s", time.time() - t0)
+        log.debug("Updating groups took %s", time.time() - t0)
 
     errors = []
     if network.scenarios is not None and update_scenarios is True:
@@ -1435,7 +1435,7 @@ def update_network(network,
                 add_scenario = True
 
             if add_scenario is True:
-                log.info("Adding new scenario %s to network", s.name)
+                log.debug("Adding new scenario %s to network", s.name)
                 scenario.add_scenario(network.id, s, **kwargs)
 
     db.DBSession.flush()
@@ -1444,7 +1444,7 @@ def update_network(network,
     return updated_net
 
 def update_resource_layout(resource_type, resource_id, key, value, **kwargs):
-    log.info("Updating %s %s's layout with {%s:%s}", resource_type, resource_id, key, value)
+    log.debug("Updating %s %s's layout with {%s:%s}", resource_type, resource_id, key, value)
     resource = get_resource(resource_type, resource_id, **kwargs)
     if resource.layout is None:
         layout = dict()
@@ -1572,7 +1572,7 @@ def add_nodes(network_id, nodes,**kwargs):
 
     _bulk_add_resource_attrs(network_id, 'NODE', nodes, iface_nodes)
 
-    log.info("Nodes added in %s", get_timing(start_time))
+    log.debug("Nodes added in %s", get_timing(start_time))
     return node_s
 
 ##########################################################################
@@ -1605,7 +1605,7 @@ def add_links(network_id, links,**kwargs):
     for l_i in link_s:
         iface_links[l_i.name] = l_i
     link_attrs = _bulk_add_resource_attrs(net_i.id, 'LINK', links, iface_links)
-    log.info("Nodes added in %s", get_timing(start_time))
+    log.debug("Nodes added in %s", get_timing(start_time))
     return link_s
 #########################################
 
@@ -1786,7 +1786,7 @@ def purge_network(network_id, purge_data,**kwargs):
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id))
 
-    log.info("Deleting network %s, id=%s", net_i.name, network_id)
+    log.debug("Deleting network %s, id=%s", net_i.name, network_id)
 
     net_i.check_write_permission(user_id)
     db.DBSession.delete(net_i)
@@ -1824,7 +1824,7 @@ def _purge_datasets_unique_to_resource(ref_key, ref_id):
 
             """Then delete all the datasets"""
             dataset_to_delete = db.DBSession.query(Dataset).filter(Dataset.id==dataset_id).one()
-            log.info("Deleting %s dataset %s (%s)", ref_key, dataset_to_delete.name, dataset_to_delete.id)
+            log.debug("Deleting %s dataset %s (%s)", ref_key, dataset_to_delete.name, dataset_to_delete.id)
             db.DBSession.delete(dataset_to_delete)
 
 def delete_node(node_id, purge_data,**kwargs):
@@ -1849,7 +1849,7 @@ def delete_node(node_id, purge_data,**kwargs):
     if purge_data == 'Y':
         _purge_datasets_unique_to_resource('NODE', node_id)
 
-    log.info("Deleting node %s, id=%s", node_i.name, node_id)
+    log.debug("Deleting node %s, id=%s", node_i.name, node_id)
 
     node_i.network.check_write_permission(user_id)
     db.DBSession.delete(node_i)
@@ -1983,7 +1983,7 @@ def delete_link(link_id, purge_data,**kwargs):
     if purge_data == 'Y':
         _purge_datasets_unique_to_resource('LINK', link_id)
 
-    log.info("Deleting link %s, id=%s", link_i.name, link_id)
+    log.debug("Deleting link %s, id=%s", link_i.name, link_id)
 
     link_i.network.check_write_permission(user_id)
     db.DBSession.delete(link_i)
@@ -2108,7 +2108,7 @@ def delete_group(group_id, purge_data,**kwargs):
     if purge_data == 'Y':
         _purge_datasets_unique_to_resource('GROUP', group_id)
 
-    log.info("Deleting group %s, id=%s", group_i.name, group_id)
+    log.debug("Deleting group %s, id=%s", group_i.name, group_id)
 
     group_i.network.check_write_permission(user_id)
     db.DBSession.delete(group_i)
@@ -2293,7 +2293,7 @@ def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, 
             .join(ResourceScenario.dataset)\
             .options(noload('dataset.metadata'))
 
-    log.info("Querying %s data",ref_key)
+    log.debug("Querying %s data",ref_key)
     if ref_ids is not None and len(ref_ids) < 999:
         if ref_key == 'NODE':
             rs_qry = rs_qry.filter(ResourceAttr.node_id.in_(ref_ids))
@@ -2303,11 +2303,11 @@ def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, 
             rs_qry = rs_qry.filter(ResourceAttr.group_id.in_(ref_ids))
 
     all_resource_scenarios = rs_qry.all()
-    log.info("Data retrieved")
+    log.debug("Data retrieved")
     resource_scenarios = []
     dataset_ids      = []
     if ref_ids is not None:
-        log.info("Pulling out requested info")
+        log.debug("Pulling out requested info")
         for rs in all_resource_scenarios:
             ra = rs.resourceattr
             if ref_key == 'NODE':
@@ -2327,11 +2327,11 @@ def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, 
                         dataset_ids.append(rs.dataset_id)
             else:
                 resource_scenarios.append(ra)
-        log.info("Requested info pulled out.")
+        log.debug("Requested info pulled out.")
     else:
         resource_scenarios = all_resource_scenarios
 
-    log.info("Retrieved %s resource attrs", len(resource_scenarios))
+    log.debug("Retrieved %s resource attrs", len(resource_scenarios))
 
     if include_metadata == 'Y':
         metadata_qry = db.DBSession.query(Metadata).filter(
@@ -2341,9 +2341,9 @@ def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, 
                             Dataset.id==ResourceScenario.dataset_id,
                             Metadata.dataset_id==Dataset.id)
 
-        log.info("Querying node metadata")
+        log.debug("Querying node metadata")
         all_metadata = metadata_qry.all()
-        log.info("Node metadata retrieved")
+        log.debug("Node metadata retrieved")
 
         metadata   = []
         if ref_ids is not None:
@@ -2353,7 +2353,7 @@ def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, 
         else:
             metadata = all_metadata
 
-        log.info("%s metadata items retrieved", len(metadata))
+        log.debug("%s metadata items retrieved", len(metadata))
         metadata_dict = {}
         for m in metadata:
             if metadata_dict.get(m.dataset_id):
@@ -2401,7 +2401,7 @@ def get_all_resource_attributes_in_network(attr_id, network_id, **kwargs):
              .options(joinedload_all('link'))\
              .options(joinedload_all('resourcegroup'))\
              .options(joinedload_all('network'))
-            
+
     resourceattrs = ra_qry.all()
 
     json_ra = []
@@ -2463,7 +2463,7 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
     elif page_start is not None and page_end is not None:
         all_resource_data = all_resource_data[page_start:page_end]
 
-    log.info("%s datasets retrieved", len(all_resource_data))
+    log.debug("%s datasets retrieved", len(all_resource_data))
 
     if include_metadata == 'Y':
         metadata_qry = db.DBSession.query(distinct(Metadata.dataset_id).label('dataset_id'),
@@ -2474,9 +2474,9 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
                             Dataset.id==ResourceScenario.dataset_id,
                             Metadata.dataset_id==Dataset.id)
 
-        log.info("Querying node metadata")
+        log.debug("Querying node metadata")
         metadata = metadata_qry.all()
-        log.info("%s metadata items retrieved", len(metadata))
+        log.debug("%s metadata items retrieved", len(metadata))
 
         metadata_dict = {}
         for m in metadata:
@@ -2503,7 +2503,7 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
 
         return_data.append(namedtuple('ResourceData', ra_dict.keys())(**ra_dict))
 
-    log.info("Returning %s datasets", len(return_data))
+    log.debug("Returning %s datasets", len(return_data))
 
     return return_data
 
@@ -2520,7 +2520,7 @@ def clone_network(network_id, new_project=True, recipient_user_id=None, network_
 
     if new_project == True:
 
-        log.info("Creating a new project for cloned network")
+        log.debug("Creating a new project for cloned network")
 
         ex_proj = db.DBSession.query(Project).filter(Project.id==ex_net.project_id).one()
 
@@ -2552,12 +2552,12 @@ def clone_network(network_id, new_project=True, recipient_user_id=None, network_
         if network_name is None or network_name == "":
             network_name=ex_net.name
     else:
-        log.info("Using current project for cloned network")
+        log.debug("Using current project for cloned network")
         project_id=ex_net.project_id
         if network_name is None or network_name == "":
             network_name=ex_net.name
 
-    log.info('Cloning Network...')
+    log.debug('Cloning Network...')
 
     #Find if there's any projects with this name in the project already
     ex_network =  db.DBSession.query(Network).filter(Network.project_id==project_id,
@@ -2586,25 +2586,25 @@ def clone_network(network_id, new_project=True, recipient_user_id=None, network_
 
     newnetworkid = newnet.id
 
-    log.info('CLoning Nodes')
+    log.debug('CLoning Nodes')
     node_id_map = _clone_nodes(network_id, newnetworkid)
 
-    log.info('Cloning Links')
+    log.debug('Cloning Links')
     link_id_map = _clone_links(network_id, newnetworkid, node_id_map)
 
-    log.info('CLoning Groups')
+    log.debug('CLoning Groups')
     group_id_map = _clone_groups(network_id,
                                           newnetworkid,
                                           node_id_map,
                                           link_id_map)
 
-    log.info("Cloning Resource Attributes")
+    log.debug("Cloning Resource Attributes")
     ra_id_map = _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, group_id_map)
 
-    log.info("Cloning Resource Types")
+    log.debug("Cloning Resource Types")
     _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, group_id_map)
 
-    log.info('Cloning Scenarios')
+    log.debug('Cloning Scenarios')
     _clone_scenarios(network_id, newnetworkid, ra_id_map, node_id_map, link_id_map, group_id_map, user_id)
 
     db.DBSession.flush()
@@ -2709,7 +2709,7 @@ def _clone_groups(old_network_id, new_network_id, node_id_map, link_id_map):
 
 def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, group_id_map):
 
-    log.info("Cloning Network Attributes")
+    log.debug("Cloning Network Attributes")
     network_ras = db.DBSession.query(ResourceAttr).filter(ResourceAttr.network_id==network_id)
     id_map = {}
     new_ras = []
@@ -2726,7 +2726,7 @@ def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, gro
         ))
         #key is (network_id, node_id, link_id, group_id) -- only one of which can be not null for a given row
         old_ra_name_map[(newnetworkid, None, None, None, ra.attr_id)] = ra.id
-    log.info("Cloning Node Attributes")
+    log.debug("Cloning Node Attributes")
     node_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.node_id==Node.id, Node.network_id==network_id)).all()
     for ra in node_ras:
         new_ras.append(dict(
@@ -2739,7 +2739,7 @@ def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, gro
             ref_key=ra.ref_key,
         ))
         old_ra_name_map[(None, node_id_map[ra.node_id], None, None, ra.attr_id)] = ra.id
-    log.info("Cloning Link Attributes")
+    log.debug("Cloning Link Attributes")
     link_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.link_id==Link.id, Link.network_id==network_id)).all()
     for ra in link_ras:
         new_ras.append(dict(
@@ -2753,7 +2753,7 @@ def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, gro
         ))
         old_ra_name_map[(None, None, link_id_map[ra.link_id], None, ra.attr_id)] = ra.id
 
-    log.info("Cloning Group Attributes")
+    log.debug("Cloning Group Attributes")
     group_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.group_id==ResourceGroup.id, ResourceGroup.network_id==network_id)).all()
     for ra in group_ras:
         new_ras.append(dict(
@@ -2767,12 +2767,12 @@ def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, gro
         ))
         old_ra_name_map[(None, None, None, group_id_map[ra.group_id], ra.attr_id)] = ra.id
 
-    log.info("Inserting new resource attributes")
+    log.debug("Inserting new resource attributes")
     db.DBSession.bulk_insert_mappings(ResourceAttr, new_ras)
     db.DBSession.flush()
-    log.info("Insertion Complete")
+    log.debug("Insertion Complete")
 
-    log.info("Getting new RAs and building ID map")
+    log.debug("Getting new RAs and building ID map")
 
     new_network_ras = db.DBSession.query(ResourceAttr).filter(ResourceAttr.network_id==newnetworkid).all()
     for ra in new_network_ras:
@@ -2790,13 +2790,13 @@ def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, gro
     new_group_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.group_id==ResourceGroup.id, ResourceGroup.network_id==newnetworkid)).all()
     for ra in new_group_ras:
         id_map[old_ra_name_map[(ra.network_id, ra.node_id, ra.link_id, ra.group_id, ra.attr_id)]] = ra.id
-    log.info("ID map completed. Returning")
+    log.debug("ID map completed. Returning")
 
     return id_map
 
 def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, group_id_map):
 
-    log.info("Cloning Network Types")
+    log.debug("Cloning Network Types")
     network_ras = db.DBSession.query(ResourceType).filter(ResourceType.network_id==network_id)
     new_ras = []
     for rt in network_ras:
@@ -2808,7 +2808,7 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
             group_id=rt.group_id,
             type_id=rt.type_id,
         ))
-    log.info("Cloning Node Types")
+    log.debug("Cloning Node Types")
     node_rts = db.DBSession.query(ResourceType).filter(and_(ResourceType.node_id==Node.id, Node.network_id==network_id))
     for rt in node_rts:
         new_ras.append(dict(
@@ -2819,7 +2819,7 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
             group_id=rt.group_id,
             type_id=rt.type_id,
         ))
-    log.info("Cloning Link Types")
+    log.debug("Cloning Link Types")
     link_rts = db.DBSession.query(ResourceType).filter(and_(ResourceType.link_id==Link.id, Link.network_id==network_id))
     for rt in link_rts:
         new_ras.append(dict(
@@ -2831,7 +2831,7 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
             type_id=rt.type_id,
         ))
 
-    log.info("Cloning Group Types")
+    log.debug("Cloning Group Types")
     group_rts = db.DBSession.query(ResourceType).filter(and_(ResourceType.group_id==ResourceGroup.id, ResourceGroup.network_id==network_id))
     for rt in group_rts:
         new_ras.append(dict(
@@ -2843,10 +2843,10 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
             type_id=rt.type_id,
         ))
 
-    log.info("Inserting new resource types")
+    log.debug("Inserting new resource types")
     db.DBSession.bulk_insert_mappings(ResourceType, new_ras)
     db.DBSession.flush()
-    log.info("Insertion Complete")
+    log.debug("Insertion Complete")
 
 def _clone_scenarios(network_id, newnetworkid, ra_id_map, node_id_map, link_id_map, group_id_map, user_id):
     scenarios = db.DBSession.query(Scenario).filter(Scenario.network_id==network_id)
@@ -2857,7 +2857,7 @@ def _clone_scenarios(network_id, newnetworkid, ra_id_map, node_id_map, link_id_m
 
 def _clone_scenario(old_scenario, newnetworkid, ra_id_map, node_id_map, link_id_map, group_id_map, user_id):
 
-    log.info("Adding scenario shell to get scenario ID")
+    log.debug("Adding scenario shell to get scenario ID")
     news = Scenario()
     news.network_id = newnetworkid
     news.name = old_scenario.name
@@ -2873,9 +2873,9 @@ def _clone_scenario(old_scenario, newnetworkid, ra_id_map, node_id_map, link_id_
     db.DBSession.flush()
 
     scenario_id= news.id
-    log.info("New Scenario %s created", scenario_id)
+    log.debug("New Scenario %s created", scenario_id)
 
-    log.info("Getting old resource scenarios for scenario %s", old_scenario.id)
+    log.debug("Getting old resource scenarios for scenario %s", old_scenario.id)
     old_rscen_rs = db.DBSession.query(ResourceScenario).filter(
                                         ResourceScenario.scenario_id==old_scenario.id,
                                         ResourceAttr.id==ResourceScenario.resource_attr_id,
@@ -2890,13 +2890,13 @@ def _clone_scenario(old_scenario, newnetworkid, ra_id_map, node_id_map, link_id_
             resource_attr_id=ra_id_map[old_rscen.resource_attr_id],
         ))
 
-    log.info("Inserting new resource scenarios")
+    log.debug("Inserting new resource scenarios")
     db.DBSession.bulk_insert_mappings(ResourceScenario, new_rscens)
-    log.info("Insertion Complete")
+    log.debug("Insertion Complete")
 
 
 
-    log.info("Getting old resource group items for scenario %s", old_scenario.id)
+    log.debug("Getting old resource group items for scenario %s", old_scenario.id)
     old_rgis = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.scenario_id==old_scenario.id).all()
     new_rgis = []
     for old_rgi in old_rgis:
