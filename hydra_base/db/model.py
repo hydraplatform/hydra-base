@@ -727,7 +727,11 @@ class Project(Base, Inspect):
             return
 
         for owner in self.owners:
-            if owner.user_id == user_id:
+            ################################################################
+            # NOTE: The str() is needed to work properly. Don't remove it. #
+            # For some reason the types are different for some projects    #
+            ################################################################
+            if str(owner.user_id) == str(user_id):
                 if owner.view == 'Y':
                     break
         else:
@@ -956,7 +960,7 @@ class Network(Base, Inspect):
         """
             Check whether this user can write this project
         """
-        
+
         if _is_admin(user_id):
             return
 
