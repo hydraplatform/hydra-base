@@ -222,7 +222,7 @@ def create_template():
 
     return new_template
 
-def create_project(name=None):
+def create_project(name=None, share=True):
 
     if name is None:
         name = "Unittest Project"
@@ -234,7 +234,8 @@ def create_project(name=None):
         project.name = name
         project.description = "Project which contains all unit test networks"
         project = JSONObject(hydra_base.add_project(project, user_id=pytest.root_user_id))
-        hydra_base.share_project(project.id,
+        if share is True:
+            hydra_base.share_project(project.id,
                                  ["UserA", "UserB", "UserC"],
                                  'N',
                                  'Y',

@@ -1012,5 +1012,26 @@ class TestNetwork:
         with pytest.raises(hb.exceptions.PermissionError):
             networkowners = hb.get_all_network_owners([net1.id], user_id=5)
 
+    def test_bulk_set_network_owners(self, session, networkmaker):
+        net = networkmaker.create()
+        
+        networkowners = hb.get_all_network_owners([net.id], user_id=pytest.root_user_id)
+
+        assert len(networkowners) == 1
+        
+        new_owner = JSONObject(dict(
+            network_id=net.id,
+            user_id=2,
+            view='Y',
+            edit='Y',
+            share='Y',
+        ))
+
+        hydra_base.bulk_set_network_owners([new_owner], user_id=pytest.root_user_id)
+
+        networkowners = hb.get_all_network_owners([net.id], user_id=pytest.root_user_id)
+
+        assert len(networkowners) == 2
+
 if __name__ == '__main__':
     server.run()
