@@ -232,23 +232,33 @@ def to_named_tuple(obj, visited_children=None, back_relationships=None, levels=N
     return result
 
 
-def get_projects(uid,**kwargs):
+def get_projects(uid, include_shared_projects=True, **kwargs):
     """
         Get all the projects owned by the specified user.
         These include projects created by the user, but also ones shared with the user.
         For shared projects, only include networks in those projects which are accessible to the user.
+
+        the include_shared_projects flag indicates whether to include projects which have been shared
+        with the user, or to only return projects created directly by this user.
     """
     req_user_id = kwargs.get('user_id')
 
     ##Don't load the project's networks. Load them separately, as the networks
     #must be checked individually for ownership
-    projects_i = db.DBSession.query(Project).join(ProjectOwner)\
-                                                 .filter(Project.status=='A',
+    projects_qry = db.DBSession.query(Project)
+    
+    if include_shared_projects is True:
+        projects_qry = projects_qry.join(ProjectOwner).filter(Project.status=='A',
                                                         or_(ProjectOwner.user_id==uid,
-                                                           Project.created_by==uid))\
-                                                 .options(noload('networks'))\
-                                                 .order_by('id').all()
+                                                           Project.created_by==uid))
+    else:
+        projects_qry = projects_qry.join(ProjectOwner).filter(Project.created_by==uid)
 
+
+    projects_qry = projects_qry.options(noload('networks')).order_by('id')
+
+    projects_i = projects_qry.all()
+    
     #Load each 
     projects_j = []
     for project_i in projects_i:
