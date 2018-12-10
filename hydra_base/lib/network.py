@@ -64,13 +64,13 @@ def _update_attributes(resource_i, attributes):
     resource_attribute_qry = db.DBSession.query(ResourceAttr)
 
     if resource_i.ref_key == 'NETWORK':
-        resource_attribute_qry.filter(ResourceAttr.network_id==resource_i.id)
+        resource_attribute_qry = resource_attribute_qry.filter(ResourceAttr.network_id==resource_i.id)
     elif resource_i.ref_key == 'NODE':
-        resource_attribute_qry.filter(ResourceAttr.node_id==resource_i.id)
+        resource_attribute_qry = resource_attribute_qry.filter(ResourceAttr.node_id==resource_i.id)
     elif resource_i.ref_key == 'LINK':
-        resource_attribute_qry.filter(ResourceAttr.link_id==resource_i.link_id)
+        resource_attribute_qry = resource_attribute_qry.filter(ResourceAttr.link_id==resource_i.link_id)
     elif resource_i.ref_key == 'GROUP':
-        resource_attribute_qry.filter(ResourceAttr.group_id==resource_i.group_id)
+        resource_attribute_qry = resource_attribute_qry.filter(ResourceAttr.group_id==resource_i.group_id)
 
     resource_attributes = resource_attribute_qry.all()
 
