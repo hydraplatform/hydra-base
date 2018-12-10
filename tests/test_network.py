@@ -992,5 +992,25 @@ class TestNetwork:
                 with pytest.raises(hb.exceptions.HydraError):
                     hb.get_dataset(d.id, user_id=pytest.root_user_id)
 
+    def test_get_all_network_owners(self, session, projectmaker, networkmaker):
+        proj = projectmaker.create()
+
+        net1 = networkmaker.create(project_id=proj.id)
+        hydra_base.share_network(net1.id,
+                                 ["notadmin"],
+                                 'N',
+                                 'Y',
+                                 user_id=pytest.root_user_id)
+        
+        networkowners = hb.get_all_network_owners(user_id=pytest.root_user_id)
+
+        assert len(networkowners) == 2
+        
+        networkowners = hb.get_all_network_owners([proj.id], user_id=pytest.root_user_id)
+        assert len(networkowners) == 2
+
+        with pytest.raises(hb.exceptions.PermissionError):
+            networkowners = hb.get_all_network_owners([net1.id], user_id=5)
+
 if __name__ == '__main__':
     server.run()

@@ -73,6 +73,7 @@ def session(db, engine, request):
     util.create_user("UserA")
     util.create_user("UserB")
     util.create_user("UserC")
+    util.create_user("notadmin")
 
     yield session
 

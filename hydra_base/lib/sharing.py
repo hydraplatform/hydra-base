@@ -21,8 +21,10 @@ from ..exceptions import HydraError, ResourceNotFoundError
 import logging
 log = logging.getLogger(__name__)
 from .. import db
-from ..db.model import Network, Project, User, Dataset
+from ..db.model import Network, Project, ProjectOwner, NetworkOwner, User, Dataset
+from hydra_base.lib.objects import JSONObject
 from sqlalchemy.orm.exc import NoResultFound
+from hydra_base.util.permissions import required_role
 
 def _get_project(project_id):
     try:
@@ -283,3 +285,43 @@ def unhide_dataset(dataset_id,**kwargs):
 
     dataset_i.hidden = 'N'
     db.DBSession.flush()
+
+@required_role("admin")
+def get_all_project_owners(project_ids=None, **kwargs):
+    """
+        Get the project owner entries for all the requested projects.
+        If the project_ids argument is None, return all the owner entries
+        for ALL projects
+    """
+
+
+    projowner_qry = db.DBSession.query(ProjectOwner)
+
+    if project_ids is not None:
+       projowner_qry = projowner_qry.filter(ProjectOwner.project_id.in_(project_ids))
+
+    project_owners_i = projowner_qry.all()
+
+    return [JSONObject(project_owner_i) for project_owner_i in project_owners_i]
+
+@required_role("admin")
+def get_all_network_owners(network_ids=None, **kwargs):
+    """
+        Get the network owner entries for all the requested networks.
+        If the network_ids argument is None, return all the owner entries
+        for ALL networks
+    """
+
+
+    networkowner_qry = db.DBSession.query(NetworkOwner)
+
+    if network_ids is not None:
+       networkowner_qry = networkowner_qry.filter(NetworkOwner.network_id.in_(network_ids))
+
+    network_owners_i = networkowner_qry.all()
+
+    return [JSONObject(network_owner_i) for network_owner_i in network_owners_i]
+
+
+
+

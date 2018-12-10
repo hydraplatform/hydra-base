@@ -27,6 +27,7 @@ from . import network
 from .objects import JSONObject
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import class_mapper, joinedload_all, noload
+from hydra_base.util.permissions import required_role
 from sqlalchemy import and_, or_
 from ..util import hdb
 from sqlalchemy.util import KeyedTuple
@@ -332,3 +333,4 @@ def get_network_project(network_id, **kwargs):
         raise HydraError("Network %s not found"% network_id)
 
     return net_proj
+
