@@ -248,11 +248,11 @@ def get_projects(uid, **kwargs):
     }
     options.update(kwargs)
     log.info("hydra-base.project.get_projects 1")
-    log.info("kwargs")
-    log.info(kwargs)
-    log.info("options")
-    log.info(options)
-    import pudb; pudb.set_trace()
+    # log.info("kwargs")
+    # log.info(kwargs)
+    # log.info("options")
+    # log.info(options)
+    #import pudb; pudb.set_trace()
 
     ##Don't load the project's networks. Load them separately, as the networks
     #must be checked individually for ownership
