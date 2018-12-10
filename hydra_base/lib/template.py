@@ -966,11 +966,11 @@ def assign_types_to_resources(resource_types,**kwargs):
         new_types = db.DBSession.execute(ResourceType.__table__.insert(), res_types)
     if len(res_attrs) > 0:
         new_res_attrs = db.DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
-        new_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.resource_attr_id>=new_res_attrs.lastrowid, ResourceAttr.resource_attr_id<(new_res_attrs.lastrowid+len(res_attrs)))).all()
+        new_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.id>=new_res_attrs.lastrowid, ResourceAttr.id<(new_res_attrs.lastrowid+len(res_attrs)))).all()
 
     ra_map = {}
     for ra in new_ras:
-        ra_map[(ra.ref_key, ra.attr_id, ra.node_id, ra.link_id, ra.group_id, ra.network_id)] = ra.resource_attr_id
+        ra_map[(ra.ref_key, ra.attr_id, ra.node_id, ra.link_id, ra.group_id, ra.network_id)] = ra.id
 
     for rs in res_scenarios:
         rs['resource_attr_id'] = ra_map[(rs['ref_key'], rs['attr_id'], rs['node_id'], rs['link_id'], rs['group_id'], rs['network_id'])]
