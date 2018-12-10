@@ -83,7 +83,7 @@ def share_network(network_id, usernames, read_only, share,**kwargs):
         #Set the owner ship on the network itself
         net_i.set_owner(user_i.id, write=write, share=share)
         for o in net_i.project.owners:
-            if o.user_id == user_i.id:
+            if str(o.user_id) == str(user_i.id):
                 break
         else:
             #Give the user read access to the containing project
@@ -127,7 +127,7 @@ def share_project(project_id, usernames, read_only, share,**kwargs):
     user_id = int(user_id)
 
     for owner in proj_i.owners:
-        if user_id == owner.user_id:
+        if str(user_id) == str(owner.user_id):
             break
     else:
        raise HydraError("Permission Denied. Cannot share project.")
