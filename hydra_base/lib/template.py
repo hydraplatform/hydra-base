@@ -407,7 +407,7 @@ def get_template_as_xml(template_id,**kwargs):
             xml_resource.append(layout)
 
         for type_attr in type_i.typeattrs:
-            _make_attr_element(xml_resource, type_attr)
+            attr = _make_attr_element(xml_resource, type_attr)
 
         resources.append(xml_resource)
 
@@ -2028,6 +2028,7 @@ def get_network_as_xml_template(network_id,**kwargs):
 def _make_attr_element(parent, resource_attr_i):
     """
         General function to add an attribute element to a resource element.
+        resource_attr_i can also e a type_attr if being called from get_tempalte_as_xml
     """
     attr = etree.SubElement(parent, "attribute")
     attr_i = resource_attr_i.attr
@@ -2035,11 +2036,28 @@ def _make_attr_element(parent, resource_attr_i):
     attr_name      = etree.SubElement(attr, 'name')
     attr_name.text = attr_i.name
 
+    attr_desc      = etree.SubElement(attr, 'description')
+    attr_desc.text = attr_i.description
+
     attr_dimension = etree.SubElement(attr, 'dimension')
     attr_dimension.text = attr_i.dimension
 
+    attr_unit    = etree.SubElement(attr, 'unit')
+    attr_unit.text = resource_attr_i.unit
+
     attr_is_var    = etree.SubElement(attr, 'is_var')
     attr_is_var.text = resource_attr_i.attr_is_var
+    
+    if resource_attr_i.data_type:
+        attr_data_type    = etree.SubElement(attr, 'data_type')
+        attr_data_type.text = resource_attr_i.data_type
+
+    #attr_properties    = etree.SubElement(attr, 'properties')
+    #attr_properties.text = resource_attr_i.properties
+
+    if resource_attr_i.data_restriction:
+        attr_data_restriction    = etree.SubElement(attr, 'restrictions')
+        attr_data_restriction.text = resource_attr_i.data_restriction
 
     # if scenario_id is not None:
     #     for rs in resource_attr_i.get_resource_scenarios():
