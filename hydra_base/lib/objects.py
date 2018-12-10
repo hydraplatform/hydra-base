@@ -32,6 +32,9 @@ import pandas as pd
 import logging
 log = logging.getLogger(__name__)
 
+
+VALID_JSON_FIRST_CHARS = ['{', '[']
+
 class JSONObject(dict):
     """
         A dictionary object whose attributes can be accesed via a '.'.
@@ -84,10 +87,20 @@ class JSONObject(dict):
                 if k == 'metadata' and obj_dict is not None:
                     setattr(self, k, JSONObject(obj_dict.get_metadata_as_dict()))
                 else:
-                    if (len(v) > 0 and isinstance(v[0], float)):
-                        l = v
-                    else:
+                    is_list_of_objects = True
+                    if len(v) > 0:
+                        if isinstance(v[0], float):
+                            is_list_of_objects = False
+                        elif isinstance(v[0], six.string_types) and len(v[0]) == 0:
+                            is_list_of_objects = False
+                        elif isinstance(v[0], six.string_types) and v[0][0] not in VALID_JSON_FIRST_CHARS:
+                            is_list_of_objects=False
+
+                    if is_list_of_objects is True:
                         l = [JSONObject(item, obj_dict) for item in v]
+                    else:
+                        l = v
+
                     setattr(self, k, l)
             #Special case for SQLAlchemy objects, to stop them recursing up and down
             elif hasattr(v, '_sa_instance_state')\
