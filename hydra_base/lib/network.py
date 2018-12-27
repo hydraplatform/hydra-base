@@ -968,14 +968,14 @@ def _get_scenarios(network_id, include_data, user_id, scenario_ids=None):
 
     all_resource_group_items = _get_all_group_items(network_id)
 
-    if include_data == 'Y':
+    if include_data == 'Y' or include_data == True:
         all_rs = _get_all_resourcescenarios(network_id, user_id)
         metadata = _get_metadata(network_id, user_id)
 
     for s in scens:
         s.resourcegroupitems = all_resource_group_items.get(s.id, [])
 
-        if include_data == 'Y':
+        if include_data == 'Y' or include_data == True:
             s.resourcescenarios  = all_rs.get(s.id, [])
 
             for rs in s.resourcescenarios:
