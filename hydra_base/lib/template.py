@@ -388,6 +388,8 @@ def get_template_as_xml(template_id,**kwargs):
 
     template_name = etree.SubElement(template_xml, "template_name")
     template_name.text = template_i.name
+    template_name = etree.SubElement(template_xml, "template_description")
+    template_name.text = template_i.description
     resources = etree.SubElement(template_xml, "resources")
 
     for type_i in template_i.templatetypes:
@@ -458,6 +460,7 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
         attributes_j[int(k)] = JSONObject(v)
 
     template_name = template_j.name
+    template_description = template_j.description
 
     template_layout = None
     if template_j.layout is not None:
@@ -473,9 +476,10 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
         else:
             log.info("Existing template found. name=%s", template_name)
             template_i.layout = template_layout
+            template_i.description = template_description
     except NoResultFound:
         log.info("Template not found. Creating new one. name=%s", template_name)
-        template_i = Template(name=template_name, layout=template_layout)
+        template_i = Template(name=template_name, description=template_description, layout=template_layout)
         db.DBSession.add(template_i)
 
     types_j = template_j.templatetypes
@@ -619,6 +623,7 @@ def import_template_xml(template_xml, allow_update=True, **kwargs):
     xmlschema.assertValid(xml_tree)
 
     template_name = xml_tree.find('template_name').text
+    template_description = xml_tree.find('template_description').text
 
     template_layout = None
     if xml_tree.find('layout') is not None and \
@@ -635,9 +640,10 @@ def import_template_xml(template_xml, allow_update=True, **kwargs):
         else:
             log.info("Existing template found. name=%s", template_name)
             tmpl_i.layout = template_layout
+            tmpl_i.description = template_description
     except NoResultFound:
         log.info("Template not found. Creating new one. name=%s", template_name)
-        tmpl_i = Template(name=template_name, layout=template_layout)
+        tmpl_i = Template(name=template_name, description=template_description, layout=template_layout)
         db.DBSession.add(tmpl_i)
 
     types = xml_tree.find('resources')
@@ -1330,6 +1336,8 @@ def add_template(template, **kwargs):
     """
     tmpl = Template()
     tmpl.name = template.name
+    if template.description:
+        tmpl.description = template.description
     if template.layout:
         tmpl.layout = get_layout_as_string(template.layout)
 
@@ -1350,6 +1358,8 @@ def update_template(template,**kwargs):
     """
     tmpl = db.DBSession.query(Template).filter(Template.id==template.id).one()
     tmpl.name = template.name
+    if template.description:
+        tmpl.description = template.description
 
     #Lazy load the rest of the template
     for tt in tmpl.templatetypes:

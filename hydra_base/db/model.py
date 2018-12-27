@@ -102,7 +102,7 @@ class Dataset(Base, Inspect):
     __tablename__='tDataset'
 
     id         = Column(Integer(), primary_key=True, index=True, nullable=False)
-    name       = Column(String(60),  nullable=False)
+    name       = Column(String(200),  nullable=False)
     type       = Column(String(60),  nullable=False)
     unit       = Column(String(60))
     hash       = Column(BIGINT(),  nullable=False, unique=True)
@@ -287,7 +287,7 @@ class DatasetCollection(Base, Inspect):
     __tablename__='tDatasetCollection'
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(60),  nullable=False)
+    name = Column(String(200),  nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     _parents  = ['tDataset']
@@ -339,7 +339,7 @@ class Attr(Base, Inspect):
     )
 
     id           = Column(Integer(), primary_key=True, nullable=False)
-    name         = Column(String(60),  nullable=False)
+    name         = Column(String(200),  nullable=False)
     dimension    = Column(String(60), server_default=text(u"'dimensionless'"))
     description  = Column(String(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
@@ -427,7 +427,8 @@ class Template(Base, Inspect):
     __tablename__='tTemplate'
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(60),  nullable=False, unique=True)
+    name = Column(String(200),  nullable=False, unique=True)
+    description = Column(String(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     layout  = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
 
@@ -444,9 +445,10 @@ class TemplateType(Base, Inspect):
     )
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(60),  nullable=False)
+    name = Column(String(200),  nullable=False)
+    description = Column(String(1000))
     template_id = Column(Integer(), ForeignKey('tTemplate.id'), nullable=False)
-    resource_type = Column(String(60))
+    resource_type = Column(String(200))
     alias = Column(String(100))
     layout  = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
@@ -658,7 +660,7 @@ class Project(Base, Inspect):
     attribute_data = []
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(60),  nullable=False, unique=False)
+    name = Column(String(200),  nullable=False, unique=False)
     description = Column(String(1000))
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
@@ -990,7 +992,7 @@ class Link(Base, Inspect):
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     node_1_id = Column(Integer(), ForeignKey('tNode.id'), nullable=False)
     node_2_id = Column(Integer(), ForeignKey('tNode.id'), nullable=False)
-    name = Column(String(60))
+    name = Column(String(200))
     description = Column(String(1000))
     layout  = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
@@ -1062,7 +1064,7 @@ class Node(Base, Inspect):
     id = Column(Integer(), primary_key=True, nullable=False)
     network_id = Column(Integer(), ForeignKey('tNetwork.id'), nullable=False)
     description = Column(String(1000))
-    name = Column(String(60),  nullable=False)
+    name = Column(String(200),  nullable=False)
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     x = Column(Float(precision=10, asdecimal=True))
     y = Column(Float(precision=10, asdecimal=True))
@@ -1132,7 +1134,7 @@ class ResourceGroup(Base, Inspect):
 
     ref_key = 'GROUP'
     id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(60),  nullable=False)
+    name = Column(String(200),  nullable=False)
     description = Column(String(1000))
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
@@ -1359,7 +1361,7 @@ class Rule(Base, Inspect):
 
     id = Column(Integer(), primary_key=True, nullable=False)
 
-    name = Column(String(60), nullable=False)
+    name = Column(String(200), nullable=False)
     description = Column(String(1000), nullable=False)
 
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
@@ -1536,7 +1538,7 @@ class Perm(Base, Inspect):
 
     id = Column(Integer(), primary_key=True, nullable=False)
     code = Column(String(60),  nullable=False)
-    name = Column(String(60),  nullable=False)
+    name = Column(String(200),  nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     roleperms = relationship('RolePerm', lazy='joined')
 
@@ -1554,7 +1556,7 @@ class Role(Base, Inspect):
 
     id = Column(Integer(), primary_key=True, nullable=False)
     code = Column(String(60),  nullable=False)
-    name = Column(String(60),  nullable=False)
+    name = Column(String(200),  nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     roleperms = relationship('RolePerm', lazy='joined', cascade='all')
     roleusers = relationship('RoleUser', lazy='joined', cascade='all')
@@ -1617,7 +1619,7 @@ class User(Base, Inspect):
     id = Column(Integer(), primary_key=True, nullable=False)
     username = Column(String(60),  nullable=False, unique=True)
     password = Column(LargeBinary(),  nullable=False)
-    display_name = Column(String(60),  nullable=False, server_default=text(u"''"))
+    display_name = Column(String(200),  nullable=False, server_default=text(u"''"))
     last_login = Column(TIMESTAMP())
     last_edit = Column(TIMESTAMP())
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
