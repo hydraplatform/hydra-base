@@ -2051,9 +2051,6 @@ def _make_attr_element(parent, resource_attr_i):
     attr_dimension = etree.SubElement(attr, 'dimension')
     attr_dimension.text = attr_i.dimension
 
-    attr_unit    = etree.SubElement(attr, 'unit')
-    attr_unit.text = resource_attr_i.unit
-
     attr_is_var    = etree.SubElement(attr, 'is_var')
     attr_is_var.text = resource_attr_i.attr_is_var
     
