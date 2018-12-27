@@ -25,7 +25,7 @@ from ..exceptions import HydraError, ValidationError
 import numpy as np
 import pandas as pd
 import re
-from .hydra_dateutil import get_datetime
+from hydra_base.util.hydra_dateutil import get_datetime
 log = logging.getLogger(__name__)
 
 def array_dim(arr):

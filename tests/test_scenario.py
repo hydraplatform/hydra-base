@@ -230,9 +230,6 @@ class TestScenario:
 
         num_new_rs = len(updated_scenario.resourcescenarios)
 
-        if num_new_rs != num_old_rs - 1:
-            import pudb; pudb.set_trace()
-
         assert num_new_rs == num_old_rs - 1
 
 

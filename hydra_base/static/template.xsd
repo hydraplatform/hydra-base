@@ -83,6 +83,7 @@
                                                                 <xs:enumeration value="array"/>
                                                                 <xs:enumeration value="timeseries"/>
                                                                 <xs:enumeration value="eqtimeseries"/>
+                                                                <xs:enumeration value="dataframe"/>
                                                             </xs:restriction>
                                                         </xs:simpleType>
                                                     </xs:element>

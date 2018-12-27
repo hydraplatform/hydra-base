@@ -262,13 +262,12 @@ def update_scenario(scenario,update_data=True,update_groups=True,flush=True,**kw
     if update_data is True:
         datasets = [rs.dataset for rs in scenario.resourcescenarios]
         updated_datasets = data._bulk_insert_data(datasets, user_id, kwargs.get('app_name'))
-        log.info(sorted([rs.resource_attr_id for rs in scenario.resourcescenarios]))
         for i, r_scen in enumerate(scenario.resourcescenarios):
             _update_resourcescenario(scen, r_scen, dataset=updated_datasets[i], user_id=user_id, source=kwargs.get('app_name'))
 
     #lazy load resource grou items from the DB
     scen.resourcegroupitems
-    
+
     if update_groups is True:
         #Get all the exiting resource group items for this scenario.
         #THen process all the items sent to this handler.
@@ -372,7 +371,8 @@ def clone_scenario(scenario_id, retain_results=False, **kwargs):
             source = kwargs.get('app_name', old_rscen.source)
         ))
 
-    db.DBSession.execute(ResourceScenario.__table__.insert(), new_rscens)
+    if len(new_rscens) > 0:
+        db.DBSession.execute(ResourceScenario.__table__.insert(), new_rscens)
 
     log.info("ResourceScenarios cloned")
 
@@ -387,8 +387,9 @@ def clone_scenario(scenario_id, retain_results=False, **kwargs):
             group_id = old_rgi.group_id,
             scenario_id=cloned_scenario_id,
         ))
+    if len(new_rgis) > 0:
+        db.DBSession.execute(ResourceGroupItem.__table__.insert(), new_rgis)
 
-    db.DBSession.execute(ResourceGroupItem.__table__.insert(), new_rgis)
     log.info("Cloning finished.")
 
     log.info("Retrieving cloned scenario")
@@ -410,6 +411,7 @@ def _get_dataset_as_dict(rs, user_id):
 
     dataset = deepcopy(rs.dataset.__dict__)
 
+    dataset['metadata'] = {}
 
     del dataset['_sa_instance_state']
 
@@ -1121,11 +1123,11 @@ def _add_resourcegroupitem(group_item, scenario_id):
     ref_key = group_item.ref_key
     group_item_i.ref_key = ref_key
     if ref_key == 'NODE':
-        group_item_i.node_id =group_item.ref_id
+        group_item_i.node_id =group_item.ref_id if group_item.ref_id else group_item.node_id
     elif ref_key == 'LINK':
-        group_item_i.link_id =group_item.ref_id
+        group_item_i.link_id =group_item.ref_id if group_item.ref_id else group_item.link_id
     elif ref_key == 'GROUP':
-        group_item_i.subgroup_id =group_item.ref_id
+        group_item_i.subgroup_id = group_item.ref_id if group_item.ref_id else group_item.subgroup_id
 
     return group_item_i
 

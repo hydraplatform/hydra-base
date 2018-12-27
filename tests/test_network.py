@@ -57,6 +57,27 @@ class TestNetwork:
             assert r.ref_key == 'LINK'
             assert r.id in link_ids
 
+    def test_get_all_resource_attributes_in_network(self, session, network_with_data):
+        """
+            Test to retrieve all the resourceattributes relating to the specified
+            attribute ID in the network, regardless of what node, link group etc
+            they belong to.
+        """
+        test_attr_id = None
+        for a in network_with_data.nodes[0].attributes:
+            test_attr_id = a.attr_id
+            break
+
+
+        all_network_resource_attrs = hb.get_all_resource_attributes_in_network(test_attr_id,
+                                                                network_with_data.id,
+                                                                user_id=pytest.root_user_id)
+
+        #Find the attribute that ALL nodes have.
+        assert len(all_network_resource_attrs) == len(network_with_data.nodes)
+
+
+
 
     def test_get_network_with_template(self, session, network_with_data):
         """
@@ -970,6 +991,58 @@ class TestNetwork:
             if d.type == 'timeseries':
                 with pytest.raises(hb.exceptions.HydraError):
                     hb.get_dataset(d.id, user_id=pytest.root_user_id)
+
+    def test_clone_network_into_existing_project(self, session, network_with_data):
+        net = network_with_data
+
+        recipient_user = hb.get_user_by_name('UserA')
+
+        cloned_network_id = hb.clone_network(net.id,
+                                          recipient_user_id=recipient_user.id,
+                                          new_network_name=None,
+                                          project_id=None,
+                                          project_name=None,
+                                          new_project=False,
+                                          user_id=pytest.root_user_id)
+
+        cloned_network = hb.get_network(cloned_network_id, include_data=True, user_id=pytest.root_user_id)
+
+        assert cloned_network.name == net.name + " 1" 
+        assert len(net.nodes) == len(cloned_network.nodes)
+        assert len(net.links) == len(cloned_network.links)
+        assert len(net.resourcegroups) == len(cloned_network.resourcegroups)
+        assert len(net.scenarios) == len(cloned_network.scenarios)
+        assert len(net.scenarios[0].resourcescenarios) == len(cloned_network.scenarios[0].resourcescenarios)
+        assert len(net.scenarios[0].resourcegroupitems) == len(cloned_network.scenarios[0].resourcegroupitems)
+        
+        
+        cloned_network_id = hb.clone_network(net.id,
+                                          recipient_user_id=recipient_user.id,
+                                          new_network_name='My New Name',
+                                          project_id=None,
+                                          project_name=None,
+                                          new_project=False,
+                                          user_id=pytest.root_user_id)
+
+        cloned_network = hb.get_network(cloned_network_id, include_data=True, user_id=pytest.root_user_id)
+        assert cloned_network.name == 'My New Name'
+
+    def test_clone_network_into_new_project(self, session, network_with_data):
+        net = network_with_data
+
+        recipient_user = hb.get_user_by_name('UserA')
+
+        cloned_network_id = hb.clone_network(net.id,
+                                          recipient_user_id=recipient_user.id,
+                                          new_network_name=None,
+                                          project_id=None,
+                                          project_name=None,
+                                          new_project=True,
+                                          user_id=pytest.root_user_id)
+        
+        cloned_network = hb.get_network(cloned_network_id, include_data='Y', user_id=pytest.root_user_id)
+        #No need to assert that the clone itself worked, as the other test does that.
+        assert cloned_network.project_id != net.project_id
 
 if __name__ == '__main__':
     server.run()

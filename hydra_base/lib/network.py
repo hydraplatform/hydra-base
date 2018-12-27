@@ -31,7 +31,7 @@ from ..util.permissions import check_perm, required_perms
 from . import template
 from ..db.model import Project, Network, Scenario, Node, Link, ResourceGroup,\
         ResourceAttr, Attr, ResourceType, ResourceGroupItem, Dataset, Metadata, DatasetOwner,\
-        ResourceScenario, TemplateType, TypeAttr, Template, NetworkOwner
+        ResourceScenario, TemplateType, TypeAttr, Template, NetworkOwner, User
 from sqlalchemy.orm import noload, joinedload, joinedload_all
 from .. import db
 from sqlalchemy import func, and_, or_, distinct
@@ -64,13 +64,13 @@ def _update_attributes(resource_i, attributes):
     resource_attribute_qry = db.DBSession.query(ResourceAttr)
 
     if resource_i.ref_key == 'NETWORK':
-        resource_attribute_qry.filter(ResourceAttr.network_id==resource_i.id)
+        resource_attribute_qry = resource_attribute_qry.filter(ResourceAttr.network_id==resource_i.id)
     elif resource_i.ref_key == 'NODE':
-        resource_attribute_qry.filter(ResourceAttr.node_id==resource_i.id)
+        resource_attribute_qry = resource_attribute_qry.filter(ResourceAttr.node_id==resource_i.id)
     elif resource_i.ref_key == 'LINK':
-        resource_attribute_qry.filter(ResourceAttr.link_id==resource_i.link_id)
+        resource_attribute_qry = resource_attribute_qry.filter(ResourceAttr.link_id==resource_i.link_id)
     elif resource_i.ref_key == 'GROUP':
-        resource_attribute_qry.filter(ResourceAttr.group_id==resource_i.group_id)
+        resource_attribute_qry = resource_attribute_qry.filter(ResourceAttr.group_id==resource_i.group_id)
 
     resource_attributes = resource_attribute_qry.all()
 
@@ -968,14 +968,14 @@ def _get_scenarios(network_id, include_data, user_id, scenario_ids=None):
 
     all_resource_group_items = _get_all_group_items(network_id)
 
-    if include_data == 'Y':
+    if include_data == 'Y' or include_data == True:
         all_rs = _get_all_resourcescenarios(network_id, user_id)
         metadata = _get_metadata(network_id, user_id)
 
     for s in scens:
         s.resourcegroupitems = all_resource_group_items.get(s.id, [])
 
-        if include_data == 'Y':
+        if include_data == 'Y' or include_data == True:
             s.resourcescenarios  = all_rs.get(s.id, [])
 
             for rs in s.resourcescenarios:
@@ -998,6 +998,8 @@ def get_network(network_id, summary=False, include_data='N', scenario_ids=None, 
     """
     log.debug("getting network %s"%network_id)
     user_id = kwargs.get('user_id')
+
+    network_id = int(network_id)
 
     try:
         log.debug("Querying Network %s", network_id)
@@ -1926,7 +1928,7 @@ def update_link(link,**kwargs):
         link_i.network.check_write_permission(user_id)
     except NoResultFound:
         raise ResourceNotFoundError("Link %s not found"%(link.id))
-    
+
     #Each of thiese should be updateable independently
     if link.name is not None:
         link_i.name = link.name
@@ -2375,6 +2377,47 @@ def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, 
 
     return resource_scenarios
 
+def get_all_resource_attributes_in_network(attr_id, network_id, **kwargs):
+    """
+        Find every resource attribute in the network matching the supplied attr_id
+    """
+
+    user_id = kwargs.get('user_id')
+
+    try:
+        a = db.DBSession.query(Attr).filter(Attr.id == attr_id).one()
+    except NoResultFound:
+        raise HydraError("Attribute %s not found"%(attr_id,))
+
+    ra_qry = db.DBSession.query(ResourceAttr).filter(
+                ResourceAttr.attr_id==attr_id,
+                or_(Network.id == network_id,
+                Node.network_id==network_id,
+                Link.network_id==network_id,
+                ResourceGroup.network_id==network_id)
+            ).outerjoin('node')\
+             .outerjoin('link')\
+             .outerjoin('network')\
+             .outerjoin('resourcegroup')\
+             .options(joinedload_all('node'))\
+             .options(joinedload_all('link'))\
+             .options(joinedload_all('resourcegroup'))\
+             .options(joinedload_all('network'))
+            
+    resourceattrs = ra_qry.all()
+
+    json_ra = []
+    #Load the metadata too
+    for ra in resourceattrs:
+        json_ra.append(JSONObject(ra, extras={'node':JSONObject(ra.node) if ra.node else None,
+                                               'link':JSONObject(ra.link) if ra.link else None,
+                                               'resourcegroup':JSONObject(ra.resourcegroup) if ra.resourcegroup else None,
+                                               'network':JSONObject(ra.network) if ra.network else None}))
+
+
+    return json_ra
+
+
 def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, page_end=None, **kwargs):
     """
         A function which returns the data for all resources in a network.
@@ -2466,8 +2509,13 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
 
     return return_data
 
-def clone_network(network_id, new_project=True, recipient_user_id=None, **kwargs):
+def clone_network(network_id, recipient_user_id=None, new_network_name=None, project_id=None, project_name=None,  new_project=True, **kwargs):
     """
+     Create an exact clone of the specified network for the specified user.
+
+     If project_id is specified, put the new network in there.
+
+     Otherwise create a new project with the specified name and put it in there.
 
     """
 
@@ -2477,12 +2525,31 @@ def clone_network(network_id, new_project=True, recipient_user_id=None, **kwargs
 
     ex_net.check_read_permission(user_id)
 
-    if new_project == True:
-        log.info("Creating a new project for cloned network")
-        project = Project()
-        project.name="Proj"
+    if project_id is None and new_project == True:
 
-        project.set_owner(user_id)
+        log.info("Creating a new project for cloned network")
+
+        ex_proj = db.DBSession.query(Project).filter(Project.id==ex_net.project_id).one()
+
+        user = db.DBSession.query(User).filter(User.id==user_id).one()
+
+        project = Project()
+
+        if project_name is None or project_name=="":
+            project_name=ex_proj.name + " (Cloned by %s)" % user.display_name
+
+        #check a project with this name doesn't already exist:
+        ex_project =  db.DBSession.query(Project).filter(Project.name==project_name,
+                                                         Project.created_by==user_id).all()
+        #If it exists, use it.
+        if len(ex_project) > 0:
+            project=ex_project[0]
+        else:
+            project.name = project_name
+            project.created_by = user_id
+
+            project.set_owner(user_id)
+
         if recipient_user_id!=None:
             project.set_owner(recipient_user_id)
 
@@ -2490,18 +2557,27 @@ def clone_network(network_id, new_project=True, recipient_user_id=None, **kwargs
         db.DBSession.flush()
 
         project_id=project.id
-        network_name=ex_net.name
-    else:
+
+    elif project_id is None:
         log.info("Using current project for cloned network")
         project_id=ex_net.project_id
-        network_name=ex_net.name + " (Clone)"
+
+    if new_network_name is None or new_network_name == "":
+        new_network_name=ex_net.name
 
     log.info('Cloning Network...')
+
+    #Find if there's any projects with this name in the project already
+    ex_network =  db.DBSession.query(Network).filter(Network.project_id==project_id,
+                                                     Network.name.like("{0}%".format(new_network_name))).all()
+
+    if len(ex_network) > 0:
+        new_network_name = new_network_name + " " + str(len(ex_network))
 
     newnet = Network()
 
     newnet.project_id = project_id
-    newnet.name = network_name
+    newnet.name = new_network_name 
     newnet.description = ex_net.description
     newnet.layout = ex_net.layout
     newnet.status = ex_net.status
