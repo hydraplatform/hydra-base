@@ -99,7 +99,8 @@ def _get_attr_by_name_and_dimension(name, dimension):
         If such an attribute does not exist, create one.
     """
 
-    attr = db.DBSession.query(Attr).filter(Attr.name==name, Attr.dimension==dimension).first()
+    attr = db.DBSession.query(Attr).filter(Attr.name==name,
+                                           Attr.dimension==dimension).first()
 
     if attr is None:
         attr         = Attr()
@@ -401,6 +402,9 @@ def get_template_as_xml(template_id,**kwargs):
         name   = etree.SubElement(xml_resource, "name")
         name.text   = type_i.name
 
+        description   = etree.SubElement(xml_resource, "description")
+        description.text   = type_i.description
+
         alias   = etree.SubElement(xml_resource, "alias")
         alias.text   = type_i.alias
 
@@ -530,6 +534,9 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
             type_i.name = type_name
             template_i.templatetypes.append(type_i)
             type_is_new = True
+
+        if type_j.description is not None:
+            type_i.description = type_j.description
 
         if type_j.alias is not None:
             type_i.alias = type_j.alias
@@ -687,6 +694,9 @@ def import_template_xml(template_xml, allow_update=True, **kwargs):
 
         if resource.find('alias') is not None:
             type_i.alias = resource.find('alias').text
+
+        if resource.find('description') is not None:
+            type_i.description = resource.find('description').text
 
         if resource.find('type') is not None:
             type_i.resource_type = resource.find('type').text
@@ -1559,6 +1569,7 @@ def _update_templatetype(templatetype, existing_tt=None):
 
     tmpltype_i.template_id = templatetype.template_id
     tmpltype_i.name        = templatetype.name
+    tmpltype_i.description = templatetype.description
     tmpltype_i.alias       = templatetype.alias
 
     if templatetype.layout is not None:
@@ -2051,21 +2062,22 @@ def _make_attr_element(parent, resource_attr_i):
 
     attr_dimension = etree.SubElement(attr, 'dimension')
     attr_dimension.text = attr_i.dimension
-
-    attr_unit    = etree.SubElement(attr, 'unit')
-    attr_unit.text = resource_attr_i.unit
+    
+    if hasattr(resource_attr_i, 'unit'):
+        attr_unit    = etree.SubElement(attr, 'unit')
+        attr_unit.text = resource_attr_i.unit
 
     attr_is_var    = etree.SubElement(attr, 'is_var')
     attr_is_var.text = resource_attr_i.attr_is_var
     
-    if resource_attr_i.data_type:
+    if hasattr(resource_attr_i, 'data_type') and resource_attr_i.data_type:
         attr_data_type    = etree.SubElement(attr, 'data_type')
         attr_data_type.text = resource_attr_i.data_type
 
     #attr_properties    = etree.SubElement(attr, 'properties')
     #attr_properties.text = resource_attr_i.properties
 
-    if resource_attr_i.data_restriction:
+    if hasattr(resource_attr_i, 'data_type') and resource_attr_i.data_restriction:
         attr_data_restriction    = etree.SubElement(attr, 'restrictions')
         attr_data_restriction.text = resource_attr_i.data_restriction
 
