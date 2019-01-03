@@ -143,7 +143,7 @@ def get_scenario(scenario_id,**kwargs):
     
     scen_j.resourcescenarios = []
     for rs in rscen_rs:
-        rs_j = JSONObject(rs, extras={'resourceattr':rs.resourceattr})
+        rs_j = JSONObject(rs, extras={'resourceattr':JSONObject(rs.resourceattr)})
         if rs.dataset.check_read_permission(user_id, do_raise=False) is False:
             rs_j.dataset['value'] = None
             rs_j.dataset.metadata = JSONObject({})
