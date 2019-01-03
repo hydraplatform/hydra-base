@@ -789,7 +789,7 @@ def _get_all_resourcescenarios(network_id, user_id):
                 ResourceScenario.source,
                 ResourceAttr.attr_id,
     ).outerjoin(DatasetOwner, and_(DatasetOwner.dataset_id==Dataset.id, DatasetOwner.user_id==user_id)).filter(
-                or_(Dataset.hidden=='N', DatasetOwner.user_id != None),
+                or_(Dataset.hidden=='N', Dataset.created_by==user_id, DatasetOwner.user_id != None),
                 ResourceAttr.id == ResourceScenario.resource_attr_id,
                 Scenario.id==ResourceScenario.scenario_id,
                 Scenario.network_id==network_id,
