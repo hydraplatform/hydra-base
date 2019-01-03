@@ -26,7 +26,7 @@ def testdb_uri(db_backend):
         # This is designed to work on Travis CI
         return 'postgresql://postgres@localhost:5432/hydra_base_test'
     elif db_backend == 'mysql':
-        return 'mysql+mysqldb://root:@localhost/hydra_base_test'
+        return 'mysql+mysqldb://root:root@localhost/hydra_base_test'
     else:
         raise ValueError('Database backend "{}" not supported when running the tests.'.format(db_backend))
 
@@ -57,7 +57,6 @@ def session(db, engine, request):
     # session won't be persisted into the database until you call
     # session.commit(). If you're not happy about the changes, you can
     # revert all of them back to the last commit by calling
-    # session.rollback()
     session = DBSession()
 
     # Patch the global session in hydra_base
@@ -70,18 +69,22 @@ def session(db, engine, request):
     pytest.root_user_id = root_user_id
 
     # Add some users
-    util.create_user("UserA")
-    util.create_user("UserB")
-    util.create_user("UserC")
+    pytest.user_a = util.create_user("UserA")
+    pytest.user_b = util.create_user("UserB")
+    pytest.user_c = util.create_user("UserC", role='developer')
+
 
     yield session
 
     # Tear down the session
 
     # First make sure everything can be and is committed.
-    session.commit()
-    # Finally drop all the tables.
-    hydra_base.db.DeclarativeBase.metadata.drop_all()
+    try:
+        session.commit()
+        # Finally drop all the tables.
+        hydra_base.db.DeclarativeBase.metadata.drop_all()
+    except:
+        session.rollback()
 
 
 @pytest.fixture()

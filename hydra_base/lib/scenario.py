@@ -140,8 +140,15 @@ def get_scenario(scenario_id,**kwargs):
         rs.resourceattr.attr
 
     rgi_rs = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.scenario_id==scenario_id).all()
+    
+    scen_j.resourcescenarios = []
+    for rs in rscen_rs:
+        rs_j = JSONObject(rs, extras={'resourceattr':rs.resourceattr})
+        if rs.dataset.check_read_permission(user_id, do_raise=False) is False:
+            rs_j.dataset['value'] = None
+            rs_j.dataset.metadata = JSONObject({})
+        scen_j.resourcescenarios.append(rs_j)
 
-    scen_j.resourcescenarios = [JSONObject(r, extras={'resourceattr':r.resourceattr}) for r in rscen_rs]
     scen_j.resourcegroupitems =[JSONObject(r) for r in rgi_rs]
 
     return scen_j

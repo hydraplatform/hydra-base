@@ -216,22 +216,33 @@ class Dataset(Base, Inspect):
                 get_session().delete(owner)
                 break
 
-    def check_read_permission(self, user_id):
+    def check_read_permission(self, user_id, do_raise=True):
         """
             Check whether this user can read this dataset
         """
 
         if _is_admin(user_id):
-            return
+            return True
+        
+        if str(user_id) == str(self.created_by):
+            return True
+
+        if self.hidden == 'N':
+            return True
 
         for owner in self.owners:
             if int(owner.user_id) == int(user_id):
                 if owner.view == 'Y':
                     break
         else:
-            raise PermissionError("Permission denied. User %s does not have read"
+            if do_raise is True:
+                raise PermissionError("Permission denied. User %s does not have read"
                              " access on dataset %s" %
                              (user_id, self.id))
+            else:
+                return False
+
+        return True
 
     def check_user(self, user_id):
         """

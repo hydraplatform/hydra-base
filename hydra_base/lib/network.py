@@ -1340,7 +1340,7 @@ def update_network(network,
                 n.name        = node.name
                 n.description = node.description
                 n.x           = node.x
-                n._y          = node.y
+                n.y           = node.y
                 n.status      = node.status
                 n.layout      = node.get_layout()
             else:
