@@ -445,12 +445,12 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
     template_j = JSONObject(template_file_j.get('template', {}))
 
     default_datasets_j = {}
-    for k, v in file_datasets.items(): 
+    for k, v in file_datasets.items():
         default_datasets_j[int(k)] = Dataset(v)
 
     if file_attributes is None or default_datasets_j is None or len(template_j) == 0:
-        raise HydraError("Invalid template. The template must have the following structure: " +
-                            "{'attributes':\{...\}, 'datasets':\{...\}, 'template':\{...\}}")
+        raise HydraError("Invalid template. The template must have the following structure: " + \
+                            "{'attributes':\\{...\\}, 'datasets':\\{...\\}, 'template':\\{...\\}}")
 
     #Normalise attribute IDs so they're always ints (in case they're specified as strings)
     attributes_j = {}
@@ -1239,7 +1239,7 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
 
                     if new_res_scenarios.get(attr_id) is None:
                         new_res_scenarios[attr_id] = {}
-                    
+
                     new_res_scenarios[attr_id][s.id] =  dict(
                         dataset_id = type_attrs[attr_id]['default_dataset_id'],
                         scenario_id = s.id,
@@ -1303,7 +1303,7 @@ def _parse_data_restriction(restriction_dict):
 
     #replace soap text with an empty string
     #'{soap_server.hydra_complexmodels}' -> ''
-    dict_str = re.sub('{[a-zA-Z\.\_]*}', '', str(restriction_dict))
+    dict_str = re.sub('{[a-zA-Z._]*}', '', str(restriction_dict))
 
     if isinstance(restriction_dict, dict):
         new_dict = restriction_dict
@@ -2047,7 +2047,7 @@ def _make_attr_element(parent, resource_attr_i):
 
     attr_is_var    = etree.SubElement(attr, 'is_var')
     attr_is_var.text = resource_attr_i.attr_is_var
-    
+
     if resource_attr_i.data_type:
         attr_data_type    = etree.SubElement(attr, 'data_type')
         attr_data_type.text = resource_attr_i.data_type
