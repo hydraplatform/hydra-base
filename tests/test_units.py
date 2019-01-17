@@ -290,7 +290,6 @@ class TestUnits():
             "Unit conversion did not work"
 
 
-
     def test_check_consistency(self):
         result1 = hb.check_consistency('m^3', 'Volume')
         result2 = hb.check_consistency('m', 'Volume')
