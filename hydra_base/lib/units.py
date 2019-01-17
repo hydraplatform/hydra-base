@@ -29,6 +29,7 @@ from ..util.dataset_util import vector_to_arr
 from ..db.model import Dataset
 from .. import db
 
+import numpy
 import logging
 log = logging.getLogger(__name__)
 
@@ -162,9 +163,16 @@ class Units(object):
             return unit, 1.0
 
     def get_dimensions(self):
-        """Get a list of all dimenstions listed in one of the xml files.
+        """
+            Get a list of all dimensions keys listed in one of the xml files.
         """
         return self.dimensions.keys()
+
+    def get_all_dimensions(self):
+        """
+            Get the list of all dimensions objects listed in one of the xml files.
+        """
+        return self.dimensions
 
     def get_units(self, dimension):
         """Get a list of all units describing one specific dimension.
@@ -317,18 +325,18 @@ class Units(object):
         """
         user_unitfile = self.usertree.base
         with open(user_unitfile, 'w') as f:
-            f.write(etree.tostring(self.usertree, pretty_print=True))
+            f.write(str(etree.tostring(self.usertree, pretty_print=True)))
 
 
 
 def get_dimension(dimension,**kwargs):
-    """Get a dimension"""
+    """Get a dimension with its units"""
 
     dimension_name_map = {}
 
     dimension_names = hydra_units.dimensions.keys()
     for d in dimension_names:
-        dimension_name_map[d.lower().replace(" ", "")] = d
+        dimension_name_map[d.lower().replace(" ", "")] = hydra_units.dimensions[d]
 
     return dimension_name_map.get(dimension.lower().replace(" ", ""))
 
@@ -402,6 +410,9 @@ def convert_units(values, unit1, unit2,**kwargs):
         >>> cli.service.convert_units(20.0, 'm', 'km')
         0.02
     """
+    if numpy.isscalar(values):
+        # If it is a scalar, converts to an array
+        values = [values]
     float_values = [float(value) for value in values]
     return hydra_units.convert(float_values, unit1, unit2)
 
@@ -482,7 +493,7 @@ def get_dimensions(**kwargs):
     return dim_list
 
 def get_all_dimensions(**kwargs):
-    return hydra_units.dimensions
+    return hydra_units.get_all_dimensions()
 
 def get_units(dimension,**kwargs):
     """Get a list of all units corresponding to a physical dimension.
