@@ -216,7 +216,6 @@ class TestUnits():
 
         hb.delete_dimension(testdim)
 
-
     def test_delete_unit(self):
         # Add a new unit to a new dimension
 
