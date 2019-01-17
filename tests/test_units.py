@@ -25,6 +25,8 @@ import pytest
 import util
 import logging
 log = logging.getLogger(__name__)
+import util
+
 
 class TestUnits():
     """
@@ -260,9 +262,9 @@ class TestUnits():
         result = hb.convert_units(20, '2e6 m^3', 'hm^3')
         assert result == [40], "Conversion with factor didn't work correctly."
 
-    @pytest.fixture()
+    #@pytest.fixture()
     def test_convert_dataset(self):
-        network = self.create_network_with_data(num_nodes=2)
+        network = util.create_network_with_data(num_nodes=2)
         scenario = \
             network.scenarios.Scenario[0].resourcescenarios.ResourceScenario
         # Select the first array (should have untis 'bar') and convert it
