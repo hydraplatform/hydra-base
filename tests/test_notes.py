@@ -30,13 +30,15 @@ class TestNotes():
     """
         Test for working with notes.
     """
+    def test_add_note2(self):
+        assert 1 == 1
 
-
-    @pytest.fixture()
+    #@pytest.fixture()
     def test_add_note(self):
         """
         """
-        net = self.create_network_with_data()
+        #assert 1==0
+        net = util.create_network_with_data()
 
         s = net['scenarios'].Scenario[0]
         node = net.nodes.Node[0]
@@ -69,6 +71,58 @@ class TestNotes():
 
 
 
+    @pytest.fixture()
+    def test_update_note(self):
+        net = self.create_network_with_data()
+
+        node = net.nodes.Node[0]
+
+        note = dict(
+            text    = "I am a note"
+        )
+
+        new_note = hb.add_node_note(node.id, note)
+
+        new_note.text = "I am an updated note"
+        updated_note = hb.update_note(new_note)
+
+        retrieved_note = hb.get_note(updated_note.id)
+
+        assert retrieved_note.text == updated_note.text == new_note.text
+
+    @pytest.fixture()
+    def test_get_note(self):
+        net = self.create_network_with_data()
+
+        node = net.nodes.Node[0]
+
+        note = dict(
+            text    = "I am a note"
+        )
+
+        new_note = hb.add_node_note(node.id, note)
+        retrieved_note = hb.get_note(new_note.id)
+        assert str(new_note) == str(retrieved_note)
+
+    @pytest.fixture()
+    def test_delete_note(self):
+        net = self.create_network_with_data()
+
+        node = net.nodes.Node[0]
+
+        note = dict(
+            text    = "I am a note"
+        )
+
+        new_note = hb.add_node_note(node.id, note)
+
+        retrieved_note = hb.get_note(new_note.id)
+        assert str(new_note) == str(retrieved_note)
+
+        hb.purge_note(new_note.id)
+        node_notes = hb.get_node_notes(node.id)
+        assert len(node_notes) == 0
+        self.assertRaises(WebFault, hb.get_note, new_note.id)
 
 
 
