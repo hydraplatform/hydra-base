@@ -164,7 +164,7 @@ class Units(object):
 
     def get_dimensions(self):
         """
-            Get a list of all dimenstions listed in one of the xml files.
+            Get a list of all dimensions keys listed in one of the xml files.
         """
         return self.dimensions.keys()
 
@@ -330,13 +330,14 @@ class Units(object):
 
 
 def get_dimension(dimension,**kwargs):
-    """Get a dimension"""
+    """Get a dimension with its units"""
 
     dimension_name_map = {}
 
     dimension_names = hydra_units.dimensions.keys()
     for d in dimension_names:
-        dimension_name_map[d.lower().replace(" ", "")] = d
+        dimension_name_map[d.lower().replace(" ", "")] = hydra_units.dimensions[d]
+
 
     return dimension_name_map.get(dimension.lower().replace(" ", ""))
 
@@ -410,6 +411,9 @@ def convert_units(values, unit1, unit2,**kwargs):
         >>> cli.service.convert_units(20.0, 'm', 'km')
         0.02
     """
+   if numpy.isscalar(values):
+        # If it is a scalar, converts to an array
+        values = [values]
     float_values = [float(value) for value in values]
     return hydra_units.convert(float_values, unit1, unit2)
 
