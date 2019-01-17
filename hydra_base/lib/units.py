@@ -411,7 +411,7 @@ def convert_units(values, unit1, unit2,**kwargs):
         >>> cli.service.convert_units(20.0, 'm', 'km')
         0.02
     """
-   if numpy.isscalar(values):
+    if numpy.isscalar(values):
         # If it is a scalar, converts to an array
         values = [values]
     float_values = [float(value) for value in values]
