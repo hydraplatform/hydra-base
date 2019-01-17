@@ -29,6 +29,7 @@ from ..util.dataset_util import vector_to_arr
 from ..db.model import Dataset
 from .. import db
 
+import numpy
 import logging
 log = logging.getLogger(__name__)
 
@@ -162,9 +163,16 @@ class Units(object):
             return unit, 1.0
 
     def get_dimensions(self):
-        """Get a list of all dimenstions listed in one of the xml files.
+        """
+            Get a list of all dimenstions listed in one of the xml files.
         """
         return self.dimensions.keys()
+
+    def get_all_dimensions(self):
+        """
+            Get the list of all dimensions objects listed in one of the xml files.
+        """
+        return self.dimensions
 
     def get_units(self, dimension):
         """Get a list of all units describing one specific dimension.
@@ -317,7 +325,7 @@ class Units(object):
         """
         user_unitfile = self.usertree.base
         with open(user_unitfile, 'w') as f:
-            f.write(etree.tostring(self.usertree, pretty_print=True))
+            f.write(str(etree.tostring(self.usertree, pretty_print=True)))
 
 
 
