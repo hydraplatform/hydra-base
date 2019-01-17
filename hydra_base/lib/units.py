@@ -339,6 +339,7 @@ def get_dimension(dimension,**kwargs):
         dimension_name_map[d.lower().replace(" ", "")] = hydra_units.dimensions[d]
 
 
+
     return dimension_name_map.get(dimension.lower().replace(" ", ""))
 
 
@@ -494,7 +495,7 @@ def get_dimensions(**kwargs):
     return dim_list
 
 def get_all_dimensions(**kwargs):
-    return hydra_units.dimensions
+    return hydra_units.get_all_dimensions()
 
 def get_units(dimension,**kwargs):
     """Get a list of all units corresponding to a physical dimension.
