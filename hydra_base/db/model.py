@@ -54,6 +54,10 @@ import logging
 import bcrypt
 log = logging.getLogger(__name__)
 
+# Importing the tables model
+#from .models import _Unit, Dimension
+
+
 # Python 2 and 3 compatible string checking
 # TODO remove this when Python2 support is dropped.
 try:
@@ -94,6 +98,11 @@ class Inspect(object):
 
     def get_columns_and_relationships(self):
         return inspect(self).attrs.keys()
+
+
+#***************************************************
+# Classes definition
+#***************************************************
 
 class Dataset(Base, Inspect):
     """
@@ -223,7 +232,7 @@ class Dataset(Base, Inspect):
 
         if _is_admin(user_id):
             return True
-        
+
         if str(user_id) == str(self.created_by):
             return True
 
@@ -731,7 +740,7 @@ class Project(Base, Inspect):
         """
             Check whether this user can read this project
         """
-        
+
         if _is_admin(user_id):
             return
 
@@ -969,7 +978,7 @@ class Network(Base, Inspect):
         """
             Check whether this user can write this project
         """
-        
+
         if _is_admin(user_id):
             return
 
@@ -1671,6 +1680,44 @@ class User(Base, Inspect):
     def __repr__(self):
         return "{0}".format(self.username)
 
+
+class Unit(Base, Inspect):
+    """
+    """
+
+    __tablename__='tUnit'
+
+    id = Column(Integer(), primary_key=True, nullable=False)
+    dimension_id = Column(Integer(), ForeignKey('tDimension.id'), primary_key=True, nullable=False)
+    name = Column(String(60),  nullable=False)
+    abbreviation = Column(String(60),  nullable=False)
+    lf = Column(Float(precision=10, asdecimal=True))
+    cf = Column(Float(precision=10, asdecimal=True))
+    description = Column(String(1000))
+    project_id = Column(Integer(), ForeignKey('tProject.id'), index=True, nullable=True)
+
+    _parents  = ['tDimension', 'tProject']
+    _children = []
+
+    def __repr__(self):
+        return "{0} ({1})".format(self.name, self.abbreviation)
+
+class Dimension(Base, Inspect):
+    """
+    """
+
+    __tablename__='tDimension'
+
+    id = Column(Integer(), primary_key=True, nullable=False)
+    name = Column(String(60),  nullable=False)
+    description = Column(String(1000))
+    project_id = Column(Integer(), ForeignKey('tProject.id'), index=True, nullable=True)
+
+    _parents  = ['tProject']
+    _children = ['tUnit']
+
+    def __repr__(self):
+        return "{0} ({1})".format(self.name)
 
 def create_resourcedata_view():
     #These are for creating the resource data view (see bottom of page)
