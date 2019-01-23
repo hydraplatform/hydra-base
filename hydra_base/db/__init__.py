@@ -88,12 +88,14 @@ def connect(db_url=None):
     if db_url is None:
         db_url = config.get('mysqld', 'url')
 
+
+    db_url = "{}?charset=utf8&use_unicode=1".format(db_url)
     log.info("Connecting to database: %s", db_url)
 
     db_url = create_mysql_db(db_url)
 
     global engine
-    engine = create_engine(db_url)
+    engine = create_engine(db_url, encoding='utf-8')
 
     maker = sessionmaker(bind=engine, autoflush=False, autocommit=False,
                      extension=ZopeTransactionExtension())
