@@ -112,8 +112,8 @@
         <unit name="day"        abbr="day"     lf="86400"              cf="0" />
         <unit name="hour"       abbr="h"    lf="3600"               cf="0" />
         <unit name="minute"     abbr="min"  lf="60"                 cf="0" />
-        <unit name="month"      abbr="mon"     lf="2629743.8328"       cf="0"  info="Here: 1 month =  1/12 year. 
-            January = 31 days 
+        <unit name="month"      abbr="mon"     lf="2629743.8328"       cf="0"  info="Here: 1 month =  1/12 year.
+            January = 31 days
             February, 28 days, 29 in leap years, or 30 on certain occasions in related calendars
             March, 31 days
             April, 30 days
@@ -127,7 +127,7 @@
             December, 31 days"/>
         <unit name="second"         abbr="s"    lf="1"                  cf="0" info="The second is the SI base unit of time and is defined as the duration of 9 192 631 770 periods of the radiation corresponding to the transition between the two hyperfine levels of the ground state of the caesium-133 atom. This definition refers to a caesium atom at rest at a temperature of 0 K" />
         <unit name="millisecond"    abbr="ms"   lf="0.001"              cf="0" />
-        <unit name="microsecond"    abbr="μs"   lf="0.000001"           cf="0" />
+        <unit name="microsecond"    abbr="µs"   lf="0.000001"           cf="0" />
         <unit name="nanosecond"     abbr="ns"   lf="0.000000001"        cf="0" />
         <unit name="picosecond"     abbr="ps"   lf="0.000000000001"     cf="0" />
         <unit name="year"           abbr="yr"     lf="3.15569259936e7"    cf="0" info="Here: 1 year = 365.242199 days."/>
