@@ -22,13 +22,13 @@ for dimension in d["dimension"]:
     for unit in dimension["unit"]:
         units_counter = units_counter+1
         #print unit
-        print('insert into tUnit(id, dimension_id, name, abbreviation, lf, cf, description) values ({}, {}, "{}", "{}", {}, {}, "{}");'.format(
+        print('insert into tUnit(id, dimension_id, name, abbreviation, lf, cf, description) values ({}, {}, "{}", "{}", "{}", "{}", "{}");'.format(
                 units_counter,
                 dim_counter,
                 unit["name"].encode('utf-8').strip().replace('"','\\"'),
                 unit["abbr"].encode('utf-8').strip().replace('"','\\"'),
-                unit["lf"],
-                unit["cf"],
+                unit["lf"].encode('utf-8').strip().replace('"','\\"'),
+                unit["cf"].encode('utf-8').strip().replace('"','\\"'),
                 unit["name"].encode('utf-8').strip().replace('"','\\"')
                 )
                 )
