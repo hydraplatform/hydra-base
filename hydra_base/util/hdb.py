@@ -17,7 +17,9 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
-from ..db.model import Network, Scenario, Project, User, Role, Perm, RolePerm, RoleUser, ResourceAttr, ResourceType
+import os
+import json
+from ..db.model import Network, Scenario, Project, User, Role, Perm, RolePerm, RoleUser, ResourceAttr, ResourceType, Dimension, Unit
 from sqlalchemy.orm.exc import NoResultFound
 from .. import db
 import datetime
@@ -25,6 +27,9 @@ import random
 import bcrypt
 from ..exceptions import HydraError
 import transaction
+from sqlalchemy.orm import load_only
+from ..lib.objects import JSONObject
+
 import logging
 log = logging.getLogger(__name__)
 
@@ -265,3 +270,84 @@ def create_default_users_and_perms():
         db.DBSession.add(roleperm)
 
     db.DBSession.flush()
+
+def create_default_units_and_dimensions():
+    """
+        Adds the units and the dimensions reading a json file. It adds only dimensions and units that are not inside the db
+        It is possible adding new dimensions and units to the DB just modifiyin the json file
+    """
+    default_units_file_location = os.path.realpath(\
+        os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                     '../',
+                     'static',
+                     'default_units_and_dimensions.json'))
+
+    d=None
+
+    with open(default_units_file_location) as json_data:
+        d = json.load(json_data)
+        json_data.close()
+
+    for json_dimension in d["dimension"]:
+        new_dimension = None
+        dimension_name = get_utf8_encoded_string(json_dimension["name"])
+
+        db_dimensions_by_name = db.DBSession.query(Dimension).filter(Dimension.name==dimension_name).all()
+
+        if len(db_dimensions_by_name) == 0:
+            # Adding the dimension
+            log.info("Adding Dimension `{}`".format(dimension_name))
+            new_dimension = Dimension()
+            if "id" in json_dimension:
+                # If ID is specified
+                new_dimension.id = json_dimension["id"]
+
+            new_dimension.name = dimension_name
+
+            db.DBSession.add(new_dimension)
+            db.DBSession.flush()
+
+        # Get the dimension by name
+        new_dimension = get_dimension_from_db_by_name(dimension_name)
+
+        for json_unit in json_dimension["unit"]:
+            db_units_by_name = db.DBSession.query(Unit).filter(Unit.dimension_id==new_dimension.id).filter(Unit.abbreviation==get_utf8_encoded_string(json_unit['abbr'])).all()
+            if len(db_units_by_name) == 0:
+                # Adding the unit
+                log.info("Adding Unit `{}` in `{}`".format(json_unit['abbr'], json_dimension["name"]))
+                new_unit = Unit()
+                if "id" in json_unit:
+                    new_unit.id = json_unit["id"]
+                new_unit.dimension_id   = new_dimension.id
+                new_unit.name           = get_utf8_encoded_string(json_unit['name'])
+                new_unit.abbreviation   = get_utf8_encoded_string(json_unit['abbr'])
+                new_unit.lf             = get_utf8_encoded_string(json_unit['lf'])
+                new_unit.cf             = get_utf8_encoded_string(json_unit['cf'])
+                if "description" in json_unit:
+                    # If Description is specified
+                    new_unit.description = get_utf8_encoded_string(json_unit["description"])
+
+                # Save on DB
+                db.DBSession.add(new_unit)
+                db.DBSession.flush()
+            else:
+                #log.critical("UNIT {}.{} EXISTANT".format(dimension_name,json_unit['abbr']))
+                pass
+    return
+
+
+def get_utf8_encoded_string(string):
+    try:
+        return string.encode('utf-8').strip().replace('"','\\"')
+    except Exception as e:
+        return string
+
+def get_dimension_from_db_by_name(dimension_name):
+    """
+        Gets a dimension from the DB table.
+    """
+    try:
+        dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension_name).one()
+        return JSONObject(dimension)
+    except NoResultFound:
+        raise ResourceNotFoundError("Dimension %s not found"%(dimension_name))
