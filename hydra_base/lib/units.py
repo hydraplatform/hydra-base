@@ -21,17 +21,205 @@ import os
 from copy import deepcopy
 from lxml import etree
 
+from sqlalchemy.exc import InvalidRequestError
+from sqlalchemy.orm.exc import NoResultFound
+from .. import db
+
 from .. import config
-from ..exceptions import HydraError
 from ..util.dataset_util import array_dim
 from ..util.dataset_util import arr_to_vector
 from ..util.dataset_util import vector_to_arr
-from ..db.model import Dataset
-from .. import db
+from ..db.model import Dataset, Unit, Dimension
+from .objects import JSONObject
+from ..exceptions import HydraError, ResourceNotFoundError
+
+import json
+from ..util.permissions import check_perm, required_perms
 
 import numpy
 import logging
 log = logging.getLogger(__name__)
+
+
+# NEW
+def exists_dimension(dimension_name,**kwargs):
+    """
+        Given a dimension returns its units as a list
+    """
+    try:
+        dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension_name).one()
+        # At this point the dimension exists
+        return True
+    except NoResultFound:
+        # The dimension does not exist
+        raise False
+
+def get_dimension(dimension_name,**kwargs):
+    """
+        Given a dimension returns its units as a list
+    """
+    try:
+        dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension_name).one()
+        # At this point the dimension exists
+        units_list = db.DBSession.query(Unit).filter(Unit.dimension_id==dimension.id).all()
+
+        return JSONObject(units_list)
+    except NoResultFound:
+        # The dimension does not exist
+        raise ResourceNotFoundError("Dimension %s not found"%(dimension_name))
+
+
+@required_perms("add_dimension")
+def add_dimension(dimension):
+    """
+        Add the dimension defined into the object "dimension" to the DB
+        If dimension["project_id"] is None it means that the dimension is global, otherwise is property of a project
+        If the dimension exists emits an exception
+    """
+    new_dimension = Dimension()
+    new_dimension.name = dimension["name"]
+
+    if "description" in dimension and dimension["description"] is not None:
+        new_dimension.description = dimension["description"]
+    if "project_id" in dimension and dimension["project_id"] is not None:
+        new_dimension.project_id = dimension["project_id"]
+
+    # Save on DB
+    db.DBSession.add(new_dimension)
+    db.DBSession.flush()
+
+
+
+@required_perms("delete_dimension")
+def delete_dimension(self, dimension_name):
+    """
+        Delete a dimension from the DB. Raises and exception if the dimension does not exist
+    """
+
+    try:
+        dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension_name).filter(Dimension.project_id.isnot(None)).one()
+        db.DBSession.delete(dimension)
+    except NoResultFound:
+        raise ResourceNotFoundError("Dimension (dimension_name=%s) does not exist"%(dimension_name))
+
+@required_perms("update_dimension")
+def update_dimension(self, dimension):
+    """
+        Update a dimension in the DB.
+        Raises and exception if the dimension does not existself.
+        The key is ALWAYS the name
+    """
+    try:
+        db_dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension['name']).filter().one()
+
+        if "description" in dimension and dimension["description"] is not None:
+            db_dimension.description = dimension["description"]
+        if "project_id" in dimension and dimension["project_id"] is not None:
+            db_dimension.project_id = dimension["project_id"]
+    except NoResultFound:
+        raise ResourceNotFoundError("Dimension (name=%s) does not exist"%(unit["abbreviation"]))
+
+
+    db.DBSession.flush()
+    return db_dimension
+
+
+
+
+@required_perms("add_unit")
+def add_unit(self, unit):
+    """
+        Add the unit defined into the object "unit" to the DB
+        If unit["project_id"] is None it means that the unit is global, otherwise is property of a project
+        If the unit exists emits an exception
+
+
+        A minimal example:
+
+        .. code-block:: python
+
+            new_unit = dict(
+                name      = 'Teaspoons per second',
+                abbr      = 'tsp s^-1',
+                cf        = 0,               # Constant conversion factor
+                lf        = 1.47867648e-05,  # Linear conversion factor
+                dimension = 'Volumetric flow rate',
+                info      = 'A flow of one teaspoon per second.',
+            )
+            add_unit(new_unit)
+
+
+    """
+    # 'info' is the only field that is allowed to be empty
+    if 'description' not in unit.keys() or unit['description'] is None:
+        unit['description'] = ''
+
+    dimension_data = get_dimension(dimension)
+
+    new_unit = Unit()
+    new_unit.dimension_id   = dimension_data.id
+    new_unit.name           = unit['name']
+    new_unit.abbreviation   = unit['abbr']
+    new_unit.description    = unit['description']
+    new_unit.lf             = unit['lf']
+    new_unit.cf             = unit['cf']
+
+    if ('project_id' in unit) and (unit['project_id'] is not None):
+        # Adding dimension to the "user" dimensions list
+        new_unit.project_id = unit['project_id']
+
+    # Save on DB
+    db.DBSession.add(new_unit)
+    db.DBSession.flush()
+
+
+
+@required_perms("delete_unit")
+def delete_unit(self, unit):
+    """
+        Delete a unit from the DB.
+        Raises and exception if the unit does not exist
+    """
+
+    try:
+        db_unit = db.DBSession.query(Unit).join(Dimension).filter(Unit.abbreviation==unit['abbr']).filter(Dimension.name==unit['dimension']).filter().one()
+        db.DBSession.delete(db_unit)
+    except NoResultFound:
+        raise ResourceNotFoundError("Unit (abbreviation=%s) does not exist"%(unit['abbr']))
+
+
+@required_perms("update_unit")
+def update_unit(self, unit):
+    """
+        Update a unit in the DB.
+        Raises and exception if the unit does not existself.
+        The key is ALWAYS the abbreviation
+    """
+    try:
+        db_unit = db.DBSession.query(Unit).join(Dimension).filter(Unit.abbreviation==unit['abbr']).filter(Dimension.name==unit['dimension']).filter().one()
+        db_unit.name = unit["name"]
+        db_unit.description = unit["description"]
+        db_unit.lf = unit["lf"]
+        db_unit.cf = unit["cf"]
+        if "project_id" in unit:
+            db_unit.project_id = unit["project_id"]
+    except NoResultFound:
+        raise ResourceNotFoundError("Unit (abbreviation=%s) does not exist"%(unit["abbreviation"]))
+
+
+    db.DBSession.flush()
+    return db_unit
+
+
+
+
+
+
+
+
+
+
+# OLD
 
 class Units(object):
     """
@@ -45,6 +233,7 @@ class Units(object):
 
     unittree = None
     usertree = None
+
     dimensions = dict()
     units = dict()
     userunits = []
@@ -53,7 +242,26 @@ class Units(object):
     unit_description = dict()
     unit_info = dict()
 
+    dimensions_2 = dict()
+    units_2 = dict()
+    unit_description_2 = dict()
+    unit_info_2 = dict()
+    static_dimensions_2 = []
+    userunits_2 = []
+    userdimensions_2 = []
+
+    full_data = dict() # This will contain all the data from the DB
+
+
     def __init__(self):
+        db.connect() # Connection to the DB
+        return
+
+        #self.get_units_from_db()
+        dimensions_list = self.get_dimensions_from_db()
+
+        user_dimensions_list = self.get_dimensions_from_db(True)
+
         default_user_file_location = os.path.realpath(\
             os.path.join(os.path.dirname(os.path.realpath(__file__)),
                          '../',
@@ -84,8 +292,8 @@ class Units(object):
         with open(builtin_unitfile) as f:
             self.unittree = etree.parse(f).getroot()
 
-        for element in self.unittree:
-            self.static_dimensions.append(element.get('name'))
+        # for element in self.unittree:
+        #     self.static_dimensions_2.append(element.get('name'))
 
         with open(user_unitfile) as f:
             self.usertree = etree.parse(f).getroot()
@@ -93,35 +301,184 @@ class Units(object):
         with open(builtin_unitfile) as f:
             self.unittree = etree.parse(f).getroot()
 
-        for element in self.usertree:
-            self.unittree.append(deepcopy(element))
-            self.userdimensions.append(element.get('name'))
-            for subelement in element:
-                self.userunits.append(subelement.get('abbr'))
+        # for element in self.usertree:
+        #     self.unittree.append(deepcopy(element))
+        #     self.userdimensions_2.append(element.get('name'))
+        #     for subelement in element:
+        #         self.userunits_2.append(subelement.get('abbr'))
 
-        for element in self.unittree:
-            dimension = element.get('name')
+        # DB Based
+        for dimension in dimensions_list:
+            # log.info(dimension)
+            # log.info(dimension.name)
+            #self.userdimensions.append(dim.name)
+            new_dimension = JSONObject({})
+            new_dimension.id = dimension.id
+            new_dimension.name= dimension.name
+            new_dimension.description= dimension.description
+            new_dimension.units= []
+
+            self.full_data[dimension.name] = new_dimension
+
             if dimension not in self.dimensions.keys():
-                self.dimensions.update({dimension: []})
-            for unit in element:
-                self.dimensions[dimension].append(unit.get('abbr'))
-                self.units.update({unit.get('abbr'):
-                                   (float(unit.get('lf')),
-                                    float(unit.get('cf')))})
-                self.unit_description.update({unit.get('abbr'):
-                                              unit.get('name')})
-                self.unit_info.update({unit.get('abbr'):
-                                       unit.get('info')})
+                self.dimensions.update({str(dimension.name): []})
+
+            if dimension not in self.dimensions.keys():
+                self.static_dimensions.append(dimension.name)
+
+            units_list = self.get_units_from_db(dimension.id)
+
+            for unit in units_list:
+                new_unit = JSONObject({})
+                new_unit.id = unit.id
+                new_unit.dimension_id = unit.dimension_id
+                new_unit.name = unit.name
+                new_unit.abbreviation = unit.abbreviation
+                new_unit.description = unit.description
+                new_unit.lf = unit.lf
+                new_unit.cf = unit.cf
+                new_unit.project_id = unit.project_id
+
+                self.full_data[dimension.name].units.append(new_unit)
+
+
+
+                self.dimensions[dimension.name].append(unit.abbreviation)
+                self.units.update({unit.abbreviation:
+                                   (float(unit.lf),
+                                    float(unit.cf))})
+                self.unit_description.update({unit.abbreviation:
+                                              unit.name})
+                self.unit_info.update({unit.abbreviation:
+                                       unit.description})
+
+        for dimension in user_dimensions_list:
+            self.userdimensions.append(dimension.name)
+            units_list = self.get_units_from_db(dimension.name)
+            for unit in units_list:
+                self.userunits.append(unit.abbreviation)
+
+        log.info(self.full_data)
+
+        # log.info(self.is_global_dimension("Length"))
+        #
+        # unit = JSONObject({})
+        # unit.abbr="s"
+        # unit.dimension="Time1"
+        # unit.project_id=12
+        # log.info(self.is_global_unit(unit))
+
+        #self.do_deep_compare(self.static_dimensions, self.static_dimensions_2, "self.static_dimensions")
+        # self.do_deep_compare(self.userunits, self.userunits_2, "self.userunits")
+        log.info(self.get_dimension_from_db_by_name("Length"))
+
+        log.info(self.get_unit_from_db_by_abbreviation("s"))
+
+    def do_deep_compare(self, left, right, message_to_show):
+        """
+            Utility function. Does a deep compare of two objects and show an error in case of failure
+        """
+        if self.deep_compare(left, right):
+             log.info("{} are OK".format(message_to_show))
+        else:
+             log.critical("{} are WRONG".format(message_to_show))
+             log.info(left)
+             log.info(right)
+
+
+
+    def deep_compare(self,left, right, level=0):
+        """
+            Utility function. Does a deep compare of two objects and returns the comparison success status
+        """
+        if type(left) != type(right):
+            log.info("Exit 1 - Different types")
+            return False
+
+        elif type(left) is dict:
+            # Dict comparison
+            for key in left:
+                if key not in right:
+                    log.info("Exit 2 - missing {} in right".format(key))
+                    return False
+                else:
+                    if not self.deep_compare(left[str(key)], right[str(key)], level +1 ):
+                        log.info("Exit 3 - different children")
+                        return False
+            return True
+        elif type(left) is list:
+            # List comparison
+            for key in left:
+                if key not in right:
+                    log.info("Exit 4 - missing {} in right".format(key))
+                    return False
+                else:
+                    if not self.deep_compare(left[left.index(key)], right[right.index(key)], level +1 ):
+                        log.info("Exit 5 - different children")
+                        return False
+            return True
+        else:
+            # Other comparison
+            return left == right
+
+        return False
+
+
+    def get_units_from_db(self, dimension_id=None):
+        """
+            Gets all units from the DB table. If dimension_id is specified it is used as filter
+        """
+        rs = None
+        if dimension_id==None:
+            rs = db.DBSession.query(Unit).all()
+        else:
+            rs = db.DBSession.query(Unit).filter(Unit.dimension_id==dimension_id).all()
+        #log.info(rs)
+        return rs
+
+    def get_dimensions_from_db(self, are_user_dimensions=False):
+        """
+            Gets all dimension from the DB table.
+        """
+        if not are_user_dimensions:
+            rs = db.DBSession.query(Dimension).all()
+        else:
+            rs = db.DBSession.query(Dimension).filter(Dimension.project_id.isnot(None)).all()
+
+        #log.info(rs)
+        return rs
+
+    def get_dimension_from_db_by_name(self, dimension_name):
+        """
+            Gets a dimension from the DB table.
+        """
+        try:
+            dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension_name).one()
+            return JSONObject(dimension)
+        except NoResultFound:
+            raise ResourceNotFoundError("Dimension %s not found"%(dimension_name))
+
+    def get_unit_from_db_by_abbreviation(self, unit_abbr):
+        """
+            Gets a Unit from the DB table.
+        """
+        try:
+            unit = db.DBSession.query(Unit).filter(Unit.abbreviation==unit_abbr).one()
+            return JSONObject(unit)
+        except NoResultFound:
+            raise ResourceNotFoundError("Unit %s not found"%(unit_abbr))
 
     def check_consistency(self, unit, dimension):
-        """Check whether a specified unit is consistent with the physical
-        dimension asked for by the attribute or the dataset.
+        """
+            Check whether a specified unit is consistent with the physical
+            dimension asked for by the attribute or the dataset.
         """
         unit, factor = self.parse_unit(unit)
         return unit in self.dimensions[dimension]
 
     def get_dimension(self, unit):
-        """Return the physical dimension a given unit refers to.
+        """
+            Return the physical dimension a given unit refers to.
         """
 
         unit, factor = self.parse_unit(unit)
@@ -131,8 +488,9 @@ class Units(object):
         raise HydraError('Unit %s not found.'%(unit))
 
     def convert(self, values, unit1, unit2):
-        """Convert a value from one unit to another one. The two units must
-        represent the same physical dimension.
+        """
+            Convert a value from one unit to another one. The two units must
+            represent the same physical dimension.
         """
         if self.get_dimension(unit1) == self.get_dimension(unit2):
             unit1, factor1 = self.parse_unit(unit1)
@@ -152,8 +510,9 @@ class Units(object):
             raise HydraError("Unit conversion: dimensions are not consistent.")
 
     def parse_unit(self, unit):
-        """Helper function that extracts constant factors from unit
-        specifications. This allows to specify units similar to this: 10^6 m^3.
+        """
+            Helper function that extracts constant factors from unit
+            specifications. This allows to specify units similar to this: 10^6 m^3.
         """
         try:
             float(unit[0])
@@ -175,7 +534,8 @@ class Units(object):
         return self.dimensions
 
     def get_units(self, dimension):
-        """Get a list of all units describing one specific dimension.
+        """
+            Get a list of all units describing one specific dimension.
         """
         unitlist = []
         for unit in self.dimensions[dimension]:
@@ -189,41 +549,264 @@ class Units(object):
             unitlist.append(unitdict)
         return unitlist
 
-    def add_dimension(self, dimension):
-        """Add a dimension to the custom xml file as listed in the config file.
-        """
-        if dimension not in self.dimensions.keys():
-            self.usertree.append(etree.Element('dimension', name=dimension))
-            self.dimensions.update({dimension: []})
-            self.userdimensions.append(dimension)
-            return True
-        else:
-            return False
 
-    def delete_dimension(self, dimension):
-        """Delete a dimension from the custom XML file.
+    # def add_dimension(self, dimension_name, project_id=None):
+    #     """
+    #         Add the dimension to the DB and also to the lists in memory
+    #         If project_id is None it means that the dimension is global, otherwise is property of a project
+    #     """
+    #     if dimension_name not in self.dimensions.keys():
+    #         # New Dimension
+    #         # Adding dimension to the global list
+    #         new_dimension = Dimension()
+    #         new_dimension.name = dimension_name
+    #         new_dimension.description = dimension_name
+    #
+    #         self.dimensions.update({dimension_name: []})
+    #         if project_id is not None:
+    #             # Adding dimension to the "user" dimensions list
+    #             new_dimension.project_id = project_id
+    #             self.userdimensions.append(dimension_name)
+    #
+    #         # Save on DB
+    #         db.DBSession.add(new_dimension)
+    #         db.DBSession.flush()
+    #
+    #         # Get all the data comprised the ID
+    #         new_dimension = self.get_dimension_from_db_by_name(dimension_name)
+    #
+    #         self.full_data[dimension.name] = new_dimension
+    #
+    #         return True
+    #     else:
+    #         # Dimension existent
+    #         return False
+
+
+
+    def delete_dimension(self, dimension_name):
         """
-        if dimension in self.userdimensions:
+            Delete a dimension from the DB and the lists in memory
+        """
+        if dimension_name in self.userdimensions:
+            # Deleting ONLY the dimensions that are owned by a project
+
             # Delete units from the dimension
-            for unit in self.dimensions[dimension]:
+            for unit in self.dimensions[dimension_name]:
                 if unit in self.userunits:
-                    delunit = {'abbr': unit, 'dimension': dimension}
+                    # If the unit is inside the userunits, I will delete it
+                    delunit = {'abbr': unit, 'dimension': dimension_name}
                     self.delete_unit(delunit)
+
             # delete dimension from internal variables
-            idx = self.userdimensions.index(dimension)
+            idx = self.userdimensions.index(dimension_name)
             del self.userdimensions[idx]
-            if dimension not in self.static_dimensions:
-                del self.dimensions[dimension]
-            # Delete dimension form XML tree
-            for element in self.usertree:
-                if element.get('name') == dimension:
-                    self.usertree.remove(element)
-                    break
+            if dimension_name not in self.static_dimensions:
+                del self.dimensions[dimension_name]
+
+            # Removing from the full structure
+            del self.full_data[dimension_name]
+
+            # Delete dimension from DB
+            try:
+                dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension_name).filter(Dimension.project_id.isnot(None)).one()
+                db.DBSession.delete(dimension)
+            except NoResultFound:
+                raise ResourceNotFoundError("Dimension (dimension_name=%s) does not exist"%(dimension_name))
+
+
+
             return True
         else:
             return False
 
-    def add_unit(self, dimension, unit):
+
+    def is_global_dimension(self, dimension_name):
+        """
+            Returns True if the dimension is Global, False is it is assigned to a project
+        """
+        if dimension_name in self.full_data:
+            dimension = self.full_data[dimension_name]
+            return (dimension.project_id is None)
+        else:
+            raise ResourceNotFoundError("Dimension (dimension_name=%s) does not exist"%(dimension_name))
+
+
+    def is_global_unit(self, unit):
+        """
+            Returns True if the Unit is Global, False is it is assigned to a project
+            'unit' is a Unit object
+        """
+        dimension_name = unit["dimension"]
+        if dimension_name in self.full_data:
+            dimension_units = self.full_data[dimension_name].units
+
+            unit_item = list(filter (lambda unit_item : unit_item["abbreviation"] == unit['abbr'], self.full_data[unit['dimension']].units ))
+            if len(unit_item) > 0:
+                return (unit_item[0].project_id is None)
+            else:
+                raise ResourceNotFoundError("Unit (abbr=%s) does not exist"%(unit['abbr']))
+            return (dimension.project_id is None)
+        else:
+            raise ResourceNotFoundError("Dimension (dimension_name=%s) does not exist"%(dimension_name))
+
+    # def add_unit(self, dimension, unit):
+    #     """
+    #         Add a unit and conversion factor to a specific dimension. The new
+    #         unit will be written to DB.
+    #     """
+    #     if dimension in self.dimensions.keys() and \
+    #             unit['abbr'] not in self.dimensions[dimension]:
+    #
+    #         # 'info' is the only field that is allowed to be empty
+    #         if 'info' not in unit.keys() or unit['info'] is None:
+    #             unit['info'] = ''
+    #
+    #
+    #
+    #         # Insert into DB
+    #         dimension_data = self.full_data[dimension]
+    #
+    #
+    #         new_unit = Unit()
+    #         new_unit.dimension_id   = dimension_data.id
+    #         new_unit.name           = unit['name']
+    #         new_unit.abbreviation   = unit['abbr']
+    #         new_unit.description    = unit['info']
+    #         new_unit.lf             = unit['lf']
+    #         new_unit.cf             = unit['cf']
+    #
+    #         if ('project_id' in unit) and (unit['project_id'] is not None):
+    #             # Adding dimension to the "user" dimensions list
+    #             new_unit.project_id = unit['project_id']
+    #
+    #         # Save on DB
+    #         db.DBSession.add(new_unit)
+    #         db.DBSession.flush()
+    #
+    #
+    #
+    #         new_unit = self.get_unit_from_db_by_abbreviation(unit['abbr'])
+    #
+    #         self.full_data[dimension].units.append(new_unit)
+    #
+    #         # Update internal variables:
+    #         self.dimensions[dimension].append(unit['abbr'])
+    #         self.units.update({unit['abbr']:
+    #                            (float(unit['lf']), float(unit['cf']))})
+    #         self.unit_description.update({unit['abbr']: unit['name']})
+    #         self.userunits.append(unit['abbr'])
+    #         self.unit_info.update({unit['abbr']: unit['info']})
+    #
+    #
+    #         # Update XML tree
+    #         element_index = None
+    #         for i, element in enumerate(self.usertree):
+    #             if element.get('name') == dimension:
+    #                 element_index = i
+    #                 break
+    #         if element_index is not None:
+    #             self.usertree[element_index].append(
+    #                 etree.Element('unit', name=unit['name'], abbr=unit['abbr'],
+    #                               lf=str(unit['lf']), cf=str(unit['cf']),
+    #                               info=unit['info']))
+    #         else:
+    #             dimension_element = etree.Element('dimension', name=dimension)
+    #             dimension_element.append(
+    #                 etree.Element('unit', name=unit['name'], abbr=unit['abbr'],
+    #                               lf=str(unit['lf']), cf=str(unit['cf']),
+    #                               info=unit['info']))
+    #             self.usertree.append(dimension_element)
+    #             self.userdimensions.append(dimension)
+    #     else:
+    #         # Unit existent
+    #         return False
+
+    def delete_unit(self, unit):
+        """
+            Delete a unit from the variables and the DB
+        """
+        if unit['abbr'] in self.userunits:
+            # If the unit is inside the userunits, I will delete it
+            self.userunits.remove(unit['abbr'])
+            self.dimensions[unit['dimension']].remove(unit['abbr'])
+            del self.units[unit['abbr']]
+            del self.unit_description[unit['abbr']]
+
+            # Removing the unit from the full data object by listing the units using abbreviation
+            self.full_data[unit['dimension']].units = list(filter (lambda unit_item : unit_item["abbreviation"] != unit['abbr'], self.full_data[unit['dimension']].units ))
+
+            # Delete from DB
+            # dimension_id=None
+            # if unit['dimension'] in self.full_data:
+            #     dimension_id=self.full_data[unit['dimension']].id
+            # else:
+            #     return False
+
+
+
+            try:
+                unit = db.DBSession.query(Unit).join(Dimension).filter(Unit.abbreviation==unit['abbr']).filter(Dimension.name==unit['dimension']).filter().one()
+                db.DBSession.delete(unit)
+            except NoResultFound:
+                raise ResourceNotFoundError("Unit (abbreviation=%s) does not exist"%(unit['abbr']))
+
+
+            return True
+
+            # Update XML tree
+            # element_index = None
+            # for i, element in enumerate(self.usertree):
+            #     if element.get('name') == unit['dimension']:
+            #         element_index = i
+            #         break
+            # if element_index is not None:
+            #     for unit_element in self.usertree[element_index]:
+            #         if unit_element.get('abbr') == unit['abbr']:
+            #             self.usertree[element_index].remove(unit_element)
+            #     return True
+            # else:
+            #     return False
+        else:
+            return False
+
+
+
+    # def add_dimension(self, dimension):
+    #     """Add a dimension to the custom xml file as listed in the config file.
+    #     """
+    #     if dimension not in self.dimensions.keys():
+    #         #self.usertree.append(etree.Element('dimension', name=dimension))
+    #         self.dimensions.update({dimension: []})
+    #         self.userdimensions.append(dimension)
+    #         return True
+    #     else:
+    #         return False
+
+    # def delete_dimension_XMLFILE(self, dimension):
+    #     """Delete a dimension from the custom XML file.
+    #     """
+    #     if dimension in self.userdimensions:
+    #         # Delete units from the dimension
+    #         for unit in self.dimensions[dimension]:
+    #             if unit in self.userunits:
+    #                 delunit = {'abbr': unit, 'dimension': dimension}
+    #                 self.delete_unit(delunit)
+    #         # delete dimension from internal variables
+    #         idx = self.userdimensions.index(dimension)
+    #         del self.userdimensions[idx]
+    #         if dimension not in self.static_dimensions:
+    #             del self.dimensions[dimension]
+    #         # Delete dimension form XML tree
+    #         for element in self.usertree:
+    #             if element.get('name') == dimension:
+    #                 self.usertree.remove(element)
+    #                 break
+    #         return True
+    #     else:
+    #         return False
+
+    def add_unit_XMLFILE(self, dimension, unit):
         """Add a unit and conversion factor to a specific dimension. The new
         unit will be written to the custom XML-file.
         """
@@ -296,29 +879,29 @@ class Units(object):
         else:
             raise HydraError('Unit %s with dimension %s not found.'%(unit,dimension))
 
-    def delete_unit(self, unit):
-        """Delete a unit from the custom file.
-        """
-        if unit['abbr'] in self.userunits:
-            self.userunits.remove(unit['abbr'])
-            self.dimensions[unit['dimension']].remove(unit['abbr'])
-            del self.units[unit['abbr']]
-            del self.unit_description[unit['abbr']]
-            # Update XML tree
-            element_index = None
-            for i, element in enumerate(self.usertree):
-                if element.get('name') == unit['dimension']:
-                    element_index = i
-                    break
-            if element_index is not None:
-                for unit_element in self.usertree[element_index]:
-                    if unit_element.get('abbr') == unit['abbr']:
-                        self.usertree[element_index].remove(unit_element)
-                return True
-            else:
-                return False
-        else:
-            return False
+    # def delete_unit_XMLFILE(self, unit):
+    #     """Delete a unit from the custom file.
+    #     """
+    #     if unit['abbr'] in self.userunits:
+    #         self.userunits.remove(unit['abbr'])
+    #         self.dimensions[unit['dimension']].remove(unit['abbr'])
+    #         del self.units[unit['abbr']]
+    #         del self.unit_description[unit['abbr']]
+    #         # Update XML tree
+    #         element_index = None
+    #         for i, element in enumerate(self.usertree):
+    #             if element.get('name') == unit['dimension']:
+    #                 element_index = i
+    #                 break
+    #         if element_index is not None:
+    #             for unit_element in self.usertree[element_index]:
+    #                 if unit_element.get('abbr') == unit['abbr']:
+    #                     self.usertree[element_index].remove(unit_element)
+    #             return True
+    #         else:
+    #             return False
+    #     else:
+    #         return False
 
     def save_user_file(self):
         """Save units or dimensions added to the server to the custom XML file.
@@ -329,79 +912,79 @@ class Units(object):
 
 
 
-def get_dimension(dimension,**kwargs):
-    """Get a dimension with its units"""
+# def get_dimension(dimension,**kwargs):
+#     """Get a dimension with its units"""
+#
+#     dimension_name_map = {}
+#
+#     dimension_names = hydra_units.dimensions.keys()
+#     for d in dimension_names:
+#         dimension_name_map[d.lower().replace(" ", "")] = hydra_units.dimensions[d]
+#
+#
+#
+#     return dimension_name_map.get(dimension.lower().replace(" ", ""))
 
-    dimension_name_map = {}
 
-    dimension_names = hydra_units.dimensions.keys()
-    for d in dimension_names:
-        dimension_name_map[d.lower().replace(" ", "")] = hydra_units.dimensions[d]
+# def add_dimension(dimension,**kwargs):
+#     """Add a physical dimensions (such as ``Volume`` or ``Speed``) to the
+#     servers list of dimensions. If the dimension already exists, nothing is
+#     done.
+#     """
+#     result = hydra_units.add_dimension(dimension)
+#     hydra_units.save_user_file()
+#     return result
 
-
-
-    return dimension_name_map.get(dimension.lower().replace(" ", ""))
-
-
-def add_dimension(dimension,**kwargs):
-    """Add a physical dimensions (such as ``Volume`` or ``Speed``) to the
-    servers list of dimensions. If the dimension already exists, nothing is
-    done.
-    """
-    result = hydra_units.add_dimension(dimension)
-    hydra_units.save_user_file()
-    return result
-
-def delete_dimension(dimension,**kwargs):
-    """Delete a physical dimension from the list of dimensions. Please note
-    that deleting works only for dimensions listed in the custom file.
-    """
-    result = hydra_units.delete_dimension(dimension)
-    hydra_units.save_user_file()
-    return result
-
-def add_unit(unitdict,**kwargs):
-    """Add a physical unit to the servers list of units. The Hydra server
-    provides a Unit object which should be used to add a unit.
-
-    A minimal example:
-
-    .. code-block:: python
-
-        new_unit = dict(
-            name      = 'Teaspoons per second',
-            abbr      = 'tsp s^-1',
-            cf        = 0,               # Constant conversion factor
-            lf        = 1.47867648e-05,  # Linear conversion factor
-            dimension = 'Volumetric flow rate',
-            info      = 'A flow of one teaspoon per second.',
-        )
-        add_unit(new_unit)
-    """
-    if unitdict['dimension'] is None:
-        unitdict['dimension'] = hydra_units.get_dimension(unitdict['abbr'])
-    hydra_units.add_unit(unitdict['dimension'], unitdict)
-    hydra_units.save_user_file()
-    return True
-
-def update_unit(unitdict,**kwargs):
-    """Update an existing unit added to the custom unit collection. Please
-    not that units built in to the library can not be updated.
-    """
-    if unitdict['dimension'] is None:
-        unitdict['dimension'] = hydra_units.get_dimension(unitdict['abbr'])
-    result = hydra_units.update_unit(unitdict['dimension'], unitdict)
-    hydra_units.save_user_file()
-    return result
-
-def delete_unit(unitdict,**kwargs):
-    """Delete a unit from the custom unit collection.
-    """
-    if unitdict['dimension'] is None:
-        unitdict['dimension'] = hydra_units.get_dimension(unitdict['abbr'])
-    result = hydra_units.delete_unit(unitdict)
-    hydra_units.save_user_file()
-    return result
+# def delete_dimension(dimension,**kwargs):
+#     """Delete a physical dimension from the list of dimensions. Please note
+#     that deleting works only for dimensions listed in the custom file.
+#     """
+#     result = hydra_units.delete_dimension(dimension)
+#     hydra_units.save_user_file()
+#     return result
+#
+# def add_unit(unitdict,**kwargs):
+#     """Add a physical unit to the servers list of units. The Hydra server
+#     provides a Unit object which should be used to add a unit.
+#
+#     A minimal example:
+#
+#     .. code-block:: python
+#
+#         new_unit = dict(
+#             name      = 'Teaspoons per second',
+#             abbr      = 'tsp s^-1',
+#             cf        = 0,               # Constant conversion factor
+#             lf        = 1.47867648e-05,  # Linear conversion factor
+#             dimension = 'Volumetric flow rate',
+#             info      = 'A flow of one teaspoon per second.',
+#         )
+#         add_unit(new_unit)
+#     """
+#     if unitdict['dimension'] is None:
+#         unitdict['dimension'] = hydra_units.get_dimension(unitdict['abbr'])
+#     hydra_units.add_unit(unitdict['dimension'], unitdict)
+#     hydra_units.save_user_file()
+#     return True
+#
+# def update_unit(unitdict,**kwargs):
+#     """Update an existing unit added to the custom unit collection. Please
+#     not that units built in to the library can not be updated.
+#     """
+#     if unitdict['dimension'] is None:
+#         unitdict['dimension'] = hydra_units.get_dimension(unitdict['abbr'])
+#     result = hydra_units.update_unit(unitdict['dimension'], unitdict)
+#     hydra_units.save_user_file()
+#     return result
+#
+# def delete_unit(unitdict,**kwargs):
+#     """Delete a unit from the custom unit collection.
+#     """
+#     if unitdict['dimension'] is None:
+#         unitdict['dimension'] = hydra_units.get_dimension(unitdict['abbr'])
+#     result = hydra_units.delete_unit(unitdict)
+#     hydra_units.save_user_file()
+#     return result
 
 def convert_units(values, unit1, unit2,**kwargs):
     """Convert a value from one unit to another one.
@@ -477,6 +1060,7 @@ def convert_dataset(dataset_id, to_unit,**kwargs):
 global hydra_units
 hydra_units = Units()
 
+
 def get_unit_dimension(unit1,**kwargs):
     """Get the corresponding physical dimension for a given unit.
 
@@ -495,6 +1079,8 @@ def get_dimensions(**kwargs):
     return dim_list
 
 def get_all_dimensions(**kwargs):
+    db_units = db.DBSession.query(Unit).all()
+    log.info(db_units)
     return hydra_units.get_all_dimensions()
 
 def get_units(dimension,**kwargs):
