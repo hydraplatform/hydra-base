@@ -20,7 +20,7 @@
 import os
 import json
 from ..db.model import Network, Scenario, Project, User, Role, Perm, RolePerm, RoleUser, ResourceAttr, ResourceType, Dimension, Unit
-from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 from .. import db
 import datetime
 import random
@@ -104,6 +104,11 @@ def make_root_user():
         role = db.DBSession.query(Role).filter(Role.code=='admin').one()
     except NoResultFound:
         raise HydraError("Admin role not found.")
+    except MultipleResultsFound:
+        roles = list(db.DBSession.query(Role).all())
+        log.info(roles)
+        role = roles[0]
+        #raise HydraError("Multiple rows found")
 
     try:
         userrole = db.DBSession.query(RoleUser).filter(RoleUser.role_id==role.id,
@@ -162,10 +167,14 @@ def create_default_net():
 
 
 def create_default_users_and_perms():
+    """
+        Adds the roles and perm to the DB. It adds only roles, perms and links between them that are not inside the db
+        It is possible adding new role or perm and connecting them just modifiying the following lists
+    """
 
-    perms = db.DBSession.query(Perm).all()
-    if len(perms) > 0:
-        return
+    # perms = db.DBSession.query(Perm).all()
+    # if len(perms) > 0:
+    #     return
 
     default_perms = ( ("add_user",   "Add User"),
                     ("edit_user",  "Edit User"),
@@ -189,7 +198,16 @@ def create_default_users_and_perms():
                     ("view_data", "View network data"),
 
                     ("add_template", "Add Template"),
-                    ("edit_template", "Edit Template"))
+                    ("edit_template", "Edit Template"),
+
+                    ("add_dimension", "Add Dimension"),
+                    ("delete_dimension", "Delete Dimension"),
+
+                    ("add_unit", "Add Unit"),
+                    ("delete_unit", "Delete Unit")
+
+
+                    )
 
     default_roles = (
                     ("admin",    "Administrator"),
@@ -202,6 +220,7 @@ def create_default_users_and_perms():
                 )
 
     roleperms = (
+            # Admin permissions
             ('admin', "add_user"),
             ('admin', "edit_user"),
             ('admin', "add_role"),
@@ -222,6 +241,12 @@ def create_default_users_and_perms():
             ('admin', "add_template"),
             ('admin', "edit_template"),
 
+            ('admin', "add_dimension"),
+            ('admin', "delete_dimension"),
+            ('admin', "add_unit"),
+            ('admin', "delete_unit"),
+
+            # Developer permissions
             ("developer", "add_network"),
             ("developer", "edit_network"),
             ("developer", "delete_network"),
@@ -236,6 +261,12 @@ def create_default_users_and_perms():
             ("developer", "add_template"),
             ("developer", "edit_template"),
 
+            ('developer', "add_dimension"),
+            ('developer', "delete_dimension"),
+            ('developer', "add_unit"),
+            ('developer', "delete_unit"),
+
+            # modeller permissions
             ("modeller", "add_network"),
             ("modeller", "edit_network"),
             ("modeller", "delete_network"),
@@ -248,26 +279,61 @@ def create_default_users_and_perms():
             ("modeller", "edit_data"),
             ("modeller", "view_data"),
 
+            # Manager permissions
             ("manager", "edit_data"),
             ("manager", "view_data"),
     )
 
+    # Map for code to ID
+    id_maps_dict = {
+        "perm": {},
+        "role": {}
+    }
+    # Adding perms
     perm_dict = {}
     for code, name in default_perms:
         perm = Perm(code=code, name=name)
         perm_dict[code] = perm
-        db.DBSession.add(perm)
+        perms_by_name = db.DBSession.query(Perm).filter(Perm.code==code).all()
+        if len(perms_by_name)==0:
+            # Adding perm
+            log.info("# Adding PERM {}".format(code))
+            db.DBSession.add(perm)
+            db.DBSession.flush()
+
+        perm_by_name = db.DBSession.query(Perm).filter(Perm.code==code).one()
+        id_maps_dict["perm"][code] = perm_by_name.id
+
+    # Adding roles
     role_dict = {}
     for code, name in default_roles:
         role = Role(code=code, name=name)
         role_dict[code] = role
-        db.DBSession.add(role)
+        roles_by_name = db.DBSession.query(Role).filter(Role.code==code).all()
+        if len(roles_by_name)==0:
+            # Adding perm
+            log.info("# Adding ROLE {}".format(code))
+            db.DBSession.add(role)
+            db.DBSession.flush()
 
+        role_by_name = db.DBSession.query(Role).filter(Role.code==code).one()
+        id_maps_dict["role"][code] = role_by_name.id
+
+    # Adding connections
     for role_code, perm_code in roleperms:
-        roleperm = RolePerm()
-        roleperm.role = role_dict[role_code]
-        roleperm.perm = perm_dict[perm_code]
-        db.DBSession.add(roleperm)
+        #log.info("Link Role:{}({}) <---> Perm:{}({})".format(role_code, id_maps_dict["role"][role_code], perm_code, id_maps_dict["perm"][perm_code]))
+
+        links_found = db.DBSession.query(RolePerm).filter(RolePerm.role_id==id_maps_dict["role"][role_code]).filter(RolePerm.perm_id==id_maps_dict["perm"][perm_code]).all()
+        if len(links_found)==0:
+            # Adding link
+            log.info("# Adding link")
+            roleperm = RolePerm()
+            # roleperm.role = role_dict[role_code]
+            # roleperm.perm = perm_dict[perm_code]
+            roleperm.role_id = id_maps_dict["role"][role_code]
+            roleperm.perm_id = id_maps_dict["perm"][perm_code]
+            db.DBSession.add(roleperm)
+            db.DBSession.flush()
 
     db.DBSession.flush()
 
