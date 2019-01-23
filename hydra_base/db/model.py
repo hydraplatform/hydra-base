@@ -26,7 +26,8 @@ LargeBinary,\
 TIMESTAMP,\
 BIGINT,\
 Float,\
-Text
+Text, \
+Unicode
 
 from sqlalchemy import inspect, func
 
@@ -1687,13 +1688,19 @@ class Unit(Base, Inspect):
 
     __tablename__='tUnit'
 
+    __table_args__ = (
+        UniqueConstraint('abbreviation', 'dimension_id', name="unique abbreviation dimension_id"),
+    )
+
     id = Column(Integer(), primary_key=True, nullable=False)
-    dimension_id = Column(Integer(), ForeignKey('tDimension.id'), primary_key=True, nullable=False)
-    name = Column(String(60),  nullable=False)
-    abbreviation = Column(String(60),  nullable=False)
-    lf = Column(Float(precision=10, asdecimal=True))
-    cf = Column(Float(precision=10, asdecimal=True))
-    description = Column(String(1000))
+    dimension_id = Column(Integer(), ForeignKey('tDimension.id'), nullable=False)
+    name = Column(Unicode(60, collation='utf8_bin'),  nullable=False)
+    abbreviation = Column(Unicode(60, collation='utf8_bin'),  nullable=False)
+    # lf = Column(Float(precision=10, asdecimal=True))
+    # cf = Column(Float(precision=10, asdecimal=True))
+    lf = Column(Unicode(60, collation='utf8_bin'),  nullable=True)
+    cf = Column(Unicode(60, collation='utf8_bin'),  nullable=True)
+    description = Column(Unicode(1000, collation='utf8_bin'))
     project_id = Column(Integer(), ForeignKey('tProject.id'), index=True, nullable=True)
 
     _parents  = ['tDimension', 'tProject']
@@ -1702,6 +1709,7 @@ class Unit(Base, Inspect):
     def __repr__(self):
         return "{0} ({1})".format(self.name, self.abbreviation)
 
+
 class Dimension(Base, Inspect):
     """
     """
@@ -1709,15 +1717,16 @@ class Dimension(Base, Inspect):
     __tablename__='tDimension'
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(60),  nullable=False)
-    description = Column(String(1000))
+    name = Column(Unicode(60, collation='utf8_bin'),  nullable=False, unique=True)
+    description = Column(Unicode(1000, collation='utf8_bin'))
     project_id = Column(Integer(), ForeignKey('tProject.id'), index=True, nullable=True)
 
     _parents  = ['tProject']
     _children = ['tUnit']
 
     def __repr__(self):
-        return "{0} ({1})".format(self.name)
+        return "{0}".format(self.name)
+
 
 def create_resourcedata_view():
     #These are for creating the resource data view (see bottom of page)
