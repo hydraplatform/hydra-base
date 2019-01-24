@@ -79,7 +79,7 @@ def create_mysql_db(db_url):
 
         if config.get('mysqld', 'auto_create', 'Y') == 'Y':
             tmp_engine = create_engine(no_db_url)
-            log.warn("Creating database {0} as it does not exist.".format(db_name))
+            log.warning("Creating database {0} as it does not exist.".format(db_name))
             tmp_engine.execute("CREATE DATABASE IF NOT EXISTS {0}".format(db_name))
 
     return db_url
