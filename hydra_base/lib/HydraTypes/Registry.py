@@ -12,7 +12,7 @@ import sys
 typemap = {}
 from .Types import Array, Scalar, Timeseries, Descriptor, Dataframe
 from .Types import DataType as Datatype_Base
-
+from hydra_base.exceptions import ValidationError
 
 class HydraObjectFactory(object):
     """
@@ -34,6 +34,21 @@ class HydraObjectFactory(object):
             tmap = typemap
         obj = cls.fromDataset(datatype, value, metadata=metadata, tmap=tmap)
         return obj.value
+
+    @staticmethod
+    def validate(datatype, value):
+
+        datatype_cls = typemap[datatype.upper()]
+
+        if not datatype_cls.is_simple:
+            data = json.loads(value)
+        else:
+            data = value
+
+        errors = datatype_cls().validate(data)
+        if len(errors) > 0:
+            raise ValidationError(errors)
+        return value
 
     @staticmethod
     def fromDataset(datatype, value, metadata=None, tmap=None):

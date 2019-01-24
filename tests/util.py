@@ -759,7 +759,7 @@ def create_timeseries(resource_attr):
     #with a resource attribute.
     #[[[1, 2, "hello"], [5, 4, 6]], [[10, 20, 30], [40, 50, 60]]]
 
-    fmt = hydra_base.config.get('DEFAULT', 'datetime_format', "%Y-%m-%dT%H:%M:%S.%f000Z")
+    fmt = hydra_base.config.get('DEFAULT', 'datetime_format', "%Y-%m-%dT%H:%M:%S.%fZ")
 
     t1 = datetime.datetime.now()
     t2 = t1+datetime.timedelta(hours=1)

@@ -11,9 +11,11 @@ import math
 import six
 import pandas as pd
 from abc import ABCMeta, abstractmethod, abstractproperty
-from datetime import datetime
+from marshmallow import Schema, fields, post_load, ValidationError, validate
+import enum
 import collections
 from hydra_base import config
+from . import custom_fields
 
 from .Encodings import ScalarJSON, ArrayJSON, DescriptorJSON, DataframeJSON, TimeseriesJSON
 from hydra_base.exceptions import HydraError
@@ -22,181 +24,75 @@ import logging
 log = logging.getLogger(__name__)
 
 
-class DataTypeMeta(ABCMeta):
-    def __new__(cls, clsname, bases, attrs):
-        newclass = super(DataTypeMeta, cls).__new__(cls, clsname, bases, attrs)
+class DataType(Schema):
+    """ The DataType class serves as an abstract base class for data types"""
+    is_simple = False
 
+    def __init_subclass__(cls, **kwargs):
         # Register class with hydra
         from .Registry import typemap
-        if clsname != 'DataType':
-            if newclass.tag in typemap:
-                raise ValueError('Type with tag "{}" already registered.'.format(newclass.tag))
-            else:
-                typemap[newclass.tag] = newclass
-                log.info('Registering data type "{}".'.format(newclass.tag))
-        return newclass
 
+        tag = cls.tag
+        if tag in typemap:
+            raise ValueError('Type with tag "{}" already registered.'.format(tag))
+        else:
+            typemap[tag] = cls
 
-@six.add_metaclass(DataTypeMeta)
-class DataType(object):
-    """ The DataType class serves as an abstract base class for data types"""
+    def validate(self, data, **kwargs):
+        if len(self.fields) == 1:
+            for field in self.fields:
+                data = {field: data}
+        return super().validate(data, **kwargs)
 
-    @abstractproperty
-    def skeleton(self):
-        """ Reserved for future use """
-        pass
+    def load(self, data, **kwargs):
+        if len(self.fields) == 1:
+            for field in self.fields:
+                data = {field: data}
+        return super().load(data, **kwargs)
 
-    @abstractproperty
-    def tag(self):
-        """ A str which uniquely identifies this type and serves as its key in
-            the Registry.typemap dict
-        """
-        pass
-
-    @abstractproperty
-    def value(self):
-        """ This type's representation of the value contained within
-            a dataset of the same type
-        """
-        pass
-
-    @abstractmethod
-    def validate(self):
-        """ Raises (any) exception if the dataset's value argument
-            cannot be correctly represented as this type
-        """
-        pass
-
-    @abstractmethod
-    def json(self):
-        """ Reserved for future use """
-        pass
-
-    @abstractmethod
-    def fromDataset(cls, value, metadata=None):
-        """ Factory method which performs any required transformations
-            on a dataset argument, invokes the type's ctor, and returns
-            the resulting instance
-        """
-        pass
+    @post_load
+    def make_obj(self, data):
+        if len(self.fields) == 1:
+            for field in self.fields:
+                return data[field]
+        return data
 
 
 class Scalar(DataType):
-    tag      = "SCALAR"
-    skeleton = "[%f]"
-    json     = ScalarJSON()
+    tag = "SCALAR"
+    is_simple = True
+    value = fields.Float()
 
-    def __init__(self, value):
-        super(Scalar, self).__init__()
-        self.value = value
-        self.validate()
 
-    @classmethod
-    def fromDataset(cls, value, metadata=None):
-        return cls(value)
-
-    def validate(self):
-        f = float(self.value)
-        assert not math.isnan(f) # Excludes NaN etc
-
-    def get_value(self):
-        return str(self._value)
-
-    def set_value(self, val):
-        self._value = val
-
-    value = property(get_value, set_value)
+def validate_length(value):
+    if len(value) < 1:
+        ValidationError('Length of list must be at least 1.')
 
 
 class Array(DataType):
-    tag      = "ARRAY"
-    skeleton = "[%f, ...]"
-    json     = ArrayJSON()
-
-    def __init__(self, encstr):
-        super(Array, self).__init__()
-        self.value = encstr
-        self.validate()
-
-    @classmethod
-    def fromDataset(cls, value, metadata=None):
-        return cls(value)
-
-    def validate(self):
-        j = json.loads(self.value)
-        assert len(j) > 0           # Sized
-        assert iter(j) is not None  # Iterable
-        assert j.__getitem__        # Container
-        assert not isinstance(j, six.string_types) # Exclude strs
-
-    def get_value(self):
-        return self._value
-
-    def set_value(self, val):
-        self._value = val
-
-    value = property(get_value, set_value)
+    tag = "ARRAY"
+    is_simple = False
+    value = fields.List(fields.Raw, validate=validate_length)
 
 
 class Descriptor(DataType):
-    tag      = "DESCRIPTOR"
-    skeleton = "%s"
-    json     = DescriptorJSON()
-
-    def __init__(self, data):
-        super(Descriptor, self).__init__()
-        self.value = data
-        self.validate()
-
-    @classmethod
-    def fromDataset(cls, value, metadata=None):
-        if metadata and metadata.get('data_type') == 'hashtable':
-            try:
-                df = pd.read_json(six.text_type(value))
-                data = df.transpose().to_json()
-            except Exception:
-                noindexdata = json.loads(six.text_type(value))
-                indexeddata = {0:noindexdata}
-                data = json.dumps(indexeddata)
-            return cls(data)
-        else:
-            return cls(six.text_type(value))
-
-
-    def validate(self):
-        pass
-
-    def get_value(self):
-        return self._value
-
-    def set_value(self, val):
-        self._value = val
-
-    value = property(get_value, set_value)
+    tag = "DESCRIPTOR"
+    is_simple = True
+    value = fields.Str()
 
 
 class Dataframe(DataType):
     tag      = "DATAFRAME"
-    skeleton = "%s"
-    json     = DataframeJSON()
+    is_simple = False
+    dataframe = fields.Dict(values=fields.Dict(values=fields.Raw, keys=fields.Str()),
+                            keys=fields.Str())
 
-    def __init__(self, data):
-        super(Dataframe, self).__init__()
-        self.value = data
-        self.validate()
-
-    @classmethod
-    def fromDataset(cls, value, metadata=None):
-
-        df = cls._create_dataframe(value)
-
-        return cls(df)
-
-    @classmethod
-    def _create_dataframe(cls, value):
+    @post_load
+    def make_obj(self, data):
         """
             Builds a dataframe from the value
         """
+        value = data['dataframe']
         try:
 
             ordered_jo = json.loads(six.text_type(value), object_pairs_hook=collections.OrderedDict)
@@ -237,70 +133,36 @@ class Dataframe(DataType):
 
         return df
 
-    def validate(self):
-        assert isinstance(self._value, pd.DataFrame)
-        assert not self._value.empty
 
-
-    def get_value(self):
-        return self._value.to_json()
-
-    def set_value(self, val):
-        self._value = val
-        try:
-            """ Use validate test to confirm is pd.DataFrame... """
-            self.validate()
-        except AssertionError:
-            """ ...otherwise attempt as json..."""
-            try:
-                df = self.__class__._create_dataframe(val)
-                self._value = df
-                self.validate()
-            except Exception as e:
-                """ ...and fail if neither """
-                raise HydraError(str(e))
-
-    value = property(get_value, set_value)
-
-class Timeseries(DataType):
+class Timeseries(Dataframe):
     tag      = "TIMESERIES"
-    skeleton = "[%s, ...]"
-    json     = TimeseriesJSON()
+    dataframe = fields.Dict(values=fields.Dict(values=fields.Raw, keys=fields.DateTime()),
+                            keys=fields.Str())
 
-    def __init__(self, ts):
-        super(Timeseries, self).__init__()
-        self.value = ts
-        self.validate()
-
-    @classmethod
-    def fromDataset(cls, value, metadata=None):
-        ordered_jo = json.loads(six.text_type(value), object_pairs_hook=collections.OrderedDict)
-        ts = pd.DataFrame.from_dict(ordered_jo)
-        return cls(ts)
+    @post_load
+    def make_obj(self, data):
+        df = super().make_obj(data)
+        df.index = pd.to_datetime(df.index)
+        return df
 
 
-    def validate(self):
-        base_ts = pd.Timestamp("01-01-1970")
-        #TODO: We need a more permanent solution to seasonal/repeating timeseries
-        seasonal_year = config.get('DEFAULT','seasonal_year', '1678')
-        seasonal_key = config.get('DEFAULT', 'seasonal_key', '9999')
-        jd = json.loads(self.value, object_pairs_hook=collections.OrderedDict)
-        for k,v in jd.items():
-            for date in (six.text_type(d) for d in v.keys()):
-                #A date with '9999' in it is a special case, but is an invalid year
-                #for pandas, so replace it with the first year allowed by pandas -- 1678
-                if date.find(seasonal_key) >= 0:
-                    date = date.replace(seasonal_key, seasonal_year)
+class AnnualProfile(DataType):
+    tag = "ANNUALPROFILE"
 
-                ts = pd.Timestamp(date)
-                print(ts, type(ts))
-                assert isinstance(ts, base_ts.__class__) # Same type as known valid ts
+    frequency_choices = {
+        'DAILY': {'size': 366, 'label': 'Daily'},
+        'WEEKLY': {'size': 52, 'label': 'Weekly'},
+        'MONTHLY': {'size': 12, 'label': 'Monthly'},
+    }
+
+    frequency = fields.String(validate=validate.OneOf(choices=frequency_choices.keys()))
+    values = fields.List(fields.Float())
+
+    # TODO add validator for length of values for given frequency
 
 
-    def get_value(self):
-        return self._value.to_json(date_format='iso', date_unit='ns')
+class NodeReference(DataType):
+    tag = 'NODEREFERENCE'
+    node_id = custom_fields.NodeField()
 
-    def set_value(self, val):
-        self._value = val
 
-    value = property(get_value, set_value)

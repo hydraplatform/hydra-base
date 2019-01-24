@@ -224,7 +224,11 @@ class Dataset(JSONObject):
             data = data[0:100]
             log.info("[Dataset.parse_value] Parsing %s (%s)", data, type(data))
 
-            return HydraObjectFactory.valueFromDataset(self.type, self.value, self.get_metadata_as_dict())
+            try:
+                value = HydraObjectFactory.valueFromDataset(self.type, self.value, self.get_metadata_as_dict())
+            except AttributeError:
+                value = HydraObjectFactory.validate(self.type, self.value)
+            return value
 
         except Exception as e:
             log.exception(e)

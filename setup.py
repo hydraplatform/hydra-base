@@ -37,6 +37,7 @@ install_requires=[
     "cheroot",
     "beaker",
     "packaging",
+    "marshmallow"
     ]
 
 # get version string from __init__.py
