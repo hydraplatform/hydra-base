@@ -1707,7 +1707,7 @@ class Unit(Base, Inspect):
     _children = []
 
     def __repr__(self):
-        return "{0} ({1})".format(self.name, self.abbreviation)
+        return "{0}".format(self.abbreviation)
 
 
 class Dimension(Base, Inspect):
