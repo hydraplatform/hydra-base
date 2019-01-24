@@ -35,6 +35,7 @@ from ..exceptions import HydraError, ResourceNotFoundError
 
 import json
 from ..util.permissions import check_perm, required_perms
+from sqlalchemy.orm import load_only
 
 import numpy
 import logging
@@ -42,6 +43,18 @@ log = logging.getLogger(__name__)
 
 
 # NEW
+def parse_unit(unit):
+    """
+        Helper function that extracts constant factors from unit
+        specifications. This allows to specify units similar to this: 10^6 m^3.
+    """
+    try:
+        float(unit[0])
+        factor, unit = unit.split(' ', 1)
+        return unit, float(factor)
+    except ValueError:
+        return unit, 1.0
+
 def exists_dimension(dimension_name,**kwargs):
     """
         Given a dimension returns its units as a list
@@ -62,14 +75,127 @@ def get_dimension(dimension_name,**kwargs):
         dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension_name).one()
         # At this point the dimension exists
         units_list = db.DBSession.query(Unit).filter(Unit.dimension_id==dimension.id).all()
+        u_list = []
+        for u in units_list:
+            u_list.append(str(u.abbreviation))
 
-        return JSONObject(units_list)
+        return u_list
     except NoResultFound:
         # The dimension does not exist
         raise ResourceNotFoundError("Dimension %s not found"%(dimension_name))
 
+def get_dimensions():
+    """
+        Get the list of all dimensions keys.
+    """
+    dimensions_list = db.DBSession.query(Dimension).options(load_only("name")).all()
+    dims_list = []
+    for dim in dimensions_list:
+        dims_list.append(str(dim.name))
+    return dims_list
 
-@required_perms("add_dimension")
+def get_all_dimensions():
+    """
+        Get an object having dimension name as key and le value is a list containing the units abbreviation of the dimension.
+    """
+    dimensions_list = db.DBSession.query(Dimension).options(load_only("name","id")).all()
+    dimensions_obj = dict()
+    for dimension in dimensions_list:
+        dimensions_obj[str(dimension.name)] = []
+        units_list = get_units_from_db(dimension_id = dimension.id)
+        for unit in units_list:
+            dimensions_obj[str(dimension.name)].append(unit.abbreviation)
+
+
+    return dimensions_obj
+
+
+def get_dimension_data(dimension_name):
+    """
+        Given a dimension returns all its data
+    """
+    try:
+        dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension_name).one()
+
+        return dimension
+    except NoResultFound:
+        # The dimension does not exist
+        raise ResourceNotFoundError("Dimension %s not found"%(dimension_name))
+
+def get_units_from_db(**kwargs):
+    """
+        Gets all units from the DB table.
+        If one of the arguments is defined it is used as filter
+    """
+    options = {
+            'dimension_id' : None,
+            'dimension_name' : None,
+            'unit_abbreviation': None
+            }
+    options.update(kwargs)
+
+    rs = None
+    if options["dimension_id"] is not None:
+        log.info("Looking for dimension_id '{}'".format(options["dimension_id"]))
+        rs = db.DBSession.query(Unit).filter(Unit.dimension_id==options["dimension_id"]).all()
+    elif options["dimension_name"] is not None:
+        log.info("Looking for dimension_name '{}'".format(options["dimension_name"]))
+        rs = db.DBSession.query(Unit).join(Dimension).filter(Dimension.name==options["dimension_name"]).all()
+        log.info(rs)
+    elif options["unit_abbreviation"] is not None:
+        log.info("Looking for unit_abbreviation '{}'".format(options["unit_abbreviation"]))
+        rs = db.DBSession.query(Unit).filter(Unit.abbreviation==options["unit_abbreviation"]).all()
+        log.info(rs)
+    else:
+        rs = db.DBSession.query(Unit).all()
+
+    #log.info(rs)
+    return rs
+
+
+
+def get_units(dim_name):
+    """
+        Get a list of all units corresponding to a physical dimension.
+    """
+    unit_list = get_units_from_db(dimension_name = dim_name)
+    log.info(unit_list)
+    unit_dict_list = []
+    for unit in unit_list:
+        new_unit = dict(
+            name = unit.name,
+            abbr = unit.abbreviation,
+            lf = unit.lf,
+            cf = unit.cf,
+            dimension = dim_name,
+            info = unit.description,
+        )
+        unit_dict_list.append(new_unit)
+    log.info(unit_dict_list)
+    return unit_dict_list
+
+
+def get_unit_dimension(unit):
+    """
+        Return the physical dimension a given unit refers to.
+    """
+
+    unit, factor = parse_unit(unit)
+
+
+    units = get_units_from_db(unit_abbreviation = unit)
+
+    if len(units) == 0:
+        raise HydraError('Unit %s not found.'%(unit))
+    elif len(units) > 1:
+        raise HydraError('Unit %s has multiple dimensions not found.'%(unit))
+    else:
+        dimension = db.DBSession.query(Dimension).filter(Dimension.id==units[0].dimension_id).one()
+        return str(dimension.name)
+
+
+
+#@required_perms("add_dimension")
 def add_dimension(dimension):
     """
         Add the dimension defined into the object "dimension" to the DB
@@ -90,24 +216,30 @@ def add_dimension(dimension):
 
 
 
-@required_perms("delete_dimension")
-def delete_dimension(self, dimension_name):
+#@required_perms("delete_dimension")
+def delete_dimension(dimension_name):
     """
         Delete a dimension from the DB. Raises and exception if the dimension does not exist
     """
 
     try:
-        dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension_name).filter(Dimension.project_id.isnot(None)).one()
+        #dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension_name).filter(Dimension.project_id.isnot(None)).one()
+        dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension_name).one()
+        log.info("delete_dimension 1")
+
+        db.DBSession.query(Unit).filter(Unit.dimension_id==dimension.id).delete()
+
         db.DBSession.delete(dimension)
+        db.DBSession.flush()
     except NoResultFound:
         raise ResourceNotFoundError("Dimension (dimension_name=%s) does not exist"%(dimension_name))
 
-@required_perms("update_dimension")
-def update_dimension(self, dimension):
+#@required_perms("update_dimension")
+def update_dimension(dimension):
     """
         Update a dimension in the DB.
-        Raises and exception if the dimension does not existself.
-        The key is ALWAYS the name
+        Raises and exception if the dimension does not exist.
+        The key is ALWAYS the name and the name itself is not modificable
     """
     try:
         db_dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension['name']).filter().one()
@@ -124,10 +256,8 @@ def update_dimension(self, dimension):
     return db_dimension
 
 
-
-
-@required_perms("add_unit")
-def add_unit(self, unit):
+#@required_perms("add_unit")
+def add_unit(unit):
     """
         Add the unit defined into the object "unit" to the DB
         If unit["project_id"] is None it means that the unit is global, otherwise is property of a project
@@ -154,13 +284,24 @@ def add_unit(self, unit):
     if 'description' not in unit.keys() or unit['description'] is None:
         unit['description'] = ''
 
-    dimension_data = get_dimension(dimension)
+    dimension_data = get_dimension_data(unit["dimension"])
 
     new_unit = Unit()
     new_unit.dimension_id   = dimension_data.id
     new_unit.name           = unit['name']
-    new_unit.abbreviation   = unit['abbr']
-    new_unit.description    = unit['description']
+
+    # Needed to uniform abbr to abbreviation
+    if ('abbreviation' in unit) and (unit['abbreviation'] is not None):
+        new_unit.abbreviation   = unit['abbreviation']
+    elif ('abbr' in unit) and (unit['abbr'] is not None):
+        new_unit.abbreviation   = unit['abbr']
+
+    # Needed to uniform into to description
+    if ('description' in unit) and (unit['description'] is not None):
+        new_unit.description   = unit['description']
+    elif ('info' in unit) and (unit['info'] is not None):
+        new_unit.description   = unit['info']
+
     new_unit.lf             = unit['lf']
     new_unit.cf             = unit['cf']
 
@@ -174,8 +315,8 @@ def add_unit(self, unit):
 
 
 
-@required_perms("delete_unit")
-def delete_unit(self, unit):
+#@required_perms("delete_unit")
+def delete_unit(unit):
     """
         Delete a unit from the DB.
         Raises and exception if the unit does not exist
@@ -184,12 +325,13 @@ def delete_unit(self, unit):
     try:
         db_unit = db.DBSession.query(Unit).join(Dimension).filter(Unit.abbreviation==unit['abbr']).filter(Dimension.name==unit['dimension']).filter().one()
         db.DBSession.delete(db_unit)
+        db.DBSession.flush()
     except NoResultFound:
         raise ResourceNotFoundError("Unit (abbreviation=%s) does not exist"%(unit['abbr']))
 
 
-@required_perms("update_unit")
-def update_unit(self, unit):
+#@required_perms("update_unit")
+def update_unit(unit):
     """
         Update a unit in the DB.
         Raises and exception if the unit does not existself.
@@ -1061,44 +1203,44 @@ global hydra_units
 hydra_units = Units()
 
 
-def get_unit_dimension(unit1,**kwargs):
-    """Get the corresponding physical dimension for a given unit.
+# def get_unit_dimension(unit1,**kwargs):
+#     """Get the corresponding physical dimension for a given unit.
+#
+#     Example::
+#
+#         >>> cli = PluginLib.connect()
+#         >>> cli.service.get_dimension('m')
+#         Length
+#     """
+#     return hydra_units.get_dimension(unit1)
 
-    Example::
+# def get_dimensions(**kwargs):
+#     """Get a list of all physical dimensions available on the server.
+#     """
+#     dim_list = hydra_units.get_dimensions()
+#     return dim_list
 
-        >>> cli = PluginLib.connect()
-        >>> cli.service.get_dimension('m')
-        Length
-    """
-    return hydra_units.get_dimension(unit1)
+# def get_all_dimensions(**kwargs):
+#     db_units = db.DBSession.query(Unit).all()
+#     log.info(db_units)
+#     return hydra_units.get_all_dimensions()
 
-def get_dimensions(**kwargs):
-    """Get a list of all physical dimensions available on the server.
-    """
-    dim_list = hydra_units.get_dimensions()
-    return dim_list
-
-def get_all_dimensions(**kwargs):
-    db_units = db.DBSession.query(Unit).all()
-    log.info(db_units)
-    return hydra_units.get_all_dimensions()
-
-def get_units(dimension,**kwargs):
-    """Get a list of all units corresponding to a physical dimension.
-    """
-    unit_list = hydra_units.get_units(dimension)
-    unit_dict_list = []
-    for unit in unit_list:
-        cm_unit = dict(
-            name = unit['name'],
-            abbr = unit['abbr'],
-            lf = unit['lf'],
-            cf = unit['cf'],
-            dimension = unit['dimension'],
-            info = unit['info'],
-        )
-        unit_dict_list.append(cm_unit)
-    return unit_dict_list
+# def get_units(dimension,**kwargs):
+#     """Get a list of all units corresponding to a physical dimension.
+#     """
+#     unit_list = hydra_units.get_units(dimension)
+#     unit_dict_list = []
+#     for unit in unit_list:
+#         cm_unit = dict(
+#             name = unit['name'],
+#             abbr = unit['abbr'],
+#             lf = unit['lf'],
+#             cf = unit['cf'],
+#             dimension = unit['dimension'],
+#             info = unit['info'],
+#         )
+#         unit_dict_list.append(cm_unit)
+#     return unit_dict_list
 
 def check_consistency(unit, dimension,**kwargs):
     """Check if a given units corresponds to a physical dimension.
