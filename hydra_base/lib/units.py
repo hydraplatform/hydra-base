@@ -43,10 +43,11 @@ log = logging.getLogger(__name__)
 
 
 # NEW
-def parse_unit(unit):
+def _parse_unit(unit):
     """
         Helper function that extracts constant factors from unit
         specifications. This allows to specify units similar to this: 10^6 m^3.
+        Return a couple (unit, factor)
     """
     try:
         float(unit[0])
@@ -180,7 +181,7 @@ def get_unit_dimension(unit):
         Return the physical dimension a given unit refers to.
     """
 
-    unit, factor = parse_unit(unit)
+    unit, factor = _parse_unit(unit)
 
 
     units = get_units_from_db(unit_abbreviation = unit)
@@ -193,15 +194,33 @@ def get_unit_dimension(unit):
         dimension = db.DBSession.query(Dimension).filter(Dimension.id==units[0].dimension_id).one()
         return str(dimension.name)
 
+def get_unit_data(unit):
+    """
+        Return the full data of a given unit.
+    """
+
+    unit, factor = _parse_unit(unit)
+
+    units = get_units_from_db(unit_abbreviation = unit)
+
+    if len(units) == 0:
+        raise HydraError('Unit %s not found.'%(unit))
+    elif len(units) > 1:
+        raise HydraError('Unit %s has multiple dimensions not found.'%(unit))
+    else:
+        log.info(JSONObject(units[0]).lf)
+        return JSONObject(units[0])
 
 
-#@required_perms("add_dimension")
-def add_dimension(dimension):
+@required_perms("add_dimension")
+def add_dimension(dimension,**kwargs):
     """
         Add the dimension defined into the object "dimension" to the DB
         If dimension["project_id"] is None it means that the dimension is global, otherwise is property of a project
         If the dimension exists emits an exception
     """
+    #user_id = kwargs.get('user_id')
+    #log.info("user_id: {}".format(user_id))
     new_dimension = Dimension()
     new_dimension.name = dimension["name"]
 
@@ -216,8 +235,8 @@ def add_dimension(dimension):
 
 
 
-#@required_perms("delete_dimension")
-def delete_dimension(dimension_name):
+@required_perms("delete_dimension")
+def delete_dimension(dimension_name,**kwargs):
     """
         Delete a dimension from the DB. Raises and exception if the dimension does not exist
     """
@@ -234,8 +253,8 @@ def delete_dimension(dimension_name):
     except NoResultFound:
         raise ResourceNotFoundError("Dimension (dimension_name=%s) does not exist"%(dimension_name))
 
-#@required_perms("update_dimension")
-def update_dimension(dimension):
+@required_perms("update_dimension")
+def update_dimension(dimension,**kwargs):
     """
         Update a dimension in the DB.
         Raises and exception if the dimension does not exist.
@@ -256,8 +275,8 @@ def update_dimension(dimension):
     return db_dimension
 
 
-#@required_perms("add_unit")
-def add_unit(unit):
+@required_perms("add_unit")
+def add_unit(unit,**kwargs):
     """
         Add the unit defined into the object "unit" to the DB
         If unit["project_id"] is None it means that the unit is global, otherwise is property of a project
@@ -315,8 +334,8 @@ def add_unit(unit):
 
 
 
-#@required_perms("delete_unit")
-def delete_unit(unit):
+@required_perms("delete_unit")
+def delete_unit(unit, **kwargs):
     """
         Delete a unit from the DB.
         Raises and exception if the unit does not exist
@@ -330,8 +349,8 @@ def delete_unit(unit):
         raise ResourceNotFoundError("Unit (abbreviation=%s) does not exist"%(unit['abbr']))
 
 
-#@required_perms("update_unit")
-def update_unit(unit):
+@required_perms("update_unit")
+def update_unit(unit, **kwargs):
     """
         Update a unit in the DB.
         Raises and exception if the unit does not existself.
@@ -353,14 +372,100 @@ def update_unit(unit):
     return db_unit
 
 
+def convert_units(values, unit1, unit2,**kwargs):
+    """Convert a value from one unit to another one.
+
+    Example::
+
+        >>> cli = PluginLib.connect()
+        >>> cli.service.convert_units(20.0, 'm', 'km')
+        0.02
+    """
+    if numpy.isscalar(values):
+        # If it is a scalar, converts to an array
+        values = [values]
+    float_values = [float(value) for value in values]
+    return _convert(float_values, unit1, unit2)
+
+def _convert(values, unit1, unit2):
+    """
+        Convert a value from one unit to another one. The two units must
+        represent the same physical dimension.
+    """
+    if get_unit_dimension(unit1) == get_unit_dimension(unit2):
+        unit1, factor1 = _parse_unit(unit1)
+        unit2, factor2 = _parse_unit(unit2)
+
+        # {unit.abbreviation:
+        #            (float(unit.lf),
+        #             float(unit.cf))}
+        unit_data_1 = get_unit_data(unit1)
+        unit_data_2 = get_unit_data(unit2)
+
+        conv_factor1 = JSONObject({'lf': unit_data_1.lf, 'cf': unit_data_1.cf})
+        conv_factor2 = JSONObject({'lf': unit_data_2.lf, 'cf': unit_data_2.cf})
+
+        if isinstance(values, float):
+            return (conv_factor1.lf / conv_factor2.lf * (factor1 * values)
+                    + (conv_factor1.cf - conv_factor2.cf)
+                    / conv_factor2.lf) / factor2
+        elif isinstance(values, list):
+            return [(conv_factor1.lf / conv_factor2.lf * (factor1 * value)
+                    + (conv_factor1.cf - conv_factor2.cf)
+                    / conv_factor2.lf) / factor2 for value in values]
+    else:
+        raise HydraError("Unit conversion: dimensions are not consistent.")
 
 
 
+def check_consistency(unit, dimension):
+    """
+        Check whether a specified unit is consistent with the physical
+        dimension asked for by the attribute or the dataset.
+    """
+    unit_abbr, factor = _parse_unit(unit)
+    dim = get_unit_dimension(unit_abbr)
+    log.info(dim)
+    return dim == dimension
 
 
+def is_global_dimension(dimension_name):
+    """
+        Returns True if the dimension is Global, False is it is assigned to a project
+    """
+    dimension = get_dimension_data(dimension_name)
+    return (dimension.project_id is None)
 
 
+def is_global_unit(unit):
+    """
+        Returns True if the Unit is Global, False is it is assigned to a project
+        'unit' is a Unit object
+    """
+    unit_data = get_unit_data(unit['abbr'])
+    return (unit_data.project_id is None)
 
+def get_unit_abbreviation(unit):
+    """
+        Returns the abbreviation of a unit object, either if it is defined as "abbreviation" or "abbr"
+        'unit' is a Unit object
+    """
+    if ('abbreviation' in unit) and (unit['abbreviation'] is not None):
+        return unit['abbreviation']
+    elif ('abbr' in unit) and (unit['abbr'] is not None):
+        return unit['abbr']
+    return None
+
+def get_unit_description(unit):
+    """
+        Returns the description of a unit object, either if it is defined as "description" or "info"
+        'unit' is a Unit object
+    """
+    if ('description' in unit) and (unit['description'] is not None):
+        return  unit['description']
+    elif ('info' in unit) and (unit['info'] is not None):
+        return  unit['info']
+    return None
 # OLD
 
 class Units(object):
@@ -610,13 +715,13 @@ class Units(object):
         except NoResultFound:
             raise ResourceNotFoundError("Unit %s not found"%(unit_abbr))
 
-    def check_consistency(self, unit, dimension):
-        """
-            Check whether a specified unit is consistent with the physical
-            dimension asked for by the attribute or the dataset.
-        """
-        unit, factor = self.parse_unit(unit)
-        return unit in self.dimensions[dimension]
+    # def check_consistency(self, unit, dimension):
+    #     """
+    #         Check whether a specified unit is consistent with the physical
+    #         dimension asked for by the attribute or the dataset.
+    #     """
+    #     unit, factor = self.parse_unit(unit)
+    #     return unit in self.dimensions[dimension]
 
     def get_dimension(self, unit):
         """
@@ -767,6 +872,7 @@ class Units(object):
         """
             Returns True if the dimension is Global, False is it is assigned to a project
         """
+
         if dimension_name in self.full_data:
             dimension = self.full_data[dimension_name]
             return (dimension.project_id is None)
@@ -1052,7 +1158,7 @@ class Units(object):
         with open(user_unitfile, 'w') as f:
             f.write(str(etree.tostring(self.usertree, pretty_print=True)))
 
-
+# OLD
 
 # def get_dimension(dimension,**kwargs):
 #     """Get a dimension with its units"""
@@ -1128,20 +1234,20 @@ class Units(object):
 #     hydra_units.save_user_file()
 #     return result
 
-def convert_units(values, unit1, unit2,**kwargs):
-    """Convert a value from one unit to another one.
-
-    Example::
-
-        >>> cli = PluginLib.connect()
-        >>> cli.service.convert_units(20.0, 'm', 'km')
-        0.02
-    """
-    if numpy.isscalar(values):
-        # If it is a scalar, converts to an array
-        values = [values]
-    float_values = [float(value) for value in values]
-    return hydra_units.convert(float_values, unit1, unit2)
+# def convert_units(values, unit1, unit2,**kwargs):
+#     """Convert a value from one unit to another one.
+#
+#     Example::
+#
+#         >>> cli = PluginLib.connect()
+#         >>> cli.service.convert_units(20.0, 'm', 'km')
+#         0.02
+#     """
+#     if numpy.isscalar(values):
+#         # If it is a scalar, converts to an array
+#         values = [values]
+#     float_values = [float(value) for value in values]
+#     return hydra_units.convert(float_values, unit1, unit2)
 
 def convert_dataset(dataset_id, to_unit,**kwargs):
     """Convert a whole dataset (specified by 'dataset_id' to new unit
@@ -1242,10 +1348,10 @@ hydra_units = Units()
 #         unit_dict_list.append(cm_unit)
 #     return unit_dict_list
 
-def check_consistency(unit, dimension,**kwargs):
-    """Check if a given units corresponds to a physical dimension.
-    """
-    return hydra_units.check_consistency(unit, dimension)
+# def check_consistency(unit, dimension,**kwargs):
+#     """Check if a given units corresponds to a physical dimension.
+#     """
+#     return hydra_units.check_consistency(unit, dimension)
 
 
 def validate_resource_attributes(resource, attributes, template, check_unit=True, exact_match=False):
