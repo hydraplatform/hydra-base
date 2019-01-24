@@ -201,9 +201,11 @@ def create_default_users_and_perms():
                     ("edit_template", "Edit Template"),
 
                     ("add_dimension", "Add Dimension"),
+                    ("update_dimension", "Update Dimension"),
                     ("delete_dimension", "Delete Dimension"),
 
                     ("add_unit", "Add Unit"),
+                    ("update_unit", "Update Unit"),
                     ("delete_unit", "Delete Unit")
 
 
@@ -242,8 +244,11 @@ def create_default_users_and_perms():
             ('admin', "edit_template"),
 
             ('admin', "add_dimension"),
+            ('admin', "update_dimension"),
             ('admin', "delete_dimension"),
+
             ('admin', "add_unit"),
+            ('admin', "update_unit"),
             ('admin', "delete_unit"),
 
             # Developer permissions
@@ -262,8 +267,11 @@ def create_default_users_and_perms():
             ("developer", "edit_template"),
 
             ('developer', "add_dimension"),
+            ('developer', "update_dimension"),
             ('developer', "delete_dimension"),
+
             ('developer', "add_unit"),
+            ('developer', "update_unit"),
             ('developer', "delete_unit"),
 
             # modeller permissions
