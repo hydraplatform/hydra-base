@@ -32,6 +32,8 @@ class TestUnits():
     """
         Test for working with units.
     """
+    def _get_root_user_id(self):
+        return 1
     def test_get_dimensions(self):
 
         dimension_list = hb.get_dimensions()
@@ -86,9 +88,9 @@ class TestUnits():
     def test_add_dimension(self):
 
         # Try to add an existing dimension
-        testdim = {'name':'Length'}
+        testdim = {'name': 'Length'}
         with pytest.raises(Exception) as excinfo:
-            hb.add_dimension(testdim)
+            hb.add_dimension(testdim, user_id=self._get_root_user_id())
 
         # IN this way we can test that the exception is specifically what we want and not other exceptions type
         assert "IntegrityError" in JSONObject(excinfo.type)["__doc__"], \
@@ -98,7 +100,7 @@ class TestUnits():
         hb.db.DBSession.rollback()
         # Add a new dimension
         testdim = {'name':'Electric current'}
-        hb.add_dimension(testdim)
+        hb.add_dimension(testdim, user_id=self._get_root_user_id())
 
         dimension_list = list(hb.get_dimensions())
         assert testdim["name"] in dimension_list, \
@@ -112,7 +114,7 @@ class TestUnits():
                     'name':'Length',
                     'description': 'New description'
                     }
-        hb.update_dimension(testdim)
+        hb.update_dimension(testdim, user_id=self._get_root_user_id())
 
         modified_dim = hb.get_dimension_data(testdim["name"])
         assert modified_dim.description == testdim["description"], \
@@ -124,10 +126,10 @@ class TestUnits():
         # Add a new dimension and delete it
 
         testdim = {'name':'Electric current'}
-        hb.add_dimension(testdim)
+        hb.add_dimension(testdim, user_id=self._get_root_user_id())
         old_dimension_list = list(hb.get_dimensions())
 
-        hb.delete_dimension(testdim["name"])
+        hb.delete_dimension(testdim["name"], user_id=self._get_root_user_id())
 
         new_dimension_list = list(hb.get_dimensions())
 
@@ -147,7 +149,7 @@ class TestUnits():
         new_unit.lf = 1.47867648e-05  # Linear conversion factor
         new_unit.dimension = 'Volumetric flow rate'
         new_unit.info = 'A flow of one tablespoon per second.'
-        hb.add_unit(new_unit)
+        hb.add_unit(new_unit, user_id=self._get_root_user_id())
 
         unitlist = list(hb.get_units(new_unit.dimension))
 
@@ -160,12 +162,12 @@ class TestUnits():
         assert new_unit.abbr in unitabbr, \
             "Adding new unit didn't work."
 
-        hb.delete_dimension(new_unit.dimension)
+        hb.delete_dimension(new_unit.dimension, user_id=self._get_root_user_id())
 
 
         # Add a new unit to an existing custom dimension
         testdim = {'name':'Test dimension'}
-        hb.add_dimension(testdim)
+        hb.add_dimension(testdim, user_id=self._get_root_user_id())
 
         testunit = JSONObject({})
         testunit.name = 'Test'
@@ -174,7 +176,7 @@ class TestUnits():
         testunit.lf = 42
         testunit.dimension = testdim["name"]
 
-        result = hb.add_unit(testunit)
+        result = hb.add_unit(testunit, user_id=self._get_root_user_id())
 
 
         unitlist = list(hb.get_units(testdim["name"]))
@@ -185,7 +187,7 @@ class TestUnits():
         assert unitlist[0]["name"] == 'Test', \
             "Adding a new unit didn't work as expected"
 
-        hb.delete_dimension(testdim["name"])
+        hb.delete_dimension(testdim["name"], user_id=self._get_root_user_id())
 
 
 
@@ -193,7 +195,7 @@ class TestUnits():
         # Add a new unit to a new dimension
 
         testdim = {'name':'Test dimension'}
-        hb.add_dimension(testdim)
+        hb.add_dimension(testdim, user_id=self._get_root_user_id())
 
         testunit = JSONObject({})
         testunit.name = 'Test'
@@ -201,24 +203,24 @@ class TestUnits():
         testunit.cf = 21
         testunit.lf = 42
         testunit.dimension = testdim["name"]
-        hb.add_unit(testunit)
+        hb.add_unit(testunit, user_id=self._get_root_user_id())
 
         # Update it
         testunit.cf = 0
-        hb.update_unit(testunit)
+        hb.update_unit(testunit, user_id=self._get_root_user_id())
 
         unitlist = list(hb.get_units(testdim["name"]))
 
         assert len(unitlist) > 0 and int(unitlist[0]['cf']) == 0, \
             "Updating unit didn't work correctly."
 
-        hb.delete_dimension(testdim["name"])
+        hb.delete_dimension(testdim["name"], user_id=self._get_root_user_id())
 
     def test_delete_unit(self):
         # Add a new unit to a new dimension
 
         testdim = {'name':'Test dimension'}
-        hb.add_dimension(testdim)
+        hb.add_dimension(testdim, user_id=self._get_root_user_id())
 
         testunit = JSONObject({})
         testunit.name = 'Test'
@@ -226,7 +228,7 @@ class TestUnits():
         testunit.cf = 21
         testunit.lf = 42
         testunit.dimension = testdim["name"]
-        hb.add_unit(testunit)
+        hb.add_unit(testunit, user_id=self._get_root_user_id())
 
         # Check if the unit has been added
         unitlist = hb.get_units(testunit.dimension)
@@ -235,28 +237,28 @@ class TestUnits():
         assert len(unitlist) > 0 and unitlist[0]['abbr'] == testunit.abbr, \
             "The adding has not worked properly"
 
-        result = hb.delete_unit(testunit)
+        result = hb.delete_unit(testunit, user_id=self._get_root_user_id())
 
         unitlist = hb.get_units(testunit.dimension)
 
         assert len(unitlist) == 0, \
             "Deleting unit didn't work correctly."
 
-        hb.delete_dimension(testunit.dimension)
-    #
-    # def test_convert_units(self):
-    #
-    #     result = hb.convert_units(20, 'm', 'km')
-    #     assert result == [0.02], \
-    #         "Converting metres to kilometres didn't work."
-    #
-    #     result = hb.convert_units([20., 30., 40.], 'm', 'km')
-    #     assert result == [0.02, 0.03, 0.04],  \
-    #         "Unit conversion of array didn't work."
-    #
-    #     result = hb.convert_units(20, '2e6 m^3', 'hm^3')
-    #     assert result == [40], "Conversion with factor didn't work correctly."
-    #
+        hb.delete_dimension(testunit.dimension, user_id=self._get_root_user_id())
+
+    def test_convert_units(self):
+
+        result = hb.convert_units(20, 'm', 'km')
+        assert result == [0.02], \
+            "Converting metres to kilometres didn't work."
+
+        result = hb.convert_units([20., 30., 40.], 'm', 'km')
+        assert result == [0.02, 0.03, 0.04],  \
+            "Unit conversion of array didn't work."
+
+        result = hb.convert_units(20, '2e6 m^3', 'hm^3')
+        assert result == [40], "Conversion with factor didn't work correctly."
+
     # def test_convert_dataset(self, session):
     #     network = util.create_network_with_data(num_nodes=2)
     #     scenario = \
@@ -286,22 +288,46 @@ class TestUnits():
     #         "Unit conversion did not work"
     #
     #
-    # def test_check_consistency(self):
-    #     result1 = hb.check_consistency('m^3', 'Volume')
-    #     result2 = hb.check_consistency('m', 'Volume')
-    #     assert result1 is True, \
-    #         "Unit consistency check didn't work."
-    #     assert result2 is False, \
-    #         "Unit consistency check didn't work."
-    #
-    #
-    #
+    def test_check_consistency(self):
+        result1 = hb.check_consistency('m^3', 'Volume')
+        result2 = hb.check_consistency('m', 'Volume')
+        assert result1 is True, \
+            "Unit consistency check didn't work."
+        assert result2 is False, \
+            "Unit consistency check didn't work."
 
 
 
+    def test_is_global_dimension(self):
+        result = hb.is_global_dimension('Length')
+        assert result is True, \
+            "Is global dimension check didn't work."
+
+    def test_is_global_unit(self):
+        result = hb.is_global_unit({'abbr':'m'})
+        assert result is True, \
+            "Is global unit check didn't work."
 
 
+    def test_get_unit_abbreviation(self):
+        assert hb.get_unit_abbreviation({'abbr': 'test'}) == 'test', \
+            "get_unit_abbreviation didn't work."
 
+        assert hb.get_unit_abbreviation({'abbreviation': 'test'}) == 'test', \
+            "get_unit_abbreviation didn't work."
+
+        assert hb.get_unit_abbreviation({}) is None, \
+            "get_unit_abbreviation didn't work."
+
+    def test_get_unit_description(self):
+        assert hb.get_unit_description({'info': 'test'}) == 'test', \
+            "get_unit_description didn't work."
+
+        assert hb.get_unit_description({'description': 'test'}) == 'test', \
+            "get_unit_description didn't work."
+
+        assert hb.get_unit_description({}) is None, \
+            "get_unit_description didn't work."
 
 
 
