@@ -66,9 +66,6 @@ class TestUnits():
     """
         Test for working with units.
     """
-    def _get_root_user_id(self):
-        return 1
-
     def test_get_dimensions(self):
 
         dimension_list = hb.get_dimensions()
