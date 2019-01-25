@@ -407,7 +407,12 @@ def create_default_units_and_dimensions():
             else:
                 #log.critical("UNIT {}.{} EXISTANT".format(dimension_name,json_unit['abbr']))
                 pass
-    db.DBSession.commit()
+    try:
+        # Needed for test. on HWI it fails so we need to catch the exception and pass by
+        db.DBSession.commit()
+    except Exception as e:
+        # Needed for HWI
+        pass
     return
 
 
