@@ -43,6 +43,41 @@ log = logging.getLogger(__name__)
 
 
 # NEW
+
+
+
+"""
+-------------------------------
+ DIMENSION FUNCTIONS - VARIOUS
+-------------------------------
+"""
+
+def exists_dimension(dimension_name,**kwargs):
+    """
+        Given a dimension returns its units as a list
+    """
+    try:
+        dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension_name).one()
+        # At this point the dimension exists
+        return True
+    except NoResultFound:
+        # The dimension does not exist
+        raise False
+
+def is_global_dimension(dimension_name):
+    """
+        Returns True if the dimension is Global, False is it is assigned to a project
+    """
+    dimension = get_dimension_data(dimension_name)
+    return (dimension.project_id is None)
+
+
+"""
+-------------------------------
+UNIT FUNCTIONS - VARIOUS
+-------------------------------
+"""
+
 def _parse_unit(unit):
     """
         Helper function that extracts constant factors from unit
@@ -56,17 +91,86 @@ def _parse_unit(unit):
     except ValueError:
         return unit, 1.0
 
-def exists_dimension(dimension_name,**kwargs):
+def is_global_unit(unit):
     """
-        Given a dimension returns its units as a list
+        Returns True if the Unit is Global, False is it is assigned to a project
+        'unit' is a Unit object
     """
-    try:
-        dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension_name).one()
-        # At this point the dimension exists
-        return True
-    except NoResultFound:
-        # The dimension does not exist
-        raise False
+    unit_data = get_unit_data(unit['abbr'])
+    return (unit_data.project_id is None)
+
+def extract_unit_abbreviation(unit):
+    """
+        Returns the abbreviation of a unit object, either if it is defined as "abbreviation" or "abbr"
+        'unit' is a Unit object
+    """
+    unit = JSONObject(unit)
+    if ('abbreviation' in unit) and (unit['abbreviation'] is not None):
+        return unit['abbreviation']
+    elif ('abbr' in unit) and (unit['abbr'] is not None):
+        return unit['abbr']
+    return None
+
+def extract_unit_description(unit):
+    """
+        Returns the description of a unit object, either if it is defined as "description" or "info"
+        'unit' is a Unit object
+    """
+    unit = JSONObject(unit)
+    if ('description' in unit) and (unit['description'] is not None):
+        return  unit['description']
+    elif ('info' in unit) and (unit['info'] is not None):
+        return  unit['info']
+    return None
+
+
+def convert_units(values, unit1, unit2,**kwargs):
+    """Convert a value from one unit to another one.
+
+    Example::
+
+        >>> cli = PluginLib.connect()
+        >>> cli.service.convert_units(20.0, 'm', 'km')
+        0.02
+    """
+    if numpy.isscalar(values):
+        # If it is a scalar, converts to an array
+        values = [values]
+    float_values = [float(value) for value in values]
+    return _convert(float_values, unit1, unit2)
+
+def _convert(values, unit1, unit2):
+    """
+        Convert a value from one unit to another one. The two units must
+        represent the same physical dimension.
+    """
+    if get_unit_dimension(unit1) == get_unit_dimension(unit2):
+        unit1, factor1 = _parse_unit(unit1)
+        unit2, factor2 = _parse_unit(unit2)
+
+        unit_data_1 = get_unit_data(unit1)
+        unit_data_2 = get_unit_data(unit2)
+
+        conv_factor1 = JSONObject({'lf': unit_data_1.lf, 'cf': unit_data_1.cf})
+        conv_factor2 = JSONObject({'lf': unit_data_2.lf, 'cf': unit_data_2.cf})
+
+        if isinstance(values, float):
+            return (conv_factor1.lf / conv_factor2.lf * (factor1 * values)
+                    + (conv_factor1.cf - conv_factor2.cf)
+                    / conv_factor2.lf) / factor2
+        elif isinstance(values, list):
+            return [(conv_factor1.lf / conv_factor2.lf * (factor1 * value)
+                    + (conv_factor1.cf - conv_factor2.cf)
+                    / conv_factor2.lf) / factor2 for value in values]
+    else:
+        raise HydraError("Unit conversion: dimensions are not consistent.")
+
+
+"""
+---------------------------
+ DIMENSION FUNCTIONS - GET
+---------------------------
+"""
 
 def get_dimension(dimension_name,**kwargs):
     """
@@ -123,6 +227,13 @@ def get_dimension_data(dimension_name):
         # The dimension does not exist
         raise ResourceNotFoundError("Dimension %s not found"%(dimension_name))
 
+
+"""
+----------------------
+ UNIT FUNCTIONS - GET
+----------------------
+"""
+
 def get_units_from_db(**kwargs):
     """
         Gets all units from the DB table.
@@ -150,14 +261,13 @@ def get_units_from_db(**kwargs):
     else:
         rs = db.DBSession.query(Unit).all()
 
-    #log.info(rs)
     return rs
 
 
 
 def get_units(dim_name):
     """
-        Get a list of all units corresponding to a physical dimension.
+        Gets a list of all units corresponding to a physical dimension.
     """
     unit_list = get_units_from_db(dimension_name = dim_name)
     log.info(unit_list)
@@ -166,10 +276,12 @@ def get_units(dim_name):
         new_unit = dict(
             name = unit.name,
             abbr = unit.abbreviation,
+            abbreviation = unit.abbreviation,
             lf = unit.lf,
             cf = unit.cf,
             dimension = dim_name,
             info = unit.description,
+            description = unit.description
         )
         unit_dict_list.append(new_unit)
     log.info(unit_dict_list)
@@ -210,6 +322,17 @@ def get_unit_data(unit):
     else:
         log.info(JSONObject(units[0]).lf)
         return JSONObject(units[0])
+
+
+
+
+"""
+-----------------------------------------
+ DIMENSION FUNCTIONS - ADD - DEL - UPD
+-----------------------------------------
+"""
+
+
 
 
 @required_perms("add_dimension")
@@ -274,6 +397,11 @@ def update_dimension(dimension,**kwargs):
     db.DBSession.flush()
     return db_dimension
 
+"""
+-----------------------------------------
+ UNIT FUNCTIONS - ADD - DEL - UPD
+-----------------------------------------
+"""
 
 @required_perms("add_unit")
 def add_unit(unit,**kwargs):
@@ -372,49 +500,14 @@ def update_unit(unit, **kwargs):
     return db_unit
 
 
-def convert_units(values, unit1, unit2,**kwargs):
-    """Convert a value from one unit to another one.
+"""
+-----------------
+ OTHER FUNCTIONS
+-----------------
+"""
 
-    Example::
 
-        >>> cli = PluginLib.connect()
-        >>> cli.service.convert_units(20.0, 'm', 'km')
-        0.02
-    """
-    if numpy.isscalar(values):
-        # If it is a scalar, converts to an array
-        values = [values]
-    float_values = [float(value) for value in values]
-    return _convert(float_values, unit1, unit2)
 
-def _convert(values, unit1, unit2):
-    """
-        Convert a value from one unit to another one. The two units must
-        represent the same physical dimension.
-    """
-    if get_unit_dimension(unit1) == get_unit_dimension(unit2):
-        unit1, factor1 = _parse_unit(unit1)
-        unit2, factor2 = _parse_unit(unit2)
-
-        # {unit.abbreviation:
-        #            (float(unit.lf),
-        #             float(unit.cf))}
-        unit_data_1 = get_unit_data(unit1)
-        unit_data_2 = get_unit_data(unit2)
-
-        conv_factor1 = JSONObject({'lf': unit_data_1.lf, 'cf': unit_data_1.cf})
-        conv_factor2 = JSONObject({'lf': unit_data_2.lf, 'cf': unit_data_2.cf})
-
-        if isinstance(values, float):
-            return (conv_factor1.lf / conv_factor2.lf * (factor1 * values)
-                    + (conv_factor1.cf - conv_factor2.cf)
-                    / conv_factor2.lf) / factor2
-        elif isinstance(values, list):
-            return [(conv_factor1.lf / conv_factor2.lf * (factor1 * value)
-                    + (conv_factor1.cf - conv_factor2.cf)
-                    / conv_factor2.lf) / factor2 for value in values]
-    else:
-        raise HydraError("Unit conversion: dimensions are not consistent.")
 
 
 
@@ -429,43 +522,8 @@ def check_consistency(unit, dimension):
     return dim == dimension
 
 
-def is_global_dimension(dimension_name):
-    """
-        Returns True if the dimension is Global, False is it is assigned to a project
-    """
-    dimension = get_dimension_data(dimension_name)
-    return (dimension.project_id is None)
 
 
-def is_global_unit(unit):
-    """
-        Returns True if the Unit is Global, False is it is assigned to a project
-        'unit' is a Unit object
-    """
-    unit_data = get_unit_data(unit['abbr'])
-    return (unit_data.project_id is None)
-
-def get_unit_abbreviation(unit):
-    """
-        Returns the abbreviation of a unit object, either if it is defined as "abbreviation" or "abbr"
-        'unit' is a Unit object
-    """
-    if ('abbreviation' in unit) and (unit['abbreviation'] is not None):
-        return unit['abbreviation']
-    elif ('abbr' in unit) and (unit['abbr'] is not None):
-        return unit['abbr']
-    return None
-
-def get_unit_description(unit):
-    """
-        Returns the description of a unit object, either if it is defined as "description" or "info"
-        'unit' is a Unit object
-    """
-    if ('description' in unit) and (unit['description'] is not None):
-        return  unit['description']
-    elif ('info' in unit) and (unit['info'] is not None):
-        return  unit['info']
-    return None
 # OLD
 
 class Units(object):
@@ -1249,10 +1307,18 @@ class Units(object):
 #     float_values = [float(value) for value in values]
 #     return hydra_units.convert(float_values, unit1, unit2)
 
+"""
+-------------------
+ DATASET functions
+-------------------
+"""
+
+
 def convert_dataset(dataset_id, to_unit,**kwargs):
-    """Convert a whole dataset (specified by 'dataset_id' to new unit
-    ('to_unit'). Conversion ALWAYS creates a NEW dataset, so function
-    returns the dataset ID of new dataset.
+    """
+        Convert a whole dataset (specified by 'dataset_id' to new unit
+        ('to_unit'). Conversion ALWAYS creates a NEW dataset, so function
+        returns the dataset ID of new dataset.
     """
 
     ds_i = db.DBSession.query(Dataset).filter(Dataset.id==dataset_id).one()
@@ -1264,18 +1330,18 @@ def convert_dataset(dataset_id, to_unit,**kwargs):
 
     if old_unit is not None:
         if dataset_type == 'scalar':
-            new_val = hydra_units.convert(float(dsval), old_unit, to_unit)
+            new_val = _convert(float(dsval), old_unit, to_unit)
         elif dataset_type == 'array':
             dim = array_dim(dsval)
             vecdata = arr_to_vector(dsval)
-            newvec = hydra_units.convert(vecdata, old_unit, to_unit)
+            newvec = _convert(vecdata, old_unit, to_unit)
             new_val = vector_to_arr(newvec, dim)
         elif dataset_type == 'timeseries':
             new_val = []
             for ts_time, ts_val in dsval.items():
                 dim = array_dim(ts_val)
                 vecdata = arr_to_vector(ts_val)
-                newvec = hydra_units.convert(vecdata, old_unit, to_unit)
+                newvec = _convert(vecdata, old_unit, to_unit)
                 newarr = vector_to_arr(newvec, dim)
                 new_val.append(ts_time, newarr)
         elif dataset_type == 'descriptor':
@@ -1283,7 +1349,7 @@ def convert_dataset(dataset_id, to_unit,**kwargs):
 
         new_dataset = Dataset()
         new_dataset.type   = ds_i.type
-        new_dataset.value  = new_val
+        new_dataset.value  = str(new_val) # The data type is TEXT!!!
         new_dataset.name   = ds_i.name
         new_dataset.unit   = to_unit
         new_dataset.hidden = 'N'
@@ -1291,6 +1357,8 @@ def convert_dataset(dataset_id, to_unit,**kwargs):
         new_dataset.set_hash()
 
         existing_ds = db.DBSession.query(Dataset).filter(Dataset.hash==new_dataset.hash).first()
+
+        log.info(new_dataset.value)
 
         if existing_ds is not None:
             db.DBSession.expunge_all()
@@ -1353,6 +1421,11 @@ hydra_units = Units()
 #     """
 #     return hydra_units.check_consistency(unit, dimension)
 
+"""
+--------------------
+ RESOURCE functions
+--------------------
+"""
 
 def validate_resource_attributes(resource, attributes, template, check_unit=True, exact_match=False):
     """
@@ -1363,13 +1436,13 @@ def validate_resource_attributes(resource, attributes, template, check_unit=True
         The template should take the form of a dictionary, as should the
         resources.
 
-        *check_unit*:  Make sure that if a unit is specified in the template, it
-                     is the same in the data
-        *exact_match*: Enure that all the attributes in the template are in
-                     the data also. By default this is false, meaning a subset
-                     of the template attributes may be specified in the data.
-                     An attribute specified in the data *must* be defined in
-                     the template.
+        *check_unit*: Makes sure that if a unit is specified in the template, it
+                      is the same in the data
+        *exact_match*: Ensures that all the attributes in the template are in
+                       the data also. By default this is false, meaning a subset
+                       of the template attributes may be specified in the data.
+                       An attribute specified in the data *must* be defined in
+                       the template.
 
         @returns a list of error messages. An empty list indicates no
         errors were found.
@@ -1481,12 +1554,12 @@ def validate_resource_attributes(resource, attributes, template, check_unit=True
 
     return errors
 
-if __name__ == '__main__':
-    units = Units()
-    for dim in units.unittree:
-        print('**' + dim.get('name') + '**')
-        for unit in dim:
-            print(unit.get('name'), unit.get('abbr'), unit.get('lf'),
-                  unit.get('cf'), unit.get('info'))
-
-    print(units.convert(200, 'm^3', 'ac-ft'))
+# if __name__ == '__main__':
+#     units = Units()
+#     for dim in units.unittree:
+#         print('**' + dim.get('name') + '**')
+#         for unit in dim:
+#             print(unit.get('name'), unit.get('abbr'), unit.get('lf'),
+#                   unit.get('cf'), unit.get('info'))
+#
+#     print(units.convert(200, 'm^3', 'ac-ft'))
