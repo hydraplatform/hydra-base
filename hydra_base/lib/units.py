@@ -42,9 +42,6 @@ import logging
 log = logging.getLogger(__name__)
 
 
-# NEW
-
-
 
 """
 -------------------------------
@@ -505,12 +502,6 @@ def update_unit(unit, **kwargs):
  OTHER FUNCTIONS
 -----------------
 """
-
-
-
-
-
-
 def check_consistency(unit, dimension):
     """
         Check whether a specified unit is consistent with the physical
@@ -520,334 +511,6 @@ def check_consistency(unit, dimension):
     dim = get_unit_dimension(unit_abbr)
     log.info(dim)
     return dim == dimension
-
-
-
-
-# OLD
-
-class Units(object):
-    """
-    This class provides functionality for unit conversion and checking of
-    consistency between units and dimensions. Unit conversion factors are
-    defined in a static built-in XML file and in a custom file defined by
-    the user. The location of the unit conversion file provided by the user
-    is specified in the config file in section ``[unit conversion]``. This
-    section and a file specifying custom unit conversion factors are optional.
-    """
-
-    unittree = None
-    usertree = None
-
-    dimensions = dict()
-    units = dict()
-    userunits = []
-    userdimensions = []
-    static_dimensions = []
-    unit_description = dict()
-    unit_info = dict()
-
-    dimensions_2 = dict()
-    units_2 = dict()
-    unit_description_2 = dict()
-    unit_info_2 = dict()
-    static_dimensions_2 = []
-    userunits_2 = []
-    userdimensions_2 = []
-
-    full_data = dict() # This will contain all the data from the DB
-
-
-    def __init__(self):
-        db.connect() # Connection to the DB
-        return
-
-        #self.get_units_from_db()
-        dimensions_list = self.get_dimensions_from_db()
-
-        user_dimensions_list = self.get_dimensions_from_db(True)
-
-        default_user_file_location = os.path.realpath(\
-            os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                         '../',
-                         'static',
-                         'user_units.xml'))
-
-        user_unitfile = config.get("unit_conversion",
-                                       "user_file",
-                                       default_user_file_location)
-
-        #If the user unit file doesn't exist, create it.
-        if not os.path.exists(user_unitfile):
-            open(user_unitfile, 'a').close()
-
-        default_builtin_unitfile_location = \
-                os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                            '../'
-                             'static',
-                             'unit_definitions.xml')
-
-        builtin_unitfile = config.get("unit_conversion",
-                                       "default_file",
-                                       default_builtin_unitfile_location)
-
-        log.debug("Default unitfile: %s", builtin_unitfile)
-        log.debug("User unitfile: %s", user_unitfile)
-
-        with open(builtin_unitfile) as f:
-            self.unittree = etree.parse(f).getroot()
-
-        # for element in self.unittree:
-        #     self.static_dimensions_2.append(element.get('name'))
-
-        with open(user_unitfile) as f:
-            self.usertree = etree.parse(f).getroot()
-
-        with open(builtin_unitfile) as f:
-            self.unittree = etree.parse(f).getroot()
-
-        # for element in self.usertree:
-        #     self.unittree.append(deepcopy(element))
-        #     self.userdimensions_2.append(element.get('name'))
-        #     for subelement in element:
-        #         self.userunits_2.append(subelement.get('abbr'))
-
-        # DB Based
-        for dimension in dimensions_list:
-            # log.info(dimension)
-            # log.info(dimension.name)
-            #self.userdimensions.append(dim.name)
-            new_dimension = JSONObject({})
-            new_dimension.id = dimension.id
-            new_dimension.name= dimension.name
-            new_dimension.description= dimension.description
-            new_dimension.units= []
-
-            self.full_data[dimension.name] = new_dimension
-
-            if dimension not in self.dimensions.keys():
-                self.dimensions.update({str(dimension.name): []})
-
-            if dimension not in self.dimensions.keys():
-                self.static_dimensions.append(dimension.name)
-
-            units_list = self.get_units_from_db(dimension.id)
-
-            for unit in units_list:
-                new_unit = JSONObject({})
-                new_unit.id = unit.id
-                new_unit.dimension_id = unit.dimension_id
-                new_unit.name = unit.name
-                new_unit.abbreviation = unit.abbreviation
-                new_unit.description = unit.description
-                new_unit.lf = unit.lf
-                new_unit.cf = unit.cf
-                new_unit.project_id = unit.project_id
-
-                self.full_data[dimension.name].units.append(new_unit)
-
-
-
-                self.dimensions[dimension.name].append(unit.abbreviation)
-                self.units.update({unit.abbreviation:
-                                   (float(unit.lf),
-                                    float(unit.cf))})
-                self.unit_description.update({unit.abbreviation:
-                                              unit.name})
-                self.unit_info.update({unit.abbreviation:
-                                       unit.description})
-
-        for dimension in user_dimensions_list:
-            self.userdimensions.append(dimension.name)
-            units_list = self.get_units_from_db(dimension.name)
-            for unit in units_list:
-                self.userunits.append(unit.abbreviation)
-
-        log.info(self.full_data)
-
-        log.info(self.get_dimension_from_db_by_name("Length"))
-
-        log.info(self.get_unit_from_db_by_abbreviation("s"))
-
-    def do_deep_compare(self, left, right, message_to_show):
-        """
-            Utility function. Does a deep compare of two objects and show an error in case of failure
-        """
-        if self.deep_compare(left, right):
-             log.info("{} are OK".format(message_to_show))
-        else:
-             log.critical("{} are WRONG".format(message_to_show))
-             log.info(left)
-             log.info(right)
-
-
-
-    def deep_compare(self,left, right, level=0):
-        """
-            Utility function. Does a deep compare of two objects and returns the comparison success status
-        """
-        if type(left) != type(right):
-            log.info("Exit 1 - Different types")
-            return False
-
-        elif type(left) is dict:
-            # Dict comparison
-            for key in left:
-                if key not in right:
-                    log.info("Exit 2 - missing {} in right".format(key))
-                    return False
-                else:
-                    if not self.deep_compare(left[str(key)], right[str(key)], level +1 ):
-                        log.info("Exit 3 - different children")
-                        return False
-            return True
-        elif type(left) is list:
-            # List comparison
-            for key in left:
-                if key not in right:
-                    log.info("Exit 4 - missing {} in right".format(key))
-                    return False
-                else:
-                    if not self.deep_compare(left[left.index(key)], right[right.index(key)], level +1 ):
-                        log.info("Exit 5 - different children")
-                        return False
-            return True
-        else:
-            # Other comparison
-            return left == right
-
-        return False
-
-
-    def get_units_from_db(self, dimension_id=None):
-        """
-            Gets all units from the DB table. If dimension_id is specified it is used as filter
-        """
-        rs = None
-        if dimension_id==None:
-            rs = db.DBSession.query(Unit).all()
-        else:
-            rs = db.DBSession.query(Unit).filter(Unit.dimension_id==dimension_id).all()
-        #log.info(rs)
-        return rs
-
-    def get_dimensions_from_db(self, are_user_dimensions=False):
-        """
-            Gets all dimension from the DB table.
-        """
-        if not are_user_dimensions:
-            rs = db.DBSession.query(Dimension).all()
-        else:
-            rs = db.DBSession.query(Dimension).filter(Dimension.project_id.isnot(None)).all()
-
-        #log.info(rs)
-        return rs
-
-    def get_dimension_from_db_by_name(self, dimension_name):
-        """
-            Gets a dimension from the DB table.
-        """
-        try:
-            dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension_name).one()
-            return JSONObject(dimension)
-        except NoResultFound:
-            raise ResourceNotFoundError("Dimension %s not found"%(dimension_name))
-
-    def get_unit_from_db_by_abbreviation(self, unit_abbr):
-        """
-            Gets a Unit from the DB table.
-        """
-        try:
-            unit = db.DBSession.query(Unit).filter(Unit.abbreviation==unit_abbr).one()
-            return JSONObject(unit)
-        except NoResultFound:
-            raise ResourceNotFoundError("Unit %s not found"%(unit_abbr))
-
-    # def check_consistency(self, unit, dimension):
-    #     """
-    #         Check whether a specified unit is consistent with the physical
-    #         dimension asked for by the attribute or the dataset.
-    #     """
-    #     unit, factor = self.parse_unit(unit)
-    #     return unit in self.dimensions[dimension]
-
-    def get_dimension(self, unit):
-        """
-            Return the physical dimension a given unit refers to.
-        """
-
-        unit, factor = self.parse_unit(unit)
-        for dim in self.dimensions.keys():
-            if unit in self.dimensions[dim]:
-                return dim
-        raise HydraError('Unit %s not found.'%(unit))
-
-    def convert(self, values, unit1, unit2):
-        """
-            Convert a value from one unit to another one. The two units must
-            represent the same physical dimension.
-        """
-        if self.get_dimension(unit1) == self.get_dimension(unit2):
-            unit1, factor1 = self.parse_unit(unit1)
-            unit2, factor2 = self.parse_unit(unit2)
-            conv_factor1 = self.units[unit1]
-            conv_factor2 = self.units[unit2]
-
-            if isinstance(values, float):
-                return (conv_factor1[0] / conv_factor2[0] * (factor1 * values)
-                        + (conv_factor1[1] - conv_factor2[1])
-                        / conv_factor2[0]) / factor2
-            elif isinstance(values, list):
-                return [(conv_factor1[0] / conv_factor2[0] * (factor1 * value)
-                        + (conv_factor1[1] - conv_factor2[1])
-                        / conv_factor2[0]) / factor2 for value in values]
-        else:
-            raise HydraError("Unit conversion: dimensions are not consistent.")
-
-    def parse_unit(self, unit):
-        """
-            Helper function that extracts constant factors from unit
-            specifications. This allows to specify units similar to this: 10^6 m^3.
-        """
-        try:
-            float(unit[0])
-            factor, unit = unit.split(' ', 1)
-            return unit, float(factor)
-        except ValueError:
-            return unit, 1.0
-
-    def get_dimensions(self):
-        """
-            Get a list of all dimensions keys listed in one of the xml files.
-        """
-        return self.dimensions.keys()
-
-    def get_all_dimensions(self):
-        """
-            Get the list of all dimensions objects listed in one of the xml files.
-        """
-        return self.dimensions
-
-    def get_units(self, dimension):
-        """
-            Get a list of all units describing one specific dimension.
-        """
-        unitlist = []
-        for unit in self.dimensions[dimension]:
-            unitdict = dict()
-            unitdict.update({'abbr': unit})
-            unitdict.update({'name': self.unit_description[unit]})
-            unitdict.update({'lf': self.units[unit][0]})
-            unitdict.update({'cf': self.units[unit][1]})
-            unitdict.update({'dimension': dimension})
-            unitdict.update({'info': self.unit_info[unit]})
-            unitlist.append(unitdict)
-        return unitlist
-
-
-
-
-
 
 
 """
@@ -915,54 +578,6 @@ def convert_dataset(dataset_id, to_unit,**kwargs):
     else:
         raise HydraError('Dataset has no units.')
 
-
-global hydra_units
-hydra_units = Units()
-
-
-# def get_unit_dimension(unit1,**kwargs):
-#     """Get the corresponding physical dimension for a given unit.
-#
-#     Example::
-#
-#         >>> cli = PluginLib.connect()
-#         >>> cli.service.get_dimension('m')
-#         Length
-#     """
-#     return hydra_units.get_dimension(unit1)
-
-# def get_dimensions(**kwargs):
-#     """Get a list of all physical dimensions available on the server.
-#     """
-#     dim_list = hydra_units.get_dimensions()
-#     return dim_list
-
-# def get_all_dimensions(**kwargs):
-#     db_units = db.DBSession.query(Unit).all()
-#     log.info(db_units)
-#     return hydra_units.get_all_dimensions()
-
-# def get_units(dimension,**kwargs):
-#     """Get a list of all units corresponding to a physical dimension.
-#     """
-#     unit_list = hydra_units.get_units(dimension)
-#     unit_dict_list = []
-#     for unit in unit_list:
-#         cm_unit = dict(
-#             name = unit['name'],
-#             abbr = unit['abbr'],
-#             lf = unit['lf'],
-#             cf = unit['cf'],
-#             dimension = unit['dimension'],
-#             info = unit['info'],
-#         )
-#         unit_dict_list.append(cm_unit)
-#     return unit_dict_list
-
-# def check_consistency(unit, dimension,**kwargs):
-#     """Check if a given units corresponds to a physical dimension.
-#     """
-#     return hydra_units.check_consistency(unit, dimension)
 
 """
 --------------------
@@ -1097,12 +712,269 @@ def validate_resource_attributes(resource, attributes, template, check_unit=True
 
     return errors
 
-# if __name__ == '__main__':
-#     units = Units()
-#     for dim in units.unittree:
-#         print('**' + dim.get('name') + '**')
-#         for unit in dim:
-#             print(unit.get('name'), unit.get('abbr'), unit.get('lf'),
-#                   unit.get('cf'), unit.get('info'))
-#
-#     print(units.convert(200, 'm^3', 'ac-ft'))
+"""
++-------------------+
+| Utility functions |
++-------------------+
+"""
+
+def do_deep_compare(left, right, message_to_show):
+    """
+        Utility function. Does a deep compare of two objects and show an error in case of failure
+    """
+    if deep_compare(left, right):
+         log.info("{} are OK".format(message_to_show))
+    else:
+         log.critical("{} are WRONG".format(message_to_show))
+         log.info(left)
+         log.info(right)
+
+
+
+def deep_compare(left, right, level=0):
+    """
+        Utility function. Does a deep compare of two objects and returns the comparison success status
+    """
+    if type(left) != type(right):
+        log.info("Exit 1 - Different types")
+        return False
+
+    elif type(left) is dict:
+        # Dict comparison
+        for key in left:
+            if key not in right:
+                log.info("Exit 2 - missing {} in right".format(key))
+                return False
+            else:
+                if not self.deep_compare(left[str(key)], right[str(key)], level +1 ):
+                    log.info("Exit 3 - different children")
+                    return False
+        return True
+    elif type(left) is list:
+        # List comparison
+        for key in left:
+            if key not in right:
+                log.info("Exit 4 - missing {} in right".format(key))
+                return False
+            else:
+                if not deep_compare(left[left.index(key)], right[right.index(key)], level +1 ):
+                    log.info("Exit 5 - different children")
+                    return False
+        return True
+    else:
+        # Other comparison
+        return left == right
+
+    return False
+
+
+class Units(object):
+    """
+    This class provides functionality for unit conversion and checking of
+    consistency between units and dimensions. Unit conversion factors are
+    defined in a static built-in XML file and in a custom file defined by
+    the user. The location of the unit conversion file provided by the user
+    is specified in the config file in section ``[unit conversion]``. This
+    section and a file specifying custom unit conversion factors are optional.
+    """
+
+    unittree = None
+    usertree = None
+
+    dimensions = dict()
+    units = dict()
+    userunits = []
+    userdimensions = []
+    static_dimensions = []
+    unit_description = dict()
+    unit_info = dict()
+
+    full_data = dict() # This will contain all the data from the DB
+
+
+    def __init__(self):
+        db.connect() # Connection to the DB
+        return
+
+        dimensions_list = self.get_dimensions_from_db()
+
+        user_dimensions_list = self.get_dimensions_from_db(True)
+
+        default_user_file_location = os.path.realpath(\
+            os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                         '../',
+                         'static',
+                         'user_units.xml'))
+
+        user_unitfile = config.get("unit_conversion",
+                                       "user_file",
+                                       default_user_file_location)
+
+        #If the user unit file doesn't exist, create it.
+        if not os.path.exists(user_unitfile):
+            open(user_unitfile, 'a').close()
+
+        default_builtin_unitfile_location = \
+                os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                            '../'
+                             'static',
+                             'unit_definitions.xml')
+
+        builtin_unitfile = config.get("unit_conversion",
+                                       "default_file",
+                                       default_builtin_unitfile_location)
+
+        log.debug("Default unitfile: %s", builtin_unitfile)
+        log.debug("User unitfile: %s", user_unitfile)
+
+        with open(builtin_unitfile) as f:
+            self.unittree = etree.parse(f).getroot()
+
+
+        with open(user_unitfile) as f:
+            self.usertree = etree.parse(f).getroot()
+
+        with open(builtin_unitfile) as f:
+            self.unittree = etree.parse(f).getroot()
+
+
+        # DB Based
+        for dimension in dimensions_list:
+            new_dimension = JSONObject({})
+            new_dimension.id = dimension.id
+            new_dimension.name= dimension.name
+            new_dimension.description= dimension.description
+            new_dimension.units= []
+
+            self.full_data[dimension.name] = new_dimension
+
+            if dimension not in self.dimensions.keys():
+                self.dimensions.update({str(dimension.name): []})
+
+            if dimension not in self.dimensions.keys():
+                self.static_dimensions.append(dimension.name)
+
+            units_list = get_units_from_db(dimension.id)
+
+            for unit in units_list:
+                new_unit = JSONObject({})
+                new_unit.id = unit.id
+                new_unit.dimension_id = unit.dimension_id
+                new_unit.name = unit.name
+                new_unit.abbreviation = unit.abbreviation
+                new_unit.description = unit.description
+                new_unit.lf = unit.lf
+                new_unit.cf = unit.cf
+                new_unit.project_id = unit.project_id
+
+                self.full_data[dimension.name].units.append(new_unit)
+
+
+
+                self.dimensions[dimension.name].append(unit.abbreviation)
+                self.units.update({unit.abbreviation:
+                                   (float(unit.lf),
+                                    float(unit.cf))})
+                self.unit_description.update({unit.abbreviation:
+                                              unit.name})
+                self.unit_info.update({unit.abbreviation:
+                                       unit.description})
+
+        for dimension in user_dimensions_list:
+            self.userdimensions.append(dimension.name)
+            units_list = get_units_from_db(dimension.name)
+            for unit in units_list:
+                self.userunits.append(unit.abbreviation)
+
+        log.info(self.full_data)
+
+
+
+
+    def get_dimensions_from_db(self, are_user_dimensions=False):
+        """
+            Gets all dimension from the DB table.
+        """
+        if not are_user_dimensions:
+            rs = db.DBSession.query(Dimension).all()
+        else:
+            rs = db.DBSession.query(Dimension).filter(Dimension.project_id.isnot(None)).all()
+
+        #log.info(rs)
+        return rs
+
+    def get_dimension(self, unit):
+        """
+            Return the physical dimension a given unit refers to.
+        """
+
+        unit, factor = self.parse_unit(unit)
+        for dim in self.dimensions.keys():
+            if unit in self.dimensions[dim]:
+                return dim
+        raise HydraError('Unit %s not found.'%(unit))
+
+    def convert(self, values, unit1, unit2):
+        """
+            Convert a value from one unit to another one. The two units must
+            represent the same physical dimension.
+        """
+        if self.get_dimension(unit1) == self.get_dimension(unit2):
+            unit1, factor1 = self.parse_unit(unit1)
+            unit2, factor2 = self.parse_unit(unit2)
+            conv_factor1 = self.units[unit1]
+            conv_factor2 = self.units[unit2]
+
+            if isinstance(values, float):
+                return (conv_factor1[0] / conv_factor2[0] * (factor1 * values)
+                        + (conv_factor1[1] - conv_factor2[1])
+                        / conv_factor2[0]) / factor2
+            elif isinstance(values, list):
+                return [(conv_factor1[0] / conv_factor2[0] * (factor1 * value)
+                        + (conv_factor1[1] - conv_factor2[1])
+                        / conv_factor2[0]) / factor2 for value in values]
+        else:
+            raise HydraError("Unit conversion: dimensions are not consistent.")
+
+    def parse_unit(self, unit):
+        """
+            Helper function that extracts constant factors from unit
+            specifications. This allows to specify units similar to this: 10^6 m^3.
+        """
+        try:
+            float(unit[0])
+            factor, unit = unit.split(' ', 1)
+            return unit, float(factor)
+        except ValueError:
+            return unit, 1.0
+
+    def get_dimensions(self):
+        """
+            Get a list of all dimensions keys listed in one of the xml files.
+        """
+        return self.dimensions.keys()
+
+    def get_all_dimensions(self):
+        """
+            Get the list of all dimensions objects listed in one of the xml files.
+        """
+        return self.dimensions
+
+    def get_units(self, dimension):
+        """
+            Get a list of all units describing one specific dimension.
+        """
+        unitlist = []
+        for unit in self.dimensions[dimension]:
+            unitdict = dict()
+            unitdict.update({'abbr': unit})
+            unitdict.update({'name': self.unit_description[unit]})
+            unitdict.update({'lf': self.units[unit][0]})
+            unitdict.update({'cf': self.units[unit][1]})
+            unitdict.update({'dimension': dimension})
+            unitdict.update({'info': self.unit_info[unit]})
+            unitlist.append(unitdict)
+        return unitlist
+
+global hydra_units
+hydra_units = Units()
