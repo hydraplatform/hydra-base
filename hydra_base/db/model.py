@@ -1695,17 +1695,19 @@ class Unit(Base, Inspect):
     id = Column(Integer(), primary_key=True, nullable=False)
     dimension_id = Column(Integer(), ForeignKey('tDimension.id'), nullable=False)
 
-    name = Column(Unicode(60, collation='utf8_bin'),  nullable=False)
-    abbreviation = Column(Unicode(60, collation='utf8_bin'),  nullable=False)
-    lf = Column(Unicode(60, collation='utf8_bin'),  nullable=True)
-    cf = Column(Unicode(60, collation='utf8_bin'),  nullable=True)
-    description = Column(Unicode(1000, collation='utf8_bin'))
+    # try:
+    #     name = Column(Unicode(60, collation='utf8_bin'),  nullable=False)
+    #     abbreviation = Column(Unicode(60, collation='utf8_bin'),  nullable=False)
+    #     lf = Column(Unicode(60, collation='utf8_bin'),  nullable=True)
+    #     cf = Column(Unicode(60, collation='utf8_bin'),  nullable=True)
+    #     description = Column(Unicode(1000, collation='utf8_bin'))
 
-    # name = Column(Unicode(60),  nullable=False)
-    # abbreviation = Column(Unicode(60),  nullable=False)
-    # lf = Column(Unicode(60),  nullable=True)
-    # cf = Column(Unicode(60),  nullable=True)
-    # description = Column(Unicode(1000))
+    # except Exception as e:
+    name = Column(Unicode(60),  nullable=False)
+    abbreviation = Column(Unicode(60),  nullable=False)
+    lf = Column(Unicode(60),  nullable=True)
+    cf = Column(Unicode(60),  nullable=True)
+    description = Column(Unicode(1000))
 
     project_id = Column(Integer(), ForeignKey('tProject.id'), index=True, nullable=True)
 
@@ -1724,11 +1726,14 @@ class Dimension(Base, Inspect):
 
     id = Column(Integer(), primary_key=True, nullable=False)
 
-    # name = Column(Unicode(60),  nullable=False, unique=True)
-    # description = Column(Unicode(1000))
 
-    name = Column(Unicode(60, collation='utf8_bin'),  nullable=False, unique=True)
-    description = Column(Unicode(1000, collation='utf8_bin'))
+    # try:
+    #     name = Column(Unicode(60, collation='utf8_bin'),  nullable=False, unique=True)
+    #     description = Column(Unicode(1000, collation='utf8_bin'))
+    #
+    # except Exception as e:
+    name = Column(Unicode(60),  nullable=False, unique=True)
+    description = Column(Unicode(1000))
 
     project_id = Column(Integer(), ForeignKey('tProject.id'), index=True, nullable=True)
 
