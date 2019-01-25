@@ -1695,14 +1695,13 @@ class Unit(Base, Inspect):
     id = Column(Integer(), primary_key=True, nullable=False)
     dimension_id = Column(Integer(), ForeignKey('tDimension.id'), nullable=False)
 
-    # try:
+    # These lines are commented because sqllite seem not accepting utf8_bin. Find a solution
     #     name = Column(Unicode(60, collation='utf8_bin'),  nullable=False)
     #     abbreviation = Column(Unicode(60, collation='utf8_bin'),  nullable=False)
     #     lf = Column(Unicode(60, collation='utf8_bin'),  nullable=True)
     #     cf = Column(Unicode(60, collation='utf8_bin'),  nullable=True)
     #     description = Column(Unicode(1000, collation='utf8_bin'))
 
-    # except Exception as e:
     name = Column(Unicode(60),  nullable=False)
     abbreviation = Column(Unicode(60),  nullable=False)
     lf = Column(Unicode(60),  nullable=True)
@@ -1726,12 +1725,10 @@ class Dimension(Base, Inspect):
 
     id = Column(Integer(), primary_key=True, nullable=False)
 
+    # These lines are commented because sqllite seem not accepting utf8_bin. Find a solution
+    # name = Column(Unicode(60, collation='utf8_bin'),  nullable=False, unique=True)
+    # description = Column(Unicode(1000, collation='utf8_bin'))
 
-    # try:
-    #     name = Column(Unicode(60, collation='utf8_bin'),  nullable=False, unique=True)
-    #     description = Column(Unicode(1000, collation='utf8_bin'))
-    #
-    # except Exception as e:
     name = Column(Unicode(60),  nullable=False, unique=True)
     description = Column(Unicode(1000))
 
