@@ -305,7 +305,7 @@ def create_default_users_and_perms():
         perms_by_name = db.DBSession.query(Perm).filter(Perm.code==code).all()
         if len(perms_by_name)==0:
             # Adding perm
-            log.info("# Adding PERM {}".format(code))
+            log.debug("# Adding PERM {}".format(code))
             db.DBSession.add(perm)
             db.DBSession.flush()
 
@@ -320,7 +320,7 @@ def create_default_users_and_perms():
         roles_by_name = db.DBSession.query(Role).filter(Role.code==code).all()
         if len(roles_by_name)==0:
             # Adding perm
-            log.info("# Adding ROLE {}".format(code))
+            log.debug("# Adding ROLE {}".format(code))
             db.DBSession.add(role)
             db.DBSession.flush()
 
@@ -334,7 +334,7 @@ def create_default_users_and_perms():
         links_found = db.DBSession.query(RolePerm).filter(RolePerm.role_id==id_maps_dict["role"][role_code]).filter(RolePerm.perm_id==id_maps_dict["perm"][perm_code]).all()
         if len(links_found)==0:
             # Adding link
-            log.info("# Adding link")
+            log.debug("# Adding link")
             roleperm = RolePerm()
             # roleperm.role = role_dict[role_code]
             # roleperm.perm = perm_dict[perm_code]
@@ -370,7 +370,7 @@ def create_default_units_and_dimensions():
 
         if len(db_dimensions_by_name) == 0:
             # Adding the dimension
-            log.info("Adding Dimension `{}`".format(dimension_name))
+            log.debug("Adding Dimension `{}`".format(dimension_name))
             new_dimension = Dimension()
             if "id" in json_dimension:
                 # If ID is specified
@@ -388,7 +388,7 @@ def create_default_units_and_dimensions():
             db_units_by_name = db.DBSession.query(Unit).filter(Unit.dimension_id==new_dimension.id).filter(Unit.abbreviation==get_utf8_encoded_string(json_unit['abbr'])).all()
             if len(db_units_by_name) == 0:
                 # Adding the unit
-                log.info("Adding Unit `{}` in `{}`".format(json_unit['abbr'], json_dimension["name"]))
+                log.debug("Adding Unit `{}` in `{}`".format(json_unit['abbr'], json_dimension["name"]))
                 new_unit = Unit()
                 if "id" in json_unit:
                     new_unit.id = json_unit["id"]
@@ -407,6 +407,7 @@ def create_default_units_and_dimensions():
             else:
                 #log.critical("UNIT {}.{} EXISTANT".format(dimension_name,json_unit['abbr']))
                 pass
+    db.DBSession.commit()
     return
 
 
