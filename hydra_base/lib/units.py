@@ -129,14 +129,17 @@ def convert_units(values, unit1, unit2,**kwargs):
         >>> cli = PluginLib.connect()
         >>> cli.service.convert_units(20.0, 'm', 'km')
         0.02
+
+    Returns:
+        Always a list
     """
     if numpy.isscalar(values):
         # If it is a scalar, converts to an array
         values = [values]
     float_values = [float(value) for value in values]
-    return _convert(float_values, unit1, unit2)
+    return convert(float_values, unit1, unit2)
 
-def _convert(values, unit1, unit2):
+def convert(values, unit1, unit2):
     """
         Convert a value from one unit to another one. The two units must
         represent the same physical dimension.
@@ -152,10 +155,12 @@ def _convert(values, unit1, unit2):
         conv_factor2 = JSONObject({'lf': unit_data_2.lf, 'cf': unit_data_2.cf})
 
         if isinstance(values, float):
+            # If values is a float returns a float
             return (conv_factor1.lf / conv_factor2.lf * (factor1 * values)
                     + (conv_factor1.cf - conv_factor2.cf)
                     / conv_factor2.lf) / factor2
         elif isinstance(values, list):
+            # If values is a list returns a list
             return [(conv_factor1.lf / conv_factor2.lf * (factor1 * value)
                     + (conv_factor1.cf - conv_factor2.cf)
                     / conv_factor2.lf) / factor2 for value in values]
@@ -339,8 +344,11 @@ def add_dimension(dimension,**kwargs):
         If dimension["project_id"] is None it means that the dimension is global, otherwise is property of a project
         If the dimension exists emits an exception
     """
-    #user_id = kwargs.get('user_id')
-    #log.info("user_id: {}".format(user_id))
+    if numpy.isscalar(dimension):
+        # If it is a scalar, converts to an Object
+        dimension = {'name': dimension}
+
+
     new_dimension = Dimension()
     new_dimension.name = dimension["name"]
 
@@ -360,6 +368,10 @@ def delete_dimension(dimension_name,**kwargs):
     """
         Delete a dimension from the DB. Raises and exception if the dimension does not exist
     """
+    # Checking if it is a dimension object
+    if not numpy.isscalar(dimension_name) and isinstance(dimension_name,dict) and ("name" in dimension_name):
+        # Checking if it is a dimension object
+        dimension_name = dimension_name["name"]
 
     try:
         #dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension_name).filter(Dimension.project_id.isnot(None)).one()
@@ -388,7 +400,7 @@ def update_dimension(dimension,**kwargs):
         if "project_id" in dimension and dimension["project_id"] is not None:
             db_dimension.project_id = dimension["project_id"]
     except NoResultFound:
-        raise ResourceNotFoundError("Dimension (name=%s) does not exist"%(unit["abbreviation"]))
+        raise ResourceNotFoundError("Dimension (name=%s) does not exist"%(dimension["name"]))
 
 
     db.DBSession.flush()
@@ -425,8 +437,8 @@ def add_unit(unit,**kwargs):
 
     """
     # 'info' is the only field that is allowed to be empty
-    if 'description' not in unit.keys() or unit['description'] is None:
-        unit['description'] = ''
+    if 'info' not in unit.keys() or unit['info'] is None:
+        unit['info'] = ''
 
     dimension_data = get_dimension_data(unit["dimension"])
 
@@ -435,16 +447,10 @@ def add_unit(unit,**kwargs):
     new_unit.name           = unit['name']
 
     # Needed to uniform abbr to abbreviation
-    if ('abbreviation' in unit) and (unit['abbreviation'] is not None):
-        new_unit.abbreviation   = unit['abbreviation']
-    elif ('abbr' in unit) and (unit['abbr'] is not None):
-        new_unit.abbreviation   = unit['abbr']
+    new_unit.abbreviation = extract_unit_abbreviation(unit)
 
     # Needed to uniform into to description
-    if ('description' in unit) and (unit['description'] is not None):
-        new_unit.description   = unit['description']
-    elif ('info' in unit) and (unit['info'] is not None):
-        new_unit.description   = unit['info']
+    new_unit.description = extract_unit_description(unit)
 
     new_unit.lf             = unit['lf']
     new_unit.cf             = unit['cf']
@@ -465,13 +471,14 @@ def delete_unit(unit, **kwargs):
         Delete a unit from the DB.
         Raises and exception if the unit does not exist
     """
+    unit_abbreviation = extract_unit_abbreviation(unit)
 
     try:
-        db_unit = db.DBSession.query(Unit).join(Dimension).filter(Unit.abbreviation==unit['abbr']).filter(Dimension.name==unit['dimension']).filter().one()
+        db_unit = db.DBSession.query(Unit).join(Dimension).filter(Unit.abbreviation==unit_abbreviation).filter(Dimension.name==unit['dimension']).filter().one()
         db.DBSession.delete(db_unit)
         db.DBSession.flush()
     except NoResultFound:
-        raise ResourceNotFoundError("Unit (abbreviation=%s) does not exist"%(unit['abbr']))
+        raise ResourceNotFoundError("Unit (abbreviation=%s) does not exist"%(unit_abbreviation))
 
 
 @required_perms("update_unit")
@@ -481,16 +488,21 @@ def update_unit(unit, **kwargs):
         Raises and exception if the unit does not existself.
         The key is ALWAYS the abbreviation
     """
+    unit_abbreviation = extract_unit_abbreviation(unit)
+
     try:
-        db_unit = db.DBSession.query(Unit).join(Dimension).filter(Unit.abbreviation==unit['abbr']).filter(Dimension.name==unit['dimension']).filter().one()
+        db_unit = db.DBSession.query(Unit).join(Dimension).filter(Unit.abbreviation==unit_abbreviation).filter(Dimension.name==unit['dimension']).filter().one()
         db_unit.name = unit["name"]
-        db_unit.description = unit["description"]
+
+        # Needed to uniform into to description
+        db_unit.description = extract_unit_description(unit)
+
         db_unit.lf = unit["lf"]
         db_unit.cf = unit["cf"]
         if "project_id" in unit:
             db_unit.project_id = unit["project_id"]
     except NoResultFound:
-        raise ResourceNotFoundError("Unit (abbreviation=%s) does not exist"%(unit["abbreviation"]))
+        raise ResourceNotFoundError("Unit (abbreviation=%s) does not exist"%(unit_abbreviation))
 
 
     db.DBSession.flush()
@@ -536,18 +548,18 @@ def convert_dataset(dataset_id, to_unit,**kwargs):
 
     if old_unit is not None:
         if dataset_type == 'scalar':
-            new_val = _convert(float(dsval), old_unit, to_unit)
+            new_val = convert(float(dsval), old_unit, to_unit)
         elif dataset_type == 'array':
             dim = array_dim(dsval)
             vecdata = arr_to_vector(dsval)
-            newvec = _convert(vecdata, old_unit, to_unit)
+            newvec = convert(vecdata, old_unit, to_unit)
             new_val = vector_to_arr(newvec, dim)
         elif dataset_type == 'timeseries':
             new_val = []
             for ts_time, ts_val in dsval.items():
                 dim = array_dim(ts_val)
                 vecdata = arr_to_vector(ts_val)
-                newvec = _convert(vecdata, old_unit, to_unit)
+                newvec = convert(vecdata, old_unit, to_unit)
                 newarr = vector_to_arr(newvec, dim)
                 new_val.append(ts_time, newarr)
         elif dataset_type == 'descriptor':
@@ -768,6 +780,7 @@ def deep_compare(left, right, level=0):
     return False
 
 
+# Remove this methods when all the deferences are fixed
 class Units(object):
     """
     This class provides functionality for unit conversion and checking of
