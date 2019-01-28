@@ -24,6 +24,8 @@ from .. import config
 import pandas as pd
 import six
 
+
+
 import logging
 log = logging.getLogger(__name__)
 
@@ -349,7 +351,7 @@ def reindex_timeseries(ts_string, new_timestamps):
 
     return pandas_ts
 
-def parse_time_step(time_step, target='s', units=None):
+def parse_time_step(time_step, target='s', units_ref=None):
     """
         Read in the time step and convert it to seconds.
     """
@@ -369,7 +371,7 @@ def parse_time_step(time_step, target='s', units=None):
 
     log.info("Time period is %s", period)
 
-    converted_time_step = units.convert(value, period, target)
+    converted_time_step = units_ref.convert(value, period, target)
 
     log.info("Time period is %s %s", converted_time_step, period)
 
@@ -385,12 +387,10 @@ def get_time_axis(start_time, end_time, time_step, time_axis=None):
         app or the time_axis is passed in directly. This function returns a
         time_axis in both situations.
     """
-    
-    #Do this import here to avoid a circular dependency
-    from hydra_base.lib.units import Units
 
-    UNITS = Units()
-    
+    #Do this import here to avoid a circular dependency
+    from ..lib import units
+
     if time_axis is not None:
         actual_dates_axis = []
         for t in time_axis:
@@ -411,16 +411,16 @@ def get_time_axis(start_time, end_time, time_step, time_axis=None):
 
         start_date = get_datetime(start_time)
         end_date = get_datetime(end_time)
-        delta_t, value, units = parse_time_step(time_step, units=UNITS)
+        delta_t, value, output_units = parse_time_step(time_step, units_ref=units)
 
         time_axis = [start_date]
 
         value = int(value)
         while start_date < end_date:
             #Months and years are a special case, so treat them differently
-            if(units.lower() == "mon"):
+            if(output_units.lower() == "mon"):
                 start_date = start_date + relativedelta(months=value)
-            elif (units.lower() == "yr"):
+            elif (output_units.lower() == "yr"):
                 start_date = start_date + relativedelta(years=value)
             else:
                 start_date += timedelta(seconds=delta_t)
