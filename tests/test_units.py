@@ -132,14 +132,23 @@ class TestUnits():
         hb.db.DBSession.rollback()
         # Add a new dimension
         testdim = {'name':'Electric current'}
-        #hb.add_dimension(testdim, user_id=pytest.root_user_id)
-        log.info("pytest.root_user_id = %s", pytest.root_user_id)
         hb.add_dimension(testdim, user_id = pytest.root_user_id)
 
         dimension_list = list(hb.get_dimensions())
         assert testdim["name"] in dimension_list, \
             "Adding new dimension didn't work as expected."
         hb.db.DBSession.rollback()
+
+
+        # Add a new dimension as scalar
+        testdim = 'Electric current'
+        hb.add_dimension(testdim, user_id = pytest.root_user_id)
+
+        dimension_list = list(hb.get_dimensions())
+        assert testdim in dimension_list, \
+            "Adding new dimension didn't work as expected."
+        hb.db.DBSession.rollback()
+
 
     def test_update_dimension(self, session):
         # Updating existing dimension
@@ -157,6 +166,7 @@ class TestUnits():
     def test_delete_dimension(self, session):
         # Add a new dimension and delete it
 
+        # Test adding the object and deleting the name
         testdim = {'name':'Electric current'}
         hb.add_dimension(testdim, user_id=pytest.root_user_id)
         old_dimension_list = list(hb.get_dimensions())
@@ -171,6 +181,20 @@ class TestUnits():
             testdim["name"] not in new_dimension_list, \
             "Deleting dimension didn't work."
 
+        # Test adding the name and deleting by object
+        testdim = {'name':'Electric current'}
+        hb.add_dimension(testdim["name"], user_id=pytest.root_user_id)
+        old_dimension_list = list(hb.get_dimensions())
+
+        hb.delete_dimension(testdim, user_id=pytest.root_user_id)
+
+        new_dimension_list = list(hb.get_dimensions())
+
+        log.info(new_dimension_list)
+
+        assert testdim["name"] in old_dimension_list and \
+            testdim["name"] not in new_dimension_list, \
+            "Deleting dimension didn't work."
 
     def test_add_unit(self, session):
         # Add a new unit to an existing static dimension
