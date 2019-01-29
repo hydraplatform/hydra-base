@@ -191,7 +191,7 @@ def get_dimension(dimension_name,**kwargs):
         # The dimension does not exist
         raise ResourceNotFoundError("Dimension %s not found"%(dimension_name))
 
-def get_dimensions():
+def get_dimensions(**kwargs):
     """
         Get the list of all dimensions keys.
     """
@@ -201,7 +201,7 @@ def get_dimensions():
         dims_list.append(str(dim.name))
     return dims_list
 
-def get_all_dimensions():
+def get_all_dimensions(**kwargs):
     """
         Get an object having dimension name as key and le value is a list containing the units abbreviation of the dimension.
     """
@@ -217,7 +217,7 @@ def get_all_dimensions():
     return dimensions_obj
 
 
-def get_dimension_data(dimension_name):
+def get_dimension_data(dimension_name,**kwargs):
     """
         Given a dimension returns all its data
     """
@@ -267,7 +267,7 @@ def get_units_from_db(**kwargs):
 
 
 
-def get_units(dim_name):
+def get_units(dim_name,**kwargs):
     """
         Gets a list of all units corresponding to a physical dimension.
     """
@@ -290,7 +290,7 @@ def get_units(dim_name):
     return unit_dict_list
 
 
-def get_unit_dimension(unit):
+def get_unit_dimension(unit,**kwargs):
     """
         Return the physical dimension a given unit refers to.
     """
@@ -308,7 +308,7 @@ def get_unit_dimension(unit):
         dimension = db.DBSession.query(Dimension).filter(Dimension.id==units[0].dimension_id).one()
         return str(dimension.name)
 
-def get_unit_data(unit):
+def get_unit_data(unit,**kwargs):
     """
         Return the full data of a given unit.
     """
@@ -514,7 +514,7 @@ def update_unit(unit, **kwargs):
  OTHER FUNCTIONS
 -----------------
 """
-def check_consistency(unit, dimension):
+def check_consistency(unit, dimension,**kwargs):
     """
         Check whether a specified unit is consistent with the physical
         dimension asked for by the attribute or the dataset.
@@ -597,7 +597,7 @@ def convert_dataset(dataset_id, to_unit,**kwargs):
 --------------------
 """
 
-def validate_resource_attributes(resource, attributes, template, check_unit=True, exact_match=False):
+def validate_resource_attributes(resource, attributes, template, check_unit=True, exact_match=False,**kwargs):
     """
         Validate that the resource provided matches the template.
         Only passes if the resource contains ONLY the attributes specified
