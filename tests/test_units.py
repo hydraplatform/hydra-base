@@ -104,6 +104,15 @@ class TestUnits():
             #dimension = hb.get_dimension('not-existing-dimension')
             dimension = hb.get_dimension('not-existing-dimension')
 
+    def test_get_dimension_data(self, session):
+
+        testdim = 'Length'
+        resultdim = hb.get_dimension_data(testdim)
+        assert resultdim["name"] == testdim, \
+            "Getting dimension for 'kilometers' didn't work."
+
+        with pytest.raises(ResourceNotFoundError):
+            dimension = hb.get_dimension_data('not-existing-dimension')
 
     def test_get_unit_dimension(self, session):
 
