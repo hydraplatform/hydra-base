@@ -66,21 +66,21 @@ class TestUnits():
     """
         Test for working with units.
     """
-    def test_get_dimensions(self):
+    def test_get_dimensions(self, session):
 
         dimension_list = hb.get_dimensions()
         log.info(dimension_list)
         assert dimension_list is not None and len(dimension_list) != 0, \
             "Could not get a list of dimensions names."
 
-    def test_get_all_dimensions(self):
+    def test_get_all_dimensions(self, session):
 
         dimension_list = hb.get_all_dimensions()
         log.info(dimension_list)
         assert dimension_list is not None and len(dimension_list) != 0, \
             "Could not get the list of all dimensions."
 
-    def test_get_units(self):
+    def test_get_units(self, session):
 
         dimension_list = hb.get_dimensions() # Dimensions names list
         units_found = 0
@@ -93,7 +93,7 @@ class TestUnits():
         assert units_found != 0, \
             "hydra_base.get_units Could not get any units from the source"
 
-    def test_get_dimension(self):
+    def test_get_dimension(self, session):
 
         testdim = 'Length'
         resultdim = hb.get_dimension(testdim)
@@ -105,7 +105,7 @@ class TestUnits():
             dimension = hb.get_dimension('not-existing-dimension')
 
 
-    def test_get_unit_dimension(self):
+    def test_get_unit_dimension(self, session):
 
         testdim = 'Length'
         testunit = 'km'
@@ -338,7 +338,7 @@ class TestUnits():
             "Is global unit check didn't work."
 
 
-    def test_extract_unit_abbreviation(self):
+    def test_extract_unit_abbreviation(self, session):
         assert hb.extract_unit_abbreviation({'abbr': 'test'}) == 'test', \
             "extract_unit_abbreviation didn't work."
 
@@ -348,7 +348,7 @@ class TestUnits():
         assert hb.extract_unit_abbreviation({}) is None, \
             "extract_unit_abbreviation didn't work."
 
-    def test_extract_unit_description(self):
+    def test_extract_unit_description(self, session):
         assert hb.extract_unit_description({'info': 'test'}) == 'test', \
             "extract_unit_description didn't work."
 
