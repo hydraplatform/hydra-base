@@ -224,7 +224,7 @@ def get_dimension_data(dimension_name,**kwargs):
     try:
         dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension_name).one()
 
-        return dimension
+        return JSONObject(dimension)
     except NoResultFound:
         # The dimension does not exist
         raise ResourceNotFoundError("Dimension %s not found"%(dimension_name))
@@ -348,7 +348,6 @@ def add_dimension(dimension,**kwargs):
         # If it is a scalar, converts to an Object
         dimension = {'name': dimension}
 
-
     new_dimension = Dimension()
     new_dimension.name = dimension["name"]
 
@@ -360,6 +359,8 @@ def add_dimension(dimension,**kwargs):
     # Save on DB
     db.DBSession.add(new_dimension)
     db.DBSession.flush()
+
+    return JSONObject(new_dimension)
 
 
 
@@ -382,6 +383,7 @@ def delete_dimension(dimension_name,**kwargs):
 
         db.DBSession.delete(dimension)
         db.DBSession.flush()
+        return True
     except NoResultFound:
         raise ResourceNotFoundError("Dimension (dimension_name=%s) does not exist"%(dimension_name))
 
@@ -392,6 +394,7 @@ def update_dimension(dimension,**kwargs):
         Raises and exception if the dimension does not exist.
         The key is ALWAYS the name and the name itself is not modificable
     """
+    db_dimension = None
     try:
         db_dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension['name']).filter().one()
 
@@ -404,7 +407,7 @@ def update_dimension(dimension,**kwargs):
 
 
     db.DBSession.flush()
-    return db_dimension
+    return JSONObject(db_dimension)
 
 """
 -----------------------------------------
