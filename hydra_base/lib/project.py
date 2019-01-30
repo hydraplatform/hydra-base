@@ -133,6 +133,7 @@ def get_project(project_id, include_deleted_networks=False, **kwargs):
     for net_i in proj_i.networks:
         #lazy load owners
         net_i.owners
+        net_i.scenarios
 
         if include_deleted_networks==False and net_i.status.lower() == 'x':
             continue
