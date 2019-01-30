@@ -258,21 +258,26 @@ class Dataset(Base, Inspect):
                     return True
         return False
 
-    def check_write_permission(self, user_id):
+    def check_write_permission(self, user_id, do_raise=True):
         """
             Check whether this user can write this dataset
         """
         if _is_admin(user_id):
-            return
+            return True
 
         for owner in self.owners:
             if owner.user_id == int(user_id):
                 if owner.view == 'Y' and owner.edit == 'Y':
                     break
         else:
-            raise PermissionError("Permission denied. User %s does not have edit"
+            if do_raise is True:
+                raise PermissionError("Permission denied. User %s does not have edit"
                              " access on dataset %s" %
                              (user_id, self.id))
+            else:
+                return False
+
+        return True
 
     def check_share_permission(self, user_id):
         """
@@ -579,17 +584,17 @@ class ResourceAttr(Base, Inspect):
         elif ref_key == 'PROJECT':
             return self.project_id
 
-    def check_read_permission(self, user_id):
+    def check_read_permission(self, user_id, do_raise=True):
         """
             Check whether this user can read this resource attribute
         """
-        self.get_resource().check_read_permission(user_id)
+        return self.get_resource().check_read_permission(user_id, do_raise=do_raise)
 
-    def check_write_permission(self, user_id):
+    def check_write_permission(self, user_id, do_raise=True):
         """
             Check whether this user can write this node
         """
-        self.get_resource().check_write_permission(user_id)
+        return self.get_resource().check_write_permission(user_id, do_raise=do_raise)
 
 
 class ResourceType(Base, Inspect):
@@ -727,45 +732,55 @@ class Project(Base, Inspect):
                 get_session().delete(owner)
                 break
 
-    def check_read_permission(self, user_id):
+    def check_read_permission(self, user_id, do_raise=True):
         """
             Check whether this user can read this project
         """
         
         if _is_admin(user_id):
-            return
+            return True
 
         if str(user_id) == str(self.created_by):
-            return
+            return True
 
         for owner in self.owners:
             if owner.user_id == user_id:
                 if owner.view == 'Y':
                     break
         else:
-            raise PermissionError("Permission denied. User %s does not have read"
+            if do_raise is True:
+                raise PermissionError("Permission denied. User %s does not have read"
                              " access on project %s" %
                              (user_id, self.id))
+            else:
+                return False
 
-    def check_write_permission(self, user_id):
+        return True
+
+    def check_write_permission(self, user_id, do_raise=True):
         """
             Check whether this user can write this project
         """
 
         if _is_admin(user_id):
-            return
+            return True
 
         if str(user_id) == str(self.created_by):
-            return
+            return True
 
         for owner in self.owners:
             if owner.user_id == int(user_id):
                 if owner.view == 'Y' and owner.edit == 'Y':
                     break
         else:
-            raise PermissionError("Permission denied. User %s does not have edit"
+            if do_raise is True:
+                raise PermissionError("Permission denied. User %s does not have edit"
                              " access on project %s" %
                              (user_id, self.id))
+            else:
+                return False
+
+        return True
 
     def check_share_permission(self, user_id):
         """
@@ -927,43 +942,53 @@ class Network(Base, Inspect):
                 get_session().delete(owner)
                 break
 
-    def check_read_permission(self, user_id):
+    def check_read_permission(self, user_id, do_raise=True):
         """
             Check whether this user can read this network
         """
         if _is_admin(user_id):
-            return
+            return True
 
         if int(self.created_by) == int(user_id):
-            return
+            return True
 
         for owner in self.owners:
             if int(owner.user_id) == int(user_id):
                 if owner.view == 'Y':
                     break
         else:
-            raise PermissionError("Permission denied. User %s does not have read"
+            if do_raise is True:
+                raise PermissionError("Permission denied. User %s does not have read"
                              " access on network %s" %
                              (user_id, self.id))
+            else:
+                return False
 
-    def check_write_permission(self, user_id):
+        return True
+
+    def check_write_permission(self, user_id, do_raise=True):
         """
             Check whether this user can write this project
         """
         if _is_admin(user_id):
-            return
+            return True
 
         if int(self.created_by) == int(user_id):
-            return
+            return True
 
         for owner in self.owners:
             if owner.user_id == int(user_id):
                 if owner.view == 'Y' and owner.edit == 'Y':
                     break
         else:
-            raise PermissionError("Permission denied. User %s does not have edit"
+            if do_raise is True:
+                raise PermissionError("Permission denied. User %s does not have edit"
                              " access on network %s" %
                              (user_id, self.id))
+            else:
+                return False
+
+        return True
 
     def check_share_permission(self, user_id):
         """
@@ -1047,18 +1072,18 @@ class Link(Base, Inspect):
 
         return res_attr
 
-    def check_read_permission(self, user_id):
+    def check_read_permission(self, user_id, do_raise=True):
         """
             Check whether this user can read this link
         """
-        self.network.check_read_permission(user_id)
+        return self.network.check_read_permission(user_id, do_raise=do_raise)
 
-    def check_write_permission(self, user_id):
+    def check_write_permission(self, user_id, do_raise=True):
         """
             Check whether this user can write this link
         """
 
-        self.network.check_write_permission(user_id)
+        return self.network.check_write_permission(user_id, do_raise=do_raise)
 
 class Node(Base, Inspect):
     """
@@ -1119,18 +1144,18 @@ class Node(Base, Inspect):
 
         return res_attr
 
-    def check_read_permission(self, user_id):
+    def check_read_permission(self, user_id, do_raise=True):
         """
             Check whether this user can read this node
         """
-        self.network.check_read_permission(user_id)
+        return self.network.check_read_permission(user_id, do_raise=do_raise)
 
-    def check_write_permission(self, user_id):
+    def check_write_permission(self, user_id, do_raise=True):
         """
             Check whether this user can write this node
         """
 
-        self.network.check_write_permission(user_id)
+        return self.network.check_write_permission(user_id, do_raise=do_raise)
 
 class ResourceGroup(Base, Inspect):
     """
@@ -1198,18 +1223,18 @@ class ResourceGroup(Base, Inspect):
 
         return items
 
-    def check_read_permission(self, user_id):
+    def check_read_permission(self, user_id, do_raise=True):
         """
             Check whether this user can read this group
         """
-        self.network.check_read_permission(user_id)
+        return self.network.check_read_permission(user_id, do_raise=do_raise)
 
-    def check_write_permission(self, user_id):
+    def check_write_permission(self, user_id, do_raise=True):
         """
             Check whether this user can write this group
         """
 
-        self.network.check_write_permission(user_id)
+        return self.network.check_write_permission(user_id, do_raise=do_raise)
 
 class ResourceGroupItem(Base, Inspect):
     """

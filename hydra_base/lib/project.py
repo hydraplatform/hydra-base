@@ -115,16 +115,36 @@ def update_project(project,**kwargs):
 
     return proj_i
 
-def get_project(project_id,**kwargs):
+def get_project(project_id, include_deleted_networks=False, **kwargs):
     """
         get a project complexmodel
     """
     user_id = kwargs.get('user_id')
     proj_i = _get_project(project_id)
 
+    #lazy load owners
+    proj_i.owners
+
     proj_i.check_read_permission(user_id)
 
-    return proj_i
+    proj_j = JSONObject(proj_i)
+    
+    proj_j.networks = []
+    for net_i in proj_i.networks:
+        #lazy load owners
+        net_i.owners
+
+        if include_deleted_networks==False and net_i.status.lower() == 'x':
+            continue
+
+        can_read_network = net_i.check_read_permission(user_id)
+        if can_read_network is False:
+            continue
+        
+        net_j = JSONObject(net_i)
+        proj_j.networks.append(net_j)
+
+    return proj_j
 
 def get_project_by_network_id(network_id,**kwargs):
     """
@@ -267,17 +287,22 @@ def get_projects(uid, include_shared_projects=True, **kwargs):
         #lazy load owners
         project_i.owners
 
-        networks_i = db.DBSession.query(Network).join(NetworkOwner)\
-                                .filter(Network.project_id==project_i.id,
-                                        Network.status=='A',
-                                        or_(Network.created_by==uid,\
-                                            NetworkOwner.user_id==uid))
-
+        networks_i = db.DBSession.query(Network)\
+                                .filter(Network.project_id==project_i.id,\
+                                        Network.status=='A')
+        networks_j = []
         for network_i in networks_i:
+            network_i.owners
             network_i.check_read_permission(req_user_id)
+            net_j = JSONObject(network_i)
+            if net_j.layout is not None:
+                net_j.layout = JSONObject(net_j.layout)
+            else:
+                net_j.layout = JSONObject({})
+            networks_j.append(net_j)
         
         project_j = JSONObject(project_i)
-        project_j.networks = [JSONObject(network_i) for network_i in networks_i]
+        project_j.networks = networks_j 
         projects_j.append(project_j)
 
 
