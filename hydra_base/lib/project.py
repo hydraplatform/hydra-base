@@ -138,7 +138,7 @@ def get_project(project_id, include_deleted_networks=False, **kwargs):
         if include_deleted_networks==False and net_i.status.lower() == 'x':
             continue
 
-        can_read_network = net_i.check_read_permission(user_id)
+        can_read_network = net_i.check_read_permission(user_id, do_raise=False)
         if can_read_network is False:
             continue
         
@@ -294,7 +294,7 @@ def get_projects(uid, include_shared_projects=True, **kwargs):
         networks_j = []
         for network_i in networks_i:
             network_i.owners
-            network_i.check_read_permission(req_user_id)
+            network_i.check_read_permission(req_user_id, do_raise=False)
             net_j = JSONObject(network_i)
             if net_j.layout is not None:
                 net_j.layout = JSONObject(net_j.layout)
