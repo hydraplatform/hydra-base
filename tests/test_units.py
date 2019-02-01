@@ -227,10 +227,8 @@ class TestUnits():
         assert new_unit.abbr in unitabbr, \
             "Adding new unit didn't work."
 
-        hb.delete_dimension(new_unit.dimension, user_id=pytest.root_user_id)
 
-
-        # Add a new unit to an existing custom dimension
+        # Add a new unit to a custom dimension
         testdim = {'name':'Test dimension'}
         hb.add_dimension(testdim, user_id=pytest.root_user_id)
 
