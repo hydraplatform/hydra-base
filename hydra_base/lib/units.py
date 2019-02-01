@@ -44,9 +44,9 @@ log = logging.getLogger(__name__)
 
 
 """
--------------------------------
- DIMENSION FUNCTIONS - VARIOUS
--------------------------------
++-------------------------------+
+| DIMENSION FUNCTIONS - VARIOUS |
++-------------------------------+
 """
 
 def exists_dimension(dimension_name,**kwargs):
@@ -61,18 +61,21 @@ def exists_dimension(dimension_name,**kwargs):
         # The dimension does not exist
         raise False
 
-def is_global_dimension(dimension_name):
+def is_global_dimension(dimension_name,**kwargs):
     """
         Returns True if the dimension is Global, False is it is assigned to a project
     """
+    if not numpy.isscalar(dimension_name):
+        # If it is a dict, extracts the name
+        dimension_name = dimension_name["name"]
     dimension = get_dimension_data(dimension_name)
     return (dimension.project_id is None)
 
 
 """
--------------------------------
-UNIT FUNCTIONS - VARIOUS
--------------------------------
++--------------------------+
+| UNIT FUNCTIONS - VARIOUS |
++--------------------------+
 """
 
 def _parse_unit(unit):
@@ -88,7 +91,7 @@ def _parse_unit(unit):
     except ValueError:
         return unit, 1.0
 
-def is_global_unit(unit):
+def is_global_unit(unit,**kwargs):
     """
         Returns True if the Unit is Global, False is it is assigned to a project
         'unit' is a Unit object
@@ -137,7 +140,9 @@ def convert_units(values, unit1, unit2,**kwargs):
         # If it is a scalar, converts to an array
         values = [values]
     float_values = [float(value) for value in values]
-    return convert(float_values, unit1, unit2)
+    values_to_return = convert(float_values, unit1, unit2)
+
+    return values_to_return
 
 def convert(values, unit1, unit2):
     """
@@ -250,16 +255,14 @@ def get_units_from_db(**kwargs):
 
     rs = None
     if options["dimension_id"] is not None:
-        log.info("Looking for dimension_id '{}'".format(options["dimension_id"]))
+        log.debug("Looking for dimension_id '{}'".format(options["dimension_id"]))
         rs = db.DBSession.query(Unit).filter(Unit.dimension_id==options["dimension_id"]).all()
     elif options["dimension_name"] is not None:
-        log.info("Looking for dimension_name '{}'".format(options["dimension_name"]))
+        log.debug("Looking for dimension_name '{}'".format(options["dimension_name"]))
         rs = db.DBSession.query(Unit).join(Dimension).filter(Dimension.name==options["dimension_name"]).all()
-        log.info(rs)
     elif options["unit_abbreviation"] is not None:
-        log.info("Looking for unit_abbreviation '{}'".format(options["unit_abbreviation"]))
+        log.debug("Looking for unit_abbreviation '{}'".format(options["unit_abbreviation"]))
         rs = db.DBSession.query(Unit).filter(Unit.abbreviation==options["unit_abbreviation"]).all()
-        log.info(rs)
     else:
         rs = db.DBSession.query(Unit).all()
 
@@ -272,7 +275,6 @@ def get_units(dim_name,**kwargs):
         Gets a list of all units corresponding to a physical dimension.
     """
     unit_list = get_units_from_db(dimension_name = dim_name)
-    log.info(unit_list)
     unit_dict_list = []
     for unit in unit_list:
         new_unit = dict(
@@ -286,7 +288,6 @@ def get_units(dim_name,**kwargs):
             description = unit.description
         )
         unit_dict_list.append(new_unit)
-    log.info(unit_dict_list)
     return unit_dict_list
 
 
@@ -322,7 +323,6 @@ def get_unit_data(unit,**kwargs):
     elif len(units) > 1:
         raise HydraError('Unit %s has multiple dimensions not found.'%(unit))
     else:
-        log.info(JSONObject(units[0]).lf)
         return JSONObject(units[0])
 
 
@@ -377,7 +377,6 @@ def delete_dimension(dimension_name,**kwargs):
     try:
         #dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension_name).filter(Dimension.project_id.isnot(None)).one()
         dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension_name).one()
-        log.info("delete_dimension 1")
 
         db.DBSession.query(Unit).filter(Unit.dimension_id==dimension.id).delete()
 
@@ -466,6 +465,8 @@ def add_unit(unit,**kwargs):
     db.DBSession.add(new_unit)
     db.DBSession.flush()
 
+    return JSONObject(new_unit)
+
 
 
 @required_perms("delete_unit")
@@ -480,6 +481,7 @@ def delete_unit(unit, **kwargs):
         db_unit = db.DBSession.query(Unit).join(Dimension).filter(Unit.abbreviation==unit_abbreviation).filter(Dimension.name==unit['dimension']).filter().one()
         db.DBSession.delete(db_unit)
         db.DBSession.flush()
+        return True
     except NoResultFound:
         raise ResourceNotFoundError("Unit (abbreviation=%s) does not exist"%(unit_abbreviation))
 
@@ -509,7 +511,8 @@ def update_unit(unit, **kwargs):
 
 
     db.DBSession.flush()
-    return db_unit
+    return JSONObject(db_unit)
+
 
 
 """
@@ -524,7 +527,6 @@ def check_consistency(unit, dimension,**kwargs):
     """
     unit_abbr, factor = _parse_unit(unit)
     dim = get_unit_dimension(unit_abbr)
-    log.info(dim)
     return dim == dimension
 
 
@@ -578,8 +580,6 @@ def convert_dataset(dataset_id, to_unit,**kwargs):
         new_dataset.set_hash()
 
         existing_ds = db.DBSession.query(Dataset).filter(Dataset.hash==new_dataset.hash).first()
-
-        log.info(new_dataset.value)
 
         if existing_ds is not None:
             db.DBSession.expunge_all()
