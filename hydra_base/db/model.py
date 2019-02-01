@@ -55,9 +55,6 @@ import logging
 import bcrypt
 log = logging.getLogger(__name__)
 
-# Importing the tables model
-#from .models import _Unit, Dimension
-
 
 # Python 2 and 3 compatible string checking
 # TODO remove this when Python2 support is dropped.
