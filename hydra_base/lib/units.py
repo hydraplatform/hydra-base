@@ -178,10 +178,26 @@ def convert(values, unit1, unit2):
  DIMENSION FUNCTIONS - GET
 ---------------------------
 """
+def get_dimension_by_id(dimension_id,**kwargs):
+    """
+        Given a dimension id returns its units as a list
+    """
+    try:
+        dimension = JSONObject(db.DBSession.query(Dimension).filter(Dimension.id==dimension_id).one())
+        # At this point the dimension exists
+        units_list = db.DBSession.query(Unit).filter(Unit.dimension_id==dimension.id).all()
+        u_list = []
+        for u in units_list:
+            u_list.append(JSONObject(u))
+        dimension.units = u_list
+        return dimension
+    except NoResultFound:
+        # The dimension does not exist
+        raise ResourceNotFoundError("Dimension with ID %s not found"%(dimension_id))
 
 def get_dimension(dimension_name,**kwargs):
     """
-        Given a dimension returns its units as a list
+        Given a dimension returns the dimension data and its units as a list
     """
     try:
         dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension_name).one()
@@ -234,6 +250,29 @@ def get_dimension_data(dimension_name,**kwargs):
         # The dimension does not exist
         raise ResourceNotFoundError("Dimension %s not found"%(dimension_name))
 
+def get_dimension_data_by_id(dimension_id,**kwargs):
+    """
+        Given a dimension returns all its data
+    """
+    try:
+        dimension = db.DBSession.query(Dimension).filter(Dimension.id==dimension_id).one()
+
+        return JSONObject(dimension)
+    except NoResultFound:
+        # The dimension does not exist
+        raise ResourceNotFoundError("Dimension %s not found"%(dimension_name))
+
+def get_all_dimensions_data(**kwargs):
+    """
+        Returns all the dimensions with the proper data
+    """
+    dimensions_list = db.DBSession.query(Dimension).all()
+    dims_list = []
+    for dim in dimensions_list:
+        dims_list.append(JSONObject(dim))
+
+
+    return dims_list
 
 """
 ----------------------
@@ -269,6 +308,29 @@ def get_units_from_db(**kwargs):
     return rs
 
 
+def get_units_by_dimension_id(dim_id,**kwargs):
+    """
+        Gets a list of all units corresponding to a physical dimension.
+    """
+    dimension_data = get_dimension_data_by_id(dim_id)
+    unit_list = get_units_from_db(dimension_id = dim_id)
+    unit_dict_list = []
+    for unit in unit_list:
+        new_unit = dict(
+            id = unit.id,
+            name = unit.name,
+            abbr = unit.abbreviation,
+            abbreviation = unit.abbreviation,
+            lf = unit.lf,
+            cf = unit.cf,
+            dimension = dimension_data.name,
+            dimension_id = unit.dimension_id,
+            info = unit.description,
+            description = unit.description,
+            project_id = unit.project_id
+        )
+        unit_dict_list.append(new_unit)
+    return unit_dict_list
 
 def get_units(dim_name,**kwargs):
     """
@@ -278,6 +340,7 @@ def get_units(dim_name,**kwargs):
     unit_dict_list = []
     for unit in unit_list:
         new_unit = dict(
+            id = unit.id,
             name = unit.name,
             abbr = unit.abbreviation,
             abbreviation = unit.abbreviation,
@@ -285,7 +348,8 @@ def get_units(dim_name,**kwargs):
             cf = unit.cf,
             dimension = dim_name,
             info = unit.description,
-            description = unit.description
+            description = unit.description,
+            project_id = unit.project_id
         )
         unit_dict_list.append(new_unit)
     return unit_dict_list
@@ -399,7 +463,7 @@ def update_dimension(dimension,**kwargs):
 
         if "description" in dimension and dimension["description"] is not None:
             db_dimension.description = dimension["description"]
-        if "project_id" in dimension and dimension["project_id"] is not None:
+        if "project_id" in dimension and dimension["project_id"] is not None and dimension["project_id"] != "" and dimension["project_id"].isdigit():
             db_dimension.project_id = dimension["project_id"]
     except NoResultFound:
         raise ResourceNotFoundError("Dimension (name=%s) does not exist"%(dimension["name"]))
@@ -442,7 +506,11 @@ def add_unit(unit,**kwargs):
     if 'info' not in unit.keys() or unit['info'] is None:
         unit['info'] = ''
 
-    dimension_data = get_dimension_data(unit["dimension"])
+    dimension_data = None
+    if 'dimension_id' in unit.keys() and unit['dimension_id'] is not None:
+        dimension_data = get_dimension_data_by_id(unit["dimension_id"])
+    else:
+        dimension_data = get_dimension_data(unit["dimension"])
 
     new_unit = Unit()
     new_unit.dimension_id   = dimension_data.id
@@ -478,7 +546,14 @@ def delete_unit(unit, **kwargs):
     unit_abbreviation = extract_unit_abbreviation(unit)
 
     try:
-        db_unit = db.DBSession.query(Unit).join(Dimension).filter(Unit.abbreviation==unit_abbreviation).filter(Dimension.name==unit['dimension']).filter().one()
+        #db_unit = db.DBSession.query(Unit).join(Dimension).filter(Unit.abbreviation==unit_abbreviation).filter(Dimension.name==unit['dimension']).filter().one()
+        if 'dimension_id' in unit.keys() and unit['dimension_id'] is not None:
+            db_unit = db.DBSession.query(Unit).join(Dimension).filter(Unit.abbreviation==unit_abbreviation).filter(Dimension.id==unit['dimension_id']).filter().one()
+        else:
+            db_unit = db.DBSession.query(Unit).join(Dimension).filter(Unit.abbreviation==unit_abbreviation).filter(Dimension.name==unit['dimension']).filter().one()
+
+
+
         db.DBSession.delete(db_unit)
         db.DBSession.flush()
         return True
@@ -496,7 +571,14 @@ def update_unit(unit, **kwargs):
     unit_abbreviation = extract_unit_abbreviation(unit)
 
     try:
-        db_unit = db.DBSession.query(Unit).join(Dimension).filter(Unit.abbreviation==unit_abbreviation).filter(Dimension.name==unit['dimension']).filter().one()
+
+        if 'dimension_id' in unit.keys() and unit['dimension_id'] is not None:
+            db_unit = db.DBSession.query(Unit).join(Dimension).filter(Unit.abbreviation==unit_abbreviation).filter(Dimension.id==unit['dimension_id']).filter().one()
+        else:
+            db_unit = db.DBSession.query(Unit).join(Dimension).filter(Unit.abbreviation==unit_abbreviation).filter(Dimension.name==unit['dimension']).filter().one()
+
+
+        #db_unit = db.DBSession.query(Unit).join(Dimension).filter(Unit.abbreviation==unit_abbreviation).filter(Dimension.name==unit['dimension']).filter().one()
         db_unit.name = unit["name"]
 
         # Needed to uniform into to description
@@ -504,7 +586,7 @@ def update_unit(unit, **kwargs):
 
         db_unit.lf = unit["lf"]
         db_unit.cf = unit["cf"]
-        if "project_id" in unit:
+        if "project_id" in unit and unit['project_id'] is not None and unit['project_id'] != "":
             db_unit.project_id = unit["project_id"]
     except NoResultFound:
         raise ResourceNotFoundError("Unit (abbreviation=%s) does not exist"%(unit_abbreviation))
