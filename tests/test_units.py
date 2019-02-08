@@ -80,6 +80,13 @@ class TestUnits():
         assert dimension_list is not None and len(dimension_list) != 0, \
             "Could not get the list of all dimensions."
 
+    def test_get_all_dimensions_data(self, session):
+
+        dimension_list = hb.get_all_dimensions_data()
+        log.info(dimension_list)
+        assert dimension_list is not None and len(dimension_list) != 0, \
+            "Could not get the list of all dimensions."
+
     def test_get_units(self, session):
 
         dimension_list = hb.get_dimensions() # Dimensions names list
@@ -103,6 +110,16 @@ class TestUnits():
         with pytest.raises(ResourceNotFoundError):
             #dimension = hb.get_dimension('not-existing-dimension')
             dimension = hb.get_dimension('not-existing-dimension')
+
+    def test_get_dimension_by_id(self, session):
+
+        testdim = 1
+        resultdim = hb.get_dimension_by_id(testdim)
+        assert len(resultdim) > 0, \
+            "Getting dimension for 'kilometers' didn't work."
+
+        with pytest.raises(ResourceNotFoundError):
+            dimension = hb.get_dimension_by_id(2000)
 
     def test_get_dimension_data(self, session):
 
