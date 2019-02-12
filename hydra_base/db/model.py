@@ -1686,7 +1686,8 @@ class Unit(Base, Inspect):
     __tablename__='tUnit'
 
     __table_args__ = (
-        UniqueConstraint('abbreviation', 'dimension_id', name="unique abbreviation dimension_id"),
+        #UniqueConstraint('abbreviation', 'dimension_id', name="unique abbreviation dimension_id"),
+        UniqueConstraint('abbreviation', name="unique abbreviation"),
     )
 
     id = Column(Integer(), primary_key=True, nullable=False)
