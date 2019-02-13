@@ -1541,7 +1541,7 @@ def _update_templatetype(templatetype, existing_tt=None):
         update that one. Otherwise search for an existing one. If not found, add.
     """
     if existing_tt is None:
-        if templatetype.id is not None:
+        if "id" in templatetype and templatetype.id is not None:
             tmpltype_i = db.DBSession.query(TemplateType).filter(TemplateType.id == templatetype.id).one()
         else:
             tmpltype_i = TemplateType()
