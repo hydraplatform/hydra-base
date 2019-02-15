@@ -69,6 +69,11 @@ def add_project(project,**kwargs):
     """
     user_id = kwargs.get('user_id')
 
+    log.info("======================================")
+    log.info("HB.add_project")
+    log.info(project)
+    log.info(user_id)
+    log.info("======================================")
 
     existing_proj = get_project_by_name(project.name,user_id=user_id)
 
@@ -246,7 +251,7 @@ def get_projects(uid, include_shared_projects=True, **kwargs):
     ##Don't load the project's networks. Load them separately, as the networks
     #must be checked individually for ownership
     projects_qry = db.DBSession.query(Project)
-    
+
     if include_shared_projects is True:
         projects_qry = projects_qry.join(ProjectOwner).filter(Project.status=='A',
                                                         or_(ProjectOwner.user_id==uid,
@@ -258,8 +263,8 @@ def get_projects(uid, include_shared_projects=True, **kwargs):
     projects_qry = projects_qry.options(noload('networks')).order_by('id')
 
     projects_i = projects_qry.all()
-    
-    #Load each 
+
+    #Load each
     projects_j = []
     for project_i in projects_i:
         #Ensure the requesting user is allowed to see the project
@@ -275,7 +280,7 @@ def get_projects(uid, include_shared_projects=True, **kwargs):
 
         for network_i in networks_i:
             network_i.check_read_permission(req_user_id)
-        
+
         project_j = JSONObject(project_i)
         project_j.networks = [JSONObject(network_i) for network_i in networks_i]
         projects_j.append(project_j)
