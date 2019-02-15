@@ -111,7 +111,8 @@ class Dataset(Base, Inspect):
     id         = Column(Integer(), primary_key=True, index=True, nullable=False)
     name       = Column(String(60),  nullable=False)
     type       = Column(String(60),  nullable=False)
-    unit       = Column(String(60))
+    unit       = Column(String(60)) ## To remove in the next step
+    unit_id    = Column(Integer(), ForeignKey('tUnit.id'))
     hash       = Column(BIGINT(),  nullable=False, unique=True)
     cr_date    = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     created_by = Column(Integer(), ForeignKey('tUser.id'))
@@ -120,7 +121,7 @@ class Dataset(Base, Inspect):
 
     user = relationship('User', backref=backref("datasets", order_by=id))
 
-    _parents  = ['tResourceScenario']
+    _parents  = ['tResourceScenario', 'tUnit']
     _children = ['tMetadata']
 
     def set_metadata(self, metadata_dict):
@@ -175,6 +176,7 @@ class Dataset(Base, Inspect):
             metadata = self.get_metadata_as_dict()
 
         dataset_dict = dict(name      = self.name,
+                           unit_id       = self.unit_id,
                            unit       = self.unit,
                            type       = self.type,
                            value      = self.value,
@@ -353,14 +355,19 @@ class Attr(Base, Inspect):
     __tablename__='tAttr'
 
     __table_args__ = (
-        UniqueConstraint('name', 'dimension', name="unique name dimension"),
+        #UniqueConstraint('name', 'dimension', name="unique name dimension"),
+        UniqueConstraint('name', 'dimension_id', name="unique name dimension_id"),
     )
 
     id           = Column(Integer(), primary_key=True, nullable=False)
     name         = Column(String(60),  nullable=False)
-    dimension    = Column(String(60), server_default=text(u"'dimensionless'"))
+    dimension    = Column(String(60), server_default=text(u"'dimensionless'")) ## To remove in the next step
+    dimension_id    = Column(Integer(), ForeignKey('tDimension.id'))
     description  = Column(String(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+
+    _parents  = ['tDimension']
+    _children = []
 
 class AttrMap(Base, Inspect):
     """
@@ -487,7 +494,8 @@ class TypeAttr(Base, Inspect):
     attr_is_var        = Column(String(1), server_default=text(u"'N'"))
     data_type          = Column(String(60))
     data_restriction   = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
-    unit               = Column(String(60))
+    unit               = Column(String(60)) ## To remove in the next step
+    unit_id            = Column(Integer(), ForeignKey('tUnit.id'))
     description        = Column(String(1000))
     properties         = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
@@ -496,7 +504,7 @@ class TypeAttr(Base, Inspect):
     templatetype = relationship('TemplateType',  backref=backref("typeattrs", order_by=attr_id, cascade="all, delete-orphan"))
     default_dataset = relationship('Dataset')
 
-    _parents  = ['tTemplateType']
+    _parents  = ['tTemplateType', 'tUnit']
     _children = []
 
     def get_attr(self):
@@ -1295,6 +1303,7 @@ class ResourceScenario(Base, Inspect):
         dataset = get_session().query(Dataset.id,
                 Dataset.type,
                 Dataset.unit,
+                Dataset.unit_id,
                 Dataset.name,
                 Dataset.hidden,
                 case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
@@ -1709,7 +1718,7 @@ class Unit(Base, Inspect):
     project_id = Column(Integer(), ForeignKey('tProject.id'), index=True, nullable=True)
 
     _parents  = ['tDimension', 'tProject']
-    _children = []
+    _children = ['tDataset', 'tTypeAttr']
 
     def __repr__(self):
         return "{0}".format(self.abbreviation)
@@ -1733,7 +1742,7 @@ class Dimension(Base, Inspect):
     project_id = Column(Integer(), ForeignKey('tProject.id'), index=True, nullable=True)
 
     _parents  = ['tProject']
-    _children = ['tUnit']
+    _children = ['tUnit', 'tAttr']
 
     def __repr__(self):
         return "{0}".format(self.name)
@@ -1786,6 +1795,7 @@ def create_resourcedata_view():
         ResourceAttr.group_id,
         ResourceScenario.scenario_id,
         ResourceScenario.dataset_id,
+        Dataset.unit_id,
         Dataset.unit,
         Dataset.name,
         Dataset.type,
