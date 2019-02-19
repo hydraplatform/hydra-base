@@ -69,12 +69,6 @@ def add_project(project,**kwargs):
     """
     user_id = kwargs.get('user_id')
 
-    log.info("======================================")
-    log.info("HB.add_project")
-    log.info(project)
-    log.info(user_id)
-    log.info("======================================")
-
     existing_proj = get_project_by_name(project.name,user_id=user_id)
 
     if len(existing_proj) > 0:
