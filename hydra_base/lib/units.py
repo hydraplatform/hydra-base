@@ -68,7 +68,7 @@ def is_global_dimension(dimension_name,**kwargs):
     if not numpy.isscalar(dimension_name):
         # If it is a dict, extracts the name
         dimension_name = dimension_name["name"]
-    dimension = get_dimension_data(dimension_name)
+    dimension = get_dimension_by_name(dimension_name)
     return (dimension.project_id is None)
 
 
@@ -96,7 +96,7 @@ def is_global_unit(unit,**kwargs):
         Returns True if the Unit is Global, False is it is assigned to a project
         'unit' is a Unit object
     """
-    unit_data = get_unit_data(unit['abbr'])
+    unit_data = get_unit_by_abbreviation(unit['abbr'])
     return (unit_data.project_id is None)
 
 def extract_unit_abbreviation(unit):
@@ -190,8 +190,6 @@ def get_dimension(dimension_id,**kwargs):
 
         for unit in units_list:
             new_unit = JSONObject(unit)
-            log.info("new_unit")
-            log.info(new_unit)
             # Adding two alias
             new_unit.abbr = new_unit.abbreviation
             new_unit.info = new_unit.description
@@ -201,7 +199,7 @@ def get_dimension(dimension_id,**kwargs):
         return JSONObject(dimension)
     except NoResultFound:
         # The dimension does not exist
-        raise ResourceNotFoundError("Dimension %s not found"%(dimension_name))
+        raise ResourceNotFoundError("Dimension %s not found"%(dimension_id))
 
 
 def get_dimensions(**kwargs):
@@ -468,7 +466,6 @@ def update_unit(unit, **kwargs):
         # else:
         #     db_unit = db.DBSession.query(Unit).join(Dimension).filter(Unit.abbreviation==unit_abbreviation).filter(Dimension.name==unit['dimension']).filter().one()
 
-        log.info(unit)
         db_unit = db.DBSession.query(Unit).join(Dimension).filter(Unit.id==unit["id"]).filter().one()
 
         #db_unit = db.DBSession.query(Unit).join(Dimension).filter(Unit.abbreviation==unit_abbreviation).filter(Dimension.name==unit['dimension']).filter().one()
