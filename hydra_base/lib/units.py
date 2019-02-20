@@ -51,7 +51,7 @@ log = logging.getLogger(__name__)
 
 def exists_dimension(dimension_name,**kwargs):
     """
-        Given a dimension returns its units as a list
+        Given a dimension returns True if it exists, False otherwise
     """
     try:
         dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension_name).one()
