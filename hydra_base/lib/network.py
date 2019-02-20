@@ -205,7 +205,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
             db.DBSession.bulk_insert_mappings(ResourceAttr, all_resource_attrs)
             logging.info("ResourceAttr insert took %s secs"% str(time.time() - t0))
         else:
-            logging.warn("No attributes on any %s....", ref_key.lower())
+            logging.warning("No attributes on any %s....", ref_key.lower())
 
     logging.info("Resource attributes insertion from types done in %s"%(datetime.datetime.now() - start_time))
 
@@ -2403,7 +2403,7 @@ def get_all_resource_attributes_in_network(attr_id, network_id, **kwargs):
              .options(joinedload_all('link'))\
              .options(joinedload_all('resourcegroup'))\
              .options(joinedload_all('network'))
-            
+
     resourceattrs = ra_qry.all()
 
     json_ra = []
@@ -2576,7 +2576,7 @@ def clone_network(network_id, recipient_user_id=None, new_network_name=None, pro
     newnet = Network()
 
     newnet.project_id = project_id
-    newnet.name = new_network_name 
+    newnet.name = new_network_name
     newnet.description = ex_net.description
     newnet.layout = ex_net.layout
     newnet.status = ex_net.status
