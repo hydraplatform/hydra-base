@@ -979,13 +979,6 @@
             "description": "The Delisle scale is a temperature scale invented in 1732 by the French astronomer Joseph-Nicolas Delisle (16881768). It is similar to that of Reaumur"
           },
           {
-            "name": "Electronvolt",
-            "abbr": "eV",
-            "lf": "11605",
-            "cf": "0",
-            "description": "In some fields, plasma physics in particular, the electronvolt (eV) is used as a unit of 'temperature'"
-          },
-          {
             "name": "Fahrenheit",
             "abbr": "°F",
             "lf": "0.55555555555555555555555555555556",
