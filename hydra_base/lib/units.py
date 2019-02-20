@@ -75,18 +75,20 @@ def is_global_dimension(dimension_id,**kwargs):
 +--------------------------+
 """
 
-def _parse_unit(unit):
+def _parse_unit(measure_or_unit_abbreviation):
     """
-        Helper function that extracts constant factors from unit
-        specifications. This allows to specify units similar to this: 10^6 m^3.
+        Helper function that extracts constant factors from unit specifications.
+        This allows to specify units similar to this: 10^6 m^3.
         Return a couple (unit, factor)
     """
     try:
-        float(unit[0])
-        factor, unit = unit.split(' ', 1)
-        return unit, float(factor)
+        float(measure_or_unit_abbreviation[0])
+        # The measure contains the values and the unit_abbreviation
+        factor, unit_abbreviation = measure_or_unit_abbreviation.split(' ', 1)
+        return unit_abbreviation, float(factor)
     except ValueError:
-        return unit, 1.0
+        # The measure just contains the unit_abbreviation
+        return measure_or_unit_abbreviation, 1.0
 
 def is_global_unit(unit_id,**kwargs):
     """
@@ -121,51 +123,58 @@ def extract_unit_description(unit):
     return None
 
 
-def convert_units(values, unit1, unit2,**kwargs):
-    """Convert a value from one unit to another one.
+def convert_units(values, source_measure_or_unit_abbreviation, target_measure_or_unit_abbreviation,**kwargs):
+    """
+        Convert a value from one unit to another one.
 
-    Example::
+        Example::
 
-        >>> cli = PluginLib.connect()
-        >>> cli.service.convert_units(20.0, 'm', 'km')
-        0.02
+            >>> cli = PluginLib.connect()
+            >>> cli.service.convert_units(20.0, 'm', 'km')
+            0.02
+        Parameters:
+            values: single measure or an array of measures
+            source_measure_or_unit_abbreviation: A measure in the source unit, or just the abbreviation of the source unit, from which convert the provided measure value/values
+            target_measure_or_unit_abbreviation: A measure in the target unit, or just the abbreviation of the target unit, into which convert the provided measure value/values
 
-    Returns:
-        Always a list
+        Returns:
+            Always a list
     """
     if numpy.isscalar(values):
         # If it is a scalar, converts to an array
         values = [values]
     float_values = [float(value) for value in values]
-    values_to_return = convert(float_values, unit1, unit2)
+    values_to_return = convert(float_values, source_measure_or_unit_abbreviation, target_measure_or_unit_abbreviation)
 
     return values_to_return
 
-def convert(values, unit1, unit2):
+def convert(values, source_measure_or_unit_abbreviation, target_measure_or_unit_abbreviation):
     """
-        Convert a value from one unit to another one. The two units must
-        represent the same physical dimension.
+        Convert a value or a list of values from an unit to another one.
+        The two units must represent the same physical dimension.
     """
-    if get_unit_dimension(unit1) == get_unit_dimension(unit2):
-        unit1, factor1 = _parse_unit(unit1)
-        unit2, factor2 = _parse_unit(unit2)
+    if get_unit_dimension(source_measure_or_unit_abbreviation) == get_unit_dimension(target_measure_or_unit_abbreviation):
+        source=JSONObject({})
+        target=JSONObject({})
+        source.unit_abbreviation, source.factor = _parse_unit(source_measure_or_unit_abbreviation)
+        target.unit_abbreviation, target.factor = _parse_unit(target_measure_or_unit_abbreviation)
 
-        unit_data_1 = get_unit_by_abbreviation(unit1)
-        unit_data_2 = get_unit_by_abbreviation(unit2)
+        source.unit_data = get_unit_by_abbreviation(source.unit_abbreviation)
+        target.unit_data = get_unit_by_abbreviation(target.unit_abbreviation)
 
-        conv_factor1 = JSONObject({'lf': unit_data_1.lf, 'cf': unit_data_1.cf})
-        conv_factor2 = JSONObject({'lf': unit_data_2.lf, 'cf': unit_data_2.cf})
+        source.conv_factor = JSONObject({'lf': source.unit_data.lf, 'cf': source.unit_data.cf})
+        target.conv_factor = JSONObject({'lf': target.unit_data.lf, 'cf': target.unit_data.cf})
 
         if isinstance(values, float):
-            # If values is a float returns a float
-            return (conv_factor1.lf / conv_factor2.lf * (factor1 * values)
-                    + (conv_factor1.cf - conv_factor2.cf)
-                    / conv_factor2.lf) / factor2
+            # If values is a float => returns a float
+            return (source.conv_factor.lf / target.conv_factor.lf * (source.factor * values)
+                    + (source.conv_factor.cf - target.conv_factor.cf)
+                    / target.conv_factor.lf) / target.factor
         elif isinstance(values, list):
-            # If values is a list returns a list
-            return [(conv_factor1.lf / conv_factor2.lf * (factor1 * value)
-                    + (conv_factor1.cf - conv_factor2.cf)
-                    / conv_factor2.lf) / factor2 for value in values]
+            # If values is a list of floats => returns a list of floats
+            return [(source.conv_factor.lf / target.conv_factor.lf * (source.factor * value)
+                    + (source.conv_factor.cf - target.conv_factor.cf)
+                    / target.conv_factor.lf) / target.factor for value in values]
     else:
         raise HydraError("Unit conversion: dimensions are not consistent.")
 
@@ -265,19 +274,20 @@ def get_units(**kwargs):
     return units
 
 
-def get_unit_dimension(unit,**kwargs):
+def get_unit_dimension(measure_or_unit_abbreviation,**kwargs):
     """
-        Return the physical dimension a given unit refers to. The search key if the abbreviation
+        Return the physical dimension a given unit abbreviation of a measure, or the measure itself, refers to.
+        The search key is the abbreviation or the full measure
     """
 
-    unit, factor = _parse_unit(unit)
+    unit_abbreviation, factor = _parse_unit(measure_or_unit_abbreviation)
 
-    units = db.DBSession.query(Unit).filter(Unit.abbreviation==unit).all()
+    units = db.DBSession.query(Unit).filter(Unit.abbreviation==unit_abbreviation).all()
 
     if len(units) == 0:
-        raise HydraError('Unit %s not found.'%(unit))
+        raise HydraError('Unit %s not found.'%(unit_abbreviation))
     elif len(units) > 1:
-        raise HydraError('Unit %s has multiple dimensions not found.'%(unit))
+        raise HydraError('Unit %s has multiple dimensions not found.'%(unit_abbreviation))
     else:
         dimension = db.DBSession.query(Dimension).filter(Dimension.id==units[0].dimension_id).one()
         return str(dimension.name)
@@ -452,21 +462,12 @@ def delete_unit(unit_id, **kwargs):
 def update_unit(unit, **kwargs):
     """
         Update a unit in the DB.
-        Raises and exception if the unit does not existself.
-        The key is ALWAYS the abbreviation
+        Raises and exception if the unit does not exist
     """
-    #unit_abbreviation = extract_unit_abbreviation(unit)
-
     try:
-
-        # if 'dimension_id' in unit.keys() and unit['dimension_id'] is not None:
-        #     db_unit = db.DBSession.query(Unit).join(Dimension).filter(Unit.abbreviation==unit_abbreviation).filter(Dimension.id==unit['dimension_id']).filter().one()
-        # else:
-        #     db_unit = db.DBSession.query(Unit).join(Dimension).filter(Unit.abbreviation==unit_abbreviation).filter(Dimension.name==unit['dimension']).filter().one()
 
         db_unit = db.DBSession.query(Unit).join(Dimension).filter(Unit.id==unit["id"]).filter().one()
 
-        #db_unit = db.DBSession.query(Unit).join(Dimension).filter(Unit.abbreviation==unit_abbreviation).filter(Dimension.name==unit['dimension']).filter().one()
         db_unit.name = unit["name"]
 
         # Needed to uniform into to description
@@ -491,13 +492,12 @@ def update_unit(unit, **kwargs):
 | OTHER FUNCTIONS |
 +-----------------+
 """
-def check_consistency(unit, dimension,**kwargs):
+def check_consistency(measure_or_unit_abbreviation, dimension,**kwargs):
     """
         Check whether a specified unit is consistent with the physical
         dimension asked for by the attribute or the dataset.
     """
-    unit_abbr, factor = _parse_unit(unit)
-    dim = get_unit_dimension(unit_abbr)
+    dim = get_unit_dimension(measure_or_unit_abbreviation)
     return dim == dimension
 
 
@@ -508,11 +508,10 @@ def check_consistency(unit, dimension,**kwargs):
 """
 
 
-def convert_dataset(dataset_id, to_unit,**kwargs):
+def convert_dataset(dataset_id, target_unit_abbreviation,**kwargs):
     """
-        Convert a whole dataset (specified by 'dataset_id' to new unit
-        ('to_unit'). Conversion ALWAYS creates a NEW dataset, so function
-        returns the dataset ID of new dataset.
+        Convert a whole dataset (specified by 'dataset_id') to new unit ('target_unit_abbreviation').
+        Conversion ALWAYS creates a NEW dataset, so function returns the dataset ID of new dataset.
     """
 
     ds_i = db.DBSession.query(Dataset).filter(Dataset.id==dataset_id).one()
@@ -520,22 +519,22 @@ def convert_dataset(dataset_id, to_unit,**kwargs):
     dataset_type = ds_i.type
 
     dsval = ds_i.get_val()
-    old_unit = ds_i.unit
+    source_unit_abbreviation = ds_i.unit
 
-    if old_unit is not None:
+    if source_unit_abbreviation is not None:
         if dataset_type == 'scalar':
-            new_val = convert(float(dsval), old_unit, to_unit)
+            new_val = convert(float(dsval), source_unit_abbreviation, target_unit_abbreviation)
         elif dataset_type == 'array':
             dim = array_dim(dsval)
             vecdata = arr_to_vector(dsval)
-            newvec = convert(vecdata, old_unit, to_unit)
+            newvec = convert(vecdata, source_unit_abbreviation, target_unit_abbreviation)
             new_val = vector_to_arr(newvec, dim)
         elif dataset_type == 'timeseries':
             new_val = []
             for ts_time, ts_val in dsval.items():
                 dim = array_dim(ts_val)
                 vecdata = arr_to_vector(ts_val)
-                newvec = convert(vecdata, old_unit, to_unit)
+                newvec = convert(vecdata, source_unit_abbreviation, target_unit_abbreviation)
                 newarr = vector_to_arr(newvec, dim)
                 new_val.append(ts_time, newarr)
         elif dataset_type == 'descriptor':
@@ -545,7 +544,7 @@ def convert_dataset(dataset_id, to_unit,**kwargs):
         new_dataset.type   = ds_i.type
         new_dataset.value  = str(new_val) # The data type is TEXT!!!
         new_dataset.name   = ds_i.name
-        new_dataset.unit   = to_unit
+        new_dataset.unit   = target_unit_abbreviation
         new_dataset.hidden = 'N'
         new_dataset.set_metadata(ds_i.get_metadata_as_dict())
         new_dataset.set_hash()
