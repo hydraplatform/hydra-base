@@ -217,7 +217,7 @@ class Dataset(Base, Inspect):
     def unset_owner(self, user_id):
         owner = None
         if str(user_id) == str(self.created_by):
-            log.warn("Cannot unset %s as owner, as they created the dataset", user_id)
+            log.warning("Cannot unset %s as owner, as they created the dataset", user_id)
             return
         for o in self.owners:
             if user_id == o.user_id:
@@ -739,7 +739,7 @@ class Project(Base, Inspect):
     def unset_owner(self, user_id):
         owner = None
         if str(user_id) == str(self.created_by):
-            log.warn("Cannot unset %s as owner, as they created the project", user_id)
+            log.warning("Cannot unset %s as owner, as they created the project", user_id)
             return
         for o in self.owners:
             if user_id == o.user_id:
@@ -949,7 +949,7 @@ class Network(Base, Inspect):
 
         owner = None
         if str(user_id) == str(self.created_by):
-            log.warn("Cannot unset %s as owner, as they created the network", user_id)
+            log.warning("Cannot unset %s as owner, as they created the network", user_id)
             return
         for o in self.owners:
             if user_id == o.user_id:
