@@ -70,7 +70,7 @@ class TestUnits():
         # Returns a dimension searching by ID. The result contains all the dimension data plus all the units of the dimension
         # 1 is the id of length
         dimension = hb.get_dimension(1)
-        log.info(dimension)
+
         assert dimension is not None, \
             "Could not get a dimensions by id."
         assert dimension.name == "Length", \
@@ -81,7 +81,7 @@ class TestUnits():
     def test_get_dimensions(self, session):
         # Returns an array of dimensions. Every item contains the dimension data plus the units list
         dimension_list = hb.get_dimensions()
-        log.info(dimension_list)
+
         assert dimension_list is not None and len(dimension_list) != 0, \
             "Could not get the full list of dimensions."
 
@@ -89,7 +89,7 @@ class TestUnits():
         # Returns a dimension searching by ID. The result contains all the dimension data plus all the units of the dimension
         # 1 is the id of length
         dimension = hb.get_dimension_by_name("Length")
-        log.info(dimension)
+
         assert dimension is not None, \
             "Could not get a dimensions by name."
         assert dimension.id == 1, \
@@ -101,7 +101,7 @@ class TestUnits():
         # Returns a dimension searching by ID. The result contains all the dimension data plus all the units of the dimension
         # 1 is the id of length
         unit = hb.get_unit(2)
-        log.info(unit)
+
         assert unit is not None, \
             "Could not get a unit by id."
         assert unit.abbr == "AU", \
@@ -111,7 +111,7 @@ class TestUnits():
         # Returns a dimension searching by ID. The result contains all the dimension data plus all the units of the dimension
         # 1 is the id of length
         unit = hb.get_unit_by_abbreviation("AU")
-        log.info(unit)
+
         assert unit is not None, \
             "Could not get a unit by abbreviation."
         assert unit.id == 2, \
@@ -120,7 +120,7 @@ class TestUnits():
     def test_get_units(self, session):
         # Returns an array of dimensions. Every item contains the dimension data plus the units list
         units_list = hb.get_units()
-        log.info(units_list)
+
         assert units_list is not None and len(units_list) != 0, \
             "Could not get the full list of units."
 
@@ -132,7 +132,7 @@ class TestUnits():
         resultdim = hb.get_unit_dimension(testunit)
 
         assert testdim == resultdim, \
-            "Getting dimension for 'kilometers' didn't work."
+            "Getting dimension for 'km' didn't work."
 
         with pytest.raises(HydraError):
             dimension = hb.get_unit_dimension('not-existing-unit')
@@ -180,6 +180,7 @@ class TestUnits():
     def test_update_dimension(self, session):
         # Updating existing dimension
         testdim = {
+                    'id': 1,
                     'name':'Length',
                     'description': 'New description'
                     }
@@ -201,8 +202,6 @@ class TestUnits():
         hb.delete_dimension(new_dimension.id, user_id=pytest.root_user_id)
 
         new_dimension_list = list(hb.get_dimensions())
-
-        log.info(new_dimension_list)
 
         assert len(list(filter(lambda x: x["name"] == testdim["name"], old_dimension_list))) > 0 and \
                len(list(filter(lambda x: x["name"] == testdim["name"], new_dimension_list))) == 0,\
@@ -230,16 +229,6 @@ class TestUnits():
             "Adding new unit didn't work."
 
 
-        #log.info(unitlist)
-
-        # unitabbr = []
-        # for unit in unitlist:
-        #     unitabbr.append(unit["abbr"])
-        #
-        # assert new_unit.abbr in unitabbr, \
-        #     "Adding new unit didn't work."
-
-
         # Add a new unit to a custom dimension
         testdim = {'name':'Test dimension'}
         new_dimension = hb.add_dimension(testdim, user_id=pytest.root_user_id)
@@ -249,7 +238,7 @@ class TestUnits():
         testunit.abbr = 'ttt'
         testunit.cf = 21
         testunit.lf = 42
-        #testunit.dimension = testdim["name"]
+
         testunit.dimension_id = new_dimension.id
 
         new_unit = hb.add_unit(testunit, user_id=pytest.root_user_id)
@@ -257,8 +246,7 @@ class TestUnits():
         new_dimension_loaded = hb.get_dimension(new_dimension.id, user_id=pytest.root_user_id)
 
         unitlist = list(new_dimension_loaded.units)
-        #unitlist = list(hb.get_units(testdim["name"]))
-        #log.info(unitlist)
+
         assert len(unitlist) == 1, \
             "Adding a new unit didn't work as expected"
 
@@ -350,12 +338,12 @@ class TestUnits():
 
 
     def test_is_global_dimension(self, session):
-        result = hb.is_global_dimension('Length')
+        result = hb.is_global_dimension(1)
         assert result is True, \
             "Is global dimension check didn't work."
 
     def test_is_global_unit(self, session):
-        result = hb.is_global_unit({'abbr':'m'})
+        result = hb.is_global_unit(1)
         assert result is True, \
             "Is global unit check didn't work."
 
@@ -399,7 +387,6 @@ class TestUnits():
 
         assert newid is not None
         assert newid != dataset_id, "Converting dataset not completed."
-        log.info(newid)
 
         new_dataset = hb.get_dataset(newid, user_id = pytest.root_user_id)
         new_val = new_dataset.value
