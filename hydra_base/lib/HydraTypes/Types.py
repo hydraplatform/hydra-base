@@ -232,7 +232,7 @@ class Dataframe(DataType):
             raise HydraError(str(e))
 
         except AssertionError as e:
-            log.warn("An error occurred creating the new data frame: %s. Defaulting to a simple read_json"%(e))
+            log.warning("An error occurred creating the new data frame: %s. Defaulting to a simple read_json"%(e))
             df = pd.read_json(value).fillna(0)
 
         return df
