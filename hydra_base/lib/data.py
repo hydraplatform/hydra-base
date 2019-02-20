@@ -457,7 +457,7 @@ def update_dataset(dataset_id, name, data_type, val, units, metadata={}, flush=T
         #Is there a dataset in the DB already which is identical to the updated dataset?
         existing_dataset = db.DBSession.query(Dataset).filter(Dataset.hash==dataset.hash, Dataset.id != dataset.id).first()
         if existing_dataset is not None and existing_dataset.check_user(user_id):
-            log.warn("An identical dataset %s has been found to dataset %s."
+            log.warning("An identical dataset %s has been found to dataset %s."
                      " Deleting dataset and returning dataset %s",
                      existing_dataset.id, dataset.id, existing_dataset.id)
             db.DBSession.delete(dataset)

@@ -217,7 +217,7 @@ class Dataset(JSONObject):
         """
         try:
             if self.value is None:
-                log.warn("Cannot parse dataset. No value specified.")
+                log.warning("Cannot parse dataset. No value specified.")
                 return None
 
             # attr_data.value is a dictionary but the keys have namespaces which must be stripped
