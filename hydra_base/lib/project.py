@@ -69,7 +69,6 @@ def add_project(project,**kwargs):
     """
     user_id = kwargs.get('user_id')
 
-
     existing_proj = get_project_by_name(project.name,user_id=user_id)
 
     if len(existing_proj) > 0:
@@ -115,16 +114,37 @@ def update_project(project,**kwargs):
 
     return proj_i
 
-def get_project(project_id,**kwargs):
+def get_project(project_id, include_deleted_networks=False, **kwargs):
     """
         get a project complexmodel
     """
     user_id = kwargs.get('user_id')
     proj_i = _get_project(project_id)
 
+    #lazy load owners
+    proj_i.owners
+
     proj_i.check_read_permission(user_id)
 
-    return proj_i
+    proj_j = JSONObject(proj_i)
+    
+    proj_j.networks = []
+    for net_i in proj_i.networks:
+        #lazy load owners
+        net_i.owners
+        net_i.scenarios
+
+        if include_deleted_networks==False and net_i.status.lower() == 'x':
+            continue
+
+        can_read_network = net_i.check_read_permission(user_id, do_raise=False)
+        if can_read_network is False:
+            continue
+        
+        net_j = JSONObject(net_i)
+        proj_j.networks.append(net_j)
+
+    return proj_j
 
 def get_project_by_network_id(network_id,**kwargs):
     """
@@ -246,7 +266,7 @@ def get_projects(uid, include_shared_projects=True, **kwargs):
     ##Don't load the project's networks. Load them separately, as the networks
     #must be checked individually for ownership
     projects_qry = db.DBSession.query(Project)
-    
+
     if include_shared_projects is True:
         projects_qry = projects_qry.join(ProjectOwner).filter(Project.status=='A',
                                                         or_(ProjectOwner.user_id==uid,
@@ -258,8 +278,8 @@ def get_projects(uid, include_shared_projects=True, **kwargs):
     projects_qry = projects_qry.options(noload('networks')).order_by('id')
 
     projects_i = projects_qry.all()
-    
-    #Load each 
+
+    #Load each
     projects_j = []
     for project_i in projects_i:
         #Ensure the requesting user is allowed to see the project
@@ -267,17 +287,22 @@ def get_projects(uid, include_shared_projects=True, **kwargs):
         #lazy load owners
         project_i.owners
 
-        networks_i = db.DBSession.query(Network).join(NetworkOwner)\
-                                .filter(Network.project_id==project_i.id,
-                                        Network.status=='A',
-                                        or_(Network.created_by==uid,\
-                                            NetworkOwner.user_id==uid))
-
+        networks_i = db.DBSession.query(Network)\
+                                .filter(Network.project_id==project_i.id,\
+                                        Network.status=='A')
+        networks_j = []
         for network_i in networks_i:
-            network_i.check_read_permission(req_user_id)
-        
+            network_i.owners
+            network_i.check_read_permission(req_user_id, do_raise=False)
+            net_j = JSONObject(network_i)
+            if net_j.layout is not None:
+                net_j.layout = JSONObject(net_j.layout)
+            else:
+                net_j.layout = JSONObject({})
+            networks_j.append(net_j)
+
         project_j = JSONObject(project_i)
-        project_j.networks = [JSONObject(network_i) for network_i in networks_i]
+        project_j.networks = networks_j 
         projects_j.append(project_j)
 
 
