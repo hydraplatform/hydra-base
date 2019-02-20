@@ -61,14 +61,11 @@ def exists_dimension(dimension_name,**kwargs):
         # The dimension does not exist
         raise False
 
-def is_global_dimension(dimension_name,**kwargs):
+def is_global_dimension(dimension_id,**kwargs):
     """
         Returns True if the dimension is Global, False is it is assigned to a project
     """
-    if not numpy.isscalar(dimension_name):
-        # If it is a dict, extracts the name
-        dimension_name = dimension_name["name"]
-    dimension = get_dimension_by_name(dimension_name)
+    dimension = get_dimension(dimension_id)
     return (dimension.project_id is None)
 
 
@@ -91,12 +88,12 @@ def _parse_unit(unit):
     except ValueError:
         return unit, 1.0
 
-def is_global_unit(unit,**kwargs):
+def is_global_unit(unit_id,**kwargs):
     """
         Returns True if the Unit is Global, False is it is assigned to a project
         'unit' is a Unit object
     """
-    unit_data = get_unit_by_abbreviation(unit['abbr'])
+    unit_data = get_unit(unit_id)
     return (unit_data.project_id is None)
 
 def extract_unit_abbreviation(unit):
@@ -336,15 +333,16 @@ def update_dimension(dimension,**kwargs):
         The key is ALWAYS the name and the name itself is not modificable
     """
     db_dimension = None
+    dimension = JSONObject(dimension)
     try:
-        db_dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension['name']).filter().one()
+        db_dimension = db.DBSession.query(Dimension).filter(Dimension.id==dimension.id).filter().one()
 
         if "description" in dimension and dimension["description"] is not None:
             db_dimension.description = dimension["description"]
         if "project_id" in dimension and dimension["project_id"] is not None and dimension["project_id"] != "" and dimension["project_id"].isdigit():
             db_dimension.project_id = dimension["project_id"]
     except NoResultFound:
-        raise ResourceNotFoundError("Dimension (name=%s) does not exist"%(dimension["name"]))
+        raise ResourceNotFoundError("Dimension (ID=%s) does not exist"%(dimension.id))
 
 
     db.DBSession.flush()
