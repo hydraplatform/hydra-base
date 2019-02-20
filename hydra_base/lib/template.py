@@ -114,25 +114,25 @@ def _get_attr_by_name_and_dimension(name, dimension):
     return attr
 
 def parse_attribute(attribute):
-
+    dimension_name = ""
     if attribute.find('dimension') is not None:
-        dimension = attribute.find('dimension').text
-        if dimension is not None:
-            dimension = units.get_dimension(dimension.strip())
+        dimension_name = attribute.find('dimension').text
+        if dimension_name is not None:
+            dimension_name = units.get_dimension_by_name(dimension_name.strip()).name
 
-            if dimension is None:
-                raise HydraError("Dimension %s does not exist."%dimension)
+            if dimension_name is None:
+                raise HydraError("Dimension %s does not exist."%dimension_name)
 
     elif attribute.find('unit') is not None:
         if attribute.find('unit').text is not None:
-            dimension = units.get_unit_dimension(attribute.find('unit').text)
+            dimension_name = units.get_unit_dimension(attribute.find('unit').text)
 
-    if dimension is None or dimension.lower() in ('dimensionless', ''):
-        dimension = 'dimensionless'
+    if dimension_name is None or dimension_name.lower() in ('dimensionless', ''):
+        dimension_name = 'dimensionless'
 
     name      = attribute.find('name').text.strip()
 
-    attr = _get_attr_by_name_and_dimension(name, dimension)
+    attr = _get_attr_by_name_and_dimension(name, dimension_name)
 
     db.DBSession.flush()
 
@@ -220,7 +220,7 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
             if dimension_j.strip() == '':
                 dimension_j = 'dimensionless'
 
-            dimension = units.get_dimension(dimension_j.strip())
+            dimension = units.get_dimension_by_name(dimension_j.strip()).name
 
             if dimension is None:
                 raise HydraError("Dimension '%s' does not exist."%dimension_j)
@@ -1913,7 +1913,7 @@ def _validate_resource(resource, tmpl_types, resource_scenarios=[]):
                                   "%s on attribute, %s on type"%
                                  (attr_name, rs_unit, type_unit))
     if len(errors) > 0:
-        log.warn(errors)
+        log.warning(errors)
 
     return errors
 
@@ -2043,22 +2043,35 @@ def _make_attr_element(parent, resource_attr_i):
     attr_dimension = etree.SubElement(attr, 'dimension')
     attr_dimension.text = attr_i.dimension
 
-    attr_unit    = etree.SubElement(attr, 'unit')
-    attr_unit.text = resource_attr_i.unit
+    try:
+        attr_unit    = etree.SubElement(attr, 'unit')
+        attr_unit.text = resource_attr_i.unit
+    except AttributeError:
+        #The EAFP way
+        pass
+
 
     attr_is_var    = etree.SubElement(attr, 'is_var')
     attr_is_var.text = resource_attr_i.attr_is_var
 
-    if resource_attr_i.data_type:
-        attr_data_type    = etree.SubElement(attr, 'data_type')
-        attr_data_type.text = resource_attr_i.data_type
+    try:
+        if resource_attr_i.data_type:
+            attr_data_type    = etree.SubElement(attr, 'data_type')
+            attr_data_type.text = resource_attr_i.data_type
+    except AttributeError:
+        #The EAFP way
+        pass
 
     #attr_properties    = etree.SubElement(attr, 'properties')
     #attr_properties.text = resource_attr_i.properties
 
-    if resource_attr_i.data_restriction:
-        attr_data_restriction    = etree.SubElement(attr, 'restrictions')
-        attr_data_restriction.text = resource_attr_i.data_restriction
+    try:
+        if resource_attr_i.data_restriction:
+            attr_data_restriction    = etree.SubElement(attr, 'restrictions')
+            attr_data_restriction.text = resource_attr_i.data_restriction
+    except AttributeError:
+        #The EAFP way
+        pass
 
     # if scenario_id is not None:
     #     for rs in resource_attr_i.get_resource_scenarios():
