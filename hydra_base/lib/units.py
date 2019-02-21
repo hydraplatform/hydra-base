@@ -23,6 +23,9 @@ from lxml import etree
 
 from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy import func
+from sqlalchemy.orm import load_only
+
 from .. import db
 
 from .. import config
@@ -35,7 +38,6 @@ from ..exceptions import HydraError, ResourceNotFoundError
 
 import json
 from ..util.permissions import check_perm, required_perms
-from sqlalchemy.orm import load_only
 
 import numpy
 import logging
@@ -226,7 +228,7 @@ def get_dimension_by_name(dimension_name,**kwargs):
         Given a dimension name returns all its data. Used in convert functions
     """
     try:
-        dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension_name).one()
+        dimension = db.DBSession.query(Dimension).filter(func.lower(Dimension.name)==func.lower(dimension_name)).one()
 
         return get_dimension(dimension.id)
 
