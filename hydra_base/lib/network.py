@@ -591,7 +591,7 @@ def _get_all_resource_attributes(network_id, template_id=None):
                                ResourceAttr.network_id.label('network_id'),
                                ResourceAttr.attr_id.label('attr_id'),
                                Attr.name.label('name'),
-                               Attr.dimension.label('dimension'),
+                               Attr.dimension_id.label('dimension_id'),
                               ).filter(Attr.id==ResourceAttr.attr_id)
 
 
