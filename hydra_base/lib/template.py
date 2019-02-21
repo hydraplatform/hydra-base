@@ -117,23 +117,19 @@ def _get_attr_by_name_and_dimension(name, dimension):
 def parse_attribute(attribute):
 
     if attribute.find('dimension') is not None:
-        dimension = attribute.find('dimension').text
-        if dimension is not None:
-            dimension = units.get_dimension(dimension.strip())
-
-            if dimension is None:
-                raise HydraError("Dimension %s does not exist."%dimension)
+        dimension_name = attribute.find('dimension').text
+        if dimension_name is not None:
+            if dimension_name.lower() in ('dimensionless', ''):
+                dimension_name = 'dimensionless'
+            dimension_i = units.get_dimension_by_name(dimension_name.strip())
 
     elif attribute.find('unit') is not None:
         if attribute.find('unit').text is not None:
-            dimension = units.get_unit_dimension(attribute.find('unit').text)
-
-    if dimension is None or dimension.lower() in ('dimensionless', ''):
-        dimension = 'dimensionless'
+            dimension_i = units.get_unit_dimension(attribute.find('unit').text)
 
     name      = attribute.find('name').text.strip()
 
-    attr = _get_attr_by_name_and_dimension(name, dimension)
+    attr = _get_attr_by_name_and_dimension(name, dimension_i.name)
 
     db.DBSession.flush()
 
@@ -216,25 +212,17 @@ def parse_xml_typeattr(type_i, attribute):
 def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
 
     if attribute_j.dimension is not None:
-        dimension_j = attribute_j.dimension
-        if dimension_j is not None:
-            if dimension_j.strip() == '':
-                dimension_j = 'dimensionless'
-
-            dimension = units.get_dimension(dimension_j.strip())
-
-            if dimension is None:
-                raise HydraError("Dimension '%s' does not exist."%dimension_j)
-
+        dimension_name = attribute_j.dimension
+        if dimension_name is not None:
+            if dimension_name.strip() == '':
+                dimension_name = 'dimensionless'
+            dimension_i = units.get_dimension_by_name(dimension_name.strip())
     elif attribute_j.unit is not None:
-            dimension = units.get_unit_dimension(attribute_j.unit)
-
-    if dimension is None or dimension.lower() in ('dimensionless', ''):
-        dimension = 'dimensionless'
+            dimension_i = units.get_unit_dimension(attribute_j.unit)
 
     name      = attribute_j.name.strip()
 
-    attr_i = _get_attr_by_name_and_dimension(name, dimension)
+    attr_i = _get_attr_by_name_and_dimension(name, dimension_i.name)
 
     #Get an ID for the attribute
     db.DBSession.flush()
