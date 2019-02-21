@@ -7,6 +7,8 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+import six
+
 import datetime
 
 
@@ -63,7 +65,7 @@ def session(db, engine, request):
     # Patch the global session in hydra_base
     hydra_base.db.DBSession = session
 
-    if isinstance(session.connection().connection.connection,sqlite3.Connection):
+    if six.PY2 and isinstance(session.connection().connection.connection,sqlite3.Connection):
         session.connection().connection.connection.text_factory = lambda x: unicode(x, 'utf-8', 'ignore')
 
     # Now apply the default users and roles
