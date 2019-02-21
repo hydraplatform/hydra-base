@@ -114,18 +114,20 @@ def _get_attr_by_name_and_dimension(name, dimension):
 
     return attr
 
-def parse_attribute(attribute):
+def parse_xml_attribute(attribute):
 
     if attribute.find('dimension') is not None:
         dimension_name = attribute.find('dimension').text
         if dimension_name is not None:
             if dimension_name.lower() in ('dimensionless', ''):
                 dimension_name = 'dimensionless'
-            dimension_i = units.get_dimension_by_name(dimension_name.strip())
+        dimension_i = units.get_dimension_by_name(dimension_name.strip())
 
     elif attribute.find('unit') is not None:
         if attribute.find('unit').text is not None:
             dimension_i = units.get_unit_dimension(attribute.find('unit').text)
+    else:
+        raise HydraError("An attribute must have a unit or dimension. %s has neither"%(attribute_i.name))
 
     name      = attribute.find('name').text.strip()
 
@@ -137,7 +139,7 @@ def parse_attribute(attribute):
 
 def parse_xml_typeattr(type_i, attribute):
 
-    attr = parse_attribute(attribute)
+    attr = parse_xml_attribute(attribute)
 
     for ta in type_i.typeattrs:
         if ta.attr_id == attr.id:
@@ -212,13 +214,14 @@ def parse_xml_typeattr(type_i, attribute):
 def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
 
     if attribute_j.dimension is not None:
-        dimension_name = attribute_j.dimension
-        if dimension_name is not None:
-            if dimension_name.strip() == '':
-                dimension_name = 'dimensionless'
-            dimension_i = units.get_dimension_by_name(dimension_name.strip())
+        dimension_name = attribute_j.dimension.strip()
+        if dimension_name.lower() in ('dimensionless', ''):
+            dimension_name = 'dimensionless'
+        dimension_i = units.get_dimension_by_name(dimension_name.strip())
     elif attribute_j.unit is not None:
-            dimension_i = units.get_unit_dimension(attribute_j.unit)
+        dimension_i = units.get_unit_dimension(attribute_j.unit)
+    else:
+        raise HydraError("An attribute must have a unit or dimension. %s has neither"%(attribute_i.name))
 
     name      = attribute_j.name.strip()
 
@@ -377,8 +380,8 @@ def get_template_as_xml(template_id,**kwargs):
 
     template_name = etree.SubElement(template_xml, "template_name")
     template_name.text = template_i.name
-    template_name = etree.SubElement(template_xml, "template_description")
-    template_name.text = template_i.description
+    template_description = etree.SubElement(template_xml, "template_description")
+    template_description.text = template_i.description
     resources = etree.SubElement(template_xml, "resources")
 
     for type_i in template_i.templatetypes:
