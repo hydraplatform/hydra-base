@@ -11,7 +11,7 @@ env:
 - DB=mysql
 
 before_script:
-  - pip install pytest pytest-cov
+  - pip install --upgrade pytest pytest-cov
   - |
     set -e
     if [ "${DB}" == "postgres" ]; then
