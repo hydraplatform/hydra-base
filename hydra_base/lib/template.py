@@ -51,13 +51,13 @@ def _check_dimension(typeattr, unit=None):
     if unit is None:
         unit = typeattr.unit
 
-    dimension = _get_attr(typeattr.attr_id).dimension
+    dimension_id = _get_attr(typeattr.attr_id).dimension_id
 
-    if unit is not None and dimension is not None:
-        unit_dimen = units.get_unit_dimension(unit)
-        if unit_dimen.lower() != dimension.lower():
-            raise HydraError("Unit %s has dimension %s, but attribute has dimension %s"%
-                            (unit, unit_dimen, dimension))
+    if unit is not None and dimension_id is not None:
+        unit_dimension_id = units.get_unit_dimension(unit).id
+        if unit_dimension_id != dimension_id:
+            raise HydraError("Unit %s has dimension_id %s, but attribute has dimension_id %s"%
+                            (unit, unit_dimension_id, dimension_id))
 
 
 def get_types_by_attr(resource, template_id=None):
@@ -93,21 +93,21 @@ def get_types_by_attr(resource, template_id=None):
 
     return resource_type_templates
 
-def _get_attr_by_name_and_dimension(name, dimension):
+def _get_attr_by_name_and_dimension(name, dimension_id):
     """
-        Search for an attribute with the given name and dimension.
+        Search for an attribute with the given name and dimension_id.
         If such an attribute does not exist, create one.
     """
 
-    attr = db.DBSession.query(Attr).filter(Attr.name==name, Attr.dimension==dimension).first()
+    attr = db.DBSession.query(Attr).filter(Attr.name==name, Attr.dimension_id==dimension_id).first()
 
     if attr is None:
         attr         = Attr()
-        attr.dimension = dimension
+        attr.dimension_id = dimension_id
         attr.name  = name
 
         log.info("Attribute not found, creating new attribute: name:%s, dimen:%s",
-                    attr.name, attr.dimension)
+                    attr.name, attr.dimension_id)
 
         db.DBSession.add(attr)
 
@@ -132,7 +132,7 @@ def parse_attribute(attribute):
 
     name      = attribute.find('name').text.strip()
 
-    attr = _get_attr_by_name_and_dimension(name, dimension_name)
+    attr = _get_attr_by_name_and_dimension(name, units.get_dimension_by_name(dimension_name).id)
 
     db.DBSession.flush()
 
