@@ -17,6 +17,8 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
+from __future__ import division
+
 import os
 from copy import deepcopy
 from lxml import etree
