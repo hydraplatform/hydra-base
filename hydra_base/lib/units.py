@@ -292,6 +292,18 @@ def get_unit_dimension(measure_or_unit_abbreviation,**kwargs):
         dimension = db.DBSession.query(Dimension).filter(Dimension.id==units[0].dimension_id).one()
         return str(dimension.name)
 
+def get_dimension_by_unit_id(unit_id,**kwargs):
+    """
+        Return the physical dimension a given unit id refers to.
+    """
+
+    try:
+        dimension = db.DBSession.query(Dimension).join(Unit).filter(Unit.id==unit_id).filter().one()
+        return get_dimension(dimension.id)
+    except NoResultFound:
+        # The dimension does not exist
+        raise ResourceNotFoundError("Unit %s not found"%(unit_id))
+
 
 def get_unit_by_abbreviation(unit_abbreviation, **kwargs):
     """
@@ -372,7 +384,7 @@ def delete_dimension(dimension_id,**kwargs):
         db.DBSession.flush()
         return True
     except NoResultFound:
-        raise ResourceNotFoundError("Dimension (dimension_name=%s) does not exist"%(dimension_name))
+        raise ResourceNotFoundError("Dimension (dimension_id=%s) does not exist"%(dimension_id))
 
 
 """
