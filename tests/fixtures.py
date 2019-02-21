@@ -2,6 +2,7 @@ from hydra_base.db import DeclarativeBase as _db
 from hydra_base.util.hdb import create_default_users_and_perms, make_root_user, create_default_units_and_dimensions
 import hydra_base
 import util
+import sqlite3
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -26,14 +27,14 @@ def testdb_uri(db_backend):
         # This is designed to work on Travis CI
         return 'postgresql://postgres@localhost:5432/hydra_base_test'
     elif db_backend == 'mysql':
-        return 'mysql+mysqldb://root@localhost/hydra_base_test'
+        return 'mysql+mysqldb://root:root@localhost/hydra_base_test'
     else:
         raise ValueError('Database backend "{}" not supported when running the tests.'.format(db_backend))
 
 
 @pytest.fixture(scope='function')
 def engine(testdb_uri):
-    engine = create_engine(testdb_uri)
+    engine = create_engine(testdb_uri, encoding='utf-8')
     return engine
 
 
@@ -61,6 +62,9 @@ def session(db, engine, request):
 
     # Patch the global session in hydra_base
     hydra_base.db.DBSession = session
+
+    if isinstance(session.connection().connection.connection,sqlite3.Connection):
+        session.connection().connection.connection.text_factory = lambda x: unicode(x, 'utf-8', 'ignore')
 
     # Now apply the default users and roles
     #hydra_base.db.DBSession.begin_nested()
