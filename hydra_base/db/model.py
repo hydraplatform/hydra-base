@@ -111,8 +111,8 @@ class Dataset(Base, Inspect):
     id         = Column(Integer(), primary_key=True, index=True, nullable=False)
     name       = Column(String(60),  nullable=False)
     type       = Column(String(60),  nullable=False)
-    unit       = Column(String(60)) ## To remove in the next step
-    unit_id    = Column(Integer(), ForeignKey('tUnit.id'))
+    #unit       = Column(String(60)) ## To remove in the next step
+    unit_id    = Column(Integer(), ForeignKey('tUnit.id'),  nullable=True)
     hash       = Column(BIGINT(),  nullable=False, unique=True)
     cr_date    = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     created_by = Column(Integer(), ForeignKey('tUser.id'))
@@ -177,7 +177,7 @@ class Dataset(Base, Inspect):
 
         dataset_dict = dict(name      = self.name,
                            unit_id       = self.unit_id,
-                           unit       = self.unit,
+                           #unit       = self.unit,
                            type       = self.type,
                            value      = self.value,
                            metadata   = metadata)
@@ -366,8 +366,8 @@ class Attr(Base, Inspect):
 
     id           = Column(Integer(), primary_key=True, nullable=False)
     name         = Column(String(60),  nullable=False)
-    dimension    = Column(String(60), server_default=text(u"'dimensionless'")) ## To remove in the next step
-    dimension_id    = Column(Integer(), ForeignKey('tDimension.id'))
+    #dimension    = Column(String(60), server_default=text(u"'dimensionless'")) ## To remove in the next step
+    dimension_id    = Column(Integer(), ForeignKey('tDimension.id'), nullable=False)
     description  = Column(String(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
@@ -499,8 +499,8 @@ class TypeAttr(Base, Inspect):
     attr_is_var        = Column(String(1), server_default=text(u"'N'"))
     data_type          = Column(String(60))
     data_restriction   = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
-    unit               = Column(String(60)) ## To remove in the next step
-    unit_id            = Column(Integer(), ForeignKey('tUnit.id'))
+    #unit               = Column(String(60)) ## To remove in the next step
+    unit_id            = Column(Integer(), ForeignKey('tUnit.id'), nullable=True)
     description        = Column(String(1000))
     properties         = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
@@ -1327,7 +1327,7 @@ class ResourceScenario(Base, Inspect):
     def get_dataset(self, user_id):
         dataset = get_session().query(Dataset.id,
                 Dataset.type,
-                Dataset.unit,
+                #Dataset.unit,
                 Dataset.unit_id,
                 Dataset.name,
                 Dataset.hidden,
@@ -1821,7 +1821,7 @@ def create_resourcedata_view():
         ResourceScenario.scenario_id,
         ResourceScenario.dataset_id,
         Dataset.unit_id,
-        Dataset.unit,
+        #Dataset.unit,
         Dataset.name,
         Dataset.type,
         Dataset.value]).where(ResourceScenario.resource_attr_id==ResourceAttr.attr_id).where(ResourceAttr.attr_id==Attr.id).where(ResourceScenario.dataset_id==Dataset.id)
