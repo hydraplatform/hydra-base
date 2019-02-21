@@ -79,7 +79,7 @@ def create_mysql_db(db_url):
 
         if config.get('mysqld', 'auto_create', 'Y') == 'Y':
             tmp_engine = create_engine(no_db_url)
-            log.warn("Creating database {0} as it does not exist.".format(db_name))
+            log.warning("Creating database {0} as it does not exist.".format(db_name))
             tmp_engine.execute("CREATE DATABASE IF NOT EXISTS {0}".format(db_name))
 
     return db_url
@@ -88,12 +88,13 @@ def connect(db_url=None):
     if db_url is None:
         db_url = config.get('mysqld', 'url')
 
+
     log.info("Connecting to database: %s", db_url)
 
     db_url = create_mysql_db(db_url)
 
     global engine
-    engine = create_engine(db_url)
+    engine = create_engine(db_url, encoding='utf-8')
 
     maker = sessionmaker(bind=engine, autoflush=False, autocommit=False,
                      extension=ZopeTransactionExtension())

@@ -66,4 +66,3 @@ def required_perms(*req_perms):
 
         return wrapped
     return dec_wrapper
-

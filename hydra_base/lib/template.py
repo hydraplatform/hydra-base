@@ -451,12 +451,13 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
     template_j = JSONObject(template_file_j.get('template', {}))
 
     default_datasets_j = {}
-    for k, v in file_datasets.items(): 
+    for k, v in file_datasets.items():
         default_datasets_j[int(k)] = Dataset(v)
 
     if file_attributes is None or default_datasets_j is None or len(template_j) == 0:
-        raise HydraError("Invalid template. The template must have the following structure: " +
-                            "{'attributes':\{...\}, 'datasets':\{...\}, 'template':\{...\}}")
+        raise HydraError("Invalid template. The template must have the following structure: " + \
+                            "{'attributes':\\{...\\}, 'datasets':\\{...\\}, 'template':\\{...\\}}")
+
 
     #Normalise attribute IDs so they're always ints (in case they're specified as strings)
     attributes_j = {}
@@ -1255,7 +1256,7 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
 
                     if new_res_scenarios.get(attr_id) is None:
                         new_res_scenarios[attr_id] = {}
-                    
+
                     new_res_scenarios[attr_id][s.id] =  dict(
                         dataset_id = type_attrs[attr_id]['default_dataset_id'],
                         scenario_id = s.id,
@@ -1319,7 +1320,7 @@ def _parse_data_restriction(restriction_dict):
 
     #replace soap text with an empty string
     #'{soap_server.hydra_complexmodels}' -> ''
-    dict_str = re.sub('{[a-zA-Z\.\_]*}', '', str(restriction_dict))
+    dict_str = re.sub('{[a-zA-Z._]*}', '', str(restriction_dict))
 
     if isinstance(restriction_dict, dict):
         new_dict = restriction_dict
@@ -1560,7 +1561,7 @@ def _update_templatetype(templatetype, existing_tt=None):
         update that one. Otherwise search for an existing one. If not found, add.
     """
     if existing_tt is None:
-        if templatetype.id is not None:
+        if "id" in templatetype and templatetype.id is not None:
             tmpltype_i = db.DBSession.query(TemplateType).filter(TemplateType.id == templatetype.id).one()
         else:
             tmpltype_i = TemplateType()
@@ -2063,7 +2064,7 @@ def _make_attr_element(parent, resource_attr_i):
     attr_dimension = etree.SubElement(attr, 'dimension')
     attr_dimension.text = attr_i.dimension
     
-    if hasattr(resource_attr_i, 'unit'):
+    if hasattr(resource_attr_i, 'unit') and resource_attr_i.unit:
         attr_unit    = etree.SubElement(attr, 'unit')
         attr_unit.text = resource_attr_i.unit
 
@@ -2077,7 +2078,7 @@ def _make_attr_element(parent, resource_attr_i):
     #attr_properties    = etree.SubElement(attr, 'properties')
     #attr_properties.text = resource_attr_i.properties
 
-    if hasattr(resource_attr_i, 'data_type') and resource_attr_i.data_restriction:
+    if hasattr(resource_attr_i, 'data_restriction') and resource_attr_i.data_restriction:
         attr_data_restriction    = etree.SubElement(attr, 'restrictions')
         attr_data_restriction.text = resource_attr_i.data_restriction
 

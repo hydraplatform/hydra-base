@@ -1,5 +1,5 @@
 from hydra_base.db import DeclarativeBase as _db
-from hydra_base.util.hdb import create_default_users_and_perms, make_root_user
+from hydra_base.util.hdb import create_default_users_and_perms, make_root_user, create_default_units_and_dimensions
 import hydra_base
 import util
 import pytest
@@ -26,7 +26,7 @@ def testdb_uri(db_backend):
         # This is designed to work on Travis CI
         return 'postgresql://postgres@localhost:5432/hydra_base_test'
     elif db_backend == 'mysql':
-        return 'mysql+mysqldb://root:@localhost/hydra_base_test'
+        return 'mysql+mysqldb://root@localhost/hydra_base_test'
     else:
         raise ValueError('Database backend "{}" not supported when running the tests.'.format(db_backend))
 
@@ -57,31 +57,38 @@ def session(db, engine, request):
     # session won't be persisted into the database until you call
     # session.commit(). If you're not happy about the changes, you can
     # revert all of them back to the last commit by calling
-    # session.rollback()
     session = DBSession()
 
     # Patch the global session in hydra_base
     hydra_base.db.DBSession = session
 
     # Now apply the default users and roles
+    #hydra_base.db.DBSession.begin_nested()
     create_default_users_and_perms()
+
     root_user_id = make_root_user()
+
+    create_default_units_and_dimensions()
 
     pytest.root_user_id = root_user_id
 
     # Add some users
-    util.create_user("UserA")
-    util.create_user("UserB")
-    util.create_user("UserC")
+    pytest.user_a = util.create_user("UserA")
+    pytest.user_b = util.create_user("UserB")
+    pytest.user_c = util.create_user("UserC", role='developer')
+
 
     yield session
 
     # Tear down the session
 
     # First make sure everything can be and is committed.
-    session.commit()
-    # Finally drop all the tables.
-    hydra_base.db.DeclarativeBase.metadata.drop_all()
+    try:
+        session.commit()
+        # Finally drop all the tables.
+        hydra_base.db.DeclarativeBase.metadata.drop_all()
+    except:
+        session.rollback()
 
 
 @pytest.fixture()
@@ -92,6 +99,12 @@ def network(project_id=None, num_nodes=10, new_proj=True, map_projection='EPSG:4
 @pytest.fixture()
 def network_with_data(project_id=None, num_nodes=10, ret_full_net=True, new_proj=True, map_projection='EPSG:4326'):
     return util.create_network_with_data(project_id, num_nodes, ret_full_net, new_proj, map_projection)
+
+@pytest.fixture()
+# Creates a second project with a new network and returns the network created
+def second_network_with_data(project_id=None, num_nodes=10, ret_full_net=True, new_proj=True, map_projection='EPSG:4326'):
+    return util.create_network_with_data(project_id, num_nodes, ret_full_net, new_proj, map_projection)
+
 
 @pytest.fixture()
 def network_with_extra_group(project_id=None, num_nodes=10, ret_full_net=True, new_proj=True, map_projection='EPSG:4326'):

@@ -17,14 +17,19 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
-from ..db.model import Network, Scenario, Project, User, Role, Perm, RolePerm, RoleUser, ResourceAttr, ResourceType
-from sqlalchemy.orm.exc import NoResultFound
+import os
+import json
+from ..db.model import Network, Scenario, Project, User, Role, Perm, RolePerm, RoleUser, ResourceAttr, ResourceType, Dimension, Unit
+from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 from .. import db
 import datetime
 import random
 import bcrypt
 from ..exceptions import HydraError
 import transaction
+from sqlalchemy.orm import load_only
+from ..lib.objects import JSONObject
+
 import logging
 log = logging.getLogger(__name__)
 
@@ -99,6 +104,11 @@ def make_root_user():
         role = db.DBSession.query(Role).filter(Role.code=='admin').one()
     except NoResultFound:
         raise HydraError("Admin role not found.")
+    except MultipleResultsFound:
+        roles = list(db.DBSession.query(Role).all())
+        log.info(roles)
+        role = roles[0]
+        #raise HydraError("Multiple rows found")
 
     try:
         userrole = db.DBSession.query(RoleUser).filter(RoleUser.role_id==role.id,
@@ -157,10 +167,14 @@ def create_default_net():
 
 
 def create_default_users_and_perms():
+    """
+        Adds the roles and perm to the DB. It adds only roles, perms and links between them that are not inside the db
+        It is possible adding new role or perm and connecting them just modifiying the following lists
+    """
 
-    perms = db.DBSession.query(Perm).all()
-    if len(perms) > 0:
-        return
+    # perms = db.DBSession.query(Perm).all()
+    # if len(perms) > 0:
+    #     return
 
     default_perms = ( ("add_user",   "Add User"),
                     ("edit_user",  "Edit User"),
@@ -184,7 +198,18 @@ def create_default_users_and_perms():
                     ("view_data", "View network data"),
 
                     ("add_template", "Add Template"),
-                    ("edit_template", "Edit Template"))
+                    ("edit_template", "Edit Template"),
+
+                    ("add_dimension", "Add Dimension"),
+                    ("update_dimension", "Update Dimension"),
+                    ("delete_dimension", "Delete Dimension"),
+
+                    ("add_unit", "Add Unit"),
+                    ("update_unit", "Update Unit"),
+                    ("delete_unit", "Delete Unit")
+
+
+                    )
 
     default_roles = (
                     ("admin",    "Administrator"),
@@ -197,6 +222,7 @@ def create_default_users_and_perms():
                 )
 
     roleperms = (
+            # Admin permissions
             ('admin', "add_user"),
             ('admin', "edit_user"),
             ('admin', "add_role"),
@@ -217,6 +243,15 @@ def create_default_users_and_perms():
             ('admin', "add_template"),
             ('admin', "edit_template"),
 
+            ('admin', "add_dimension"),
+            ('admin', "update_dimension"),
+            ('admin', "delete_dimension"),
+
+            ('admin', "add_unit"),
+            ('admin', "update_unit"),
+            ('admin', "delete_unit"),
+
+            # Developer permissions
             ("developer", "add_network"),
             ("developer", "edit_network"),
             ("developer", "delete_network"),
@@ -231,6 +266,15 @@ def create_default_users_and_perms():
             ("developer", "add_template"),
             ("developer", "edit_template"),
 
+            ('developer', "add_dimension"),
+            ('developer', "update_dimension"),
+            ('developer', "delete_dimension"),
+
+            ('developer', "add_unit"),
+            ('developer', "update_unit"),
+            ('developer', "delete_unit"),
+
+            # modeller permissions
             ("modeller", "add_network"),
             ("modeller", "edit_network"),
             ("modeller", "delete_network"),
@@ -243,25 +287,147 @@ def create_default_users_and_perms():
             ("modeller", "edit_data"),
             ("modeller", "view_data"),
 
+            # Manager permissions
             ("manager", "edit_data"),
             ("manager", "view_data"),
     )
 
+    # Map for code to ID
+    id_maps_dict = {
+        "perm": {},
+        "role": {}
+    }
+    # Adding perms
     perm_dict = {}
     for code, name in default_perms:
         perm = Perm(code=code, name=name)
         perm_dict[code] = perm
-        db.DBSession.add(perm)
+        perms_by_name = db.DBSession.query(Perm).filter(Perm.code==code).all()
+        if len(perms_by_name)==0:
+            # Adding perm
+            log.debug("# Adding PERM {}".format(code))
+            db.DBSession.add(perm)
+            db.DBSession.flush()
+
+        perm_by_name = db.DBSession.query(Perm).filter(Perm.code==code).one()
+        id_maps_dict["perm"][code] = perm_by_name.id
+
+    # Adding roles
     role_dict = {}
     for code, name in default_roles:
         role = Role(code=code, name=name)
         role_dict[code] = role
-        db.DBSession.add(role)
+        roles_by_name = db.DBSession.query(Role).filter(Role.code==code).all()
+        if len(roles_by_name)==0:
+            # Adding perm
+            log.debug("# Adding ROLE {}".format(code))
+            db.DBSession.add(role)
+            db.DBSession.flush()
 
+        role_by_name = db.DBSession.query(Role).filter(Role.code==code).one()
+        id_maps_dict["role"][code] = role_by_name.id
+
+    # Adding connections
     for role_code, perm_code in roleperms:
-        roleperm = RolePerm()
-        roleperm.role = role_dict[role_code]
-        roleperm.perm = perm_dict[perm_code]
-        db.DBSession.add(roleperm)
+        #log.info("Link Role:{}({}) <---> Perm:{}({})".format(role_code, id_maps_dict["role"][role_code], perm_code, id_maps_dict["perm"][perm_code]))
+
+        links_found = db.DBSession.query(RolePerm).filter(RolePerm.role_id==id_maps_dict["role"][role_code]).filter(RolePerm.perm_id==id_maps_dict["perm"][perm_code]).all()
+        if len(links_found)==0:
+            # Adding link
+            log.debug("# Adding link")
+            roleperm = RolePerm()
+            # roleperm.role = role_dict[role_code]
+            # roleperm.perm = perm_dict[perm_code]
+            roleperm.role_id = id_maps_dict["role"][role_code]
+            roleperm.perm_id = id_maps_dict["perm"][perm_code]
+            db.DBSession.add(roleperm)
+            db.DBSession.flush()
 
     db.DBSession.flush()
+
+def create_default_units_and_dimensions():
+    """
+        Adds the units and the dimensions reading a json file. It adds only dimensions and units that are not inside the db
+        It is possible adding new dimensions and units to the DB just modifiyin the json file
+    """
+    default_units_file_location = os.path.realpath(\
+        os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                     '../',
+                     'static',
+                     'default_units_and_dimensions.json'))
+
+    d=None
+
+    with open(default_units_file_location) as json_data:
+        d = json.load(json_data)
+        json_data.close()
+
+    for json_dimension in d["dimension"]:
+        new_dimension = None
+        dimension_name = get_utf8_encoded_string(json_dimension["name"])
+
+        db_dimensions_by_name = db.DBSession.query(Dimension).filter(Dimension.name==dimension_name).all()
+
+        if len(db_dimensions_by_name) == 0:
+            # Adding the dimension
+            log.debug("Adding Dimension `{}`".format(dimension_name))
+            new_dimension = Dimension()
+            if "id" in json_dimension:
+                # If ID is specified
+                new_dimension.id = json_dimension["id"]
+
+            new_dimension.name = dimension_name
+
+            db.DBSession.add(new_dimension)
+            db.DBSession.flush()
+
+        # Get the dimension by name
+        new_dimension = get_dimension_from_db_by_name(dimension_name)
+
+        for json_unit in json_dimension["unit"]:
+            db_units_by_name = db.DBSession.query(Unit).filter(Unit.dimension_id==new_dimension.id).filter(Unit.abbreviation==get_utf8_encoded_string(json_unit['abbr'])).all()
+            if len(db_units_by_name) == 0:
+                # Adding the unit
+                log.debug("Adding Unit `{}` in `{}`".format(json_unit['abbr'], json_dimension["name"]))
+                new_unit = Unit()
+                if "id" in json_unit:
+                    new_unit.id = json_unit["id"]
+                new_unit.dimension_id   = new_dimension.id
+                new_unit.name           = get_utf8_encoded_string(json_unit['name'])
+                new_unit.abbreviation   = get_utf8_encoded_string(json_unit['abbr'])
+                new_unit.lf             = get_utf8_encoded_string(json_unit['lf'])
+                new_unit.cf             = get_utf8_encoded_string(json_unit['cf'])
+                if "description" in json_unit:
+                    # If Description is specified
+                    new_unit.description = get_utf8_encoded_string(json_unit["description"])
+
+                # Save on DB
+                db.DBSession.add(new_unit)
+                db.DBSession.flush()
+            else:
+                #log.critical("UNIT {}.{} EXISTANT".format(dimension_name,json_unit['abbr']))
+                pass
+    try:
+        # Needed for test. on HWI it fails so we need to catch the exception and pass by
+        db.DBSession.commit()
+    except Exception as e:
+        # Needed for HWI
+        pass
+    return
+
+
+def get_utf8_encoded_string(string):
+    try:
+        return string.encode('utf-8').strip().replace('"','\\"')
+    except Exception as e:
+        return string
+
+def get_dimension_from_db_by_name(dimension_name):
+    """
+        Gets a dimension from the DB table.
+    """
+    try:
+        dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension_name).one()
+        return JSONObject(dimension)
+    except NoResultFound:
+        raise ResourceNotFoundError("Dimension %s not found"%(dimension_name))

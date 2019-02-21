@@ -32,8 +32,6 @@ from ..db.model import Scenario,\
         Attr,\
         ResourceAttrMap
 
-from . import units as hydra_units
-
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import joinedload_all, joinedload, aliased
@@ -141,7 +139,14 @@ def get_scenario(scenario_id,**kwargs):
 
     rgi_rs = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.scenario_id==scenario_id).all()
 
-    scen_j.resourcescenarios = [JSONObject(r, extras={'resourceattr':r.resourceattr}) for r in rscen_rs]
+    scen_j.resourcescenarios = []
+    for rs in rscen_rs:
+        rs_j = JSONObject(rs, extras={'resourceattr':JSONObject(rs.resourceattr)})
+        if rs.dataset.check_read_permission(user_id, do_raise=False) is False:
+            rs_j.dataset['value'] = None
+            rs_j.dataset.metadata = JSONObject({})
+        scen_j.resourcescenarios.append(rs_j)
+
     scen_j.resourcegroupitems =[JSONObject(r) for r in rgi_rs]
 
     return scen_j
