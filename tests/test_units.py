@@ -137,6 +137,26 @@ class TestUnits():
         with pytest.raises(HydraError):
             dimension = hb.get_unit_dimension('not-existing-unit')
 
+    def test_get_dimension_by_unit_id(self, session):
+        # Returns a dimension searching by ID. The result contains all the dimension data plus all the units of the dimension
+        # 1 is the id of length
+
+        # Referring dimension
+        testdim = JSONObject({'name':'Length', 'id': 1})
+        # Units list of the dimension
+        units = hb.get_dimension(testdim.id).units
+        # The first unit id
+        test_unit_id = units[0].id
+        # The dimension relative to the first unit id
+        dimension = hb.get_dimension_by_unit_id(test_unit_id)
+
+        assert dimension is not None, \
+            "Could not get a dimension by unit id."
+        assert dimension.id == testdim.id, \
+            "Could not get the dimension '{}' by unit id {}.".format(testdim.name, test_unit_id)
+
+
+
     """
         Manipulate DIMENSIONS
     """
