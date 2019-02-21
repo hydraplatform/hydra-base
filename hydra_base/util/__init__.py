@@ -116,7 +116,7 @@ def generate_data_hash(dataset_dict):
 
     hash_string = "%s %s %s %s %s"%(
                                 str(d['name']),
-                                str(d['unit']),
+                                str(d['unit_id']),
                                 str(d['type']),
                                 d['value'],
                                 d['metadata'])
