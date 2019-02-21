@@ -1,5 +1,6 @@
 <template_definition>
     <template_name>Test XML Template</template_name>
+    <template_description>Test XML Template</template_description>
         <layout>
         <item>
             <name>groups</name>

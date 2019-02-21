@@ -385,10 +385,10 @@ def create_default_units_and_dimensions():
         new_dimension = get_dimension_from_db_by_name(dimension_name)
 
         for json_unit in json_dimension["unit"]:
-            db_units_by_name = db.DBSession.query(Unit).filter(Unit.dimension_id==new_dimension.id).filter(Unit.abbreviation==get_utf8_encoded_string(json_unit['abbr'])).all()
+            db_units_by_name = db.DBSession.query(Unit).filter(Unit.abbreviation==get_utf8_encoded_string(json_unit['abbr'])).all()
             if len(db_units_by_name) == 0:
                 # Adding the unit
-                log.debug("Adding Unit `{}` in `{}`".format(json_unit['abbr'], json_dimension["name"]))
+                log.debug("Adding Unit %s in %s",json_unit['abbr'], json_dimension["name"])
                 new_unit = Unit()
                 if "id" in json_unit:
                     new_unit.id = json_unit["id"]
