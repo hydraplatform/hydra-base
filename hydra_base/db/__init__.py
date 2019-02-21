@@ -89,7 +89,6 @@ def connect(db_url=None):
         db_url = config.get('mysqld', 'url')
 
 
-    db_url = "{}?charset=utf8&use_unicode=1".format(db_url)
     log.info("Connecting to database: %s", db_url)
 
     db_url = create_mysql_db(db_url)
