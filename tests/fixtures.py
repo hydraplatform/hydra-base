@@ -163,3 +163,7 @@ def attributegroupmaker():
             return newgroup
 
     return AttributeGroupMaker()
+
+@pytest.fixture()
+def new_dataset():
+    return util.create_dataset()
