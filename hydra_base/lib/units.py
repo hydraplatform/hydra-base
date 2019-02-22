@@ -230,7 +230,7 @@ def get_dimension_by_name(dimension_name,**kwargs):
         Given a dimension name returns all its data. Used in convert functions
     """
     try:
-        dimension = db.DBSession.query(Dimension).filter(func.lower(Dimension.name)==func.lower(dimension_name)).one()
+        dimension = db.DBSession.query(Dimension).filter(func.lower(Dimension.name)==func.lower(dimension_name.strip())).one()
 
         return get_dimension(dimension.id)
 
@@ -314,7 +314,7 @@ def get_unit_by_abbreviation(unit_abbreviation, **kwargs):
         Returns a single unit by abbreviation. Used as utility function to resolve string to id
     """
     try:
-        unit = db.DBSession.query(Unit).filter(Unit.abbreviation==unit_abbreviation).one()
+        unit = db.DBSession.query(Unit).filter(Unit.abbreviation==unit_abbreviation.strip()).one()
         return get_unit(unit.id)
     except NoResultFound:
         # The dimension does not exist
