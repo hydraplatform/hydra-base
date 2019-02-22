@@ -92,7 +92,8 @@ def create_template():
     node_attr_3  = create_attr("node_attr_c", dimension='Monetary value')
     node_attr_4  = create_attr("node_attr_d", dimension='Volumetric flow rate')
     group_attr_1 = create_attr("grp_attr_1", dimension='Monetary value')
-    group_attr_2 = create_attr("grp_attr_2", dimension='Displacement')
+    #group_attr_2 = create_attr("grp_attr_2", dimension='Displacement')
+    group_attr_2 = create_attr("grp_attr_2", dimension='dimensionless')
 
     template = JSONObject()
     template['name'] = 'Default Template ' + str(datetime.datetime.now())
@@ -280,6 +281,8 @@ def create_node(node_id, attributes=None, node_name="Test Node Name"):
 
 
 def create_attr(name="Test attribute", dimension="dimensionless"):
+    if dimension is None:
+        dimension="dimensionless"
     dimension_id = hydra_base.get_dimension_by_name(dimension).id
     attr_i = hydra_base.get_attribute_by_name_and_dimension(name, dimension_id, user_id=pytest.root_user_id)
     if attr_i is None:
@@ -858,49 +861,65 @@ def create_array(resource_attr):
 
 def create_attributes():
 
-    name1 = "Multi-added Attr 1"
-    name2 = "Multi-added Attr 2"
+    # name1 = "Multi-added Attr 1"
+    # name2 = "Multi-added Attr 2"
     dimension = "Volumetric flow rate"
     attrs = []
     attrs.append(
         JSONObject({
-                'name'  : name1,
+                'name'  : "Multi-added Attr 1",
                 'dimension_id' : hydra_base.get_dimension_by_name(dimension).id,
                 'description' : "Attribute 1 from a test of adding multiple attributes",
             })
     )
     attrs.append(
         JSONObject({
-                'name' : name2,
+                'name' : "Multi-added Attr 2",
                 'dimension_id' : hydra_base.get_dimension_by_name(dimension).id,
                 'description' : "Attribute 2 from a test of adding multiple attributes",
             })
     )
 
     existing_attrs = []
+    new_attrs = []
 
     for a in attrs:
-        log.info("Getting attribute %s, %s", a.name, a.dimension)
+        log.info("Getting attribute %s, %s", a.name, a.dimension_id)
         attr = hydra_base.get_attribute_by_name_and_dimension(
                                                                 a.name,
                                                                 a.dimension_id,
                                                                 user_id=pytest.root_user_id
                                                             )
-        existing_attrs.append(attr)
+        if attr is not None:
+            # The attribute already exists
+            existing_attrs.append(attr)
+        else:
+            # The attribute is new
+            new_attrs.append(a)
 
 
-    for a in existing_attrs:
-        if a is not None:
-            attrs = existing_attrs
-            break
-    else:
-        attrs = hydra_base.add_attributes(attrs, user_id=pytest.root_user_id)
-        assert len(attrs) == 2
-        for a in attrs:
-            assert a.id is not None
+    added_attrs = hydra_base.add_attributes(new_attrs, user_id=pytest.root_user_id)
 
-    assert attrs[0].description ==  "Attribute 1 from a test of adding multiple attributes"
-    assert attrs[1].description ==  "Attribute 2 from a test of adding multiple attributes"
+    # The inserted attributes summed with the inserted ones are the total of "attrs" array
+    total_attrs = existing_attrs + added_attrs
+
+    assert len(total_attrs) == len(attrs)
+
+    for my_attr in total_attrs:
+        assert len(list(filter(lambda x: x.description == my_attr.description, attrs))) > 0
+
+    # for a in existing_attrs:
+    #     if a is not None:
+    #         attrs = existing_attrs
+    #         break
+    # else:
+    #     attrs = hydra_base.add_attributes(attrs, user_id=pytest.root_user_id)
+    #     assert len(attrs) == 2
+    #     for a in attrs:
+    #         assert a.id is not None
+    #
+    # assert attrs[0].description ==  "Attribute 1 from a test of adding multiple attributes"
+    # assert attrs[1].description ==  "Attribute 2 from a test of adding multiple attributes"
 
     return attrs
 
@@ -908,8 +927,13 @@ def create_attribute():
 
     name = "Test add Attr"
     dimension = "Volumetric flow rate"
-    attr = hydra_base.get_attribute_by_name_and_dimension(name, "Volumetric flow rate", user_id=pytest.root_user_id)
+    attr = hydra_base.get_attribute_by_name_and_dimension(
+                name,
+                hydra_base.get_dimension_by_name(dimension).id,
+                user_id=pytest.root_user_id
+            )
     if attr is None:
+        # The attribute does not exists
         attr = JSONObject({
                 'name'  : name,
                 'dimension_id' : hydra_base.get_dimension_by_name(dimension).id,
