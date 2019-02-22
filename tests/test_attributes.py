@@ -16,6 +16,18 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
+"""
+    NOTE:
+    All the methods that has SKELETON key in the doc, are not yet implemented partially/fully
+
+"""
+# Example of a SKELETON METHOD
+# def test_(self, session):
+#     """
+#         SKELETON
+#     """
+#     pass
+
 
 import logging
 from util import update_template, get_by_name
@@ -33,57 +45,21 @@ class TestAttribute:
     """
         Test for attribute-based functionality
     """
-    def test_get_network_attrs(self, session, network_with_data):
-
-        net_attrs = hb.get_resource_attributes('NETWORK', network_with_data.id, user_id=pytest.root_user_id)
-        net_type_attrs = hb.get_resource_attributes('NETWORK', network_with_data.id,
-                                                   network_with_data.types[0].id,
-                                                  user_id=pytest.root_user_id)
-
-        assert len(net_attrs) == 3
-        assert len(net_type_attrs) == 2
-
-
-    def test_get_all_attributes(self, session, attributes):
-
-        all_attributes = hb.get_attributes(user_id=pytest.root_user_id)
-        attribute_names = []
-        for a in all_attributes:
-            attribute_names.append(a.name)
-
-        assert "Multi-added Attr 1" in attribute_names
-        assert "Multi-added Attr 2" in attribute_names
-
-    def test_get_attribute_by_id(self, session, attribute):
-
-        existing_attr = attribute
-
-        retrieved_attr = hb.get_attribute_by_id(existing_attr.id, user_id=pytest.root_user_id)
-
-        assert existing_attr.name        == retrieved_attr.name
-        assert existing_attr.dimension_id   == retrieved_attr.dimension_id
-        assert existing_attr.description == retrieved_attr.description
-
-    def test_get_attribute_by_name_and_dimension(self, session, attribute):
-        existing_attr = attribute
-        retrieved_attr = hb.get_attribute_by_name_and_dimension(
-                                            existing_attr.name,
-                                            existing_attr.dimension_id,
-                                            user_id=pytest.root_user_id)
-
-        assert existing_attr.id == retrieved_attr.id
-        assert existing_attr.description == retrieved_attr.description
-
 
     """
-        NEW and tested
+        TESTED
     """
+    def test_get_dimensionless_id(self, session):
+        dim_id = hb.get_dimensionless_id(user_id=pytest.root_user_id)
+        assert dim_id is not None and dim_id > 0, \
+            "get_dimensionless_id not working properly"
+
     def test_add_attribute(self, session):
         test_attr = JSONObject({
             "name": 'Test Attribute 1',
             "dimension_id": None
         })
-        new_attr = hb.add_attribute(test_attr)
+        new_attr = hb.add_attribute(test_attr, user_id=pytest.root_user_id)
 
         assert new_attr.name == test_attr.name, \
             "add_attribute didn't work"
@@ -93,10 +69,10 @@ class TestAttribute:
             "name": 'Test Attribute 1',
             "dimension_id": None
         })
-        new_attr = hb.add_attribute(test_attr)
+        new_attr = hb.add_attribute(test_attr, user_id=pytest.root_user_id)
 
         new_attr.name = "Test attr updated"
-        updated_attr = hb.update_attribute(new_attr)
+        updated_attr = hb.update_attribute(new_attr, user_id=pytest.root_user_id)
 
         assert new_attr.id == updated_attr.id and \
                 updated_attr.name == new_attr.name, \
@@ -108,9 +84,9 @@ class TestAttribute:
             "name": 'Test Attribute 1',
             "dimension_id": None
         })
-        new_attr = hb.add_attribute(test_attr)
+        new_attr = hb.add_attribute(test_attr, user_id=pytest.root_user_id)
 
-        result = hb.delete_attribute(new_attr.id)
+        result = hb.delete_attribute(new_attr.id, user_id=pytest.root_user_id)
         assert result == True, \
                 "delete_attribute didn't work"
 
@@ -127,22 +103,73 @@ class TestAttribute:
             JSONObject({
                 "name": 'Test Attribute 2',
                 "dimension_id": 1
-            })
+            }),
+            None
         ]
-        new_attrs_list = hb.add_attributes(test_attrs)
+        new_attrs_list = hb.add_attributes(test_attrs, user_id=pytest.root_user_id)
 
         for test_attr in test_attrs:
-            assert len(list(filter(lambda x: x["name"] == test_attr.name, new_attrs_list))) > 0,\
-                "Adding new attributes didn't work as expected."
+            if test_attr is not None:
+                assert len(list(filter(lambda x: x["name"] == test_attr.name, new_attrs_list))) > 0,\
+                    "Adding new attributes didn't work as expected."
 
+
+    def test_get_attributes(self, session):
+        """
+            def get_attributes(**kwargs):
+        """
+        test_attr = JSONObject({
+            "name": 'Test Attribute 1',
+            "dimension_id": None
+        })
+        new_attr = hb.add_attribute(test_attr, user_id=pytest.root_user_id)
+        attributes = hb.get_attributes(user_id=pytest.root_user_id)
+        assert len(attributes) > 0, "get_attributes didn't work as expected!"
+
+
+    def test_get_template_attributes(self, session):
+        """
+            SKELETON
+            def get_template_attributes(template_id, **kwargs):
+        """
+        pass
+
+    def test_get_attribute_by_id(self, session, attribute):
+
+        existing_attr = attribute
+
+        retrieved_attr = hb.get_attribute_by_id(existing_attr.id, user_id=pytest.root_user_id)
+
+        assert existing_attr.name           == retrieved_attr.name
+        assert existing_attr.dimension_id   == retrieved_attr.dimension_id
+        assert existing_attr.description    == retrieved_attr.description
+
+
+
+    def test_get_all_attributes(self, session, attributes):
+
+        all_attributes = hb.get_attributes(user_id=pytest.root_user_id)
+        attribute_names = []
+        for a in all_attributes:
+            attribute_names.append(a.name)
+
+        assert "Multi-added Attr 1" in attribute_names
+        assert "Multi-added Attr 2" in attribute_names
+
+
+    def test_get_attribute_by_name_and_dimension(self, session, attribute):
+        existing_attr = attribute
+        retrieved_attr = hb.get_attribute_by_name_and_dimension(
+                                            existing_attr.name,
+                                            existing_attr.dimension_id,
+                                            user_id=pytest.root_user_id)
+
+        assert existing_attr.id == retrieved_attr.id
+        assert existing_attr.description == retrieved_attr.description
 
     def test_check_attr_dimension(self, session, new_dataset):
         """
-            SKELETON
             def check_attr_dimension(attr_id, **kwargs):
-
-            2DO
-                we must add a dataset and test it
         """
         test_attr = JSONObject({
             "name": 'Test Attribute 1',
@@ -156,123 +183,6 @@ class TestAttribute:
 
 
         pass
-
-    def test_delete_attribute_mapping(self, session):
-        """
-            SKELETON
-            def delete_attribute_mapping(resource_attr_a, resource_attr_b, **kwargs):
-        """
-        pass
-    def test_delete_mappings_in_network(self, session):
-        """
-            SKELETON
-            def delete_mappings_in_network(network_id, network_2_id=None, **kwargs):
-        """
-        pass
-    def test_get_mappings_in_network(self, session):
-        """
-            SKELETON
-            def get_mappings_in_network(network_id, network_2_id=None, **kwargs):
-        """
-        pass
-    def test_get_node_mappings(self, session):
-        """
-            SKELETON
-            def get_node_mappings(node_id, node_2_id=None, **kwargs):
-        """
-        pass
-    def test_get_link_mappings(self, session):
-        """
-            SKELETON
-            def get_link_mappings(link_id, link_2_id=None, **kwargs):
-        """
-        pass
-    def test_get_network_mappings(self, session):
-        """
-            SKELETON
-            def get_network_mappings(network_id, network_2_id=None, **kwargs):
-        """
-        pass
-    def test_check_attribute_mapping_exists(self, session):
-        """
-            SKELETON
-            def check_attribute_mapping_exists(resource_attr_id_source, resource_attr_id_target, **kwargs):
-        """
-        pass
-    def test_get_attribute_group(self, session):
-        """
-            SKELETON
-            def get_attribute_group(group_id, **kwargs):
-        """
-        pass
-    def test_get_network_attributegroup_items(self, session):
-        """
-            SKELETON
-            def get_network_attributegroup_items(network_id, **kwargs):
-        """
-        pass
-    def test_get_group_attributegroup_items(self, session):
-        """
-            SKELETON
-            def get_group_attributegroup_items(network_id, group_id, **kwargs):
-        """
-        pass
-    def test_get_attribute_item_groups(self, session):
-        """
-            SKELETON
-            def get_attribute_item_groups(network_id, attr_id, **kwargs):
-        """
-        pass
-    def test_add_attribute_group_items(self, session):
-        """
-            SKELETON
-            def add_attribute_group_items(attributegroupitems, **kwargs):
-        """
-        pass
-    # def test_(self, session):
-    #     """
-    #         SKELETON
-    #     """
-    #     pass
-    # def test_(self, session):
-    #     """
-    #         SKELETON
-    #     """
-    #     pass
-    # def test_(self, session):
-    #     """
-    #         SKELETON
-    #     """
-    #     pass
-    # def test_(self, session):
-    #     """
-    #         SKELETON
-    #     """
-    #     pass
-    # def test_(self, session):
-    #     """
-    #         SKELETON
-    #     """
-    #     pass
-    # def test_(self, session):
-    #     """
-    #         SKELETON
-    #     """
-    #     pass
-
-
-    """
-        Existing ones
-    """
-
-
-
-
-
-
-
-
-
 
 class TestResourceAttribute:
     def test_add_resource_attribute(self, session):
@@ -306,7 +216,7 @@ class TestResourceAttribute:
         pass
 
 
-    def test_add_resource_attrs_from_type(type_id, resource_type, resource_id,**kwargs):
+    def test_add_resource_attrs_from_type(self, session):
         """
             SKELETON
             def add_resource_attrs_from_type(type_id, resource_type, resource_id,**kwargs):
@@ -493,6 +403,15 @@ class TestResourceAttribute:
 
         assert len(after_net_attrs) == len(before_net_attrs) + 1
 
+    def OLD_test_get_network_attrs(self, session, network_with_data):
+
+        net_attrs = hb.get_resource_attributes('NETWORK', network_with_data.id, user_id=pytest.root_user_id)
+        net_type_attrs = hb.get_resource_attributes('NETWORK', network_with_data.id,
+                                                   network_with_data.types[0].id,
+                                                  user_id=pytest.root_user_id)
+
+        assert len(net_attrs) == 3
+        assert len(net_type_attrs) == 2
 
 
 
@@ -567,14 +486,65 @@ class TestAttributeMap:
         all_mappings_1 = hb.get_mappings_in_network(net1.id, user_id=pytest.root_user_id)
         assert len(all_mappings_1) == 0
 
+
+
+    def test_delete_attribute_mapping(self, session):
+        """
+            SKELETON
+            def delete_attribute_mapping(resource_attr_a, resource_attr_b, **kwargs):
+        """
+        pass
+    def test_delete_mappings_in_network(self, session):
+        """
+            SKELETON
+            def delete_mappings_in_network(network_id, network_2_id=None, **kwargs):
+        """
+        pass
+    def test_get_mappings_in_network(self, session):
+        """
+            SKELETON
+            def get_mappings_in_network(network_id, network_2_id=None, **kwargs):
+        """
+        pass
+    def test_get_node_mappings(self, session):
+        """
+            SKELETON
+            def get_node_mappings(node_id, node_2_id=None, **kwargs):
+        """
+        pass
+    def test_get_link_mappings(self, session):
+        """
+            SKELETON
+            def get_link_mappings(link_id, link_2_id=None, **kwargs):
+        """
+        pass
+    def test_get_network_mappings(self, session):
+        """
+            SKELETON
+            def get_network_mappings(network_id, network_2_id=None, **kwargs):
+        """
+        pass
+    def test_check_attribute_mapping_exists(self, session):
+        """
+            SKELETON
+            def check_attribute_mapping_exists(resource_attr_id_source, resource_attr_id_target, **kwargs):
+        """
+        pass
+
+
+
+
+
+
+
+
+
+
+
 class TestAttributeGroups:
     """
-        Test for attribute-based functionality
+        Test for attribute Groups-based functionality
     """
-    def test_get_dimensionless_id(self, session):
-        dim_id = hb.get_dimensionless_id(user_id=pytest.root_user_id)
-        assert dim_id is not None and dim_id > 0, \
-            "get_dimensionless_id not working properly"
 
 
     def test_add_attribute_group(self, session, projectmaker, attribute):
@@ -787,3 +757,34 @@ class TestAttributeGroups:
         all_items_in_network = hb.get_network_attributegroup_items(network.id, user_id=pytest.root_user_id)
 
         assert len(all_items_in_network) == len(network_attributes)
+
+    def test_get_attribute_group(self, session):
+        """
+            SKELETON
+            def get_attribute_group(group_id, **kwargs):
+        """
+        pass
+    def test_get_network_attributegroup_items(self, session):
+        """
+            SKELETON
+            def get_network_attributegroup_items(network_id, **kwargs):
+        """
+        pass
+    def test_get_group_attributegroup_items(self, session):
+        """
+            SKELETON
+            def get_group_attributegroup_items(network_id, group_id, **kwargs):
+        """
+        pass
+    def test_get_attribute_item_groups(self, session):
+        """
+            SKELETON
+            def get_attribute_item_groups(network_id, attr_id, **kwargs):
+        """
+        pass
+    def test_add_attribute_group_items(self, session):
+        """
+            SKELETON
+            def add_attribute_group_items(attributegroupitems, **kwargs):
+        """
+        pass
