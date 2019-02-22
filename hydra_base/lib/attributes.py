@@ -218,12 +218,13 @@ def add_attributes(attrs,**kwargs):
 
     """
 
-    log.debug("Adding s: %s", [attr.name for attr in attrs])
+    #log.debug("Adding s: %s", [attr.name for attr in attrs])
     #Check to see if any of the attributs being added are already there.
     #If they are there already, don't add a new one. If an attribute
     #with the same name is there already but with a different dimension,
     #add a new attribute.
 
+    # All existing attributes
     all_attrs = db.DBSession.query(Attr).all()
     attr_dict = {}
     for attr in all_attrs:
@@ -232,13 +233,16 @@ def add_attributes(attrs,**kwargs):
     attrs_to_add = []
     existing_attrs = []
     for potential_new_attr in attrs:
-        if potential_new_attr.dimension_id is None:
-            potential_new_attr.dimension_id = get_dimensionless_id()
+        if potential_new_attr is not None:
+            # If the attrinute is None we cannot manage it
+            log.debug("Adding attribute: %s", potential_new_attr)
+            if potential_new_attr.dimension_id is None:
+                potential_new_attr.dimension_id = get_dimensionless_id()
 
-        if attr_dict.get((potential_new_attr.name.lower(), potential_new_attr.dimension_id)) is None:
-            attrs_to_add.append(JSONObject(potential_new_attr))
-        else:
-            existing_attrs.append(attr_dict.get((potential_new_attr.name.lower(), potential_new_attr.dimension_id)))
+            if attr_dict.get((potential_new_attr.name.lower(), potential_new_attr.dimension_id)) is None:
+                attrs_to_add.append(JSONObject(potential_new_attr))
+            else:
+                existing_attrs.append(attr_dict.get((potential_new_attr.name.lower(), potential_new_attr.dimension_id)))
 
     new_attrs = []
     for attr in attrs_to_add:
