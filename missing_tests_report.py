@@ -9,7 +9,7 @@ test_folder="./tests"
 
 def check_correct_file(fileName):
     # Extracts files that are ".py" and not starting with _
-    match = re.match( r'[^_].*py$', fileName, re.I)
+    match = re.match( r'[^_].*\.py$', fileName, re.I)
     if match is not None:
         return True
     else:
@@ -54,15 +54,16 @@ for test_filename in test_files:
     test_methods[test_filename] = extract_methods_from_file(test_folder, test_filename)
 
 # Comparing the existence of test methods for each source file
+print
 for source_file in source_methods:
     test_file_name = "test_{}".format(source_file)
     if not test_file_name in test_methods:
         # The test filename does not exists
-        print ("Filename:{}, status: 'File Missing'".format(test_file_name))
+        print ("Filename:{}, Missing: 'ALL'".format(test_file_name))
     else:
         test_file_methods = test_methods[test_file_name]
         for source_method in source_methods[source_file]:
             test_method = "test_{}".format(source_method)
             if not test_method in test_file_methods:
-                print ("Filename:{}, Test: {}, status: 'Test Method Missing'".format(test_file_name, test_method))
+                print ("File:{}, Missing: {}".format(test_file_name, test_method))
                 #print("The test called '{}' in the test filename {} does not exists!".format(test_method, test_file_name))
