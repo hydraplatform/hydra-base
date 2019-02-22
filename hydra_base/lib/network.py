@@ -776,7 +776,7 @@ def _get_all_resourcescenarios(network_id, user_id):
 
     rs_qry = db.DBSession.query(
                 Dataset.type,
-                Dataset.unit,
+                Dataset.unit_id,
                 Dataset.name,
                 Dataset.hash,
                 Dataset.cr_date,
@@ -813,7 +813,7 @@ def _get_all_resourcescenarios(network_id, user_id):
         rs_dataset = JSONDataset({
             'id':rs.dataset_id,
             'type' : rs.type,
-            'unit' : rs.unit,
+            'unit_id' : rs.unit_id,
             'name' : rs.name,
             'hash' : rs.hash,
             'cr_date':rs.cr_date,
@@ -2439,7 +2439,7 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
                Dataset.id.label('dataset_id'),
                Dataset.name.label('dataset_name'),
                Dataset.value,
-               Dataset.unit,
+               Dataset.unit_id,
                Dataset.hidden,
                Dataset.type,
                null().label('metadata'),
