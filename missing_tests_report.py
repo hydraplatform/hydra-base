@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 """
     This script print a report pointing the missing test files, and for the existing files the missing test methods
 """
@@ -21,6 +22,7 @@ def extract_file_names_from_dir(folder):
     for (dirpath, dirnames, filenames) in walk(folder):
         break
     files = list(filter(check_correct_file, filenames ))
+    files.sort()
     return files
 
 
@@ -37,12 +39,13 @@ def extract_methods_from_file(folder_name, file_name):
         content = f.readlines()
         content = [x.strip() for x in content]
         for line in content:
-            match = re.match( r'^def ([^_].*)\(', line)
+            match = re.match( r'^def (OLD_)?([^_].*)\(', line)
             if match is not None:
-                file_methods.append(match.group(1))
+                file_methods.append(match.group(2))
             else:
                 pass
 
+    file_methods.sort()
     return file_methods
 
 # Getting all methods for all source files
