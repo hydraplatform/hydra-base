@@ -574,7 +574,7 @@ class TestScenario:
         dataset = Dataset({
             'type' : 'descriptor',
             'name' : 'Max Capacity',
-            'unit_id' : hydra_base.units.get_unit_by_abbreviation("m s^-1").id
+            'unit_id' : hydra_base.units.get_unit_by_abbreviation("m s^-1").id,
             'value' : 'I am an updated test!',
         })
 
