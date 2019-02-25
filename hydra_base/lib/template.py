@@ -35,30 +35,41 @@ import re
 from . import units
 import json
 log = logging.getLogger(__name__)
+import inspect
 
 def _get_attr(attr_id):
     attr = db.DBSession.query(Attr).filter(Attr.id==attr_id).one()
     return JSONObject(attr)
 
 
-def _check_dimension(typeattr, unit=None):
+def _check_dimension(typeattr, unit_id=None):
     """
         Check that the unit and dimension on a type attribute match.
         Alternatively, pass in a unit manually to check against the dimension
         of the type attribute
     """
+    log.info("Caller: '%s'", inspect.stack()[1][3])
+    log.info("unit1 %s", unit_id)
 
-    if unit is None:
-        unit = typeattr.unit
+    if unit_id is None:
+        log.info("typeattr %s", JSONObject(typeattr))
+        unit_id = typeattr.unit_id
 
+    log.info("unit2 %s", unit_id)
+    log.info("typeattr %s", JSONObject(typeattr))
     dimension_id = _get_attr(typeattr.attr_id).dimension_id
 
-    if unit is not None and dimension_id is not None:
-        unit_dimension_id = units.get_unit_dimension(unit).id
+    if unit_id is not None and dimension_id is not None:
+        #unit_id = units.get_unit_by_abbreviation(unit).id
+        unit_dimension_id = units.get_dimension_by_unit_id(unit_id).id
+        #unit_dimension_id = units.get_unit_dimension(unit).id
         if unit_dimension_id != dimension_id:
-            raise HydraError("Unit %s has dimension_id %s, but attribute has dimension_id %s"%
-                            (unit, unit_dimension_id, dimension_id))
+            raise HydraError("Unit %s (name=%s) has dimension_id %s(name=%s), but attribute has dimension_id %s(name=%s)"%
+                            (unit_id, units.get_unit(unit_id).abbreviation,
+                            unit_dimension_id, units.get_dimension(unit_dimension_id).name,
+                            dimension_id, units.get_dimension(dimension_id).name))
 
+    log.info("_check_dimension")
 
 def get_types_by_attr(resource, template_id=None):
     """
@@ -134,52 +145,81 @@ def _get_attr_by_name_and_dimension(name, dimension_id):
 #
 #     attr = _get_attr_by_name_and_dimension(name, units.get_dimension_by_name(dimension_name).id)
 def parse_xml_attribute(attribute):
+    dimension_i = None
 
-    if attribute.find('dimension') is not None:
+    log.info("parse_xml_attribute => %s", etree.tostring(attribute).decode())
+
+    if attribute.find('dimension') is not None and attribute.find('dimension').text is not None:
+        log.info("Found dimension")
         dimension_name = attribute.find('dimension').text
-        if dimension_name is not None:
-            if dimension_name.lower() in ('dimensionless', ''):
-                dimension_name = 'dimensionless'
+        if dimension_name.lower() in ('dimensionless', ''):
+            dimension_name = 'dimensionless'
         dimension_i = units.get_dimension_by_name(dimension_name.strip())
 
-    elif attribute.find('unit') is not None:
-        if attribute.find('unit').text is not None:
-            dimension_i = units.get_unit_dimension(attribute.find('unit').text)
-    else:
+    elif attribute.find('unit') is not None and attribute.find('unit').text is not None:
+        log.info("Found UNIT")
+        unit = attribute.find('unit').text
+        unit_id = units.get_unit_by_abbreviation(unit).id
+        dimension_i = units.get_dimension_by_unit_id(unit_id)
+        #dimension_i = units.get_unit_dimension(attribute.find('unit').text)
+    #else:
+    if dimension_i is None:
         raise HydraError("An attribute must have a unit or dimension. %s has neither"%(attribute_i.name))
 
-    name      = attribute.find('name').text.strip()
+    name = attribute.find('name').text.strip()
 
     #attr = _get_attr_by_name_and_dimension(name, dimension_i.name)
-    attr = _get_attr_by_name_and_dimension(name, units.get_dimension_by_name(dimension_i.name).id)
+    attr = _get_attr_by_name_and_dimension(name, dimension_i.id)
 
     db.DBSession.flush()
 
     return attr
 
+def _exists_key_in_object(key, obj):
+    my_dict = JSONObject(obj)
+    try:
+        x = my_dict[key]
+        return True
+    except KeyError:
+        return False
+
 def parse_xml_typeattr(type_i, attribute):
 
     attr = parse_xml_attribute(attribute)
 
+    log.info("1) attr %s", JSONObject(attr))
+    log.info("2) type_i %s", JSONObject(type_i))
+
     for ta in type_i.typeattrs:
         if ta.attr_id == attr.id:
+            # Find the TypeAttr
            typeattr_i = ta
            break
     else:
+        # Creating a new TypeAttr
+        #typeattr_i = JSONObject(TypeAttr())
         typeattr_i = TypeAttr()
         log.debug("Creating type attr: type_id=%s, attr_id=%s", type_i.id, attr.id)
         typeattr_i.type_id=type_i.id
         typeattr_i.attr_id=attr.id
+        log.info("type_i.typeattrs %s",[JSONObject(x) for x in type_i.typeattrs])
+        log.info("typeattr_i %s", JSONObject(typeattr_i))
         type_i.typeattrs.append(typeattr_i)
         db.DBSession.add(typeattr_i)
 
-    unit = None
-    if attribute.find('unit') is not None:
+    unit_id = None
+    if attribute.find('unit') is not None and attribute.find('unit').text is not None:
+        # Found the unit as child at first level
         unit = attribute.find('unit').text
+        unit_id = units.get_unit_by_abbreviation(unit).id
 
-    if unit is not None:
-        typeattr_i.unit     = unit
+    log.info("unit found! %s", unit_id)
 
+    if unit_id is not None:
+        typeattr_i.unit_id = unit_id
+
+    log.info("parse_xml_typeattr 1")
+    log.info(JSONObject(attr))
     _check_dimension(typeattr_i)
 
     if attribute.find('description') is not None:
@@ -194,23 +234,31 @@ def parse_xml_typeattr(type_i, attribute):
     if attribute.find('data_type') is not None:
         typeattr_i.data_type = attribute.find('data_type').text
 
+    # Analyzing the "default" node
     if attribute.find('default') is not None:
         default = attribute.find('default')
         unit = default.find('unit').text
+        log.info("Found unit {} in default".format(unit))
+        unit_id = units.get_unit_by_abbreviation(unit).id
+        log.info("Found unit {} ({}) in default".format(unit,unit_id))
 
-        if unit is None and typeattr_i.unit is not None:
-            unit = typeattr_i.unit
+        if unit_id is None and typeattr_i.unit_id is not None:
+            unit_id = typeattr_i.unit_id
 
-        dimension = None
-        if unit is not None:
-            _check_dimension(typeattr_i, unit)
-            dimension = units.get_unit_dimension(unit)
+        dimension_id = None
+        if unit_id is not None:
+            log.info("parse_xml_typeattr 2 - typeattr_i: %s", JSONObject(typeattr_i))
+            _check_dimension(typeattr_i, unit_id)
+            #dimension = units.get_unit_dimension(unit)
+            dimension_id = units.get_dimension_by_unit_id(unit_id).id
+            log.info("parse_xml_typeattr 3 - typeattr_i: %s", JSONObject(typeattr_i))
 
-        if unit is not None and typeattr_i.unit is not None:
-            if unit != typeattr_i.unit:
+        if unit_id is not None and _exists_key_in_object("unit_id",JSONObject(typeattr_i)) and typeattr_i.unit_id is not None:
+            if unit_id != typeattr_i.unit_id:
                 raise HydraError("Default value has a unit of %s but the attribute"
-                             " says the unit should be: %s"%(typeattr_i.unit, unit))
+                             " says the unit should be: %s"%(typeattr_i.unit_id, unit_id))
 
+        log.info("parse_xml_typeattr 4 - typeattr_i: %s", JSONObject(typeattr_i))
         val  = default.find('value').text
         try:
             Decimal(val)
@@ -220,7 +268,7 @@ def parse_xml_typeattr(type_i, attribute):
 
         dataset = add_dataset(data_type,
                                val,
-                               unit,
+                               unit_id,
                                name="%s Default"%attr.name)
         typeattr_i.default_dataset_id = dataset.id
 
@@ -228,33 +276,35 @@ def parse_xml_typeattr(type_i, attribute):
         typeattr_i.data_restriction = str(dataset_util.get_restriction_as_dict(attribute.find('restrictions')))
     else:
         typeattr_i.data_restriction = None
+    log.info("parse_xml_typeattr 5 - typeattr_i: %s", JSONObject(typeattr_i))
+
+    # Moved here because the unit can be found in default and cannot be checked before the default node analyze
+    #_check_dimension(typeattr_i, unit_id)
+
+    log.info("typeattr_i")
+    log.info(JSONObject(typeattr_i))
 
     return typeattr_i
 
 def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
-
-    if attribute_j.dimension is not None:
-# <<<<<<< HEAD
-#         dimension_j = attribute_j.dimension
-#         if dimension_j is not None:
-#             if dimension_j.strip() == '':
-#                 dimension_j = 'dimensionless'
-#
-#             dimension = units.get_dimension_by_name(dimension_j.strip()).name
-#
-#             if dimension is None:
-#                 raise HydraError("Dimension '%s' does not exist."%dimension_j)
-#
-# =======
+    log.info("parse_json_typeattr - type_i: %s", JSONObject(type_i))
+    log.info("parse_json_typeattr - typeattr_j: %s", JSONObject(typeattr_j))
+    log.info("parse_json_typeattr - attribute_j: %s", JSONObject(attribute_j))
+    log.info("parse_json_typeattr - default_dataset_j: %s", default_dataset_j)
+    if attribute_j.dimension_id is not None:
+        dimension_i = units.get_dimension(attribute_j.dimension_id)
+    elif attribute_j.dimension is not None:
         dimension_name = attribute_j.dimension.strip()
         if dimension_name.lower() in ('dimensionless', ''):
             dimension_name = 'dimensionless'
         dimension_i = units.get_dimension_by_name(dimension_name.strip())
-#>>>>>>> master
+    elif attribute_j.unit_id is not None:
+        dimension_i = units.get_dimension_by_unit_id(attribute_j.unit_id)
     elif attribute_j.unit is not None:
         dimension_i = units.get_unit_dimension(attribute_j.unit)
+        attribute_j.unit_id = units.get_unit_by_abbreviation(attribute_j.unit).id
     else:
-        raise HydraError("An attribute must have a unit or dimension. %s has neither"%(attribute_i.name))
+        raise HydraError("An attribute must have a unit or dimension. %s has neither"%(attribute_j.name))
 
     name      = attribute_j.name.strip()
 
@@ -278,10 +328,11 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
         db.DBSession.add(typeattr_i)
 
 
-    unit = None
-    if attribute_j.unit is not None:
-        typeattr_i.unit = typeattr_j.unit
+    unit_id = None
+    if attribute_j.unit_id is not None:
+        typeattr_i.unit_id = typeattr_j.unit_id
 
+    log.info("parse_json_typeattr 1")
     _check_dimension(typeattr_i)
 
     if typeattr_j.description is not None:
@@ -303,19 +354,22 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
         default = default_dataset_j
 
         unit = default.unit
+        unit_id = units.get_unit_by_abbreviation(unit).id
 
-        if unit is None and typeattr_i.unit is not None:
-            unit = typeattr_i.unit
+        if unit_id is None and typeattr_i.unit_id is not None:
+            unit_id = typeattr_i.unit_id
 
-        dimension = None
-        if unit is not None:
-            _check_dimension(typeattr_i, unit)
-            dimension = units.get_unit_dimension(unit)
+        dimension_id = None
+        if unit_id is not None:
+            log.info("parse_json_typeattr 2")
+            _check_dimension(typeattr_i, unit_id)
+            dimension_id = units.get_dimension_by_unit_id(unit_id).id
+            #dimension = units.get_unit_dimension(unit)
 
-        if unit is not None and typeattr_i.unit is not None:
-            if unit != typeattr_i.unit:
+        if unit_id is not None and typeattr_i.unit_id is not None:
+            if unit_id != typeattr_i.unit_id:
                 raise HydraError("Default value has a unit of %s but the attribute"
-                             " says the unit should be: %s"%(typeattr_i.unit, unit))
+                             " says the unit should be: %s"%(typeattr_i.unit_id, unit_id))
 
         val  = default.value
 
@@ -324,7 +378,7 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
 
         dataset_i = add_dataset(data_type,
                                val,
-                               unit,
+                               unit_id,
                                name= name)
         typeattr_i.default_dataset_id = dataset_i.id
 
@@ -352,10 +406,17 @@ def get_template_as_dict(template_id, **kwargs):
     dataset_dict = {}
 
     template_i = db.DBSession.query(Template).filter(
-            Template.id==template_id).options(
-                joinedload_all('templatetypes.typeattrs.default_dataset.metadata'
-                              )
-            ).one()
+                    Template.id==template_id).options(
+                        joinedload_all('templatetypes.typeattrs.default_dataset.metadata'
+                    )
+                    ).one()
+
+
+
+    log.info("get_template_as_dict ---> %s"%JSONObject(template_i))
+
+
+
 
     #Load all the attributes
     for type_i in template_i.templatetypes:
@@ -375,7 +436,7 @@ def get_template_as_dict(template_id, **kwargs):
             attr_dict[typeattr_j.attr_id] = JSONObject(
                                    {
                                         'name': typeattr_j.attr.name,
-                                        'dimension':typeattr_j.attr.dimension
+                                        'dimension_id':typeattr_j.attr.dimensio_id
                                      })
 
             if typeattr_j.default_dataset_id is not None:
@@ -384,7 +445,7 @@ def get_template_as_dict(template_id, **kwargs):
                             {
                                 'name'     : typeattr_j.default_dataset.name,
                                 'type'     : typeattr_j.default_dataset.type,
-                                'unit'     : typeattr_j.default_dataset.unit,
+                                'unit_id'     : typeattr_j.default_dataset.unit_id,
                                 'value'    : typeattr_j.default_dataset.value,
                                 'metadata' : typeattr_j.default_dataset.metadata
                             })
@@ -468,7 +529,8 @@ def import_template_json(template_json_string,allow_update=True, **kwargs):
     return import_template_dict(template_dict, allow_update=allow_update, user_id=user_id)
 
 def import_template_dict(template_dict, allow_update=True, **kwargs):
-
+    log.info("template_dict")
+    log.info(template_dict)
     template_file_j = template_dict
 
     file_attributes = template_file_j.get('attributes')
@@ -634,6 +696,11 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
 
     db.DBSession.flush()
 
+
+
+
+
+
     return template_i
 
 
@@ -652,6 +719,8 @@ def import_template_xml(template_xml, allow_update=True, **kwargs):
     xmlschema = etree.XMLSchema(xmlschema_doc)
 
     xml_tree = etree.fromstring(template_xml)
+
+    #log.info(template_xml)
 
     xmlschema.assertValid(xml_tree)
 
@@ -758,7 +827,11 @@ def import_template_xml(template_xml, allow_update=True, **kwargs):
 
         #Add or update type typeattrs
         for attribute in resource.findall('attribute'):
-            parse_xml_typeattr(type_i, attribute)
+            log.info("==================== ATTRIBUTE ======================")
+            log.info("%s", etree.tostring(attribute).decode())
+            new_typeattr = parse_xml_typeattr(type_i, attribute)
+            log.info("new_typeattr")
+            log.info(JSONObject(new_typeattr))
 
     db.DBSession.flush()
 
@@ -1056,30 +1129,30 @@ def check_type_compatibility(type_1_id, type_2_id):
             type_1_dict[t.attr_id]=t
 
     for ta in type_2.typeattrs:
-        type_2_unit = ta.unit
-        type_1_unit = type_1_dict[ta.attr_id].unit
+        type_2_unit_id = ta.unit_id
+        type_1_unit_id = type_1_dict[ta.attr_id].unit_id
 
         fmt_dict = {
                     'template_1_name':template_1_name,
                     'template_2_name':template_2_name,
                     'attr_name':ta.attr.name,
-                    'type_1_unit':type_1_unit,
-                    'type_2_unit':type_2_unit,
+                    'type_1_unit_id':type_1_unit_id,
+                    'type_2_unit_id':type_2_unit_id,
                     'type_name' : type_1.name
                 }
 
-        if type_1_unit is None and type_2_unit is not None:
+        if type_1_unit_id is None and type_2_unit_id is not None:
             errors.append("Type %(type_name)s in template %(template_1_name)s"
                           " stores %(attr_name)s with no units, while template"
-                          "%(template_2_name)s stores it with unit %(type_2_unit)s"%fmt_dict)
-        elif type_1_unit is not None and type_2_unit is None:
+                          "%(template_2_name)s stores it with unit %(type_2_unit_id)s"%fmt_dict)
+        elif type_1_unit_id is not None and type_2_unit_id is None:
             errors.append("Type %(type_name)s in template %(template_1_name)s"
-                          " stores %(attr_name)s in %(type_1_unit)s."
+                          " stores %(attr_name)s in %(type_1_unit_id)s."
                           " Template %(template_2_name)s stores it with no unit."%fmt_dict)
-        elif type_1_unit != type_2_unit:
+        elif type_1_unit_id != type_2_unit_id:
             errors.append("Type %(type_name)s in template %(template_1_name)s"
-                          " stores %(attr_name)s in %(type_1_unit)s, while"
-                          " template %(template_2_name)s stores it in %(type_2_unit)s"%fmt_dict)
+                          " stores %(attr_name)s in %(type_1_unit_id)s, while"
+                          " template %(template_2_name)s stores it in %(type_2_unit_id)s"%fmt_dict)
         return errors
 
 def _get_links(link_ids):
@@ -1545,7 +1618,10 @@ def _set_typeattr(typeattr, existing_ta = None):
     else:
         ta = existing_ta
 
-    ta.unit = typeattr.unit
+
+    log.info("_set_typeattr typeattr %s",(JSONObject(typeattr)))
+
+    ta.unit_id = typeattr.unit_id
     ta.type_id = typeattr.type_id
     ta.data_type = typeattr.data_type
 
@@ -1560,20 +1636,26 @@ def _set_typeattr(typeattr, existing_ta = None):
 
     ta.data_restriction = _parse_data_restriction(typeattr.data_restriction)
 
-    if typeattr.dimension is not None and typeattr.attr_id is not None and typeattr.attr_id > 0:
+    if typeattr.dimension_id is not None and typeattr.attr_id is not None and typeattr.attr_id > 0:
         attr = ta.attr
-        if attr.dimension != typeattr.dimension:
+        if attr.dimension_id != typeattr.dimension_id:
             raise HydraError("Cannot set a dimension on type attribute which "
                             "does not match its attribute. Create a new attribute if "
-                            "you want to use attribute %s with dimension %s"%
-                            (attr.name, typeattr.dimension))
-    elif typeattr.dimension is not None and typeattr.attr_id is None and typeattr.name is not None:
+                            "you want to use attribute %s with dimension_id %s"%
+                            (attr.name, typeattr.dimension_id))
+    elif typeattr.dimension_id is not None and typeattr.attr_id is None and typeattr.name is not None:
         #attr = _get_attr_by_name_and_dimension(typeattr.name, typeattr.dimension)
-        attr = _get_attr_by_name_and_dimension(typeattr.name, units.get_dimension_by_name(typeattr.dimension).id)
+        #attr = _get_attr_by_name_and_dimension(typeattr.name, units.get_dimension(typeattr.dimension_id).id)
+        attr = _get_attr_by_name_and_dimension(typeattr.name, typeattr.dimension_id)
 
         ta.attr_id = attr.id
         ta.attr = attr
 
+    else:
+        log.info("-- NO DIMENSION ID --")
+
+
+    log.info("_set_typeattr 1")
     _check_dimension(ta)
 
     if existing_ta is None:
@@ -1609,14 +1691,19 @@ def _update_templatetype(templatetype, existing_tt=None):
     for t in tmpltype_i.typeattrs:
         ta_dict[t.attr_id] = t
 
+    log.info("ta_dict %s", (JSONObject(ta_dict)))
+
     existing_attrs = []
 
     if templatetype.typeattrs is not None:
         for typeattr in templatetype.typeattrs:
             if typeattr.attr_id in ta_dict:
+                log.info("_update_templatetype 1")
                 ta = _set_typeattr(typeattr, ta_dict[typeattr.attr_id])
                 existing_attrs.append(ta.attr_id)
             else:
+                log.info("_update_templatetype 2")
+                log.info("typeattr %s"%typeattr)
                 ta = _set_typeattr(typeattr)
                 tmpltype_i.typeattrs.append(ta)
                 existing_attrs.append(ta.attr_id)
@@ -1944,22 +2031,24 @@ def _validate_resource(resource, tmpl_types, resource_scenarios=[]):
             if rs is None:
                 continue
             attr_name = rs.resourceattr.attr.name
-            rs_unit = rs.dataset.unit
-            rs_dimension = units.get_unit_dimension(rs_unit)
-            type_dimension = ta_dict[rs.resourceattr.attr_id].attr.dimension
-            type_unit = ta_dict[rs.resourceattr.attr_id].unit
+            rs_unit_id = rs.dataset.unit_id
+            #rs_dimension = units.get_unit_dimension(rs_unit)
+            rs_dimension_id = units.get_dimension_by_unit_id(rs_unit_id).id
+            type_dimension_id = ta_dict[rs.resourceattr.attr_id].attr.dimension_id
+            type_unit_id = ta_dict[rs.resourceattr.attr_id].unit_id
 
-            if units.get_unit_dimension(rs_unit) != type_dimension:
+            #if units.get_unit_dimension(rs_unit) != type_dimension:
+            if units.get_dimension_by_unit_id(rs_unit_id).id != type_dimension_id:
                 errors.append("Dimension mismatch on %s %s, attribute %s: "
                               "%s on attribute, %s on type"%
                              ( resource.ref_key, resource.get_name(), attr_name,
-                              rs_dimension, type_dimension))
+                              rs_dimension_id, type_dimension_id))
 
-            if type_unit is not None:
-                if rs_unit != type_unit:
+            if type_unit_id is not None:
+                if rs_unit_id != type_unit_id:
                     errors.append("Unit mismatch on attribute %s. "
                                   "%s on attribute, %s on type"%
-                                 (attr_name, rs_unit, type_unit))
+                                 (attr_name, rs_unit_id, type_unit_id))
     if len(errors) > 0:
         log.warning(errors)
 
@@ -2082,6 +2171,11 @@ def _make_attr_element(parent, resource_attr_i):
     attr = etree.SubElement(parent, "attribute")
     attr_i = resource_attr_i.attr
 
+    log.info("_make_attr_element 1")
+    log.info(etree.tostring(attr).decode())
+    log.info(JSONObject(attr_i))
+    log.info("resource_attr_i %s", JSONObject(resource_attr_i))
+
     attr_name      = etree.SubElement(attr, 'name')
     attr_name.text = attr_i.name
 
@@ -2089,37 +2183,55 @@ def _make_attr_element(parent, resource_attr_i):
     attr_desc.text = attr_i.description
 
     attr_dimension = etree.SubElement(attr, 'dimension')
-    attr_dimension.text = attr_i.dimension
+    attr_dimension.text = units.get_dimension(attr_i.dimension_id).name
 
-    try:
+
+    if _exists_key_in_object("unit_id", resource_attr_i):
         attr_unit    = etree.SubElement(attr, 'unit')
-        attr_unit.text = resource_attr_i.unit
-    except AttributeError:
-        #The EAFP way
-        pass
+        attr_unit.text = units.get_unit(resource_attr_i.unit_id).abbreviation
+
+    log.info("_make_attr_element 1")
+
+    # try:
+    #     attr_unit    = etree.SubElement(attr, 'unit')
+    #     if _exists_key_in_object("unit_id", resource_attr_i)
+    #         attr_unit.text = units.get_unit(resource_attr_i.unit_id).abbreviation
+    #     #attr_unit.text = resource_attr_i.unit
+    # except AttributeError:
+    #     #The EAFP way
+    #     pass
 
 
     attr_is_var    = etree.SubElement(attr, 'is_var')
     attr_is_var.text = resource_attr_i.attr_is_var
 
-    try:
-        if resource_attr_i.data_type:
-            attr_data_type    = etree.SubElement(attr, 'data_type')
-            attr_data_type.text = resource_attr_i.data_type
-    except AttributeError:
-        #The EAFP way
-        pass
+
+    if _exists_key_in_object("data_type", resource_attr_i):
+        attr_data_type    = etree.SubElement(attr, 'data_type')
+        attr_data_type.text = resource_attr_i.data_type
+
+    # try:
+    #     if resource_attr_i.data_type:
+    #         attr_data_type    = etree.SubElement(attr, 'data_type')
+    #         attr_data_type.text = resource_attr_i.data_type
+    # except AttributeError:
+    #     #The EAFP way
+    #     pass
 
     #attr_properties    = etree.SubElement(attr, 'properties')
     #attr_properties.text = resource_attr_i.properties
 
-    try:
-        if resource_attr_i.data_restriction:
-            attr_data_restriction    = etree.SubElement(attr, 'restrictions')
-            attr_data_restriction.text = resource_attr_i.data_restriction
-    except AttributeError:
-        #The EAFP way
-        pass
+    if _exists_key_in_object("data_restriction", resource_attr_i):
+        attr_data_restriction    = etree.SubElement(attr, 'restrictions')
+        attr_data_restriction.text = resource_attr_i.data_restriction
+
+    # try:
+    #     if resource_attr_i.data_restriction:
+    #         attr_data_restriction    = etree.SubElement(attr, 'restrictions')
+    #         attr_data_restriction.text = resource_attr_i.data_restriction
+    # except AttributeError:
+    #     #The EAFP way
+    #     pass
 
     # if scenario_id is not None:
     #     for rs in resource_attr_i.get_resource_scenarios():
