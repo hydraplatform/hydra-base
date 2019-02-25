@@ -539,7 +539,7 @@ def convert_dataset(dataset_id, target_unit_abbreviation,**kwargs):
     dataset_type = ds_i.type
 
     dsval = ds_i.get_val()
-    source_unit_abbreviation = ds_i.unit
+    source_unit_abbreviation = get_unit(ds_i.unit_id).abbreviation
 
     if source_unit_abbreviation is not None:
         if dataset_type == 'scalar':
@@ -564,7 +564,8 @@ def convert_dataset(dataset_id, target_unit_abbreviation,**kwargs):
         new_dataset.type   = ds_i.type
         new_dataset.value  = str(new_val) # The data type is TEXT!!!
         new_dataset.name   = ds_i.name
-        new_dataset.unit   = target_unit_abbreviation
+        #new_dataset.unit   = target_unit_abbreviation
+        new_dataset.unit_id   = get_unit_by_abbreviation(target_unit_abbreviation).id
         new_dataset.hidden = 'N'
         new_dataset.set_metadata(ds_i.get_metadata_as_dict())
         new_dataset.set_hash()
