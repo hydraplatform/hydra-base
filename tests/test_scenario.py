@@ -59,7 +59,7 @@ class TestScenario:
         dataset = Dataset({
             'type'      : 'descriptor',
             'name'      : 'Max Capacity',
-            'unit'      : 'metres / second',
+            'unit_id'      : hydra_base.units.get_unit_by_abbreviation("m s^-1").id,
             'value'     : 'I am an updated test!',
         })
 
@@ -300,7 +300,7 @@ class TestScenario:
 
         #Identify 2 nodes to play around with -- the first and last in the list.
         node1 = network.nodes[0]
-  
+
 
         descriptor = util.create_descriptor(util.get_by_name('node_attr_a', node1.attributes),
                                                 "updated_descriptor")
@@ -472,7 +472,8 @@ class TestScenario:
 
         dataset1.type = 'timeseries'
         dataset1.name = 'my time series'
-        dataset1.unit = 'feet cubed'
+        dataset1.unit_id = hydra_base.units.get_unit_by_abbreviation("ft^3").id
+
 
         t1 = datetime.datetime.now()
         t2 = t1+datetime.timedelta(hours=1)
@@ -495,7 +496,7 @@ class TestScenario:
         dataset2 = Dataset()
         dataset2.type = 'descriptor'
         dataset2.name = 'Max Capacity'
-        dataset2.unit = 'metres / second'
+        dataset2.unit_id = hydra_base.units.get_unit_by_abbreviation("m s^-1").id
 
         dataset2.value ='I am an updated test!'
 
@@ -573,7 +574,7 @@ class TestScenario:
         dataset = Dataset({
             'type' : 'descriptor',
             'name' : 'Max Capacity',
-            'unit' : 'metres / second',
+            'unit_id' : hydra_base.units.get_unit_by_abbreviation("m s^-1").id
             'value' : 'I am an updated test!',
         })
 
@@ -693,7 +694,7 @@ class TestScenario:
 
         dataset.type = 'descriptor'
         dataset.name = 'Max Capacity'
-        dataset.unit = 'metres / second'
+        dataset.unit_id = hydra_base.units.get_unit_by_abbreviation("m s^-1").id
 
         dataset.value = 'I am an updated test!'
 
@@ -722,7 +723,7 @@ class TestScenario:
         log.info("Updating a shared dataset")
         ds = unlocked_resource_scenarios_value
 
-        updated_ds = JSONObject(hydra_base.update_dataset(ds.id, ds.name, ds.type, ds.value, ds.unit, ds.metadata, user_id=pytest.root_user_id))
+        updated_ds = JSONObject(hydra_base.update_dataset(ds.id, ds.name, ds.type, ds.value, ds.unit_id, ds.metadata, user_id=pytest.root_user_id))
 
         updated_unlocked_scenario = self.get_scenario(unlocked_scenario.id)
         #This should not have changed
@@ -841,7 +842,7 @@ class TestScenario:
         dataset = Dataset()
         dataset.type = 'descriptor'
         dataset.name = 'Max Capacity'
-        dataset.unit = 'metres / second'
+        dataset.unit_id = hydra_base.units.get_unit_by_abbreviation("m s^-1").id
 
         dataset.value = 'I am an updated test!'
 
@@ -882,11 +883,11 @@ class TestScenario:
         dataset = Dataset()
         dataset.type = 'descriptor'
         dataset.name = 'Max Capacity'
-        dataset.unit = 'metres / second'
+        dataset.unit_id = hydra_base.units.get_unit_by_abbreviation("m s^-1").id
 
         dataset.value = 'I am an updated test!'
 
-        new_ds = hydra_base.add_dataset(dataset.type, dataset.value, dataset.unit, {}, dataset.name, flush=True, user_id=pytest.root_user_id)
+        new_ds = hydra_base.add_dataset(dataset.type, dataset.value, dataset.unit_id, {}, dataset.name, flush=True, user_id=pytest.root_user_id)
 
         hydra_base.set_rs_dataset(resource_attr_id, source_scenario_id, new_ds.id, user_id=pytest.root_user_id)
 
@@ -913,7 +914,7 @@ class TestScenario:
         dataset = Dataset()
         dataset.type = 'descriptor'
         dataset.name = 'Max Capacity'
-        dataset.unit = 'metres / second'
+        dataset.unit_id = hydra_base.units.get_unit_by_abbreviation("m s^-1").id
 
         dataset.value = 'I am an updated test!'
 
