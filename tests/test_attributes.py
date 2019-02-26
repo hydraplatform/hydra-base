@@ -191,14 +191,6 @@ class TestResourceAttribute:
             def add_resource_attribute(resource_type, resource_id, attr_id, is_var, error_on_duplicate=True, **kwargs):
         """
         pass
-        # test_attr = JSONObject({
-        #     "name": 'Test Attribute 1',
-        #     "dimension_id": None
-        # })
-        # new_attr = hb.add_attribute(test_attr)
-        #
-        # assert new_attr.name == test_attr.name, \
-        #     "add_attribute didn't work"
 
 
     def test_update_resource_attribute(self, session):
@@ -452,16 +444,12 @@ class TestAttributeMap:
         all_mappings_2 = hb.get_mappings_in_network(net2.id, net2.id, user_id=pytest.root_user_id)
 
 
-        #print all_mappings_1
-        #print all_mappings_2
         assert len(all_mappings_1) == 2
         assert len(all_mappings_2) == 1
 
         node_mappings_1 = hb.get_node_mappings(node_1.id, user_id=pytest.root_user_id)
         node_mappings_2 = hb.get_node_mappings(node_1.id, node_2.id, user_id=pytest.root_user_id)
-        #print "*"*100
-        #print node_mappings_1
-        #print node_mappings_2
+
         assert len(node_mappings_1) == 2
         assert len(node_mappings_2) == 1
 

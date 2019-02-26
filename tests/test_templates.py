@@ -295,7 +295,6 @@ class TestTemplates:
         tattr_2 = JSONObject({
             "attr_id" : attr_2.id,
             "unit_id" : hb.units.get_unit_by_abbreviation('mph').id,
-            #tattr_2.unit = 'mph'
             "description" : "typeattr description 2"
         })
         type_2.typeattrs.append(tattr_2)
