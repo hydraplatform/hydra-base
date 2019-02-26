@@ -237,13 +237,12 @@ class TestUnits():
         new_unit.abbr = 'tsp s^-1'
         new_unit.cf = 0               # Constant conversion factor
         new_unit.lf = 1.47867648e-05  # Linear conversion factor
-        #new_unit.dimension = 'Volumetric flow rate'
-        new_unit.dimension_id = 2
+
+        new_unit.dimension_id = hb.get_dimension_by_name('Volumetric flow rate').id
         new_unit.info = 'A flow of one tablespoon per second.'
         hb.add_unit(new_unit, user_id=pytest.root_user_id)
 
         dimension_loaded = hb.get_dimension(new_unit.dimension_id, user_id=pytest.root_user_id)
-        #unitlist = list(hb.get_units(new_unit.dimension))
 
         assert len(list(filter(lambda x: x["name"] == new_unit["name"], dimension_loaded.units))) > 0 , \
             "Adding new unit didn't work."
