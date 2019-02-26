@@ -54,9 +54,7 @@ def _check_dimension(typeattr, unit_id=None):
     dimension_id = _get_attr(typeattr.attr_id).dimension_id
 
     if unit_id is not None and dimension_id is not None:
-        #unit_id = units.get_unit_by_abbreviation(unit).id
         unit_dimension_id = units.get_dimension_by_unit_id(unit_id).id
-        #unit_dimension_id = units.get_unit_dimension(unit).id
         if unit_dimension_id != dimension_id:
             raise HydraError("Unit %s (name=%s) has dimension_id %s(name=%s), but attribute has dimension_id %s(name=%s)"%
                             (unit_id, units.get_unit(unit_id).abbreviation,
@@ -117,26 +115,6 @@ def _get_attr_by_name_and_dimension(name, dimension_id):
 
     return attr
 
-# def parse_attribute(attribute):
-#     dimension_name = ""
-#     if attribute.find('dimension') is not None:
-#         dimension_name = attribute.find('dimension').text
-#         if dimension_name is not None:
-#             dimension_name = units.get_dimension_by_name(dimension_name.strip()).name
-#
-#             if dimension_name is None:
-#                 raise HydraError("Dimension %s does not exist."%dimension_name)
-#
-#     elif attribute.find('unit') is not None:
-#         if attribute.find('unit').text is not None:
-#             dimension_name = units.get_unit_dimension(attribute.find('unit').text)
-#
-#     if dimension_name is None or dimension_name.lower() in ('dimensionless', ''):
-#         dimension_name = 'dimensionless'
-#
-#     name      = attribute.find('name').text.strip()
-#
-#     attr = _get_attr_by_name_and_dimension(name, units.get_dimension_by_name(dimension_name).id)
 def parse_xml_attribute(attribute):
     dimension_i = None
 
@@ -150,14 +128,12 @@ def parse_xml_attribute(attribute):
         unit = attribute.find('unit').text
         unit_id = units.get_unit_by_abbreviation(unit).id
         dimension_i = units.get_dimension_by_unit_id(unit_id)
-        #dimension_i = units.get_unit_dimension(attribute.find('unit').text)
-    #else:
+
     if dimension_i is None:
         raise HydraError("An attribute must have a unit or dimension. %s has neither"%(attribute_i.name))
 
     name = attribute.find('name').text.strip()
 
-    #attr = _get_attr_by_name_and_dimension(name, dimension_i.name)
     attr = _get_attr_by_name_and_dimension(name, dimension_i.id)
 
     db.DBSession.flush()
@@ -183,7 +159,6 @@ def parse_xml_typeattr(type_i, attribute):
            break
     else:
         # Creating a new TypeAttr
-        #typeattr_i = JSONObject(TypeAttr())
         typeattr_i = TypeAttr()
         log.debug("Creating type attr: type_id=%s, attr_id=%s", type_i.id, attr.id)
         typeattr_i.type_id=type_i.id
@@ -252,8 +227,6 @@ def parse_xml_typeattr(type_i, attribute):
     else:
         typeattr_i.data_restriction = None
 
-    # Moved here because the unit can be found in default and cannot be checked before the default node analyze
-    #_check_dimension(typeattr_i, unit_id)
 
     return typeattr_i
 
@@ -275,7 +248,6 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
 
     name      = attribute_j.name.strip()
 
-    #attr_i = _get_attr_by_name_and_dimension(name, dimension_i.name)
     attr_i = _get_attr_by_name_and_dimension(name, dimension_i.id)
 
     #Get an ID for the attribute
@@ -329,7 +301,6 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
         if unit_id is not None:
             _check_dimension(typeattr_i, unit_id)
             dimension_id = units.get_dimension_by_unit_id(unit_id).id
-            #dimension = units.get_unit_dimension(unit)
 
         if unit_id is not None and typeattr_i.unit_id is not None:
             if unit_id != typeattr_i.unit_id:
@@ -1596,8 +1567,6 @@ def _set_typeattr(typeattr, existing_ta = None):
                             "you want to use attribute %s with dimension_id %s"%
                             (attr.name, typeattr.dimension_id))
     elif typeattr.dimension_id is not None and typeattr.attr_id is None and typeattr.name is not None:
-        #attr = _get_attr_by_name_and_dimension(typeattr.name, typeattr.dimension)
-        #attr = _get_attr_by_name_and_dimension(typeattr.name, units.get_dimension(typeattr.dimension_id).id)
         attr = _get_attr_by_name_and_dimension(typeattr.name, typeattr.dimension_id)
 
         ta.attr_id = attr.id
@@ -1979,12 +1948,12 @@ def _validate_resource(resource, tmpl_types, resource_scenarios=[]):
                 continue
             attr_name = rs.resourceattr.attr.name
             rs_unit_id = rs.dataset.unit_id
-            #rs_dimension = units.get_unit_dimension(rs_unit)
+
             rs_dimension_id = units.get_dimension_by_unit_id(rs_unit_id).id
             type_dimension_id = ta_dict[rs.resourceattr.attr_id].attr.dimension_id
             type_unit_id = ta_dict[rs.resourceattr.attr_id].unit_id
 
-            #if units.get_unit_dimension(rs_unit) != type_dimension:
+
             if units.get_dimension_by_unit_id(rs_unit_id).id != type_dimension_id:
                 errors.append("Dimension mismatch on %s %s, attribute %s: "
                               "%s on attribute, %s on type"%
@@ -2095,10 +2064,6 @@ def get_network_as_xml_template(network_id,**kwargs):
             resource_name   = etree.SubElement(group_resource, "name")
             resource_name.text   = group_i.group_name
 
-           # layout = _get_layout_as_etree(group_i.layout)
-
-           # if layout is not None:
-           #     group_resource.append(layout)
 
             for group_attr in group_attributes:
                 _make_attr_element(group_resource, group_attr)
@@ -2133,16 +2098,6 @@ def _make_attr_element(parent, resource_attr_i):
         attr_unit    = etree.SubElement(attr, 'unit')
         attr_unit.text = units.get_unit(resource_attr_i.unit_id).abbreviation
 
-    # try:
-    #     attr_unit    = etree.SubElement(attr, 'unit')
-    #     if _exists_key_in_object("unit_id", resource_attr_i)
-    #         attr_unit.text = units.get_unit(resource_attr_i.unit_id).abbreviation
-    #     #attr_unit.text = resource_attr_i.unit
-    # except AttributeError:
-    #     #The EAFP way
-    #     pass
-
-
     attr_is_var    = etree.SubElement(attr, 'is_var')
     attr_is_var.text = resource_attr_i.attr_is_var
 
@@ -2151,28 +2106,12 @@ def _make_attr_element(parent, resource_attr_i):
         attr_data_type    = etree.SubElement(attr, 'data_type')
         attr_data_type.text = resource_attr_i.data_type
 
-    # try:
-    #     if resource_attr_i.data_type:
-    #         attr_data_type    = etree.SubElement(attr, 'data_type')
-    #         attr_data_type.text = resource_attr_i.data_type
-    # except AttributeError:
-    #     #The EAFP way
-    #     pass
-
     #attr_properties    = etree.SubElement(attr, 'properties')
     #attr_properties.text = resource_attr_i.properties
 
     if _exists_key_in_object("data_restriction", resource_attr_i) and resource_attr_i.data_restriction is not None:
         attr_data_restriction    = etree.SubElement(attr, 'restrictions')
         attr_data_restriction.text = resource_attr_i.data_restriction
-
-    # try:
-    #     if resource_attr_i.data_restriction:
-    #         attr_data_restriction    = etree.SubElement(attr, 'restrictions')
-    #         attr_data_restriction.text = resource_attr_i.data_restriction
-    # except AttributeError:
-    #     #The EAFP way
-    #     pass
 
     # if scenario_id is not None:
     #     for rs in resource_attr_i.get_resource_scenarios():
