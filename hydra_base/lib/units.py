@@ -430,12 +430,6 @@ def add_unit(unit,**kwargs):
     if 'info' not in unit.keys() or unit['info'] is None:
         unit['info'] = ''
 
-    # dimension_data = None
-    # if 'dimension_id' in unit.keys() and unit['dimension_id'] is not None:
-    #     dimension_data = get_dimension_data_by_id(unit["dimension_id"])
-    # else:
-    #     dimension_data = get_dimension_data(unit["dimension"])
-
     new_unit = Unit()
     new_unit.dimension_id   = unit["dimension_id"]
     new_unit.name           = unit['name']
@@ -564,7 +558,7 @@ def convert_dataset(dataset_id, target_unit_abbreviation,**kwargs):
         new_dataset.type   = ds_i.type
         new_dataset.value  = str(new_val) # The data type is TEXT!!!
         new_dataset.name   = ds_i.name
-        #new_dataset.unit   = target_unit_abbreviation
+
         new_dataset.unit_id   = get_unit_by_abbreviation(target_unit_abbreviation).id
         new_dataset.hidden = 'N'
         new_dataset.set_metadata(ds_i.get_metadata_as_dict())
