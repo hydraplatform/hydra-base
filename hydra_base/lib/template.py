@@ -29,7 +29,7 @@ from lxml import etree
 from decimal import Decimal
 import logging
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.orm import joinedload_all, noload
+from sqlalchemy.orm import joinedload_all, noload, joinedload
 from sqlalchemy import or_, and_
 import re
 from . import units
@@ -48,15 +48,15 @@ def _check_dimension(typeattr, unit_id=None):
         Alternatively, pass in a unit manually to check against the dimension
         of the type attribute
     """
-    log.info("Caller: '%s'", inspect.stack()[1][3])
-    log.info("unit1 %s", unit_id)
+    #log.info("Caller: '%s'", inspect.stack()[1][3])
+    #log.info("unit1 %s", unit_id)
 
     if unit_id is None:
-        log.info("typeattr %s", JSONObject(typeattr))
+        #log.info("typeattr %s", JSONObject(typeattr))
         unit_id = typeattr.unit_id
 
-    log.info("unit2 %s", unit_id)
-    log.info("typeattr %s", JSONObject(typeattr))
+    #log.info("unit2 %s", unit_id)
+    #log.info("typeattr %s", JSONObject(typeattr))
     dimension_id = _get_attr(typeattr.attr_id).dimension_id
 
     if unit_id is not None and dimension_id is not None:
@@ -69,7 +69,7 @@ def _check_dimension(typeattr, unit_id=None):
                             unit_dimension_id, units.get_dimension(unit_dimension_id).name,
                             dimension_id, units.get_dimension(dimension_id).name))
 
-    log.info("_check_dimension")
+    #log.info("_check_dimension")
 
 def get_types_by_attr(resource, template_id=None):
     """
@@ -219,7 +219,7 @@ def parse_xml_typeattr(type_i, attribute):
         typeattr_i.unit_id = unit_id
 
     log.info("parse_xml_typeattr 1")
-    log.info(JSONObject(attr))
+    #log.info(JSONObject(attr))
     _check_dimension(typeattr_i)
 
     if attribute.find('description') is not None:
@@ -247,18 +247,18 @@ def parse_xml_typeattr(type_i, attribute):
 
         dimension_id = None
         if unit_id is not None:
-            log.info("parse_xml_typeattr 2 - typeattr_i: %s", JSONObject(typeattr_i))
+            #log.info("parse_xml_typeattr 2 - typeattr_i: %s", JSONObject(typeattr_i))
             _check_dimension(typeattr_i, unit_id)
             #dimension = units.get_unit_dimension(unit)
             dimension_id = units.get_dimension_by_unit_id(unit_id).id
-            log.info("parse_xml_typeattr 3 - typeattr_i: %s", JSONObject(typeattr_i))
+            #log.info("parse_xml_typeattr 3 - typeattr_i: %s", JSONObject(typeattr_i))
 
         if unit_id is not None and _exists_key_in_object("unit_id",JSONObject(typeattr_i)) and typeattr_i.unit_id is not None:
             if unit_id != typeattr_i.unit_id:
                 raise HydraError("Default value has a unit of %s but the attribute"
                              " says the unit should be: %s"%(typeattr_i.unit_id, unit_id))
 
-        log.info("parse_xml_typeattr 4 - typeattr_i: %s", JSONObject(typeattr_i))
+        #log.info("parse_xml_typeattr 4 - typeattr_i: %s", JSONObject(typeattr_i))
         val  = default.find('value').text
         try:
             Decimal(val)
@@ -273,10 +273,13 @@ def parse_xml_typeattr(type_i, attribute):
         typeattr_i.default_dataset_id = dataset.id
 
     if attribute.find('restrictions') is not None:
+        log.info("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        log.info(str(dataset_util.get_restriction_as_dict(attribute.find('restrictions'))))
+        log.info("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         typeattr_i.data_restriction = str(dataset_util.get_restriction_as_dict(attribute.find('restrictions')))
     else:
         typeattr_i.data_restriction = None
-    log.info("parse_xml_typeattr 5 - typeattr_i: %s", JSONObject(typeattr_i))
+    #log.info("parse_xml_typeattr 5 - typeattr_i: %s", JSONObject(typeattr_i))
 
     # Moved here because the unit can be found in default and cannot be checked before the default node analyze
     #_check_dimension(typeattr_i, unit_id)
@@ -332,7 +335,7 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
     if attribute_j.unit_id is not None:
         typeattr_i.unit_id = typeattr_j.unit_id
 
-    log.info("parse_json_typeattr 1")
+    #log.info("parse_json_typeattr 1")
     _check_dimension(typeattr_i)
 
     if typeattr_j.description is not None:
@@ -382,6 +385,9 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
                                name= name)
         typeattr_i.default_dataset_id = dataset_i.id
 
+
+    log.info("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+
     if typeattr_j.restriction is not None or typeattr_j.data_restriction is not None:
         restriction = typeattr_j.restriction if typeattr_j.restriction is not None else typeattr_j.data_restriction
         if isinstance(restriction, dict):
@@ -391,6 +397,8 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
     else:
         typeattr_i.data_restriction = None
 
+    log.info(typeattr_i.data_restriction)
+    log.info("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
     return typeattr_i
 
 def get_template_as_json(template_id, **kwargs):
@@ -469,8 +477,9 @@ def get_template_as_xml(template_id,**kwargs):
 
     template_i = db.DBSession.query(Template).filter(
             Template.id==template_id).options(
-                joinedload_all('templatetypes.typeattrs.default_dataset.metadata'
-                              )
+                #joinedload_all('templatetypes.typeattrs.default_dataset.metadata')
+                joinedload('templatetypes').joinedload('typeattrs').joinedload('default_dataset').joinedload('metadata')
+
             ).one()
 
     template_name = etree.SubElement(template_xml, "template_name")
@@ -2186,7 +2195,7 @@ def _make_attr_element(parent, resource_attr_i):
     attr_dimension.text = units.get_dimension(attr_i.dimension_id).name
 
 
-    if _exists_key_in_object("unit_id", resource_attr_i):
+    if _exists_key_in_object("unit_id", resource_attr_i) and resource_attr_i.unit_id is not None:
         attr_unit    = etree.SubElement(attr, 'unit')
         attr_unit.text = units.get_unit(resource_attr_i.unit_id).abbreviation
 
@@ -2206,7 +2215,7 @@ def _make_attr_element(parent, resource_attr_i):
     attr_is_var.text = resource_attr_i.attr_is_var
 
 
-    if _exists_key_in_object("data_type", resource_attr_i):
+    if _exists_key_in_object("data_type", resource_attr_i) and resource_attr_i.data_type is not None:
         attr_data_type    = etree.SubElement(attr, 'data_type')
         attr_data_type.text = resource_attr_i.data_type
 
@@ -2221,8 +2230,9 @@ def _make_attr_element(parent, resource_attr_i):
     #attr_properties    = etree.SubElement(attr, 'properties')
     #attr_properties.text = resource_attr_i.properties
 
-    if _exists_key_in_object("data_restriction", resource_attr_i):
+    if _exists_key_in_object("data_restriction", resource_attr_i) and resource_attr_i.data_restriction is not None:
         attr_data_restriction    = etree.SubElement(attr, 'restrictions')
+        log.info("restrictions: %s", resource_attr_i.data_restriction)
         attr_data_restriction.text = resource_attr_i.data_restriction
 
     # try:
