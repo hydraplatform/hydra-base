@@ -444,7 +444,7 @@ def get_template_as_dict(template_id, **kwargs):
             attr_dict[typeattr_j.attr_id] = JSONObject(
                                    {
                                         'name': typeattr_j.attr.name,
-                                        'dimension_id':typeattr_j.attr.dimensio_id
+                                        'dimension_id':typeattr_j.attr.dimension_id
                                      })
 
             if typeattr_j.default_dataset_id is not None:
@@ -2198,8 +2198,6 @@ def _make_attr_element(parent, resource_attr_i):
     if _exists_key_in_object("unit_id", resource_attr_i) and resource_attr_i.unit_id is not None:
         attr_unit    = etree.SubElement(attr, 'unit')
         attr_unit.text = units.get_unit(resource_attr_i.unit_id).abbreviation
-
-    log.info("_make_attr_element 1")
 
     # try:
     #     attr_unit    = etree.SubElement(attr, 'unit')
