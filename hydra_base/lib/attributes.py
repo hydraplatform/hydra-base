@@ -113,7 +113,6 @@ def get_dimensionless_id(**kwargs):
         return None
 
 
-#def get_attribute_by_name_and_dimension(name, dimension='dimensionless',**kwargs):
 def get_attribute_by_name_and_dimension(name, dimension_id=None,**kwargs):
     """
         Get a specific attribute by its name.
