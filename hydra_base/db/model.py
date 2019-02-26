@@ -120,6 +120,7 @@ class Dataset(Base, Inspect):
     value      = Column('value', Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
 
     user = relationship('User', backref=backref("datasets", order_by=id))
+    unit = relationship('Unit', backref=backref("dataset_unit", order_by=unit_id))
 
     _parents  = ['tResourceScenario', 'tUnit']
     _children = ['tMetadata']
@@ -371,6 +372,8 @@ class Attr(Base, Inspect):
     description  = Column(String(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
+    dimensions = relationship('Dimension', backref=backref("attr_dimension", order_by=dimension_id))
+
     _parents  = ['tDimension']
     _children = []
 
@@ -509,6 +512,7 @@ class TypeAttr(Base, Inspect):
 
     attr = relationship('Attr')
     templatetype = relationship('TemplateType',  backref=backref("typeattrs", order_by=attr_id, cascade="all, delete-orphan"))
+    unit = relationship('Unit', backref=backref("typeattr_unit", order_by=unit_id))
     default_dataset = relationship('Dataset')
 
     _parents  = ['tTemplateType', 'tUnit']
@@ -1743,6 +1747,8 @@ class Unit(Base, Inspect):
     description = Column(Unicode(1000))
 
     project_id = Column(Integer(), ForeignKey('tProject.id'), index=True, nullable=True)
+
+    dimensions = relationship('Dimension', backref=backref("unit_dimension", order_by=dimension_id))
 
     _parents  = ['tDimension', 'tProject']
     _children = ['tDataset', 'tTypeAttr']
