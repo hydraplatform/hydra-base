@@ -43,7 +43,6 @@ def template_json_object(session, template):
     with open(template) as fh:
         file_contents = fh.read()
 
-    #log.info(file_contents)
 
 
     return JSONObject(hb.import_template_xml(file_contents))
@@ -169,6 +168,7 @@ class TestTemplates:
 
         db_template = hb.get_template_as_xml(xml_tmpl.id)
 
+
         assert db_template is not None
 
         template_xsd_path = config.get('templates', 'template_xsd_path')
@@ -182,14 +182,11 @@ class TestTemplates:
 
     def test_get_dict(self, template_json_object):
 
-        log.info("Loading XML template")
-        log.info("%s", template_json_object)
         # Upload the xml file initally to avoid having to manage 2 template files
         xml_tmpl = template_json_object
 
         template_dict = hb.get_template_as_dict(xml_tmpl.id)
 
-        log.info("template_dict: %s", template_dict)
         # Error that there's already a template with this name.
         with pytest.raises(HydraError):
             hb.import_template_dict(template_dict, allow_update=False)
@@ -202,13 +199,9 @@ class TestTemplates:
         # This includes deleting types if they're not in this dict.
         # Changing the name of a type has this effect, as a new template does not have
         # any reference to existing types in Hydra.
-        log.info("Loading JSON Template template")
 
         updated_template = JSONObject(hb.import_template_dict(template_dict))
 
-        log.info("updated_template: %s", updated_template)
-
-        log.info("Updating a type's name")
         type_names = []
 
         for templatetype in updated_template.templatetypes:
@@ -596,7 +589,6 @@ class TestTemplates:
 
         updated_type = JSONObject(hb.get_templatetype(new_type.id))
 
-        log.info(len(updated_type.typeattrs))
 
         assert len(updated_type.typeattrs) == 1, "Resource type attr did not add correctly"
 
@@ -741,10 +733,9 @@ class TestTemplates:
 
     def test_create_template_from_network(self, session, network_with_data):
         network = network_with_data
-        #log.info(JSONObject(network))
+
         net_template = hb.get_network_as_xml_template(network.id)
 
-        #log.info(JSONObject(net_template))
 
         assert net_template is not None
 
