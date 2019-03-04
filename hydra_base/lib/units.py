@@ -241,6 +241,16 @@ def get_dimension_by_name(dimension_name,**kwargs):
         raise ResourceNotFoundError("Dimension %s not found"%(dimension_name))
 
 
+def get_default_dimension_id(**kwargs):
+    """
+        This method returns the id the default dimension name (ex "dimensionless")
+    """
+    default_dimension = db.DBSession.query(Dimension).filter(Dimension.is_default=='Y').first()
+    if default_dimension is None:
+        raise ResourceNotFoundError("Default dimension not found!")
+
+    return default_dimension.id
+
 """
 +----------------------+
 | UNIT FUNCTIONS - GET |
@@ -353,7 +363,10 @@ def add_dimension(dimension,**kwargs):
     db.DBSession.add(new_dimension)
     db.DBSession.flush()
 
-    return JSONObject(new_dimension)
+    # Load all the record
+    db_dimension = db.DBSession.query(Dimension).filter(Dimension.id==new_dimension.id).one()
+
+    return JSONObject(db_dimension)
 
 @required_perms("update_dimension")
 def update_dimension(dimension,**kwargs):
