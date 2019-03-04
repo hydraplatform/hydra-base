@@ -1773,6 +1773,7 @@ class Dimension(Base, Inspect):
     description = Column(Unicode(1000))
 
     project_id = Column(Integer(), ForeignKey('tProject.id'), index=True, nullable=True)
+    is_default = Column(String(1),  nullable=False, server_default=text(u"'N'"))
 
     _parents  = ['tProject']
     _children = ['tUnit', 'tAttr']
