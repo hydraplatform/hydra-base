@@ -376,6 +376,10 @@ def create_default_units_and_dimensions():
                 # If ID is specified
                 new_dimension.id = json_dimension["id"]
 
+            if "is_default" in json_dimension:
+                # If is_default flag is specified
+                new_dimension.is_default = json_dimension["is_default"]
+
             new_dimension.name = dimension_name
 
             db.DBSession.add(new_dimension)
