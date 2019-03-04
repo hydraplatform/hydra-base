@@ -1617,6 +1617,7 @@
       },
       {
         "name": "dimensionless",
+        "is_default": "Y",
         "unit": [
           {
             "abbr": "date",
