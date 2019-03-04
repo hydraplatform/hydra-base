@@ -105,21 +105,13 @@ def get_template_attributes(template_id, **kwargs):
         return None
 
 
-def get_dimensionless_id(**kwargs):
-    try:
-        dimension = db.DBSession.query(Dimension).filter(Dimension.name=='dimensionless').one()
-        return dimension.id
-    except NoResultFound:
-        return None
-
-
 def get_attribute_by_name_and_dimension(name, dimension_id=None,**kwargs):
     """
         Get a specific attribute by its name.
     """
     if dimension_id is None:
         # Default value
-        dimension_id = get_dimensionless_id()
+        dimension_id = units.get_default_dimension_id()
 
     try:
         attr_i = db.DBSession.query(Attr).filter(and_(Attr.name==name, Attr.dimension_id==dimension_id)).one()
@@ -145,8 +137,8 @@ def add_attribute(attr,**kwargs):
     log.debug("Adding attribute: %s", attr.name)
 
     if attr.dimension_id is None:
-        log.debug("Setting 'dimensionless' on attribute %s", attr.name)
-        attr.dimension_id = get_dimensionless_id()
+        log.debug("Setting 'default dimension' on attribute %s", attr.name)
+        attr.dimension_id = units.get_default_dimension_id()
 
     try:
         attr_i = db.DBSession.query(Attr).filter(Attr.name == attr.name,
@@ -176,8 +168,8 @@ def update_attribute(attr,**kwargs):
     """
 
     if attr.dimension_id is None:
-        log.info("Setting 'dimensionless' on attribute %s", attr.name)
-        attr.dimension_id = get_dimensionless_id()
+        log.info("Setting 'default dimension' on attribute %s", attr.name)
+        attr.dimension_id = units.get_default_dimension_id()
 
     log.debug("Updating attribute: %s", attr.name)
     attr_i = _get_attr(attr.id)
@@ -236,7 +228,7 @@ def add_attributes(attrs,**kwargs):
             # If the attrinute is None we cannot manage it
             log.debug("Adding attribute: %s", potential_new_attr)
             if potential_new_attr.dimension_id is None:
-                potential_new_attr.dimension_id = get_dimensionless_id()
+                potential_new_attr.dimension_id = units.get_default_dimension_id()
 
             if attr_dict.get((potential_new_attr.name.lower(), potential_new_attr.dimension_id)) is None:
                 attrs_to_add.append(JSONObject(potential_new_attr))
