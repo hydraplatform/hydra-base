@@ -49,10 +49,6 @@ class TestAttribute:
     """
         TESTED
     """
-    def test_get_dimensionless_id(self, session):
-        dim_id = hb.get_dimensionless_id(user_id=pytest.root_user_id)
-        assert dim_id is not None and dim_id > 0, \
-            "get_dimensionless_id not working properly"
 
     def test_add_attribute(self, session):
         test_attr = JSONObject({
