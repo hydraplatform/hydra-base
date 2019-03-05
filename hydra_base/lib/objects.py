@@ -67,6 +67,11 @@ class JSONObject(dict):
                 raise ValueError("Unrecognised value. It must be a valid JSON dict, a SQLAlchemy result or a dictionary.")
 
         for k, v in obj.items():
+
+            #This occurs regularly enough to warrant its own if statement.
+            #if isinstance(k, int):
+            #    raise TypeError('JSONObject Error: Cannot set attribute %s to %s. It is an int'%(k, v))
+
             if isinstance(v, JSONObject):
                 setattr(self, k, v)
             elif k == 'layout':

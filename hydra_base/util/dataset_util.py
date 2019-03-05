@@ -25,6 +25,8 @@ from ..exceptions import HydraError, ValidationError
 import numpy as np
 import pandas as pd
 import re
+from functools import reduce
+
 from hydra_base.util.hydra_dateutil import get_datetime
 log = logging.getLogger(__name__)
 

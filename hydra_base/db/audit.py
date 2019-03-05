@@ -43,7 +43,7 @@ def connect():
     """
     db = create_engine(engine_name, echo=True)
     db.connect()
-    
+
     return db
 
 def create_sqlite_backup_db(audit_tables):
@@ -75,7 +75,7 @@ def create_sqlite_backup_db(audit_tables):
     db = create_engine(sqlite_engine, echo=True)
     db.connect()
     metadata = MetaData(db)
-   
+
     for main_audit_table in audit_tables:
         cols = []
         for c in main_audit_table.columns:
@@ -100,13 +100,13 @@ def run():
             tables.append(table)
         else:
             table.drop(db)
-            metadata.remove(table)        
+            metadata.remove(table)
 
     audit_tables = []
     for t in tables:
         audit_table = create_audit_table(t)
         audit_tables.append(audit_table)
-        
+
     #create_sqlite_backup_db(audit_tables)
     create_triggers(db, tables)
     metadata.create_all()
@@ -132,7 +132,7 @@ def create_triggers(db, tables):
         else:
             table = Table(table_name, metadata, autoload=True, autoload_with=db)
             table.drop(db)
-            metadata.remove(table)        
+            metadata.remove(table)
 
 
     drop_trigger_text = """DROP TRIGGER IF EXISTS %(trigger_name)s;"""
@@ -175,13 +175,13 @@ def create_triggers(db, tables):
                                 %(pkd)s;
                         END
                         """
-    
+
     for table in tables:
 
 
         pk_cols = [c.name for c in table.primary_key]
         pkd = []
-        
+
         for pk_col in pk_cols:
             pkd.append("d.%s = NEW.%s"%(pk_col, pk_col))
 
@@ -194,12 +194,12 @@ def create_triggers(db, tables):
 
         logging.info(trigger_text % text_dict)
         trig_ddl = DDL(trigger_text % text_dict)
-        trig_ddl.execute_at('after-create', table.metadata)  
+        trig_ddl.execute_at('after-create', table.metadata)
 
         text_dict['action'] = 'UPDATE'
         text_dict['trigger_name'] = table.name + "_upd_trig"
         trig_ddl = DDL(trigger_text % text_dict)
-        trig_ddl.execute_at('after-create', table.metadata)  
+        trig_ddl.execute_at('after-create', table.metadata)
 
     metadata.create_all()
 
