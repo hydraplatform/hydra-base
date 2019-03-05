@@ -53,10 +53,23 @@ def _check_dimension(typeattr, unit_id=None):
 
     dimension_id = _get_attr(typeattr.attr_id).dimension_id
 
-    if unit_id is not None and dimension_id is not None:
+    if unit_id is not None and dimension_id is None:
+        # First error case
+        unit_dimension_id = units.get_dimension_by_unit_id(unit_id).id
+        raise HydraError("Unit %s (abbreviation=%s) has dimension_id %s(name=%s), but attribute has no dimension"%
+                        (unit_id, units.get_unit(unit_id).abbreviation,
+                        unit_dimension_id, units.get_dimension(unit_dimension_id).name))
+
+    elif unit_id is None and dimension_id is not None:
+        # Second error case
+        raise HydraError("Unit is None, but attribute has dimension_id %s(name=%s)"%
+                            (dimension_id, units.get_dimension(dimension_id).name))
+
+    elif unit_id is not None and dimension_id is not None:
         unit_dimension_id = units.get_dimension_by_unit_id(unit_id).id
         if unit_dimension_id != dimension_id:
-            raise HydraError("Unit %s (name=%s) has dimension_id %s(name=%s), but attribute has dimension_id %s(name=%s)"%
+            # Third error case
+            raise HydraError("Unit %s (abbreviation=%s) has dimension_id %s(name=%s), but attribute has dimension_id %s(name=%s)"%
                             (unit_id, units.get_unit(unit_id).abbreviation,
                             unit_dimension_id, units.get_dimension(unit_dimension_id).name,
                             dimension_id, units.get_dimension(dimension_id).name))
@@ -104,6 +117,7 @@ def _get_attr_by_name_and_dimension(name, dimension_id):
     attr = db.DBSession.query(Attr).filter(Attr.name==name, Attr.dimension_id==dimension_id).first()
 
     if attr is None:
+        # In this case the attr does not exists so we must create it
         attr         = Attr()
         attr.dimension_id = dimension_id
         attr.name  = name
@@ -119,22 +133,30 @@ def parse_xml_attribute(attribute):
     dimension_i = None
 
     if attribute.find('dimension') is not None and attribute.find('dimension').text is not None:
+        # Found the dimension
         dimension_name = attribute.find('dimension').text
         if dimension_name.lower() in ('dimensionless', ''):
             dimension_name = 'dimensionless'
         dimension_i = units.get_dimension_by_name(dimension_name.strip())
 
     elif attribute.find('unit') is not None and attribute.find('unit').text is not None:
+        # Found the unit
         unit = attribute.find('unit').text
         unit_id = units.get_unit_by_abbreviation(unit).id
         dimension_i = units.get_dimension_by_unit_id(unit_id)
 
-    if dimension_i is None:
-        raise HydraError("An attribute must have a unit or dimension. %s has neither"%(attribute_i.name))
+    else:
+        # No unit and no dimension. Let's get/create it anyway
+        pass
+    # if dimension_i is None:
+    #     raise HydraError("An attribute must have a unit or dimension. %s has neither"%(attribute_i.name))
 
     name = attribute.find('name').text.strip()
 
-    attr = _get_attr_by_name_and_dimension(name, dimension_i.id)
+    if dimension_i is None:
+        attr = _get_attr_by_name_and_dimension(name, None)
+    else:
+        attr = _get_attr_by_name_and_dimension(name, dimension_i.id)
 
     db.DBSession.flush()
 
@@ -231,24 +253,33 @@ def parse_xml_typeattr(type_i, attribute):
     return typeattr_i
 
 def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
+    dimension_i = None
     if attribute_j.dimension_id is not None:
+        # The dimension_id of the attribute is not None
         dimension_i = units.get_dimension(attribute_j.dimension_id)
     elif attribute_j.dimension is not None:
+        # The dimension name of the attribute is not None
         dimension_name = attribute_j.dimension.strip()
         if dimension_name.lower() in ('dimensionless', ''):
             dimension_name = 'dimensionless'
         dimension_i = units.get_dimension_by_name(dimension_name.strip())
     elif attribute_j.unit_id is not None:
+        # The unit_id of the attribute is not None
         dimension_i = units.get_dimension_by_unit_id(attribute_j.unit_id)
     elif attribute_j.unit is not None:
+        # The unit of the attribute is not None
         dimension_i = units.get_unit_dimension(attribute_j.unit)
         attribute_j.unit_id = units.get_unit_by_abbreviation(attribute_j.unit).id
-    else:
-        raise HydraError("An attribute must have a unit or dimension. %s has neither"%(attribute_j.name))
+    # else:
+    #     raise HydraError("An attribute must have a unit or dimension. %s has neither"%(attribute_j.name))
 
     name      = attribute_j.name.strip()
 
-    attr_i = _get_attr_by_name_and_dimension(name, dimension_i.id)
+    if dimension_i is None:
+        # In this case we must get the attr with dimension id not set
+        attr_i = _get_attr_by_name_and_dimension(name, None)
+    else:
+        attr_i = _get_attr_by_name_and_dimension(name, dimension_i.id)
 
     #Get an ID for the attribute
     db.DBSession.flush()
@@ -377,7 +408,7 @@ def get_template_as_dict(template_id, **kwargs):
                             {
                                 'name'     : typeattr_j.default_dataset.name,
                                 'type'     : typeattr_j.default_dataset.type,
-                                'unit_id'     : typeattr_j.default_dataset.unit_id,
+                                'unit_id'  : typeattr_j.default_dataset.unit_id,
                                 'value'    : typeattr_j.default_dataset.value,
                                 'metadata' : typeattr_j.default_dataset.metadata
                             })
@@ -1057,12 +1088,12 @@ def check_type_compatibility(type_1_id, type_2_id):
         type_1_unit_id = type_1_dict[ta.attr_id].unit_id
 
         fmt_dict = {
-                    'template_1_name':template_1_name,
-                    'template_2_name':template_2_name,
-                    'attr_name':ta.attr.name,
-                    'type_1_unit_id':type_1_unit_id,
-                    'type_2_unit_id':type_2_unit_id,
-                    'type_name' : type_1.name
+                    'template_1_name': template_1_name,
+                    'template_2_name': template_2_name,
+                    'attr_name':       ta.attr.name,
+                    'type_1_unit_id':  type_1_unit_id,
+                    'type_2_unit_id':  type_2_unit_id,
+                    'type_name' :      type_1.name
                 }
 
         if type_1_unit_id is None and type_2_unit_id is not None:
@@ -1559,21 +1590,61 @@ def _set_typeattr(typeattr, existing_ta = None):
 
     ta.data_restriction = _parse_data_restriction(typeattr.data_restriction)
 
-    if typeattr.dimension_id is not None and typeattr.attr_id is not None and typeattr.attr_id > 0:
-        attr = ta.attr
-        if attr.dimension_id != typeattr.dimension_id:
-            raise HydraError("Cannot set a dimension on type attribute which "
-                            "does not match its attribute. Create a new attribute if "
-                            "you want to use attribute %s with dimension_id %s"%
-                            (attr.name, typeattr.dimension_id))
-    elif typeattr.dimension_id is not None and typeattr.attr_id is None and typeattr.name is not None:
+    if typeattr.attr_id is None and typeattr.name is not None:
+        # Getting/creating the attribute by typeattr dimension id and typeattr name
+        # In this case the dimension_id is ininfluent
         attr = _get_attr_by_name_and_dimension(typeattr.name, typeattr.dimension_id)
 
         ta.attr_id = attr.id
         ta.attr = attr
 
-    else:
-        log.info("-- NO DIMENSION ID --")
+
+    elif typeattr.attr_id is not None and typeattr.attr_id > 0:
+        # Getting the passed attribute, so we need to check consistency between attr dimension id and typeattr dimension id
+        attr = ta.attr
+        if typeattr.dimension_id is not None and attr.dimension_id is not None and attr.dimension_id != typeattr.dimension_id or \
+           typeattr.dimension_id is     None and attr.dimension_id is not None or \
+           typeattr.dimension_id is not None and attr.dimension_id is     None:
+            # In this case there is an inconsistency between attr.dimension_id and typeattr.dimension_id
+            raise HydraError("Cannot set a dimension on type attribute which "
+                            "does not match its attribute. Create a new attribute if "
+                            "you want to use attribute %s with dimension_id %s"%
+                            (attr.name, typeattr.dimension_id))
+        else:
+            # attr.dimension_id and typeattr.dimension_id are consistent
+            pass
+
+
+    # else:
+    #     if typeattr.dimension_id is not None:
+    #         if typeattr.attr_id is not None and typeattr.attr_id > 0:
+    #             # Getting the attribute by id and dimensionId
+    #             attr = ta.attr
+    #             if attr.dimension_id != typeattr.dimension_id:
+    #                 # In this case there is an inconsistency between attr.dimension_id and typeattr.dimension_id
+    #                 raise HydraError("Cannot set a dimension on type attribute which "
+    #                                 "does not match its attribute. Create a new attribute if "
+    #                                 "you want to use attribute %s with dimension_id %s"%
+    #                                 (attr.name, typeattr.dimension_id))
+    #             else:
+    #                 # attr.dimension_id and typeattr.dimension_id are consistent
+    #                 pass
+    #
+    #
+    #     else:
+    #         # dimension ID is None
+    #         if typeattr.attr_id is not None and typeattr.attr_id > 0:
+    #             # Getting the attribute by id and dimensionId
+    #             attr = ta.attr
+    #             if attr.dimension_id is not None
+    #                 # In this case there is an inconsistency between attr.dimension_id and typeattr.dimension_id
+    #                 raise HydraError("Cannot set a dimension on type attribute which "
+    #                                 "does not match its attribute. Create a new attribute if "
+    #                                 "you want to use attribute %s with dimension_id %s"%
+    #                                 (attr.name, typeattr.dimension_id))
+    #             else:
+    #                 # attr.dimension_id and typeattr.dimension_id are consistent
+    #                 pass
 
 
     _check_dimension(ta)
