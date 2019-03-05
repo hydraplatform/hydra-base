@@ -108,10 +108,11 @@ def get_template_attributes(template_id, **kwargs):
 def get_attribute_by_name_and_dimension(name, dimension_id=None,**kwargs):
     """
         Get a specific attribute by its name.
+        dimension_id can be None, because in attribute the dimension_id is not anymore mandatory
     """
-    if dimension_id is None:
-        # Default value
-        dimension_id = units.get_default_dimension_id()
+    # if dimension_id is None:
+    #     # Default value
+    #     dimension_id = units.get_default_dimension_id()
 
     try:
         attr_i = db.DBSession.query(Attr).filter(and_(Attr.name==name, Attr.dimension_id==dimension_id)).one()
@@ -136,9 +137,9 @@ def add_attribute(attr,**kwargs):
     """
     log.debug("Adding attribute: %s", attr.name)
 
-    if attr.dimension_id is None:
-        log.debug("Setting 'default dimension' on attribute %s", attr.name)
-        attr.dimension_id = units.get_default_dimension_id()
+    # if attr.dimension_id is None:
+    #     log.debug("Setting 'default dimension' on attribute %s", attr.name)
+    #     attr.dimension_id = units.get_default_dimension_id()
 
     try:
         attr_i = db.DBSession.query(Attr).filter(Attr.name == attr.name,
@@ -167,9 +168,9 @@ def update_attribute(attr,**kwargs):
 
     """
 
-    if attr.dimension_id is None:
-        log.info("Setting 'default dimension' on attribute %s", attr.name)
-        attr.dimension_id = units.get_default_dimension_id()
+    # if attr.dimension_id is None:
+    #     log.info("Setting 'default dimension' on attribute %s", attr.name)
+    #     attr.dimension_id = units.get_default_dimension_id()
 
     log.debug("Updating attribute: %s", attr.name)
     attr_i = _get_attr(attr.id)
@@ -227,8 +228,8 @@ def add_attributes(attrs,**kwargs):
         if potential_new_attr is not None:
             # If the attrinute is None we cannot manage it
             log.debug("Adding attribute: %s", potential_new_attr)
-            if potential_new_attr.dimension_id is None:
-                potential_new_attr.dimension_id = units.get_default_dimension_id()
+            # if potential_new_attr.dimension_id is None:
+            #     potential_new_attr.dimension_id = units.get_default_dimension_id()
 
             if attr_dict.get((potential_new_attr.name.lower(), potential_new_attr.dimension_id)) is None:
                 attrs_to_add.append(JSONObject(potential_new_attr))
@@ -480,8 +481,11 @@ def check_attr_dimension(attr_id, **kwargs):
                         ResourceAttr.attr_id == attr_id).all()
     bad_datasets = []
     for d in datasets:
-        if units.get_unit_dimension(d.unit).id != attr_i.dimension_id:
-            bad_datasets.append(d.id)
+        if  attr_i.dimension_id is None and d.unit is not None or \
+            attr_i.dimension_id is not None and d.unit is None or \
+            units.get_unit_dimension(d.unit).id != attr_i.dimension_id:
+                # If there is an inconsistency
+                bad_datasets.append(d.id)
 
     if len(bad_datasets) > 0:
         raise HydraError("Datasets %s have a different dimension_id to attribute %s"%(bad_datasets, attr_id))
