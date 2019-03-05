@@ -111,7 +111,6 @@ class Dataset(Base, Inspect):
     id         = Column(Integer(), primary_key=True, index=True, nullable=False)
     name       = Column(String(200),  nullable=False)
     type       = Column(String(60),  nullable=False)
-    #unit       = Column(String(60)) ## To remove in the next step
     unit_id    = Column(Integer(), ForeignKey('tUnit.id'),  nullable=True)
     hash       = Column(BIGINT(),  nullable=False, unique=True)
     cr_date    = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
@@ -361,14 +360,12 @@ class Attr(Base, Inspect):
     __tablename__='tAttr'
 
     __table_args__ = (
-        #UniqueConstraint('name', 'dimension', name="unique name dimension"),
         UniqueConstraint('name', 'dimension_id', name="unique name dimension_id"),
     )
 
     id           = Column(Integer(), primary_key=True, nullable=False)
     name         = Column(String(200),  nullable=False)
-    #dimension    = Column(String(60), server_default=text(u"'dimensionless'")) ## To remove in the next step
-    dimension_id    = Column(Integer(), ForeignKey('tDimension.id'), nullable=False)
+    dimension_id    = Column(Integer(), ForeignKey('tDimension.id'), nullable=True)
     description  = Column(String(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
