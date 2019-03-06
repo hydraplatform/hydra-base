@@ -2449,8 +2449,8 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
                     (ResourceAttr.group_id != None, ResourceGroup.name),
                     (ResourceAttr.network_id != None, Network.name),
                ]).label('ref_name'),
-              ).join(ResourceScenario)\
-                .join(Dataset).\
+              ).join(ResourceScenario, ResourceScenario.resource_attr_id==ResourceAttr.id)\
+                .join(Dataset, ResourceScenario.dataset_id==Dataset.id).\
                 join(Attr, ResourceAttr.attr_id==Attr.id).\
                 outerjoin(Node, ResourceAttr.node_id==Node.id).\
                 outerjoin(Link, ResourceAttr.link_id==Link.id).\
