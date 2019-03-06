@@ -58,12 +58,12 @@ def _check_dimension(typeattr, unit_id=None):
         unit_dimension_id = units.get_dimension_by_unit_id(unit_id).id
         raise HydraError("Unit %s (abbreviation=%s) has dimension_id %s(name=%s), but attribute has no dimension"%
                         (unit_id, units.get_unit(unit_id).abbreviation,
-                        unit_dimension_id, units.get_dimension(unit_dimension_id).name))
+                        unit_dimension_id, units.get_dimension(unit_dimension_id, do_accept_dimension_id_none=True).name))
 
     elif unit_id is None and dimension_id is not None:
         # Second error case
         raise HydraError("Unit is None, but attribute has dimension_id %s(name=%s)"%
-                            (dimension_id, units.get_dimension(dimension_id).name))
+                            (dimension_id, units.get_dimension(dimension_id, do_accept_dimension_id_none=True).name))
 
     elif unit_id is not None and dimension_id is not None:
         unit_dimension_id = units.get_dimension_by_unit_id(unit_id).id
@@ -71,8 +71,8 @@ def _check_dimension(typeattr, unit_id=None):
             # Third error case
             raise HydraError("Unit %s (abbreviation=%s) has dimension_id %s(name=%s), but attribute has dimension_id %s(name=%s)"%
                             (unit_id, units.get_unit(unit_id).abbreviation,
-                            unit_dimension_id, units.get_dimension(unit_dimension_id).name,
-                            dimension_id, units.get_dimension(dimension_id).name))
+                            unit_dimension_id, units.get_dimension(unit_dimension_id, do_accept_dimension_id_none=True).name,
+                            dimension_id, units.get_dimension(dimension_id, do_accept_dimension_id_none=True).name))
 
 
 def get_types_by_attr(resource, template_id=None):
@@ -143,7 +143,8 @@ def parse_xml_attribute(attribute):
         # Found the unit
         unit = attribute.find('unit').text
         unit_id = units.get_unit_by_abbreviation(unit).id
-        dimension_i = units.get_dimension_by_unit_id(unit_id)
+        #dimension_i = units.get_dimension_by_unit_id(unit_id)
+        dimension_i = units.get_dimension_by_unit_id(unit_id, do_accept_unit_id_none=True)
 
     else:
         # No unit and no dimension. Let's get/create it anyway
@@ -1592,7 +1593,7 @@ def _set_typeattr(typeattr, existing_ta = None):
 
     if typeattr.attr_id is None and typeattr.name is not None:
         # Getting/creating the attribute by typeattr dimension id and typeattr name
-        # In this case the dimension_id is ininfluent
+        # In this case the dimension_id "null"/"not null" status is ininfluent
         attr = _get_attr_by_name_and_dimension(typeattr.name, typeattr.dimension_id)
 
         ta.attr_id = attr.id
@@ -1611,7 +1612,7 @@ def _set_typeattr(typeattr, existing_ta = None):
                             "you want to use attribute %s with dimension_id %s"%
                             (attr.name, typeattr.dimension_id))
         else:
-            # attr.dimension_id and typeattr.dimension_id are consistent
+            # attr.dimension_id and typeattr.dimension_id are consistent. Nothing to do here
             pass
 
 
@@ -2020,12 +2021,20 @@ def _validate_resource(resource, tmpl_types, resource_scenarios=[]):
             attr_name = rs.resourceattr.attr.name
             rs_unit_id = rs.dataset.unit_id
 
-            rs_dimension_id = units.get_dimension_by_unit_id(rs_unit_id).id
+            # if rs_unit_id is not None:
+            #     rs_dimension_id = units.get_dimension_by_unit_id(rs_unit_id).id
+            # else:
+            #     rs_dimension_id = None
+
+            rs_dimension_id = units.get_dimension_by_unit_id(rs_unit_id, do_accept_unit_id_none=True).id
+
+
             type_dimension_id = ta_dict[rs.resourceattr.attr_id].attr.dimension_id
             type_unit_id = ta_dict[rs.resourceattr.attr_id].unit_id
 
 
-            if units.get_dimension_by_unit_id(rs_unit_id).id != type_dimension_id:
+            #if units.get_dimension_by_unit_id(rs_unit_id).id != type_dimension_id:
+            if rs_dimension_id != type_dimension_id:
                 errors.append("Dimension mismatch on %s %s, attribute %s: "
                               "%s on attribute, %s on type"%
                              ( resource.ref_key, resource.get_name(), attr_name,
@@ -2162,7 +2171,7 @@ def _make_attr_element(parent, resource_attr_i):
     attr_desc.text = attr_i.description
 
     attr_dimension = etree.SubElement(attr, 'dimension')
-    attr_dimension.text = units.get_dimension(attr_i.dimension_id).name
+    attr_dimension.text = units.get_dimension(attr_i.dimension_id, do_accept_dimension_id_none=True).name
 
 
     if _exists_key_in_object("unit_id", resource_attr_i) and resource_attr_i.unit_id is not None:
