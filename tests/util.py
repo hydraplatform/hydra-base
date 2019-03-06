@@ -93,7 +93,7 @@ def create_template():
     node_attr_4  = create_attr("node_attr_d", dimension='Volumetric flow rate')
     group_attr_1 = create_attr("grp_attr_1", dimension='Monetary value')
     #group_attr_2 = create_attr("grp_attr_2", dimension='Displacement')
-    group_attr_2 = create_attr("grp_attr_2", dimension='dimensionless')
+    group_attr_2 = create_attr("grp_attr_2", dimension=None) #dimension='dimensionless')
 
     template = JSONObject()
     template['name'] = 'Default Template ' + str(datetime.datetime.now())
@@ -280,10 +280,12 @@ def create_node(node_id, attributes=None, node_name="Test Node Name"):
     return node
 
 
-def create_attr(name="Test attribute", dimension="dimensionless"):
-    if dimension is None:
-        dimension="dimensionless"
-    dimension_id = hydra_base.get_dimension_by_name(dimension).id
+def create_attr(name="Test attribute", dimension=None): #dimension="dimensionless"):
+    dimension_id = None
+    if dimension is not None:
+
+        #dimension="dimensionless"
+        dimension_id = hydra_base.get_dimension_by_name(dimension).id
     attr_i = hydra_base.get_attribute_by_name_and_dimension(name, dimension_id, user_id=pytest.root_user_id)
     if attr_i is None:
         attr = JSONObject({
