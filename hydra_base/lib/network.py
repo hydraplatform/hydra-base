@@ -2421,6 +2421,7 @@ def get_all_resource_attributes_in_network(attr_id, network_id, **kwargs):
 def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, page_end=None, **kwargs):
     """
         A function which returns the data for all resources in a network.
+        -
     """
 
     rs_qry = db.DBSession.query(
