@@ -188,10 +188,28 @@ def convert(values, source_measure_or_unit_abbreviation, target_measure_or_unit_
 | DIMENSION FUNCTIONS - GET |
 +---------------------------+
 """
-def get_dimension(dimension_id,**kwargs):
+def get_empty_dimension(**kwargs):
+    """
+        Returns a dimension object initialized with empty values
+    """
+    dimension = JSONObject(Dimension())
+    dimension.id = None
+    dimension.name = ''
+    dimension.description = ''
+    dimension.project_id = None
+    dimension.units = []
+    return dimension
+
+
+
+def get_dimension(dimension_id, do_accept_dimension_id_none=False,**kwargs):
     """
         Given a dimension id returns all its data
     """
+    if do_accept_dimension_id_none == True and dimension_id is None:
+        # In this special case, the method returns a dimension with id None
+        return get_empty_dimension()
+
     try:
         dimension = db.DBSession.query(Dimension).filter(Dimension.id==dimension_id).one()
 
@@ -308,10 +326,15 @@ def get_unit_dimension(measure_or_unit_abbreviation,**kwargs):
         dimension = db.DBSession.query(Dimension).filter(Dimension.id==units[0].dimension_id).one()
         return str(dimension.name)
 
-def get_dimension_by_unit_id(unit_id,**kwargs):
+def get_dimension_by_unit_id(unit_id, do_accept_unit_id_none=False, **kwargs):
     """
         Return the physical dimension a given unit id refers to.
+        if do_raise is True, it raise an exception if unit_id is not valid or None
+        if do_raise is False, and unit_id is None, the function returns a Dimension with id None (unit_id can be none in some cases)
     """
+    if do_accept_unit_id_none == True and unit_id is None:
+        # In this special case, the method returns a dimension with id None
+        return get_empty_dimension()
 
     try:
         dimension = db.DBSession.query(Dimension).join(Unit).filter(Unit.id==unit_id).filter().one()
