@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-
 from sqlalchemy import Column,\
 ForeignKey,\
 text,\
@@ -1652,6 +1651,7 @@ class RoleUser(Base, Inspect):
 
     def __repr__(self):
         return "{0}".format(self.role.name)
+
 
 class User(Base, Inspect):
     """
