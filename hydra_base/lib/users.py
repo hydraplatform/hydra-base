@@ -20,7 +20,7 @@
 from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm.exc import NoResultFound
 
-from ..db.model import User, Role, Perm, RoleUser, RolePerm, UserCookieConsent
+from ..db.model import User, Role, Perm, RoleUser, RolePerm
 from .. import db
 
 import bcrypt
@@ -356,28 +356,6 @@ def get_role(role_id,**kwargs):
         return role
     except NoResultFound:
         raise HydraError("Role not found (role_id={})".format(role_id))
-
-
-def get_user_cookie_consents(uid,country_code,**kwargs):
-    """
-        Get the cookie_consents for a user.
-        @param user_id
-    """
-    try:
-        user_cc = db.DBSession.query(UserCookieConsent).filter(
-            UserCookieConsent.user_id==uid,
-            UserCookieConsent.country_code==country_code
-        ).all()
-        if (len(user_cc) == 0):
-            # There isn't any consent yet
-            return ""
-        else:
-            # Found the wanted consent
-            return str(user_cc[0])
-    except NoResultFound:
-        raise HydraError("Cookie Consents not found for user (user_id={} and country_code='{}')".format(uid, country_code))
-
-
 
 def get_user_roles(uid,**kwargs):
     """
