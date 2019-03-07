@@ -997,7 +997,7 @@ class TestNetwork:
 
         net1 = networkmaker.create(project_id=proj.id)
         hydra_base.share_network(net1.id,
-                                 ["notadmin"],
+                                 ["UserC"],#Not an admin
                                  'N',
                                  'Y',
                                  user_id=pytest.root_user_id)
