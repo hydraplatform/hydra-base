@@ -53,19 +53,13 @@ def _check_dimension(typeattr, unit_id=None):
 
     dimension_id = _get_attr(typeattr.attr_id).dimension_id
 
-    # if unit_id is not None and dimension_id is None:
-    #     # First error case
-    #     unit_dimension_id = units.get_dimension_by_unit_id(unit_id).id
-    #     raise HydraError("Unit %s (abbreviation=%s) has dimension_id %s(name=%s), but attribute has no dimension"%
-    #                     (unit_id, units.get_unit(unit_id).abbreviation,
-    #                     unit_dimension_id, units.get_dimension(unit_dimension_id, do_accept_dimension_id_none=True).name))
-    #
-    # elif unit_id is None and dimension_id is not None:
-    #     # Second error case
-    #     raise HydraError("Unit is None, but attribute has dimension_id %s(name=%s)"%
-    #                         (dimension_id, units.get_dimension(dimension_id, do_accept_dimension_id_none=True).name))
-    # elif unit_id is not None and dimension_id is not None:
-    if unit_id is not None and dimension_id is not None:
+    if unit_id is not None and dimension_id is None:
+        # First error case
+        unit_dimension_id = units.get_dimension_by_unit_id(unit_id).id
+        raise HydraError("Unit %s (abbreviation=%s) has dimension_id %s(name=%s), but attribute has no dimension"%
+                        (unit_id, units.get_unit(unit_id).abbreviation,
+                        unit_dimension_id, units.get_dimension(unit_dimension_id, do_accept_dimension_id_none=True).name))
+    elif unit_id is not None and dimension_id is not None:
         unit_dimension_id = units.get_dimension_by_unit_id(unit_id).id
         if unit_dimension_id != dimension_id:
             # Only error case
