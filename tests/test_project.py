@@ -199,5 +199,42 @@ class TestProject:
         test_scenario = nets[0].scenarios[0]
         assert len(test_scenario.resourcescenarios) > 0
 
+    def test_get_all_project_owners(self, session, projectmaker):
+        proj = projectmaker.create()
+        
+        projectowners = hb.get_all_project_owners(user_id=pytest.root_user_id)
+
+        assert len(projectowners) == 4
+        
+        projectowners = hb.get_all_project_owners([proj.id], user_id=pytest.root_user_id)
+        
+        assert len(projectowners) == 4
+
+        with pytest.raises(hb.exceptions.PermissionError):
+            projectowners = hb.get_all_project_owners([proj.id], user_id=5)
+
+    def test_bulk_set_project_owners(self, session, projectmaker):
+        proj = projectmaker.create(share=False)
+        
+        projectowners = hb.get_all_project_owners([proj.id], user_id=pytest.root_user_id)
+
+        assert len(projectowners) == 1
+        
+        projectowners = hb.get_all_project_owners([proj.id], user_id=pytest.root_user_id)
+
+        new_owner = JSONObject(dict(
+            project_id=proj.id,
+            user_id=2,
+            view='Y',
+            edit='Y',
+            share='Y',
+        ))
+
+        hydra_base.bulk_set_project_owners([new_owner], user_id=pytest.root_user_id)
+
+        projectowners = hb.get_all_project_owners([proj.id], user_id=pytest.root_user_id)
+
+        assert len(projectowners) == 2
+        
 if __name__ == '__main__':
     server.run()
