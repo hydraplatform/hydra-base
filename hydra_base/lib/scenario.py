@@ -32,8 +32,6 @@ from ..db.model import Scenario,\
         Attr,\
         ResourceAttrMap
 
-from . import units as hydra_units
-
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import joinedload_all, joinedload, aliased
@@ -141,7 +139,14 @@ def get_scenario(scenario_id,**kwargs):
 
     rgi_rs = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.scenario_id==scenario_id).all()
 
-    scen_j.resourcescenarios = [JSONObject(r, extras={'resourceattr':r.resourceattr}) for r in rscen_rs]
+    scen_j.resourcescenarios = []
+    for rs in rscen_rs:
+        rs_j = JSONObject(rs, extras={'resourceattr':JSONObject(rs.resourceattr)})
+        if rs.dataset.check_read_permission(user_id, do_raise=False) is False:
+            rs_j.dataset['value'] = None
+            rs_j.dataset.metadata = JSONObject({})
+        scen_j.resourcescenarios.append(rs_j)
+
     scen_j.resourcegroupitems =[JSONObject(r) for r in rgi_rs]
 
     return scen_j
@@ -262,7 +267,6 @@ def update_scenario(scenario,update_data=True,update_groups=True,flush=True,**kw
     if update_data is True:
         datasets = [rs.dataset for rs in scenario.resourcescenarios]
         updated_datasets = data._bulk_insert_data(datasets, user_id, kwargs.get('app_name'))
-        log.info(sorted([rs.resource_attr_id for rs in scenario.resourcescenarios]))
         for i, r_scen in enumerate(scenario.resourcescenarios):
             _update_resourcescenario(scen, r_scen, dataset=updated_datasets[i], user_id=user_id, source=kwargs.get('app_name'))
 
@@ -1110,11 +1114,11 @@ def _add_resourcegroupitem(group_item, scenario_id):
     ref_key = group_item.ref_key
     group_item_i.ref_key = ref_key
     if ref_key == 'NODE':
-        group_item_i.node_id =group_item.ref_id
+        group_item_i.node_id =group_item.ref_id if group_item.ref_id else group_item.node_id
     elif ref_key == 'LINK':
-        group_item_i.link_id =group_item.ref_id
+        group_item_i.link_id =group_item.ref_id if group_item.ref_id else group_item.link_id
     elif ref_key == 'GROUP':
-        group_item_i.subgroup_id =group_item.ref_id
+        group_item_i.subgroup_id = group_item.ref_id if group_item.ref_id else group_item.subgroup_id
 
     return group_item_i
 

@@ -41,7 +41,7 @@ def login(username, password):
 def logout(username):
     hydra_base.util.hdb.logout(username)
 
-def create_user(name):
+def create_user(name, role='admin'):
 
     existing_user = hydra_base.get_user_by_name(name)
     if existing_user is not None:
@@ -55,11 +55,9 @@ def create_user(name):
 
     new_user = JSONObject(hydra_base.add_user(user, user_id=pytest.root_user_id))
 
-    #make the user an admin user by default
-    role =  JSONObject(hydra_base.get_role_by_code('admin', user_id=pytest.root_user_id))
-    
-    if name.lower() != 'notadmin':
-        hydra_base.set_user_role(new_user.id, role.id, user_id=pytest.root_user_id)
+    role =  JSONObject(hydra_base.get_role_by_code(role, user_id=pytest.root_user_id))
+
+    hydra_base.set_user_role(new_user.id, role.id, user_id=pytest.root_user_id)
 
     return new_user
 

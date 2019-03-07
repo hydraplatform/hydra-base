@@ -99,7 +99,8 @@ def _get_attr_by_name_and_dimension(name, dimension):
         If such an attribute does not exist, create one.
     """
 
-    attr = db.DBSession.query(Attr).filter(Attr.name==name, Attr.dimension==dimension).first()
+    attr = db.DBSession.query(Attr).filter(Attr.name==name,
+                                           Attr.dimension==dimension).first()
 
     if attr is None:
         attr         = Attr()
@@ -113,26 +114,24 @@ def _get_attr_by_name_and_dimension(name, dimension):
 
     return attr
 
-def parse_attribute(attribute):
+def parse_xml_attribute(attribute):
 
     if attribute.find('dimension') is not None:
-        dimension = attribute.find('dimension').text
-        if dimension is not None:
-            dimension = units.get_dimension(dimension.strip())
-
-            if dimension is None:
-                raise HydraError("Dimension %s does not exist."%dimension)
+        dimension_name = attribute.find('dimension').text
+        if dimension_name is not None:
+            if dimension_name.lower() in ('dimensionless', ''):
+                dimension_name = 'dimensionless'
+        dimension_i = units.get_dimension_by_name(dimension_name.strip())
 
     elif attribute.find('unit') is not None:
         if attribute.find('unit').text is not None:
-            dimension = units.get_unit_dimension(attribute.find('unit').text)
-
-    if dimension is None or dimension.lower() in ('dimensionless', ''):
-        dimension = 'dimensionless'
+            dimension_i = units.get_unit_dimension(attribute.find('unit').text)
+    else:
+        raise HydraError("An attribute must have a unit or dimension. %s has neither"%(attribute_i.name))
 
     name      = attribute.find('name').text.strip()
 
-    attr = _get_attr_by_name_and_dimension(name, dimension)
+    attr = _get_attr_by_name_and_dimension(name, dimension_i.name)
 
     db.DBSession.flush()
 
@@ -140,7 +139,7 @@ def parse_attribute(attribute):
 
 def parse_xml_typeattr(type_i, attribute):
 
-    attr = parse_attribute(attribute)
+    attr = parse_xml_attribute(attribute)
 
     for ta in type_i.typeattrs:
         if ta.attr_id == attr.id:
@@ -215,25 +214,18 @@ def parse_xml_typeattr(type_i, attribute):
 def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
 
     if attribute_j.dimension is not None:
-        dimension_j = attribute_j.dimension
-        if dimension_j is not None:
-            if dimension_j.strip() == '':
-                dimension_j = 'dimensionless'
-
-            dimension = units.get_dimension(dimension_j.strip())
-
-            if dimension is None:
-                raise HydraError("Dimension '%s' does not exist."%dimension_j)
-
+        dimension_name = attribute_j.dimension.strip()
+        if dimension_name.lower() in ('dimensionless', ''):
+            dimension_name = 'dimensionless'
+        dimension_i = units.get_dimension_by_name(dimension_name.strip())
     elif attribute_j.unit is not None:
-            dimension = units.get_unit_dimension(attribute_j.unit)
-
-    if dimension is None or dimension.lower() in ('dimensionless', ''):
-        dimension = 'dimensionless'
+        dimension_i = units.get_unit_dimension(attribute_j.unit)
+    else:
+        raise HydraError("An attribute must have a unit or dimension. %s has neither"%(attribute_i.name))
 
     name      = attribute_j.name.strip()
 
-    attr_i = _get_attr_by_name_and_dimension(name, dimension)
+    attr_i = _get_attr_by_name_and_dimension(name, dimension_i.name)
 
     #Get an ID for the attribute
     db.DBSession.flush()
@@ -388,6 +380,8 @@ def get_template_as_xml(template_id,**kwargs):
 
     template_name = etree.SubElement(template_xml, "template_name")
     template_name.text = template_i.name
+    template_description = etree.SubElement(template_xml, "template_description")
+    template_description.text = template_i.description
     resources = etree.SubElement(template_xml, "resources")
 
     for type_i in template_i.templatetypes:
@@ -399,6 +393,9 @@ def get_template_as_xml(template_id,**kwargs):
         name   = etree.SubElement(xml_resource, "name")
         name.text   = type_i.name
 
+        description   = etree.SubElement(xml_resource, "description")
+        description.text   = type_i.description
+
         alias   = etree.SubElement(xml_resource, "alias")
         alias.text   = type_i.alias
 
@@ -407,7 +404,7 @@ def get_template_as_xml(template_id,**kwargs):
             xml_resource.append(layout)
 
         for type_attr in type_i.typeattrs:
-            _make_attr_element(xml_resource, type_attr)
+            attr = _make_attr_element(xml_resource, type_attr)
 
         resources.append(xml_resource)
 
@@ -445,12 +442,13 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
     template_j = JSONObject(template_file_j.get('template', {}))
 
     default_datasets_j = {}
-    for k, v in file_datasets.items(): 
+    for k, v in file_datasets.items():
         default_datasets_j[int(k)] = Dataset(v)
 
     if file_attributes is None or default_datasets_j is None or len(template_j) == 0:
-        raise HydraError("Invalid template. The template must have the following structure: " +
-                            "{'attributes':\{...\}, 'datasets':\{...\}, 'template':\{...\}}")
+        raise HydraError("Invalid template. The template must have the following structure: " + \
+                            "{'attributes':\\{...\\}, 'datasets':\\{...\\}, 'template':\\{...\\}}")
+
 
     #Normalise attribute IDs so they're always ints (in case they're specified as strings)
     attributes_j = {}
@@ -458,6 +456,7 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
         attributes_j[int(k)] = JSONObject(v)
 
     template_name = template_j.name
+    template_description = template_j.description
 
     template_layout = None
     if template_j.layout is not None:
@@ -473,9 +472,10 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
         else:
             log.info("Existing template found. name=%s", template_name)
             template_i.layout = template_layout
+            template_i.description = template_description
     except NoResultFound:
         log.info("Template not found. Creating new one. name=%s", template_name)
-        template_i = Template(name=template_name, layout=template_layout)
+        template_i = Template(name=template_name, description=template_description, layout=template_layout)
         db.DBSession.add(template_i)
 
     types_j = template_j.templatetypes
@@ -526,6 +526,9 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
             type_i.name = type_name
             template_i.templatetypes.append(type_i)
             type_is_new = True
+
+        if type_j.description is not None:
+            type_i.description = type_j.description
 
         if type_j.alias is not None:
             type_i.alias = type_j.alias
@@ -619,6 +622,7 @@ def import_template_xml(template_xml, allow_update=True, **kwargs):
     xmlschema.assertValid(xml_tree)
 
     template_name = xml_tree.find('template_name').text
+    template_description = xml_tree.find('template_description').text
 
     template_layout = None
     if xml_tree.find('layout') is not None and \
@@ -635,9 +639,10 @@ def import_template_xml(template_xml, allow_update=True, **kwargs):
         else:
             log.info("Existing template found. name=%s", template_name)
             tmpl_i.layout = template_layout
+            tmpl_i.description = template_description
     except NoResultFound:
         log.info("Template not found. Creating new one. name=%s", template_name)
-        tmpl_i = Template(name=template_name, layout=template_layout)
+        tmpl_i = Template(name=template_name, description=template_description, layout=template_layout)
         db.DBSession.add(tmpl_i)
 
     types = xml_tree.find('resources')
@@ -681,6 +686,9 @@ def import_template_xml(template_xml, allow_update=True, **kwargs):
 
         if resource.find('alias') is not None:
             type_i.alias = resource.find('alias').text
+
+        if resource.find('description') is not None:
+            type_i.description = resource.find('description').text
 
         if resource.find('type') is not None:
             type_i.resource_type = resource.find('type').text
@@ -966,11 +974,11 @@ def assign_types_to_resources(resource_types,**kwargs):
         new_types = db.DBSession.execute(ResourceType.__table__.insert(), res_types)
     if len(res_attrs) > 0:
         new_res_attrs = db.DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
-        new_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.resource_attr_id>=new_res_attrs.lastrowid, ResourceAttr.resource_attr_id<(new_res_attrs.lastrowid+len(res_attrs)))).all()
+        new_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.id>=new_res_attrs.lastrowid, ResourceAttr.id<(new_res_attrs.lastrowid+len(res_attrs)))).all()
 
     ra_map = {}
     for ra in new_ras:
-        ra_map[(ra.ref_key, ra.attr_id, ra.node_id, ra.link_id, ra.group_id, ra.network_id)] = ra.resource_attr_id
+        ra_map[(ra.ref_key, ra.attr_id, ra.node_id, ra.link_id, ra.group_id, ra.network_id)] = ra.id
 
     for rs in res_scenarios:
         rs['resource_attr_id'] = ra_map[(rs['ref_key'], rs['attr_id'], rs['node_id'], rs['link_id'], rs['group_id'], rs['network_id'])]
@@ -1239,7 +1247,7 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
 
                     if new_res_scenarios.get(attr_id) is None:
                         new_res_scenarios[attr_id] = {}
-                    
+
                     new_res_scenarios[attr_id][s.id] =  dict(
                         dataset_id = type_attrs[attr_id]['default_dataset_id'],
                         scenario_id = s.id,
@@ -1303,7 +1311,7 @@ def _parse_data_restriction(restriction_dict):
 
     #replace soap text with an empty string
     #'{soap_server.hydra_complexmodels}' -> ''
-    dict_str = re.sub('{[a-zA-Z\.\_]*}', '', str(restriction_dict))
+    dict_str = re.sub('{[a-zA-Z._]*}', '', str(restriction_dict))
 
     if isinstance(restriction_dict, dict):
         new_dict = restriction_dict
@@ -1330,6 +1338,8 @@ def add_template(template, **kwargs):
     """
     tmpl = Template()
     tmpl.name = template.name
+    if template.description:
+        tmpl.description = template.description
     if template.layout:
         tmpl.layout = get_layout_as_string(template.layout)
 
@@ -1350,6 +1360,8 @@ def update_template(template,**kwargs):
     """
     tmpl = db.DBSession.query(Template).filter(Template.id==template.id).one()
     tmpl.name = template.name
+    if template.description:
+        tmpl.description = template.description
 
     #Lazy load the rest of the template
     for tt in tmpl.templatetypes:
@@ -1540,7 +1552,7 @@ def _update_templatetype(templatetype, existing_tt=None):
         update that one. Otherwise search for an existing one. If not found, add.
     """
     if existing_tt is None:
-        if templatetype.id is not None:
+        if "id" in templatetype and templatetype.id is not None:
             tmpltype_i = db.DBSession.query(TemplateType).filter(TemplateType.id == templatetype.id).one()
         else:
             tmpltype_i = TemplateType()
@@ -1549,6 +1561,7 @@ def _update_templatetype(templatetype, existing_tt=None):
 
     tmpltype_i.template_id = templatetype.template_id
     tmpltype_i.name        = templatetype.name
+    tmpltype_i.description = templatetype.description
     tmpltype_i.alias       = templatetype.alias
 
     if templatetype.layout is not None:
@@ -2028,6 +2041,7 @@ def get_network_as_xml_template(network_id,**kwargs):
 def _make_attr_element(parent, resource_attr_i):
     """
         General function to add an attribute element to a resource element.
+        resource_attr_i can also e a type_attr if being called from get_tempalte_as_xml
     """
     attr = etree.SubElement(parent, "attribute")
     attr_i = resource_attr_i.attr
@@ -2035,11 +2049,29 @@ def _make_attr_element(parent, resource_attr_i):
     attr_name      = etree.SubElement(attr, 'name')
     attr_name.text = attr_i.name
 
+    attr_desc      = etree.SubElement(attr, 'description')
+    attr_desc.text = attr_i.description
+
     attr_dimension = etree.SubElement(attr, 'dimension')
     attr_dimension.text = attr_i.dimension
+    
+    if hasattr(resource_attr_i, 'unit') and resource_attr_i.unit:
+        attr_unit    = etree.SubElement(attr, 'unit')
+        attr_unit.text = resource_attr_i.unit
 
     attr_is_var    = etree.SubElement(attr, 'is_var')
     attr_is_var.text = resource_attr_i.attr_is_var
+    
+    if hasattr(resource_attr_i, 'data_type') and resource_attr_i.data_type:
+        attr_data_type    = etree.SubElement(attr, 'data_type')
+        attr_data_type.text = resource_attr_i.data_type
+
+    #attr_properties    = etree.SubElement(attr, 'properties')
+    #attr_properties.text = resource_attr_i.properties
+
+    if hasattr(resource_attr_i, 'data_restriction') and resource_attr_i.data_restriction:
+        attr_data_restriction    = etree.SubElement(attr, 'restrictions')
+        attr_data_restriction.text = resource_attr_i.data_restriction
 
     # if scenario_id is not None:
     #     for rs in resource_attr_i.get_resource_scenarios():

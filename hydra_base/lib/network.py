@@ -64,13 +64,13 @@ def _update_attributes(resource_i, attributes):
     resource_attribute_qry = db.DBSession.query(ResourceAttr)
 
     if resource_i.ref_key == 'NETWORK':
-        resource_attribute_qry.filter(ResourceAttr.network_id==resource_i.id)
+        resource_attribute_qry = resource_attribute_qry.filter(ResourceAttr.network_id==resource_i.id)
     elif resource_i.ref_key == 'NODE':
-        resource_attribute_qry.filter(ResourceAttr.node_id==resource_i.id)
+        resource_attribute_qry = resource_attribute_qry.filter(ResourceAttr.node_id==resource_i.id)
     elif resource_i.ref_key == 'LINK':
-        resource_attribute_qry.filter(ResourceAttr.link_id==resource_i.link_id)
+        resource_attribute_qry = resource_attribute_qry.filter(ResourceAttr.link_id==resource_i.link_id)
     elif resource_i.ref_key == 'GROUP':
-        resource_attribute_qry.filter(ResourceAttr.group_id==resource_i.group_id)
+        resource_attribute_qry = resource_attribute_qry.filter(ResourceAttr.group_id==resource_i.group_id)
 
     resource_attributes = resource_attribute_qry.all()
 
@@ -789,7 +789,7 @@ def _get_all_resourcescenarios(network_id, user_id):
                 ResourceScenario.source,
                 ResourceAttr.attr_id,
     ).outerjoin(DatasetOwner, and_(DatasetOwner.dataset_id==Dataset.id, DatasetOwner.user_id==user_id)).filter(
-                or_(Dataset.hidden=='N', DatasetOwner.user_id != None),
+                or_(Dataset.hidden=='N', Dataset.created_by==user_id, DatasetOwner.user_id != None),
                 ResourceAttr.id == ResourceScenario.resource_attr_id,
                 Scenario.id==ResourceScenario.scenario_id,
                 Scenario.network_id==network_id,
@@ -968,14 +968,14 @@ def _get_scenarios(network_id, include_data, user_id, scenario_ids=None):
 
     all_resource_group_items = _get_all_group_items(network_id)
 
-    if include_data == 'Y':
+    if include_data == 'Y' or include_data == True:
         all_rs = _get_all_resourcescenarios(network_id, user_id)
         metadata = _get_metadata(network_id, user_id)
 
     for s in scens:
         s.resourcegroupitems = all_resource_group_items.get(s.id, [])
 
-        if include_data == 'Y':
+        if include_data == 'Y' or include_data == True:
             s.resourcescenarios  = all_rs.get(s.id, [])
 
             for rs in s.resourcescenarios:
@@ -998,6 +998,8 @@ def get_network(network_id, summary=False, include_data='N', scenario_ids=None, 
     """
     log.debug("getting network %s"%network_id)
     user_id = kwargs.get('user_id')
+
+    network_id = int(network_id)
 
     try:
         log.debug("Querying Network %s", network_id)
@@ -1338,7 +1340,7 @@ def update_network(network,
                 n.name        = node.name
                 n.description = node.description
                 n.x           = node.x
-                n._y          = node.y
+                n.y           = node.y
                 n.status      = node.status
                 n.layout      = node.get_layout()
             else:
@@ -2507,8 +2509,13 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
 
     return return_data
 
-def clone_network(network_id, new_project=True, recipient_user_id=None, network_name=None, project_name=None, **kwargs):
+def clone_network(network_id, recipient_user_id=None, new_network_name=None, project_id=None, project_name=None,  new_project=True, **kwargs):
     """
+     Create an exact clone of the specified network for the specified user.
+
+     If project_id is specified, put the new network in there.
+
+     Otherwise create a new project with the specified name and put it in there.
 
     """
 
@@ -2518,7 +2525,7 @@ def clone_network(network_id, new_project=True, recipient_user_id=None, network_
 
     ex_net.check_read_permission(user_id)
 
-    if new_project == True:
+    if project_id is None and new_project == True:
 
         log.info("Creating a new project for cloned network")
 
@@ -2549,27 +2556,27 @@ def clone_network(network_id, new_project=True, recipient_user_id=None, network_
         db.DBSession.flush()
 
         project_id=project.id
-        if network_name is None or network_name == "":
-            network_name=ex_net.name
-    else:
+
+    elif project_id is None:
         log.info("Using current project for cloned network")
         project_id=ex_net.project_id
-        if network_name is None or network_name == "":
-            network_name=ex_net.name
+
+    if new_network_name is None or new_network_name == "":
+        new_network_name=ex_net.name
 
     log.info('Cloning Network...')
 
     #Find if there's any projects with this name in the project already
     ex_network =  db.DBSession.query(Network).filter(Network.project_id==project_id,
-                                                     Network.name.like("{0}%".format(network_name))).all()
+                                                     Network.name.like("{0}%".format(new_network_name))).all()
 
     if len(ex_network) > 0:
-        network_name = network_name + " " + str(len(ex_network))
+        new_network_name = new_network_name + " " + str(len(ex_network))
 
     newnet = Network()
 
     newnet.project_id = project_id
-    newnet.name = network_name
+    newnet.name = new_network_name 
     newnet.description = ex_net.description
     newnet.layout = ex_net.layout
     newnet.status = ex_net.status

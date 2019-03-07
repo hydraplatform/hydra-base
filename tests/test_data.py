@@ -351,8 +351,8 @@ class TestTimeSeries:
 #    def test_array_format(self):
 #        bad_net = self.build_network()
 #
-#        s = bad_net['scenarios'].Scenario[0]
-#        for rs in s['resourcescenarios'].ResourceScenario:
+#        s = bad_net['scenarios'][0]
+#        for rs in s['resourcescenarios']:
 #            if rs['value']['type'] == 'array':
 #                rs['value']['value'] = json.dumps([[1, 2] ,[3, 4, 5]])
 #
@@ -362,8 +362,8 @@ class TestTimeSeries:
 #        n = hb.add_network(net)
 #        good_net = hb.get_network(n.id)
 #
-#        s = good_net.scenarios.Scenario[0]
-#        for rs in s.resourcescenarios.ResourceScenario:
+#        s = good_net.scenarios[0]
+#        for rs in s.resourcescenarios:
 #            if rs.value.type == 'array':
 #                rs.value.value = json.dumps([[1, 2] ,[3, 4, 5]])
 #                #Get one of the datasets, make it uneven and update it.
@@ -621,6 +621,209 @@ class TestDataCollection:
             updated_dataset_ids.append(item.dataset_id)
 
         assert dataset_id not in updated_dataset_ids
+
+class TestSharing:
+
+    def test_hide_data(self, session, network_with_data):
+        """
+            Test for the hiding of data.
+            Create a network with some data.
+            Hide the timeseries created, check if another user can see it.
+            Share the time series with one users. Check if they can see it but a third user can't.
+        """
+
+        #Let User B view network 1, but not edit it (read_only is 'Y')
+        hb.share_network(network_with_data.id, ["UserB", "UserC"], 'Y', 'N', user_id=pytest.root_user_id)
+
+        data_to_hide = network_with_data.scenarios[0].resourcescenarios[-1].dataset.id
+
+        hb.hide_dataset(data_to_hide, ["UserB"], 'Y', 'Y', 'Y', user_id=pytest.root_user_id)
+
+        netA = JSONObject(hb.get_network(network_with_data.id, include_data=True, user_id=pytest.user_c.id))
+
+        for rs in netA.scenarios[0].resourcescenarios:
+            d = rs.dataset
+            if d.id == data_to_hide:
+                assert d.hidden == 'Y'
+                assert d.value is None
+            else:
+                #The rest of the data is unhidden, so should be there.
+                assert d.hidden == 'N'
+                assert d.value is not None
+
+        netB = hb.get_network(network_with_data.id, include_data=True, user_id=pytest.user_c.id)
+
+        for rs in netB.scenarios[0].resourcescenarios:
+            d = rs.dataset
+            if d.id == data_to_hide:
+                assert d.hidden == 'Y'
+                assert d.value is None
+            else:
+                #The rest of the data is unhidden, so should be there.
+                assert d.hidden == 'N'
+                assert d.value is not None
+
+        directly_retrieved_scenario = hb.get_scenario(netB.scenarios[0].id, user_id=pytest.user_c.id)
+
+        for rs in directly_retrieved_scenario.resourcescenarios:
+            d = rs.dataset
+            if d.id == data_to_hide:
+                assert d.hidden == 'Y'
+                assert d.value is None
+            else:
+                #The rest of the data is unhidden, so should be there.
+                assert d.hidden == 'N'
+                assert d.value is not None
+
+        scenario_data = hb.get_scenario_data(netB.scenarios[0].id, user_id=pytest.user_c.id)
+
+        for d in scenario_data:
+            if d.id == data_to_hide:
+                assert d.hidden == 'Y'
+                assert d.value is None
+            else:
+                #The rest of the data is unhidden, so should be there.
+                assert d.hidden == 'N'
+                assert d.value is not None
+
+    def test_replace_hidden_data(self, session, network_with_data):
+        """
+            test_replace_hidden_data
+            Test for the case where one user hides data and another
+            user sets the data to something else.
+
+            User A Creates a network with some data
+            User A Hides the timeseries created.
+            User A shares network with User B
+
+            Check user B cannot see timeseries value
+            User B creates a new timeseries, and replaces the hidden one.
+            Save network.
+            Attribute now should have a new, unhidden dataset assigned to that attribute.
+        """
+
+        #Let User B view network 1, but not edit it (read_only is 'Y')
+        hb.share_network(network_with_data.id, ["UserB", "UserC"], 'N', 'N', user_id=pytest.root_user_id)
+
+        for d in  network_with_data.scenarios[0].resourcescenarios:
+            if d.dataset.type == 'timeseries':
+                attr_to_be_changed = d.resource_attr_id
+                data_to_hide = d.dataset.id
+
+        hb.hide_dataset(data_to_hide, [], 'Y', 'Y', 'Y', user_id=pytest.root_user_id)
+
+        netA = hb.JSONObject(hb.get_network(network_with_data.id, user_id=pytest.user_b.id))
+        
+        #This flushes changes to the DB to force the next query (inside update_network) to query the DB, and not use what's in memory.
+        hb.db.DBSession.commit()
+
+        #Find the hidden piece of data and replace it with another
+        #to simulate a case of two people working on one attribute
+        #where one cannot see the value of it.
+        for d in netA.scenarios[0].resourcescenarios:
+            if d.resource_attr_id == attr_to_be_changed:
+                #THis piece of data is indeed the hidden one.
+                assert d.dataset.hidden == 'Y'
+                #set the value of the attribute to be a different
+                #timeseries.
+                dataset = hb.JSONObject(dict(
+                    type = 'timeseries',
+                    name = 'replacement time series',
+                    unit = 'feet cubed',
+                ))
+
+                t1 = datetime.datetime.now()
+                t2 = t1+datetime.timedelta(hours=1)
+
+                ts_val = {0: {t1: [11, 21, 31, 41, 51],
+                            t2: [12, 22, 32, 42, 52]}}
+                dataset.value = ts_val
+                d.dataset = dataset
+            else:
+                #The rest of the data is unhidden, so should be there.
+                assert d.dataset.hidden == 'N'
+                assert d.dataset.value is not None
+
+        updated_net = hb.update_network(netA, user_id=pytest.user_b.id)
+        updated_net = hb.get_network(netA.id, user_id=pytest.user_b.id)
+        #After updating the network, check that the new dataset
+        #has been applied
+        for d in updated_net.scenarios[0].resourcescenarios:
+            if d.resource_attr_id == attr_to_be_changed:
+                assert d.dataset.hidden == 'N'
+                assert d.dataset.id     != data_to_hide
+        #Now validate that the dataset was not overwritten, but replaced
+        #by getting the old dataset and ensuring user B can still not see it.
+        hidden_dataset = hb.get_dataset(data_to_hide, user_id=pytest.user_b.id)
+        assert hidden_dataset.hidden == 'Y'
+        assert hidden_dataset.value  == None
+
+    def test_edit_hidden_data(self, session, network_with_data):
+        """
+            test_edit_hidden_data
+            Test for the case where one user hides data and another
+            user sets the data to something else.
+
+            User A Creates a network with some data
+            User A Hides the timeseries created.
+            User A shares network with User B
+
+            Check user B cannot see timeseries value
+            User B sets value of timeseries to something else.
+            Save network.
+            Attribute now should have a new, unhidden dataset assigned to that attribute.
+        """
+
+
+        #Let User B view network 1, but not edit it (read_only is 'Y')
+        hb.share_network(network_with_data.id, ["UserB"], 'N', 'N', user_id=pytest.root_user_id)
+
+        for d in network_with_data.scenarios[0].resourcescenarios:
+            if d.dataset.type == 'timeseries':
+                attr_to_be_changed = d.resource_attr_id
+                data_to_hide = d.dataset.id
+                break
+
+        hb.hide_dataset(data_to_hide, [], 'Y', 'Y', 'Y', user_id=pytest.root_user_id)
+        
+        #The next actions are done under user b's identity
+        netA = JSONObject(hb.get_network(network_with_data.id, user_id=pytest.user_b.id))
+
+        #This flushes changes to the DB to force the next query (inside update_network) to query the DB, and not use what's in memory.
+        hb.db.DBSession.commit()
+
+        #Find the hidden piece of data and replace it with another
+        #to simulate a case of two people working on one attribute
+        #where one cannot see the value of it.
+        for d in netA.scenarios[0].resourcescenarios:
+            if d.resource_attr_id == attr_to_be_changed:
+                #THis piece of data is indeed the hidden one.
+                assert d.dataset.hidden == 'Y'
+                t1 = datetime.datetime.now()
+                t2 = t1+datetime.timedelta(hours=1)
+
+                ts_val = {0: {t1: [11, 21, 31, 41, 51],
+                            t2: [12, 22, 32, 42, 52]}}
+                #Reassign the value of the dataset to something new.
+                d.dataset.value = json.dumps(ts_val)
+            else:
+                #The rest of the data is unhidden, so should be there.
+                assert d.dataset.hidden == 'N'
+                assert d.dataset.value is not None
+
+        updated_net = hb.update_network(netA, user_id=pytest.user_b.id)
+        updated_net = hb.get_network(updated_net.id, user_id=pytest.user_b.id)
+        #After updating the network, check that the new dataset
+        #has been applied
+        for d in  updated_net.scenarios[0].resourcescenarios:
+            if d.resource_attr_id == attr_to_be_changed:
+                assert d.dataset.hidden == 'N'
+                assert d.dataset.id     != data_to_hide
+        #Now validate that the dataset was not overwritten, but replaced
+        #by getting the old dataset and ensuring user B can still not see it.
+        hidden_dataset = hb.get_dataset(data_to_hide, user_id=pytest.user_b.id)
+        assert hidden_dataset.hidden == 'Y'
+        assert hidden_dataset.value  == None
 
 class TestiUtilities:
     """
