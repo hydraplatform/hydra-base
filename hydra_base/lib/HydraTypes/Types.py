@@ -226,8 +226,12 @@ class Dataframe(DataType):
             # the correct structure
             # We also try to coerce the data to a regular numpy array first. If the shape is correct
             # this is a much faster way of creating the DataFrame instance.
-            np_data = np.array(data)
-            if np_data.shape == (len(cols), len(index)):
+            try:
+                np_data = np.array(data)
+            except ValueError:
+                np_data = None
+
+            if np_data is not None and np_data.shape == (len(cols), len(index)):
                 df = pd.DataFrame(np_data, columns=index, index=cols).transpose()
             else:
                 # TODO should these heterogenous structure be supported?
