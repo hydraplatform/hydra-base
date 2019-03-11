@@ -646,7 +646,7 @@ def bulk_update_resourcedata(scenario_ids, resource_scenarios,**kwargs):
                 updated_rs = _update_resourcescenario(scen_i, rs, user_id=user_id, source=kwargs.get('app_name'))
                 res[scenario_id].append(updated_rs)
             else:
-                _delete_resourcescenario(scenario_id, rs)
+                _delete_resourcescenario(scenario_id, rs.resource_attr_id)
 
         db.DBSession.flush()
 
@@ -682,29 +682,43 @@ def update_resourcedata(scenario_id, resource_scenarios,**kwargs):
             updated_rs = _update_resourcescenario(scen_i, rs, user_id=user_id, source=kwargs.get('app_name'))
             res.append(updated_rs)
         else:
-            _delete_resourcescenario(scenario_id, rs)
+            _delete_resourcescenario(scenario_id, rs.resource_attr_id)
 
     db.DBSession.flush()
 
     return res
 
-def delete_resourcedata(scenario_id, resource_scenario,**kwargs):
+def delete_resource_scenario(scenario_id, resource_attr_id, quiet=False, **kwargs):
     """
         Remove the data associated with a resource in a scenario.
+    """
+    _check_can_edit_scenario(scenario_id, kwargs['user_id'])
+
+    _delete_resourcescenario(scenario_id, resource_attr_id, suppress_error=quiet)
+
+def delete_resourcedata(scenario_id, resource_scenario, quiet = False, **kwargs):
+    """
+        Remove the data associated with a resource in a scenario.
+        The 'quiet' parameter indicates whether an non-existent RS should throw
+        an error.
     """
 
     _check_can_edit_scenario(scenario_id, kwargs['user_id'])
 
-    _delete_resourcescenario(scenario_id, resource_scenario)
+    _delete_resourcescenario(scenario_id, resource_scenario.resource_attr_id, suppress_error=quiet)
 
 
-def _delete_resourcescenario(scenario_id, resource_scenario):
+def _delete_resourcescenario(scenario_id, resource_attr_id, suppress_error=False):
 
-    ra_id = resource_scenario.resource_attr_id
     try:
-        sd_i = db.DBSession.query(ResourceScenario).filter(ResourceScenario.scenario_id==scenario_id, ResourceScenario.resource_attr_id==ra_id).one()
+        sd_i = db.DBSession.query(ResourceScenario).filter(
+                            ResourceScenario.scenario_id==scenario_id,
+                            ResourceScenario.resource_attr_id==resource_attr_id).one()
     except NoResultFound:
-        raise HydraError("ResourceAttr %s does not exist in scenario %s."%(ra_id, scenario_id))
+        if suppress_error == False:
+            raise HydraError("ResourceAttr %s does not exist in scenario %s."%(resource_attr_id, scenario_id))
+        return
+
     db.DBSession.delete(sd_i)
     db.DBSession.flush()
 
@@ -752,7 +766,7 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
     log.info("Assigning %s to resource attribute: %s", value, ra_id)
 
     if value is None:
-        log.info("Cannot set data on resource attribute %s",ra)
+        log.info("Cannot set data on resource attribute %s",ra_id)
         return None
 
     metadata = dataset.get_metadata_as_dict(source=source, user_id=user_id)

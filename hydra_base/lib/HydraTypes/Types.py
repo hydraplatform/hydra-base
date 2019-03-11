@@ -9,6 +9,7 @@
 import json
 import math
 import six
+import numpy as np
 import pandas as pd
 from abc import ABCMeta, abstractmethod, abstractproperty
 from datetime import datetime
@@ -219,11 +220,24 @@ class Dataframe(DataType):
                 if isinstance(ordered_jo[c], list):
                     data.append(ordered_jo[c])
                 else:
-                    data.append(ordered_jo[c].values())
+                    data.append(list(ordered_jo[c].values()))
 
-            #This goes in 'sideways' (cols=index, index=cols), so it needs to be transposed after to keep
-            #the correct structure
-            df = pd.DataFrame(data, columns=index, index=cols).transpose()
+            # This goes in 'sideways' (cols=index, index=cols), so it needs to be transposed after to keep
+            # the correct structure
+            # We also try to coerce the data to a regular numpy array first. If the shape is correct
+            # this is a much faster way of creating the DataFrame instance.
+            try:
+                np_data = np.array(data)
+            except ValueError:
+                np_data = None
+
+            if np_data is not None and np_data.shape == (len(cols), len(index)):
+                df = pd.DataFrame(np_data, columns=index, index=cols).transpose()
+            else:
+                # TODO should these heterogenous structure be supported?
+                # See https://github.com/hydraplatform/hydra-base/issues/72
+                df = pd.DataFrame(data, columns=index, index=cols).transpose()
+
 
         except ValueError as e:
             """ Raised on scalar types used as pd.DataFrame values

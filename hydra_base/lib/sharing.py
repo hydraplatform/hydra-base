@@ -21,8 +21,10 @@ from ..exceptions import HydraError, ResourceNotFoundError
 import logging
 log = logging.getLogger(__name__)
 from .. import db
-from ..db.model import Network, Project, User, Dataset
+from ..db.model import Network, Project, ProjectOwner, NetworkOwner, User, Dataset
+from hydra_base.lib.objects import JSONObject
 from sqlalchemy.orm.exc import NoResultFound
+from hydra_base.util.permissions import required_role
 
 def _get_project(project_id):
     try:
@@ -283,3 +285,121 @@ def unhide_dataset(dataset_id,**kwargs):
 
     dataset_i.hidden = 'N'
     db.DBSession.flush()
+
+@required_role("admin")
+def get_all_project_owners(project_ids=None, **kwargs):
+    """
+        Get the project owner entries for all the requested projects.
+        If the project_ids argument is None, return all the owner entries
+        for ALL projects
+    """
+
+
+    projowner_qry = db.DBSession.query(ProjectOwner)
+
+    if project_ids is not None:
+       projowner_qry = projowner_qry.filter(ProjectOwner.project_id.in_(project_ids))
+
+    project_owners_i = projowner_qry.all()
+
+    return [JSONObject(project_owner_i) for project_owner_i in project_owners_i]
+
+@required_role("admin")
+def get_all_network_owners(network_ids=None, **kwargs):
+    """
+        Get the network owner entries for all the requested networks.
+        If the network_ids argument is None, return all the owner entries
+        for ALL networks
+    """
+
+
+    networkowner_qry = db.DBSession.query(NetworkOwner)
+
+    if network_ids is not None:
+       networkowner_qry = networkowner_qry.filter(NetworkOwner.network_id.in_(network_ids))
+
+    network_owners_i = networkowner_qry.all()
+
+    return [JSONObject(network_owner_i) for network_owner_i in network_owners_i]
+
+@required_role("admin")
+def bulk_set_project_owners(project_owners, **kwargs):
+    """
+        Set the project owner of multiple projects at once.
+        Accepts a list of JSONObjects which look like:
+            {
+             'project_id': XX,
+             'user_id'   : YY,
+             'view'      : 'Y'/ 'N'
+             'edit'      : 'Y'/ 'N'
+             'share'      : 'Y'/ 'N'
+            }
+           """
+    
+    project_ids = [po.project_id for po in project_owners]
+
+    existing_projowners = db.DBSession.query(ProjectOwner).filter(ProjectOwner.project_id.in_(project_ids)).all()
+
+    #Create a lookup based on the unique key for this table (project_id, user_id)
+    po_lookup = {}
+    
+    for po in existing_projowners:
+        po_lookup[(po.project_id, po.user_id)] = po
+
+    for project_owner in project_owners:
+        #check if the entry is already there
+        if po_lookup.get((project_owner.project_id, project_owner.user_id)):
+            continue
+
+        new_po = ProjectOwner()
+        new_po.project_id = project_owner.project_id
+        new_po.user_id    = project_owner.user_id
+        new_po.view       = project_owner.view
+        new_po.edit       = project_owner.edit
+        new_po.share      = project_owner.share
+
+        db.DBSession.add(new_po)
+
+    db.DBSession.flush()
+
+@required_role("admin")
+def bulk_set_network_owners(network_owners, **kwargs):
+    """
+        Set the network owner of multiple networks at once.
+        Accepts a list of JSONObjects which look like:
+            {
+             'network_id': XX,
+             'user_id'   : YY,
+             'view'      : 'Y'/ 'N'
+             'edit'      : 'Y'/ 'N'
+             'share'      : 'Y'/ 'N'
+            }
+           """
+    
+    network_ids = [no.network_id for no in network_owners]
+
+    existing_projowners = db.DBSession.query(NetworkOwner).filter(NetworkOwner.network_id.in_(network_ids)).all()
+
+    #Create a lookup based on the unique key for this table (network_id, user_id)
+    no_lookup = {}
+    
+    for no in existing_projowners:
+        no_lookup[(no.network_id, no.user_id)] = no
+
+    for network_owner in network_owners:
+        #check if the entry is already there
+        if no_lookup.get((network_owner.network_id, network_owner.user_id)):
+            continue
+
+        new_no = NetworkOwner()
+        new_no.network_id = network_owner.network_id
+        new_no.user_id    = network_owner.user_id
+        new_no.view       = network_owner.view
+        new_no.edit       = network_owner.edit
+        new_no.share      = network_owner.share
+
+        db.DBSession.add(new_no)
+
+    db.DBSession.flush()
+
+

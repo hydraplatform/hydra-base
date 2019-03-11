@@ -57,8 +57,10 @@ def create_mysql_db(db_url):
     #Remove trailing whitespace and forwardslashes
     db_url = db_url.strip().strip('/')
 
+
     #Check this is a mysql URL
     if db_url.find('mysql') >= 0:
+        
 
         #Get the DB name from config and check if it's in the URL
         db_name = config.get('mysqld', 'db_name', 'hydradb')
@@ -76,6 +78,8 @@ def create_mysql_db(db_url):
             else:
                 no_db_url = db_url
                 db_url = no_db_url + "/" + db_name
+        
+        db_url = "{}?charset=utf8&use_unicode=1".format(db_url)
 
         if config.get('mysqld', 'auto_create', 'Y') == 'Y':
             tmp_engine = create_engine(no_db_url)

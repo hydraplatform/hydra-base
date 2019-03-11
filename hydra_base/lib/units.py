@@ -307,7 +307,6 @@ def get_units(**kwargs):
 
     return units
 
-
 def get_unit_dimension(measure_or_unit_abbreviation,**kwargs):
     """
         Return the physical dimension a given unit abbreviation of a measure, or the measure itself, refers to.
@@ -489,7 +488,13 @@ def add_unit(unit,**kwargs):
 
     return JSONObject(new_unit)
 
-
+@required_perms("add_unit")
+def bulk_add_units(unit_list, **kwargs):
+    """
+        Save all the units contained in the passed list, with the name of their dimension.
+    """
+    for unit in unit_list:
+        add_unit(unit, **kwargs)
 
 @required_perms("delete_unit")
 def delete_unit(unit_id, **kwargs):
