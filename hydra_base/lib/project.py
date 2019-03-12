@@ -292,7 +292,7 @@ def get_projects(uid, include_shared_projects=True, **kwargs):
 
         networks_i = db.DBSession.query(Network)\
                                 .filter(Network.project_id==project_i.id,\
-                                        Network.status=='A')
+                                        Network.status=='A').all()
         networks_j = []
         for network_i in networks_i:
             network_i.owners
@@ -308,7 +308,7 @@ def get_projects(uid, include_shared_projects=True, **kwargs):
         project_j.networks = networks_j 
         projects_j.append(project_j)
 
-    log.info("Networks loaded for query done for projects for user %s", uid)
+    log.info("Networks loaded projects for user %s", uid)
 
     return projects_j
 
