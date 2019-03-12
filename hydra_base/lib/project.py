@@ -21,12 +21,12 @@ from ..exceptions import ResourceNotFoundError
 from . import scenario
 import logging
 from ..exceptions import PermissionError, HydraError
-from ..db.model import Project, ProjectOwner, Network, NetworkOwner
+from ..db.model import Project, ProjectOwner, Network
 from .. import db
 from . import network
 from .objects import JSONObject
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.orm import class_mapper, joinedload_all, noload
+from sqlalchemy.orm import class_mapper, noload
 from sqlalchemy import and_, or_
 from ..util import hdb
 from sqlalchemy.util import KeyedTuple
@@ -267,6 +267,8 @@ def get_projects(uid, include_shared_projects=True, **kwargs):
     #must be checked individually for ownership
     projects_qry = db.DBSession.query(Project)
 
+    log.info("Getting projects for %s", uid)
+
     if include_shared_projects is True:
         projects_qry = projects_qry.join(ProjectOwner).filter(Project.status=='A',
                                                         or_(ProjectOwner.user_id==uid,
@@ -274,10 +276,11 @@ def get_projects(uid, include_shared_projects=True, **kwargs):
     else:
         projects_qry = projects_qry.join(ProjectOwner).filter(Project.created_by==uid)
 
-
     projects_qry = projects_qry.options(noload('networks')).order_by('id')
 
     projects_i = projects_qry.all()
+    
+    log.info("Project query done for user %s. %s projects found", uid, len(projects_i))
 
     #Load each
     projects_j = []
@@ -305,6 +308,7 @@ def get_projects(uid, include_shared_projects=True, **kwargs):
         project_j.networks = networks_j 
         projects_j.append(project_j)
 
+    log.info("Networks loaded for query done for projects for user %s", uid)
 
     return projects_j
 
