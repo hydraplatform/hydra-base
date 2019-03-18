@@ -176,7 +176,6 @@ class Dataset(Base, Inspect):
 
         dataset_dict = dict(name      = self.name,
                            unit_id       = self.unit_id,
-                           #unit       = self.unit,
                            type       = self.type,
                            value      = self.value,
                            metadata   = metadata)
@@ -500,7 +499,6 @@ class TypeAttr(Base, Inspect):
     attr_is_var        = Column(String(1), server_default=text(u"'N'"))
     data_type          = Column(String(60))
     data_restriction   = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
-    #unit               = Column(String(60)) ## To remove in the next step
     unit_id            = Column(Integer(), ForeignKey('tUnit.id'), nullable=True)
     description        = Column(String(1000))
     properties         = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
@@ -1329,7 +1327,6 @@ class ResourceScenario(Base, Inspect):
     def get_dataset(self, user_id):
         dataset = get_session().query(Dataset.id,
                 Dataset.type,
-                #Dataset.unit,
                 Dataset.unit_id,
                 Dataset.name,
                 Dataset.hidden,
@@ -1723,7 +1720,6 @@ class Unit(Base, Inspect):
     __tablename__='tUnit'
 
     __table_args__ = (
-        #UniqueConstraint('abbreviation', 'dimension_id', name="unique abbreviation dimension_id"),
         UniqueConstraint('abbreviation', name="unique abbreviation"),
     )
 
@@ -1770,7 +1766,6 @@ class Dimension(Base, Inspect):
     description = Column(Unicode(1000))
 
     project_id = Column(Integer(), ForeignKey('tProject.id'), index=True, nullable=True)
-    is_default = Column(String(1),  nullable=False, server_default=text(u"'N'"))
 
     _parents  = ['tProject']
     _children = ['tUnit', 'tAttr']
@@ -1827,7 +1822,6 @@ def create_resourcedata_view():
         ResourceScenario.scenario_id,
         ResourceScenario.dataset_id,
         Dataset.unit_id,
-        #Dataset.unit,
         Dataset.name,
         Dataset.type,
         Dataset.value]).where(ResourceScenario.resource_attr_id==ResourceAttr.attr_id).where(ResourceAttr.attr_id==Attr.id).where(ResourceScenario.dataset_id==Dataset.id)

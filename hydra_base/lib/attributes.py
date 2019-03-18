@@ -110,10 +110,6 @@ def get_attribute_by_name_and_dimension(name, dimension_id=None,**kwargs):
         Get a specific attribute by its name.
         dimension_id can be None, because in attribute the dimension_id is not anymore mandatory
     """
-    # if dimension_id is None:
-    #     # Default value
-    #     dimension_id = units.get_default_dimension_id()
-
     try:
         attr_i = db.DBSession.query(Attr).filter(and_(Attr.name==name, Attr.dimension_id==dimension_id)).one()
         log.debug("Attribute retrieved")
@@ -136,10 +132,6 @@ def add_attribute(attr,**kwargs):
 
     """
     log.debug("Adding attribute: %s", attr.name)
-
-    # if attr.dimension_id is None:
-    #     log.debug("Setting 'default dimension' on attribute %s", attr.name)
-    #     attr.dimension_id = units.get_default_dimension_id()
 
     try:
         attr_i = db.DBSession.query(Attr).filter(Attr.name == attr.name,
@@ -167,10 +159,6 @@ def update_attribute(attr,**kwargs):
         }
 
     """
-
-    # if attr.dimension_id is None:
-    #     log.info("Setting 'default dimension' on attribute %s", attr.name)
-    #     attr.dimension_id = units.get_default_dimension_id()
 
     log.debug("Updating attribute: %s", attr.name)
     attr_i = _get_attr(attr.id)
@@ -210,7 +198,6 @@ def add_attributes(attrs,**kwargs):
 
     """
 
-    #log.debug("Adding s: %s", [attr.name for attr in attrs])
     #Check to see if any of the attributs being added are already there.
     #If they are there already, don't add a new one. If an attribute
     #with the same name is there already but with a different dimension,
@@ -228,8 +215,6 @@ def add_attributes(attrs,**kwargs):
         if potential_new_attr is not None:
             # If the attrinute is None we cannot manage it
             log.debug("Adding attribute: %s", potential_new_attr)
-            # if potential_new_attr.dimension_id is None:
-            #     potential_new_attr.dimension_id = units.get_default_dimension_id()
 
             if attr_dict.get((potential_new_attr.name.lower(), potential_new_attr.dimension_id)) is None:
                 attrs_to_add.append(JSONObject(potential_new_attr))

@@ -259,16 +259,6 @@ def get_dimension_by_name(dimension_name,**kwargs):
         raise ResourceNotFoundError("Dimension %s not found"%(dimension_name))
 
 
-def get_default_dimension_id(**kwargs):
-    """
-        This method returns the id the default dimension name (ex "dimensionless")
-    """
-    default_dimension = db.DBSession.query(Dimension).filter(Dimension.is_default=='Y').first()
-    if default_dimension is None:
-        raise ResourceNotFoundError("Default dimension not found!")
-
-    return default_dimension.id
-
 """
 +----------------------+
 | UNIT FUNCTIONS - GET |
@@ -328,8 +318,8 @@ def get_unit_dimension(measure_or_unit_abbreviation,**kwargs):
 def get_dimension_by_unit_id(unit_id, do_accept_unit_id_none=False, **kwargs):
     """
         Return the physical dimension a given unit id refers to.
-        if do_raise is True, it raise an exception if unit_id is not valid or None
-        if do_raise is False, and unit_id is None, the function returns a Dimension with id None (unit_id can be none in some cases)
+        if do_accept_unit_id_none is False, it raises an exception if unit_id is not valid or None
+        if do_accept_unit_id_none is True, and unit_id is None, the function returns a Dimension with id None (unit_id can be none in some cases)
     """
     if do_accept_unit_id_none == True and unit_id is None:
         # In this special case, the method returns a dimension with id None

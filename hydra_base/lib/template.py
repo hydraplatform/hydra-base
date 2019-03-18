@@ -137,14 +137,11 @@ def parse_xml_attribute(attribute):
         # Found the unit
         unit = attribute.find('unit').text
         unit_id = units.get_unit_by_abbreviation(unit).id
-        #dimension_i = units.get_dimension_by_unit_id(unit_id)
         dimension_i = units.get_dimension_by_unit_id(unit_id, do_accept_unit_id_none=True)
 
     else:
         # No unit and no dimension. Let's get/create it anyway
         pass
-    # if dimension_i is None:
-    #     raise HydraError("An attribute must have a unit or dimension. %s has neither"%(attribute_i.name))
 
     name = attribute.find('name').text.strip()
 
@@ -218,7 +215,7 @@ def parse_xml_typeattr(type_i, attribute):
         dimension_id = None
         if unit_id is not None:
             _check_dimension(typeattr_i, unit_id)
-            #dimension = units.get_unit_dimension(unit)
+
             dimension_id = units.get_dimension_by_unit_id(unit_id).id
 
         if unit_id is not None and _exists_key_in_object("unit_id",JSONObject(typeattr_i)) and typeattr_i.unit_id is not None:
@@ -265,8 +262,6 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
         # The unit of the attribute is not None
         dimension_i = units.get_unit_dimension(attribute_j.unit)
         attribute_j.unit_id = units.get_unit_by_abbreviation(attribute_j.unit).id
-    # else:
-    #     raise HydraError("An attribute must have a unit or dimension. %s has neither"%(attribute_j.name))
 
     name      = attribute_j.name.strip()
 
@@ -652,13 +647,7 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
 
     db.DBSession.flush()
 
-
-
-
-
-
     return template_i
-
 
 def import_template_xml(template_xml, allow_update=True, **kwargs):
     """
@@ -1568,8 +1557,6 @@ def _set_typeattr(typeattr, existing_ta = None):
     else:
         ta = existing_ta
 
-
-
     ta.unit_id = typeattr.unit_id
     ta.type_id = typeattr.type_id
     ta.data_type = typeattr.data_type
@@ -1644,7 +1631,6 @@ def _update_templatetype(templatetype, existing_tt=None):
     ta_dict = {}
     for t in tmpltype_i.typeattrs:
         ta_dict[t.attr_id] = t
-
 
     existing_attrs = []
 
@@ -1983,19 +1969,11 @@ def _validate_resource(resource, tmpl_types, resource_scenarios=[]):
             attr_name = rs.resourceattr.attr.name
             rs_unit_id = rs.dataset.unit_id
 
-            # if rs_unit_id is not None:
-            #     rs_dimension_id = units.get_dimension_by_unit_id(rs_unit_id).id
-            # else:
-            #     rs_dimension_id = None
-
             rs_dimension_id = units.get_dimension_by_unit_id(rs_unit_id, do_accept_unit_id_none=True).id
-
 
             type_dimension_id = ta_dict[rs.resourceattr.attr_id].attr.dimension_id
             type_unit_id = ta_dict[rs.resourceattr.attr_id].unit_id
 
-
-            #if units.get_dimension_by_unit_id(rs_unit_id).id != type_dimension_id:
             if rs_dimension_id != type_dimension_id:
                 errors.append("Dimension mismatch on %s %s, attribute %s: "
                               "%s on attribute, %s on type"%

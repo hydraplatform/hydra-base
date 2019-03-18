@@ -305,14 +305,8 @@ def search_datasets(dataset_id=None,
         #null is a valid unit, so we need a way for the searcher
         #to specify that they want to search for datasets with a null unit
         #rather than ignoring the unit. We use 'null' to do this.
-        #if unit_id is not None:
-            #unit_id = unit.lower()
-            #if unit == 'null':
-            #    unit = None
+
         if unit_id is not None:
-        #     dataset_qry = dataset_qry.filter(
-        #         func.lower(Dataset.unit_id) == unit_id)
-        # else:
             dataset_qry = dataset_qry.filter(
                 Dataset.unit_id == unit_id)
 
