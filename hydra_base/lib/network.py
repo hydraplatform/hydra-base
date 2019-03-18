@@ -205,7 +205,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
             db.DBSession.bulk_insert_mappings(ResourceAttr, all_resource_attrs)
             logging.info("ResourceAttr insert took %s secs"% str(time.time() - t0))
         else:
-            logging.warn("No attributes on any %s....", ref_key.lower())
+            logging.warning("No attributes on any %s....", ref_key.lower())
 
     logging.info("Resource attributes insertion from types done in %s"%(datetime.datetime.now() - start_time))
 
@@ -591,7 +591,7 @@ def _get_all_resource_attributes(network_id, template_id=None):
                                ResourceAttr.network_id.label('network_id'),
                                ResourceAttr.attr_id.label('attr_id'),
                                Attr.name.label('name'),
-                               Attr.dimension.label('dimension'),
+                               Attr.dimension_id.label('dimension_id'),
                               ).filter(Attr.id==ResourceAttr.attr_id)
 
 
@@ -776,7 +776,7 @@ def _get_all_resourcescenarios(network_id, user_id):
 
     rs_qry = db.DBSession.query(
                 Dataset.type,
-                Dataset.unit,
+                Dataset.unit_id,
                 Dataset.name,
                 Dataset.hash,
                 Dataset.cr_date,
@@ -813,7 +813,7 @@ def _get_all_resourcescenarios(network_id, user_id):
         rs_dataset = JSONDataset({
             'id':rs.dataset_id,
             'type' : rs.type,
-            'unit' : rs.unit,
+            'unit_id' : rs.unit_id,
             'name' : rs.name,
             'hash' : rs.hash,
             'cr_date':rs.cr_date,
@@ -2403,7 +2403,7 @@ def get_all_resource_attributes_in_network(attr_id, network_id, **kwargs):
              .options(joinedload_all('link'))\
              .options(joinedload_all('resourcegroup'))\
              .options(joinedload_all('network'))
-            
+
     resourceattrs = ra_qry.all()
 
     json_ra = []
@@ -2421,6 +2421,7 @@ def get_all_resource_attributes_in_network(attr_id, network_id, **kwargs):
 def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, page_end=None, **kwargs):
     """
         A function which returns the data for all resources in a network.
+        -
     """
 
     rs_qry = db.DBSession.query(
@@ -2439,7 +2440,7 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
                Dataset.id.label('dataset_id'),
                Dataset.name.label('dataset_name'),
                Dataset.value,
-               Dataset.unit,
+               Dataset.unit_id,
                Dataset.hidden,
                Dataset.type,
                null().label('metadata'),
@@ -2450,7 +2451,7 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
                     (ResourceAttr.network_id != None, Network.name),
                ]).label('ref_name'),
               ).join(ResourceScenario, ResourceScenario.resource_attr_id==ResourceAttr.id)\
-                .join(Dataset).\
+                .join(Dataset, ResourceScenario.dataset_id==Dataset.id).\
                 join(Attr, ResourceAttr.attr_id==Attr.id).\
                 outerjoin(Node, ResourceAttr.node_id==Node.id).\
                 outerjoin(Link, ResourceAttr.link_id==Link.id).\
@@ -2576,7 +2577,7 @@ def clone_network(network_id, recipient_user_id=None, new_network_name=None, pro
     newnet = Network()
 
     newnet.project_id = project_id
-    newnet.name = new_network_name 
+    newnet.name = new_network_name
     newnet.description = ex_net.description
     newnet.layout = ex_net.layout
     newnet.status = ex_net.status

@@ -188,10 +188,28 @@ def convert(values, source_measure_or_unit_abbreviation, target_measure_or_unit_
 | DIMENSION FUNCTIONS - GET |
 +---------------------------+
 """
-def get_dimension(dimension_id,**kwargs):
+def get_empty_dimension(**kwargs):
+    """
+        Returns a dimension object initialized with empty values
+    """
+    dimension = JSONObject(Dimension())
+    dimension.id = None
+    dimension.name = ''
+    dimension.description = ''
+    dimension.project_id = None
+    dimension.units = []
+    return dimension
+
+
+
+def get_dimension(dimension_id, do_accept_dimension_id_none=False,**kwargs):
     """
         Given a dimension id returns all its data
     """
+    if do_accept_dimension_id_none == True and dimension_id is None:
+        # In this special case, the method returns a dimension with id None
+        return get_empty_dimension()
+
     try:
         dimension = db.DBSession.query(Dimension).filter(Dimension.id==dimension_id).one()
 
@@ -230,7 +248,9 @@ def get_dimension_by_name(dimension_name,**kwargs):
         Given a dimension name returns all its data. Used in convert functions
     """
     try:
-        dimension = db.DBSession.query(Dimension).filter(func.lower(Dimension.name)==func.lower(dimension_name)).one()
+        if dimension_name is None:
+            dimension_name = ''
+        dimension = db.DBSession.query(Dimension).filter(func.lower(Dimension.name)==func.lower(dimension_name.strip())).one()
 
         return get_dimension(dimension.id)
 
@@ -295,13 +315,32 @@ def get_unit_dimension(measure_or_unit_abbreviation,**kwargs):
         dimension = db.DBSession.query(Dimension).filter(Dimension.id==units[0].dimension_id).one()
         return str(dimension.name)
 
+def get_dimension_by_unit_id(unit_id, do_accept_unit_id_none=False, **kwargs):
+    """
+        Return the physical dimension a given unit id refers to.
+        if do_accept_unit_id_none is False, it raises an exception if unit_id is not valid or None
+        if do_accept_unit_id_none is True, and unit_id is None, the function returns a Dimension with id None (unit_id can be none in some cases)
+    """
+    if do_accept_unit_id_none == True and unit_id is None:
+        # In this special case, the method returns a dimension with id None
+        return get_empty_dimension()
+
+    try:
+        dimension = db.DBSession.query(Dimension).join(Unit).filter(Unit.id==unit_id).filter().one()
+        return get_dimension(dimension.id)
+    except NoResultFound:
+        # The dimension does not exist
+        raise ResourceNotFoundError("Unit %s not found"%(unit_id))
+
 
 def get_unit_by_abbreviation(unit_abbreviation, **kwargs):
     """
         Returns a single unit by abbreviation. Used as utility function to resolve string to id
     """
     try:
-        unit = db.DBSession.query(Unit).filter(Unit.abbreviation==unit_abbreviation).one()
+        if unit_abbreviation is None:
+            unit_abbreviation = ''
+        unit = db.DBSession.query(Unit).filter(Unit.abbreviation==unit_abbreviation.strip()).one()
         return get_unit(unit.id)
     except NoResultFound:
         # The dimension does not exist
@@ -336,7 +375,10 @@ def add_dimension(dimension,**kwargs):
     db.DBSession.add(new_dimension)
     db.DBSession.flush()
 
-    return JSONObject(new_dimension)
+    # Load all the record
+    db_dimension = db.DBSession.query(Dimension).filter(Dimension.id==new_dimension.id).one()
+
+    return JSONObject(db_dimension)
 
 @required_perms("update_dimension")
 def update_dimension(dimension,**kwargs):
@@ -375,7 +417,7 @@ def delete_dimension(dimension_id,**kwargs):
         db.DBSession.flush()
         return True
     except NoResultFound:
-        raise ResourceNotFoundError("Dimension (dimension_name=%s) does not exist"%(dimension_name))
+        raise ResourceNotFoundError("Dimension (dimension_id=%s) does not exist"%(dimension_id))
 
 
 """
@@ -412,12 +454,6 @@ def add_unit(unit,**kwargs):
     # 'info' is the only field that is allowed to be empty
     if 'info' not in unit.keys() or unit['info'] is None:
         unit['info'] = ''
-
-    # dimension_data = None
-    # if 'dimension_id' in unit.keys() and unit['dimension_id'] is not None:
-    #     dimension_data = get_dimension_data_by_id(unit["dimension_id"])
-    # else:
-    #     dimension_data = get_dimension_data(unit["dimension"])
 
     new_unit = Unit()
     new_unit.dimension_id   = unit["dimension_id"]
@@ -528,7 +564,7 @@ def convert_dataset(dataset_id, target_unit_abbreviation,**kwargs):
     dataset_type = ds_i.type
 
     dsval = ds_i.get_val()
-    source_unit_abbreviation = ds_i.unit
+    source_unit_abbreviation = get_unit(ds_i.unit_id).abbreviation
 
     if source_unit_abbreviation is not None:
         if dataset_type == 'scalar':
@@ -553,7 +589,8 @@ def convert_dataset(dataset_id, target_unit_abbreviation,**kwargs):
         new_dataset.type   = ds_i.type
         new_dataset.value  = str(new_val) # The data type is TEXT!!!
         new_dataset.name   = ds_i.name
-        new_dataset.unit   = target_unit_abbreviation
+
+        new_dataset.unit_id   = get_unit_by_abbreviation(target_unit_abbreviation).id
         new_dataset.hidden = 'N'
         new_dataset.set_metadata(ds_i.get_metadata_as_dict())
         new_dataset.set_hash()

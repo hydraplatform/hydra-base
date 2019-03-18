@@ -110,7 +110,7 @@ class Dataset(Base, Inspect):
     id         = Column(Integer(), primary_key=True, index=True, nullable=False)
     name       = Column(String(200),  nullable=False)
     type       = Column(String(60),  nullable=False)
-    unit       = Column(String(60))
+    unit_id    = Column(Integer(), ForeignKey('tUnit.id'),  nullable=True)
     hash       = Column(BIGINT(),  nullable=False, unique=True)
     cr_date    = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     created_by = Column(Integer(), ForeignKey('tUser.id'))
@@ -118,8 +118,9 @@ class Dataset(Base, Inspect):
     value      = Column('value', Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
 
     user = relationship('User', backref=backref("datasets", order_by=id))
+    unit = relationship('Unit', backref=backref("dataset_unit", order_by=unit_id))
 
-    _parents  = ['tResourceScenario']
+    _parents  = ['tResourceScenario', 'tUnit']
     _children = ['tMetadata']
 
     def set_metadata(self, metadata_dict):
@@ -174,7 +175,7 @@ class Dataset(Base, Inspect):
             metadata = self.get_metadata_as_dict()
 
         dataset_dict = dict(name      = self.name,
-                           unit       = self.unit,
+                           unit_id       = self.unit_id,
                            type       = self.type,
                            value      = self.value,
                            metadata   = metadata)
@@ -214,7 +215,7 @@ class Dataset(Base, Inspect):
     def unset_owner(self, user_id):
         owner = None
         if str(user_id) == str(self.created_by):
-            log.warn("Cannot unset %s as owner, as they created the dataset", user_id)
+            log.warning("Cannot unset %s as owner, as they created the dataset", user_id)
             return
         for o in self.owners:
             if user_id == o.user_id:
@@ -357,14 +358,19 @@ class Attr(Base, Inspect):
     __tablename__='tAttr'
 
     __table_args__ = (
-        UniqueConstraint('name', 'dimension', name="unique name dimension"),
+        UniqueConstraint('name', 'dimension_id', name="unique name dimension_id"),
     )
 
     id           = Column(Integer(), primary_key=True, nullable=False)
     name         = Column(String(200),  nullable=False)
-    dimension    = Column(String(60), server_default=text(u"'dimensionless'"))
+    dimension_id    = Column(Integer(), ForeignKey('tDimension.id'), nullable=True)
     description  = Column(String(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+
+    dimensions = relationship('Dimension', backref=backref("attr_dimension", order_by=dimension_id))
+
+    _parents  = ['tDimension']
+    _children = []
 
 class AttrMap(Base, Inspect):
     """
@@ -493,16 +499,17 @@ class TypeAttr(Base, Inspect):
     attr_is_var        = Column(String(1), server_default=text(u"'N'"))
     data_type          = Column(String(60))
     data_restriction   = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
-    unit               = Column(String(60))
+    unit_id            = Column(Integer(), ForeignKey('tUnit.id'), nullable=True)
     description        = Column(String(1000))
     properties         = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     attr = relationship('Attr')
     templatetype = relationship('TemplateType',  backref=backref("typeattrs", order_by=attr_id, cascade="all, delete-orphan"))
+    unit = relationship('Unit', backref=backref("typeattr_unit", order_by=unit_id))
     default_dataset = relationship('Dataset')
 
-    _parents  = ['tTemplateType']
+    _parents  = ['tTemplateType', 'tUnit']
     _children = []
 
     def get_attr(self):
@@ -732,7 +739,7 @@ class Project(Base, Inspect):
     def unset_owner(self, user_id):
         owner = None
         if str(user_id) == str(self.created_by):
-            log.warn("Cannot unset %s as owner, as they created the project", user_id)
+            log.warning("Cannot unset %s as owner, as they created the project", user_id)
             return
         for o in self.owners:
             if user_id == o.user_id:
@@ -942,7 +949,7 @@ class Network(Base, Inspect):
 
         owner = None
         if str(user_id) == str(self.created_by):
-            log.warn("Cannot unset %s as owner, as they created the network", user_id)
+            log.warning("Cannot unset %s as owner, as they created the network", user_id)
             return
         for o in self.owners:
             if user_id == o.user_id:
@@ -1320,7 +1327,7 @@ class ResourceScenario(Base, Inspect):
     def get_dataset(self, user_id):
         dataset = get_session().query(Dataset.id,
                 Dataset.type,
-                Dataset.unit,
+                Dataset.unit_id,
                 Dataset.name,
                 Dataset.hidden,
                 case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
@@ -1713,7 +1720,6 @@ class Unit(Base, Inspect):
     __tablename__='tUnit'
 
     __table_args__ = (
-        #UniqueConstraint('abbreviation', 'dimension_id', name="unique abbreviation dimension_id"),
         UniqueConstraint('abbreviation', name="unique abbreviation"),
     )
 
@@ -1735,8 +1741,10 @@ class Unit(Base, Inspect):
 
     project_id = Column(Integer(), ForeignKey('tProject.id'), index=True, nullable=True)
 
+    dimensions = relationship('Dimension', backref=backref("unit_dimension", order_by=dimension_id))
+
     _parents  = ['tDimension', 'tProject']
-    _children = []
+    _children = ['tDataset', 'tTypeAttr']
 
     def __repr__(self):
         return "{0}".format(self.abbreviation)
@@ -1760,7 +1768,7 @@ class Dimension(Base, Inspect):
     project_id = Column(Integer(), ForeignKey('tProject.id'), index=True, nullable=True)
 
     _parents  = ['tProject']
-    _children = ['tUnit']
+    _children = ['tUnit', 'tAttr']
 
     def __repr__(self):
         return "{0}".format(self.name)
@@ -1813,7 +1821,7 @@ def create_resourcedata_view():
         ResourceAttr.group_id,
         ResourceScenario.scenario_id,
         ResourceScenario.dataset_id,
-        Dataset.unit,
+        Dataset.unit_id,
         Dataset.name,
         Dataset.type,
         Dataset.value]).where(ResourceScenario.resource_attr_id==ResourceAttr.attr_id).where(ResourceAttr.attr_id==Attr.id).where(ResourceScenario.dataset_id==Dataset.id)

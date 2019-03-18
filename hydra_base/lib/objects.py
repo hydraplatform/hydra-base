@@ -80,7 +80,7 @@ class JSONObject(dict):
                 setattr(self, k, dict_layout)
             elif isinstance(v, dict):
                 #TODO what is a better way to identify a dataset?
-                if 'unit' in v or 'metadata' in v or 'type' in v:
+                if 'unit_id' in v or 'unit' in v or 'metadata' in v or 'type' in v:
                     setattr(self, k, Dataset(v, obj_dict))
                 #The value on a dataset should remain untouched
                 elif k == 'value':
@@ -217,7 +217,7 @@ class Dataset(JSONObject):
         """
         try:
             if self.value is None:
-                log.warn("Cannot parse dataset. No value specified.")
+                log.warning("Cannot parse dataset. No value specified.")
                 return None
 
             # attr_data.value is a dictionary but the keys have namespaces which must be stripped
@@ -275,7 +275,7 @@ class Dataset(JSONObject):
             value = val
 
         dataset_dict = {'name'     : self.name,
-                        'unit'     : self.unit,
+                        'unit_id'     : self.unit_id,
                         'type'     : self.type.lower(),
                         'value'    : value,
                         'metadata' : metadata,}

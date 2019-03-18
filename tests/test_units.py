@@ -66,6 +66,11 @@ class TestUnits():
     """
         Test for working with units.
     """
+    def test_get_empty_dimension(self, session):
+        dimension = hb.get_empty_dimension()
+        assert dimension.id is None, "get_empty_dimension didn't work as expected"
+
+
     def test_get_dimension(self, session):
         # Returns a dimension searching by ID. The result contains all the dimension data plus all the units of the dimension
         # 1 is the id of length
@@ -77,6 +82,17 @@ class TestUnits():
             "Could not get the dimension 'Length' by ID 1."
         assert len(dimension.units) > 0, \
             "Could not get the dimension units for Dimension ID 1."
+
+        with pytest.raises(ResourceNotFoundError):
+            # It must raise an exception
+            dimension = hb.get_dimension(None, do_accept_dimension_id_none=False)
+
+        dimension = hb.get_dimension(None, do_accept_dimension_id_none=True)
+        assert dimension is not None, \
+            "Could not get a dimension by None."
+        assert dimension.id is None, \
+            "Could not get a dimension by None."
+
 
     def test_get_dimensions(self, session):
         # Returns an array of dimensions. Every item contains the dimension data plus the units list
@@ -136,6 +152,35 @@ class TestUnits():
 
         with pytest.raises(HydraError):
             dimension = hb.get_unit_dimension('not-existing-unit')
+
+    def test_get_dimension_by_unit_id(self, session):
+        # Returns a dimension searching by ID. The result contains all the dimension data plus all the units of the dimension
+        # 1 is the id of length
+
+        # Referring dimension
+        testdim = JSONObject({'name':'Length', 'id': 1})
+        # Units list of the dimension
+        units = hb.get_dimension(testdim.id).units
+        # The first unit id
+        test_unit_id = units[0].id
+        # The dimension relative to the first unit id
+        dimension = hb.get_dimension_by_unit_id(test_unit_id)
+
+        assert dimension is not None, \
+            "Could not get a dimension by unit id."
+        assert dimension.id == testdim.id, \
+            "Could not get the dimension '{}' by unit id {}.".format(testdim.name, test_unit_id)
+
+        with pytest.raises(ResourceNotFoundError):
+            # It must raise an exception
+            dimension = hb.get_dimension_by_unit_id(None, do_accept_unit_id_none=False)
+
+        dimension = hb.get_dimension_by_unit_id(None, do_accept_unit_id_none=True)
+        assert dimension is not None, \
+            "Could not get a dimension by None."
+        assert dimension.id is None, \
+            "Could not get a dimension by None."
+
 
     """
         Manipulate DIMENSIONS
@@ -217,13 +262,12 @@ class TestUnits():
         new_unit.abbr = 'tsp s^-1'
         new_unit.cf = 0               # Constant conversion factor
         new_unit.lf = 1.47867648e-05  # Linear conversion factor
-        #new_unit.dimension = 'Volumetric flow rate'
-        new_unit.dimension_id = 2
+
+        new_unit.dimension_id = hb.get_dimension_by_name('Volumetric flow rate').id
         new_unit.info = 'A flow of one tablespoon per second.'
         hb.add_unit(new_unit, user_id=pytest.root_user_id)
 
         dimension_loaded = hb.get_dimension(new_unit.dimension_id, user_id=pytest.root_user_id)
-        #unitlist = list(hb.get_units(new_unit.dimension))
 
         assert len(list(filter(lambda x: x["name"] == new_unit["name"], dimension_loaded.units))) > 0 , \
             "Adding new unit didn't work."

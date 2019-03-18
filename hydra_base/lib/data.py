@@ -72,7 +72,7 @@ def get_dataset(dataset_id,**kwargs):
     try:
         dataset_rs = db.DBSession.query(Dataset.id,
                 Dataset.type,
-                Dataset.unit,
+                Dataset.unit_id,
                 Dataset.name,
                 Dataset.hidden,
                 Dataset.cr_date,
@@ -171,7 +171,7 @@ def get_datasets(dataset_ids,**kwargs):
     try:
         dataset_rs = db.DBSession.query(Dataset.id,
                 Dataset.type,
-                Dataset.unit,
+                Dataset.unit_id,
                 Dataset.name,
                 Dataset.hidden,
                 Dataset.cr_date,
@@ -211,7 +211,7 @@ def search_datasets(dataset_id=None,
                 dataset_name=None,
                 collection_name=None,
                 data_type=None,
-                unit=None,
+                unit_id=None,
                 scenario_id=None,
                 metadata_key=None,
                 metadata_val=None,
@@ -235,7 +235,7 @@ def search_datasets(dataset_id=None,
                                   "datset_name: %s,\n"
                                   "collection_name: %s,\n"
                                   "data_type: %s,\n"
-                                  "unit: %s,\n"
+                                  "unit_id: %s,\n"
                                   "scenario_id: %s,\n"
                                   "metadata_key: %s,\n"
                                   "metadata_val: %s,\n"
@@ -249,7 +249,7 @@ def search_datasets(dataset_id=None,
                 dataset_name,
                 collection_name,
                 data_type,
-                unit,
+                unit_id,
                 scenario_id,
                 metadata_key,
                 metadata_val,
@@ -268,7 +268,7 @@ def search_datasets(dataset_id=None,
 
     dataset_qry = db.DBSession.query(Dataset.id,
             Dataset.type,
-            Dataset.unit,
+            Dataset.unit_id,
             Dataset.name,
             Dataset.hidden,
             Dataset.cr_date,
@@ -305,16 +305,10 @@ def search_datasets(dataset_id=None,
         #null is a valid unit, so we need a way for the searcher
         #to specify that they want to search for datasets with a null unit
         #rather than ignoring the unit. We use 'null' to do this.
-        if unit is not None:
-            unit = unit.lower()
-            if unit == 'null':
-                unit = None
-            if unit is not None:
-                dataset_qry = dataset_qry.filter(
-                    func.lower(Dataset.unit) == unit)
-            else:
-                dataset_qry = dataset_qry.filter(
-                    Dataset.unit == unit)
+
+        if unit_id is not None:
+            dataset_qry = dataset_qry.filter(
+                Dataset.unit_id == unit_id)
 
         if scenario_id is not None:
             dataset_qry = dataset_qry.join(ResourceScenario,
@@ -409,7 +403,7 @@ def search_datasets(dataset_id=None,
 
     return datasets_to_return
 
-def update_dataset(dataset_id, name, data_type, val, units, metadata={}, flush=True, **kwargs):
+def update_dataset(dataset_id, name, data_type, val, unit_id, metadata={}, flush=True, **kwargs):
     """
         Update an existing dataset
     """
@@ -436,7 +430,7 @@ def update_dataset(dataset_id, name, data_type, val, units, metadata={}, flush=T
         #If so, create a new dataset and assign to all unlocked datasets.
         dataset = add_dataset(data_type,
                                 val,
-                                units,
+                                unit_id,
                                 metadata=metadata,
                                 name=name,
                                 user_id=kwargs['user_id'])
@@ -449,7 +443,7 @@ def update_dataset(dataset_id, name, data_type, val, units, metadata={}, flush=T
         dataset.value = val
         dataset.set_metadata(metadata)
 
-        dataset.unit = units
+        dataset.unit_id = unit_id
         dataset.name  = name
         dataset.created_by = kwargs['user_id']
         dataset.hash  = dataset.set_hash()
@@ -457,7 +451,7 @@ def update_dataset(dataset_id, name, data_type, val, units, metadata={}, flush=T
         #Is there a dataset in the DB already which is identical to the updated dataset?
         existing_dataset = db.DBSession.query(Dataset).filter(Dataset.hash==dataset.hash, Dataset.id != dataset.id).first()
         if existing_dataset is not None and existing_dataset.check_user(user_id):
-            log.warn("An identical dataset %s has been found to dataset %s."
+            log.warning("An identical dataset %s has been found to dataset %s."
                      " Deleting dataset and returning dataset %s",
                      existing_dataset.id, dataset.id, existing_dataset.id)
             db.DBSession.delete(dataset)
@@ -468,7 +462,7 @@ def update_dataset(dataset_id, name, data_type, val, units, metadata={}, flush=T
     return dataset
 
 
-def add_dataset(data_type, val, units, metadata={}, name="", user_id=None, flush=False):
+def add_dataset(data_type, val, unit_id, metadata={}, name="", user_id=None, flush=False):
     """
         Data can exist without scenarios. This is the mechanism whereby
         single pieces of data can be added without doing it through a scenario.
@@ -482,7 +476,7 @@ def add_dataset(data_type, val, units, metadata={}, name="", user_id=None, flush
     d.value = val
     d.set_metadata(metadata)
 
-    d.unit  = units
+    d.unit_id  = unit_id
     d.name  = name
     d.created_by = user_id
     d.hash  = d.set_hash()
@@ -646,7 +640,7 @@ def _process_incoming_data(data, user_id=None, source=None):
         data_dict = {
             'type': d.type,
             'name': d.name,
-            'unit': d.unit,
+            'unit_id': d.unit_id,
             'created_by': user_id,
         }
 

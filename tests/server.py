@@ -70,7 +70,7 @@ class HydraBaseTest:
     def create_node(self,node_id, attributes=None, node_name="Test Node Name"):
         return util.create_node(node_id, attributes=None, node_name="Test Node Name")
 
-    def create_attr(self, name="Test attribute", dimension="dimensionless"):
+    def create_attr(self, name="Test attribute", dimension=None): #dimension="dimensionless"):
         return util.create_attr(name, dimension)
 
     def build_network(self, project_id=None, num_nodes=10, new_proj=True,
@@ -110,4 +110,3 @@ class HydraBaseTest:
         #[[1, 2, 3], [4, 5, 6], [7, 8, 9]]
 
         return util.create_array(ResourceAttr)
-
