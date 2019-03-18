@@ -3,7 +3,6 @@ services:
   - postgresql
   - mysql
 python:
-  - "2.7"
   - "3.6"
 env:
 - DB=sqlite
