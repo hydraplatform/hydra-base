@@ -770,14 +770,14 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
         return None
 
     metadata = dataset.get_metadata_as_dict(source=source, user_id=user_id)
-    data_unit = dataset.unit
+    data_unit_id = dataset.unit_id
 
     data_hash = dataset.get_hash(value, metadata)
 
     assign_value(r_scen_i,
                  dataset.type.lower(),
                  value,
-                 data_unit,
+                 data_unit_id,
                  dataset.name,
                  metadata=metadata,
                  data_hash=data_hash,
@@ -786,14 +786,13 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
     return r_scen_i
 
 def assign_value(rs, data_type, val,
-                 units, name, metadata={}, data_hash=None, user_id=None, source=None):
+                 unit_id, name, metadata={}, data_hash=None, user_id=None, source=None):
     """
         Insert or update a piece of data in a scenario.
         If the dataset is being shared by other resource scenarios, a new dataset is inserted.
         If the dataset is ONLY being used by the resource scenario in question, the dataset
         is updated to avoid unnecessary duplication.
     """
-
     log.debug("Assigning value %s to rs %s in scenario %s",
               name, rs.resource_attr_id, rs.scenario_id)
 
@@ -828,7 +827,7 @@ def assign_value(rs, data_type, val,
 
     if update_dataset is True:
         log.info("Updating dataset '%s'", name)
-        dataset = data.update_dataset(rs.dataset.id, name, data_type, val, units, metadata, flush=False, **dict(user_id=user_id))
+        dataset = data.update_dataset(rs.dataset.id, name, data_type, val, unit_id, metadata, flush=False, **dict(user_id=user_id))
         rs.dataset = dataset
         rs.dataset_id = dataset.id
         log.info("Set RS dataset id to %s"%dataset.id)
@@ -836,7 +835,7 @@ def assign_value(rs, data_type, val,
         log.info("Creating new dataset %s in scenario %s", name, rs.scenario_id)
         dataset = data.add_dataset(data_type,
                                 val,
-                                units,
+                                unit_id,
                                 metadata=metadata,
                                 name=name,
                                 **dict(user_id=user_id))
@@ -879,7 +878,7 @@ def add_data_to_attribute(scenario_id, resource_attr_id, dataset,**kwargs):
 
     data_hash = dataset.get_hash(value, dataset_metadata)
 
-    assign_value(r_scen_i, data_type, value, dataset.unit, dataset.name,
+    assign_value(r_scen_i, data_type, value, dataset.unit_id, dataset.name,
                           metadata=dataset_metadata, data_hash=data_hash, user_id=user_id)
 
     db.DBSession.flush()
