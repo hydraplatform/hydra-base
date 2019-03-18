@@ -155,6 +155,30 @@ def parse_xml_attribute(attribute):
     return attr
 
 def _exists_key_in_object(key, obj):
+    """
+        =====================     WHY DOES THIS METHOD EXIST?      ============================
+
+        In some cases the usual methods for comparisons in objects don't work, and using them
+        inside the comparison itself let the code emit an exception, like in the following cases:
+
+        1) Some objects are not iterable :
+        >       if key in obj:
+        E       TypeError: argument of type 'TypeAttr' is not iterable
+
+        2) The get function is not defined in the object:
+        >       if obj.get(key) is not None:
+        E       AttributeError: 'TypeAttr' object has no attribute 'get'
+
+        In this cases is useful using the EAFP way, method that in Python is widely used.
+
+        https://docs.python.org/3/glossary.html#term-eafp
+
+        This method can manage all kind of "IS key IN dict?" cases.
+
+        ========================================================================================
+
+    """
+
     my_dict = JSONObject(obj)
     try:
         x = my_dict[key]
