@@ -46,7 +46,7 @@ def upgrade():
                 sa.Column('alias' ,sa.String(100)),
 
                 sa.Column('cr_date', sa.TIMESTAMP(),  nullable=False, server_default=sa.text(u'CURRENT_TIMESTAMP')),
-                sa.Column('layout', sa.Text().with_variant(sa.mysql.TEXT(4294967295), 'mysql'),  nullable=True)
+                sa.Column('layout', sa.Text(),  nullable=True)
             )
 
             op.execute("insert into tTemplateType_new (id, name, description, template_id, resource_type, alias, cr_date, layout) select id, name, '', template_id, resource_type, alias, cr_date, layout from tTemplate")
@@ -77,7 +77,7 @@ def downgrade():
                 sa.Column('alias' ,sa.String(100)),
 
                 sa.Column('cr_date', sa.TIMESTAMP(),  nullable=False, server_default=sa.text(u'CURRENT_TIMESTAMP')),
-                sa.Column('layout', sa.Text().with_variant(sa.mysql.TEXT(4294967295), 'mysql'),  nullable=True)
+                sa.Column('layout', sa.Text(),  nullable=True)
             )
 
             op.execute("insert into tTemplateType_new (id, name, template_id, resource_type, alias, cr_date, layout) select id, name, template_id, resource_type, alias, cr_date, layout from tTemplateType")
