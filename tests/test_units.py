@@ -113,11 +113,6 @@ class TestUnits():
         assert len(dimension.units) > 0, \
             "Could not get the dimension units for Dimension ID 1."
 
-    def test_get_default_dimension_id(self, session):
-        dim_id = hb.get_default_dimension_id(user_id=pytest.root_user_id)
-        assert dim_id is not None and dim_id > 0, \
-            "get_default_dimension_id not working properly"
-
     def test_get_unit(self, session):
         # Returns a dimension searching by ID. The result contains all the dimension data plus all the units of the dimension
         # 1 is the id of length
