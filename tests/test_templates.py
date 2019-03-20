@@ -213,6 +213,9 @@ class TestTemplates:
         log.info("Reverting the type's name")
         template_dict['template']['templatetypes'][0].name = typename
         updated_template = JSONObject(hb.import_template_dict(template_dict))
+        
+        #just double-check that the JSON import works also
+        updated_template = JSONObject(hb.import_template_json(json.dumps(template_dict)))
 
         type_names = []
         for templatetype in updated_template.templatetypes:

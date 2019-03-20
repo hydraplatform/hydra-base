@@ -906,19 +906,6 @@ def create_attributes():
     for my_attr in total_attrs:
         assert len(list(filter(lambda x: x.description == my_attr.description, attrs))) > 0
 
-    # for a in existing_attrs:
-    #     if a is not None:
-    #         attrs = existing_attrs
-    #         break
-    # else:
-    #     attrs = hydra_base.add_attributes(attrs, user_id=pytest.root_user_id)
-    #     assert len(attrs) == 2
-    #     for a in attrs:
-    #         assert a.id is not None
-    #
-    # assert attrs[0].description ==  "Attribute 1 from a test of adding multiple attributes"
-    # assert attrs[1].description ==  "Attribute 2 from a test of adding multiple attributes"
-
     return attrs
 
 def create_attribute():

@@ -469,7 +469,7 @@ def check_attr_dimension(attr_id, **kwargs):
     for d in datasets:
         if  attr_i.dimension_id is None and d.unit is not None or \
             attr_i.dimension_id is not None and d.unit is None or \
-            units.get_unit_dimension(d.unit).id != attr_i.dimension_id:
+            units.get_dimension_by_unit_id(d.unit_id) != attr_i.dimension_id:
                 # If there is an inconsistency
                 bad_datasets.append(d.id)
 

@@ -126,65 +126,30 @@ def _get_attr_by_name_and_dimension(name, dimension_id):
 def parse_xml_attribute(attribute):
     dimension_i = None
 
-    if attribute.find('dimension') is not None and attribute.find('dimension').text is not None:
-        # Found the dimension
+    attribute_name = attribute.find('name').text.strip()
+
+    if attribute.find('dimension') is not None:
         dimension_name = attribute.find('dimension').text
-        if dimension_name.lower() in ('dimensionless', ''):
-            dimension_name = 'dimensionless'
-        dimension_i = units.get_dimension_by_name(dimension_name.strip())
+    
+        if dimension_name is not None and dimension_name.strip() != '':
+            dimension_i = units.get_dimension_by_name(dimension_name.strip())
 
-    elif attribute.find('unit') is not None and attribute.find('unit').text is not None:
+    elif attribute.find('unit') is not None:
         # Found the unit
-        unit = attribute.find('unit').text
-        unit_id = units.get_unit_by_abbreviation(unit).id
-        dimension_i = units.get_dimension_by_unit_id(unit_id, do_accept_unit_id_none=True)
-
-    else:
-        # No unit and no dimension. Let's get/create it anyway
-        pass
-
-    name = attribute.find('name').text.strip()
+        unit_abbr = attribute.find('unit').text
+        if unit_abbr is not None and unit_abbr.strip() != '':
+            unit_id = units.get_unit_by_abbreviation(unit_abbr).id
+            dimension_i = units.get_dimension_by_unit_id(unit_id,
+                                                         do_accept_unit_id_none=True)
 
     if dimension_i is None:
-        attr = _get_attr_by_name_and_dimension(name, None)
+        attr = _get_attr_by_name_and_dimension(attribute_name, None)
     else:
-        attr = _get_attr_by_name_and_dimension(name, dimension_i.id)
+        attr = _get_attr_by_name_and_dimension(attribute_name, dimension_i.id)
 
     db.DBSession.flush()
 
     return attr
-
-def _exists_key_in_object(key, obj):
-    """
-        =====================     WHY DOES THIS METHOD EXIST?      ============================
-
-        In some cases the usual methods for comparisons in objects don't work, and using them
-        inside the comparison itself let the code emit an exception, like in the following cases:
-
-        1) Some objects are not iterable :
-        >       if key in obj:
-        E       TypeError: argument of type 'TypeAttr' is not iterable
-
-        2) The get function is not defined in the object:
-        >       if obj.get(key) is not None:
-        E       AttributeError: 'TypeAttr' object has no attribute 'get'
-
-        In this cases is useful using the EAFP way, method that in Python is widely used.
-
-        https://docs.python.org/3/glossary.html#term-eafp
-
-        This method can manage all kind of "IS key IN dict?" cases.
-
-        ========================================================================================
-
-    """
-
-    my_dict = JSONObject(obj)
-    try:
-        x = my_dict[key]
-        return True
-    except KeyError:
-        return False
 
 def parse_xml_typeattr(type_i, attribute):
 
@@ -204,14 +169,15 @@ def parse_xml_typeattr(type_i, attribute):
         type_i.typeattrs.append(typeattr_i)
         db.DBSession.add(typeattr_i)
 
-    unit_id = None
-    if attribute.find('unit') is not None and attribute.find('unit').text is not None:
+    typeattr_unit_id = None
+    if attribute.find('unit') is not None:
         # Found the unit as child at first level
         unit = attribute.find('unit').text
-        unit_id = units.get_unit_by_abbreviation(unit).id
+        if unit not in ('', None):
+            typeattr_unit_id = units.get_unit_by_abbreviation(unit).id
 
-    if unit_id is not None:
-        typeattr_i.unit_id = unit_id
+    if typeattr_unit_id is not None:
+        typeattr_i.unit_id = typeattr_unit_id 
 
     _check_dimension(typeattr_i)
 
@@ -230,22 +196,26 @@ def parse_xml_typeattr(type_i, attribute):
     # Analyzing the "default" node
     if attribute.find('default') is not None:
         default = attribute.find('default')
-        unit = default.find('unit').text
-        unit_id = units.get_unit_by_abbreviation(unit).id
 
-        if unit_id is None and typeattr_i.unit_id is not None:
-            unit_id = typeattr_i.unit_id
+        dataset_unit_id = None
+        if default.find('unit') is not None:
+            dataset_unit = default.find('unit').text
+            if dataset_unit not in ('', None):
+                dataset_unit_id = units.get_unit_by_abbreviation(dataset_unit).id
+
+        if dataset_unit_id is None and typeattr_i.unit_id is not None:
+            dataset_unit = typeattr_i.unit_id
 
         dimension_id = None
-        if unit_id is not None:
-            _check_dimension(typeattr_i, unit_id)
+        if dataset_unit_id is not None:
+            _check_dimension(typeattr_i, dataset_unit_id)
 
-            dimension_id = units.get_dimension_by_unit_id(unit_id).id
+            dimension_id = units.get_dimension_by_unit_id(dataset_unit_id).id
 
-        if unit_id is not None and _exists_key_in_object("unit_id",JSONObject(typeattr_i)) and typeattr_i.unit_id is not None:
-            if unit_id != typeattr_i.unit_id:
+        if dataset_unit_id is not None and typeattr_i.unit_id is not None:
+            if dataset_unit_id != typeattr_i.unit_id:
                 raise HydraError("Default value has a unit of %s but the attribute"
-                             " says the unit should be: %s"%(typeattr_i.unit_id, unit_id))
+                             " says the unit should be: %s"%(typeattr_i.unit_id, dataset_unit_id))
 
         val  = default.find('value').text
         try:
@@ -256,7 +226,7 @@ def parse_xml_typeattr(type_i, attribute):
 
         dataset = add_dataset(data_type,
                                val,
-                               unit_id,
+                               dataset_unit_id,
                                name="%s Default"%attr.name)
         typeattr_i.default_dataset_id = dataset.id
 
@@ -282,18 +252,19 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
     elif attribute_j.unit_id is not None:
         # The unit_id of the attribute is not None
         dimension_i = units.get_dimension_by_unit_id(attribute_j.unit_id)
-    elif attribute_j.unit is not None:
+    elif attribute_j.unit not in ('', None):
         # The unit of the attribute is not None
-        dimension_i = units.get_unit_dimension(attribute_j.unit)
-        attribute_j.unit_id = units.get_unit_by_abbreviation(attribute_j.unit).id
+        attribute_unit_id = units.get_unit_by_abbreviation(attribute_j.unit).id
+        attribute_j.unit_id = attribute_unit_id
+        dimension_i = units.dimension_by_unit_id(attribute_j.unit_id)
 
-    name      = attribute_j.name.strip()
+    attribute_name = attribute_j.name.strip()
 
     if dimension_i is None:
         # In this case we must get the attr with dimension id not set
-        attr_i = _get_attr_by_name_and_dimension(name, None)
+        attr_i = _get_attr_by_name_and_dimension(attribute_name, None)
     else:
-        attr_i = _get_attr_by_name_and_dimension(name, dimension_i.id)
+        attr_i = _get_attr_by_name_and_dimension(attribute_name, dimension_i.id)
 
     #Get an ID for the attribute
     db.DBSession.flush()
@@ -307,6 +278,7 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
         log.debug("Creating type attr: type_id=%s, attr_id=%s", type_i.id, attr_i.id)
         typeattr_i.type_id=type_i.id
         typeattr_i.attr_id=attr_i.id
+        typeattr_i.attr_is_var = typeattr_j.attr_is_var
         typeattr_i.attr = attr_i
         type_i.typeattrs.append(typeattr_i)
         db.DBSession.add(typeattr_i)
@@ -477,7 +449,7 @@ def get_template_as_xml(template_id,**kwargs):
             xml_resource.append(layout)
 
         for type_attr in type_i.typeattrs:
-            attr = _make_attr_element(xml_resource, type_attr)
+            attr = _make_attr_element_from_typeattr(xml_resource, type_attr)
 
         resources.append(xml_resource)
 
@@ -2044,7 +2016,7 @@ def get_network_as_xml_template(network_id,**kwargs):
             net_resource.append(layout)
 
         for net_attr in net_i.attributes:
-            _make_attr_element(net_resource, net_attr)
+            _make_attr_element_from_resourceattr(net_resource, net_attr)
 
         resources.append(net_resource)
 
@@ -2068,7 +2040,7 @@ def get_network_as_xml_template(network_id,**kwargs):
                 node_resource.append(layout)
 
             for node_attr in node_attributes:
-                _make_attr_element(node_resource, node_attr)
+                _make_attr_element_from_resourceattr(node_resource, node_attr)
 
             existing_types['NODE'].append(attr_ids)
             resources.append(node_resource)
@@ -2091,7 +2063,7 @@ def get_network_as_xml_template(network_id,**kwargs):
                 link_resource.append(layout)
 
             for link_attr in link_attributes:
-                _make_attr_element(link_resource, link_attr)
+                _make_attr_element_from_resourceattr(link_resource, link_attr)
 
             existing_types['LINK'].append(attr_ids)
             resources.append(link_resource)
@@ -2110,7 +2082,7 @@ def get_network_as_xml_template(network_id,**kwargs):
 
 
             for group_attr in group_attributes:
-                _make_attr_element(group_resource, group_attr)
+                _make_attr_element_from_resourceattr(group_resource, group_attr)
 
             existing_types['GROUP'].append(attr_ids)
             resources.append(group_resource)
@@ -2119,14 +2091,48 @@ def get_network_as_xml_template(network_id,**kwargs):
 
     return xml_string
 
-def _make_attr_element(parent, resource_attr_i):
+def _make_attr_element_from_typeattr(parent, type_attr_i):
     """
         General function to add an attribute element to a resource element.
         resource_attr_i can also e a type_attr if being called from get_tempalte_as_xml
     """
-    attr = etree.SubElement(parent, "attribute")
-    attr_i = resource_attr_i.attr
 
+    attr = _make_attr_element(parent, type_attr_i.attr)
+
+    if type_attr_i.unit_id is not None:
+        attr_unit    = etree.SubElement(attr, 'unit')
+        attr_unit.text = units.get_unit(type_attr_i.unit_id).abbreviation
+
+    attr_is_var    = etree.SubElement(attr, 'is_var')
+    attr_is_var.text = type_attr_i.attr_is_var
+
+    if type_attr_i.data_type is not None:
+        attr_data_type    = etree.SubElement(attr, 'data_type')
+        attr_data_type.text = type_attr_i.data_type
+
+    if type_attr_i.data_restriction is not None:
+        attr_data_restriction    = etree.SubElement(attr, 'restrictions')
+        attr_data_restriction.text = type_attr_i.data_restriction
+
+    return attr
+
+def _make_attr_element_from_resourceattr(parent, resource_attr_i):
+    """
+        General function to add an attribute element to a resource element.
+    """
+
+    attr = _make_attr_element(parent, resource_attr_i.attr)
+
+    attr_is_var    = etree.SubElement(attr, 'is_var')
+    attr_is_var.text = resource_attr_i.attr_is_var
+
+    return attr
+
+def _make_attr_element(parent, attr_i):
+    """
+        create an attribute element from an attribute DB object
+    """
+    attr = etree.SubElement(parent, "attribute")
 
     attr_name      = etree.SubElement(attr, 'name')
     attr_name.text = attr_i.name
@@ -2136,36 +2142,7 @@ def _make_attr_element(parent, resource_attr_i):
 
     attr_dimension = etree.SubElement(attr, 'dimension')
     attr_dimension.text = units.get_dimension(attr_i.dimension_id, do_accept_dimension_id_none=True).name
-
-
-    if _exists_key_in_object("unit_id", resource_attr_i) and resource_attr_i.unit_id is not None:
-        attr_unit    = etree.SubElement(attr, 'unit')
-        attr_unit.text = units.get_unit(resource_attr_i.unit_id).abbreviation
-
-    attr_is_var    = etree.SubElement(attr, 'is_var')
-    attr_is_var.text = resource_attr_i.attr_is_var
-
-
-    if _exists_key_in_object("data_type", resource_attr_i) and resource_attr_i.data_type is not None:
-        attr_data_type    = etree.SubElement(attr, 'data_type')
-        attr_data_type.text = resource_attr_i.data_type
-
-    #attr_properties    = etree.SubElement(attr, 'properties')
-    #attr_properties.text = resource_attr_i.properties
-
-    if _exists_key_in_object("data_restriction", resource_attr_i) and resource_attr_i.data_restriction is not None:
-        attr_data_restriction    = etree.SubElement(attr, 'restrictions')
-        attr_data_restriction.text = resource_attr_i.data_restriction
-
-    # if scenario_id is not None:
-    #     for rs in resource_attr_i.get_resource_scenarios():
-    #         if rs.scenario_id == scenario_id
-    #             attr_default   = etree.SubElement(attr, 'default')
-    #             default_val = etree.SubElement(attr_default, 'value')
-    #             default_val.text = rs.get_dataset().get_val()
-    #             default_unit = etree.SubElement(attr_default, 'unit')
-    #             default_unit.text = rs.get_dataset().unit
-
+    
     return attr
 
 def get_etree_layout_as_dict(layout_tree):

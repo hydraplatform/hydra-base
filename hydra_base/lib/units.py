@@ -102,31 +102,6 @@ def is_global_unit(unit_id,**kwargs):
     unit_data = get_unit(unit_id)
     return (unit_data.project_id is None)
 
-def extract_unit_abbreviation(unit):
-    """
-        Returns the abbreviation of a unit object, either if it is defined as "abbreviation" or "abbr"
-        'unit' is a Unit object
-    """
-    unit = JSONObject(unit)
-    if ('abbreviation' in unit) and (unit['abbreviation'] is not None):
-        return unit['abbreviation']
-    elif ('abbr' in unit) and (unit['abbr'] is not None):
-        return unit['abbr']
-    return None
-
-def extract_unit_description(unit):
-    """
-        Returns the description of a unit object, either if it is defined as "description" or "info"
-        'unit' is a Unit object
-    """
-    unit = JSONObject(unit)
-    if ('description' in unit) and (unit['description'] is not None):
-        return  unit['description']
-    elif ('info' in unit) and (unit['info'] is not None):
-        return  unit['info']
-    return None
-
-
 def convert_units(values, source_measure_or_unit_abbreviation, target_measure_or_unit_abbreviation,**kwargs):
     """
         Convert a value from one unit to another one.
@@ -157,7 +132,11 @@ def convert(values, source_measure_or_unit_abbreviation, target_measure_or_unit_
         Convert a value or a list of values from an unit to another one.
         The two units must represent the same physical dimension.
     """
-    if get_unit_dimension(source_measure_or_unit_abbreviation) == get_unit_dimension(target_measure_or_unit_abbreviation):
+
+    source_dimension = get_dimension_by_unit_measure_or_abbreviation(source_measure_or_unit_abbreviation)
+    target_dimension = get_dimension_by_unit_measure_or_abbreviation(target_measure_or_unit_abbreviation)
+
+    if source_dimension == target_dimension:
         source=JSONObject({})
         target=JSONObject({})
         source.unit_abbreviation, source.factor = _parse_unit(source_measure_or_unit_abbreviation)
@@ -212,17 +191,9 @@ def get_dimension(dimension_id, do_accept_dimension_id_none=False,**kwargs):
 
     try:
         dimension = db.DBSession.query(Dimension).filter(Dimension.id==dimension_id).one()
-
-        units_list = db.DBSession.query(Unit).filter(Unit.dimension_id==dimension_id).all()
-        dimension.units = []
-
-        for unit in units_list:
-            new_unit = JSONObject(unit)
-            # Adding two alias
-            new_unit.abbr = new_unit.abbreviation
-            new_unit.info = new_unit.description
-            new_unit.dimension = dimension.name
-            dimension.units.append(new_unit)
+        
+        #lazy load units
+        dimension.units
 
         return JSONObject(dimension)
     except NoResultFound:
@@ -272,12 +243,7 @@ def get_unit(unit_id, **kwargs):
     """
     try:
         unit = db.DBSession.query(Unit).filter(Unit.id==unit_id).one()
-        new_unit = JSONObject(unit)
-        # Adding two alias
-        new_unit.abbr = new_unit.abbreviation
-        new_unit.info = new_unit.description
-
-        return JSONObject(new_unit)
+        return JSONObject(unit)
     except NoResultFound:
         # The dimension does not exist
         raise ResourceNotFoundError("Unit %s not found"%(unit_id))
@@ -290,14 +256,11 @@ def get_units(**kwargs):
     units = []
     for unit in units_list:
         new_unit = JSONObject(unit)
-        # Adding two alias
-        new_unit.abbr = new_unit.abbreviation
-        new_unit.info = new_unit.description
         units.append(new_unit)
 
     return units
 
-def get_unit_dimension(measure_or_unit_abbreviation,**kwargs):
+def get_dimension_by_unit_measure_or_abbreviation(measure_or_unit_abbreviation,**kwargs):
     """
         Return the physical dimension a given unit abbreviation of a measure, or the measure itself, refers to.
         The search key is the abbreviation or the full measure
@@ -340,8 +303,8 @@ def get_unit_by_abbreviation(unit_abbreviation, **kwargs):
     try:
         if unit_abbreviation is None:
             unit_abbreviation = ''
-        unit = db.DBSession.query(Unit).filter(Unit.abbreviation==unit_abbreviation.strip()).one()
-        return get_unit(unit.id)
+        unit_i = db.DBSession.query(Unit).filter(Unit.abbreviation==unit_abbreviation.strip()).one()
+        return JSONObject(unit_i)
     except NoResultFound:
         # The dimension does not exist
         raise ResourceNotFoundError("Unirt %s not found"%(unit_abbreviation))
@@ -441,29 +404,26 @@ def add_unit(unit,**kwargs):
             new_unit = dict(
 
                 name      = 'Teaspoons per second',
-                abbr      = 'tsp s^-1',
+                abbreviation = 'tsp s^-1',
                 cf        = 0,               # Constant conversion factor
                 lf        = 1.47867648e-05,  # Linear conversion factor
                 dimension_id = 2,
-                info      = 'A flow of one teaspoon per second.',
+                description  = 'A flow of one teaspoon per second.',
             )
             add_unit(new_unit)
 
 
     """
-    # 'info' is the only field that is allowed to be empty
-    if 'info' not in unit.keys() or unit['info'] is None:
-        unit['info'] = ''
 
     new_unit = Unit()
     new_unit.dimension_id   = unit["dimension_id"]
     new_unit.name           = unit['name']
 
     # Needed to uniform abbr to abbreviation
-    new_unit.abbreviation = extract_unit_abbreviation(unit)
+    new_unit.abbreviation = unit['abbreviation']
 
     # Needed to uniform into to description
-    new_unit.description = extract_unit_description(unit)
+    new_unit.description = unit.description
 
     new_unit.lf             = unit['lf']
     new_unit.cf             = unit['cf']
@@ -516,8 +476,8 @@ def update_unit(unit, **kwargs):
         db_unit.name = unit["name"]
 
         # Needed to uniform into to description
-        db_unit.abbreviation = extract_unit_abbreviation(unit)
-        db_unit.description = extract_unit_description(unit)
+        db_unit.abbreviation = unit.abbreviation
+        db_unit.description = unit.description
 
         db_unit.lf = unit["lf"]
         db_unit.cf = unit["cf"]
@@ -542,7 +502,7 @@ def check_consistency(measure_or_unit_abbreviation, dimension,**kwargs):
         Check whether a specified unit is consistent with the physical
         dimension asked for by the attribute or the dataset.
     """
-    dim = get_unit_dimension(measure_or_unit_abbreviation)
+    dim = get_dimension_by_unit_measure_or_abbreviation(measure_or_unit_abbreviation)
     return dim == dimension
 
 

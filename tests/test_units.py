@@ -120,7 +120,7 @@ class TestUnits():
 
         assert unit is not None, \
             "Could not get a unit by id."
-        assert unit.abbr == "AU", \
+        assert unit.abbreviation == "AU", \
             "Could not get the unit 'AU (astronomical unit)' by ID 2."
 
     def test_get_unit_by_abbreviation(self, session):
@@ -141,17 +141,17 @@ class TestUnits():
             "Could not get the full list of units."
 
 
-    def test_get_unit_dimension(self, session):
+    def test_get_dimension_by_unit_measure_or_abbreviation(self, session):
 
         testdim = 'Length'
         testunit = 'km'
-        resultdim = hb.get_unit_dimension(testunit)
+        resultdim = hb.get_dimension_by_unit_measure_or_abbreviation(testunit)
 
         assert testdim == resultdim, \
             "Getting dimension for 'km' didn't work."
 
         with pytest.raises(HydraError):
-            dimension = hb.get_unit_dimension('not-existing-unit')
+            dimension = hb.get_dimension_by_unit_measure_or_abbreviation('not-existing-unit')
 
     def test_get_dimension_by_unit_id(self, session):
         # Returns a dimension searching by ID. The result contains all the dimension data plus all the units of the dimension
@@ -259,7 +259,7 @@ class TestUnits():
         # Add a new unit to an existing static dimension
         new_unit = JSONObject({})
         new_unit.name = 'Teaspoons per second'
-        new_unit.abbr = 'tsp s^-1'
+        new_unit.abbreviation = 'tsp s^-1'
         new_unit.cf = 0               # Constant conversion factor
         new_unit.lf = 1.47867648e-05  # Linear conversion factor
 
@@ -279,7 +279,7 @@ class TestUnits():
 
         testunit = JSONObject({})
         testunit.name = 'Test'
-        testunit.abbr = 'ttt'
+        testunit.abbreviation = 'ttt'
         testunit.cf = 21
         testunit.lf = 42
 
@@ -309,7 +309,7 @@ class TestUnits():
 
         testunit = JSONObject({})
         testunit.name = 'Test'
-        testunit.abbr = 'ttt'
+        testunit.abbreviation = 'ttt'
         testunit.cf = 21
         testunit.lf = 42
         testunit.dimension_id = new_dimension.id
@@ -334,7 +334,7 @@ class TestUnits():
 
         testunit = JSONObject({})
         testunit.name = 'Test'
-        testunit.abbr = 'ttt'
+        testunit.abbreviation = 'ttt'
         testunit.cf = 21
         testunit.lf = 42
         testunit.dimension_id = new_dimension.id
@@ -344,7 +344,7 @@ class TestUnits():
         unitlist = list(hb.get_dimension(new_dimension.id).units)
 
 
-        assert len(unitlist) > 0 and unitlist[0]['abbr'] == testunit.abbr, \
+        assert len(unitlist) > 0 and unitlist[0]['abbreviation'] == testunit.abbreviation, \
             "The adding has not worked properly"
 
         result = hb.delete_unit(new_unit.id, user_id=pytest.root_user_id)
@@ -390,28 +390,6 @@ class TestUnits():
         result = hb.is_global_unit(1)
         assert result is True, \
             "Is global unit check didn't work."
-
-
-    def test_extract_unit_abbreviation(self, session):
-        assert hb.extract_unit_abbreviation({'abbr': 'test'}) == 'test', \
-            "extract_unit_abbreviation didn't work."
-
-        assert hb.extract_unit_abbreviation({'abbreviation': 'test'}) == 'test', \
-            "extract_unit_abbreviation didn't work."
-
-        assert hb.extract_unit_abbreviation({}) is None, \
-            "extract_unit_abbreviation didn't work."
-
-    def test_extract_unit_description(self, session):
-        assert hb.extract_unit_description({'info': 'test'}) == 'test', \
-            "extract_unit_description didn't work."
-
-        assert hb.extract_unit_description({'description': 'test'}) == 'test', \
-            "extract_unit_description didn't work."
-
-        assert hb.extract_unit_description({}) is None, \
-            "extract_unit_description didn't work."
-
 
     def test_convert_dataset(self, session):
         project = util.create_project()

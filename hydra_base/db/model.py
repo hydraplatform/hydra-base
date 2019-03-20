@@ -1741,7 +1741,8 @@ class Unit(Base, Inspect):
 
     project_id = Column(Integer(), ForeignKey('tProject.id'), index=True, nullable=True)
 
-    dimensions = relationship('Dimension', backref=backref("unit_dimension", order_by=dimension_id))
+    dimension = relationship('Dimension', backref=backref("units", uselist=True, order_by=dimension_id, cascade="all, delete-orphan"), lazy='joined')
+    project   = relationship('Project', backref=backref("units", order_by=dimension_id, cascade="all, delete-orphan"), lazy='joined')
 
     _parents  = ['tDimension', 'tProject']
     _children = ['tDataset', 'tTypeAttr']
