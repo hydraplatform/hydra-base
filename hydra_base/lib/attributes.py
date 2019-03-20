@@ -228,13 +228,14 @@ def add_attributes(attrs,**kwargs):
         attr_i.dimension_id = attr.dimension_id
         attr_i.description = attr.description
         db.DBSession.add(attr_i)
-        new_attrs.append(JSONObject(attr_i))
+        new_attrs.append(attr_i)
 
     db.DBSession.flush()
+    
 
     new_attrs = new_attrs + existing_attrs
 
-    return new_attrs
+    return [JSONObject(a) for a in new_attrs]
 
 def get_attributes(**kwargs):
     """

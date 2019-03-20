@@ -462,7 +462,7 @@ def update_dataset(dataset_id, name, data_type, val, unit_id, metadata={}, flush
     return dataset
 
 
-def add_dataset(data_type, val, unit_id, metadata={}, name="", user_id=None, flush=False):
+def add_dataset(data_type, val, unit_id=None, metadata={}, name="", user_id=None, flush=False):
     """
         Data can exist without scenarios. This is the mechanism whereby
         single pieces of data can be added without doing it through a scenario.
