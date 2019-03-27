@@ -21,7 +21,7 @@ from ..exceptions import ResourceNotFoundError
 from . import scenario
 import logging
 from ..exceptions import PermissionError, HydraError
-from ..db.model import Project, ProjectOwner, Network
+from ..db.model import Project, ProjectOwner, Network, NetworkOwner, User
 from .. import db
 from . import network
 from .objects import JSONObject
@@ -281,6 +281,9 @@ def get_projects(uid, include_shared_projects=True, **kwargs):
     projects_i = projects_qry.all()
     
     log.info("Project query done for user %s. %s projects found", uid, len(projects_i))
+        
+    user = db.DBSession.query(User).filter(User.id==req_user_id).one()
+    isadmin = user.is_admin()
 
     #Load each
     projects_j = []
@@ -290,13 +293,22 @@ def get_projects(uid, include_shared_projects=True, **kwargs):
         #lazy load owners
         project_i.owners
 
-        networks_i = db.DBSession.query(Network)\
+        network_qry = db.DBSession.query(Network)\
                                 .filter(Network.project_id==project_i.id,\
-                                        Network.status=='A').all()
+                                        Network.status=='A')
+        if not isadmin:
+            network_qry.outerjoin(NetworkOwner)\
+            .filter(or_(
+                and_(NetworkOwner.user_id != None,
+                     NetworkOwner.view == 'Y'),
+                Network.created_by == uid
+            ))
+
+        networks_i = network_qry.all()
+
         networks_j = []
         for network_i in networks_i:
             network_i.owners
-            network_i.check_read_permission(req_user_id, do_raise=False)
             net_j = JSONObject(network_i)
             if net_j.layout is not None:
                 net_j.layout = JSONObject(net_j.layout)
