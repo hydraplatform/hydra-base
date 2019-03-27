@@ -35,7 +35,6 @@ import re
 from . import units
 import json
 log = logging.getLogger(__name__)
-import inspect
 
 def _get_attr(attr_id):
     attr = db.DBSession.query(Attr).filter(Attr.id==attr_id).one()
@@ -307,17 +306,17 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
 
     if default_dataset_j is not None:
         default = default_dataset_j
-
+        
         unit = default.unit
-        unit_id = units.get_unit_by_abbreviation(unit).id
+        unit_id = None
+        if unit not in (None, ''):
+            unit_id = units.get_unit_by_abbreviation(unit).id
 
         if unit_id is None and typeattr_i.unit_id is not None:
             unit_id = typeattr_i.unit_id
 
-        dimension_id = None
         if unit_id is not None:
             _check_dimension(typeattr_i, unit_id)
-            dimension_id = units.get_dimension_by_unit_id(unit_id).id
 
         if unit_id is not None and typeattr_i.unit_id is not None:
             if unit_id != typeattr_i.unit_id:
