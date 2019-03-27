@@ -24,12 +24,20 @@ def upgrade():
         op.add_column('tAttr', sa.Column('dimension_id', sa.Integer(), sa.ForeignKey('tDimension.id'), nullable=True))
         op.drop_column('tAttr', 'dimension')
 
+
         op.add_column('tTypeAttr', sa.Column('unit_id', sa.Integer(), sa.ForeignKey('tUnit.id'), nullable=True))
         op.drop_column('tTypeAttr', 'unit')
 
         op.add_column('tDataset', sa.Column('unit_id', sa.Integer(), sa.ForeignKey('tUnit.id'), nullable=True))
         op.drop_column('tDataset', 'unit')
 
+    except Exception as e:
+        log.exception(e)
+
+
+    try:
+        op.drop_constraint('unique name dimension', 'tAttr', type_='unique')
+        op.create_unique_constraint('unique name dimension_id', 'tAttr', ['name', 'dimension_id'])
     except Exception as e:
         log.exception(e)
 
