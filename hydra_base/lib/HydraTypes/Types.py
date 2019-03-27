@@ -11,7 +11,7 @@ import math
 import six
 import numpy as np
 import pandas as pd
-from abc import ABCMeta, abstractmethod, abstractproperty
+from abc import abstractmethod, abstractproperty
 from datetime import datetime
 import collections
 from hydra_base import config
