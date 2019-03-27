@@ -27,7 +27,7 @@ from . import scenario
 from . import data
 from .objects import JSONObject, Dataset as JSONDataset
 
-from ..util.permissions import check_perm, required_perms
+from ..util.permissions import required_perms
 from . import template
 from ..db.model import Project, Network, Scenario, Node, Link, ResourceGroup,\
         ResourceAttr, Attr, ResourceType, ResourceGroupItem, Dataset, Metadata, DatasetOwner,\
@@ -2409,11 +2409,21 @@ def get_all_resource_attributes_in_network(attr_id, network_id, **kwargs):
     json_ra = []
     #Load the metadata too
     for ra in resourceattrs:
-        json_ra.append(JSONObject(ra, extras={'node':JSONObject(ra.node) if ra.node else None,
+        ra_j = JSONObject(ra, extras={'node':JSONObject(ra.node) if ra.node else None,
                                                'link':JSONObject(ra.link) if ra.link else None,
                                                'resourcegroup':JSONObject(ra.resourcegroup) if ra.resourcegroup else None,
-                                               'network':JSONObject(ra.network) if ra.network else None}))
-
+                                               'network':JSONObject(ra.network) if ra.network else None})
+        
+        if ra_j.node is not None:
+            ra_j.resource = ra_j.node
+        elif ra_j.link is not None:
+            ra_j.resource = ra_j.link
+        elif ra_j.resourcegroup is not None:
+            ra_j.resource = ra_j.resourcegroup
+        elif ra.network is not None:
+            ra_j.resource = ra_j.network
+        
+        json_ra.append(ra_j)
 
     return json_ra
 
