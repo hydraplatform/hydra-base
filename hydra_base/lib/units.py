@@ -19,18 +19,12 @@
 
 from __future__ import division
 
-import os
-from copy import deepcopy
-from lxml import etree
-
-from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import func
 from sqlalchemy.orm import load_only
 
 from .. import db
 
-from .. import config
 from ..util.dataset_util import array_dim
 from ..util.dataset_util import arr_to_vector
 from ..util.dataset_util import vector_to_arr
@@ -38,8 +32,7 @@ from ..db.model import Dataset, Unit, Dimension
 from .objects import JSONObject
 from ..exceptions import HydraError, ResourceNotFoundError
 
-import json
-from ..util.permissions import check_perm, required_perms
+from ..util.permissions import required_perms
 
 import numpy
 import logging
@@ -307,7 +300,7 @@ def get_unit_by_abbreviation(unit_abbreviation, **kwargs):
         return JSONObject(unit_i)
     except NoResultFound:
         # The dimension does not exist
-        raise ResourceNotFoundError("Unirt %s not found"%(unit_abbreviation))
+        raise ResourceNotFoundError("Unit '%s' not found"%(unit_abbreviation))
 
 """
 +---------------------------------------+
