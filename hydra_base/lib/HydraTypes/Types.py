@@ -11,7 +11,7 @@ import math
 import six
 import numpy as np
 import pandas as pd
-from abc import ABCMeta, abstractmethod, abstractproperty
+from abc import abstractmethod, abstractproperty
 from datetime import datetime
 import collections
 from hydra_base import config
@@ -23,24 +23,20 @@ import logging
 log = logging.getLogger(__name__)
 
 
-class DataTypeMeta(ABCMeta):
-    def __new__(cls, clsname, bases, attrs):
-        newclass = super(DataTypeMeta, cls).__new__(cls, clsname, bases, attrs)
+class DataType(object):
+    """ The DataType class serves as an abstract base class for data types"""
+    def __init_subclass__(cls):
+        tag = cls.tag
 
         # Register class with hydra
         from .Registry import typemap
-        if clsname != 'DataType':
-            if newclass.tag in typemap:
-                raise ValueError('Type with tag "{}" already registered.'.format(newclass.tag))
-            else:
-                typemap[newclass.tag] = newclass
-                log.info('Registering data type "{}".'.format(newclass.tag))
-        return newclass
+        if tag in typemap:
+            raise ValueError('Type with tag "{}" already registered.'.format(tag))
+        else:
+            typemap[tag] = cls
+            log.info('Registering data type "{}".'.format(tag))
 
 
-@six.add_metaclass(DataTypeMeta)
-class DataType(object):
-    """ The DataType class serves as an abstract base class for data types"""
 
     @abstractproperty
     def skeleton(self):
