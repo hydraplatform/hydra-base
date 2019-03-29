@@ -50,7 +50,10 @@ if platform.system() == "Windows":  # only add winpaths when platform is Windows
 
 setup(
     name='hydra-base',
-    version=version,
+    use_scm_version={
+         'git_describe_command': "git describe --dirty --tags --long --match v*",
+    },
+    setup_requires=['setuptools_scm'],
     description='A data manager for networks',
     author='Stephen Knox',
     author_email='stephen.knox@manchester.ac.uk',

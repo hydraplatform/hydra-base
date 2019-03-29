@@ -19,7 +19,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-__version__="0.1.7"
+from pkg_resources import get_distribution, DistributionNotFound
+try:
+    __version__ = get_distribution(__name__).version
+except DistributionNotFound:
+    # package is not installed
+    pass
 
 import logging
 from . import config
