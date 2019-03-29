@@ -10,7 +10,7 @@ env:
 - DB=mysql
 
 before_script:
-  - pip install --upgrade pytest pytest-cov
+  - pip install --upgrade pytest pytest-cov codecov
   - |
     set -e
     if [ "${DB}" == "postgres" ]; then
@@ -25,3 +25,7 @@ install:
 
 script:
   - pytest tests --db-backend=${DB} --cov-report term --cov hydra_base
+
+after_success:
+  - codecov
+
