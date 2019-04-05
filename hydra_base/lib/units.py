@@ -330,6 +330,7 @@ def add_dimension(dimension,**kwargs):
     # Save on DB
     db.DBSession.add(new_dimension)
     log.info("hydra-base.units.add_dimension - 1    ")
+    log.info(new_dimension)
     db.DBSession.flush()
     log.info("hydra-base.units.add_dimension - 2    ")
 
