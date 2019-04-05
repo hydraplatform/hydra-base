@@ -184,7 +184,7 @@ def get_dimension(dimension_id, do_accept_dimension_id_none=False,**kwargs):
 
     try:
         dimension = db.DBSession.query(Dimension).filter(Dimension.id==dimension_id).one()
-        
+
         #lazy load units
         dimension.units
 
@@ -415,6 +415,7 @@ def add_unit(unit,**kwargs):
     # Needed to uniform abbr to abbreviation
     new_unit.abbreviation = unit['abbreviation']
 
+    log.info(JSONObject(unit))
     # Needed to uniform into to description
     new_unit.description = unit.description
 
