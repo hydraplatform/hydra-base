@@ -376,6 +376,14 @@ def delete_dimension(dimension_id,**kwargs):
         raise ResourceNotFoundError("Dimension (dimension_id=%s) does not exist"%(dimension_id))
 
 
+@required_perms("add_dimension")
+def bulk_add_dimensions(dimension_list, **kwargs):
+    """
+        Save all the dimensions contained in the passed list.
+    """
+    for dimension in dimension_list:
+        add_dimension(dimension, **kwargs)
+
 """
 +----------------------------------+
 | UNIT FUNCTIONS - ADD - DEL - UPD |
