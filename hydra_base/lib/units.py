@@ -415,9 +415,8 @@ def add_unit(unit,**kwargs):
     # Needed to uniform abbr to abbreviation
     new_unit.abbreviation = unit['abbreviation']
 
-    log.info(JSONObject(unit))
     # Needed to uniform into to description
-    new_unit.description = unit.description
+    new_unit.description = unit['description']
 
     new_unit.lf             = unit['lf']
     new_unit.cf             = unit['cf']
