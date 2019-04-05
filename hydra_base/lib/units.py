@@ -333,6 +333,7 @@ def add_dimension(dimension,**kwargs):
     log.info(JSONObject(new_dimension))
     db.DBSession.flush()
     log.info("hydra-base.units.add_dimension - 2    ")
+    log.info(JSONObject(new_dimension))
 
     # Load all the record
     db_dimension = db.DBSession.query(Dimension).filter(Dimension.id==new_dimension.id).one()
