@@ -384,8 +384,11 @@ def bulk_add_dimensions(dimension_list, **kwargs):
     """
         Save all the dimensions contained in the passed list.
     """
+    log.info("hydra-base.units.bulk_add_dimensions - 1    ")
+    log.info(dimension_list)
     for dimension in dimension_list:
         add_dimension(dimension, **kwargs)
+    log.info("hydra-base.units.bulk_add_dimensions - 2    ")
 
 """
 +----------------------------------+
