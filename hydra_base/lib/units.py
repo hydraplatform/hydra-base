@@ -392,6 +392,7 @@ def bulk_add_dimensions(dimension_list, **kwargs):
     for dimension in dimension_list:
         added_dimensions.append(add_dimension(dimension, **kwargs))
     log.info("hydra-base.units.bulk_add_dimensions - 2    ")
+    db.DBSession.commit()
 
     log.info(added_dimensions)
     return JSONObject({"dimensions": added_dimensions})
