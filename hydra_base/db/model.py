@@ -30,7 +30,7 @@ Unicode
 
 from sqlalchemy import inspect, func
 
-from ..exceptions import HydraError, PermissionError
+from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
 
 from sqlalchemy.orm import relationship, backref
 
@@ -48,6 +48,7 @@ import pandas as pd
 
 from sqlalchemy.orm import validates
 
+from ..lib.objects import JSONObject
 import json
 from .. import config
 import logging
@@ -1772,6 +1773,65 @@ class Dimension(Base, Inspect):
 
     def __repr__(self):
         return "{0}".format(self.name)
+
+
+class MigrationStatus(Base, Inspect):
+    """
+    """
+
+    __tablename__='tMigrationStatus'
+
+    id = Column(Integer(), primary_key=True, nullable=False)
+
+    source_project_id = Column(Integer(), ForeignKey('tProject.id'), index=True, nullable=False)
+    target_project_id = Column(Integer(), index=True, nullable=True) # This field refers the id of the project on the DB of the target instance.
+    target_server_url = Column(Unicode(60),  nullable=False, unique=False)
+    migration_name = Column(Unicode(60),  nullable=False, unique=True) # The name of the migration
+    full_migration_done = Column(String(1),  nullable=False, server_default=text(u"'N'")) # It becomes Y when the project has been fully migrated with success
+    networks_imported_json = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
+
+    _parents  = ['tProject']
+    _children = []
+
+    def __repr__(self):
+        return "{0}".format(self.name)
+
+    def add_network_done(self, network_json=None):
+        if not self.has_network_done(network_json):
+            json_obj[network_obj.source_network_id] =  network_obj
+            self.networks_imported_json = json.stringify(json_obj)
+
+
+    def has_network_done(self, network_json=None):
+        if network_json is None:
+            raise ResourceNotFoundError("The network has not been specified correctly")
+        json_obj = JSONObject({})
+        try:
+            network_obj = JSONObject(json.dumps(network_json))
+        except error:
+            raise ResourceNotFoundError("The network JSON has not been specified correctly: %s", network_json)
+
+        if self.networks_imported_json is not None:
+            json_obj = JSONObject(json.dumps(self.networks_imported_json))
+
+        if "source_network_id" not in network_obj:
+            raise HydraError("The network JSON object does not contain the source_network_id: %s", network_obj)
+
+        if "target_network_id" not in network_obj:
+            raise HydraError("The network JSON object does not contain the target_network_id: %s", network_obj)
+
+        if network_obj.source_network_id not in json_obj:
+            # New network. Adding it
+            return False
+        else:
+            return True
+
+
+
+
+
+
+
 
 
 def create_resourcedata_view():
