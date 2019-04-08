@@ -456,8 +456,18 @@ def bulk_add_units(unit_list, **kwargs):
     """
         Save all the units contained in the passed list, with the name of their dimension.
     """
+    # for unit in unit_list:
+    #     add_unit(unit, **kwargs)
+
+    added_units = []
     for unit in unit_list:
-        add_unit(unit, **kwargs)
+        added_units.append(add_unit(unit, **kwargs))
+    log.info("hydra-base.units.bulk_add_units - 2    ")
+    log.info(added_units)
+    return JSONObject({"units": added_units})
+
+
+
 
 @required_perms("delete_unit")
 def delete_unit(unit_id, **kwargs):
