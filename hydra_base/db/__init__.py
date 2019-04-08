@@ -123,5 +123,4 @@ def close_session():
     DBSession.remove()
 
 def rollback_transaction():
-    log.critical("rollback_transaction")
     transaction.abort()
