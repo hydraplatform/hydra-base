@@ -71,6 +71,8 @@ def add_network_to_project_status(migration_name, source_url, target_url, source
     project_status.add_network_done({"source_network_id": source_network_id, "target_network_id": target_network_id})
     db.DBSession.flush()
 
+    return project_status
+
 #@required_perms("migrate_project")
 def get_migration_id(migration_name, source_server_url, target_server_url, **kwargs):
     migration = None
