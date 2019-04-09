@@ -1782,12 +1782,16 @@ class MigrationStatus(Base, Inspect):
 
     __tablename__='tMigrationStatus'
 
+    __table_args__ = (
+        UniqueConstraint('migration_name', 'source_project_id', 'target_server_url', name="unique name source_project_id target_server_url"),
+    )
+
     id = Column(Integer(), primary_key=True, nullable=False)
 
     source_project_id = Column(Integer(), ForeignKey('tProject.id'), index=True, nullable=False)
     target_project_id = Column(Integer(), index=True, nullable=True) # This field refers the id of the project on the DB of the target instance.
     target_server_url = Column(Unicode(60),  nullable=False, unique=False)
-    migration_name = Column(Unicode(60),  nullable=False, unique=True) # The name of the migration
+    migration_name = Column(Unicode(60),  nullable=False, unique=False) # The name of the migration
     full_migration_done = Column(String(1),  nullable=False, server_default=text(u"'N'")) # It becomes Y when the project has been fully migrated with success
     networks_imported_json = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
 
