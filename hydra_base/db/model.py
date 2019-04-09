@@ -1777,6 +1777,7 @@ class Dimension(Base, Inspect):
 
 class MigrationStatus(Base, Inspect):
     """
+        This table contains the status of a migration of a project
     """
 
     __tablename__='tMigrationStatus'
@@ -1827,6 +1828,25 @@ class MigrationStatus(Base, Inspect):
             return True
 
 
+class Migration(Base, Inspect):
+    """
+        This table will contain the list of all the migrations done
+    """
+
+    __tablename__='tMigration'
+
+    id = Column(Integer(), primary_key=True, nullable=False)
+
+    migration_name = Column(Unicode(60),  primary_key=True, nullable=False, unique=True) # The name of the migration
+    source_server_url = Column(Unicode(60),  primary_key=True, nullable=False, unique=False)
+    target_server_url = Column(Unicode(60),  index=True, nullable=False, unique=False)
+
+    _parents  = []
+    _children = ['tMigrationMapping']
+
+    def dump(self):
+        return "Name: {0}: Source:{1} -> Target: {2}".format(self.migration_name, self.source_server_url, self.target_server_url)
+
 
 class MigrationMapping(Base, Inspect):
     """
@@ -1836,21 +1856,16 @@ class MigrationMapping(Base, Inspect):
 
     __tablename__='tMigrationMapping'
 
-    migration_name = Column(Unicode(60),  primary_key=True, nullable=False, unique=True) # The name of the migration
+    migration_id = Column(Integer(), ForeignKey('tMigration.id'), index=True, nullable=True)
     table_name = Column(Unicode(60),  primary_key=True,nullable=False, unique=False) # The table name referred to the entity
     source_entity_id = Column(Integer(), primary_key=True, nullable=False) # This field refers the id of the entity on the DB of the source instance.
     target_entity_id = Column(Integer(), index=True, nullable=True) # This field refers the id of the entity on the DB of the target instance.
-    target_server_url = Column(Unicode(60),  index=True, nullable=False, unique=False)
 
-    _parents  = []
+    _parents  = ['tMigration']
     _children = []
 
     def dump(self):
         return "Table: {0}: Source:{1} -> Target: {2}".format(self.table_name, self.source_entity_id, self.target_entity_id)
-
-
-
-
 
 def create_resourcedata_view():
     #These are for creating the resource data view (see bottom of page)
