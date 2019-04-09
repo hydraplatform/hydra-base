@@ -41,7 +41,10 @@ log = logging.getLogger(__name__)
 def get_project_for_migration(migration_name, target_server_url, source_project_id, **kwargs):
     project_status = None
     try:
-        project_status = db.DBSession.query(MigrationStatus).filter(MigrationStatus.migration_name==migration_name).filter(MigrationStatus.target_server_url==target_server_url).filter(MigrationStatus.source_project_id==source_project_id).one()
+        project_status = db.DBSession.query(MigrationStatus)\
+                .filter(MigrationStatus.migration_name==migration_name)\
+                .filter(MigrationStatus.target_server_url==target_server_url)\
+                .filter(MigrationStatus.source_project_id==source_project_id).one()
     except NoResultFound:
         # The project has never been initialized does not exist
         project_status = MigrationStatus()
