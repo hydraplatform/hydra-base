@@ -1799,6 +1799,13 @@ class MigrationStatus(Base, Inspect):
 
     def add_network_done(self, network_json=None):
         if not self.has_network_done(network_json):
+            json_obj = JSONObject({})
+            try:
+                network_obj = JSONObject(json.dumps(network_json))
+            except error:
+                raise ResourceNotFoundError("The network JSON has not been specified correctly: %s", network_json)
+            if self.networks_imported_json is not None:
+                json_obj = JSONObject(json.dumps(self.networks_imported_json))
             json_obj[network_obj.source_network_id] =  network_obj
             self.networks_imported_json = json.stringify(json_obj)
 
