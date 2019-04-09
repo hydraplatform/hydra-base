@@ -1828,7 +1828,25 @@ class MigrationStatus(Base, Inspect):
 
 
 
+class MigrationMapping(Base, Inspect):
+    """
+        This table will contain the mappings of every sensible entity needed during the migration process,
+        serializing them in a way that also debug will be easier
+    """
 
+    __tablename__='tMigrationMapping'
+
+    migration_name = Column(Unicode(60),  primary_key=True, nullable=False, unique=True) # The name of the migration
+    table_name = Column(Unicode(60),  primary_key=True,nullable=False, unique=False) # The table name referred to the entity
+    source_entity_id = Column(Integer(), primary_key=True, nullable=False) # This field refers the id of the entity on the DB of the source instance.
+    target_entity_id = Column(Integer(), index=True, nullable=True) # This field refers the id of the entity on the DB of the target instance.
+    target_server_url = Column(Unicode(60),  index=True, nullable=False, unique=False)
+
+    _parents  = []
+    _children = []
+
+    def dump(self):
+        return "Table: {0}: Source:{1} -> Target: {2}".format(self.table_name, self.source_entity_id, self.target_entity_id)
 
 
 
