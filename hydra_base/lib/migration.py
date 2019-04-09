@@ -70,3 +70,27 @@ def add_network_to_project_status(migration_name, source_url, target_url, source
     project_status = set_target_project_id(migration_name, target_url, source_project_id, target_project_id,**kwargs)
     project_status.add_network_done({"source_network_id": source_network_id, "target_network_id": target_network_id})
     db.DBSession.flush()
+
+def add_migration_entity_mapping(migration_name, target_server_url, table_name, source_entity_id, target_entity_id, **kwargs):
+    mapping = None
+    try:
+        # Maybe the mapping is still in the DB
+        mapping = db.DBSession.query(MigrationMapping)\
+                    .filter(MigrationMapping.migration_name==migration_name)\
+                    .filter(MigrationMapping.target_server_url==target_server_url)\
+                    .filter(MigrationMapping.table_name==table_name)\
+                    .filter(MigrationMapping.source_entity_id==source_entity_id).one()
+    except NoResultFound:
+        # The mapping has never been initialized so does not exist
+        mapping = MigrationMapping()
+        mapping.migration_name = migration_name
+        mapping.target_server_url = target_server_url
+        mapping.table_name = table_name
+        mapping.source_entity_id = source_entity_id
+        db.DBSession.add(mapping)
+        db.DBSession.flush()
+
+
+    mapping.target_entity_id = target_entity_id
+
+    return mapping
