@@ -71,25 +71,43 @@ def add_network_to_project_status(migration_name, source_url, target_url, source
     project_status.add_network_done({"source_network_id": source_network_id, "target_network_id": target_network_id})
     db.DBSession.flush()
 
-def add_migration_entity_mapping(migration_name, target_server_url, table_name, source_entity_id, target_entity_id, **kwargs):
+#@required_perms("migrate_project")
+def get_migration_id(migration_name, source_server_url, target_server_url, **kwargs):
+    migration = None
+    try:
+        # Maybe the migration is already in the DB
+        migration = db.DBSession.query(Migration)\
+                    .filter(Migration.migration_name==migration_name)\
+                    .filter(Migration.source_server_url==source_server_url)\
+                    .filter(Migration.target_server_url==target_server_url).one()
+    except NoResultFound:
+        # The migration has never been initialized so does not exist
+        migration = MigrationMapping()
+        migration.migration_name = migration_name
+        migration.source_server_url = source_server_url
+        migration.target_server_url = target_server_url
+        db.DBSession.add(migration)
+        db.DBSession.flush()
+
+    return migration.id
+
+#@required_perms("migrate_project")
+def set_migration_entity_mapping(migration_id, table_name, source_entity_id, target_entity_id, **kwargs):
     mapping = None
     try:
-        # Maybe the mapping is still in the DB
+        # Maybe the mapping is already in the DB
         mapping = db.DBSession.query(MigrationMapping)\
-                    .filter(MigrationMapping.migration_name==migration_name)\
-                    .filter(MigrationMapping.target_server_url==target_server_url)\
+                    .filter(MigrationMapping.migration_id==migration_id)\
                     .filter(MigrationMapping.table_name==table_name)\
                     .filter(MigrationMapping.source_entity_id==source_entity_id).one()
     except NoResultFound:
         # The mapping has never been initialized so does not exist
         mapping = MigrationMapping()
-        mapping.migration_name = migration_name
-        mapping.target_server_url = target_server_url
+        mapping.migration_id = migration_id
         mapping.table_name = table_name
         mapping.source_entity_id = source_entity_id
         db.DBSession.add(mapping)
         db.DBSession.flush()
-
 
     mapping.target_entity_id = target_entity_id
 
