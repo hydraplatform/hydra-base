@@ -27,7 +27,7 @@ from sqlalchemy.orm import load_only
 
 from .. import db
 
-from ..db.model import MigrationStatus
+from ..db.model import MigrationStatus, Migration, MigrationMapping
 from .objects import JSONObject
 from ..exceptions import HydraError, ResourceNotFoundError
 
@@ -82,7 +82,7 @@ def get_migration_id(migration_name, source_server_url, target_server_url, **kwa
                     .filter(Migration.target_server_url==target_server_url).one()
     except NoResultFound:
         # The migration has never been initialized so does not exist
-        migration = MigrationMapping()
+        migration = Migration()
         migration.migration_name = migration_name
         migration.source_server_url = source_server_url
         migration.target_server_url = target_server_url

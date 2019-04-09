@@ -1837,8 +1837,8 @@ class Migration(Base, Inspect):
 
     id = Column(Integer(), primary_key=True, nullable=False)
 
-    migration_name = Column(Unicode(60),  primary_key=True, nullable=False, unique=True) # The name of the migration
-    source_server_url = Column(Unicode(60),  primary_key=True, nullable=False, unique=False)
+    migration_name = Column(Unicode(60),  index=True, nullable=False, unique=True) # The name of the migration
+    source_server_url = Column(Unicode(60),  index=True, nullable=False, unique=False)
     target_server_url = Column(Unicode(60),  index=True, nullable=False, unique=False)
 
     _parents  = []
@@ -1856,7 +1856,7 @@ class MigrationMapping(Base, Inspect):
 
     __tablename__='tMigrationMapping'
 
-    migration_id = Column(Integer(), ForeignKey('tMigration.id'), index=True, nullable=True)
+    migration_id = Column(Integer(), ForeignKey('tMigration.id'), primary_key=True, nullable=True)
     table_name = Column(Unicode(60),  primary_key=True,nullable=False, unique=False) # The table name referred to the entity
     source_entity_id = Column(Integer(), primary_key=True, nullable=False) # This field refers the id of the entity on the DB of the source instance.
     target_entity_id = Column(Integer(), index=True, nullable=True) # This field refers the id of the entity on the DB of the target instance.
