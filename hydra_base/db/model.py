@@ -1805,7 +1805,7 @@ class MigrationStatus(Base, Inspect):
             except HydraError:
                 raise ResourceNotFoundError("The network JSON has not been specified correctly: %s", network_json)
             if self.networks_imported_json is not None:
-                json_obj = JSONObject(json.loads(self.networks_imported_json))
+                json_obj = json.loads(self.networks_imported_json)
             json_obj[network_obj.source_network_id] =  network_obj
             self.networks_imported_json = json.dumps(json_obj)
 
@@ -1820,7 +1820,7 @@ class MigrationStatus(Base, Inspect):
             raise ResourceNotFoundError("The network JSON has not been specified correctly: %s", network_json)
 
         if self.networks_imported_json is not None:
-            json_obj = JSONObject(json.loads(self.networks_imported_json))
+            json_obj = json.loads(self.networks_imported_json)
 
         if "source_network_id" not in network_obj:
             raise HydraError("The network JSON object does not contain the source_network_id: %s", network_obj)
