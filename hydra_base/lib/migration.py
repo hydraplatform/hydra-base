@@ -112,3 +112,17 @@ def set_migration_entity_mapping(migration_id, table_name, source_entity_id, tar
     mapping.target_entity_id = target_entity_id
 
     return mapping
+
+#@required_perms("migrate_project")
+def get_entity_target_id_from_source_id(migration_id, table_name, source_entity_id, **kwargs):
+    try:
+        # Maybe the mapping is already in the DB
+        mapping = db.DBSession.query(MigrationMapping)\
+                    .filter(MigrationMapping.migration_id==migration_id)\
+                    .filter(MigrationMapping.table_name==table_name)\
+                    .filter(MigrationMapping.source_entity_id==source_entity_id).one()
+
+        return mapping.target_entity_id
+    except NoResultFound:
+        # The mapping has never been initialized so does not exist
+        raise ResourceNotFoundError("The desired entity {0}.{1} has not been found!".format(table_name, source_entity_id))
