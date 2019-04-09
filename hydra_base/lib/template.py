@@ -481,6 +481,8 @@ def import_template_json(template_json_string,allow_update=True, **kwargs):
 def import_template_dict(template_dict, allow_update=True, **kwargs):
     template_file_j = template_dict
 
+    log.info("import_template_dict %s", JSONObject(template_dict))
+
     file_attributes = template_file_j.get('attributes')
     file_datasets   = template_file_j.get('datasets', {})
     template_j = JSONObject(template_file_j.get('template', {}))
