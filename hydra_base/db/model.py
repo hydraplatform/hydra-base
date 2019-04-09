@@ -1803,7 +1803,7 @@ class MigrationStatus(Base, Inspect):
 
             if self.networks_imported_json is not None:
                 json_obj = json.loads(self.networks_imported_json)
-            json_obj[network_obj.source_network_id] =  network_obj
+            json_obj[network_obj["source_network_id"]] =  network_obj
             self.networks_imported_json = json.dumps(json_obj)
 
 
@@ -1821,7 +1821,7 @@ class MigrationStatus(Base, Inspect):
         if "target_network_id" not in network_obj:
             raise HydraError("The network JSON object does not contain the target_network_id: %s", network_obj)
 
-        if network_obj.source_network_id not in json_obj:
+        if network_obj["source_network_id"] not in json_obj:
             # New network. Adding it
             return False
         else:
