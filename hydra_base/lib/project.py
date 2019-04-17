@@ -127,7 +127,7 @@ def get_project(project_id, include_deleted_networks=False, **kwargs):
     proj_i.check_read_permission(user_id)
 
     proj_j = JSONObject(proj_i)
-    
+
     proj_j.networks = []
     for net_i in proj_i.networks:
         #lazy load owners
@@ -140,7 +140,7 @@ def get_project(project_id, include_deleted_networks=False, **kwargs):
         can_read_network = net_i.check_read_permission(user_id, do_raise=False)
         if can_read_network is False:
             continue
-        
+
         net_j = JSONObject(net_i)
         proj_j.networks.append(net_j)
 
@@ -252,7 +252,7 @@ def to_named_tuple(obj, visited_children=None, back_relationships=None, levels=N
     return result
 
 
-def get_projects(uid, include_shared_projects=True, **kwargs):
+def get_projects(uid, include_shared_projects=True, ids_list_filter=None, projects_ids_list_filter=None, **kwargs):
     """
         Get all the projects owned by the specified user.
         These include projects created by the user, but also ones shared with the user.
@@ -262,6 +262,8 @@ def get_projects(uid, include_shared_projects=True, **kwargs):
         with the user, or to only return projects created directly by this user.
     """
     req_user_id = kwargs.get('user_id')
+
+    log.info("Getting Projects: '%s'", projects_ids_list_filter)
 
     ##Don't load the project's networks. Load them separately, as the networks
     #must be checked individually for ownership
@@ -276,12 +278,24 @@ def get_projects(uid, include_shared_projects=True, **kwargs):
     else:
         projects_qry = projects_qry.join(ProjectOwner).filter(Project.created_by==uid)
 
+    if projects_ids_list_filter is not None:
+        # Filtering the search of project id
+        if isinstance(projects_ids_list_filter, str):
+            # Trying to read a csv string
+            projects_ids_list_filter = eval(projects_ids_list_filter)
+            if type(projects_ids_list_filter) is int:
+                projects_qry = projects_qry.filter(Project.id==projects_ids_list_filter)
+            else:
+                projects_qry = projects_qry.filter(Project.id.in_(projects_ids_list_filter))
+
+
+
     projects_qry = projects_qry.options(noload('networks')).order_by('id')
 
     projects_i = projects_qry.all()
-    
+
     log.info("Project query done for user %s. %s projects found", uid, len(projects_i))
-        
+
     user = db.DBSession.query(User).filter(User.id==req_user_id).one()
     isadmin = user.is_admin()
 
@@ -317,7 +331,7 @@ def get_projects(uid, include_shared_projects=True, **kwargs):
             networks_j.append(net_j)
 
         project_j = JSONObject(project_i)
-        project_j.networks = networks_j 
+        project_j.networks = networks_j
         projects_j.append(project_j)
 
     log.info("Networks loaded projects for user %s", uid)
