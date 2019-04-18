@@ -263,8 +263,6 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
     """
     req_user_id = kwargs.get('user_id')
 
-    log.info("Getting Projects: '%s'", projects_ids_list_filter)
-
     ##Don't load the project's networks. Load them separately, as the networks
     #must be checked individually for ownership
     projects_qry = db.DBSession.query(Project)
