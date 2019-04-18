@@ -239,7 +239,6 @@ def parse_xml_typeattr(type_i, attribute):
 
 def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
     dimension_i = None
-    log.info("attribute_j %s", JSONObject(attribute_j))
     if attribute_j.dimension_id is not None:
         # The dimension_id of the attribute is not None
         dimension_i = units.get_dimension(attribute_j.dimension_id)
@@ -480,8 +479,6 @@ def import_template_json(template_json_string,allow_update=True, **kwargs):
 
 def import_template_dict(template_dict, allow_update=True, **kwargs):
     template_file_j = template_dict
-
-    log.info("import_template_dict %s", JSONObject(template_dict))
 
     file_attributes = template_file_j.get('attributes')
     file_datasets   = template_file_j.get('datasets', {})
