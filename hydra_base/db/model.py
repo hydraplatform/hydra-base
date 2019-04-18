@@ -30,7 +30,7 @@ Unicode
 
 from sqlalchemy import inspect, func
 
-from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
+from ..exceptions import HydraError, PermissionError
 
 from sqlalchemy.orm import relationship, backref
 
@@ -48,7 +48,6 @@ import pandas as pd
 
 from sqlalchemy.orm import validates
 
-from ..lib.objects import JSONObject
 import json
 from .. import config
 import logging
