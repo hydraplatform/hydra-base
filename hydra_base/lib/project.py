@@ -252,7 +252,7 @@ def to_named_tuple(obj, visited_children=None, back_relationships=None, levels=N
     return result
 
 
-def get_projects(uid, include_shared_projects=True, ids_list_filter=None, projects_ids_list_filter=None, **kwargs):
+def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=None, **kwargs):
     """
         Get all the projects owned by the specified user.
         These include projects created by the user, but also ones shared with the user.
