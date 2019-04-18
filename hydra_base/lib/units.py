@@ -329,15 +329,10 @@ def add_dimension(dimension,**kwargs):
 
     # Save on DB
     db.DBSession.add(new_dimension)
-    log.info("hydra-base.units.add_dimension - 1    ")
-    log.info(JSONObject(new_dimension))
     db.DBSession.flush()
-    log.info("hydra-base.units.add_dimension - 2    ")
-    log.info(JSONObject(new_dimension))
 
     # Load all the record
     db_dimension = db.DBSession.query(Dimension).filter(Dimension.id==new_dimension.id).one()
-    log.info("hydra-base.units.add_dimension - 3    ")
 
     return JSONObject(db_dimension)
 
@@ -386,14 +381,10 @@ def bulk_add_dimensions(dimension_list, **kwargs):
     """
         Save all the dimensions contained in the passed list.
     """
-    log.info("hydra-base.units.bulk_add_dimensions - 1    ")
-    log.info(dimension_list)
     added_dimensions = []
     for dimension in dimension_list:
         added_dimensions.append(add_dimension(dimension, **kwargs))
-    log.info("hydra-base.units.bulk_add_dimensions - 2    ")
 
-    log.info(added_dimensions)
     return JSONObject({"dimensions": added_dimensions})
 
 """
@@ -462,8 +453,7 @@ def bulk_add_units(unit_list, **kwargs):
     added_units = []
     for unit in unit_list:
         added_units.append(add_unit(unit, **kwargs))
-    log.info("hydra-base.units.bulk_add_units - 2    ")
-    log.info(added_units)
+
     return JSONObject({"units": added_units})
 
 
