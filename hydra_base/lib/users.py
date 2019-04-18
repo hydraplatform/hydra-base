@@ -327,9 +327,44 @@ def update_role(role,**kwargs):
 def get_all_users(**kwargs):
     """
         Get the username & ID of all users.
+        Use the the filter if it has been provided
+        The filter has to be a list of values
     """
+    users_qry = db.DBSession.query(User)
 
-    rs = db.DBSession.query(User).all()
+    filter_type = kwargs.get('filter_type')
+    filter_value = kwargs.get('filter_value')
+
+    if filter_type is not None:
+        # Filtering the search of users
+        if filter_type == "id":
+            if isinstance(filter_value, str):
+                # Trying to read a csv string
+                log.info("[HB.users] Getting user by Filter ID : %s", filter_value)
+                filter_value = eval(filter_value)
+                if type(filter_value) is int:
+                    users_qry = users_qry.filter(User.id==filter_value)
+                else:
+                    users_qry = users_qry.filter(User.id.in_(filter_value))
+        elif filter_type == "email":
+            if isinstance(filter_value, str):
+                # Trying to read a csv string
+                log.info("[HB.users] Getting user by Filter Email : %s", filter_value)
+                filter_value = filter_value.split(",")
+                for i, em in enumerate(filter_value):
+                    log.info("[HB.users] >>> Getting user by single Email : %s", em)
+                    filter_value[i] = em.strip()
+                if isinstance(filter_value, str):
+                    users_qry = users_qry.filter(User.username==filter_value)
+                else:
+                    users_qry = users_qry.filter(User.username.in_(filter_value))
+        else:
+            raise Exception("Filter type '{}' not allowed".format(filter_type))
+
+    else:
+        log.info('[HB.users] Getting All Users')
+
+    rs = users_qry.all()
 
     return rs
 
