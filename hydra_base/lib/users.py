@@ -346,13 +346,13 @@ def get_all_users(**kwargs):
                     users_qry = users_qry.filter(User.id==filter_value)
                 else:
                     users_qry = users_qry.filter(User.id.in_(filter_value))
-        elif filter_type == "email":
+        elif filter_type == "username":
             if isinstance(filter_value, str):
                 # Trying to read a csv string
-                log.info("[HB.users] Getting user by Filter Email : %s", filter_value)
+                log.info("[HB.users] Getting user by Filter Username : %s", filter_value)
                 filter_value = filter_value.split(",")
                 for i, em in enumerate(filter_value):
-                    log.info("[HB.users] >>> Getting user by single Email : %s", em)
+                    log.info("[HB.users] >>> Getting user by single Username : %s", em)
                     filter_value[i] = em.strip()
                 if isinstance(filter_value, str):
                     users_qry = users_qry.filter(User.username==filter_value)
