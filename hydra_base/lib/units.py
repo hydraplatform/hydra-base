@@ -184,7 +184,7 @@ def get_dimension(dimension_id, do_accept_dimension_id_none=False,**kwargs):
 
     try:
         dimension = db.DBSession.query(Dimension).filter(Dimension.id==dimension_id).one()
-        
+
         #lazy load units
         dimension.units
 
@@ -376,6 +376,17 @@ def delete_dimension(dimension_id,**kwargs):
         raise ResourceNotFoundError("Dimension (dimension_id=%s) does not exist"%(dimension_id))
 
 
+@required_perms("add_dimension")
+def bulk_add_dimensions(dimension_list, **kwargs):
+    """
+        Save all the dimensions contained in the passed list.
+    """
+    added_dimensions = []
+    for dimension in dimension_list:
+        added_dimensions.append(add_dimension(dimension, **kwargs))
+
+    return JSONObject({"dimensions": added_dimensions})
+
 """
 +----------------------------------+
 | UNIT FUNCTIONS - ADD - DEL - UPD |
@@ -416,7 +427,7 @@ def add_unit(unit,**kwargs):
     new_unit.abbreviation = unit['abbreviation']
 
     # Needed to uniform into to description
-    new_unit.description = unit.description
+    new_unit.description = unit['description']
 
     new_unit.lf             = unit['lf']
     new_unit.cf             = unit['cf']
@@ -436,8 +447,17 @@ def bulk_add_units(unit_list, **kwargs):
     """
         Save all the units contained in the passed list, with the name of their dimension.
     """
+    # for unit in unit_list:
+    #     add_unit(unit, **kwargs)
+
+    added_units = []
     for unit in unit_list:
-        add_unit(unit, **kwargs)
+        added_units.append(add_unit(unit, **kwargs))
+
+    return JSONObject({"units": added_units})
+
+
+
 
 @required_perms("delete_unit")
 def delete_unit(unit_id, **kwargs):

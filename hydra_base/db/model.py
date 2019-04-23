@@ -1773,7 +1773,6 @@ class Dimension(Base, Inspect):
     def __repr__(self):
         return "{0}".format(self.name)
 
-
 def create_resourcedata_view():
     #These are for creating the resource data view (see bottom of page)
     from sqlalchemy import select

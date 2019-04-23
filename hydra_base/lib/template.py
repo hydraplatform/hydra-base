@@ -129,7 +129,7 @@ def parse_xml_attribute(attribute):
 
     if attribute.find('dimension') is not None:
         dimension_name = attribute.find('dimension').text
-    
+
         if dimension_name is not None and dimension_name.strip() != '':
             dimension_i = units.get_dimension_by_name(dimension_name.strip())
 
@@ -176,7 +176,7 @@ def parse_xml_typeattr(type_i, attribute):
             typeattr_unit_id = units.get_unit_by_abbreviation(unit).id
 
     if typeattr_unit_id is not None:
-        typeattr_i.unit_id = typeattr_unit_id 
+        typeattr_i.unit_id = typeattr_unit_id
 
     _check_dimension(typeattr_i)
 
@@ -306,7 +306,7 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j):
 
     if default_dataset_j is not None:
         default = default_dataset_j
-        
+
         unit = default.unit
         unit_id = None
         if unit not in (None, ''):
@@ -2141,7 +2141,7 @@ def _make_attr_element(parent, attr_i):
 
     attr_dimension = etree.SubElement(attr, 'dimension')
     attr_dimension.text = units.get_dimension(attr_i.dimension_id, do_accept_dimension_id_none=True).name
-    
+
     return attr
 
 def get_etree_layout_as_dict(layout_tree):
