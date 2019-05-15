@@ -763,7 +763,7 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
 
     value = dataset.parse_value()
 
-    log.info("Assigning %s to resource attribute: %s", value, ra_id)
+    log.debug("Assigning %s to resource attribute: %s", value, ra_id)
 
     if value is None:
         log.info("Cannot set data on resource attribute %s",ra_id)
