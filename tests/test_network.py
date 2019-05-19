@@ -21,10 +21,9 @@ import server
 import copy
 import datetime
 from fixtures import *
-import util
 
 import hydra_base as hb
-from hydra_base.lib.objects import JSONObject
+from hydra_base.lib.objects import JSONObject, Dataset
 
 import logging
 log = logging.getLogger(__name__)
@@ -144,15 +143,36 @@ class TestNetwork:
         for s in full_network.scenarios:
             assert len(s.resourcescenarios) == 0
 
-        scen_ids = []
-        scen_ids.append(scenario_id)
-        partial_network = hb.get_network(new_scenario.network_id, True, 'Y', scen_ids, user_id=pytest.root_user_id)
+        scen_ids = [scenario_id]
+        partial_network = hb.get_network(new_scenario.network_id, summary=True, include_data='Y', include_results='Y', scenario_ids=scen_ids, user_id=pytest.root_user_id)
 
         assert len(partial_network.scenarios) == 1
-        assert len(full_network.scenarios)    == 2
+        assert len(full_network.scenarios) == 2
 
         for s in partial_network.scenarios:
             assert len(s.resourcescenarios) > 0
+
+        #Simulate a scenario having results, by identifying a result variable on a node, and assign it a value
+        #using this we can test retrieval of a scenario with and without results.
+        rs_added = False
+        for n in full_network.nodes:
+            if rs_added:
+                break
+            for a in n.attributes:
+                if a.attr_is_var == 'Y':
+                    #now find a dataset ID from somewhere:
+                    dataset = hb.get_dataset(partial_network.scenarios[0].resourcescenarios[0].dataset_id, user_id=pytest.root_user_id)
+                   
+                    hb.update_resourcedata(scenario_id, [JSONObject({'resource_attr_id': a.id,
+                                                       'dataset': Dataset(dataset)})], user_id=pytest.root_user_id)
+                    rs_added=True
+                    break
+
+        network_with_results = hb.get_network(new_scenario.network_id, summary=True, include_data='Y', scenario_ids=scen_ids, user_id=pytest.root_user_id)
+        network_no_results = hb.get_network(new_scenario.network_id, summary=True, include_data='Y', include_results='N', scenario_ids=scen_ids, user_id=pytest.root_user_id)
+
+        #there should be one more result in the 
+        assert len(network_with_results.scenarios[0].resourcescenarios) == len(network_no_results.scenarios[0].resourcescenarios) + 1
 
         with pytest.raises(hb.exceptions.HydraError):
             hb.get_network_by_name(net.project_id, "I am not a network", user_id=pytest.root_user_id)

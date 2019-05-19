@@ -427,7 +427,7 @@ def add_unit(unit,**kwargs):
     new_unit.abbreviation = unit['abbreviation']
 
     # Needed to uniform into to description
-    new_unit.description = unit['description']
+    new_unit.description = unit.get('description')
 
     new_unit.lf             = unit['lf']
     new_unit.cf             = unit['cf']

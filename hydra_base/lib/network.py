@@ -768,7 +768,7 @@ def _get_all_group_items(network_id):
 
     return item_dict
 
-def _get_all_resourcescenarios(network_id, user_id):
+def _get_all_resourcescenarios(network_id, include_results, user_id):
     """
         Get all the resource scenarios in a network, across all scenarios
         returns a dictionary of dict objects, keyed on scenario_id
@@ -794,6 +794,9 @@ def _get_all_resourcescenarios(network_id, user_id):
                 Scenario.id==ResourceScenario.scenario_id,
                 Scenario.network_id==network_id,
                 Dataset.id==ResourceScenario.dataset_id)
+
+    if include_results == 'N' or include_results == False:
+        rs_qry = rs_qry.filter(ResourceAttr.attr_is_var=='N')
 
     x = time.time()
     logging.info("Getting all resource scenarios")
@@ -951,7 +954,7 @@ def _get_groups(network_id, template_id=None):
 
     return groups
 
-def _get_scenarios(network_id, include_data, user_id, scenario_ids=None):
+def _get_scenarios(network_id, include_data, include_results, user_id, scenario_ids=None):
     """
         Get all the scenarios in a network
     """
@@ -969,7 +972,7 @@ def _get_scenarios(network_id, include_data, user_id, scenario_ids=None):
     all_resource_group_items = _get_all_group_items(network_id)
 
     if include_data == 'Y' or include_data == True:
-        all_rs = _get_all_resourcescenarios(network_id, user_id)
+        all_rs = _get_all_resourcescenarios(network_id, include_results, user_id)
         metadata = _get_metadata(network_id, user_id)
 
     for s in scens:
@@ -983,13 +986,15 @@ def _get_scenarios(network_id, include_data, user_id, scenario_ids=None):
 
     return scens
 
-def get_network(network_id, summary=False, include_data='N', scenario_ids=None, template_id=None, **kwargs):
+def get_network(network_id, summary=False, include_data='N', include_results='Y', scenario_ids=None, template_id=None, **kwargs):
     """
         Return a whole network as a dictionary.
         network_id: ID of the network to retrieve
         include_data: 'Y' or 'N'. Indicate whether scenario data is to be returned.
                       This has a significant speed impact as retrieving large amounts
                       of data can be expensive.
+        include_results: 'Y' or 'N'. If data is requested, this flag allows results
+                         data to be ignored (attr is var), as this can often be very large.
         scenario_ids: list of IDS to be returned. Used if a network has multiple
                       scenarios but you only want one returned. Using this filter
                       will speed up this function call.
@@ -1048,7 +1053,7 @@ def get_network(network_id, summary=False, include_data='N', scenario_ids=None, 
 
         log.info("Getting scenarios")
 
-        net.scenarios = _get_scenarios(network_id, include_data, user_id, scenario_ids)
+        net.scenarios = _get_scenarios(network_id, include_data, include_results, user_id, scenario_ids)
 
     except NoResultFound:
         raise ResourceNotFoundError("Network (network_id=%s) not found." %

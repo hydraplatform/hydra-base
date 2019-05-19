@@ -32,7 +32,7 @@ from sqlalchemy import null
 from .. import db
 from ..import config
 
-from .objects import JSONObject
+from .objects import JSONObject, Dataset as JSONDataset
 
 import pandas as pd
 from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
@@ -88,6 +88,7 @@ def get_dataset(dataset_id,**kwargs):
         rs_dict = dataset_rs._asdict()
 
         #convert the value row into a string as it is returned as a binary
+
         if dataset_rs.value is not None:
             rs_dict['value'] = str(dataset_rs.value)
 
@@ -100,8 +101,7 @@ def get_dataset(dataset_id,**kwargs):
     except NoResultFound:
         raise HydraError("Dataset %s does not exist."%(dataset_id))
 
-
-    dataset = namedtuple('Dataset', rs_dict.keys())(**rs_dict)
+    dataset = JSONDataset(rs_dict)
 
     return dataset
 

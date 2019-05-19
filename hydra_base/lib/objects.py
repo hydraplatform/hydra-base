@@ -90,7 +90,14 @@ class JSONObject(dict):
             elif isinstance(v, list):
                 #another special case for datasets, to convert a metadata list into a dict
                 if k == 'metadata' and obj_dict is not None:
-                    setattr(self, k, JSONObject(obj_dict.get_metadata_as_dict()))
+                    if hasattr(obj_dict, 'get_metadata_as_dict'):
+                        setattr(self, k, JSONObject(obj_dict.get_metadata_as_dict()))
+                    else:
+                        metadata_dict = JSONObject()
+                        for m in obj_dict.get('metadata', []):
+                            metadata_dict[m.key] = m.value
+                        setattr(self, k, metadata_dict)
+                            
                 else:
                     is_list_of_objects = True
                     if len(v) > 0:
@@ -207,7 +214,7 @@ class Dataset(JSONObject):
             return self.get(name, None)
 
     def __setattr__(self, name, value):
-        if name == 'value':
+        if name == 'value' and value is not None:
             value = six.text_type(value)
         super(Dataset, self).__setattr__(name, value)
 
