@@ -235,6 +235,42 @@ class TestProject:
         projectowners = hb.get_all_project_owners([proj.id], user_id=pytest.root_user_id)
 
         assert len(projectowners) == 2
+
+    def test_clone_project(self, session, projectmaker, networkmaker):
+
+        proj = projectmaker.create()
+
+        net1 = networkmaker.create(project_id=proj.id)
+
+        net2 = networkmaker.create(project_id=proj.id)
+
+        recipient_user = hb.get_user_by_name('UserA')
+
+        new_project_name = 'New Project'
+
+        cloned_project_id = hb.clone_project(proj.id,
+                                          recipient_user_id=recipient_user.id,
+                                          new_project_name=new_project_name,
+                                          user_id=pytest.root_user_id)
+
+        cloned_project = hb.get_project(cloned_project_id,
+                                        user_id=pytest.root_user_id)
+
+        assert cloned_project.name == new_project_name
+        assert len(cloned_project.networks) == 2
+        
+        #check with no name provided
+        cloned_project_id = hb.clone_project(proj.id,
+                                          recipient_user_id=recipient_user.id,
+                                          new_project_name=None,
+                                          user_id=pytest.root_user_id)
+
+        cloned_project = hb.get_project(cloned_project_id,
+                                        user_id=pytest.root_user_id)
+
+        assert cloned_project.name.find('Cloned') > 0 
+        assert len(cloned_project.networks) == 2
+
         
 if __name__ == '__main__':
     server.run()

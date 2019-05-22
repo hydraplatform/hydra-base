@@ -397,3 +397,49 @@ def get_network_project(network_id, **kwargs):
         raise HydraError("Network %s not found"% network_id)
 
     return net_proj
+
+
+def clone_project(project_id, recipient_user_id=None, new_project_name=None, **kwargs):
+    """
+        Create an exact clone of the specified project for the specified user.
+    """
+
+    user_id = kwargs['user_id']
+
+    log.info("Creating a new project for cloned network")
+
+    if new_project_name is None:
+        user = db.DBSession.query(User).filter(User.id==user_id).one()
+        project = db.DBSession.query(Project).filter(Project.id==project_id).one()
+        new_project_name = project.name + ' Cloned By {}'.format(user.display_name)
+
+    #check a project with this name doesn't already exist:
+    project_with_name =  db.DBSession.query(Project).filter(Project.name==new_project_name,
+                                                     Project.created_by==user_id).all()
+    if len(project_with_name) > 0:
+        raise HydraError("A project with the name %s already exists", new_project_name)
+    
+    new_project = Project()
+    new_project.name = new_project_name
+    new_project.created_by = user_id
+
+    new_project.set_owner(user_id)
+
+    if recipient_user_id!=None:
+        new_project.set_owner(recipient_user_id)
+
+    db.DBSession.add(new_project)
+    db.DBSession.flush()
+
+    network_ids = db.DBSession.query(Network.id).filter(
+                                        Network.project_id==project_id).all()
+    for n in network_ids:
+        network.clone_network(n.id,
+                              recipient_user_id=recipient_user_id,
+                              project_id=new_project.id,
+                             user_id=user_id)
+
+    db.DBSession.flush()
+
+    return new_project.id 
+
