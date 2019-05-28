@@ -27,6 +27,7 @@ class DataType(object):
     """ The DataType class serves as an abstract base class for data types"""
     def __init_subclass__(cls):
         tag = cls.tag
+        name = cls.name
 
         # Register class with hydra
         from .Registry import typemap
@@ -80,6 +81,7 @@ class DataType(object):
 
 class Scalar(DataType):
     tag      = "SCALAR"
+    name     = "Scalar"
     skeleton = "[%f]"
     json     = ScalarJSON()
 
@@ -107,6 +109,7 @@ class Scalar(DataType):
 
 class Array(DataType):
     tag      = "ARRAY"
+    name     = "Array"
     skeleton = "[%f, ...]"
     json     = ArrayJSON()
 
@@ -137,6 +140,7 @@ class Array(DataType):
 
 class Descriptor(DataType):
     tag      = "DESCRIPTOR"
+    name     = "Descriptor"
     skeleton = "%s"
     json     = DescriptorJSON()
 
@@ -174,6 +178,7 @@ class Descriptor(DataType):
 
 class Dataframe(DataType):
     tag      = "DATAFRAME"
+    name     = "Data Frame"
     skeleton = "%s"
     json     = DataframeJSON()
 
@@ -274,6 +279,7 @@ class Dataframe(DataType):
 
 class Timeseries(DataType):
     tag      = "TIMESERIES"
+    name     = "Time Series"
     skeleton = "[%s, ...]"
     json     = TimeseriesJSON()
 
