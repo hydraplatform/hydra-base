@@ -2525,7 +2525,13 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
 
     return return_data
 
-def clone_network(network_id, recipient_user_id=None, new_network_name=None, project_id=None, project_name=None,  new_project=True, **kwargs):
+def clone_network(network_id,
+                  recipient_user_id=None,
+                  new_network_name=None,
+                  project_id=None,
+                  project_name=None, 
+                  new_project=True,
+                  **kwargs):
     """
      Create an exact clone of the specified network for the specified user.
 
@@ -2565,7 +2571,7 @@ def clone_network(network_id, recipient_user_id=None, new_network_name=None, pro
 
             project.set_owner(user_id)
 
-        if recipient_user_id!=None:
+        if recipient_user_id is not None:
             project.set_owner(recipient_user_id)
 
         db.DBSession.add(project)

@@ -408,9 +408,11 @@ def clone_project(project_id, recipient_user_id=None, new_project_name=None, **k
 
     log.info("Creating a new project for cloned network")
 
+    project = db.DBSession.query(Project).filter(Project.id==project_id).one()
+    project.check_write_permission(user_id)
+
     if new_project_name is None:
         user = db.DBSession.query(User).filter(User.id==user_id).one()
-        project = db.DBSession.query(Project).filter(Project.id==project_id).one()
         new_project_name = project.name + ' Cloned By {}'.format(user.display_name)
 
     #check a project with this name doesn't already exist:
@@ -421,12 +423,14 @@ def clone_project(project_id, recipient_user_id=None, new_project_name=None, **k
     
     new_project = Project()
     new_project.name = new_project_name
-    new_project.created_by = user_id
+    new_project.created_by = user_id 
+    
+    if recipient_user_id is not None:
+        project.check_share_permission(user_id)
+        new_project.set_owner(recipient_user_id)
 
     new_project.set_owner(user_id)
 
-    if recipient_user_id!=None:
-        new_project.set_owner(recipient_user_id)
 
     db.DBSession.add(new_project)
     db.DBSession.flush()
