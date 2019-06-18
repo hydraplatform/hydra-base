@@ -399,7 +399,7 @@ def get_network_project(network_id, **kwargs):
     return net_proj
 
 
-def clone_project(project_id, recipient_user_id=None, new_project_name=None, **kwargs):
+def clone_project(project_id, recipient_user_id=None, new_project_name=None, new_project_description=None, **kwargs):
     """
         Create an exact clone of the specified project for the specified user.
     """
@@ -419,10 +419,15 @@ def clone_project(project_id, recipient_user_id=None, new_project_name=None, **k
     project_with_name =  db.DBSession.query(Project).filter(Project.name==new_project_name,
                                                      Project.created_by==user_id).all()
     if len(project_with_name) > 0:
-        raise HydraError("A project with the name %s already exists", new_project_name)
+        raise HydraError("A project with the name {0} already exists".format(new_project_name))
     
     new_project = Project()
     new_project.name = new_project_name
+    if new_project_description:
+        new_project.description = new_project_description
+    else:
+        new_project.description = project.description
+
     new_project.created_by = user_id 
     
     if recipient_user_id is not None:
