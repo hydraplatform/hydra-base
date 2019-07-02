@@ -32,8 +32,6 @@ from ..db.model import Scenario,\
         Attr,\
         ResourceAttrMap
 
-from . import units as hydra_units
-
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import joinedload_all, joinedload, aliased
@@ -143,7 +141,14 @@ def get_scenario(scenario_id, get_parent_data=False, **kwargs):
 
     rgi_rs = scen_i.get_group_items(get_parent_items=get_parent_data)
 
-    scen_j.resourcescenarios = [JSONObject(r, extras={'resourceattr':r.resourceattr}) for r in rscen_rs]
+    scen_j.resourcescenarios = []
+    for rs in rscen_rs:
+        rs_j = JSONObject(rs, extras={'resourceattr':JSONObject(rs.resourceattr)})
+        if rs.dataset.check_read_permission(user_id, do_raise=False) is False:
+            rs_j.dataset['value'] = None
+            rs_j.dataset.metadata = JSONObject({})
+        scen_j.resourcescenarios.append(rs_j)
+
     scen_j.resourcegroupitems =[JSONObject(r) for r in rgi_rs]
 
     return scen_j
@@ -264,7 +269,6 @@ def update_scenario(scenario,update_data=True,update_groups=True,flush=True,**kw
     if update_data is True:
         datasets = [rs.dataset for rs in scenario.resourcescenarios]
         updated_datasets = data._bulk_insert_data(datasets, user_id, kwargs.get('app_name'))
-        log.info(sorted([rs.resource_attr_id for rs in scenario.resourcescenarios]))
         for i, r_scen in enumerate(scenario.resourcescenarios):
             _update_resourcescenario(scen, r_scen, dataset=updated_datasets[i], user_id=user_id, source=kwargs.get('app_name'))
 
@@ -468,6 +472,7 @@ def _get_dataset_as_dict(rs, user_id):
 
     dataset = deepcopy(rs.dataset.__dict__)
 
+    dataset['metadata'] = {}
 
     del dataset['_sa_instance_state']
 
@@ -703,7 +708,7 @@ def bulk_update_resourcedata(scenario_ids, resource_scenarios,**kwargs):
                 updated_rs = _update_resourcescenario(scen_i, rs, user_id=user_id, source=kwargs.get('app_name'))
                 res[scenario_id].append(updated_rs)
             else:
-                _delete_resourcescenario(scenario_id, rs)
+                _delete_resourcescenario(scenario_id, rs.resource_attr_id)
 
         db.DBSession.flush()
 
@@ -739,29 +744,43 @@ def update_resourcedata(scenario_id, resource_scenarios,**kwargs):
             updated_rs = _update_resourcescenario(scen_i, rs, user_id=user_id, source=kwargs.get('app_name'))
             res.append(updated_rs)
         else:
-            _delete_resourcescenario(scenario_id, rs)
+            _delete_resourcescenario(scenario_id, rs.resource_attr_id)
 
     db.DBSession.flush()
 
     return res
 
-def delete_resourcedata(scenario_id, resource_scenario,**kwargs):
+def delete_resource_scenario(scenario_id, resource_attr_id, quiet=False, **kwargs):
     """
         Remove the data associated with a resource in a scenario.
+    """
+    _check_can_edit_scenario(scenario_id, kwargs['user_id'])
+
+    _delete_resourcescenario(scenario_id, resource_attr_id, suppress_error=quiet)
+
+def delete_resourcedata(scenario_id, resource_scenario, quiet = False, **kwargs):
+    """
+        Remove the data associated with a resource in a scenario.
+        The 'quiet' parameter indicates whether an non-existent RS should throw
+        an error.
     """
 
     _check_can_edit_scenario(scenario_id, kwargs['user_id'])
 
-    _delete_resourcescenario(scenario_id, resource_scenario)
+    _delete_resourcescenario(scenario_id, resource_scenario.resource_attr_id, suppress_error=quiet)
 
 
-def _delete_resourcescenario(scenario_id, resource_scenario):
+def _delete_resourcescenario(scenario_id, resource_attr_id, suppress_error=False):
 
-    ra_id = resource_scenario.resource_attr_id
     try:
-        sd_i = db.DBSession.query(ResourceScenario).filter(ResourceScenario.scenario_id==scenario_id, ResourceScenario.resource_attr_id==ra_id).one()
+        sd_i = db.DBSession.query(ResourceScenario).filter(
+                            ResourceScenario.scenario_id==scenario_id,
+                            ResourceScenario.resource_attr_id==resource_attr_id).one()
     except NoResultFound:
-        raise HydraError("ResourceAttr %s does not exist in scenario %s."%(ra_id, scenario_id))
+        if suppress_error == False:
+            raise HydraError("ResourceAttr %s does not exist in scenario %s."%(resource_attr_id, scenario_id))
+        return
+
     db.DBSession.delete(sd_i)
     db.DBSession.flush()
 
@@ -806,21 +825,21 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
 
     value = dataset.parse_value()
 
-    log.info("Assigning %s to resource attribute: %s", value, ra_id)
+    log.debug("Assigning %s to resource attribute: %s", value, ra_id)
 
     if value is None:
-        log.info("Cannot set data on resource attribute %s",ra)
+        log.info("Cannot set data on resource attribute %s",ra_id)
         return None
 
     metadata = dataset.get_metadata_as_dict(source=source, user_id=user_id)
-    data_unit = dataset.unit
+    data_unit_id = dataset.unit_id
 
     data_hash = dataset.get_hash(value, metadata)
 
     assign_value(r_scen_i,
                  dataset.type.lower(),
                  value,
-                 data_unit,
+                 data_unit_id,
                  dataset.name,
                  metadata=metadata,
                  data_hash=data_hash,
@@ -829,7 +848,7 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
     return r_scen_i
 
 def assign_value(rs, data_type, val,
-                 units, name, metadata={}, data_hash=None, user_id=None, source=None):
+                 unit_id, name, metadata={}, data_hash=None, user_id=None, source=None):
     """
         Insert or update a piece of data in a scenario.
         If the dataset is being shared by other resource scenarios, a new dataset is inserted.
@@ -871,7 +890,7 @@ def assign_value(rs, data_type, val,
 
     if update_dataset is True:
         log.info("Updating dataset '%s'", name)
-        dataset = data.update_dataset(rs.dataset.id, name, data_type, val, units, metadata, flush=False, **dict(user_id=user_id))
+        dataset = data.update_dataset(rs.dataset.id, name, data_type, val, unit_id, metadata, flush=False, **dict(user_id=user_id))
         rs.dataset = dataset
         rs.dataset_id = dataset.id
         log.info("Set RS dataset id to %s"%dataset.id)
@@ -879,7 +898,7 @@ def assign_value(rs, data_type, val,
         log.info("Creating new dataset %s in scenario %s", name, rs.scenario_id)
         dataset = data.add_dataset(data_type,
                                 val,
-                                units,
+                                unit_id,
                                 metadata=metadata,
                                 name=name,
                                 **dict(user_id=user_id))
@@ -922,7 +941,7 @@ def add_data_to_attribute(scenario_id, resource_attr_id, dataset,**kwargs):
 
     data_hash = dataset.get_hash(value, dataset_metadata)
 
-    assign_value(r_scen_i, data_type, value, dataset.unit, dataset.name,
+    assign_value(r_scen_i, data_type, value, dataset.unit_id, dataset.name,
                           metadata=dataset_metadata, data_hash=data_hash, user_id=user_id)
 
     db.DBSession.flush()
@@ -1181,11 +1200,11 @@ def _add_resourcegroupitem(group_item, scenario_id):
     ref_key = group_item.ref_key
     group_item_i.ref_key = ref_key
     if ref_key == 'NODE':
-        group_item_i.node_id =group_item.ref_id
+        group_item_i.node_id =group_item.ref_id if group_item.ref_id else group_item.node_id
     elif ref_key == 'LINK':
-        group_item_i.link_id =group_item.ref_id
+        group_item_i.link_id =group_item.ref_id if group_item.ref_id else group_item.link_id
     elif ref_key == 'GROUP':
-        group_item_i.subgroup_id =group_item.ref_id
+        group_item_i.subgroup_id = group_item.ref_id if group_item.ref_id else group_item.subgroup_id
 
     return group_item_i
 

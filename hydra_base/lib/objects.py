@@ -20,9 +20,6 @@
 import json
 import six
 
-import logging
-log = logging.getLogger(__name__)
-
 from datetime import datetime
 from ..exceptions import HydraError
 
@@ -31,6 +28,12 @@ from .HydraTypes.Registry import HydraObjectFactory
 from ..util import generate_data_hash, get_layout_as_dict, get_layout_as_string
 from .. import config
 import pandas as pd
+
+import logging
+log = logging.getLogger(__name__)
+
+
+VALID_JSON_FIRST_CHARS = ['{', '[']
 
 class JSONObject(dict):
     """
@@ -64,6 +67,11 @@ class JSONObject(dict):
                 raise ValueError("Unrecognised value. It must be a valid JSON dict, a SQLAlchemy result or a dictionary.")
 
         for k, v in obj.items():
+
+            #This occurs regularly enough to warrant its own if statement.
+            #if isinstance(k, int):
+            #    raise TypeError('JSONObject Error: Cannot set attribute %s to %s. It is an int'%(k, v))
+
             if isinstance(v, JSONObject):
                 setattr(self, k, v)
             elif k == 'layout':
@@ -72,16 +80,39 @@ class JSONObject(dict):
                 setattr(self, k, dict_layout)
             elif isinstance(v, dict):
                 #TODO what is a better way to identify a dataset?
-                if 'unit' in v or 'metadata' in v or 'type' in v:
+                if 'unit_id' in v or 'unit' in v or 'metadata' in v or 'type' in v:
                     setattr(self, k, Dataset(v, obj_dict))
+                #The value on a dataset should remain untouched
+                elif k == 'value':
+                    setattr(self, k, v)
                 else:
                     setattr(self, k, JSONObject(v, obj_dict))
             elif isinstance(v, list):
                 #another special case for datasets, to convert a metadata list into a dict
                 if k == 'metadata' and obj_dict is not None:
-                    setattr(self, k, JSONObject(obj_dict.get_metadata_as_dict()))
+                    if hasattr(obj_dict, 'get_metadata_as_dict'):
+                        setattr(self, k, JSONObject(obj_dict.get_metadata_as_dict()))
+                    else:
+                        metadata_dict = JSONObject()
+                        for m in obj_dict.get('metadata', []):
+                            metadata_dict[m.key] = m.value
+                        setattr(self, k, metadata_dict)
+                            
                 else:
-                    l = [JSONObject(item, obj_dict) for item in v]
+                    is_list_of_objects = True
+                    if len(v) > 0:
+                        if isinstance(v[0], float):
+                            is_list_of_objects = False
+                        elif isinstance(v[0], six.string_types) and len(v[0]) == 0:
+                            is_list_of_objects = False
+                        elif isinstance(v[0], six.string_types) and v[0][0] not in VALID_JSON_FIRST_CHARS:
+                            is_list_of_objects=False
+
+                    if is_list_of_objects is True:
+                        l = [JSONObject(item, obj_dict) for item in v]
+                    else:
+                        l = v
+
                     setattr(self, k, l)
             #Special case for SQLAlchemy objects, to stop them recursing up and down
             elif hasattr(v, '_sa_instance_state')\
@@ -183,7 +214,7 @@ class Dataset(JSONObject):
             return self.get(name, None)
 
     def __setattr__(self, name, value):
-        if name == 'value':
+        if name == 'value' and value is not None:
             value = six.text_type(value)
         super(Dataset, self).__setattr__(name, value)
 
@@ -193,7 +224,7 @@ class Dataset(JSONObject):
         """
         try:
             if self.value is None:
-                log.warn("Cannot parse dataset. No value specified.")
+                log.warning("Cannot parse dataset. No value specified.")
                 return None
 
             # attr_data.value is a dictionary but the keys have namespaces which must be stripped
@@ -203,7 +234,7 @@ class Dataset(JSONObject):
                 return "NULL"
 
             data = data[0:100]
-            log.info("[Dataset.parse_value] Parsing %s (%s)", data, type(data))
+            log.debug("[Dataset.parse_value] Parsing %s (%s)", data, type(data))
 
             return HydraObjectFactory.valueFromDataset(self.type, self.value, self.get_metadata_as_dict())
 
@@ -251,7 +282,7 @@ class Dataset(JSONObject):
             value = val
 
         dataset_dict = {'name'     : self.name,
-                        'unit'     : self.unit,
+                        'unit_id'     : self.unit_id,
                         'type'     : self.type.lower(),
                         'value'    : value,
                         'metadata' : metadata,}

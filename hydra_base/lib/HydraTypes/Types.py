@@ -9,8 +9,9 @@
 import json
 import math
 import six
+import numpy as np
 import pandas as pd
-from abc import ABCMeta, abstractmethod, abstractproperty
+from abc import abstractmethod, abstractproperty
 from datetime import datetime
 import collections
 from hydra_base import config
@@ -22,24 +23,21 @@ import logging
 log = logging.getLogger(__name__)
 
 
-class DataTypeMeta(ABCMeta):
-    def __new__(cls, clsname, bases, attrs):
-        newclass = super(DataTypeMeta, cls).__new__(cls, clsname, bases, attrs)
+class DataType(object):
+    """ The DataType class serves as an abstract base class for data types"""
+    def __init_subclass__(cls):
+        tag = cls.tag
+        name = cls.name
 
         # Register class with hydra
         from .Registry import typemap
-        if clsname != 'DataType':
-            if newclass.tag in typemap:
-                raise ValueError('Type with tag "{}" already registered.'.format(newclass.tag))
-            else:
-                typemap[newclass.tag] = newclass
-                log.info('Registering data type "{}".'.format(newclass.tag))
-        return newclass
+        if tag in typemap:
+            raise ValueError('Type with tag "{}" already registered.'.format(tag))
+        else:
+            typemap[tag] = cls
+            log.info('Registering data type "{}".'.format(tag))
 
 
-@six.add_metaclass(DataTypeMeta)
-class DataType(object):
-    """ The DataType class serves as an abstract base class for data types"""
 
     @abstractproperty
     def skeleton(self):
@@ -83,6 +81,7 @@ class DataType(object):
 
 class Scalar(DataType):
     tag      = "SCALAR"
+    name     = "Scalar"
     skeleton = "[%f]"
     json     = ScalarJSON()
 
@@ -110,6 +109,7 @@ class Scalar(DataType):
 
 class Array(DataType):
     tag      = "ARRAY"
+    name     = "Array"
     skeleton = "[%f, ...]"
     json     = ArrayJSON()
 
@@ -140,6 +140,7 @@ class Array(DataType):
 
 class Descriptor(DataType):
     tag      = "DESCRIPTOR"
+    name     = "Descriptor"
     skeleton = "%s"
     json     = DescriptorJSON()
 
@@ -177,6 +178,7 @@ class Descriptor(DataType):
 
 class Dataframe(DataType):
     tag      = "DATAFRAME"
+    name     = "Data Frame"
     skeleton = "%s"
     json     = DataframeJSON()
 
@@ -219,17 +221,35 @@ class Dataframe(DataType):
                 if isinstance(ordered_jo[c], list):
                     data.append(ordered_jo[c])
                 else:
-                    data.append(ordered_jo[c].values())
+                    data.append(list(ordered_jo[c].values()))
 
-            #This goes in 'sideways' (cols=index, index=cols), so it needs to be transposed after to keep
-            #the correct structure
-            df = pd.DataFrame(data, columns=index, index=cols).transpose()
+            # This goes in 'sideways' (cols=index, index=cols), so it needs to be transposed after to keep
+            # the correct structure
+            # We also try to coerce the data to a regular numpy array first. If the shape is correct
+            # this is a much faster way of creating the DataFrame instance.
+            try:
+                np_data = np.array(data)
+            except ValueError:
+                np_data = None
+
+            if np_data is not None and np_data.shape == (len(cols), len(index)):
+                df = pd.DataFrame(np_data, columns=index, index=cols).transpose()
+            else:
+                # TODO should these heterogenous structure be supported?
+                # See https://github.com/hydraplatform/hydra-base/issues/72
+                df = pd.DataFrame(data, columns=index, index=cols).transpose()
+
 
         except ValueError as e:
             """ Raised on scalar types used as pd.DataFrame values
                 in absence of index arg
             """
             raise HydraError(str(e))
+
+        except AssertionError as e:
+            log.warning("An error occurred creating the new data frame: %s. Defaulting to a simple read_json"%(e))
+            df = pd.read_json(value).fillna(0)
+
         return df
 
     def validate(self):
@@ -257,9 +277,9 @@ class Dataframe(DataType):
 
     value = property(get_value, set_value)
 
-
 class Timeseries(DataType):
     tag      = "TIMESERIES"
+    name     = "Time Series"
     skeleton = "[%s, ...]"
     json     = TimeseriesJSON()
 

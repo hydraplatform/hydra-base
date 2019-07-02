@@ -16,6 +16,18 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
+"""
+    NOTE:
+    All the methods that has SKELETON key in the doc, are not yet implemented partially/fully
+
+"""
+# Example of a SKELETON METHOD
+# def test_(self, session):
+#     """
+#         SKELETON
+#     """
+#     pass
+
 
 import logging
 from util import update_template, get_by_name
@@ -33,15 +45,101 @@ class TestAttribute:
     """
         Test for attribute-based functionality
     """
-    def test_get_network_attrs(self, session, network_with_data):
 
-        net_attrs = hb.get_resource_attributes('NETWORK', network_with_data.id, user_id=pytest.root_user_id)
-        net_type_attrs = hb.get_resource_attributes('NETWORK', network_with_data.id,
-                                                   network_with_data.types[0].id,
-                                                  user_id=pytest.root_user_id)
+    """
+        TESTED
+    """
 
-        assert len(net_attrs) == 3
-        assert len(net_type_attrs) == 2
+    def test_add_attribute(self, session):
+        test_attr = JSONObject({
+            "name": 'Test Attribute 1',
+            "dimension_id": None
+        })
+        new_attr = hb.add_attribute(test_attr, user_id=pytest.root_user_id)
+
+        assert new_attr.name == test_attr.name, \
+            "add_attribute didn't work"
+
+    def test_update_attribute(self, session):
+        test_attr = JSONObject({
+            "name": 'Test Attribute 1',
+            "dimension_id": None
+        })
+        new_attr = hb.add_attribute(test_attr, user_id=pytest.root_user_id)
+
+        new_attr.name = "Test attr updated"
+        updated_attr = hb.update_attribute(new_attr, user_id=pytest.root_user_id)
+
+        assert new_attr.id == updated_attr.id and \
+                updated_attr.name == new_attr.name, \
+                "update_attribute didn't work"
+
+
+    def test_delete_attribute(self, session):
+        test_attr = JSONObject({
+            "name": 'Test Attribute 1',
+            "dimension_id": None
+        })
+        new_attr = hb.add_attribute(test_attr, user_id=pytest.root_user_id)
+
+        result = hb.delete_attribute(new_attr.id, user_id=pytest.root_user_id)
+        assert result == True, \
+                "delete_attribute didn't work"
+
+
+        with pytest.raises(ResourceNotFoundError):
+            result = hb.delete_attribute(new_attr.id)
+
+    def test_add_attributes(self, session):
+        test_attrs = [
+            JSONObject({
+                "name": 'Test Attribute 1',
+                "dimension_id": None
+            }),
+            JSONObject({
+                "name": 'Test Attribute 2',
+                "dimension_id": 1
+            }),
+            None
+        ]
+        new_attrs_list = hb.add_attributes(test_attrs, user_id=pytest.root_user_id)
+
+        for test_attr in test_attrs:
+            if test_attr is not None:
+                assert len(list(filter(lambda x: x["name"] == test_attr.name, new_attrs_list))) > 0,\
+                    "Adding new attributes didn't work as expected."
+
+
+    def test_get_attributes(self, session):
+        """
+            def get_attributes(**kwargs):
+        """
+        test_attr = JSONObject({
+            "name": 'Test Attribute 1',
+            "dimension_id": None
+        })
+        new_attr = hb.add_attribute(test_attr, user_id=pytest.root_user_id)
+        attributes = hb.get_attributes(user_id=pytest.root_user_id)
+        assert len(attributes) > 0, "get_attributes didn't work as expected!"
+
+
+    def test_get_template_attributes(self, session):
+        """
+            SKELETON
+            def get_template_attributes(template_id, **kwargs):
+        """
+        pass
+
+    def test_get_attribute_by_id(self, session, attribute):
+
+        existing_attr = attribute
+
+        retrieved_attr = hb.get_attribute_by_id(existing_attr.id, user_id=pytest.root_user_id)
+
+        assert existing_attr.name           == retrieved_attr.name
+        assert existing_attr.dimension_id   == retrieved_attr.dimension_id
+        assert existing_attr.description    == retrieved_attr.description
+
 
 
     def test_get_all_attributes(self, session, attributes):
@@ -54,25 +152,191 @@ class TestAttribute:
         assert "Multi-added Attr 1" in attribute_names
         assert "Multi-added Attr 2" in attribute_names
 
-    def test_get_attribute_by_id(self, session, attribute):
-
-        existing_attr = attribute
-
-        retrieved_attr = hb.get_attribute_by_id(existing_attr.id, user_id=pytest.root_user_id)
-
-        assert existing_attr.name        == retrieved_attr.name
-        assert existing_attr.dimension   == retrieved_attr.dimension
-        assert existing_attr.description == retrieved_attr.description
 
     def test_get_attribute_by_name_and_dimension(self, session, attribute):
         existing_attr = attribute
         retrieved_attr = hb.get_attribute_by_name_and_dimension(
                                             existing_attr.name,
-                                            existing_attr.dimension,
+                                            existing_attr.dimension_id,
                                             user_id=pytest.root_user_id)
 
         assert existing_attr.id == retrieved_attr.id
         assert existing_attr.description == retrieved_attr.description
+
+    def test_check_attr_dimension(self, session, new_dataset):
+        """
+            def check_attr_dimension(attr_id, **kwargs):
+        """
+        test_attr = JSONObject({
+            "name": 'Test Attribute 1',
+            "dimension_id": hb.get_dimension_by_unit_id(new_dataset.unit_id).id
+        })
+        new_attr = hb.add_attribute(test_attr)
+
+        result = hb.check_attr_dimension(new_attr.id)
+        log.info(result)
+        assert result == 'OK', "check_attr_dimension didn't work as expected"
+
+
+        pass
+
+class TestResourceAttribute:
+    def test_add_resource_attribute(self, session):
+        """
+            SKELETON
+            def add_resource_attribute(resource_type, resource_id, attr_id, is_var, error_on_duplicate=True, **kwargs):
+        """
+        pass
+
+
+    def test_update_resource_attribute(self, session):
+        """
+            SKELETON
+            def update_resource_attribute(resource_attr_id, is_var, **kwargs):
+        """
+        pass
+
+    def test_delete_resource_attribute(self, session):
+        """
+            SKELETON
+            def delete_resource_attribute(resource_attr_id, **kwargs):
+        """
+        pass
+
+
+    def test_add_resource_attrs_from_type(self, session):
+        """
+            SKELETON
+            def add_resource_attrs_from_type(type_id, resource_type, resource_id,**kwargs):
+        """
+        pass
+
+    def test_get_resource_attribute(self, session):
+        """
+            SKELETON
+            def get_resource_attribute(resource_attr_id, **kwargs):
+        """
+        pass
+
+    def test_get_all_resource_attributes(self, session):
+        """
+            SKELETON
+            def get_all_resource_attributes(ref_key, network_id, template_id=None, **kwargs):
+        """
+        pass
+
+    def test_get_resource_attributes(self, session):
+        """
+            SKELETON
+            def get_resource_attributes(ref_key, ref_id, type_id=None, **kwargs):
+        """
+        pass
+
+
+
+
+
+    def test_add_group_attribute(self, session, network_with_data, attribute):
+        group = network_with_data.resourcegroups[0]
+        hb.add_resource_attribute('GROUP', group.id, attribute.id, 'Y', user_id=pytest.root_user_id)
+        group_attrs = hb.get_resource_attributes('GROUP', group.id, user_id=pytest.root_user_id)
+        group_attr_ids = []
+        for ga in group_attrs:
+            group_attr_ids.append(ga.attr_id)
+        assert attribute.id in group_attr_ids
+
+    def test_get_all_group_attributes(self, session, network_with_data):
+
+        #Get all the node attributes in the network
+        group_attr_ids = []
+        for g in network_with_data.resourcegroups:
+            for ga in g.attributes:
+                group_attr_ids.append(ga.id)
+
+        group_attributes = hb.get_all_resource_attributes('GROUP', network_with_data.id, user_id=pytest.root_user_id)
+
+        #Check that the retrieved attributes are in the list of group attributes
+        retrieved_ras = []
+        for ga in group_attributes:
+            retrieved_ras.append(ga.id)
+        assert set(group_attr_ids) == set(retrieved_ras)
+
+
+
+    def test_add_link_attribute(self, session, network_with_data, attribute):
+        link = network_with_data.links[0]
+        hb.add_resource_attribute('LINK', link.id, attribute.id, 'Y')
+        link_attributes = hb.get_resource_attributes('LINK', link.id, user_id=pytest.root_user_id)
+        network_attr_ids = []
+
+        for ra in link_attributes:
+            network_attr_ids.append(ra.attr_id)
+        assert attribute.id in network_attr_ids
+
+    def test_get_all_link_attributes(self, session, network_with_data):
+
+        #Get all the node attributes in the network
+        link_attr_ids = []
+        for l in network_with_data.links:
+            for la in l.attributes:
+                link_attr_ids.append(la.id)
+        link_attributes = hb.get_all_resource_attributes('LINK', network_with_data.id, user_id=pytest.root_user_id)
+        #Check that the retrieved attributes are in the list of node attributes
+        retrieved_ras = []
+        for la in link_attributes:
+            retrieved_ras.append(la.id)
+        assert set(link_attr_ids) == set(retrieved_ras)
+
+
+    def test_add_node_attribute(self, session, network_with_data, attribute):
+        node = network_with_data.nodes[0]
+        hb.add_resource_attribute('NODE', node.id, attribute.id, 'Y', user_id=pytest.root_user_id)
+        node_attributes = hb.get_resource_attributes('NODE', node.id, user_id=pytest.root_user_id)
+        network_attr_ids = []
+        for ra in node_attributes:
+            network_attr_ids.append(ra.attr_id)
+        assert attribute.id in network_attr_ids
+
+    def test_add_duplicate_node_attribute(self, session, network_with_data, attribute):
+        node = network_with_data.nodes[0]
+        hb.add_resource_attribute('NODE', node.id, attribute.id, 'Y', user_id=pytest.root_user_id)
+        node_attributes = hb.get_resource_attributes('NODE', node.id, user_id=pytest.root_user_id)
+        node_attr_ids = []
+        for ra in node_attributes:
+            node_attr_ids.append(ra.attr_id)
+        assert attribute.id in node_attr_ids
+
+        with pytest.raises(hb.HydraError):
+            hb.add_resource_attribute('NODE', node.id, attribute.id, 'Y', user_id=pytest.root_user_id)
+
+    def test_get_all_node_attributes(self, session, network_with_data):
+
+        #Get all the node attributes in the network
+        node_attr_ids = []
+        for n in network_with_data.nodes:
+            for a in n.attributes:
+                node_attr_ids.append(a.id)
+
+        node_attributes = hb.get_all_resource_attributes('NODE', network_with_data.id, user_id=pytest.root_user_id)
+
+        #Check that the retrieved attributes are in the list of node attributes
+        retrieved_ras = []
+        for na in node_attributes:
+            retrieved_ras.append(na.id)
+
+        assert set(node_attr_ids) == set(retrieved_ras)
+
+        template_id = network_with_data.types[0].template_id
+
+        node_attributes = hb.get_all_resource_attributes('NODE', network_with_data.id, template_id, user_id=pytest.root_user_id)
+
+        #Check that the retrieved attributes are in the list of node attributes
+        retrieved_ras = []
+        for na in node_attributes:
+            retrieved_ras.append(na.id)
+        assert set(node_attr_ids) == set(retrieved_ras)
+
+
 
     def test_add_network_attribute(self, session, network_with_data, attribute):
 
@@ -127,104 +391,17 @@ class TestAttribute:
 
         assert len(after_net_attrs) == len(before_net_attrs) + 1
 
-    def test_add_node_attribute(self, session, network_with_data, attribute):
-        node = network_with_data.nodes[0]
-        hb.add_resource_attribute('NODE', node.id, attribute.id, 'Y', user_id=pytest.root_user_id)
-        node_attributes = hb.get_resource_attributes('NODE', node.id, user_id=pytest.root_user_id)
-        network_attr_ids = []
-        for ra in node_attributes:
-            network_attr_ids.append(ra.attr_id)
-        assert attribute.id in network_attr_ids
+    def OLD_test_get_network_attrs(self, session, network_with_data):
 
-    def test_add_duplicate_node_attribute(self, session, network_with_data, attribute):
-        node = network_with_data.nodes[0]
-        hb.add_resource_attribute('NODE', node.id, attribute.id, 'Y', user_id=pytest.root_user_id)
-        node_attributes = hb.get_resource_attributes('NODE', node.id, user_id=pytest.root_user_id)
-        node_attr_ids = []
-        for ra in node_attributes:
-            node_attr_ids.append(ra.attr_id)
-        assert attribute.id in node_attr_ids
+        net_attrs = hb.get_resource_attributes('NETWORK', network_with_data.id, user_id=pytest.root_user_id)
+        net_type_attrs = hb.get_resource_attributes('NETWORK', network_with_data.id,
+                                                   network_with_data.types[0].id,
+                                                  user_id=pytest.root_user_id)
 
-        with pytest.raises(hb.HydraError):
-            hb.add_resource_attribute('NODE', node.id, attribute.id, 'Y', user_id=pytest.root_user_id)
-
-    def test_get_all_node_attributes(self, session, network_with_data):
-
-        #Get all the node attributes in the network
-        node_attr_ids = []
-        for n in network_with_data.nodes:
-            for a in n.attributes:
-                node_attr_ids.append(a.id)
-
-        node_attributes = hb.get_all_resource_attributes('NODE', network_with_data.id, user_id=pytest.root_user_id)
-
-        #Check that the retrieved attributes are in the list of node attributes
-        retrieved_ras = []
-        for na in node_attributes:
-            retrieved_ras.append(na.id)
-
-        assert set(node_attr_ids) == set(retrieved_ras)
-
-        template_id = network_with_data.types[0].template_id
-
-        node_attributes = hb.get_all_resource_attributes('NODE', network_with_data.id, template_id, user_id=pytest.root_user_id)
-
-        #Check that the retrieved attributes are in the list of node attributes
-        retrieved_ras = []
-        for na in node_attributes:
-            retrieved_ras.append(na.id)
-        assert set(node_attr_ids) == set(retrieved_ras)
+        assert len(net_attrs) == 3
+        assert len(net_type_attrs) == 2
 
 
-    def test_add_link_attribute(self, session, network_with_data, attribute):
-        link = network_with_data.links[0]
-        hb.add_resource_attribute('LINK', link.id, attribute.id, 'Y')
-        link_attributes = hb.get_resource_attributes('LINK', link.id, user_id=pytest.root_user_id)
-        network_attr_ids = []
-
-        for ra in link_attributes:
-            network_attr_ids.append(ra.attr_id)
-        assert attribute.id in network_attr_ids
-
-    def test_get_all_link_attributes(self, session, network_with_data):
-
-        #Get all the node attributes in the network
-        link_attr_ids = []
-        for l in network_with_data.links:
-            for la in l.attributes:
-                link_attr_ids.append(la.id)
-        link_attributes = hb.get_all_resource_attributes('LINK', network_with_data.id, user_id=pytest.root_user_id)
-        #Check that the retrieved attributes are in the list of node attributes
-        retrieved_ras = []
-        for la in link_attributes:
-            retrieved_ras.append(la.id)
-        assert set(link_attr_ids) == set(retrieved_ras)
-
-
-    def test_add_group_attribute(self, session, network_with_data, attribute):
-        group = network_with_data.resourcegroups[0]
-        hb.add_resource_attribute('GROUP', group.id, attribute.id, 'Y', user_id=pytest.root_user_id)
-        group_attrs = hb.get_resource_attributes('GROUP', group.id, user_id=pytest.root_user_id)
-        group_attr_ids = []
-        for ga in group_attrs:
-            group_attr_ids.append(ga.attr_id)
-        assert attribute.id in group_attr_ids
-
-    def test_get_all_group_attributes(self, session, network_with_data):
-
-        #Get all the node attributes in the network
-        group_attr_ids = []
-        for g in network_with_data.resourcegroups:
-            for ga in g.attributes:
-                group_attr_ids.append(ga.id)
-
-        group_attributes = hb.get_all_resource_attributes('GROUP', network_with_data.id, user_id=pytest.root_user_id)
-
-        #Check that the retrieved attributes are in the list of group attributes
-        retrieved_ras = []
-        for ga in group_attributes:
-            retrieved_ras.append(ga.id)
-        assert set(group_attr_ids) == set(retrieved_ras)
 
 class TestAttributeMap:
 
@@ -263,16 +440,12 @@ class TestAttributeMap:
         all_mappings_2 = hb.get_mappings_in_network(net2.id, net2.id, user_id=pytest.root_user_id)
 
 
-        #print all_mappings_1
-        #print all_mappings_2
         assert len(all_mappings_1) == 2
         assert len(all_mappings_2) == 1
 
         node_mappings_1 = hb.get_node_mappings(node_1.id, user_id=pytest.root_user_id)
         node_mappings_2 = hb.get_node_mappings(node_1.id, node_2.id, user_id=pytest.root_user_id)
-        #print "*"*100
-        #print node_mappings_1
-        #print node_mappings_2
+
         assert len(node_mappings_1) == 2
         assert len(node_mappings_2) == 1
 
@@ -297,10 +470,66 @@ class TestAttributeMap:
         all_mappings_1 = hb.get_mappings_in_network(net1.id, user_id=pytest.root_user_id)
         assert len(all_mappings_1) == 0
 
+
+
+    def test_delete_attribute_mapping(self, session):
+        """
+            SKELETON
+            def delete_attribute_mapping(resource_attr_a, resource_attr_b, **kwargs):
+        """
+        pass
+    def test_delete_mappings_in_network(self, session):
+        """
+            SKELETON
+            def delete_mappings_in_network(network_id, network_2_id=None, **kwargs):
+        """
+        pass
+    def test_get_mappings_in_network(self, session):
+        """
+            SKELETON
+            def get_mappings_in_network(network_id, network_2_id=None, **kwargs):
+        """
+        pass
+    def test_get_node_mappings(self, session):
+        """
+            SKELETON
+            def get_node_mappings(node_id, node_2_id=None, **kwargs):
+        """
+        pass
+    def test_get_link_mappings(self, session):
+        """
+            SKELETON
+            def get_link_mappings(link_id, link_2_id=None, **kwargs):
+        """
+        pass
+    def test_get_network_mappings(self, session):
+        """
+            SKELETON
+            def get_network_mappings(network_id, network_2_id=None, **kwargs):
+        """
+        pass
+    def test_check_attribute_mapping_exists(self, session):
+        """
+            SKELETON
+            def check_attribute_mapping_exists(resource_attr_id_source, resource_attr_id_target, **kwargs):
+        """
+        pass
+
+
+
+
+
+
+
+
+
+
+
 class TestAttributeGroups:
     """
-        Test for attribute-based functionality
+        Test for attribute Groups-based functionality
     """
+
 
     def test_add_attribute_group(self, session, projectmaker, attribute):
         project = projectmaker.create()
@@ -512,3 +741,34 @@ class TestAttributeGroups:
         all_items_in_network = hb.get_network_attributegroup_items(network.id, user_id=pytest.root_user_id)
 
         assert len(all_items_in_network) == len(network_attributes)
+
+    def test_get_attribute_group(self, session):
+        """
+            SKELETON
+            def get_attribute_group(group_id, **kwargs):
+        """
+        pass
+    def test_get_network_attributegroup_items(self, session):
+        """
+            SKELETON
+            def get_network_attributegroup_items(network_id, **kwargs):
+        """
+        pass
+    def test_get_group_attributegroup_items(self, session):
+        """
+            SKELETON
+            def get_group_attributegroup_items(network_id, group_id, **kwargs):
+        """
+        pass
+    def test_get_attribute_item_groups(self, session):
+        """
+            SKELETON
+            def get_attribute_item_groups(network_id, attr_id, **kwargs):
+        """
+        pass
+    def test_add_attribute_group_items(self, session):
+        """
+            SKELETON
+            def add_attribute_group_items(attributegroupitems, **kwargs):
+        """
+        pass

@@ -27,7 +27,7 @@ from . import scenario
 from . import data
 from .objects import JSONObject, Dataset as JSONDataset
 
-from ..util.permissions import check_perm, required_perms
+from ..util.permissions import required_perms
 from . import template
 from ..db.model import Project, Network, Scenario, Node, Link, ResourceGroup,\
         ResourceAttr, Attr, ResourceType, ResourceGroupItem, Dataset, Metadata, DatasetOwner,\
@@ -64,13 +64,13 @@ def _update_attributes(resource_i, attributes):
     resource_attribute_qry = db.DBSession.query(ResourceAttr)
 
     if resource_i.ref_key == 'NETWORK':
-        resource_attribute_qry.filter(ResourceAttr.network_id==resource_i.id)
+        resource_attribute_qry = resource_attribute_qry.filter(ResourceAttr.network_id==resource_i.id)
     elif resource_i.ref_key == 'NODE':
-        resource_attribute_qry.filter(ResourceAttr.node_id==resource_i.id)
+        resource_attribute_qry = resource_attribute_qry.filter(ResourceAttr.node_id==resource_i.id)
     elif resource_i.ref_key == 'LINK':
-        resource_attribute_qry.filter(ResourceAttr.link_id==resource_i.link_id)
+        resource_attribute_qry = resource_attribute_qry.filter(ResourceAttr.link_id==resource_i.link_id)
     elif resource_i.ref_key == 'GROUP':
-        resource_attribute_qry.filter(ResourceAttr.group_id==resource_i.group_id)
+        resource_attribute_qry = resource_attribute_qry.filter(ResourceAttr.group_id==resource_i.group_id)
 
     resource_attributes = resource_attribute_qry.all()
 
@@ -205,7 +205,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
             db.DBSession.bulk_insert_mappings(ResourceAttr, all_resource_attrs)
             logging.info("ResourceAttr insert took %s secs"% str(time.time() - t0))
         else:
-            logging.warn("No attributes on any %s....", ref_key.lower())
+            logging.warning("No attributes on any %s....", ref_key.lower())
 
     logging.info("Resource attributes insertion from types done in %s"%(datetime.datetime.now() - start_time))
 
@@ -591,7 +591,7 @@ def _get_all_resource_attributes(network_id, template_id=None):
                                ResourceAttr.network_id.label('network_id'),
                                ResourceAttr.attr_id.label('attr_id'),
                                Attr.name.label('name'),
-                               Attr.dimension.label('dimension'),
+                               Attr.dimension_id.label('dimension_id'),
                               ).filter(Attr.id==ResourceAttr.attr_id)
 
 
@@ -768,7 +768,7 @@ def _get_all_group_items(network_id):
 
     return item_dict
 
-def _get_all_resourcescenarios(network_id, user_id):
+def _get_all_resourcescenarios(network_id, include_results, user_id):
     """
         Get all the resource scenarios in a network, across all scenarios
         returns a dictionary of dict objects, keyed on scenario_id
@@ -776,7 +776,7 @@ def _get_all_resourcescenarios(network_id, user_id):
 
     rs_qry = db.DBSession.query(
                 Dataset.type,
-                Dataset.unit,
+                Dataset.unit_id,
                 Dataset.name,
                 Dataset.hash,
                 Dataset.cr_date,
@@ -789,11 +789,14 @@ def _get_all_resourcescenarios(network_id, user_id):
                 ResourceScenario.source,
                 ResourceAttr.attr_id,
     ).outerjoin(DatasetOwner, and_(DatasetOwner.dataset_id==Dataset.id, DatasetOwner.user_id==user_id)).filter(
-                or_(Dataset.hidden=='N', DatasetOwner.user_id != None),
+                or_(Dataset.hidden=='N', Dataset.created_by==user_id, DatasetOwner.user_id != None),
                 ResourceAttr.id == ResourceScenario.resource_attr_id,
                 Scenario.id==ResourceScenario.scenario_id,
                 Scenario.network_id==network_id,
                 Dataset.id==ResourceScenario.dataset_id)
+
+    if include_results == 'N' or include_results == False:
+        rs_qry = rs_qry.filter(ResourceAttr.attr_is_var=='N')
 
     x = time.time()
     logging.info("Getting all resource scenarios")
@@ -813,7 +816,7 @@ def _get_all_resourcescenarios(network_id, user_id):
         rs_dataset = JSONDataset({
             'id':rs.dataset_id,
             'type' : rs.type,
-            'unit' : rs.unit,
+            'unit_id' : rs.unit_id,
             'name' : rs.name,
             'hash' : rs.hash,
             'cr_date':rs.cr_date,
@@ -951,7 +954,7 @@ def _get_groups(network_id, template_id=None):
 
     return groups
 
-def _get_scenarios(network_id, include_data, user_id, scenario_ids=None):
+def _get_scenarios(network_id, include_data, include_results, user_id, scenario_ids=None):
     """
         Get all the scenarios in a network
     """
@@ -968,14 +971,14 @@ def _get_scenarios(network_id, include_data, user_id, scenario_ids=None):
 
     all_resource_group_items = _get_all_group_items(network_id)
 
-    if include_data == 'Y':
-        all_rs = _get_all_resourcescenarios(network_id, user_id)
+    if include_data == 'Y' or include_data == True:
+        all_rs = _get_all_resourcescenarios(network_id, include_results, user_id)
         metadata = _get_metadata(network_id, user_id)
 
     for s in scens:
         s.resourcegroupitems = all_resource_group_items.get(s.id, [])
 
-        if include_data == 'Y':
+        if include_data == 'Y' or include_data == True:
             s.resourcescenarios  = all_rs.get(s.id, [])
 
             for rs in s.resourcescenarios:
@@ -983,13 +986,15 @@ def _get_scenarios(network_id, include_data, user_id, scenario_ids=None):
 
     return scens
 
-def get_network(network_id, summary=False, include_data='N', scenario_ids=None, template_id=None, **kwargs):
+def get_network(network_id, summary=False, include_data='N', include_results='Y', scenario_ids=None, template_id=None, **kwargs):
     """
         Return a whole network as a dictionary.
         network_id: ID of the network to retrieve
         include_data: 'Y' or 'N'. Indicate whether scenario data is to be returned.
                       This has a significant speed impact as retrieving large amounts
                       of data can be expensive.
+        include_results: 'Y' or 'N'. If data is requested, this flag allows results
+                         data to be ignored (attr is var), as this can often be very large.
         scenario_ids: list of IDS to be returned. Used if a network has multiple
                       scenarios but you only want one returned. Using this filter
                       will speed up this function call.
@@ -998,6 +1003,8 @@ def get_network(network_id, summary=False, include_data='N', scenario_ids=None, 
     """
     log.debug("getting network %s"%network_id)
     user_id = kwargs.get('user_id')
+
+    network_id = int(network_id)
 
     try:
         log.debug("Querying Network %s", network_id)
@@ -1046,7 +1053,7 @@ def get_network(network_id, summary=False, include_data='N', scenario_ids=None, 
 
         log.info("Getting scenarios")
 
-        net.scenarios = _get_scenarios(network_id, include_data, user_id, scenario_ids)
+        net.scenarios = _get_scenarios(network_id, include_data, include_results, user_id, scenario_ids)
 
     except NoResultFound:
         raise ResourceNotFoundError("Network (network_id=%s) not found." %
@@ -1338,7 +1345,7 @@ def update_network(network,
                 n.name        = node.name
                 n.description = node.description
                 n.x           = node.x
-                n._y          = node.y
+                n.y           = node.y
                 n.status      = node.status
                 n.layout      = node.get_layout()
             else:
@@ -2401,17 +2408,27 @@ def get_all_resource_attributes_in_network(attr_id, network_id, **kwargs):
              .options(joinedload_all('link'))\
              .options(joinedload_all('resourcegroup'))\
              .options(joinedload_all('network'))
-            
+
     resourceattrs = ra_qry.all()
 
     json_ra = []
     #Load the metadata too
     for ra in resourceattrs:
-        json_ra.append(JSONObject(ra, extras={'node':JSONObject(ra.node) if ra.node else None,
+        ra_j = JSONObject(ra, extras={'node':JSONObject(ra.node) if ra.node else None,
                                                'link':JSONObject(ra.link) if ra.link else None,
                                                'resourcegroup':JSONObject(ra.resourcegroup) if ra.resourcegroup else None,
-                                               'network':JSONObject(ra.network) if ra.network else None}))
-
+                                               'network':JSONObject(ra.network) if ra.network else None})
+        
+        if ra_j.node is not None:
+            ra_j.resource = ra_j.node
+        elif ra_j.link is not None:
+            ra_j.resource = ra_j.link
+        elif ra_j.resourcegroup is not None:
+            ra_j.resource = ra_j.resourcegroup
+        elif ra.network is not None:
+            ra_j.resource = ra_j.network
+        
+        json_ra.append(ra_j)
 
     return json_ra
 
@@ -2419,6 +2436,7 @@ def get_all_resource_attributes_in_network(attr_id, network_id, **kwargs):
 def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, page_end=None, **kwargs):
     """
         A function which returns the data for all resources in a network.
+        -
     """
 
     rs_qry = db.DBSession.query(
@@ -2437,7 +2455,7 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
                Dataset.id.label('dataset_id'),
                Dataset.name.label('dataset_name'),
                Dataset.value,
-               Dataset.unit,
+               Dataset.unit_id,
                Dataset.hidden,
                Dataset.type,
                null().label('metadata'),
@@ -2447,8 +2465,8 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
                     (ResourceAttr.group_id != None, ResourceGroup.name),
                     (ResourceAttr.network_id != None, Network.name),
                ]).label('ref_name'),
-              ).join(ResourceScenario)\
-                .join(Dataset).\
+              ).join(ResourceScenario, ResourceScenario.resource_attr_id==ResourceAttr.id)\
+                .join(Dataset, ResourceScenario.dataset_id==Dataset.id).\
                 join(Attr, ResourceAttr.attr_id==Attr.id).\
                 outerjoin(Node, ResourceAttr.node_id==Node.id).\
                 outerjoin(Link, ResourceAttr.link_id==Link.id).\
@@ -2507,8 +2525,19 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
 
     return return_data
 
-def clone_network(network_id, new_project=True, recipient_user_id=None, network_name=None, project_name=None, **kwargs):
+def clone_network(network_id,
+                  recipient_user_id=None,
+                  new_network_name=None,
+                  project_id=None,
+                  project_name=None, 
+                  new_project=True,
+                  **kwargs):
     """
+     Create an exact clone of the specified network for the specified user.
+
+     If project_id is specified, put the new network in there.
+
+     Otherwise create a new project with the specified name and put it in there.
 
     """
 
@@ -2518,7 +2547,7 @@ def clone_network(network_id, new_project=True, recipient_user_id=None, network_
 
     ex_net.check_read_permission(user_id)
 
-    if new_project == True:
+    if project_id is None and new_project == True:
 
         log.info("Creating a new project for cloned network")
 
@@ -2542,34 +2571,34 @@ def clone_network(network_id, new_project=True, recipient_user_id=None, network_
 
             project.set_owner(user_id)
 
-        if recipient_user_id!=None:
+        if recipient_user_id is not None:
             project.set_owner(recipient_user_id)
 
         db.DBSession.add(project)
         db.DBSession.flush()
 
         project_id=project.id
-        if network_name is None or network_name == "":
-            network_name=ex_net.name
-    else:
+
+    elif project_id is None:
         log.info("Using current project for cloned network")
         project_id=ex_net.project_id
-        if network_name is None or network_name == "":
-            network_name=ex_net.name
+
+    if new_network_name is None or new_network_name == "":
+        new_network_name=ex_net.name
 
     log.info('Cloning Network...')
 
     #Find if there's any projects with this name in the project already
     ex_network =  db.DBSession.query(Network).filter(Network.project_id==project_id,
-                                                     Network.name.like("{0}%".format(network_name))).all()
+                                                     Network.name.like("{0}%".format(new_network_name))).all()
 
     if len(ex_network) > 0:
-        network_name = network_name + " " + str(len(ex_network))
+        new_network_name = new_network_name + " " + str(len(ex_network))
 
     newnet = Network()
 
     newnet.project_id = project_id
-    newnet.name = network_name
+    newnet.name = new_network_name
     newnet.description = ex_net.description
     newnet.layout = ex_net.layout
     newnet.status = ex_net.status

@@ -21,10 +21,9 @@ import server
 import copy
 import datetime
 from fixtures import *
-import util
 
 import hydra_base as hb
-from hydra_base.lib.objects import JSONObject
+from hydra_base.lib.objects import JSONObject, Dataset
 
 import logging
 log = logging.getLogger(__name__)
@@ -144,15 +143,36 @@ class TestNetwork:
         for s in full_network.scenarios:
             assert len(s.resourcescenarios) == 0
 
-        scen_ids = []
-        scen_ids.append(scenario_id)
-        partial_network = hb.get_network(new_scenario.network_id, True, 'Y', scen_ids, user_id=pytest.root_user_id)
+        scen_ids = [scenario_id]
+        partial_network = hb.get_network(new_scenario.network_id, summary=True, include_data='Y', include_results='Y', scenario_ids=scen_ids, user_id=pytest.root_user_id)
 
         assert len(partial_network.scenarios) == 1
-        assert len(full_network.scenarios)    == 2
+        assert len(full_network.scenarios) == 2
 
         for s in partial_network.scenarios:
             assert len(s.resourcescenarios) > 0
+
+        #Simulate a scenario having results, by identifying a result variable on a node, and assign it a value
+        #using this we can test retrieval of a scenario with and without results.
+        rs_added = False
+        for n in full_network.nodes:
+            if rs_added:
+                break
+            for a in n.attributes:
+                if a.attr_is_var == 'Y':
+                    #now find a dataset ID from somewhere:
+                    dataset = hb.get_dataset(partial_network.scenarios[0].resourcescenarios[0].dataset_id, user_id=pytest.root_user_id)
+                   
+                    hb.update_resourcedata(scenario_id, [JSONObject({'resource_attr_id': a.id,
+                                                       'dataset': Dataset(dataset)})], user_id=pytest.root_user_id)
+                    rs_added=True
+                    break
+
+        network_with_results = hb.get_network(new_scenario.network_id, summary=True, include_data='Y', scenario_ids=scen_ids, user_id=pytest.root_user_id)
+        network_no_results = hb.get_network(new_scenario.network_id, summary=True, include_data='Y', include_results='N', scenario_ids=scen_ids, user_id=pytest.root_user_id)
+
+        #there should be one more result in the 
+        assert len(network_with_results.scenarios[0].resourcescenarios) == len(network_no_results.scenarios[0].resourcescenarios) + 1
 
         with pytest.raises(hb.exceptions.HydraError):
             hb.get_network_by_name(net.project_id, "I am not a network", user_id=pytest.root_user_id)
@@ -976,6 +996,99 @@ class TestNetwork:
             if d.type == 'timeseries':
                 with pytest.raises(hb.exceptions.HydraError):
                     hb.get_dataset(d.id, user_id=pytest.root_user_id)
+
+    def test_get_all_network_owners(self, session, projectmaker, networkmaker):
+        proj = projectmaker.create()
+
+        net1 = networkmaker.create(project_id=proj.id)
+        hydra_base.share_network(net1.id,
+                                 ["UserC"],#Not an admin
+                                 'N',
+                                 'Y',
+                                 user_id=pytest.root_user_id)
+        
+        networkowners = hb.get_all_network_owners(user_id=pytest.root_user_id)
+
+        assert len(networkowners) == 2
+        
+        networkowners = hb.get_all_network_owners([proj.id], user_id=pytest.root_user_id)
+        assert len(networkowners) == 2
+
+        with pytest.raises(hb.exceptions.PermissionError):
+            networkowners = hb.get_all_network_owners([net1.id], user_id=5)
+
+    def test_bulk_set_network_owners(self, session, networkmaker):
+        net = networkmaker.create()
+        
+        networkowners = hb.get_all_network_owners([net.id], user_id=pytest.root_user_id)
+
+        assert len(networkowners) == 1
+        
+        new_owner = JSONObject(dict(
+            network_id=net.id,
+            user_id=2,
+            view='Y',
+            edit='Y',
+            share='Y',
+        ))
+
+        hydra_base.bulk_set_network_owners([new_owner], user_id=pytest.root_user_id)
+
+        networkowners = hb.get_all_network_owners([net.id], user_id=pytest.root_user_id)
+
+        assert len(networkowners) == 2
+
+    def test_clone_network_into_existing_project(self, session, network_with_data):
+        net = network_with_data
+
+        recipient_user = hb.get_user_by_name('UserA')
+
+        cloned_network_id = hb.clone_network(net.id,
+                                          recipient_user_id=recipient_user.id,
+                                          new_network_name=None,
+                                          project_id=None,
+                                          project_name=None,
+                                          new_project=False,
+                                          user_id=pytest.root_user_id)
+
+        cloned_network = hb.get_network(cloned_network_id, include_data=True, user_id=pytest.root_user_id)
+
+        assert cloned_network.name == net.name + " 1" 
+        assert len(net.nodes) == len(cloned_network.nodes)
+        assert len(net.links) == len(cloned_network.links)
+        assert len(net.resourcegroups) == len(cloned_network.resourcegroups)
+        assert len(net.scenarios) == len(cloned_network.scenarios)
+        assert len(net.scenarios[0].resourcescenarios) == len(cloned_network.scenarios[0].resourcescenarios)
+        assert len(net.scenarios[0].resourcegroupitems) == len(cloned_network.scenarios[0].resourcegroupitems)
+        
+        
+        cloned_network_id = hb.clone_network(net.id,
+                                          recipient_user_id=recipient_user.id,
+                                          new_network_name='My New Name',
+                                          project_id=None,
+                                          project_name=None,
+                                          new_project=False,
+                                          user_id=pytest.root_user_id)
+
+        cloned_network = hb.get_network(cloned_network_id, include_data=True, user_id=pytest.root_user_id)
+        assert cloned_network.name == 'My New Name'
+
+    def test_clone_network_into_new_project(self, session, network_with_data):
+        net = network_with_data
+
+        recipient_user = hb.get_user_by_name('UserA')
+
+        cloned_network_id = hb.clone_network(net.id,
+                                          recipient_user_id=recipient_user.id,
+                                          new_network_name=None,
+                                          project_id=None,
+                                          project_name=None,
+                                          new_project=True,
+                                          user_id=pytest.root_user_id)
+        
+        cloned_network = hb.get_network(cloned_network_id, include_data='Y', user_id=pytest.root_user_id)
+        #No need to assert that the clone itself worked, as the other test does that.
+        assert cloned_network.project_id != net.project_id
 
 if __name__ == '__main__':
     server.run()

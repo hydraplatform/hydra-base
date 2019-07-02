@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-
 from sqlalchemy import Column,\
 ForeignKey,\
 text,\
@@ -26,7 +25,8 @@ LargeBinary,\
 TIMESTAMP,\
 BIGINT,\
 Float,\
-Text
+Text, \
+Unicode
 
 from sqlalchemy import inspect, func
 
@@ -54,6 +54,7 @@ import logging
 import bcrypt
 log = logging.getLogger(__name__)
 
+
 # Python 2 and 3 compatible string checking
 # TODO remove this when Python2 support is dropped.
 try:
@@ -76,12 +77,29 @@ def get_timestamp(ordinal):
 #Data
 #***************************************************
 
+def _is_admin(user_id):
+    """
+        Is the specified user an admin
+    """
+    user = get_session().query(User).filter(User.id==user_id).one()
+
+    if user.is_admin():
+        return True
+    else:
+        return False
+
+
 class Inspect(object):
     _parents = []
     _children = []
 
     def get_columns_and_relationships(self):
         return inspect(self).attrs.keys()
+
+
+#***************************************************
+# Classes definition
+#***************************************************
 
 class Dataset(Base, Inspect):
     """
@@ -90,9 +108,9 @@ class Dataset(Base, Inspect):
     __tablename__='tDataset'
 
     id         = Column(Integer(), primary_key=True, index=True, nullable=False)
-    name       = Column(String(60),  nullable=False)
+    name       = Column(String(200),  nullable=False)
     type       = Column(String(60),  nullable=False)
-    unit       = Column(String(60))
+    unit_id    = Column(Integer(), ForeignKey('tUnit.id'),  nullable=True)
     hash       = Column(BIGINT(),  nullable=False, unique=True)
     cr_date    = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     created_by = Column(Integer(), ForeignKey('tUser.id'))
@@ -100,8 +118,9 @@ class Dataset(Base, Inspect):
     value      = Column('value', Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
 
     user = relationship('User', backref=backref("datasets", order_by=id))
+    unit = relationship('Unit', backref=backref("dataset_unit", order_by=unit_id))
 
-    _parents  = ['tResourceScenario']
+    _parents  = ['tResourceScenario', 'tUnit']
     _children = ['tMetadata']
 
     def set_metadata(self, metadata_dict):
@@ -156,7 +175,7 @@ class Dataset(Base, Inspect):
             metadata = self.get_metadata_as_dict()
 
         dataset_dict = dict(name      = self.name,
-                           unit       = self.unit,
+                           unit_id       = self.unit_id,
                            type       = self.type,
                            value      = self.value,
                            metadata   = metadata)
@@ -196,7 +215,7 @@ class Dataset(Base, Inspect):
     def unset_owner(self, user_id):
         owner = None
         if str(user_id) == str(self.created_by):
-            log.warn("Cannot unset %s as owner, as they created the dataset", user_id)
+            log.warning("Cannot unset %s as owner, as they created the dataset", user_id)
             return
         for o in self.owners:
             if user_id == o.user_id:
@@ -204,19 +223,33 @@ class Dataset(Base, Inspect):
                 get_session().delete(owner)
                 break
 
-    def check_read_permission(self, user_id):
+    def check_read_permission(self, user_id, do_raise=True):
         """
             Check whether this user can read this dataset
         """
+
+        if _is_admin(user_id):
+            return True
+
+        if str(user_id) == str(self.created_by):
+            return True
+
+        if self.hidden == 'N':
+            return True
 
         for owner in self.owners:
             if int(owner.user_id) == int(user_id):
                 if owner.view == 'Y':
                     break
         else:
-            raise PermissionError("Permission denied. User %s does not have read"
+            if do_raise is True:
+                raise PermissionError("Permission denied. User %s does not have read"
                              " access on dataset %s" %
                              (user_id, self.id))
+            else:
+                return False
+
+        return True
 
     def check_user(self, user_id):
         """
@@ -232,24 +265,34 @@ class Dataset(Base, Inspect):
                     return True
         return False
 
-    def check_write_permission(self, user_id):
+    def check_write_permission(self, user_id, do_raise=True):
         """
             Check whether this user can write this dataset
         """
+        if _is_admin(user_id):
+            return True
 
         for owner in self.owners:
             if owner.user_id == int(user_id):
                 if owner.view == 'Y' and owner.edit == 'Y':
                     break
         else:
-            raise PermissionError("Permission denied. User %s does not have edit"
+            if do_raise is True:
+                raise PermissionError("Permission denied. User %s does not have edit"
                              " access on dataset %s" %
                              (user_id, self.id))
+            else:
+                return False
+
+        return True
 
     def check_share_permission(self, user_id):
         """
             Check whether this user can write this dataset
         """
+
+        if _is_admin(user_id):
+            return
 
         for owner in self.owners:
             if owner.user_id == int(user_id):
@@ -267,7 +310,7 @@ class DatasetCollection(Base, Inspect):
     __tablename__='tDatasetCollection'
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(60),  nullable=False)
+    name = Column(String(200),  nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     _parents  = ['tDataset']
@@ -315,14 +358,19 @@ class Attr(Base, Inspect):
     __tablename__='tAttr'
 
     __table_args__ = (
-        UniqueConstraint('name', 'dimension', name="unique name dimension"),
+        UniqueConstraint('name', 'dimension_id', name="unique name dimension_id"),
     )
 
     id           = Column(Integer(), primary_key=True, nullable=False)
-    name         = Column(String(60),  nullable=False)
-    dimension    = Column(String(60), server_default=text(u"'dimensionless'"))
+    name         = Column(String(200),  nullable=False)
+    dimension_id    = Column(Integer(), ForeignKey('tDimension.id'), nullable=True)
     description  = Column(String(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+
+    dimensions = relationship('Dimension', backref=backref("attr_dimension", order_by=dimension_id))
+
+    _parents  = ['tDimension']
+    _children = []
 
 class AttrMap(Base, Inspect):
     """
@@ -407,7 +455,8 @@ class Template(Base, Inspect):
     __tablename__='tTemplate'
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(60),  nullable=False, unique=True)
+    name = Column(String(200),  nullable=False, unique=True)
+    description = Column(String(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     layout  = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
 
@@ -424,9 +473,10 @@ class TemplateType(Base, Inspect):
     )
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(60),  nullable=False)
+    name = Column(String(200),  nullable=False)
+    description = Column(String(1000))
     template_id = Column(Integer(), ForeignKey('tTemplate.id'), nullable=False)
-    resource_type = Column(String(60))
+    resource_type = Column(String(200))
     alias = Column(String(100))
     layout  = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
@@ -449,16 +499,17 @@ class TypeAttr(Base, Inspect):
     attr_is_var        = Column(String(1), server_default=text(u"'N'"))
     data_type          = Column(String(60))
     data_restriction   = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
-    unit               = Column(String(60))
+    unit_id            = Column(Integer(), ForeignKey('tUnit.id'), nullable=True)
     description        = Column(String(1000))
     properties         = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     attr = relationship('Attr')
     templatetype = relationship('TemplateType',  backref=backref("typeattrs", order_by=attr_id, cascade="all, delete-orphan"))
+    unit = relationship('Unit', backref=backref("typeattr_unit", order_by=unit_id))
     default_dataset = relationship('Dataset')
 
-    _parents  = ['tTemplateType']
+    _parents  = ['tTemplateType', 'tUnit']
     _children = []
 
     def get_attr(self):
@@ -548,17 +599,17 @@ class ResourceAttr(Base, Inspect):
         elif ref_key == 'PROJECT':
             return self.project_id
 
-    def check_read_permission(self, user_id):
+    def check_read_permission(self, user_id, do_raise=True):
         """
             Check whether this user can read this resource attribute
         """
-        self.get_resource().check_read_permission(user_id)
+        return self.get_resource().check_read_permission(user_id, do_raise=do_raise)
 
-    def check_write_permission(self, user_id):
+    def check_write_permission(self, user_id, do_raise=True):
         """
             Check whether this user can write this node
         """
-        self.get_resource().check_write_permission(user_id)
+        return self.get_resource().check_write_permission(user_id, do_raise=do_raise)
 
 
 class ResourceType(Base, Inspect):
@@ -638,7 +689,7 @@ class Project(Base, Inspect):
     attribute_data = []
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(60),  nullable=False, unique=False)
+    name = Column(String(200),  nullable=False, unique=False)
     description = Column(String(1000))
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
@@ -688,7 +739,7 @@ class Project(Base, Inspect):
     def unset_owner(self, user_id):
         owner = None
         if str(user_id) == str(self.created_by):
-            log.warn("Cannot unset %s as owner, as they created the project", user_id)
+            log.warning("Cannot unset %s as owner, as they created the project", user_id)
             return
         for o in self.owners:
             if user_id == o.user_id:
@@ -696,38 +747,66 @@ class Project(Base, Inspect):
                 get_session().delete(owner)
                 break
 
-    def check_read_permission(self, user_id):
+    def check_read_permission(self, user_id, do_raise=True):
         """
             Check whether this user can read this project
         """
+
+        if _is_admin(user_id):
+            return True
+
+        if str(user_id) == str(self.created_by):
+            return True
 
         for owner in self.owners:
             if owner.user_id == user_id:
                 if owner.view == 'Y':
                     break
         else:
-            raise PermissionError("Permission denied. User %s does not have read"
+            if do_raise is True:
+                raise PermissionError("Permission denied. User %s does not have read"
                              " access on project %s" %
                              (user_id, self.id))
+            else:
+                return False
 
-    def check_write_permission(self, user_id):
+        return True
+
+    def check_write_permission(self, user_id, do_raise=True):
         """
             Check whether this user can write this project
         """
+
+        if _is_admin(user_id):
+            return True
+
+        if str(user_id) == str(self.created_by):
+            return True
 
         for owner in self.owners:
             if owner.user_id == int(user_id):
                 if owner.view == 'Y' and owner.edit == 'Y':
                     break
         else:
-            raise PermissionError("Permission denied. User %s does not have edit"
+            if do_raise is True:
+                raise PermissionError("Permission denied. User %s does not have edit"
                              " access on project %s" %
                              (user_id, self.id))
+            else:
+                return False
+
+        return True
 
     def check_share_permission(self, user_id):
         """
             Check whether this user can write this project
         """
+
+        if _is_admin(user_id):
+            return
+
+        if str(user_id) == str(self.created_by):
+            return
 
         for owner in self.owners:
             if owner.user_id == int(user_id):
@@ -792,7 +871,7 @@ class Network(Base, Inspect):
         l = Link()
         l.name        = name
         l.description = desc
-        l.layout           = str(layout) if layout is not None else None
+        l.layout           = json.dumps(layout) if layout is not None else None
         l.node_a           = node_1
         l.node_b           = node_2
 
@@ -867,9 +946,10 @@ class Network(Base, Inspect):
         return owner
 
     def unset_owner(self, user_id):
+
         owner = None
         if str(user_id) == str(self.created_by):
-            log.warn("Cannot unset %s as owner, as they created the network", user_id)
+            log.warning("Cannot unset %s as owner, as they created the network", user_id)
             return
         for o in self.owners:
             if user_id == o.user_id:
@@ -877,44 +957,61 @@ class Network(Base, Inspect):
                 get_session().delete(owner)
                 break
 
-    def check_read_permission(self, user_id):
+    def check_read_permission(self, user_id, do_raise=True):
         """
             Check whether this user can read this network
         """
+        if _is_admin(user_id):
+            return True
 
         if int(self.created_by) == int(user_id):
-            return
+            return True
 
         for owner in self.owners:
             if int(owner.user_id) == int(user_id):
                 if owner.view == 'Y':
                     break
         else:
-            raise PermissionError("Permission denied. User %s does not have read"
+            if do_raise is True:
+                raise PermissionError("Permission denied. User %s does not have read"
                              " access on network %s" %
                              (user_id, self.id))
+            else:
+                return False
 
-    def check_write_permission(self, user_id):
+        return True
+
+    def check_write_permission(self, user_id, do_raise=True):
         """
             Check whether this user can write this project
         """
+        if _is_admin(user_id):
+            return True
 
         if int(self.created_by) == int(user_id):
-            return
+            return True
 
         for owner in self.owners:
             if owner.user_id == int(user_id):
                 if owner.view == 'Y' and owner.edit == 'Y':
                     break
         else:
-            raise PermissionError("Permission denied. User %s does not have edit"
+            if do_raise is True:
+                raise PermissionError("Permission denied. User %s does not have edit"
                              " access on network %s" %
                              (user_id, self.id))
+            else:
+                return False
+
+        return True
 
     def check_share_permission(self, user_id):
         """
             Check whether this user can write this project
         """
+
+        if _is_admin(user_id):
+            return
 
         if int(self.created_by) == int(user_id):
             return
@@ -944,7 +1041,7 @@ class Link(Base, Inspect):
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     node_1_id = Column(Integer(), ForeignKey('tNode.id'), nullable=False)
     node_2_id = Column(Integer(), ForeignKey('tNode.id'), nullable=False)
-    name = Column(String(60))
+    name = Column(String(200))
     description = Column(String(1000))
     layout  = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
@@ -990,18 +1087,18 @@ class Link(Base, Inspect):
 
         return res_attr
 
-    def check_read_permission(self, user_id):
+    def check_read_permission(self, user_id, do_raise=True):
         """
             Check whether this user can read this link
         """
-        self.network.check_read_permission(user_id)
+        return self.network.check_read_permission(user_id, do_raise=do_raise)
 
-    def check_write_permission(self, user_id):
+    def check_write_permission(self, user_id, do_raise=True):
         """
             Check whether this user can write this link
         """
 
-        self.network.check_write_permission(user_id)
+        return self.network.check_write_permission(user_id, do_raise=do_raise)
 
 class Node(Base, Inspect):
     """
@@ -1016,7 +1113,7 @@ class Node(Base, Inspect):
     id = Column(Integer(), primary_key=True, nullable=False)
     network_id = Column(Integer(), ForeignKey('tNetwork.id'), nullable=False)
     description = Column(String(1000))
-    name = Column(String(60),  nullable=False)
+    name = Column(String(200),  nullable=False)
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     x = Column(Float(precision=10, asdecimal=True))
     y = Column(Float(precision=10, asdecimal=True))
@@ -1062,18 +1159,18 @@ class Node(Base, Inspect):
 
         return res_attr
 
-    def check_read_permission(self, user_id):
+    def check_read_permission(self, user_id, do_raise=True):
         """
             Check whether this user can read this node
         """
-        self.network.check_read_permission(user_id)
+        return self.network.check_read_permission(user_id, do_raise=do_raise)
 
-    def check_write_permission(self, user_id):
+    def check_write_permission(self, user_id, do_raise=True):
         """
             Check whether this user can write this node
         """
 
-        self.network.check_write_permission(user_id)
+        return self.network.check_write_permission(user_id, do_raise=do_raise)
 
 class ResourceGroup(Base, Inspect):
     """
@@ -1086,7 +1183,7 @@ class ResourceGroup(Base, Inspect):
 
     ref_key = 'GROUP'
     id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(60),  nullable=False)
+    name = Column(String(200),  nullable=False)
     description = Column(String(1000))
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
@@ -1141,18 +1238,18 @@ class ResourceGroup(Base, Inspect):
 
         return items
 
-    def check_read_permission(self, user_id):
+    def check_read_permission(self, user_id, do_raise=True):
         """
             Check whether this user can read this group
         """
-        self.network.check_read_permission(user_id)
+        return self.network.check_read_permission(user_id, do_raise=do_raise)
 
-    def check_write_permission(self, user_id):
+    def check_write_permission(self, user_id, do_raise=True):
         """
             Check whether this user can write this group
         """
 
-        self.network.check_write_permission(user_id)
+        return self.network.check_write_permission(user_id, do_raise=do_raise)
 
 class ResourceGroupItem(Base, Inspect):
     """
@@ -1230,7 +1327,7 @@ class ResourceScenario(Base, Inspect):
     def get_dataset(self, user_id):
         dataset = get_session().query(Dataset.id,
                 Dataset.type,
-                Dataset.unit,
+                Dataset.unit_id,
                 Dataset.name,
                 Dataset.hidden,
                 case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
@@ -1374,7 +1471,7 @@ class Rule(Base, Inspect):
 
     id = Column(Integer(), primary_key=True, nullable=False)
 
-    name = Column(String(60), nullable=False)
+    name = Column(String(200), nullable=False)
     description = Column(String(1000), nullable=False)
 
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
@@ -1551,7 +1648,7 @@ class Perm(Base, Inspect):
 
     id = Column(Integer(), primary_key=True, nullable=False)
     code = Column(String(60),  nullable=False)
-    name = Column(String(60),  nullable=False)
+    name = Column(String(200),  nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     roleperms = relationship('RolePerm', lazy='joined')
 
@@ -1569,7 +1666,7 @@ class Role(Base, Inspect):
 
     id = Column(Integer(), primary_key=True, nullable=False)
     code = Column(String(60),  nullable=False)
-    name = Column(String(60),  nullable=False)
+    name = Column(String(200),  nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     roleperms = relationship('RolePerm', lazy='joined', cascade='all')
     roleusers = relationship('RoleUser', lazy='joined', cascade='all')
@@ -1623,6 +1720,7 @@ class RoleUser(Base, Inspect):
     def __repr__(self):
         return "{0}".format(self.role.name)
 
+
 class User(Base, Inspect):
     """
     """
@@ -1632,7 +1730,7 @@ class User(Base, Inspect):
     id = Column(Integer(), primary_key=True, nullable=False)
     username = Column(String(60),  nullable=False, unique=True)
     password = Column(LargeBinary(),  nullable=False)
-    display_name = Column(String(60),  nullable=False, server_default=text(u"''"))
+    display_name = Column(String(200),  nullable=False, server_default=text(u"''"))
     last_login = Column(TIMESTAMP())
     last_edit = Column(TIMESTAMP())
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
@@ -1662,9 +1760,79 @@ class User(Base, Inspect):
             roles.append(ur.role)
         return set(roles)
 
+    def is_admin(self):
+        """
+            Check that the user has a role with the code 'admin'
+        """
+        for ur in self.roleusers:
+            if ur.role.code == 'admin':
+                return True
+
+        return False
+
     def __repr__(self):
         return "{0}".format(self.username)
 
+
+class Unit(Base, Inspect):
+    """
+    """
+
+    __tablename__='tUnit'
+
+    __table_args__ = (
+        UniqueConstraint('abbreviation', name="unique abbreviation"),
+    )
+
+    id = Column(Integer(), primary_key=True, nullable=False)
+    dimension_id = Column(Integer(), ForeignKey('tDimension.id'), nullable=False)
+
+    # These lines are commented because sqllite seem not accepting utf8_bin. Find a solution
+    #     name = Column(Unicode(60, collation='utf8_bin'),  nullable=False)
+    #     abbreviation = Column(Unicode(60, collation='utf8_bin'),  nullable=False)
+    #     lf = Column(Unicode(60, collation='utf8_bin'),  nullable=True)
+    #     cf = Column(Unicode(60, collation='utf8_bin'),  nullable=True)
+    #     description = Column(Unicode(1000, collation='utf8_bin'))
+    name = Column(Unicode(60),  nullable=False)
+    abbreviation = Column(Unicode(60).with_variant(mysql.VARCHAR(60, collation='utf8_bin'), 'mysql'),  nullable=False)
+    lf = Column(Unicode(60),  nullable=True)
+    cf = Column(Unicode(60),  nullable=True)
+    description = Column(Unicode(1000))
+
+    project_id = Column(Integer(), ForeignKey('tProject.id'), index=True, nullable=True)
+
+    dimension = relationship('Dimension', backref=backref("units", uselist=True, order_by=dimension_id, cascade="all, delete-orphan"), lazy='joined')
+    project   = relationship('Project', backref=backref("units", order_by=dimension_id, cascade="all, delete-orphan"), lazy='joined')
+
+    _parents  = ['tDimension', 'tProject']
+    _children = ['tDataset', 'tTypeAttr']
+
+    def __repr__(self):
+        return "{0}".format(self.abbreviation)
+
+
+class Dimension(Base, Inspect):
+    """
+    """
+
+    __tablename__='tDimension'
+
+    id = Column(Integer(), primary_key=True, nullable=False)
+
+    # These lines are commented because sqllite seem not accepting utf8_bin. Find a solution
+    # name = Column(Unicode(60, collation='utf8_bin'),  nullable=False, unique=True)
+    # description = Column(Unicode(1000, collation='utf8_bin'))
+
+    name = Column(Unicode(60),  nullable=False, unique=True)
+    description = Column(Unicode(1000))
+
+    project_id = Column(Integer(), ForeignKey('tProject.id'), index=True, nullable=True)
+
+    _parents  = ['tProject']
+    _children = ['tUnit', 'tAttr']
+
+    def __repr__(self):
+        return "{0}".format(self.name)
 
 def create_resourcedata_view():
     #These are for creating the resource data view (see bottom of page)
@@ -1713,7 +1881,7 @@ def create_resourcedata_view():
         ResourceAttr.group_id,
         ResourceScenario.scenario_id,
         ResourceScenario.dataset_id,
-        Dataset.unit,
+        Dataset.unit_id,
         Dataset.name,
         Dataset.type,
         Dataset.value]).where(ResourceScenario.resource_attr_id==ResourceAttr.attr_id).where(ResourceAttr.attr_id==Attr.id).where(ResourceScenario.dataset_id==Dataset.id)

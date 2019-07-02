@@ -1,5 +1,6 @@
 <template_definition>
     <template_name>Test XML Template</template_name>
+    <template_description>Test XML Template</template_description>
         <layout>
         <item>
             <name>groups</name>
@@ -26,7 +27,7 @@
                                 <description>Sharp crested weir</description>
                             </subgroup>
                             <subgroup>
-                                <name>RN Weir</name>           
+                                <name>RN Weir</name>
                                 <description>Round nosed weir</description>
                             </subgroup>
                             <subgroup>
@@ -111,7 +112,7 @@
             <attribute>
                 <name>Energy Price</name>
                 <description>Standard energy price</description>
-                <dimension>energy price</dimension>
+                <dimension>Energy price</dimension>
                 <default>
                     <value>1.25</value>
                     <unit>USD kJ^-1</unit>

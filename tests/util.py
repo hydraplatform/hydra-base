@@ -41,7 +41,7 @@ def login(username, password):
 def logout(username):
     hydra_base.util.hdb.logout(username)
 
-def create_user(name):
+def create_user(name, role='admin'):
 
     existing_user = hydra_base.get_user_by_name(name)
     if existing_user is not None:
@@ -55,8 +55,7 @@ def create_user(name):
 
     new_user = JSONObject(hydra_base.add_user(user, user_id=pytest.root_user_id))
 
-    #make the user an admin user by default
-    role =  JSONObject(hydra_base.get_role_by_code('admin', user_id=pytest.root_user_id))
+    role =  JSONObject(hydra_base.get_role_by_code(role, user_id=pytest.root_user_id))
 
     hydra_base.set_user_role(new_user.id, role.id, user_id=pytest.root_user_id)
 
@@ -72,7 +71,7 @@ def update_template(template_id):
             typeattr_1 = JSONObject(dict(
                 attr_id = new_net_attr.id,
                 data_restriction = {'LESSTHAN': 10, 'NUMPLACES': 1},
-                unit = 'USD',
+                unit_id = hydra_base.get_unit_by_abbreviation('USD').id,
             ))
             tmpltype.typeattrs.append(typeattr_1)
             break
@@ -92,7 +91,7 @@ def create_template():
     node_attr_3  = create_attr("node_attr_c", dimension='Monetary value')
     node_attr_4  = create_attr("node_attr_d", dimension='Volumetric flow rate')
     group_attr_1 = create_attr("grp_attr_1", dimension='Monetary value')
-    group_attr_2 = create_attr("grp_attr_2", dimension='Displacement')
+    group_attr_2 = create_attr("grp_attr_2", dimension=None)
 
     template = JSONObject()
     template['name'] = 'Default Template ' + str(datetime.datetime.now())
@@ -112,7 +111,7 @@ def create_template():
     typeattr_1 = JSONObject()
     typeattr_1.attr_id = net_attr1.id
     typeattr_1.data_restriction = {'LESSTHAN': 10, 'NUMPLACES': 1}
-    typeattr_1.unit = 'm^3'
+    typeattr_1.unit_id = hydra_base.get_unit_by_abbreviation('m^3').id
     typeattrs.append(typeattr_1)
 
     typeattr_2 = JSONObject()
@@ -135,7 +134,7 @@ def create_template():
     typeattr_1 = JSONObject()
     typeattr_1.attr_id = node_attr_1.id
     typeattr_1.data_restriction = {'LESSTHAN': 10, 'NUMPLACES': 1}
-    typeattr_1.unit = 'm^3'
+    typeattr_1.unit_id = hydra_base.get_unit_by_abbreviation('m^3').id
     typeattrs.append(typeattr_1)
 
     typeattr_2 = JSONObject()
@@ -149,7 +148,7 @@ def create_template():
 
     typeattr_4 = JSONObject()
     typeattr_4.attr_id = node_attr_4.id
-    typeattr_4.unit = "m^3 s^-1"
+    typeattr_4.unit_id = hydra_base.get_unit_by_abbreviation("m^3 s^-1").id
     typeattrs.append(typeattr_4)
 
     node_type.typeattrs = typeattrs
@@ -221,7 +220,7 @@ def create_template():
 
     return new_template
 
-def create_project(name=None):
+def create_project(name=None, share=True):
 
     if name is None:
         name = "Unittest Project"
@@ -233,7 +232,8 @@ def create_project(name=None):
         project.name = name
         project.description = "Project which contains all unit test networks"
         project = JSONObject(hydra_base.add_project(project, user_id=pytest.root_user_id))
-        hydra_base.share_project(project.id,
+        if share is True:
+            hydra_base.share_project(project.id,
                                  ["UserA", "UserB", "UserC"],
                                  'N',
                                  'Y',
@@ -279,11 +279,16 @@ def create_node(node_id, attributes=None, node_name="Test Node Name"):
     return node
 
 
-def create_attr(name="Test attribute", dimension="dimensionless"):
-    attr_i = hydra_base.get_attribute_by_name_and_dimension(name, dimension, user_id=pytest.root_user_id)
+def create_attr(name="Test attribute", dimension=None):
+    dimension_id = None
+    if dimension is not None:
+
+        dimension_id = hydra_base.get_dimension_by_name(dimension).id
+    attr_i = hydra_base.get_attribute_by_name_and_dimension(name, dimension_id, user_id=pytest.root_user_id)
     if attr_i is None:
-        attr = JSONObject({'name'  : name,
-                'dimension' : dimension
+        attr = JSONObject({
+                'name'  : name,
+                'dimension_id' : dimension_id
                })
         attr = JSONObject(hydra_base.add_attribute(attr, user_id=pytest.root_user_id))
     else:
@@ -744,7 +749,7 @@ def create_scalar(resource_attr, val=1.234):
         id=None,
         type = 'scalar',
         name = 'Flow speed',
-        unit = 'm s^-1',
+        unit_id = hydra_base.get_unit_by_abbreviation('m s^-1').id,
         hidden = 'N',
         value = val,
     ))
@@ -765,7 +770,7 @@ def create_descriptor(resource_attr, val="test"):
         id=None,
         type = 'descriptor',
         name = 'Flow speed',
-        unit = 'm s^-1', # This does not match the type on purpose, to test validation
+        unit_id = hydra_base.get_unit_by_abbreviation('m s^-1').id, # This does not match the type on purpose, to test validation
         hidden = 'N',
         value = val,
     ))
@@ -805,7 +810,7 @@ def create_timeseries(resource_attr):
         id=None,
         type = 'timeseries',
         name = 'my time series',
-        unit = 'cm^3', # This does not match the type on purpose, to test validation
+        unit_id = hydra_base.get_unit_by_abbreviation('cm^3').id, # This does not match the type on purpose, to test validation
         hidden = 'N',
         value = json.dumps(ts_val),
         metadata = metadata
@@ -837,7 +842,7 @@ def create_dataframe(resource_attr):
         id=None,
         type = 'dataframe',
         name = 'my data frame',
-        unit = 'm^3 s^-1',
+        unit_id = hydra_base.get_unit_by_abbreviation('m^3 s^-1').id,
         hidden = 'N',
         value = json.dumps(ts_val),
         metadata = metadata
@@ -864,7 +869,7 @@ def create_array(resource_attr):
         id=None,
         type = 'array',
         name = 'my array',
-        unit = 'bar',
+        unit_id = hydra_base.get_unit_by_abbreviation('bar').id,
         hidden = 'N',
         value = arr,
         metadata = metadata_array,
@@ -881,43 +886,50 @@ def create_array(resource_attr):
 
 def create_attributes():
 
-    name1 = "Multi-added Attr 1"
-    name2 = "Multi-added Attr 2"
     dimension = "Volumetric flow rate"
     attrs = []
-    attr1 = JSONObject({'name'  : name1,
-            'dimension' : dimension,
-            'description' : "Attribute 1 from a test of adding multiple attributes",
+    attrs.append(
+        JSONObject({
+                'name'  : "Multi-added Attr 1",
+                'dimension_id' : hydra_base.get_dimension_by_name(dimension).id,
+                'description' : "Attribute 1 from a test of adding multiple attributes",
             })
-    attrs.append(attr1)
-    attr2 = JSONObject({'name' : name2,
-             'dimension' : dimension,
-            'description' : "Attribute 2 from a test of adding multiple attributes",
+    )
+    attrs.append(
+        JSONObject({
+                'name' : "Multi-added Attr 2",
+                'dimension_id' : hydra_base.get_dimension_by_name(dimension).id,
+                'description' : "Attribute 2 from a test of adding multiple attributes",
             })
-    attrs.append(attr2)
+    )
 
     existing_attrs = []
+    new_attrs = []
 
     for a in attrs:
-        log.info("Getting attribute %s, %s", a.name, a.dimension)
-        attr = hydra_base.get_attribute_by_name_and_dimension(a.name,
-                                                          a.dimension,
-                                                          user_id=pytest.root_user_id)
-        existing_attrs.append(attr)
+        log.info("Getting attribute %s, %s", a.name, a.dimension_id)
+        attr = hydra_base.get_attribute_by_name_and_dimension(
+                                                                a.name,
+                                                                a.dimension_id,
+                                                                user_id=pytest.root_user_id
+                                                            )
+        if attr is not None:
+            # The attribute already exists
+            existing_attrs.append(attr)
+        else:
+            # The attribute is new
+            new_attrs.append(a)
 
 
-    for a in existing_attrs:
-        if a is not None:
-            attrs = existing_attrs
-            break
-    else:
-        attrs = hydra_base.add_attributes(attrs, user_id=pytest.root_user_id)
-        assert len(attrs) == 2
-        for a in attrs:
-            assert a.id is not None
+    added_attrs = hydra_base.add_attributes(new_attrs, user_id=pytest.root_user_id)
 
-    assert attrs[0].description ==  "Attribute 1 from a test of adding multiple attributes"
-    assert attrs[1].description ==  "Attribute 2 from a test of adding multiple attributes"
+    # The inserted attributes summed with the inserted ones are the total of "attrs" array
+    total_attrs = existing_attrs + added_attrs
+
+    assert len(total_attrs) == len(attrs)
+
+    for my_attr in total_attrs:
+        assert len(list(filter(lambda x: x.description == my_attr.description, attrs))) > 0
 
     return attrs
 
@@ -925,10 +937,16 @@ def create_attribute():
 
     name = "Test add Attr"
     dimension = "Volumetric flow rate"
-    attr = hydra_base.get_attribute_by_name_and_dimension(name, "Volumetric flow rate", user_id=pytest.root_user_id)
+    attr = hydra_base.get_attribute_by_name_and_dimension(
+                name,
+                hydra_base.get_dimension_by_name(dimension).id,
+                user_id=pytest.root_user_id
+            )
     if attr is None:
-        attr = JSONObject({'name'  : name,
-                'dimension' : dimension,
+        # The attribute does not exists
+        attr = JSONObject({
+                'name'  : name,
+                'dimension_id' : hydra_base.get_dimension_by_name(dimension).id,
                 'description' : "Attribute description",
                })
         attr = hydra_base.add_attribute(attr, user_id=pytest.root_user_id)
@@ -956,7 +974,7 @@ def create_attributegroup(project_id, name=None, exclusive='N'):
 
 def get_by_name(name, entity_list):
     """
-        given a list of JSONObjects with a name attribute, return the JSONObeect with the 
+        given a list of JSONObjects with a name attribute, return the JSONObeect with the
         specified name
     """
     entity_dict = {}
@@ -965,3 +983,31 @@ def get_by_name(name, entity_list):
 
     return entity_dict[name]
 
+
+def create_dataset():
+    """
+        Creates a dataset and adds it to the DB
+    """
+    arr = json.dumps([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])
+    metadata_array = ({'created_by': 'Test user'})
+    u = hydra_base.get_unit_by_abbreviation('bar')
+    # dataset = Dataset(dict(
+    #     id=None,
+    #     type        = 'array',
+    #     name        = 'my array',
+    #     unit_id     = u.id,
+    #     hidden      = 'N',
+    #     value       = arr,
+    #     metadata    = metadata_array,
+    # ))
+    return JSONObject(
+        hydra_base.add_dataset(
+            'array',
+            arr,
+            u.id,
+            metadata = metadata_array,
+            name     = 'my array',
+            user_id  = pytest.root_user_id,
+            flush    = True
+    ))
+    # return JSONObject(hydra_base.add_dataset(dataset), user_id=pytest.root_user_id)

@@ -3,7 +3,6 @@ services:
   - postgresql
   - mysql
 python:
-  - "2.7"
   - "3.6"
 env:
 - DB=sqlite
@@ -11,6 +10,7 @@ env:
 - DB=mysql
 
 before_script:
+  - pip install --upgrade pytest pytest-cov codecov
   - |
     set -e
     if [ "${DB}" == "postgres" ]; then
@@ -24,4 +24,8 @@ install:
   - pip install -e .
 
 script:
-  - pytest tests --db-backend=${DB}
+  - pytest tests --db-backend=${DB} --cov-report term --cov hydra_base
+
+after_success:
+  - codecov
+

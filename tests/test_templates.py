@@ -43,12 +43,13 @@ def template_json_object(session, template):
     with open(template) as fh:
         file_contents = fh.read()
 
+
+
     return JSONObject(hb.import_template_xml(file_contents))
 
 
-# TODO give this fixture a better name. template2 is not very descriptive!
 @pytest.fixture()
-def template2():
+def mock_template():
     link_attr_1 = util.create_attr("link_attr_1", dimension='Pressure')
     link_attr_2 = util.create_attr("link_attr_2", dimension='Speed')
     node_attr_1 = util.create_attr("node_attr_1", dimension='Volume')
@@ -135,9 +136,9 @@ def template2():
     new_template_j = JSONObject(new_template_i)
     return new_template_j
 
-# template3 is used for some of compatiblity tests but is identical to the
-# template2 fixture
-template3 = template2
+# mock_template_copy is used for some of compatiblity tests but is identical to the
+# mock_template fixture
+mock_template_copy = mock_template
 
 
 class TestTemplates:
@@ -166,6 +167,7 @@ class TestTemplates:
 
         db_template = hb.get_template_as_xml(xml_tmpl.id)
 
+
         assert db_template is not None
 
         template_xsd_path = config.get('templates', 'template_xsd_path')
@@ -179,7 +181,6 @@ class TestTemplates:
 
     def test_get_dict(self, template_json_object):
 
-        log.info("Loading XML template")
         # Upload the xml file initally to avoid having to manage 2 template files
         xml_tmpl = template_json_object
 
@@ -197,11 +198,9 @@ class TestTemplates:
         # This includes deleting types if they're not in this dict.
         # Changing the name of a type has this effect, as a new template does not have
         # any reference to existing types in Hydra.
-        log.info("Loading JSON Template template")
 
         updated_template = JSONObject(hb.import_template_dict(template_dict))
 
-        log.info("Updating a type's name")
         type_names = []
 
         for templatetype in updated_template.templatetypes:
@@ -214,6 +213,9 @@ class TestTemplates:
         log.info("Reverting the type's name")
         template_dict['template']['templatetypes'][0].name = typename
         updated_template = JSONObject(hb.import_template_dict(template_dict))
+        
+        #just double-check that the JSON import works also
+        updated_template = JSONObject(hb.import_template_json(json.dumps(template_dict)))
 
         type_names = []
         for templatetype in updated_template.templatetypes:
@@ -228,17 +230,22 @@ class TestTemplates:
 
         assert len(check_template_i.templatetypes) == 2
 
-    def test_add_template(self, session, template2):
+
+    """
+        TEMPLATES Functions
+    """
+
+    def test_add_template(self, session, mock_template):
 
         link_attr_1 = util.create_attr("link_attr_1", dimension='Pressure')
         link_attr_2 = util.create_attr("link_attr_2", dimension='Speed')
         node_attr_1 = util.create_attr("node_attr_1", dimension='Volume')
         node_attr_2 = util.create_attr("node_attr_2", dimension='Speed')
 
-        new_template_j = template2
+        new_template_j = mock_template
 
-        assert new_template_j.name == template2.name, "Names are not the same!"
-        assert json.dumps(new_template_j.layout) == json.dumps(template2.layout), "Layouts are not the same!"
+        assert new_template_j.name == mock_template.name, "Names are not the same!"
+        assert json.dumps(new_template_j.layout) == json.dumps(mock_template.layout), "Layouts are not the same!"
         assert new_template_j.id is not None, "New Template has no ID!"
         assert new_template_j.id > 0, "New Template has incorrect ID!"
 
@@ -258,43 +265,50 @@ class TestTemplates:
         #Only applicable for tests.
         hb.template.ATTR_CACHE = {}
 
-        attr_1 = util.create_attr("link_attr_1", dimension='Pressure')
-        attr_2 = util.create_attr("link_attr_2", dimension='Speed')
-        attr_3 = util.create_attr("node_attr_1", dimension='Volume')
+        # Defining attributes
+        attribute_1 = util.create_attr("link_attr_1", dimension='Pressure')
+        attribute_2 = util.create_attr("link_attr_2", dimension='Speed')
+        attribute_3 = util.create_attr("node_attr_1", dimension='Volume')
 
+        # Defining template
         template = JSONObject()
 
         template.name = 'Test Template @ %s'%datetime.datetime.now()
 
         template.templatetypes = []
 
-        type_1 = JSONObject()
-        type_1.name = "Node type 2"
-        type_1.alias = "Node type 2 alias"
-        type_1.resource_type = 'NODE'
-        type_1.typeattrs = []
+        template_type_1 = JSONObject({
+            "name" : "Node type 2",
+            "alias" : "Node type 2 alias",
+            "resource_type" : 'NODE',
+            "typeattrs" : []
+        })
 
-        type_2 = JSONObject()
-        type_2.name = "Link type 2"
-        type_2.alias = "Link type 2 alias"
-        type_2.resource_type = 'LINK'
-        type_2.typeattrs = []
+        template_type_2 = JSONObject({
+            "name" : "Link type 2",
+            "alias" : "Link type 2 alias",
+            "resource_type" : 'LINK',
+            "typeattrs" : []
+        })
 
-        tattr_1 = JSONObject()
-        tattr_1.attr_id = attr_1.id
-        tattr_1.unit      = 'bar'
-        tattr_1.description = "typeattr description 1"
-        tattr_1.properties = {"test_property": "property value"}
-        type_1.typeattrs.append(tattr_1)
+        # Definind a typeattr data structure
+        type_attribute_1 = JSONObject({
+            "attr_id" : attribute_1.id,
+            "unit_id" : hb.units.get_unit_by_abbreviation('bar').id,
+            "description" : "typeattr description 1",
+            "properties" : {"test_property": "property value"}
+        })
+        template_type_1.typeattrs.append(type_attribute_1)
 
-        tattr_2 = JSONObject()
-        tattr_2.attr_id = attr_2.id
-        tattr_2.unit = 'mph'
-        tattr_2.description = "typeattr description 2"
-        type_2.typeattrs.append(tattr_2)
+        type_attribute_2 = JSONObject({
+            "attr_id" : attribute_2.id,
+            "unit_id" : hb.units.get_unit_by_abbreviation('mph').id,
+            "description" : "typeattr description 2"
+        })
+        template_type_2.typeattrs.append(type_attribute_2)
 
-        template.templatetypes.append(type_1)
-        template.templatetypes.append(type_2)
+        template.templatetypes.append(template_type_1)
+        template.templatetypes.append(template_type_2)
 
         new_template_i = hb.add_template(template)
         new_template_j = JSONObject(new_template_i)
@@ -305,18 +319,28 @@ class TestTemplates:
 
         assert len(new_template_j.templatetypes) == 2, "Resource types did not add correctly"
         assert len(new_template_j.templatetypes[0].typeattrs) == 1, "Resource type attrs did not add correctly"
-        assert new_template_j.templatetypes[0].typeattrs[0].unit == 'bar'
+        assert new_template_j.templatetypes[0].typeattrs[0].unit_id == hb.units.get_unit_by_abbreviation('bar').id
 
         #update the name of one of the types
         new_template_j.templatetypes[0].name = "Test type 3"
         updated_type_id = new_template_j.templatetypes[0].id
 
+        #add a new type
+        new_type = JSONObject({
+            "name" : "New Node type",
+            "alias" : "New Node type alias",
+            "resource_type" : 'NODE',
+            "typeattrs" : []
+        })
+        new_template_j.templatetypes.append(new_type)
+
         #add an template attr to one of the types
-        tattr_3 = JSONObject()
-        tattr_3.attr_id = attr_3.id
-        tattr_3.description = "updated typeattr description 1"
-        tattr_3.properties = {"test_property_of_added_type": "property value"}
-        new_template_j.templatetypes[0].typeattrs.append(tattr_3)
+        type_attribute_3 = JSONObject({
+            "attr_id" : attribute_3.id,
+            "description" : "updated typeattr description 1",
+            "properties" : {"test_property_of_added_type": "property value"}
+        })
+        new_template_j.templatetypes[0].typeattrs.append(type_attribute_3)
 
         updated_template_i = hb.update_template(new_template_j)
         updated_template_j = JSONObject(updated_template_i)
@@ -333,19 +357,47 @@ class TestTemplates:
 
         assert len(updated_type.typeattrs) == 2, "Resource type template attr did not update correctly"
 
-        # Test that when setting a unit on a type attr, it matches the dimension of its attr
-        # In this case, setting m^3(Volume) fails as the attr has a dimension of 'Pressure'
-        updated_template_j.templatetypes[0].typeattrs[0].unit = 'm^3'
+        """
+            Test that when setting a unit on a type attr, it matches the dimension of its attr
+            In this case, setting m^3(Volume) fails as the attr has a dimension of 'Pressure'
+        """
+        old_attribute_type_to_restore = updated_template_j.templatetypes[0].typeattrs[0].unit_id
+        updated_template_j.templatetypes[0].typeattrs[0].unit_id = hb.units.get_unit_by_abbreviation('m^3').id
         with pytest.raises(HydraError):
             hb.update_template(updated_template_j)
+        # Restoring the old value to not fail later for this reason
+        updated_template_j.templatetypes[0].typeattrs[0].unit_id = old_attribute_type_to_restore
 
-    def test_delete_template(self, session, network_with_data, template2):
+
+        """
+            Testing the case in which the attribute has no dimension while the typeattr has UNIT_ID that is not none
+        """
+        attribute_dimension_none = util.create_attr("node_attr_dimension_none", dimension=None)
+        template_type_dimension_none = JSONObject({
+            "name" : "Node type dimension_none",
+            "alias" : "Node type dimension_none alias",
+            "resource_type" : 'NODE',
+            "typeattrs" : []
+        })
+        type_attribute_dimension_none = JSONObject({
+            "attr_id" : attribute_dimension_none.id,
+            "unit_id" : hb.units.get_unit_by_abbreviation('bar').id,
+            "description" : "type_attribute_dimension_none description 1",
+            "properties" : {"test_property": "property value"}
+        })
+        template_type_dimension_none.typeattrs.append(type_attribute_dimension_none)
+        updated_template_j.templatetypes.append(template_type_dimension_none)
+
+        with pytest.raises(HydraError):
+            hb.update_template(updated_template_j) # It MUST fail because the unit_id is not consistent to dimension_id none
+
+    def test_delete_template(self, session, network_with_data, mock_template):
 
         #Only applicable for tests. TODO: make this not rubbish.
         hb.template.ATTR_CACHE = {}
 
         network = network_with_data
-        new_template = template2
+        new_template = mock_template
 
         retrieved_template_i = hb.get_template(new_template.id)
         assert retrieved_template_i is not None
@@ -379,9 +431,13 @@ class TestTemplates:
 
         assert len(network_deleted_templatetypes.types) == 1
 
-    def test_add_type(self, session, template2):
+    """
+        TEMPLATE TYPES Functions
+    """
 
-        template = template2
+    def test_add_type(self, session, mock_template):
+
+        template = mock_template
 
         attr_1 = util.create_attr("link_attr_1", dimension='Pressure')
         attr_2 = util.create_attr("link_attr_2", dimension='Speed')
@@ -424,9 +480,9 @@ class TestTemplates:
 
         return new_type_j
 
-    def test_update_type(self, session, template2):
+    def test_update_type(self, session, mock_template):
 
-        template = template2
+        template = mock_template
 
         attr_1 = util.create_attr("link_attr_1", dimension='Pressure')
         attr_2 = util.create_attr("link_attr_2", dimension='Speed')
@@ -479,8 +535,8 @@ class TestTemplates:
 
         assert len(updated_type_j.typeattrs) == 3, "Template type attrs did not update correctly"
 
-    def test_delete_type(self, session, template2):
-        new_template = template2
+    def test_delete_type(self, session, mock_template):
+        new_template = mock_template
 
         retrieved_template = hb.get_template(new_template.id)
         assert retrieved_template is not None
@@ -493,17 +549,23 @@ class TestTemplates:
         for tmpltype in updated_template.templatetypes:
             assert tmpltype.id != templatetype.id
 
-    def test_get_type(self, session, template2):
-        new_type = template2.templatetypes[0]
+    def test_get_type(self, session, mock_template):
+        new_type = mock_template.templatetypes[0]
         new_type = hb.get_templatetype(new_type.id)
         assert new_type is not None, "Resource type attrs not retrived by ID!"
 
-    def test_get_type_by_name(self, session, template2):
-        new_type = template2.templatetypes[0]
+    def test_get_type_by_name(self, session, mock_template):
+        new_type = mock_template.templatetypes[0]
         new_type = hb.get_templatetype_by_name(new_type.template_id, new_type.name)
         assert new_type is not None, "Resource type attrs not retrived by name!"
 
-    def test_add_typeattr(self, session, template2):
+
+    """
+        Type Attributes Functions
+    """
+
+
+    def test_add_typeattr(self, session, mock_template):
 
         attr_1 = util.create_attr("link_attr_1", dimension='Pressure')
         attr_2 = util.create_attr("link_attr_2", dimension='Speed')
@@ -512,7 +574,7 @@ class TestTemplates:
         templatetype = JSONObject()
         templatetype.name = "Test type name @ %s"%(datetime.datetime.now())
         templatetype.alias = templatetype.name + " alias"
-        templatetype.template_id = template2.id
+        templatetype.template_id = mock_template.id
         templatetype.resource_type = 'NODE'
 
         tattr_1 = JSONObject()
@@ -543,9 +605,9 @@ class TestTemplates:
 
         assert eval(updated_type.typeattrs[-1].properties)['add_typeattr_test_property'] == "property value"
 
-    def test_delete_typeattr(self, session, template2):
+    def test_delete_typeattr(self, session, mock_template):
 
-        template = template2
+        template = mock_template
 
         attr_1 = util.create_attr("link_attr_1", dimension='Pressure')
         attr_2 = util.create_attr("link_attr_2", dimension='Speed')
@@ -572,11 +634,10 @@ class TestTemplates:
 
         updated_type = JSONObject(hb.get_templatetype(new_type.id))
 
-        log.info(len(updated_type.typeattrs))
 
         assert len(updated_type.typeattrs) == 1, "Resource type attr did not add correctly"
 
-    def test_get_templates(self, session, template2):
+    def test_get_templates(self, session, mock_template):
 
         templates = [JSONObject(t) for t in hb.get_templates()]
         for t in templates:
@@ -584,24 +645,28 @@ class TestTemplates:
                 assert typ.resource_type is not None
         assert len(templates) > 0, "Templates were not retrieved!"
 
-    def test_get_template(self, session, template2):
-        new_template = JSONObject(hb.get_template(template2.id))
+    def test_get_template(self, session, mock_template):
+        new_template = JSONObject(hb.get_template(mock_template.id))
 
-        assert new_template.name == template2.name, "Names are not the same! Retrieval by ID did not work!"
+        assert new_template.name == mock_template.name, "Names are not the same! Retrieval by ID did not work!"
 
-    def test_get_template_by_name_good(self, session, template2):
-        new_template = JSONObject(hb.get_template_by_name(template2.name))
+    def test_get_template_by_name_good(self, session, mock_template):
+        new_template = JSONObject(hb.get_template_by_name(mock_template.name))
 
-        assert new_template.name == template2.name, "Names are not the same! Retrieval by name did not work!"
+        assert new_template.name == mock_template.name, "Names are not the same! Retrieval by name did not work!"
 
     def test_get_template_by_name_bad(self, session):
 
         with pytest.raises(HydraError):
             new_template = hb.get_template_by_name("Not a template!")
 
-    def test_add_resource_type(self, session, template2):
+    """
+        Resource Types Functions
+    """
 
-        template = template2
+    def test_add_resource_type(self, session, mock_template):
+
+        template = mock_template
         types = template.templatetypes
         type_name = types[0].name
         type_id   = types[0].id
@@ -671,9 +736,9 @@ class TestTemplates:
 
         assert node_to_check.types[0].id in matching_type_ids, "TemplateType ID not found in matching types!"
 
-    def test_assign_type_to_resource(self, session, template2, network_with_data):
+    def test_assign_type_to_resource(self, session, mock_template, network_with_data):
         network = network_with_data
-        template = template2
+        template = mock_template
         templatetype = template.templatetypes[0]
 
         node_to_assign = network.nodes[0]
@@ -688,9 +753,9 @@ class TestTemplates:
 
         assert str(result.id) in [str(x.type_id) for x in node.types]
 
-    def test_remove_type_from_resource(self, session, template2, network_with_data):
+    def test_remove_type_from_resource(self, session, mock_template, network_with_data):
         network = network_with_data
-        template = template2
+        template = mock_template
         templatetype = template.templatetypes[0]
 
         node_to_assign = network.nodes[0]
@@ -715,10 +780,16 @@ class TestTemplates:
 
         assert updated_node_j.types is None or str(result1_j.id) not in [str(x.type_id) for x in updated_node_j.types]
 
+
+
+
+
+
     def test_create_template_from_network(self, session, network_with_data):
         network = network_with_data
 
         net_template = hb.get_network_as_xml_template(network.id)
+
 
         assert net_template is not None
 
@@ -731,9 +802,9 @@ class TestTemplates:
 
         xmlschema.assertValid(xml_tree)
 
-    def test_apply_template_to_network(self, session, template2, network_with_data):
+    def test_apply_template_to_network(self, session, mock_template, network_with_data):
         net_to_update = network_with_data
-        template = template2
+        template = mock_template
 
         # Test the links as it's easier
         empty_links = []
@@ -783,9 +854,9 @@ class TestTemplates:
             assert len(n.types) == 1
             assert n.types[0].name == 'Default Node'
 
-    def test_apply_template_to_network_twice(self, session, template2, network_with_data):
+    def test_apply_template_to_network_twice(self, session, mock_template, network_with_data):
         net_to_update = network_with_data
-        template = template2
+        template = mock_template
 
         # Test the links as it's easier
         empty_links = []
@@ -868,9 +939,9 @@ class TestTemplates:
         for n in network_2.nodes:
             assert len(n.types) == 0
 
-    def test_remove_template_and_attributes_from_network(self, session, template2, network_with_data):
+    def test_remove_template_and_attributes_from_network(self, session, mock_template, network_with_data):
         network = network_with_data
-        template = template2
+        template = mock_template
 
         # Test the links as it's easier
         empty_links = []
@@ -1009,7 +1080,7 @@ class TestTemplates:
             except AssertionError:
                 assert err.startswith("Dimension mismatch")
 
-    def test_type_compatibility(self, session, template2, template3):
+    def test_type_compatibility(self, session, mock_template, mock_template_copy):
         """
             Check function that thests whether two types are compatible -- the
             overlapping attributes are specified with the same unit.
@@ -1017,8 +1088,8 @@ class TestTemplates:
             templates, and test. There should be 1 error returned.
             THen test comparison of identical types. No errors should return.
         """
-        template_1 = template2
-        template_2 = template3
+        template_1 = mock_template
+        template_2 = mock_template_copy
 
         diff_type_1_id = None
         same_type_1_id = None
@@ -1027,7 +1098,7 @@ class TestTemplates:
                 for ta in typ.typeattrs:
                     if ta.attr.name == 'node_attr_1':
                         diff_type_1_id = typ.id
-                        ta.unit = "m^3"
+                        ta.unit_id = hb.units.get_unit_by_abbreviation("m^3").id
                     elif ta.attr.name == 'link_attr_1':
                         same_type_1_id = typ.id
 
@@ -1040,7 +1111,7 @@ class TestTemplates:
                 for ta in typ.typeattrs:
                     if ta.attr.name == 'node_attr_1':
                         diff_type_2_id = typ.id
-                        ta.unit = "cm^3"
+                        ta.unit_id = hb.units.get_unit_by_abbreviation("cm^3").id
                     elif ta.attr.name == 'link_attr_1':
                         same_type_2_id = typ.id
 
@@ -1063,7 +1134,7 @@ class TestTemplates:
             if typ.typeattrs:
                 for ta in typ.typeattrs:
                     if ta.attr.name == 'node_attr_1':
-                        ta.unit = None
+                        ta.unit_id = None
 
         # Update template 1 now so that it has no unit, but template 2 does.
         updated_template_1_a = hb.update_template(updated_template_1)

@@ -34,13 +34,16 @@ from ..db.model import Attr,\
         ResourceScenario,\
         Dataset,\
         AttrGroup,\
-        AttrGroupItem
+        AttrGroupItem, \
+        Dimension, \
+        Unit
 from .. import db
 from sqlalchemy.orm.exc import NoResultFound
 from ..exceptions import HydraError, ResourceNotFoundError
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import aliased
 from . import units
+from .objects import JSONObject
 
 def _get_network(network_id):
     try:
@@ -96,21 +99,20 @@ def get_template_attributes(template_id, **kwargs):
 
     try:
         attrs_i = db.DBSession.query(Attr).filter(TemplateType.template_id==template_id).filter(TypeAttr.type_id==TemplateType.id).filter(Attr.id==TypeAttr.id).all()
-        log.info(attrs_i)
+        log.debug(attrs_i)
         return attrs_i
     except NoResultFound:
         return None
 
 
-
-def get_attribute_by_name_and_dimension(name, dimension='dimensionless',**kwargs):
+def get_attribute_by_name_and_dimension(name, dimension_id=None,**kwargs):
     """
         Get a specific attribute by its name.
+        dimension_id can be None, because in attribute the dimension_id is not anymore mandatory
     """
-
     try:
-        attr_i = db.DBSession.query(Attr).filter(and_(Attr.name==name, or_(Attr.dimension==dimension, Attr.dimension == ''))).one()
-        log.info("Attribute retrieved")
+        attr_i = db.DBSession.query(Attr).filter(and_(Attr.name==name, Attr.dimension_id==dimension_id)).one()
+        log.debug("Attribute retrieved")
         return attr_i
     except NoResultFound:
         return None
@@ -125,27 +127,23 @@ def add_attribute(attr,**kwargs):
         (Attr){
             id = 1020
             name = "Test Attr"
-            dimen = "very big"
+            dimension_id = 123
         }
 
     """
     log.debug("Adding attribute: %s", attr.name)
 
-    if attr.dimension is None or attr.dimension.lower() == 'dimensionless':
-        log.info("Setting 'dimesionless' on attribute %s", attr.name)
-        attr.dimension = 'dimensionless'
-
     try:
         attr_i = db.DBSession.query(Attr).filter(Attr.name == attr.name,
-                                              Attr.dimension == attr.dimension).one()
+                                                 Attr.dimension_id == attr.dimension_id).one()
         log.info("Attr already exists")
     except NoResultFound:
-        attr_i = Attr(name = attr.name, dimension = attr.dimension)
+        attr_i = Attr(name = attr.name, dimension_id = attr.dimension_id)
         attr_i.description = attr.description
         db.DBSession.add(attr_i)
         db.DBSession.flush()
         log.info("New attr added")
-    return attr_i
+    return JSONObject(attr_i)
 
 def update_attribute(attr,**kwargs):
     """
@@ -157,30 +155,37 @@ def update_attribute(attr,**kwargs):
         (Attr){
             id = 1020
             name = "Test Attr"
-            dimen = "very big"
+            dimension_id = 123
         }
 
     """
 
-    if attr.dimension is None or attr.dimension.lower() == 'dimensionless':
-        log.info("Setting 'dimesionless' on attribute %s", attr.name)
-        attr.dimension = 'dimensionless'
-
-    log.debug("Adding attribute: %s", attr.name)
+    log.debug("Updating attribute: %s", attr.name)
     attr_i = _get_attr(attr.id)
     attr_i.name = attr.name
-    attr_i.dimension = attr.dimension
+    attr_i.dimension_id = attr.dimension_id
     attr_i.description = attr.description
 
     #Make sure an update hasn't caused an inconsistency.
     #check_sion(attr_i.id)
 
     db.DBSession.flush()
-    return attr_i
+    return JSONObject(attr_i)
+
+
+def delete_attribute(attr_id, **kwargs):
+    try:
+        attribute = db.DBSession.query(Attr).filter(Attr.id == attr_id).one()
+        db.DBSession.delete(attribute)
+        db.DBSession.flush()
+        return True
+    except NoResultFound:
+        raise ResourceNotFoundError("Attribute (attribute id=%s) does not exist"%(attr_id))
+
 
 def add_attributes(attrs,**kwargs):
     """
-    Add a generic attribute, which can then be used in creating
+    Add a list of generic attributes, which can then be used in creating
     a resource attribute, and put into a type.
 
     .. code-block:: python
@@ -193,42 +198,44 @@ def add_attributes(attrs,**kwargs):
 
     """
 
-    log.debug("Adding s: %s", [attr.name for attr in attrs])
     #Check to see if any of the attributs being added are already there.
     #If they are there already, don't add a new one. If an attribute
     #with the same name is there already but with a different dimension,
     #add a new attribute.
 
+    # All existing attributes
     all_attrs = db.DBSession.query(Attr).all()
     attr_dict = {}
     for attr in all_attrs:
-        attr_dict[(attr.name, attr.dimension)] = attr
+        attr_dict[(attr.name.lower(), attr.dimension_id)] = JSONObject(attr)
 
     attrs_to_add = []
     existing_attrs = []
     for potential_new_attr in attrs:
-        if potential_new_attr.dimension is None or potential_new_attr.dimension.lower() == 'dimensionless':
-            potential_new_attr.dimension = 'dimensionless'
+        if potential_new_attr is not None:
+            # If the attrinute is None we cannot manage it
+            log.debug("Adding attribute: %s", potential_new_attr)
 
-        if attr_dict.get((potential_new_attr.name, potential_new_attr.dimension)) is None:
-            attrs_to_add.append(potential_new_attr)
-        else:
-            existing_attrs.append(attr_dict.get((potential_new_attr.name, potential_new_attr.dimension)))
+            if attr_dict.get((potential_new_attr.name.lower(), potential_new_attr.dimension_id)) is None:
+                attrs_to_add.append(JSONObject(potential_new_attr))
+            else:
+                existing_attrs.append(attr_dict.get((potential_new_attr.name.lower(), potential_new_attr.dimension_id)))
 
     new_attrs = []
     for attr in attrs_to_add:
         attr_i = Attr()
         attr_i.name = attr.name
-        attr_i.dimension = attr.dimension
+        attr_i.dimension_id = attr.dimension_id
         attr_i.description = attr.description
         db.DBSession.add(attr_i)
         new_attrs.append(attr_i)
 
     db.DBSession.flush()
+    
 
     new_attrs = new_attrs + existing_attrs
 
-    return new_attrs
+    return [JSONObject(a) for a in new_attrs]
 
 def get_attributes(**kwargs):
     """
@@ -455,16 +462,19 @@ def check_attr_dimension(attr_id, **kwargs):
     """
     attr_i = _get_attr(attr_id)
 
-    datasets = db.DBSession.query(Dataset).filter(Dataset.id==ResourceScenario.dataset_id,
-                                               ResourceScenario.resource_attr_id == ResourceAttr.id,
-                                               ResourceAttr.attr_id == attr_id).all()
+    datasets = db.DBSession.query(Dataset).filter(Dataset.id == ResourceScenario.dataset_id,
+                        ResourceScenario.resource_attr_id == ResourceAttr.id,
+                        ResourceAttr.attr_id == attr_id).all()
     bad_datasets = []
     for d in datasets:
-        if units.get_unit_dimension(d.unit) != attr_i.dimension:
-            bad_datasets.append(d.id)
+        if  attr_i.dimension_id is None and d.unit is not None or \
+            attr_i.dimension_id is not None and d.unit is None or \
+            units.get_dimension_by_unit_id(d.unit_id) != attr_i.dimension_id:
+                # If there is an inconsistency
+                bad_datasets.append(d.id)
 
     if len(bad_datasets) > 0:
-        raise HydraError("Datasets %s have a different dimension to attribute %s"%(bad_datasets, attr_id))
+        raise HydraError("Datasets %s have a different dimension_id to attribute %s"%(bad_datasets, attr_id))
 
     return 'OK'
 

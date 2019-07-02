@@ -21,12 +21,12 @@ from ..exceptions import ResourceNotFoundError
 from . import scenario
 import logging
 from ..exceptions import PermissionError, HydraError
-from ..db.model import Project, ProjectOwner, Network, NetworkOwner
+from ..db.model import Project, ProjectOwner, Network, NetworkOwner, User
 from .. import db
 from . import network
 from .objects import JSONObject
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.orm import class_mapper, joinedload_all, noload
+from sqlalchemy.orm import class_mapper, noload
 from sqlalchemy import and_, or_
 from ..util import hdb
 from sqlalchemy.util import KeyedTuple
@@ -68,7 +68,6 @@ def add_project(project,**kwargs):
         returns a project complexmodel
     """
     user_id = kwargs.get('user_id')
-
 
     existing_proj = get_project_by_name(project.name,user_id=user_id)
 
@@ -115,16 +114,37 @@ def update_project(project,**kwargs):
 
     return proj_i
 
-def get_project(project_id,**kwargs):
+def get_project(project_id, include_deleted_networks=False, **kwargs):
     """
         get a project complexmodel
     """
     user_id = kwargs.get('user_id')
     proj_i = _get_project(project_id)
 
+    #lazy load owners
+    proj_i.owners
+
     proj_i.check_read_permission(user_id)
 
-    return proj_i
+    proj_j = JSONObject(proj_i)
+
+    proj_j.networks = []
+    for net_i in proj_i.networks:
+        #lazy load owners
+        net_i.owners
+        net_i.scenarios
+
+        if include_deleted_networks==False and net_i.status.lower() == 'x':
+            continue
+
+        can_read_network = net_i.check_read_permission(user_id, do_raise=False)
+        if can_read_network is False:
+            continue
+
+        net_j = JSONObject(net_i)
+        proj_j.networks.append(net_j)
+
+    return proj_j
 
 def get_project_by_network_id(network_id,**kwargs):
     """
@@ -232,42 +252,87 @@ def to_named_tuple(obj, visited_children=None, back_relationships=None, levels=N
     return result
 
 
-def get_projects(uid,**kwargs):
+def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=None, **kwargs):
     """
         Get all the projects owned by the specified user.
         These include projects created by the user, but also ones shared with the user.
         For shared projects, only include networks in those projects which are accessible to the user.
+
+        the include_shared_projects flag indicates whether to include projects which have been shared
+        with the user, or to only return projects created directly by this user.
     """
     req_user_id = kwargs.get('user_id')
 
     ##Don't load the project's networks. Load them separately, as the networks
     #must be checked individually for ownership
-    projects_i = db.DBSession.query(Project).join(ProjectOwner)\
-                                                 .filter(Project.status=='A',
-                                                        or_(ProjectOwner.user_id==uid,
-                                                           Project.created_by==uid))\
-                                                 .options(noload('networks'))\
-                                                 .order_by('id').all()
+    projects_qry = db.DBSession.query(Project)
 
-    #Load each 
+    log.info("Getting projects for %s", uid)
+
+    if include_shared_projects is True:
+        projects_qry = projects_qry.join(ProjectOwner).filter(Project.status=='A',
+                                                        or_(ProjectOwner.user_id==uid,
+                                                           Project.created_by==uid))
+    else:
+        projects_qry = projects_qry.join(ProjectOwner).filter(Project.created_by==uid)
+
+    if projects_ids_list_filter is not None:
+        # Filtering the search of project id
+        if isinstance(projects_ids_list_filter, str):
+            # Trying to read a csv string
+            projects_ids_list_filter = eval(projects_ids_list_filter)
+            if type(projects_ids_list_filter) is int:
+                projects_qry = projects_qry.filter(Project.id==projects_ids_list_filter)
+            else:
+                projects_qry = projects_qry.filter(Project.id.in_(projects_ids_list_filter))
+
+
+
+    projects_qry = projects_qry.options(noload('networks')).order_by('id')
+
+    projects_i = projects_qry.all()
+
+    log.info("Project query done for user %s. %s projects found", uid, len(projects_i))
+
+    user = db.DBSession.query(User).filter(User.id==req_user_id).one()
+    isadmin = user.is_admin()
+
+    #Load each
     projects_j = []
     for project_i in projects_i:
         #Ensure the requesting user is allowed to see the project
         project_i.check_read_permission(req_user_id)
+        #lazy load owners
+        project_i.owners
 
-        networks_i = db.DBSession.query(Network).join(NetworkOwner)\
-                                .filter(Network.project_id==project_i.id,
-                                        Network.status=='A',
-                                        or_(Network.created_by==uid,\
-                                            NetworkOwner.user_id==uid))
+        network_qry = db.DBSession.query(Network)\
+                                .filter(Network.project_id==project_i.id,\
+                                        Network.status=='A')
+        if not isadmin:
+            network_qry.outerjoin(NetworkOwner)\
+            .filter(or_(
+                and_(NetworkOwner.user_id != None,
+                     NetworkOwner.view == 'Y'),
+                Network.created_by == uid
+            ))
 
+        networks_i = network_qry.all()
+
+        networks_j = []
         for network_i in networks_i:
-            network_i.check_read_permission(req_user_id)
-        
+            network_i.owners
+            net_j = JSONObject(network_i)
+            if net_j.layout is not None:
+                net_j.layout = JSONObject(net_j.layout)
+            else:
+                net_j.layout = JSONObject({})
+            networks_j.append(net_j)
+
         project_j = JSONObject(project_i)
-        project_j.networks = [JSONObject(network_i) for network_i in networks_i]
+        project_j.networks = networks_j
         projects_j.append(project_j)
 
+    log.info("Networks loaded projects for user %s", uid)
 
     return projects_j
 
@@ -332,3 +397,58 @@ def get_network_project(network_id, **kwargs):
         raise HydraError("Network %s not found"% network_id)
 
     return net_proj
+
+
+def clone_project(project_id, recipient_user_id=None, new_project_name=None, new_project_description=None, **kwargs):
+    """
+        Create an exact clone of the specified project for the specified user.
+    """
+
+    user_id = kwargs['user_id']
+
+    log.info("Creating a new project for cloned network")
+
+    project = db.DBSession.query(Project).filter(Project.id==project_id).one()
+    project.check_write_permission(user_id)
+
+    if new_project_name is None:
+        user = db.DBSession.query(User).filter(User.id==user_id).one()
+        new_project_name = project.name + ' Cloned By {}'.format(user.display_name)
+
+    #check a project with this name doesn't already exist:
+    project_with_name =  db.DBSession.query(Project).filter(Project.name==new_project_name,
+                                                     Project.created_by==user_id).all()
+    if len(project_with_name) > 0:
+        raise HydraError("A project with the name {0} already exists".format(new_project_name))
+    
+    new_project = Project()
+    new_project.name = new_project_name
+    if new_project_description:
+        new_project.description = new_project_description
+    else:
+        new_project.description = project.description
+
+    new_project.created_by = user_id 
+    
+    if recipient_user_id is not None:
+        project.check_share_permission(user_id)
+        new_project.set_owner(recipient_user_id)
+
+    new_project.set_owner(user_id)
+
+
+    db.DBSession.add(new_project)
+    db.DBSession.flush()
+
+    network_ids = db.DBSession.query(Network.id).filter(
+                                        Network.project_id==project_id).all()
+    for n in network_ids:
+        network.clone_network(n.id,
+                              recipient_user_id=recipient_user_id,
+                              project_id=new_project.id,
+                             user_id=user_id)
+
+    db.DBSession.flush()
+
+    return new_project.id 
+
