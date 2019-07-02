@@ -317,7 +317,7 @@ def purge_scenario(scenario_id, **kwargs):
     db.DBSession.flush()
     return 'OK'
 
-def create_child_scenario(scenario_id, child_name, **kwargs):
+def create_child_scenario(parent_scenario_id, child_name, **kwargs):
     """
         Create a new scenario which inherits from the given scenario. The new
         scenario contains no resource scenarios or groups. All data is inherited
@@ -326,7 +326,7 @@ def create_child_scenario(scenario_id, child_name, **kwargs):
 
     user_id = kwargs.get('user_id')
 
-    scen_i = _get_scenario(scenario_id, user_id)
+    scen_i = _get_scenario(parent_scenario_id, user_id)
 
     log.info("Creating child scenario of %s", scen_i.name)
 
