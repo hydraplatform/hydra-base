@@ -24,7 +24,7 @@ def generator(size):
 """ Type arguments """
 
 scalar_valid_values       = [ 46, -1, 0, 7.7, -0.0 ]
-scalar_invalid_values     = [ "one", None, pd, {} ]
+scalar_invalid_values     = [ "one", pd, {} ]
 
 array_valid_values        = [ [-2, -1, 0, 1, 2], list(range(32)), [ 0.5e-3, 0.5, 0.5e3 ] ]
 array_invalid_values      = [ generator(32), 77, {}, "justastring" ]
