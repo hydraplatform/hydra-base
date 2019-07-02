@@ -968,7 +968,7 @@ def get_scenario_data(scenario_id, get_parent_data=False, **kwargs):
            try:
                 rs.dataset.check_read_permission(user_id)
            except:
-               rs.datset.value     = None
+               rs.dataset.value     = None
                rs.dataset.metadata = []
 
         datasets.append(rs.dataset)
