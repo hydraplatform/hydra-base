@@ -622,8 +622,7 @@ class TestScenario:
         parent = sorted_scenario[0]
         child  = sorted_scenario[1]
 
-                
-        ra_to_query = network.nodes[0].attributes[0].id
+        ra_to_query = parent.resourcescenarios[0].resource_attr_id
         
         #Request an RS without doing the parent lookup 
         with pytest.raises(hydra_base.HydraError):
