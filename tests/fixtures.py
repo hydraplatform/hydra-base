@@ -107,7 +107,14 @@ def network_with_data(project_id=None, num_nodes=10, ret_full_net=True, new_proj
 
 @pytest.fixture()
 def network_with_child_scenario(project_id=None, num_nodes=10, ret_full_net=True, new_proj=True, map_projection='EPSG:4326'):
-    return util.create_network_with_child_scenario(project_id, num_nodes, ret_full_net, new_proj, map_projection)
+    return util.create_network_with_child_scenario(project_id, num_nodes, ret_full_net, new_proj, map_projection, levels=2)
+
+@pytest.fixture()
+def network_with_grandchild_scenario(project_id=None, num_nodes=10, ret_full_net=True, new_proj=True, map_projection='EPSG:4326'):
+    """
+    Creates a network with 3 scenarios -- a baseline, a child, and a child of the child.
+    """
+    return util.create_network_with_child_scenario(project_id, num_nodes, ret_full_net, new_proj, map_projection, levels=3)
 
 @pytest.fixture()
 def second_network_with_data(project_id=None, num_nodes=10, ret_full_net=True, new_proj=True, map_projection='EPSG:4326'):

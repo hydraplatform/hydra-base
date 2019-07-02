@@ -668,7 +668,8 @@ def create_network_with_child_scenario(project_id=None,
                                     num_nodes=10,
                                     ret_full_net=True,
                                     new_proj=False,
-                                    map_projection='EPSG:4326'):
+                                    map_projection='EPSG:4326',
+                                    levels=2):
     """
         Create a network with two scenarios -- one with data in it, and its child containing
         none of its own data.
@@ -681,8 +682,12 @@ def create_network_with_child_scenario(project_id=None,
                              map_projection=map_projection)
     parent_scenario = network.scenarios[0]
     parent_scenario_id = parent_scenario.id
+    scenario_count = len(network.scenarios) + 1 
+    for level in range(levels-1):
+        new_scenario_j = hydra_base.create_child_scenario(parent_scenario_id, "Scenario {0}".format(scenario_count), user_id=pytest.root_user_id)
+        parent_scenario_id = new_scenario_j.id
+        scenario_count = scenario_count + 1
 
-    hydra_base.create_child_scenario(parent_scenario_id, "Scenario {0}".format(len(network.scenarios)+1), user_id=pytest.root_user_id)
 
     updated_network = JSONObject(hydra_base.get_network(network.id, include_data='Y', user_id=pytest.root_user_id))
 

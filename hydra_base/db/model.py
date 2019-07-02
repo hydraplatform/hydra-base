@@ -1397,7 +1397,7 @@ class Scenario(Base, Inspect):
             group_item_i.link     = resource
         self.resourcegroupitems.append(group_item_i)
 
-    def get_data(self, child_data=None, get_parent_data=True):
+    def get_data(self, child_data=None, get_parent_data=False):
         """
             Return all the resourcescenarios relevant to this scenario.
             If this scenario inherits from another, look up the tree to compile
@@ -1422,12 +1422,13 @@ class Scenario(Base, Inspect):
                 child_data.append(this_rs)
 
         if self.parent is not None and get_parent_data is True:
-            return self.parent.get_data(child_data)
+            return self.parent.get_data(child_data=child_data,
+                                        get_parent_data=get_parent_data)
 
         return child_data
 
 
-    def get_group_items(self, child_items=None, get_parent_items=True):
+    def get_group_items(self, child_items=None, get_parent_items=False):
         """
             Return all the resource group items relevant to this scenario.
             If this scenario inherits from another, look up the tree to compile
@@ -1452,7 +1453,8 @@ class Scenario(Base, Inspect):
                 child_items.append(this_rgi)
 
         if self.parent is not None and get_parent_items is True:
-            return self.parent.get_group_items(child_items)
+            return self.parent.get_group_items(child_items=child_items,
+                                               get_parent_items=get_parent_items)
 
         return child_items 
 
