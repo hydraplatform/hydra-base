@@ -2895,6 +2895,7 @@ def _clone_scenario(old_scenario, newnetworkid, ra_id_map, node_id_map, link_id_
     news.start_time = old_scenario.start_time
     news.end_time = old_scenario.end_time
     news.time_step = old_scenario.time_step
+    news.parent_id = old_scenario.parent_id
     news.created_by=user_id
 
     db.DBSession.add(news)
