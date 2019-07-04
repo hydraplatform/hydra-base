@@ -25,19 +25,25 @@ from fixtures import *
 import util
 import pytest
 from hydra_base.lib.objects import JSONObject, Dataset
-from hydra_base.util.hydra_dateutil import ordinal_to_timestamp, timestamp_to_ordinal
+from hydra_base.util.hydra_dateutil import timestamp_to_ordinal
 
 import logging
 log = logging.getLogger(__name__)
 
 class TestScenario:
 
-    def get_scenario(self, scenario_id):
+    def get_scenario(self, scenario_id, get_parent_data=False):
         """
             Utility function wrapper for a function that's called regularly
             Introduced as the JSONObject wrapper can be controlled more easily
         """
-        return JSONObject(hydra_base.get_scenario(scenario_id, user_id=pytest.root_user_id))
+        return JSONObject(hydra_base.get_scenario(scenario_id, get_parent_data=get_parent_data, user_id=pytest.root_user_id))
+    def get_scenario_data(self, scenario_id, get_parent_data=False):
+        """
+            Utility function wrapper for a function that's called regularly
+            Introduced as the JSONObject wrapper can be controlled more easily
+        """
+        return hydra_base.get_scenario_data(scenario_id, get_parent_data=get_parent_data, user_id=pytest.root_user_id)
 
     def clone_scenario(self, scenario_id):
         """
@@ -548,6 +554,278 @@ class TestScenario:
         assert len(scen_1_resourcegroupitems) == len(scen_2_resourcegroupitems)
 
         return updated_network
+
+    def test_get_inherited_data(self, session, network_with_child_scenario):
+
+        network = network_with_child_scenario
+
+        sorted_scenario = sorted(network.scenarios, key=lambda x : x.id )
+
+        parent = sorted_scenario[0]
+        child  = sorted_scenario[1]
+
+        assert len(child.resourcescenarios) == 0, "There's data in the child but there shouldn't be"
+        
+        #Check that the new scenario contains no data (as we've requested only its own data)
+        retrieved_child_scenario = self.get_scenario(child.id)
+        assert len(retrieved_child_scenario.resourcescenarios) == 0
+
+
+        #Check that the new scenario contains all its data (that of its parent)
+        retrieved_child_scenario = self.get_scenario(child.id, get_parent_data=True)
+        assert len(retrieved_child_scenario.resourcescenarios) == len(parent.resourcescenarios)
+
+    def test_get_third_level_inherited_data(self, session, network_with_grandchild_scenario):
+
+        network = network_with_grandchild_scenario
+
+        sorted_scenario = sorted(network.scenarios, key=lambda x : x.id )
+
+        parent = sorted_scenario[0]
+        child  = sorted_scenario[1]
+        grandchild  = sorted_scenario[2]
+
+        assert len(child.resourcescenarios) == 0, "There's data in the child but there shouldn't be"
+        assert len(grandchild.resourcescenarios) == 0, "There's data in the child but there shouldn't be"
+        
+        #Check that the new scenario contains no data (as we've requested only its own data)
+        retrieved_child_scenario = self.get_scenario(child.id)
+        assert len(retrieved_child_scenario.resourcescenarios) == 0
+
+        #Check that the grandchild scenario also contains no data (as we've requested only its own data)
+        retrieved_grandchild_scenario = self.get_scenario(grandchild.id)
+        assert len(retrieved_grandchild_scenario.resourcescenarios) == 0
+
+
+        #Check that the grandchild scenario contains all its data (that of its grandparent)
+        retrieved_grandchild_scenario = self.get_scenario(grandchild.id, get_parent_data=True)
+        assert len(retrieved_grandchild_scenario.resourcescenarios) == len(parent.resourcescenarios)
+
+
+        #do the same test for groups
+        group_id = network.resourcegroups[0].id
+        parent_group_items = hydra_base.get_resourcegroupitems(group_id, parent.id, user_id=pytest.root_user_id)
+        assert len(parent_group_items) > 0
+        grandchild_group_items = hydra_base.get_resourcegroupitems(group_id, grandchild.id, user_id=pytest.root_user_id)
+        assert len(grandchild_group_items) == 0
+        inherited_group_items = hydra_base.get_resourcegroupitems(group_id, grandchild.id, get_parent_items=True, user_id=pytest.root_user_id)
+        assert len(inherited_group_items) == len(parent_group_items)
+
+
+
+    def test_inherited_get_resource_scenario(self, session, network_with_child_scenario):
+
+        network = network_with_child_scenario
+
+        sorted_scenario = sorted(network.scenarios, key=lambda x : x.id )
+
+        parent = sorted_scenario[0]
+        child  = sorted_scenario[1]
+
+        ra_to_query = parent.resourcescenarios[0].resource_attr_id
+        
+        #Request an RS without doing the parent lookup 
+        with pytest.raises(hydra_base.HydraError):
+            rs = hydra_base.get_resource_scenario(ra_to_query, child.id)
+
+        rs = hydra_base.get_resource_scenario(ra_to_query, child.id, get_parent_data=True)
+        assert rs.scenario_id == parent.id
+
+    def test_inherited_get_scenario_data(self, session, network_with_child_scenario):
+
+        network = network_with_child_scenario
+
+        sorted_scenario = sorted(network.scenarios, key=lambda x : x.id )
+
+        parent = sorted_scenario[0]
+        child  = sorted_scenario[1]
+
+        child_scenario_data = self.get_scenario_data(child.id)
+        assert len(child_scenario_data) == 0
+
+        parent_scenario_data = self.get_scenario_data(parent.id)
+        inherited_scenario_data = self.get_scenario_data(child.id, get_parent_data=True)
+
+        assert len(inherited_scenario_data) == len(parent_scenario_data)
+
+    def test_inherited_get_resource_data(self, session, network_with_child_scenario):
+
+        network = network_with_child_scenario
+
+        sorted_scenario = sorted(network.scenarios, key=lambda x : x.id )
+
+        parent = sorted_scenario[0]
+        child  = sorted_scenario[1]
+
+        resource_to_query = network.nodes[0]
+
+        child_resource_data = hydra_base.get_resource_data('NODE',
+                                                           resource_to_query.id,
+                                                           child.id)
+
+        assert len(child_resource_data) == 0
+
+        parent_resource_data = hydra_base.get_resource_data('NODE',
+                                                           resource_to_query.id,
+                                                           parent.id)
+
+        inherited_resource_data = hydra_base.get_resource_data('NODE',
+                                                           resource_to_query.id,
+                                                           child.id,
+                                                           get_parent_data=True)
+
+        assert len(inherited_resource_data) == len(parent_resource_data)
+
+    def test_inherited_add_data_to_child(self, session, network_with_child_scenario):
+
+        network = network_with_child_scenario
+
+        sorted_scenario = sorted(network.scenarios, key=lambda x : x.id )
+
+        parent = sorted_scenario[0]
+        child  = sorted_scenario[1]
+
+        for rs in parent.resourcescenarios:
+            if rs.dataset.type == 'descriptor':
+                rs_to_update = rs
+                break
+
+        rs_to_update.dataset.value = "Updated RS"
+
+        hydra_base.update_resourcedata(child.id,
+                                        [rs_to_update],
+                                        user_id=pytest.root_user_id)
+
+
+        #Check that the new scenario contains all its data (that of its parent)
+        new_scenario = self.get_scenario(child.id, get_parent_data=True)
+        assert len(new_scenario.resourcescenarios) == len(parent.resourcescenarios)
+
+        #Check that the new scenario contains no data (as we've requested only its own data)
+        new_scenario = self.get_scenario(child.id)
+        assert len(new_scenario.resourcescenarios) == 1
+        
+        child_scenario_data = self.get_scenario_data(child.id)
+        assert len(child_scenario_data) == 1
+
+        parent_scenario_data = self.get_scenario_data(parent.id)
+        inherited_scenario_data = self.get_scenario_data(child.id, get_parent_data=True)
+
+        #This returns 1 more for the inherited data because of the presence of
+        #a new dataset in this result set (this function returns the UNIQUE) datasets
+        #in each scenario.
+        assert len(inherited_scenario_data) == len(parent_scenario_data)+1
+
+        resource_to_query = network.nodes[0]
+
+        child_resource_data = hydra_base.get_resource_data('NODE',
+                                                           resource_to_query.id,
+                                                           child.id)
+
+        assert len(child_resource_data) == 1
+
+        parent_resource_data = hydra_base.get_resource_data('NODE',
+                                                           resource_to_query.id,
+                                                           parent.id)
+
+        inherited_resource_data = hydra_base.get_resource_data('NODE',
+                                                           resource_to_query.id,
+                                                           child.id,
+                                                           get_parent_data=True)
+
+        assert len(inherited_resource_data) == len(parent_resource_data)
+
+
+    def test_inherited_add_data_to_grandchild(self, session, network_with_grandchild_scenario):
+        """
+            Test inheritence by checking the get_scenario_data and get_scenario functions return the data
+            of the grandchild and not the child, of the same RA
+        """
+
+        network = network_with_grandchild_scenario 
+
+        sorted_scenario = sorted(network.scenarios, key=lambda x : x.id )
+
+        parent = sorted_scenario[0]
+        child  = sorted_scenario[1]
+        grandchild  = sorted_scenario[2]
+
+        for rs in parent.resourcescenarios:
+            if rs.dataset.type == 'descriptor':
+                rs_to_update = rs
+                break
+
+        rs_to_update.dataset.value = "Updated RS"
+
+        hydra_base.update_resourcedata(child.id,
+                                        [rs_to_update],
+                                        user_id=pytest.root_user_id)
+
+        rs_to_update.dataset.value = "Updated RS 1"
+
+        hydra_base.update_resourcedata(grandchild.id,
+                                        [rs_to_update],
+                                        user_id=pytest.root_user_id)
+
+        #check the child and grandchild have the same amount of data
+        child_scenario = self.get_scenario(child.id, get_parent_data=True)
+        grandchild_scenario = self.get_scenario(grandchild.id, get_parent_data=True)
+        assert len(child_scenario.resourcescenarios) == len(grandchild_scenario.resourcescenarios)
+
+        #find the RS in each scenario
+        for rs in child_scenario.resourcescenarios:
+            if rs.resource_attr_id == rs_to_update.resource_attr_id:
+                assert rs.dataset.value == 'Updated RS'
+        #Check the grandchild has the correct value
+        for rs in grandchild_scenario.resourcescenarios:
+            if rs.resource_attr_id == rs_to_update.resource_attr_id:
+                assert rs.dataset.value == 'Updated RS 1'
+
+
+        #Check that the new scenario contains no data (as we've requested only its own data)
+        child_scenario = self.get_scenario(child.id)
+        grandchild_scenario = self.get_scenario(grandchild.id)
+        assert len(child_scenario.resourcescenarios) == 1
+        assert len(grandchild_scenario.resourcescenarios) == 1
+        assert child_scenario.resourcescenarios[0].dataset.value == "Updated RS"
+        assert grandchild_scenario.resourcescenarios[0].dataset.value == "Updated RS 1"
+
+        
+        child_scenario_data = self.get_scenario_data(child.id)
+        grandchild_scenario_data = self.get_scenario_data(grandchild.id)
+        assert len(child_scenario_data) == 1
+        assert len(grandchild_scenario_data) == 1
+
+        parent_scenario_data = self.get_scenario_data(parent.id)
+        child_scenario_data = self.get_scenario_data(child.id, get_parent_data=True)
+        grandchild_scenario_data = self.get_scenario_data(grandchild.id, get_parent_data=True)
+
+        #This returns 1 more for the inherited data because of the presence of
+        #a new dataset in this result set (this function returns the UNIQUE) datasets
+        #in each scenario.
+        assert child_scenario_data != grandchild_scenario_data
+        assert len(child_scenario_data) == len(parent_scenario_data)+1
+        assert len(grandchild_scenario_data) == len(parent_scenario_data)+1
+
+        resource_to_query = network.nodes[0]
+
+        child_resource_data = hydra_base.get_resource_data('NODE',
+                                                           resource_to_query.id,
+                                                           child.id)
+
+        assert len(child_resource_data) == 1
+
+        parent_resource_data = hydra_base.get_resource_data('NODE',
+                                                           resource_to_query.id,
+                                                           parent.id)
+
+        inherited_resource_data = hydra_base.get_resource_data('NODE',
+                                                           resource_to_query.id,
+                                                           child.id,
+                                                           get_parent_data=True)
+
+        assert len(inherited_resource_data) == len(parent_resource_data)
+
 
     def test_compare(self, session, network_with_data):
 

@@ -1363,8 +1363,10 @@ class Scenario(Base, Inspect):
     time_step = Column(String(60))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     created_by = Column(Integer(), ForeignKey('tUser.id'), nullable=False)
+    parent_id = Column(Integer(), ForeignKey('tScenario.id'), nullable=True)
 
     network = relationship('Network', backref=backref("scenarios", order_by=id))
+    parent = relationship('Scenario', remote_side=[id], backref=backref("children", order_by=id))
 
     _parents  = ['tNetwork']
     _children = ['tResourceScenario']
@@ -1394,6 +1396,67 @@ class Scenario(Base, Inspect):
         elif ref_key == 'LINK':
             group_item_i.link     = resource
         self.resourcegroupitems.append(group_item_i)
+
+    def get_data(self, child_data=None, get_parent_data=False):
+        """
+            Return all the resourcescenarios relevant to this scenario.
+            If this scenario inherits from another, look up the tree to compile
+            an exhaustive list of resourcescnearios, removing any duplicates, prioritising
+            the ones closest to this scenario (my immediate parent's values are used instead
+            of its parents)
+        """
+        
+        #This avoids python's mutable keyword argumets causing child_data to keep its values beween
+        #function calls
+        if child_data is None:
+            child_data = []
+
+        #Idenify all existing resource attr ids, which take priority over anything in here
+        childrens_ras = []
+        for child_rs in child_data:
+            childrens_ras.append(child_rs.resource_attr_id)
+        
+        #Add resource attributes which are not defined already 
+        for this_rs in self.resourcescenarios:
+            if this_rs.resource_attr_id not in childrens_ras:
+                child_data.append(this_rs)
+
+        if self.parent is not None and get_parent_data is True:
+            return self.parent.get_data(child_data=child_data,
+                                        get_parent_data=get_parent_data)
+
+        return child_data
+
+
+    def get_group_items(self, child_items=None, get_parent_items=False):
+        """
+            Return all the resource group items relevant to this scenario.
+            If this scenario inherits from another, look up the tree to compile
+            an exhaustive list of resource group items, removing any duplicates, prioritising
+            the ones closest to this scenario (my immediate parent's values are used instead
+            of its parents)
+        """
+
+        #This avoids python's mutable keyword argumets causing child_items to keep its values beween
+        #function calls
+        if child_items == None:
+            child_items = []
+
+        #Idenify all existing resource attr ids, which take priority over anything in here
+        childrens_groups = []
+        for child_rgi in child_items:
+            childrens_groups.append(child_rgi.group_id)
+        
+        #Add resource attributes which are not defined already 
+        for this_rgi in self.resourcegroupitems:
+            if this_rgi.group_id not in childrens_groups:
+                child_items.append(this_rgi)
+
+        if self.parent is not None and get_parent_items is True:
+            return self.parent.get_group_items(child_items=child_items,
+                                               get_parent_items=get_parent_items)
+
+        return child_items 
 
 class Rule(Base, Inspect):
     """
