@@ -93,7 +93,7 @@ def connect(db_url=None):
         db_url = config.get('mysqld', 'url')
 
 
-    log.info("Connecting to database: %s", db_url)
+    log.debug("Connecting to database: %s", db_url)
 
     db_url = create_mysql_db(db_url)
 
