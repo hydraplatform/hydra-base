@@ -127,8 +127,9 @@ def get_scenario(scenario_id, get_parent_data=False, include_data=True, include_
         Get the specified scenario
         args:
             scenario_id: The ID of the scenario to retrieve
+            get_parent_data: Flag to indicate whether to include the data from the parent scenario also, or just this one.
             include_data: Flag to indicate wheter to return the list of resource scenarios
-            include_group_items: Flag to indicate whetther to return the list of resource group items
+            include_group_items: Flag to indicate whether to return the list of resource group items
         return:
             A scenario JSONObject
     """

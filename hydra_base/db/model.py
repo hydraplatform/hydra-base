@@ -1405,7 +1405,7 @@ class Scenario(Base, Inspect):
             the ones closest to this scenario (my immediate parent's values are used instead
             of its parents)
 
-            If an explicit list of RAs is provided, only return data for these. THis is used 
+            If an explicit list of RAs is provided, only return data for these. This is used 
             when requesting data for a specific resource, for example.
         """
         
