@@ -19,11 +19,12 @@
 
 import json
 import six
+import enum
 
 from datetime import datetime
 from ..exceptions import HydraError
 
-from .HydraTypes.Registry import HydraObjectFactory
+from .HydraTypes.Registry import HydraObjectFactory 
 
 from ..util import generate_data_hash, get_layout_as_dict, get_layout_as_string
 from .. import config
@@ -134,6 +135,8 @@ class JSONObject(dict):
                     and obj_dict._parents is not None\
                     and v.__tablename__ in obj_dict._parents:
                 continue
+            elif isinstance(v, enum.Enum):
+                setattr(self, k, v.value)
             else:
                 if k == '_sa_instance_state':
                     continue
