@@ -32,7 +32,7 @@ from . import template
 from ..db.model import Project, Network, Scenario, Node, Link, ResourceGroup,\
         ResourceAttr, Attr, ResourceType, ResourceGroupItem, Dataset, Metadata, DatasetOwner,\
         ResourceScenario, TemplateType, TypeAttr, Template, NetworkOwner, User
-from sqlalchemy.orm import noload, joinedload, joinedload_all
+from sqlalchemy.orm import noload, joinedload
 from .. import db
 from sqlalchemy import func, and_, or_, distinct
 from sqlalchemy.orm.exc import NoResultFound
@@ -879,7 +879,7 @@ def _get_network_owners(network_id):
         Get all the nodes in a network
     """
     owners_i = db.DBSession.query(NetworkOwner).filter(
-                        NetworkOwner.network_id==network_id).options(noload('network')).options(joinedload_all('user')).all()
+                        NetworkOwner.network_id==network_id).options(noload('network')).options(joinedload('user')).all()
 
     owners = [JSONObject(owner_i) for owner_i in owners_i]
 
@@ -1080,9 +1080,9 @@ def get_nodes(network_id, template_id=None, **kwargs):
                         Node.status=='A').options(
                             noload('network')
                         ).options(
-                            joinedload_all('types.templatetype')
+                            joinedload('types').joinedload('templatetype')
                         ).options(
-                            joinedload_all('attributes.attr')
+                            joinedload('attributes').joinedload('attr')
                         )
     if template_id is not None:
         node_qry = node_qry.filter(ResourceType.node_id==Node.id,
@@ -1111,9 +1111,9 @@ def get_links(network_id, template_id=None, **kwargs):
                                         Link.status=='A').options(
                                             noload('network')
                                         ).options(
-                                            joinedload_all('types.templatetype')
+                                            joinedload('types').joinedload('templatetype')
                                         ).options(
-                                            joinedload_all('attributes.attr')
+                                            joinedload('attributes').joinedload('attr')
                                         )
 
     if template_id is not None:
@@ -1144,9 +1144,9 @@ def get_groups(network_id, template_id=None, **kwargs):
                                         ResourceGroup.status=='A').options(
                                             noload('network')
                                         ).options(
-                                            joinedload_all('types.templatetype')
+                                            joinedload('types').joinedload('templatetype')
                                         ).options(
-                                            joinedload_all('attributes.attr')
+                                            joinedload('attributes').joinedload('attr')
                                         )
     if template_id is not None:
         group_qry = group_qry.filter(ResourceType.group_id==ResourceGroup.id,
@@ -1159,7 +1159,7 @@ def get_groups(network_id, template_id=None, **kwargs):
 
 def get_network_simple(network_id,**kwargs):
     try:
-        n = db.DBSession.query(Network).filter(Network.id==network_id).options(joinedload_all('attributes.attr')).one()
+        n = db.DBSession.query(Network).filter(Network.id==network_id).options(joinedload('attributes').joinedload('attr')).one()
         n.types
         for t in n.types:
             t.templatetype.typeattrs
@@ -1169,7 +1169,7 @@ def get_network_simple(network_id,**kwargs):
 
 def get_node(node_id, scenario_id=None, **kwargs):
     try:
-        n = db.DBSession.query(Node).filter(Node.id==node_id).options(joinedload_all('attributes.attr')).one()
+        n = db.DBSession.query(Node).filter(Node.id==node_id).options(joinedload('attributes').joinedload('attr')).one()
         n.types
         for t in n.types:
             t.templatetype.typeattrs
@@ -1197,7 +1197,7 @@ def get_node(node_id, scenario_id=None, **kwargs):
 
 def get_link(link_id, scenario_id=None, **kwargs):
     try:
-        l = db.DBSession.query(Link).filter(Link.id==link_id).options(joinedload_all('attributes.attr')).one()
+        l = db.DBSession.query(Link).filter(Link.id==link_id).options(joinedload('attributes').joinedload('attr')).one()
         l.types
         for t in l.types:
             t.templatetype.typeattrs
@@ -1225,7 +1225,7 @@ def get_link(link_id, scenario_id=None, **kwargs):
 
 def get_resourcegroup(group_id, scenario_id=None, **kwargs):
     try:
-        rg = db.DBSession.query(ResourceGroup).filter(ResourceGroup.id==group_id).options(joinedload_all('attributes.attr')).one()
+        rg = db.DBSession.query(ResourceGroup).filter(ResourceGroup.id==group_id).options(joinedload('attributes').joinedload('attr')).one()
         rg.types
         for t in rg.types:
             t.templatetype.typeattrs
@@ -1254,7 +1254,7 @@ def get_node_by_name(network_id, node_name,**kwargs):
     try:
         n = db.DBSession.query(Node).filter(Node.name==node_name,
                                          Node.network_id==network_id).\
-                                         options(joinedload_all('attributes.attr')).one()
+                                         options(joinedload('attributes').joinedload('attr')).one()
         return n
     except NoResultFound:
         raise ResourceNotFoundError("Node %s not found in network %s"%(node_name, network_id,))
@@ -1263,7 +1263,7 @@ def get_link_by_name(network_id, link_name,**kwargs):
     try:
         l = db.DBSession.query(Link).filter(Link.name==link_name,
                                          Link.network_id==network_id).\
-                                         options(joinedload_all('attributes.attr')).one()
+                                         options(joinedload('attributes').joinedload('attr')).one()
         return l
     except NoResultFound:
         raise ResourceNotFoundError("Link %s not found in network %s"%(link_name, network_id))
@@ -1272,7 +1272,7 @@ def get_resourcegroup_by_name(network_id, group_name,**kwargs):
     try:
         rg = db.DBSession.query(ResourceGroup).filter(ResourceGroup.name==group_name,
                                                    ResourceGroup.network_id==network_id).\
-                                                    options(joinedload_all('attributes.attr')).one()
+                                                    options(joinedload('attributes').joinedload('attr')).one()
         return rg
     except NoResultFound:
         raise ResourceNotFoundError("ResourceGroup %s not found in network %s"%(group_name,network_id))
@@ -2205,7 +2205,7 @@ def clean_up_network(network_id, **kwargs):
     try:
         log.debug("Querying Network %s", network_id)
         net_i = db.DBSession.query(Network).filter(Network.id == network_id).\
-        options(noload('scenarios')).options(noload('nodes')).options(noload('links')).options(noload('resourcegroups')).options(joinedload_all('types.templatetype.template')).one()
+        options(noload('scenarios')).options(noload('nodes')).options(noload('links')).options(noload('resourcegroups')).options(joinedload('types').joinedload('templatetype').joinedload('template')).one()
         net_i.attributes
 
         #Define the basic resource queries
@@ -2404,10 +2404,10 @@ def get_all_resource_attributes_in_network(attr_id, network_id, **kwargs):
              .outerjoin('link')\
              .outerjoin('network')\
              .outerjoin('resourcegroup')\
-             .options(joinedload_all('node'))\
-             .options(joinedload_all('link'))\
-             .options(joinedload_all('resourcegroup'))\
-             .options(joinedload_all('network'))
+             .options(joinedload('node'))\
+             .options(joinedload('link'))\
+             .options(joinedload('resourcegroup'))\
+             .options(joinedload('network'))
 
     resourceattrs = ra_qry.all()
 
