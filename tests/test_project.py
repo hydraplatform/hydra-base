@@ -16,13 +16,12 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-import server
 import datetime
 import copy
 import pytest
 
-from fixtures import *
-import util
+from .fixtures import *
+import hydra_base.util.testing as util
 
 import hydra_base as hb
 from hydra_base.lib.objects import JSONObject
@@ -270,7 +269,3 @@ class TestProject:
 
         assert cloned_project.name.find('Cloned') > 0 
         assert len(cloned_project.networks) == 2
-
-        
-if __name__ == '__main__':
-    server.run()

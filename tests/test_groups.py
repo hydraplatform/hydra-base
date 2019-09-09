@@ -17,8 +17,7 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
-import server
-from fixtures import *
+from .fixtures import *
 import pytest
 import hydra_base as hb
 from hydra_base.lib.objects import JSONObject
@@ -159,6 +158,3 @@ class TestGroup:
                 with pytest.raises(hb.HydraError):
                     hb.get_dataset(d.id, user_id=pytest.root_user_id)
 
-
-if __name__ == '__main__':
-    server.run()

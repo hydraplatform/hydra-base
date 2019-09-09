@@ -19,7 +19,7 @@
 
 import hydra_base
 import hydra_base.exceptions
-from fixtures import *
+from .fixtures import *
 import datetime
 import bcrypt
 import pytest

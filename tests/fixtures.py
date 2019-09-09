@@ -1,7 +1,7 @@
 from hydra_base.db import DeclarativeBase as _db
 from hydra_base.util.hdb import create_default_users_and_perms, make_root_user, create_default_units_and_dimensions
 import hydra_base
-import util
+from hydra_base.util import testing as util
 import sqlite3
 import pytest
 from sqlalchemy import create_engine

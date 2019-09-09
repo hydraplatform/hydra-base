@@ -20,12 +20,11 @@
 import hydra_base as hb
 from hydra_base.exceptions import HydraError, ResourceNotFoundError
 from hydra_base.lib.objects import JSONObject
-from fixtures import *
+from .fixtures import *
 import pytest
-import util
 import logging
 log = logging.getLogger(__name__)
-import util
+import hydra_base.util.testing as util
 import sys
 import json
 # from ..hydra_base.util.dataset_util import arr_to_vector

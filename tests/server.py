@@ -17,7 +17,7 @@
 # -*- coding: utf-8 -*-
 import logging
 from hydra_base import config
-import util
+from hydra_base.util import testing as util
 from hydra_base.db import commit_transaction
 from hydra_base.util.hdb import create_default_users_and_perms
 

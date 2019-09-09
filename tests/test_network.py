@@ -17,10 +17,9 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
-import server
 import copy
 import datetime
-from fixtures import *
+from .fixtures import *
 
 import hydra_base as hb
 from hydra_base.lib.objects import JSONObject, Dataset
@@ -1089,6 +1088,3 @@ class TestNetwork:
         cloned_network = hb.get_network(cloned_network_id, include_data='Y', user_id=pytest.root_user_id)
         #No need to assert that the clone itself worked, as the other test does that.
         assert cloned_network.project_id != net.project_id
-
-if __name__ == '__main__':
-    server.run()

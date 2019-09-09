@@ -16,13 +16,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import server
+from . import server
 import datetime
 import copy
 import json
 import hydra_base
-from fixtures import *
-import util
+from .fixtures import *
+from hydra_base.util import testing as util
 import pytest
 from hydra_base.lib.objects import JSONObject, Dataset
 from hydra_base.util.hydra_dateutil import timestamp_to_ordinal
@@ -684,13 +684,20 @@ class TestScenario:
 
         parent = sorted_scenario[0]
         child  = sorted_scenario[1]
-
+        
+        #Specifically chose an attribute to update to remove non-determinisim
+        #when trying to choose a resource to query later. Index 2 is a scalar, as
+        #defined in the network creation
+        ra_to_update = network.nodes[0].attributes[2].id
+        
+        #Update a value in the parent, leaving 1 different value between parent and child
         for rs in parent.resourcescenarios:
-            if rs.dataset.type == 'descriptor':
+            if rs.resource_attr_id == ra_to_update:
                 rs_to_update = rs
                 break
 
-        rs_to_update.dataset.value = "Updated RS"
+        #Set the new value to 999
+        rs_to_update.dataset.value = 999
 
         hydra_base.update_resourcedata(child.id,
                                         [rs_to_update],
@@ -750,18 +757,26 @@ class TestScenario:
         child  = sorted_scenario[1]
         grandchild  = sorted_scenario[2]
 
+        #Specifically chose an attribute to update to remove non-determinisim
+        #when trying to choose a resource to query later. Index 2 is a scalar, as
+        #defined in the network creation
+        ra_to_update = network.nodes[0].attributes[2].id
+        
+        #Update a value in the parent, leaving 1 different value between parent and child
         for rs in parent.resourcescenarios:
-            if rs.dataset.type == 'descriptor':
+            if rs.resource_attr_id == ra_to_update:
                 rs_to_update = rs
                 break
 
-        rs_to_update.dataset.value = "Updated RS"
+        previous_rs_value = rs_to_update.dataset.value 
+
+        rs_to_update.dataset.value = 999
 
         hydra_base.update_resourcedata(child.id,
                                         [rs_to_update],
                                         user_id=pytest.root_user_id)
 
-        rs_to_update.dataset.value = "Updated RS 1"
+        rs_to_update.dataset.value = 1000
 
         hydra_base.update_resourcedata(grandchild.id,
                                         [rs_to_update],
@@ -775,11 +790,11 @@ class TestScenario:
         #find the RS in each scenario
         for rs in child_scenario.resourcescenarios:
             if rs.resource_attr_id == rs_to_update.resource_attr_id:
-                assert rs.dataset.value == 'Updated RS'
+                assert int(rs.dataset.value) == 999
         #Check the grandchild has the correct value
         for rs in grandchild_scenario.resourcescenarios:
             if rs.resource_attr_id == rs_to_update.resource_attr_id:
-                assert rs.dataset.value == 'Updated RS 1'
+                assert int(rs.dataset.value) == 1000
 
 
         #Check that the new scenario contains no data (as we've requested only its own data)
@@ -787,8 +802,8 @@ class TestScenario:
         grandchild_scenario = self.get_scenario(grandchild.id)
         assert len(child_scenario.resourcescenarios) == 1
         assert len(grandchild_scenario.resourcescenarios) == 1
-        assert child_scenario.resourcescenarios[0].dataset.value == "Updated RS"
-        assert grandchild_scenario.resourcescenarios[0].dataset.value == "Updated RS 1"
+        assert int(child_scenario.resourcescenarios[0].dataset.value) == 999
+        assert int(grandchild_scenario.resourcescenarios[0].dataset.value) == 1000
 
         
         child_scenario_data = self.get_scenario_data(child.id)

@@ -18,9 +18,9 @@
 import hydra_base as hb
 from hydra_base.lib.objects import JSONObject
 from hydra_base.exceptions import ResourceNotFoundError
-from fixtures import *
+from .fixtures import *
 import pytest
-import util
+import hydra_base.util.testing as util
 import datetime
 import logging
 

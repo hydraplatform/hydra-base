@@ -829,27 +829,28 @@ def create_timeseries(resource_attr):
 
     return scenario_attr
 
-def create_dataframe(resource_attr):
+def create_dataframe(resource_attr, name='Test Data Frame', dataframe_value=None):
     #A scenario attribute is a piece of data associated
     #with a resource attribute.
 
-    val_1 = "df_a"
-    val_2 = "df_b"
-    val_3 = "df_c"
+    if dataframe_value is None:
+        val_1 = 1 
+        val_2 = 2
+        val_3 = 3
 
-    ts_val = {"test_column": {'key1': val_1,
-                  'key2': val_2,
-                  'key3': val_3}}
+        dataframe_value = {"test_column": {'key1': val_1,
+                    'key2': val_2,
+                    'key3': val_3}}
 
     metadata = {'created_by': 'Test user'}
 
     dataset = Dataset(dict(
         id=None,
         type = 'dataframe',
-        name = 'my data frame',
+        name = name,
         unit_id = hydra_base.get_unit_by_abbreviation('m^3 s^-1').id,
         hidden = 'N',
-        value = json.dumps(ts_val),
+        value = json.dumps(dataframe_value),
         metadata = metadata
     ))
 

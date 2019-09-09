@@ -30,8 +30,8 @@
 
 
 import logging
-from util import update_template, get_by_name
-from fixtures import *
+from hydra_base.util.testing import update_template, get_by_name
+from .fixtures import *
 import copy
 import json
 import hydra_base as hb

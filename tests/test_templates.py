@@ -17,14 +17,14 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
-from fixtures import *
+from .fixtures import *
 from lxml import etree
 from hydra_base import config
 from hydra_base.lib.objects import JSONObject
 import hydra_base as hb
 import logging
 from hydra_base.exceptions import HydraError
-import util
+import hydra_base.util.testing as util
 import datetime
 import json
 import os
