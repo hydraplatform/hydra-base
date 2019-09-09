@@ -1181,6 +1181,7 @@ def get_node(node_id, scenario_id=None, **kwargs):
                 if ta.default_dataset_id:
                     ta.default_dataset
                     ta.default_dataset.metadata
+                    ta.default_dataset.unit
 
     except NoResultFound:
         raise ResourceNotFoundError("Node %s not found"%(node_id,))
@@ -1204,11 +1205,16 @@ def get_link(link_id, scenario_id=None, **kwargs):
         l = db.DBSession.query(Link).filter(Link.id==link_id).options(joinedload('attributes').joinedload('attr')).one()
         l.types
         for t in l.types:
+            #lazy load the type's template
+            t.templatetype.template
+            #set the template name on the type
+            t.templatetype.template_name = t.templatetype.template.name
             t.templatetype.typeattrs
             for ta in t.templatetype.typeattrs:
                 if ta.default_dataset_id:
                     ta.default_dataset
                     ta.default_dataset.metadata
+                    ta.default_dataset.unit
 
     except NoResultFound:
         raise ResourceNotFoundError("Link %s not found"%(link_id,))
@@ -1232,11 +1238,16 @@ def get_resourcegroup(group_id, scenario_id=None, **kwargs):
         rg = db.DBSession.query(ResourceGroup).filter(ResourceGroup.id==group_id).options(joinedload('attributes').joinedload('attr')).one()
         rg.types
         for t in rg.types:
+            #lazy load the type's template
+            t.templatetype.template
+            #set the template name on the type
+            t.templatetype.template_name = t.templatetype.template.name
             t.templatetype.typeattrs
             for ta in t.templatetype.typeattrs:
                 if ta.default_dataset_id is not None:
                     ta.default_dataset
                     ta.default_dataset.metadata
+                    ta.default_dataset.unit
     except NoResultFound:
         raise ResourceNotFoundError("ResourceGroup %s not found"%(group_id,))
 
