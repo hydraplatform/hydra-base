@@ -40,6 +40,8 @@ from ..util.hydra_dateutil import timestamp_to_ordinal
 from collections import namedtuple
 from copy import deepcopy
 
+from .network import get_resource
+
 from .objects import JSONObject
 
 log = logging.getLogger(__name__)
@@ -120,9 +122,15 @@ def copy_data_from_scenario(resource_attrs, source_scenario_id, target_scenario_
 
     return target_resourcescenarios
 
-def get_scenario(scenario_id, get_parent_data=False, **kwargs):
+def get_scenario(scenario_id, get_parent_data=False, include_data=True, include_group_items=True, **kwargs):
     """
         Get the specified scenario
+        args:
+            scenario_id: The ID of the scenario to retrieve
+            include_data: Flag to indicate wheter to return the list of resource scenarios
+            include_group_items: Flag to indicate whetther to return the list of resource group items
+        return:
+            A scenario JSONObject
     """
 
     user_id = kwargs.get('user_id')
@@ -130,7 +138,10 @@ def get_scenario(scenario_id, get_parent_data=False, **kwargs):
     scen_i = _get_scenario(scenario_id, user_id)
 
     scen_j = JSONObject(scen_i)
-    rscen_rs = scen_i.get_data(get_parent_data=get_parent_data)
+    
+    rscen_rs = []
+    if include_data is True:
+        rscen_rs = scen_i.get_data(get_parent_data=get_parent_data)
 
     #lazy load resource attributes and attributes
     for rs in rscen_rs:
@@ -139,7 +150,9 @@ def get_scenario(scenario_id, get_parent_data=False, **kwargs):
         rs.dataset
         rs.dataset.metadata
 
-    rgi_rs = scen_i.get_group_items(get_parent_items=get_parent_data)
+    rgi_rs = []
+    if include_group_items is True:
+        rgi_rs = scen_i.get_group_items(get_parent_items=get_parent_data)
 
     scen_j.resourcescenarios = []
     for rs in rscen_rs:
@@ -1015,17 +1028,23 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id=None, expunge_sessio
 
     user_id = kwargs.get('user_id')
 
+    resource_i = get_resource(ref_key, ref_id)
+    ra_ids = [ra.id for ra in resource_i.attributes]
+
     scenario_i = _get_scenario(scenario_id, user_id)
-    scenario_rs = scenario_i.get_data(get_parent_data=get_parent_data)
-    
-    requested_rs = []
+    requested_rs = scenario_i.get_data(get_parent_data=get_parent_data, ra_ids=ra_ids)
+
+    #map an raID to an rs for uses later
+    ra_rs_map = {}
+    for rs in requested_rs:
+        ra_rs_map[rs.resource_attr_id] = rs
+       
+    #make a lookup table between an attr ID and an RS for filtering by types later.
     attr_rs_lookup = {} # Used later to remove results if they're not required
-    for rs in scenario_rs:
-        ra = rs.resourceattr
-        resource = ra.get_resource()
-        if resource.id == ref_id:
-            requested_rs.append(rs)
-            attr_rs_lookup[ra.attr_id] = rs
+    for ra in resource_i.attributes:
+        #Is there data for this RA?
+        if ra_rs_map.get(ra.id) is not None:
+            attr_rs_lookup[ra.attr_id] = ra_rs_map[ra.id]
     
     #Remove RS that are not defined by the specified type.
     if type_id is not None:
