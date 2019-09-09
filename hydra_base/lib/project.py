@@ -305,6 +305,9 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
         #lazy load owners
         project_i.owners
 
+        project_i.attributes
+        project_i.get_attribute_data()
+
         network_qry = db.DBSession.query(Network)\
                                 .filter(Network.project_id==project_i.id,\
                                         Network.status=='A')
