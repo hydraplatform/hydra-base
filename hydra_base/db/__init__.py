@@ -61,7 +61,6 @@ def create_mysql_db(db_url):
     #Check this is a mysql URL
     if db_url.find('mysql') >= 0:
 
-
         #Get the DB name from config and check if it's in the URL
         db_name = config.get('mysqld', 'db_name', 'hydradb')
         if db_url.find(db_name) >= 0:
@@ -83,7 +82,7 @@ def create_mysql_db(db_url):
 
         if config.get('mysqld', 'auto_create', 'Y') == 'Y':
             tmp_engine = create_engine(no_db_url)
-            log.warning("Creating database {0} as it does not exist.".format(db_name))
+            log.debug("Creating database {0} as it does not exist.".format(db_name))
             tmp_engine.execute("CREATE DATABASE IF NOT EXISTS {0}".format(db_name))
 
     return db_url
@@ -92,8 +91,8 @@ def connect(db_url=None):
     if db_url is None:
         db_url = config.get('mysqld', 'url')
 
-
-    log.info("Connecting to database: %s", db_url)
+    log.info("Connecting to database")
+    log.debug("DB URL: %s", db_url)
 
     db_url = create_mysql_db(db_url)
 
