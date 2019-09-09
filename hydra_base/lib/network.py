@@ -1192,7 +1192,7 @@ def get_node(node_id, scenario_id=None, **kwargs):
         res_scens = scenario.get_resource_data('NODE', node_id, scenario_id, None)
         rs_dict = {}
         for rs in res_scens:
-            rs_dict[rs.resource_attr_id] = rs
+            rs_dict[rs.resource_attr_id] = JSONObject(rs)
 
         for ra in n.attributes:
             if rs_dict.get(ra.id):
@@ -1225,7 +1225,7 @@ def get_link(link_id, scenario_id=None, **kwargs):
         res_scens = scenario.get_resource_data('LINK', link_id, scenario_id, None)
         rs_dict = {}
         for rs in res_scens:
-            rs_dict[rs.resource_attr_id] = rs
+            rs_dict[rs.resource_attr_id] = JSONObject(rs)
 
         for ra in l.attributes:
             if rs_dict.get(ra.id):
@@ -1257,7 +1257,7 @@ def get_resourcegroup(group_id, scenario_id=None, **kwargs):
         res_scens = scenario.get_resource_data('GROUP', group_id, scenario_id, None)
         rs_dict = {}
         for rs in res_scens:
-            rs_dict[rs.resource_attr_id] = rs
+            rs_dict[rs.resource_attr_id] = JSONObject(rs)
 
         for ra in rg.attributes:
             if rs_dict.get(ra.id):
