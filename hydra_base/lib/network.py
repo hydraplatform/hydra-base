@@ -1173,6 +1173,10 @@ def get_node(node_id, scenario_id=None, **kwargs):
         n.types
         for t in n.types:
             t.templatetype.typeattrs
+            t.templatetype.template
+            #set this for easy access later by client
+            #t.templatetype.template_name = t.templatetype.template.name
+
             for ta in t.templatetype.typeattrs:
                 if ta.default_dataset_id:
                     ta.default_dataset
