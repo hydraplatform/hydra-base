@@ -796,7 +796,7 @@ def create_timeseries(resource_attr):
 
     fmt = hydra_base.config.get('DEFAULT', 'datetime_format', "%Y-%m-%dT%H:%M:%S.%f000Z")
 
-    t1 = datetime.datetime.now()
+    t1 = datetime.datetime.now(datetime.timezone.utc)
     t2 = t1+datetime.timedelta(hours=1)
     t3 = t1+datetime.timedelta(hours=2)
 

@@ -302,8 +302,8 @@ class TestTimeSeries:
 
         val_a, val_b = list(json.loads(val_to_query.value)['test_column'].values())[:2]
 
-        now = datetime.datetime.now()
-
+        now = datetime.datetime.now(datetime.timezone.utc)
+        
         vals = hb.get_vals_between_times(
             val_to_query.id,
             now,

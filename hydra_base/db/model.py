@@ -1397,13 +1397,16 @@ class Scenario(Base, Inspect):
             group_item_i.link     = resource
         self.resourcegroupitems.append(group_item_i)
 
-    def get_data(self, child_data=None, get_parent_data=False):
+    def get_data(self, child_data=None, get_parent_data=False, ra_ids=None):
         """
             Return all the resourcescenarios relevant to this scenario.
             If this scenario inherits from another, look up the tree to compile
             an exhaustive list of resourcescnearios, removing any duplicates, prioritising
             the ones closest to this scenario (my immediate parent's values are used instead
             of its parents)
+
+            If an explicit list of RAs is provided, only return data for these. This is used 
+            when requesting data for a specific resource, for example.
         """
         
         #This avoids python's mutable keyword argumets causing child_data to keep its values beween
@@ -1417,13 +1420,21 @@ class Scenario(Base, Inspect):
             childrens_ras.append(child_rs.resource_attr_id)
         
         #Add resource attributes which are not defined already 
-        for this_rs in self.resourcescenarios:
+        rs_query = get_session().query(ResourceScenario).filter(ResourceScenario.scenario_id==self.id)
+
+        if ra_ids is not None:
+            rs_query = rs_query.filter(ResourceScenario.resource_attr_id.in_(ra_ids))
+
+        resourcescenarios = rs_query.all()
+
+        for this_rs in resourcescenarios:
             if this_rs.resource_attr_id not in childrens_ras:
                 child_data.append(this_rs)
 
         if self.parent is not None and get_parent_data is True:
             return self.parent.get_data(child_data=child_data,
-                                        get_parent_data=get_parent_data)
+                                        get_parent_data=get_parent_data,
+                                       ra_ids=ra_ids)
 
         return child_data
 
