@@ -52,6 +52,32 @@ class TestScenario:
         """
         return JSONObject(hydra_base.clone_scenario(scenario_id, user_id=pytest.root_user_id))
 
+    def test_get_scenario(self, session, network_with_data):
+        """
+            Test to get the scenarios attached to a dataset
+        """
+
+        network = network_with_data
+
+        #Create the new scenario
+        scenario = network.scenarios[0]
+
+        rs = scenario.resourcescenarios
+
+        
+        scenario_retrieved = hydra_base.get_scenario(scenario.id, user_id=pytest.root_user_id)
+        assert len(scenario_retrieved.resourcescenarios) == len(rs)
+        assert len(scenario_retrieved.resourcegroupitems) == len(scenario.resourcegroupitems)
+        
+        scenario_no_data = hydra_base.get_scenario(scenario.id, include_data=False, user_id=pytest.root_user_id)
+        assert scenario_no_data.resourcescenarios == []
+        assert len(scenario_no_data.resourcegroupitems) == len(scenario.resourcegroupitems)
+        
+        scenario_no_groupitems = hydra_base.get_scenario(scenario.id, include_group_items=False, user_id=pytest.root_user_id)
+        assert len(scenario_no_groupitems.resourcescenarios) == len(scenario.resourcescenarios)
+        assert scenario_no_groupitems.resourcegroupitems == []
+
+
     def test_update(self, session, network_with_data):
 
         network =  network_with_data
@@ -686,9 +712,13 @@ class TestScenario:
         child  = sorted_scenario[1]
         
         #Specifically chose an attribute to update to remove non-determinisim
-        #when trying to choose a resource to query later. Index 2 is a scalar, as
-        #defined in the network creation
-        ra_to_update = network.nodes[0].attributes[2].id
+        #when trying to choose a resource to query later. Attribute 'node_attr_c' is a scalar, as
+        #defined in the network creation. We use the name instead of an index or ID because
+        #postgres ordering is non-deterministic.
+        ra_to_update = None
+        for a in network.nodes[0].attributes:
+            if a.name == 'node_attr_c':
+                ra_to_update = a.id
         
         #Update a value in the parent, leaving 1 different value between parent and child
         for rs in parent.resourcescenarios:
@@ -758,9 +788,13 @@ class TestScenario:
         grandchild  = sorted_scenario[2]
 
         #Specifically chose an attribute to update to remove non-determinisim
-        #when trying to choose a resource to query later. Index 2 is a scalar, as
-        #defined in the network creation
-        ra_to_update = network.nodes[0].attributes[2].id
+        #when trying to choose a resource to query later. Attributea'node_attr_c' is a scalar, as
+        #defined in the network creation. We use the name instead of an index or ID because
+        #postgres ordering is non-deterministic.
+        ra_to_update = None
+        for a in network.nodes[0].attributes:
+            if a.name == 'node_attr_c':
+                ra_to_update = a.id
         
         #Update a value in the parent, leaving 1 different value between parent and child
         for rs in parent.resourcescenarios:
