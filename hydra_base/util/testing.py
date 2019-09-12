@@ -497,14 +497,18 @@ def build_network(project_id=None, num_nodes=10, new_proj=True, map_projection='
         for na in n.attributes:
             if na.get('attr_is_var', 'N') == 'N':
                 if na['attr_id'] == node_type.typeattrs[0].attr_id:
-                    timeseries = create_timeseries(na)
-                    scenario_data.append(timeseries)
+                    #less than 10 and with 1 decimal place, as per the restriction in the template
+                    dataset = create_scalar(na, 1.1, unit='cm^3')
                 elif na['attr_id'] == node_type.typeattrs[2].attr_id:
-                    scalar = create_scalar(na)
-                    scenario_data.append(scalar)
+                    #incorrect unit to test the validation
+                    dataset = create_timeseries(na, 'cm^3')
                 elif na['attr_id'] == node_type.typeattrs[3].attr_id:
-                    dataframe = create_dataframe(na)
-                    scenario_data.append(dataframe)
+                    dataset = create_dataframe(na, unit='m^3 s^-1')
+            elif na.get('attr_is_var', 'Y') == 'Y':
+                if na['attr_id'] == node_type.typeattrs[1].attr_id:
+                    # correct unit (speed)
+                    dataset = create_scalar(na, unit='m s^-1')
+            scenario_data.append(dataset)
     count = 0
     for l in links:
         for na in l.attributes:
@@ -517,7 +521,7 @@ def build_network(project_id=None, num_nodes=10, new_proj=True, map_projection='
                 scenario_data.append(descriptor)
                 count = count + 1
 
-    grp_timeseries = create_timeseries(group_attrs[0])
+    grp_timeseries = create_timeseries(group_attrs[0], 'cm^3')#incorrect unit to test validation
 
     scenario_data.append(grp_timeseries)
 
@@ -747,14 +751,14 @@ def check_network(request_net, response_net):
         assert d in before_times, "%s is incorrect"%(d)
 
 
-def create_scalar(resource_attr, val=1.234):
+def create_scalar(resource_attr, val=1.234, unit='m^3'):
     #with a resource attribute.
 
     dataset = Dataset(dict(
         id=None,
         type = 'scalar',
         name = 'Flow speed',
-        unit_id = hydra_base.get_unit_by_abbreviation('m s^-1').id,
+        unit_id =  hydra_base.get_unit_by_abbreviation(unit).id,
         hidden = 'N',
         value = val,
     ))
@@ -789,7 +793,7 @@ def create_descriptor(resource_attr, val="test"):
     return scenario_attr
 
 
-def create_timeseries(resource_attr):
+def create_timeseries(resource_attr, unit='m^3'):
     #A scenario attribute is a piece of data associated
     #with a resource attribute.
     #[[[1, 2, "hello"], [5, 4, 6]], [[10, 20, 30], [40, 50, 60]]]
@@ -815,7 +819,7 @@ def create_timeseries(resource_attr):
         id=None,
         type = 'timeseries',
         name = 'my time series',
-        unit_id = hydra_base.get_unit_by_abbreviation('cm^3').id, # This does not match the type on purpose, to test validation
+        unit_id = hydra_base.get_unit_by_abbreviation(unit).id, # This does not match the type on purpose, to test validation
         hidden = 'N',
         value = json.dumps(ts_val),
         metadata = metadata
@@ -829,7 +833,7 @@ def create_timeseries(resource_attr):
 
     return scenario_attr
 
-def create_dataframe(resource_attr, name='Test Data Frame', dataframe_value=None):
+def create_dataframe(resource_attr, name='Test Data Frame', dataframe_value=None, unit='m^3 s^-1'):
     #A scenario attribute is a piece of data associated
     #with a resource attribute.
 
@@ -848,7 +852,7 @@ def create_dataframe(resource_attr, name='Test Data Frame', dataframe_value=None
         id=None,
         type = 'dataframe',
         name = name,
-        unit_id = hydra_base.get_unit_by_abbreviation('m^3 s^-1').id,
+        unit_id = hydra_base.get_unit_by_abbreviation(unit).id,
         hidden = 'N',
         value = json.dumps(dataframe_value),
         metadata = metadata

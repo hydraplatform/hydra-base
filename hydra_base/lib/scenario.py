@@ -33,8 +33,8 @@ from ..db.model import Scenario,\
         ResourceAttrMap
 
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy import or_, and_
-from sqlalchemy.orm import joinedload_all, joinedload, aliased
+from sqlalchemy import or_, and_, func
+from sqlalchemy.orm import joinedload, aliased
 from . import data
 from ..util.hydra_dateutil import timestamp_to_ordinal
 from collections import namedtuple
@@ -121,6 +121,31 @@ def copy_data_from_scenario(resource_attrs, source_scenario_id, target_scenario_
     db.DBSession.flush()
 
     return target_resourcescenarios
+
+def get_scenario_by_name(network_id, scenario_name, get_parent_data=False, include_data=True, include_group_items=True, **kwargs):
+    """
+        Get the specified scenario from a network by its name
+        args:
+            network_id: The ID of the network to retrieve the scenario from
+            scenario_name: The ID of the scenario to retrieve
+            get_parent_data: Flag to indicate whether to include the data from the parent scenario also, or just this one.
+            include_data: Flag to indicate wheter to return the list of resource scenarios
+            include_group_items: Flag to indicate whether to return the list of resource group items
+        return:
+            A scenario JSONObject
+    """
+
+    try:
+        scenario_i = db.DBSession.query(Scenario).filter(func.lower(Scenario.name)==scenario_name.lower(),
+                                                         Scenario.network_id==network_id).first()
+
+        return get_scenario(scenario_i.id,
+                            get_parent_data=get_parent_data,
+                            include_data=include_data,
+                            include_group_items=include_group_items,
+                            **kwargs)
+    except NoResultFound:
+        raise ResourceNotFoundError("Scenario %s not found"%(scenario_name))
 
 def get_scenario(scenario_id, get_parent_data=False, include_data=True, include_group_items=True, **kwargs):
     """
@@ -384,24 +409,34 @@ def create_child_scenario(parent_scenario_id, child_name, **kwargs):
 
     return child_scenario_j
 
-def clone_scenario(scenario_id, retain_results=False, **kwargs):
+def clone_scenario(scenario_id, retain_results=False, scenario_name=None, **kwargs):
+    """
+        Create an exact copy of a scenario and place it in the same network
+        args:
+            scenario_id (int): The scenario ID to clone
+            retain_results (bool): Flag to indicated whether resource scenarios connected to resource attribtues which have an 'attr_is_var' are copied or not. Defaults to False, so results are not retained by default.
+            scenario_name (string): The name of the new scenario. If None, the existing scenario's name is used, appended with '(clone'). Multiple clones of the same network result in  "... (clone) 1", "... (clone) 2" etc,
+    """
 
     user_id = kwargs.get('user_id')
 
     scen_i = _get_scenario(scenario_id, user_id)
 
     log.info("cloning scenario %s", scen_i.name)
+    
 
-    cloned_name = "%s (clone)"%(scen_i.name)
+    if scenario_name is None:
+        existing_scenarios = db.DBSession.query(Scenario).filter(Scenario.network_id==scen_i.network_id).all()
+        num_cloned_scenarios = 0
+        for existing_sceanrio in existing_scenarios:
+            if existing_sceanrio.name.find('clone') >= 0:
+                num_cloned_scenarios = num_cloned_scenarios + 1
 
-    existing_scenarios = db.DBSession.query(Scenario).filter(Scenario.network_id==scen_i.network_id).all()
-    num_cloned_scenarios = 0
-    for existing_sceanrio in existing_scenarios:
-        if existing_sceanrio.name.find('clone') >= 0:
-            num_cloned_scenarios = num_cloned_scenarios + 1
-
-    if num_cloned_scenarios > 0:
-        cloned_name = cloned_name + " %s"%(num_cloned_scenarios)
+        cloned_name = "%s (clone)"%(scen_i.name)
+        if num_cloned_scenarios > 0:
+            cloned_name = cloned_name + " %s"%(num_cloned_scenarios)
+    else:
+        cloned_name = scenario_name
 
     log.info("Cloned scenario name is %s", cloned_name)
 
@@ -997,7 +1032,7 @@ def get_attribute_data(attr_ids, node_ids, **kwargs):
         resource scenarios in the network
     """
     node_attrs = db.DBSession.query(ResourceAttr).\
-                                            options(joinedload_all('attr')).\
+                                            options(joinedload('attr')).\
                                             filter(ResourceAttr.node_id.in_(node_ids),
                                             ResourceAttr.attr_id.in_(attr_ids)).all()
 
@@ -1006,7 +1041,7 @@ def get_attribute_data(attr_ids, node_ids, **kwargs):
         ra_ids.append(ra.id)
 
 
-    resource_scenarios = db.DBSession.query(ResourceScenario).filter(ResourceScenario.resource_attr_id.in_(ra_ids)).options(joinedload('resourceattr')).options(joinedload_all('dataset.metadata')).order_by(ResourceScenario.scenario_id).all()
+    resource_scenarios = db.DBSession.query(ResourceScenario).filter(ResourceScenario.resource_attr_id.in_(ra_ids)).options(joinedload('resourceattr')).options(joinedload('dataset').joinedload('metadata')).order_by(ResourceScenario.scenario_id).all()
 
 
     for rs in resource_scenarios:

@@ -1017,7 +1017,8 @@ class TestTemplates:
                     if ra.attr_id == type_attr.attr_id and ra.id in rs_ids and type_attr.data_restriction is not None:
                 #        logging.info("Validating RA %s in scenario %s", ra.id, scenario.id)
                         error = hb.validate_attr(ra.id, scenario.id, template_id)
-                        assert error.ref_id == n.id
+                        if error is not None:
+                            assert error.ref_id == n.id
 
 
     def test_validate_attrs(self, session, network_with_data):

@@ -151,27 +151,11 @@ class TestNetwork:
         for s in partial_network.scenarios:
             assert len(s.resourcescenarios) > 0
 
-        #Simulate a scenario having results, by identifying a result variable on a node, and assign it a value
-        #using this we can test retrieval of a scenario with and without results.
-        rs_added = False
-        for n in full_network.nodes:
-            if rs_added:
-                break
-            for a in n.attributes:
-                if a.attr_is_var == 'Y':
-                    #now find a dataset ID from somewhere:
-                    dataset = hb.get_dataset(partial_network.scenarios[0].resourcescenarios[0].dataset_id, user_id=pytest.root_user_id)
-                   
-                    hb.update_resourcedata(scenario_id, [JSONObject({'resource_attr_id': a.id,
-                                                       'dataset': Dataset(dataset)})], user_id=pytest.root_user_id)
-                    rs_added=True
-                    break
-
         network_with_results = hb.get_network(new_scenario.network_id, summary=True, include_data='Y', scenario_ids=scen_ids, user_id=pytest.root_user_id)
         network_no_results = hb.get_network(new_scenario.network_id, summary=True, include_data='Y', include_results='N', scenario_ids=scen_ids, user_id=pytest.root_user_id)
 
         #there should be one more result in the 
-        assert len(network_with_results.scenarios[0].resourcescenarios) == len(network_no_results.scenarios[0].resourcescenarios) + 1
+        assert len(network_with_results.scenarios[0].resourcescenarios) == len(network_no_results.scenarios[0].resourcescenarios) + 10
 
         with pytest.raises(hb.exceptions.HydraError):
             hb.get_network_by_name(net.project_id, "I am not a network", user_id=pytest.root_user_id)
@@ -725,8 +709,10 @@ class TestNetwork:
         for ra in node_with_data.attributes:
             if hasattr(ra, 'resourcescenario') and ra.resourcescenario is not None:
                 if ra.resourcescenario:
+                    assert isinstance(ra.resourcescenario, JSONObject)
                     attrs_with_data.append(ra.id)
-        assert len(attrs_with_data) == 3
+        assert len(attrs_with_data) == 4
+
 
     def test_get_link(self, session, network_with_data):
         network = network_with_data
@@ -1057,7 +1043,7 @@ class TestNetwork:
         assert len(net.links) == len(cloned_network.links)
         assert len(net.resourcegroups) == len(cloned_network.resourcegroups)
         assert len(net.scenarios) == len(cloned_network.scenarios)
-        assert len(net.scenarios[0].resourcescenarios) == len(cloned_network.scenarios[0].resourcescenarios)
+        assert len(net.scenarios[0].resourcescenarios) == len(cloned_network.scenarios[0].resourcescenarios) + 10 #this ignores results
         assert len(net.scenarios[0].resourcegroupitems) == len(cloned_network.scenarios[0].resourcegroupitems)
         
         

@@ -45,12 +45,15 @@ class TestScenario:
         """
         return hydra_base.get_scenario_data(scenario_id, get_parent_data=get_parent_data, user_id=pytest.root_user_id)
 
-    def clone_scenario(self, scenario_id):
+    def clone_scenario(self, scenario_id, retain_results=False, scenario_name=None):
         """
             Utility function wrapper for a function tat's called regularly.
             Introduced as the JSONObject wrapper can be controlled more easily
         """
-        return JSONObject(hydra_base.clone_scenario(scenario_id, user_id=pytest.root_user_id))
+        return JSONObject(hydra_base.clone_scenario(scenario_id,
+                                                    retain_results=retain_results,
+                                                    scenario_name=scenario_name,
+                                                    user_id=pytest.root_user_id))
 
     def test_get_scenario(self, session, network_with_data):
         """
@@ -77,6 +80,30 @@ class TestScenario:
         assert len(scenario_no_groupitems.resourcescenarios) == len(scenario.resourcescenarios)
         assert scenario_no_groupitems.resourcegroupitems == []
 
+    def test_get_scenario_by_name(self, session, network_with_data):
+        """
+            Test to get the scenarios attached to a dataset
+        """
+
+        network = network_with_data
+
+        #Create the new scenario
+        scenario = network.scenarios[0]
+
+        rs = scenario.resourcescenarios
+
+        
+        scenario_retrieved = hydra_base.get_scenario_by_name(network.id, scenario.name, user_id=pytest.root_user_id)
+        assert len(scenario_retrieved.resourcescenarios) == len(rs)
+        assert len(scenario_retrieved.resourcegroupitems) == len(scenario.resourcegroupitems)
+        
+        scenario_no_data = hydra_base.get_scenario_by_name(network.id, scenario.name, include_data=False, user_id=pytest.root_user_id)
+        assert scenario_no_data.resourcescenarios == []
+        assert len(scenario_no_data.resourcegroupitems) == len(scenario.resourcegroupitems)
+        
+        scenario_no_groupitems = hydra_base.get_scenario_by_name(network.id, scenario.name, include_group_items=False, user_id=pytest.root_user_id)
+        assert len(scenario_no_groupitems.resourcescenarios) == len(scenario.resourcescenarios)
+        assert scenario_no_groupitems.resourcegroupitems == []
 
     def test_update(self, session, network_with_data):
 
@@ -539,7 +566,7 @@ class TestScenario:
         assert len(new_datasets) == 2, "Data was not added correctly!"
 
 
-    def test_clone(self, session, network_with_data):
+    def test_clone_scenario(self, session, network_with_data):
 
         network =  network_with_data
 
@@ -553,13 +580,31 @@ class TestScenario:
         scenario_id = scenario.id
 
         clone = self.clone_scenario(scenario_id)
+        clone1 = self.clone_scenario(scenario_id, scenario_name="My Cloned Scenario")
+        clone2 = self.clone_scenario(scenario_id, retain_results=True)
+
+        session.commit()
+        #This should fail because there's already another scenario with this name
+        with pytest.raises(Exception):
+            self.clone_scenario(scenario_id, scenario_name="My Cloned Scenario")
+        #to deal with the broken flush caused by this exception
+        session.rollback()
+
+
         new_scenario = self.get_scenario(clone.id)
+
+        new_scenario_new_name = self.get_scenario(clone1.id)
+        new_scenario_with_results = self.get_scenario(clone2.id)
+
+        assert new_scenario_new_name.name == "My Cloned Scenario"
+
+        assert len(new_scenario_with_results.resourcescenarios) > len(new_scenario.resourcescenarios)
 
 
         updated_network = JSONObject(hydra_base.get_network(new_scenario.network_id, include_data='Y', user_id=pytest.root_user_id))
 
 
-        assert len(updated_network.scenarios) == 2, "The network should have two scenarios!"
+        assert len(updated_network.scenarios) == 4, "The network should have 4 scenarios!"
 
         assert len(updated_network.scenarios[1].resourcescenarios) > 0, "Data was not cloned!"
 
@@ -717,7 +762,7 @@ class TestScenario:
         #postgres ordering is non-deterministic.
         ra_to_update = None
         for a in network.nodes[0].attributes:
-            if a.name == 'node_attr_c':
+            if a.name == 'node_attr_a':
                 ra_to_update = a.id
         
         #Update a value in the parent, leaving 1 different value between parent and child
@@ -793,7 +838,7 @@ class TestScenario:
         #postgres ordering is non-deterministic.
         ra_to_update = None
         for a in network.nodes[0].attributes:
-            if a.name == 'node_attr_c':
+            if a.name == 'node_attr_a':
                 ra_to_update = a.id
         
         #Update a value in the parent, leaving 1 different value between parent and child
@@ -883,17 +928,13 @@ class TestScenario:
 
         assert len(network.scenarios) == 1, "The network should have only one scenario!"
 
-    #    self.create_constraint(network)
-
         network = JSONObject(hydra_base.get_network(network.id, user_id=pytest.root_user_id))
 
         scenario = network.scenarios[0]
         scenario_id = scenario.id
 
-        clone = self.clone_scenario(scenario_id)
+        clone = self.clone_scenario(scenario_id, retain_results=True)
         new_scenario = self.get_scenario(clone.id)
-
-    #    self.create_constraint(network, constant=4)
 
         resource_scenario = new_scenario.resourcescenarios[0]
         resource_attr_id = resource_scenario.resource_attr_id
@@ -1160,7 +1201,7 @@ class TestScenario:
         scenario = network.scenarios[0]
         source_scenario_id = scenario.id
 
-        clone = self.clone_scenario(source_scenario_id)
+        clone = self.clone_scenario(source_scenario_id, retain_results=True)
         cloned_scenario = self.get_scenario(clone.id)
 
         resource_scenario = cloned_scenario.resourcescenarios[0]
