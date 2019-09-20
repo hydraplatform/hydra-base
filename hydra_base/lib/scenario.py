@@ -1104,8 +1104,12 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id=None, expunge_sessio
            except:
                rs.dataset.value      = None
     
-        #lazy load the dataset's unit
+        #lazy load the dataset's unit and metadata
         rs.dataset.unit
+        rs.dataset.metadata
+
+        #lazy load the dataset's resourceattr object
+        rs.resourceattr
 
     if expunge_session == True:
         db.DBSession.expunge_all()
