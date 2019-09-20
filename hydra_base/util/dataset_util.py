@@ -26,6 +26,7 @@ import numpy as np
 import pandas as pd
 import re
 from functools import reduce
+import json
 
 from hydra_base.util.hydra_dateutil import get_datetime
 log = logging.getLogger(__name__)
@@ -43,7 +44,7 @@ def json_to_df(json_dataframe):
     data_dict = json.loads(json_dataframe)
     
     #load the json dataframe into a pandas dataframe
-    df = pandas.read_json(json_dataframe)
+    df = pd.read_json(json_dataframe, convert_axes=False)
 
     #extraxt the ordered index from the dict
     ordered_index = list(data_dict[df.columns[0]].keys())
