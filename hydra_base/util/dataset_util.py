@@ -30,6 +30,39 @@ from functools import reduce
 from hydra_base.util.hydra_dateutil import get_datetime
 log = logging.getLogger(__name__)
 
+def json_to_df(json_dataframe):
+    """
+     Create a pandas dataframe from a json string.
+     Pandas does not maintain the order of the index; it sorts it.
+     To manage this, we avail of python 3.6+ inhernet dict ordering to identify
+     the correct index order, and then reindex the dataframe to this after
+     it has been created
+    """
+
+    #Load the json dataframe into a native dict
+    data_dict = json.loads(json_dataframe)
+    
+    #load the json dataframe into a pandas dataframe
+    df = pandas.read_json(json_dataframe)
+
+    #extraxt the ordered index from the dict
+    ordered_index = list(data_dict[df.columns[0]].keys())
+
+    #extract the order of columns
+    ordered_cols = list(data_dict.keys())
+    
+    #Make the df index and columns a string so it is comparable to the dict index (which must be string based)
+    df.index = df.index.astype(str)
+    df.columns = df.columns.astype(str)
+    
+    #set the column ordering as per the incoming json data
+    df = df[ordered_cols]
+
+    #reindex the dataframe to have the correct order
+    df = df.reindex(ordered_index)
+    
+    return df
+
 def array_dim(arr):
     """Return the size of a multidimansional array.
     """
