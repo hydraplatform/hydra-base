@@ -1103,6 +1103,9 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id=None, expunge_sessio
                 rs.dataset.check_read_permission(user_id)
            except:
                rs.dataset.value      = None
+    
+        #lazy load the dataset's unit
+        rs.dataset.unit
 
     if expunge_session == True:
         db.DBSession.expunge_all()
