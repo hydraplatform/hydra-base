@@ -30,6 +30,7 @@ from sqlalchemy.orm import class_mapper, noload
 from sqlalchemy import and_, or_
 from ..util import hdb
 from sqlalchemy.util import KeyedTuple
+from ..util.permissions import required_perms
 
 log = logging.getLogger(__name__)
 
@@ -62,6 +63,7 @@ def _add_project_attribute_data(project_i, attr_map, attribute_data):
         resource_scenarios.append(rscen)
     return resource_scenarios
 
+@required_perms('add_project')
 def add_project(project,**kwargs):
     """
         Add a new project
@@ -74,7 +76,6 @@ def add_project(project,**kwargs):
     if len(existing_proj) > 0:
         raise HydraError("A Project with the name \"%s\" already exists"%(project.name,))
 
-    #check_perm(user_id, 'add_project')
     proj_i = Project()
     proj_i.name = project.name
     proj_i.description = project.description
@@ -92,6 +93,7 @@ def add_project(project,**kwargs):
 
     return proj_i
 
+@required_perms('edit_project')
 def update_project(project,**kwargs):
     """
         Update a project
@@ -99,7 +101,7 @@ def update_project(project,**kwargs):
     """
 
     user_id = kwargs.get('user_id')
-    #check_perm(user_id, 'update_project')
+
     proj_i = _get_project(project.id)
 
     proj_i.check_write_permission(user_id)
@@ -119,6 +121,7 @@ def get_project(project_id, include_deleted_networks=False, **kwargs):
         get a project complexmodel
     """
     user_id = kwargs.get('user_id')
+
     proj_i = _get_project(project_id)
 
     #lazy load owners
@@ -340,23 +343,23 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
     return projects_j
 
 
+@required_perms('delete_project')
 def set_project_status(project_id, status, **kwargs):
     """
         Set the status of a project to 'X'
     """
     user_id = kwargs.get('user_id')
-    #check_perm(user_id, 'delete_project')
     project = _get_project(project_id)
     project.check_write_permission(user_id)
     project.status = status
     db.DBSession.flush()
 
+@required_perms('edit_project', 'delete_project')
 def delete_project(project_id,**kwargs):
     """
         Set the status of a project to 'X'
     """
     user_id = kwargs.get('user_id')
-    #check_perm(user_id, 'delete_project')
     project = _get_project(project_id)
     project.check_write_permission(user_id)
     db.DBSession.delete(project)
@@ -364,6 +367,7 @@ def delete_project(project_id,**kwargs):
 
     return 'OK'
 
+@required_perms("view_project")
 def get_networks(project_id, include_data='N', **kwargs):
     """
         Get all networks in a project

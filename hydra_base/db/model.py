@@ -26,7 +26,12 @@ TIMESTAMP,\
 BIGINT,\
 Float,\
 Text, \
+DateTime,\
 Unicode
+
+from sqlalchemy.ext.declarative import declared_attr
+
+import datetime
 
 from sqlalchemy import inspect, func
 
@@ -72,6 +77,14 @@ def get_timestamp(ordinal):
     timestamp = str(ordinal_to_timestamp(ordinal))
     return timestamp
 
+def get_user_id_from_engine(ctx):
+    """
+        The session will have a user ID bound to it when checking for the permission.
+    """
+    if hasattr(get_session(), 'user_id'):
+        return get_session().user_id
+    else:
+        return None
 
 #***************************************************
 #Data
@@ -81,6 +94,7 @@ def _is_admin(user_id):
     """
         Is the specified user an admin
     """
+
     user = get_session().query(User).filter(User.id==user_id).one()
 
     if user.is_admin():
@@ -95,6 +109,130 @@ class Inspect(object):
 
     def get_columns_and_relationships(self):
         return inspect(self).attrs.keys()
+
+class AuditMixin(object):
+    
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+
+    @declared_attr
+    def created_by(cls):
+        return Column(Integer, ForeignKey('tUser.id'), default=get_user_id_from_engine)
+
+    @declared_attr
+    def updated_by(cls):
+        return Column(Integer, ForeignKey('tUser.id'), onupdate=get_user_id_from_engine)
+    
+    updated_at = Column(DateTime,  nullable=False, default=datetime.datetime.utcnow(), onupdate=datetime.datetime.utcnow())
+
+class PermissionControlled(object):
+    def set_owner(self, user_id, read='Y', write='Y', share='Y'):
+        owner = None
+        for o in self.owners:
+            if user_id == o.user_id:
+                owner = o
+                break
+        else:
+            owner = self.__ownerclass__()
+            setattr(owner, self.__ownerfk__,  self.id)
+            owner.user_id = int(user_id)
+            self.owners.append(owner)
+
+        owner.view  = read
+        owner.edit  = write
+        owner.share = share
+        return owner
+
+    def unset_owner(self, user_id):
+        owner = None
+        if str(user_id) == str(self.created_by):
+            log.warning("Cannot unset %s as owner, as they created the dataset", user_id)
+            return
+        for o in self.owners:
+            if user_id == o.user_id:
+                owner = o
+                get_session().delete(owner)
+                break
+
+    def check_read_permission(self, user_id, do_raise=True):
+        """
+            Check whether this user can read this dataset
+        """
+        if _is_admin(user_id):
+            return True
+
+        if str(user_id) == str(self.created_by):
+            return True
+            
+        #used for datasets but could be extended to other objects, hence checking
+        #for the presence of hidden instead of adding a funciton to the subclass
+        if hasattr(self, 'hidden') and self.hidden == 'N':
+            return True
+
+        for owner in self.owners:
+            if int(owner.user_id) == int(user_id):
+                if owner.view == 'Y':
+                    break
+        else:
+            if do_raise is True:
+                raise PermissionError("Permission denied. User %s does not have read"
+                             " access on dataset %s" %
+                             (user_id, self.id))
+            else:
+                return False
+
+        return True
+
+    def check_user(self, user_id):
+        """
+            Check whether this user can read this dataset
+        """
+
+        if self.hidden == 'N':
+            return True
+
+        for owner in self.owners:
+            if int(owner.user_id) == int(user_id):
+                if owner.view == 'Y':
+                    return True
+        return False
+
+    def check_write_permission(self, user_id, do_raise=True):
+        """
+            Check whether this user can write this dataset
+        """
+        if _is_admin(user_id):
+            return True
+
+        for owner in self.owners:
+            if owner.user_id == int(user_id):
+                if owner.view == 'Y' and owner.edit == 'Y':
+                    break
+        else:
+            if do_raise is True:
+                raise PermissionError("Permission denied. User %s does not have edit"
+                             " access on dataset %s" %
+                             (user_id, self.id))
+            else:
+                return False
+
+        return True
+
+    def check_share_permission(self, user_id):
+        """
+            Check whether this user can write this dataset
+        """
+
+        if _is_admin(user_id):
+            return
+
+        for owner in self.owners:
+            if owner.user_id == int(user_id):
+                if owner.view == 'Y' and owner.share == 'Y':
+                    break
+        else:
+            raise PermissionError("Permission denied. User %s does not have share"
+                             " access on dataset %s" %
+                             (user_id, self.id))
 
 
 #***************************************************
@@ -1469,7 +1607,70 @@ class Scenario(Base, Inspect):
 
         return child_items 
 
-class Rule(Base, Inspect):
+class RuleTypeDefinition(AuditMixin, Base, Inspect):
+    """
+        Describes the types of rules available in the system
+
+        A rule type is a simple way of categorising rules. A rule may have no
+        type or it may have 1. A rule type consists of a unique code and a name.
+        
+        In addition to separating rules, this enables rules to be searched more easily.
+    """
+
+    __tablename__='tRuleTypeDefinition'
+
+    __table_args__ = (
+        UniqueConstraint('code', name="Unique Rule Code"),
+    )
+
+    code = Column(String(200), nullable=False, primary_key=True)
+    name = Column(String(200), nullable=False)
+   
+
+class RuleTypeLink(AuditMixin, Base, Inspect):
+    """
+        Links rules to type definitions.
+
+        A rule type is a simple way of categorising rules. A rule may have no
+        type or it may have 1. A rule type consists of a unique code and a name.
+        
+        In addition to separating rules, this enables rules to be searched more easily.
+    """
+
+    __tablename__='tRuleTypeLink'
+
+    __table_args__ = (
+        UniqueConstraint('code', 'rule_id', name="Unique Rule / Type"),
+    )
+
+    code    = Column(String(200), ForeignKey('tRuleTypeDefinition.code'), primary_key=True, nullable=False)
+    rule_id = Column(Integer(), ForeignKey('tRule.id'), primary_key=True, nullable=False)
+
+    typedefinition = relationship('RuleTypeDefinition', uselist=False, lazy='joined')
+    rule = relationship('Rule', backref=backref('types', order_by=code, uselist=True, cascade="all, delete-orphan"))
+
+class RuleOwner(AuditMixin, Base, Inspect):
+    """
+        This table tracks the owners of rules, to ensure rules which contain confidential logic
+        can be kept hidden
+    """
+
+    __tablename__='tRuleOwner' 
+
+    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
+    rule_id = Column(Integer(), ForeignKey('tRule.id'), primary_key=True, nullable=False)
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    view = Column(String(1),  nullable=False)
+    edit = Column(String(1),  nullable=False)
+    share = Column(String(1),  nullable=False)
+
+    user = relationship('User', foreign_keys=[user_id])
+    rule = relationship('Rule', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
+
+    _parents  = ['tRule', 'tUser']
+    _children = []
+
+class Rule(AuditMixin, Base, Inspect, PermissionControlled):
     """
         A rule is an arbitrary piece of text applied to resources
         within a scenario. A scenario itself cannot have a rule applied
@@ -1480,20 +1681,23 @@ class Rule(Base, Inspect):
     __table_args__ = (
         UniqueConstraint('scenario_id', 'name', name="unique rule name"),
     )
-
+    
+    __ownerclass__ = RuleOwner
+    __ownerfk__    = 'rule_id'
 
     id = Column(Integer(), primary_key=True, nullable=False)
 
     name = Column(String(200), nullable=False)
-    description = Column(String(1000), nullable=False)
+    description = Column(String(1000), nullable=True)
 
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    format = Column(String(80), nullable=False, server_default='text')
+
     ref_key = Column(String(60),  nullable=False, index=True)
 
     value = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
 
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
-    scenario_id = Column(Integer(), ForeignKey('tScenario.id'),  nullable=False)
+    scenario_id = Column(Integer(), ForeignKey('tScenario.id'),  nullable=True)
 
     network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), index=True, nullable=True,)
     node_id     = Column(Integer(),  ForeignKey('tNode.id'), index=True, nullable=True)
@@ -1505,7 +1709,34 @@ class Rule(Base, Inspect):
     _parents  = ['tScenario', 'tNode', 'tLink', 'tProject', 'tNetwork', 'tResourceGroup']
     _children = []
 
-class Note(Base, Inspect):
+
+    def set_types(self, types):
+        """
+            Accepts a list of type JSONObjects or spyne objects and sets
+            the type of the rule to be exactly this. THis means deleting rules
+            which are not in the list
+        """
+        
+        #We take this to mean don't touch types.
+        if types is None:
+            return
+
+        existingtypes = set([t.code for t in self.types])
+        newtypes      = set([t.code for t in types])
+
+        types_to_add      = newtypes - existingtypes
+        types_to_delete   = existingtypes - newtypes
+
+        for ruletypecode in types_to_add:
+            ruletypelink = RuleTypeLink()
+            ruletypelink.code = ruletypecode 
+            self.types.append(ruletypelink)
+
+        for type_to_delete in types_to_delete:
+            get_session().delete(type_to_delete)
+        
+
+class Note(Base, Inspect, PermissionControlled):
     """
         A note is an arbitrary piece of text which can be applied
         to any resource. A note is NOT scenario dependent. It is applied
