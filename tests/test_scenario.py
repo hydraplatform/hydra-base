@@ -1038,6 +1038,50 @@ class TestScenario:
         with pytest.raises(hydra_base.HydraError):
             self.get_scenario(scenarios_before[1].id)
 
+
+    def test_delete_resource_scenario(self, client, session, network_with_data):
+        """
+        """
+
+        scenario = network_with_data.scenarios[0]
+
+        before_rs = scenario.resourcescenarios
+
+        rs_to_delete = before_rs[0]
+
+        client.delete_resource_scenario(scenario.id, rs_to_delete.resource_attr_id, quiet=True)
+        
+        #test the quiet feature by trying to delete a non-existent RS
+        with pytest.raises(hydra_base.HydraError):
+            client.delete_resource_scenario(scenario.id, 999, quiet=False)
+
+        client.delete_resource_scenario(scenario.id, 999, quiet=True)
+
+        updated_scenario = client.get_scenario(scenario.id)
+
+        assert len(updated_scenario.resourcescenarios) == len(before_rs)-1
+
+    def test_delete_resource_scenarios(self, client, session, network_with_data):
+        """
+        """
+        scenario = network_with_data.scenarios[0]
+
+        before_rs = scenario.resourcescenarios
+
+        rs_to_delete = [before_rs[0].resource_attr_id,before_rs[1].resource_attr_id]
+
+        client.delete_resource_scenarios(scenario.id, rs_to_delete, quiet=True)
+        
+        #test the quiet feature by trying to delete a non-existent RS
+        with pytest.raises(hydra_base.HydraError):
+            client.delete_resource_scenarios(scenario.id, rs_to_delete, quiet=False)
+
+        client.delete_resource_scenarios(scenario.id, rs_to_delete, quiet=True)
+
+        updated_scenario = client.get_scenario(scenario.id)
+
+        assert len(updated_scenario.resourcescenarios) == len(before_rs)-2
+
     def test_lock_scenario(self, session, network_with_data):
 
         network =  network_with_data
