@@ -1722,6 +1722,10 @@ class Rule(AuditMixin, Base, Inspect, PermissionControlled):
             return
 
         existingtypes = set([t.code for t in self.types])
+        
+        #Map a type code to a type object
+        existing_type_map = dict((t.code, t) for t in self.types)
+
         newtypes      = set([t.code for t in types])
 
         types_to_add      = newtypes - existingtypes
@@ -1733,7 +1737,7 @@ class Rule(AuditMixin, Base, Inspect, PermissionControlled):
             self.types.append(ruletypelink)
 
         for type_to_delete in types_to_delete:
-            get_session().delete(type_to_delete)
+            get_session().delete(existing_type_map[type_to_delete])
         
 
 class Note(Base, Inspect, PermissionControlled):
