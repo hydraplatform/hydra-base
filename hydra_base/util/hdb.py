@@ -130,7 +130,7 @@ def make_root_user():
 
 def login_user(username, password):
     try:
-        user_i = db.DBSession.query(User).filter( User.username==username ).one()
+        user_i = db.DBSession.query(User).filter(User.username==username).one()
     except NoResultFound:
         raise HydraError(username)
 
@@ -205,9 +205,15 @@ def create_default_users_and_perms():
                     ("update_dimension", "Update Dimension"),
                     ("delete_dimension", "Delete Dimension"),
 
-                    ("add_unit", "Add Unit"),
+                    ("add_unit",    "Add Unit"),
                     ("update_unit", "Update Unit"),
-                    ("delete_unit", "Delete Unit")
+                    ("delete_unit", "Delete Unit"),
+
+                    ('view_rules',  "View Rules"),
+                    ('add_rules',   "Add Rules"),
+                    ('update_rules',  "Edit Rules"),
+                    ('share_rules', "Share Rules"),
+                    ('delete_rules', "Delete Rules")
 
 
                     )
@@ -252,6 +258,12 @@ def create_default_users_and_perms():
             ('admin', "add_unit"),
             ('admin', "update_unit"),
             ('admin', "delete_unit"),
+                    
+            ('admin', 'view_rules'),
+            ('admin', 'add_rules'),
+            ('admin', 'update_rules'),
+            ('admin', 'share_rules'),
+            ('admin', 'delete_rules'),
 
             # Developer permissions
             ("developer", "add_network"),

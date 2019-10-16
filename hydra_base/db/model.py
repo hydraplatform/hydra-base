@@ -1699,7 +1699,7 @@ class Rule(AuditMixin, Base, Inspect, PermissionControlled):
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     scenario_id = Column(Integer(), ForeignKey('tScenario.id'),  nullable=True)
 
-    network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), index=True, nullable=True,)
+    network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), index=True, nullable=True)
     node_id     = Column(Integer(),  ForeignKey('tNode.id'), index=True, nullable=True)
     link_id     = Column(Integer(),  ForeignKey('tLink.id'), index=True, nullable=True)
     group_id    = Column(Integer(),  ForeignKey('tResourceGroup.id'), index=True, nullable=True)

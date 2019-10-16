@@ -23,7 +23,7 @@ import json
 import six
 
 from ..exceptions import HydraError, ResourceNotFoundError
-from . import scenario
+from . import scenario, rules
 from . import data
 from .objects import JSONObject, Dataset as JSONDataset
 
@@ -31,7 +31,7 @@ from ..util.permissions import required_perms
 from . import template
 from ..db.model import Project, Network, Scenario, Node, Link, ResourceGroup,\
         ResourceAttr, Attr, ResourceType, ResourceGroupItem, Dataset, Metadata, DatasetOwner,\
-        ResourceScenario, TemplateType, TypeAttr, Template, NetworkOwner, User
+        ResourceScenario, TemplateType, TypeAttr, Template, NetworkOwner, User, Rule
 from sqlalchemy.orm import noload, joinedload
 from .. import db
 from sqlalchemy import func, and_, or_, distinct
@@ -2631,16 +2631,17 @@ def clone_network(network_id,
     newnetworkid = newnet.id
 
     log.info('CLoning Nodes')
-    node_id_map = _clone_nodes(network_id, newnetworkid)
+    node_id_map = _clone_nodes(network_id, newnetworkid, user_id)
 
     log.info('Cloning Links')
-    link_id_map = _clone_links(network_id, newnetworkid, node_id_map)
+    link_id_map = _clone_links(network_id, newnetworkid, node_id_map, user_id)
 
     log.info('CLoning Groups')
     group_id_map = _clone_groups(network_id,
                                           newnetworkid,
                                           node_id_map,
-                                          link_id_map)
+                                          link_id_map,
+                                          user_id)
 
     log.info("Cloning Resource Attributes")
     ra_id_map = _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, group_id_map)
@@ -2649,13 +2650,63 @@ def clone_network(network_id,
     _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, group_id_map)
 
     log.info('Cloning Scenarios')
-    _clone_scenarios(network_id, newnetworkid, ra_id_map, node_id_map, link_id_map, group_id_map, user_id)
+    scenario_id_map = _clone_scenarios(network_id, newnetworkid, ra_id_map, node_id_map, link_id_map, group_id_map, user_id)
+
+
+    
+    _clone_rules(
+        network_id,
+        newnetworkid,
+        node_id_map,
+        link_id_map,
+        group_id_map,
+        scenario_id_map,
+        user_id)
+
 
     db.DBSession.flush()
 
     return newnetworkid
 
-def _clone_nodes(old_network_id, new_network_id):
+def _clone_rules(old_network_id, new_network_id, node_id_map, link_id_map, group_id_map, scenario_id_map, user_id):
+    """
+    """
+    rules.clone_resource_rules('NETWORK',
+                               old_network_id,
+                               target_ref_key='NETWORK',
+                               target_ref_id=new_network_id,
+                               scenario_id_map=scenario_id_map,
+                               user_id=user_id)
+
+    node_rules = db.DBSession.query(Rule).join(Node).filter(Node.network_id==old_network_id).all()
+    for node_rule in node_rules:
+        rules.clone_rule(node_rule.id,
+                         target_ref_key='NODE',
+                         target_ref_id=node_id_map[node_rule.node_id],
+                         scenario_id_map=scenario_id_map,
+                         user_id=user_id)
+
+    link_rules = db.DBSession.query(Rule).join(Link).filter(Link.network_id==old_network_id).all()
+
+    for link_rule in link_rules:
+        rules.clone_rule(link_rule.id,
+                         target_ref_key='LINK',
+                         target_ref_id=link_id_map[link_rule.link_id],
+                         scenario_id_map=scenario_id_map,
+                         user_id=user_id)
+
+    group_rules = db.DBSession.query(Rule).join(ResourceGroup).filter(ResourceGroup.network_id==old_network_id).all()
+
+    for group_rule in group_rules:
+        rules.clone_rule(group_rule.id,
+                         group_rule.node_id,
+                         target_ref_key='GROUP',
+                         target_ref_id=group_id_map[group_rule.group_id],
+                         scenario_id_map=scenario_id_map,
+                         user_id=user_id)
+
+
+def _clone_nodes(old_network_id, new_network_id, user_id):
 
     nodes = db.DBSession.query(Node).filter(Node.network_id==old_network_id).all()
     newnodes = []
@@ -2682,13 +2733,16 @@ def _clone_nodes(old_network_id, new_network_id):
     #map old IDS to new IDS
 
     nodes = db.DBSession.query(Node).filter(Node.network_id==new_network_id).all()
+    
+    
     for n in nodes:
         old_node_id = old_node_name_map[n.name]
         id_map[old_node_id] = n.node_id
 
+
     return id_map
 
-def _clone_links(old_network_id, new_network_id, node_id_map):
+def _clone_links(old_network_id, new_network_id, node_id_map, user_id):
 
     links = db.DBSession.query(Link).filter(Link.network_id==old_network_id).all()
     newlinks = []
@@ -2721,7 +2775,7 @@ def _clone_links(old_network_id, new_network_id, node_id_map):
 
     return id_map
 
-def _clone_groups(old_network_id, new_network_id, node_id_map, link_id_map):
+def _clone_groups(old_network_id, new_network_id, node_id_map, link_id_map, user_id):
 
     groups = db.DBSession.query(ResourceGroup).filter(ResourceGroup.network_id==old_network_id).all()
     newgroups = []
@@ -2895,9 +2949,14 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
 def _clone_scenarios(network_id, newnetworkid, ra_id_map, node_id_map, link_id_map, group_id_map, user_id):
     scenarios = db.DBSession.query(Scenario).filter(Scenario.network_id==network_id)
 
+    id_map = {}
+
     for s in scenarios:
         if s.status == 'A':
-            _clone_scenario(s, newnetworkid, ra_id_map, node_id_map, link_id_map, group_id_map, user_id)
+            new_scenario_id = _clone_scenario(s, newnetworkid, ra_id_map, node_id_map, link_id_map, group_id_map, user_id)
+            id_map[s.id] = new_scenario_id
+
+    return id_map
 
 def _clone_scenario(old_scenario, newnetworkid, ra_id_map, node_id_map, link_id_map, group_id_map, user_id):
 
@@ -2954,3 +3013,5 @@ def _clone_scenario(old_scenario, newnetworkid, ra_id_map, node_id_map, link_id_
         ))
 
     db.DBSession.bulk_insert_mappings(ResourceGroupItem, new_rgis)
+
+    return scenario_id
