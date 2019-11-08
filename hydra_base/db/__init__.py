@@ -20,7 +20,7 @@
 from sqlalchemy.orm import scoped_session
 from sqlalchemy import create_engine
 from .. import config
-from zope.sqlalchemy import ZopeTransactionExtension
+from zope.sqlalchemy import ZopeTransactionEvents
 
 from hydra_base.exceptions import HydraError
 
@@ -100,7 +100,7 @@ def connect(db_url=None):
     engine = create_engine(db_url, encoding='utf-8')
 
     maker = sessionmaker(bind=engine, autoflush=False, autocommit=False,
-                     extension=ZopeTransactionExtension())
+                     extension=ZopeTransactionEvents())
     global DBSession
     DBSession = scoped_session(maker)
 
