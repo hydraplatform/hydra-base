@@ -164,7 +164,7 @@ class PermissionControlled(object):
             return True
             
         #used for datasets but could be extended to other objects, hence checking
-        #for the presence of hidden instead of adding a funciton to the subclass
+        #for the presence of hidden instead of adding a function to the subclass
         if hasattr(self, 'hidden') and self.hidden == 'N':
             return True
 
