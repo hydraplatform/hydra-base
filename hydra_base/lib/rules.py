@@ -361,7 +361,7 @@ def clone_rule(rule_id, target_ref_key=None, target_ref_id=None, scenario_id_map
         rule_j.scenario_id = scenario_id_map.get(rule_i.scenario_id)
     
     #This is a blunt way of dealing with a situation where a rule is being cloned
-    #into a new network, but it has a scenario ID poiting to the original. We must
+    #into a new network, but it has a scenario ID pointing to the original. We must
     #ensure that there is no cross-network inconsistency, so simply make the rule non-scenario specific.
     if len(scenario_id_map) == 0 and rule_i.scenario_id is not None:
         rule_i.scenario_id = None
