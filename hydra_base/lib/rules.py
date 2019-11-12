@@ -32,6 +32,9 @@ def _get_rule(rule_id, user_id, check_write=False):
 
     #lazy load owners
     rule_i.owners
+    
+    #lazy load types
+    rule_i.types
 
     rule_i.check_read_permission(user_id)
 
