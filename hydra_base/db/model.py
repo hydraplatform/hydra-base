@@ -367,7 +367,7 @@ class Attr(Base, Inspect):
     description  = Column(String(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
-    dimensions = relationship('Dimension', backref=backref("attr_dimension", order_by=dimension_id))
+    dimension = relationship('Dimension', backref=backref("attributes", uselist=True))
 
     _parents  = ['tDimension']
     _children = []

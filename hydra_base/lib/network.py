@@ -25,6 +25,7 @@ import six
 from ..exceptions import HydraError, ResourceNotFoundError
 from . import scenario
 from . import data
+from . import units
 from .objects import JSONObject, Dataset as JSONDataset
 
 from ..util.permissions import required_perms
@@ -2954,3 +2955,41 @@ def _clone_scenario(old_scenario, newnetworkid, ra_id_map, node_id_map, link_id_
         ))
 
     db.DBSession.bulk_insert_mappings(ResourceGroupItem, new_rgis)
+
+@required_perms("edit_network")
+def apply_unit_to_network_rs(network_id, unit_id, attr_id, scenario_id=None, **kwargs):
+    """
+        Set the unit on all the datasets in a network which have the same attribue
+        as the supplied resource_attr_id.
+        args:
+            unit_id (int): The unit ID to set on the network's datasets
+            resource_attr_id (int): The resource attribute from which the network ID and attribute ID can be derived
+            scenario_id (int) (optional): Supplied if only datasets in a specific scenario are to be affected
+        returns:
+            None
+        raises:
+            ValidationError if the supplied unit is incompatible with the attribute's dimension
+    """
+
+    #Now get all the RS associated to both the attr and network.
+    network_rs_query = db.DBSession.query(ResourceScenario).filter(
+                                                        Scenario.network_id==network_id,
+                                                        ResourceScenario.scenario_id==Scenario.id,    
+                                                        ResourceScenario.resource_attr_id==ResourceAttr.id,
+                                                        ResourceAttr.attr_id==attr_id)
+
+    if scenario_id is not None:
+        network_rs_query.filter(Scenario.id==scenario_id)
+
+    network_rs_list = network_rs_query.all()
+
+    #Get the attribute in question so we can check its dimension
+    attr_i = db.DBSession.query(Attr).filter(Attr.id==attr_id).one()
+
+    #now check whether the supplied unit can be applied by comparing it to the attribute's dimension
+    units.check_unit_matches_dimension(unit_id, attr_i.dimension_id)
+    
+    #set the unit ID for each of the resource scenarios
+    for rs in network_rs_list:
+        rs.dataset.unit_id = unit_id
+
