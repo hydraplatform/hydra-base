@@ -407,7 +407,7 @@ def activate_rule(rule_id, **kwargs):
 @required_perms("edit_network", "delete_rules")
 def purge_rule(rule_id, **kwargs):
     """
-        Remove a rule from the DB permenantaly
+        Remove a rule from the DB permanently
         args:
             rule_id: The id to purge
         returns:
