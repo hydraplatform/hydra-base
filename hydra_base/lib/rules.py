@@ -425,7 +425,11 @@ def add_rule_type_definition(ruletypedefinition, **kwargs):
     """
         Add a rule type definition
         Args:
-            ruletype (Spyne or JSONObject object)
+            ruletypedefinition (Spyne or JSONObject object). This looks like:
+                                {
+                                  'name': 'My Rule Type',
+                                  'code': 'my_rule_type'
+                                }
         Returns:
             ruletype_i (SQLAlchemy ORM Object) new rule type from DB
     """
