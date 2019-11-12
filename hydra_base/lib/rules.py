@@ -286,7 +286,7 @@ def clone_resource_rules(ref_key, ref_id, target_ref_key=None, target_ref_id=Non
             ref_id (int): The ID of the relevant resource
             target_ref_key (string): If the rule is to be cloned into a different resource, specify the new resources type
             target_ref_id (int): If the rule is to be cloned into a different resources, specify the resource ID.
-            scenario_id_map (int): If the old rule is specified in a scenario, then provide a dictionary mapping from the old scenario ID to the new one, like {123 : 456}
+            scenario_id_map (dict): If the old rule is specified in a scenario, then provide a dictionary mapping from the old scenario ID to the new one, like {123 : 456}
         Cloning will only occur into a different resource if both ref_key AND ref_id are provided. Otherwise it will
         maintain its original ref_key and ref_id.
 
@@ -318,7 +318,7 @@ def clone_rule(rule_id, target_ref_key=None, target_ref_id=None, scenario_id_map
             rule_id (int): The rule to clone
             target_ref_key (string): If the rule is to be cloned into a different resource, specify the new resources type
             target_ref_id (int): If the rule is to be cloned into a different resources, specify the resource ID.
-            scenario_id_map (int): If the old rule is specified in a scenario, then provide a dictionary mapping from the old scenario ID to the new one, like {123 : 456}
+            scenario_id_map (dict): If the old rule is specified in a scenario, then provide a dictionary mapping from the old scenario ID to the new one, like {123 : 456}
         Cloning will only occur into a different resource if both ref_key AND ref_id are provided. Otherwise it will
         maintain its original ref_key and ref_id. 
 
@@ -361,7 +361,7 @@ def clone_rule(rule_id, target_ref_key=None, target_ref_id=None, scenario_id_map
         rule_j.scenario_id = scenario_id_map.get(rule_i.scenario_id)
     
     #This is a blunt way of dealing with a situation where a rule is being cloned
-    #into a new network, but it has a scenario ID poiting to the original. We must
+    #into a new network, but it has a scenario ID pointing to the original. We must
     #ensure that there is no cross-network inconsistency, so simply make the rule non-scenario specific.
     if len(scenario_id_map) == 0 and rule_i.scenario_id is not None:
         rule_i.scenario_id = None
@@ -407,7 +407,7 @@ def activate_rule(rule_id, **kwargs):
 @required_perms("edit_network", "delete_rules")
 def purge_rule(rule_id, **kwargs):
     """
-        Remove a rule from the DB permenantaly
+        Remove a rule from the DB permanently
         args:
             rule_id: The id to purge
         returns:
