@@ -318,7 +318,7 @@ def clone_rule(rule_id, target_ref_key=None, target_ref_id=None, scenario_id_map
             rule_id (int): The rule to clone
             target_ref_key (string): If the rule is to be cloned into a different resource, specify the new resources type
             target_ref_id (int): If the rule is to be cloned into a different resources, specify the resource ID.
-            scenario_id_map (int): If the old rule is specified in a scenario, then provide a dictionary mapping from the old scenario ID to the new one, like {123 : 456}
+            scenario_id_map (dict): If the old rule is specified in a scenario, then provide a dictionary mapping from the old scenario ID to the new one, like {123 : 456}
         Cloning will only occur into a different resource if both ref_key AND ref_id are provided. Otherwise it will
         maintain its original ref_key and ref_id. 
 
