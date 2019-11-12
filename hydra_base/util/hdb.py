@@ -190,6 +190,7 @@ def create_default_users_and_perms():
                     ("share_network",  "Share network"),
                     ("edit_topology",  "Edit network topology"),
 
+                    ("view_project",   "View Project"),
                     ("add_project",    "Add Project"),
                     ("edit_project",   "Edit Project"),
                     ("delete_project", "Delete Project"),
@@ -241,6 +242,7 @@ def create_default_users_and_perms():
             ('admin', "edit_network"),
             ('admin', "delete_network"),
             ('admin', "share_network"),
+            ('admin', "view_project"),
             ('admin', "add_project"),
             ('admin', "edit_project"),
             ('admin', "delete_project"),
