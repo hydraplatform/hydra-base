@@ -220,6 +220,8 @@ class TestRules:
 
         new_rule_j = self.add_rule(client, network_with_data, name=rulename, text=ruletext, types=[typecode])
 
+        new_rule_j = client.get_rule(new_rule_j.id) #do this to get all the DB server defaults
+
         assert len(new_rule_j.types) == 1
 
         new_rule_j.name = 'Updated Rule'
@@ -373,7 +375,7 @@ class TestRules:
         assert len(rules_of_type) == 3
         assert len(rules_of_type_in_scenario) == 1
 
-        client.purge_rule_type('a_new_rule')
+        client.purge_rule_type_definition('a_new_rule')
 
         assert len(client.get_rules_of_type(ruletype_A_j.code)) == 0
 
