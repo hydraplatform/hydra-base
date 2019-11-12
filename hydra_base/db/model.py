@@ -1713,7 +1713,7 @@ class Rule(AuditMixin, Base, Inspect, PermissionControlled):
     def set_types(self, types):
         """
             Accepts a list of type JSONObjects or spyne objects and sets
-            the type of the rule to be exactly this. THis means deleting rules
+            the type of the rule to be exactly this. This means deleting rules
             which are not in the list
         """
         
