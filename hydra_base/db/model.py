@@ -111,7 +111,7 @@ class Inspect(object):
         return inspect(self).attrs.keys()
 
 class AuditMixin(object):
-    
+
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     @declared_attr
@@ -121,7 +121,7 @@ class AuditMixin(object):
     @declared_attr
     def updated_by(cls):
         return Column(Integer, ForeignKey('tUser.id'), onupdate=get_user_id_from_engine)
-    
+
     updated_at = Column(DateTime,  nullable=False, default=datetime.datetime.utcnow(), onupdate=datetime.datetime.utcnow())
 
 class PermissionControlled(object):
@@ -152,7 +152,7 @@ class PermissionControlled(object):
                 owner = o
                 get_session().delete(owner)
                 break
-    
+
     def _is_open(self):
         """
             Check to see whether this entity is visible globally, without any
@@ -169,7 +169,7 @@ class PermissionControlled(object):
 
         if str(user_id) == str(self.created_by):
             return True
-            
+
         #Check if this entity is publicly open, therefore no need to check permissions.
         if self._is_open() == True:
             return True
@@ -265,11 +265,9 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
     unit_id    = Column(Integer(), ForeignKey('tUnit.id'),  nullable=True)
     hash       = Column(BIGINT(),  nullable=False, unique=True)
     cr_date    = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    created_by = Column(Integer(), ForeignKey('tUser.id'))
     hidden     = Column(String(1),  nullable=False, server_default=text(u"'N'"))
     value      = Column('value', Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
 
-    user = relationship('User', foreign_keys=[created_by], backref=backref("datasets", order_by=id))
     unit = relationship('Unit', backref=backref("dataset_unit", order_by=unit_id))
 
     _parents  = ['tResourceScenario', 'tUnit']
@@ -355,9 +353,9 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
         """
         if self.hidden == 'N':
             return True
-        
+
         return False
- 
+
 class DatasetCollection(Base, Inspect):
     """
     """
@@ -1460,10 +1458,10 @@ class Scenario(Base, Inspect):
             the ones closest to this scenario (my immediate parent's values are used instead
             of its parents)
 
-            If an explicit list of RAs is provided, only return data for these. This is used 
+            If an explicit list of RAs is provided, only return data for these. This is used
             when requesting data for a specific resource, for example.
         """
-        
+
         #This avoids python's mutable keyword argumets causing child_data to keep its values beween
         #function calls
         if child_data is None:
@@ -1473,8 +1471,8 @@ class Scenario(Base, Inspect):
         childrens_ras = []
         for child_rs in child_data:
             childrens_ras.append(child_rs.resource_attr_id)
-        
-        #Add resource attributes which are not defined already 
+
+        #Add resource attributes which are not defined already
         rs_query = get_session().query(ResourceScenario).filter(ResourceScenario.scenario_id==self.id)
 
         if ra_ids is not None:
@@ -1512,8 +1510,8 @@ class Scenario(Base, Inspect):
         childrens_groups = []
         for child_rgi in child_items:
             childrens_groups.append(child_rgi.group_id)
-        
-        #Add resource attributes which are not defined already 
+
+        #Add resource attributes which are not defined already
         for this_rgi in self.resourcegroupitems:
             if this_rgi.group_id not in childrens_groups:
                 child_items.append(this_rgi)
@@ -1522,7 +1520,7 @@ class Scenario(Base, Inspect):
             return self.parent.get_group_items(child_items=child_items,
                                                get_parent_items=get_parent_items)
 
-        return child_items 
+        return child_items
 
 class RuleTypeDefinition(AuditMixin, Base, Inspect):
     """
@@ -1530,7 +1528,7 @@ class RuleTypeDefinition(AuditMixin, Base, Inspect):
 
         A rule type is a simple way of categorising rules. A rule may have no
         type or it may have 1. A rule type consists of a unique code and a name.
-        
+
         In addition to separating rules, this enables rules to be searched more easily.
     """
 
@@ -1542,7 +1540,7 @@ class RuleTypeDefinition(AuditMixin, Base, Inspect):
 
     code = Column(String(200), nullable=False, primary_key=True)
     name = Column(String(200), nullable=False)
-   
+
 
 class RuleTypeLink(AuditMixin, Base, Inspect):
     """
@@ -1550,7 +1548,7 @@ class RuleTypeLink(AuditMixin, Base, Inspect):
 
         A rule type is a simple way of categorising rules. A rule may have no
         type or it may have 1. A rule type consists of a unique code and a name.
-        
+
         In addition to separating rules, this enables rules to be searched more easily.
     """
 
@@ -1574,7 +1572,7 @@ class RuleOwner(AuditMixin, Base, Inspect):
         can be kept hidden
     """
 
-    __tablename__='tRuleOwner' 
+    __tablename__='tRuleOwner'
 
     user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
     rule_id = Column(Integer(), ForeignKey('tRule.id'), primary_key=True, nullable=False)
@@ -1600,7 +1598,7 @@ class Rule(AuditMixin, Base, Inspect, PermissionControlled):
     __table_args__ = (
         UniqueConstraint('scenario_id', 'name', name="unique rule name"),
     )
-    
+
     __ownerclass__ = RuleOwner
     __ownerfk__    = 'rule_id'
 
@@ -1635,13 +1633,13 @@ class Rule(AuditMixin, Base, Inspect, PermissionControlled):
             the type of the rule to be exactly this. This means deleting rules
             which are not in the list
         """
-        
+
         #We take this to mean don't touch types.
         if types is None:
             return
 
         existingtypes = set([t.code for t in self.types])
-        
+
         #Map a type code to a type object
         existing_type_map = dict((t.code, t) for t in self.types)
 
@@ -1652,12 +1650,12 @@ class Rule(AuditMixin, Base, Inspect, PermissionControlled):
 
         for ruletypecode in types_to_add:
             ruletypelink = RuleTypeLink()
-            ruletypelink.code = ruletypecode 
+            ruletypelink.code = ruletypecode
             self.types.append(ruletypelink)
 
         for type_to_delete in types_to_delete:
             get_session().delete(existing_type_map[type_to_delete])
-        
+
 
 class Note(Base, Inspect, PermissionControlled):
     """

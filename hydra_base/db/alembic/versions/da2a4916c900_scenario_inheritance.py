@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 
 # revision identifiers, used by Alembic.
 revision = 'da2a4916c900'
-down_revision = '6883f6e39176'
+down_revision = '6402bb82a531'
 branch_labels = None
 depends_on = None
 
