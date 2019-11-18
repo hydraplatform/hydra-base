@@ -22,6 +22,7 @@ before_script:
 
 install:
   - pip install -e .
+  - pip install hydra-client-python
 
 script:
   - pytest tests --db-backend=${DB} --cov-report term --cov hydra_base
