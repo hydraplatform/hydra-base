@@ -32,6 +32,7 @@ hydra_logging.init()
 
 from .db import connect, commit_transaction, rollback_transaction
 
+
 log = logging.getLogger(__name__)
 
 log.debug(" \n ")
@@ -65,3 +66,5 @@ from .lib.template import *
 from .lib.units import *
 from .lib.users import *
 from .lib.service import *
+
+from .util.hdb import insert_default_data, get_root_user

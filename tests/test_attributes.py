@@ -30,13 +30,10 @@
 
 
 import logging
-from hydra_base.util.testing import update_template, get_by_name
+from hydra_base.util.testing import get_by_name
 from .fixtures import *
-import copy
-import json
 import hydra_base as hb
 from hydra_base.exceptions import ResourceNotFoundError
-import datetime
 import pytest
 from hydra_base.lib.objects import JSONObject
 log = logging.getLogger(__name__)
@@ -46,11 +43,7 @@ class TestAttribute:
         Test for attribute-based functionality
     """
 
-    """
-        TESTED
-    """
-
-    def test_add_attribute(self, session):
+    def test_add_attribute(self, session, projectmaker):
         test_attr = JSONObject({
             "name": 'Test Attribute 1',
             "dimension_id": None
@@ -60,7 +53,24 @@ class TestAttribute:
         assert new_attr.name == test_attr.name, \
             "add_attribute didn't work"
 
-    def test_update_attribute(self, session):
+        #make a new project so we can scope an attribute to it.
+        project = projectmaker.create('scope-attributes')
+
+        attr_with_project = JSONObject({
+            "name": 'Project-Scoped Attribute',
+            "dimension_id": None,
+            "project_id":project.id
+        })
+
+        new_attr = hb.add_attribute(attr_with_project, user_id=pytest.root_user_id)
+
+        all_attributes = hb.get_all_attributes(user_id=pytest.root_user_id)
+        scoped_attributes = hb.get_all_attributes(project_id=project.id, user_id=pytest.root_user_id)
+
+        assert len(all_attributes) == 2
+        assert len(scoped_attributes) == 1
+
+    def test_update_attribute(self, session, projectmaker):
         test_attr = JSONObject({
             "name": 'Test Attribute 1',
             "dimension_id": None
@@ -74,8 +84,20 @@ class TestAttribute:
                 updated_attr.name == new_attr.name, \
                 "update_attribute didn't work"
 
+        #make a new project so we can scope an attribute to it.
+        project = projectmaker.create('scope-attributes')
+        updated_attr.project_id=project.id
+        project_scoped_attr = hb.update_attribute(updated_attr, user_id=pytest.root_user_id)
 
-    def test_delete_attribute(self, session):
+        #As there's only 1 attribute in the system, check that it is included
+        #in both the global request and the scoped request
+        all_attributes = hb.get_all_attributes(user_id=pytest.root_user_id)
+        scoped_attributes = hb.get_all_attributes(project_id=project.id, user_id=pytest.root_user_id)
+
+        assert len(all_attributes) == 1
+        assert len(scoped_attributes) == 1
+
+    def test_delete_attribute(self, session, projectmaker):
         test_attr = JSONObject({
             "name": 'Test Attribute 1',
             "dimension_id": None
@@ -90,37 +112,287 @@ class TestAttribute:
         with pytest.raises(ResourceNotFoundError):
             result = hb.delete_attribute(new_attr.id)
 
-    def test_add_attributes(self, session):
+        #Add an attribute, scoped to a project. Check it is scoped correctly.
+        #Then delete it and check the scoping has been removed also.
+        project = projectmaker.create('scope-attributes')
+        scoped_attr = JSONObject({
+            "name": 'Scoped Attribute',
+            "dimension_id": None,
+            "project_id":project.id
+        })
+
+        scoped_attr_i = hb.add_attribute(scoped_attr, user_id=pytest.root_user_id)
+
+        project_attrs_before_delete = \
+                hb.get_project_attributes(project.id, user_id=pytest.root_user_id)
+
+        #check the attribute is scoped to the project
+        assert len(project_attrs_before_delete) == 1
+
+        result = hb.delete_attribute(scoped_attr_i.id, user_id=pytest.root_user_id)
+
+        project_attrs_after_delete = \
+                hb.get_project_attributes(project.id, user_id=pytest.root_user_id)
+
+        #double-check the scoping isn't there any more.
+        assert len(project_attrs_after_delete) == 0
+
+    def test_add_attributes(self, session, projectmaker):
+        project = projectmaker.create('scope-attributes')
         test_attrs = [
+            #a global attribute
             JSONObject({
                 "name": 'Test Attribute 1',
                 "dimension_id": None
             }),
+            #another global attribute, but scoped to the project
             JSONObject({
                 "name": 'Test Attribute 2',
-                "dimension_id": 1
+                "dimension_id": 1,
+                "project_id" : project.id
             }),
             None
         ]
         new_attrs_list = hb.add_attributes(test_attrs, user_id=pytest.root_user_id)
 
+
+        #Ensure the attributes went in correctly
+        new_attr_names = [a.name for a in new_attrs_list]
+
         for test_attr in test_attrs:
-            if test_attr is not None:
-                assert len(list(filter(lambda x: x["name"] == test_attr.name, new_attrs_list))) > 0,\
-                    "Adding new attributes didn't work as expected."
+            if test_attr is None:
+                continue
+            assert test_attr.name in new_attr_names
+
+        #Double check that there's 2 attributes in the system, and that 1 of them
+        #is scoped to the project
+        all_attributes = hb.get_all_attributes(user_id=pytest.root_user_id)
+        scoped_attributes = hb.get_all_attributes(project_id=project.id, user_id=pytest.root_user_id)
+
+        assert len(all_attributes) == 2
+        assert len(scoped_attributes) == 1
 
 
-    def test_get_attributes(self, session):
+    def test_get_attributes(self, session, projectmaker):
         """
             def get_attributes(**kwargs):
         """
-        test_attr = JSONObject({
-            "name": 'Test Attribute 1',
+
+        project = projectmaker.create('scope-attributes')
+
+        unscoped_attr = JSONObject({
+            "name": 'Unscoped Attribute',
             "dimension_id": None
         })
-        new_attr = hb.add_attribute(test_attr, user_id=pytest.root_user_id)
-        attributes = hb.get_attributes(user_id=pytest.root_user_id)
-        assert len(attributes) > 0, "get_attributes didn't work as expected!"
+        scoped_attr = JSONObject({
+            "name": 'Scoped Attribute',
+            "dimension_id": None,
+            "project_id": project.id
+        })
+        unscoped_attr_i = hb.add_attribute(unscoped_attr, user_id=pytest.root_user_id)
+        scoped_attr_i = hb.add_attribute(scoped_attr, user_id=pytest.root_user_id)
+
+        all_attributes = hb.get_attributes(user_id=pytest.root_user_id)
+        assert len(all_attributes) == 2, "get_attributes didn't work as expected!"
+
+        project_scoped_attributes = hb.get_attributes(project_id=project.id, user_id=pytest.root_user_id)
+        assert len(project_scoped_attributes) == 1, "Getting scoped attributes didn't work"
+
+    def test_add_project_attribute(self, session, projectmaker):
+
+        #test that attributes can be sciped to more than 1 project
+        project_1 = projectmaker.create("scope-attributes-1")
+        project_2 = projectmaker.create("scope-attributes-2")
+
+        unscoped_attr = JSONObject({
+            "name": 'Unscoped Attribute',
+            "dimension_id": None
+        })
+        scoped_attr = JSONObject({
+            "name": 'Scoped Attribute',
+            "dimension_id": None,
+        })
+
+        #Add two attributes, one of which will become scoped
+        unscoped_attr_i = hb.add_attribute(unscoped_attr, user_id=pytest.root_user_id)
+        scoped_attr_i = hb.add_attribute(scoped_attr, user_id=pytest.root_user_id)
+
+        #scope scoped_attr_i to both projects
+        hb.add_project_attribute(scoped_attr_i.id, project_1.id, 'Project1-Scoped Attr', user_id=pytest.root_user_id)
+        hb.add_project_attribute(scoped_attr_i.id, project_2.id, user_id=pytest.root_user_id)
+
+        #Make sure adding a duplicate raises an error
+        with pytest.raises(hb.HydraError):
+            hb.add_project_attribute(scoped_attr_i.id, project_2.id, user_id=pytest.root_user_id)
+
+        all_attributes = hb.get_attributes(user_id=pytest.root_user_id)
+        assert len(all_attributes) == 2, "get_attributes didn't work as expected!"
+
+        """
+        Test project 1 scoping
+        """
+
+        #These two queries should be equivalent -- requesting for attributes scoped to the project
+        project_1_scoped_attributes = hb.get_attributes(project_id=project_1.id,
+                                                        user_id=pytest.root_user_id)
+        assert len(project_1_scoped_attributes) == 1
+
+        project_1_scoped_attributes_1 = hb.get_project_attributes(project_1.id,
+                                                                  user_id=pytest.root_user_id)
+        assert len(project_1_scoped_attributes_1) == 1
+
+        assert project_1_scoped_attributes[0].project_info.display_name == 'Project1-Scoped Attr'
+
+
+        """
+        Test project 2 scoping
+        """
+
+        #These two queries should be equivalent -- requesting for attributes scoped to the project
+        project_2_scoped_attributes = hb.get_attributes(project_id=project_2.id,
+                                                        user_id=pytest.root_user_id)
+        assert len(project_2_scoped_attributes) == 1
+
+        project_2_scoped_attributes_1 = hb.get_project_attributes(project_2.id,
+                                                                  user_id=pytest.root_user_id)
+        assert len(project_2_scoped_attributes_1) == 1
+
+        assert project_2_scoped_attributes[0].project_info.display_name == None
+
+
+    def test_update_project_attribute(self, session, projectmaker):
+
+        #test that attributes can be sciped to more than 1 project
+        project_1 = projectmaker.create("scope-attributes-1")
+
+        unscoped_attr = JSONObject({
+            "name": 'Unscoped Attribute',
+            "dimension_id": None
+        })
+        scoped_attr = JSONObject({
+            "name": 'Scoped Attribute',
+            "dimension_id": None,
+        })
+
+        #Add two attributes, one of which will become scoped
+        unscoped_attr_i = hb.add_attribute(unscoped_attr, user_id=pytest.root_user_id)
+        scoped_attr_i = hb.add_attribute(scoped_attr, user_id=pytest.root_user_id)
+
+        #scope scoped_attr_i to both projects
+        hb.add_project_attribute(scoped_attr_i.id, project_1.id, 'Project1-Scoped Attr', user_id=pytest.root_user_id)
+
+        all_attributes = hb.get_attributes(user_id=pytest.root_user_id)
+        assert len(all_attributes) == 2, "get_attributes didn't work as expected!"
+
+        """
+        Test project 1 scoping
+        """
+
+        #These two queries should be equivalent -- requesting for attributes scoped to the project
+        project_1_scoped_attributes = hb.get_attributes(project_id=project_1.id,
+                                                        user_id=pytest.root_user_id)
+        assert len(project_1_scoped_attributes) == 1
+
+        project_1_scoped_attributes_1 = hb.get_project_attributes(project_1.id,
+                                                                  user_id=pytest.root_user_id)
+        assert len(project_1_scoped_attributes_1) == 1
+
+        assert project_1_scoped_attributes[0].project_info.display_name == 'Project1-Scoped Attr'
+
+        hb.update_project_attribute(scoped_attr_i.id, project_1.id, 'Updated Project1-Scoped Attr')
+
+        project_1_scoped_attributes_1 = hb.get_project_attributes(project_1.id,
+                                                                  user_id=pytest.root_user_id)
+        assert len(project_1_scoped_attributes_1) == 1
+
+        assert project_1_scoped_attributes_1[0].project_info.display_name == 'Updated Project1-Scoped Attr'
+
+
+    def test_remove_project_attribute(self, session, projectmaker):
+
+        #test that attributes can be sciped to more than 1 project
+        project_1 = projectmaker.create("scope-attributes-1")
+        project_2 = projectmaker.create("scope-attributes-2")
+
+        unscoped_attr = JSONObject({
+            "name": 'Unscoped Attribute',
+            "dimension_id": None
+        })
+        scoped_attr = JSONObject({
+            "name": 'Scoped Attribute',
+            "dimension_id": None,
+        })
+        unscoped_attr_i = hb.add_attribute(unscoped_attr, user_id=pytest.root_user_id)
+        scoped_attr_i = hb.add_attribute(scoped_attr, user_id=pytest.root_user_id)
+
+        #scope scoped_attr_i to both projects
+        hb.add_project_attribute(scoped_attr_i.id, project_1.id, 'Project1-Scoped Attr', user_id=pytest.root_user_id)
+        hb.add_project_attribute(scoped_attr_i.id, project_2.id, user_id=pytest.root_user_id)
+
+        all_attributes = hb.get_attributes(user_id=pytest.root_user_id)
+        assert len(all_attributes) == 2, "get_attributes didn't work as expected!"
+
+        """
+        Test project 1 scoping
+        """
+
+        #These two queries should be equivalent -- requesting for attributes scoped to the project
+        project_1_scoped_attributes = hb.get_attributes(project_id=project_1.id,
+                                                        user_id=pytest.root_user_id)
+        assert len(project_1_scoped_attributes) == 1
+
+        project_1_scoped_attributes_1 = hb.get_project_attributes(project_1.id,
+                                                                  user_id=pytest.root_user_id)
+        assert len(project_1_scoped_attributes_1) == 1
+
+
+        """
+        Test project 2 scoping
+        """
+
+        #These two queries should be equivalent -- requesting for attributes scoped to the project
+        project_2_scoped_attributes = hb.get_attributes(project_id=project_2.id,
+                                                        user_id=pytest.root_user_id)
+        assert len(project_2_scoped_attributes) == 1
+
+        project_2_scoped_attributes_1 = hb.get_project_attributes(project_2.id,
+                                                                  user_id=pytest.root_user_id)
+        assert len(project_2_scoped_attributes_1) == 1
+
+
+        """
+        Remove scoping from 1 of the projects (project_2), then recheck scoping
+        """
+        hb.remove_project_attribute(scoped_attr_i.id, project_2.id, user_id=pytest.root_user_id)
+        #Calling remove on a non-existent project attribute does nothing.
+        hb.remove_project_attribute(scoped_attr_i.id, project_2.id, user_id=pytest.root_user_id)
+
+        """
+        Re-check  project 1 scoping (should still be scoped, 1 result).
+        """
+
+        #These two queries should be equivalent -- requesting for attributes scoped to the project
+        project_1_scoped_attributes = hb.get_attributes(project_id=project_1.id,
+                                                        user_id=pytest.root_user_id)
+        assert len(project_1_scoped_attributes) == 1
+
+        project_1_scoped_attributes_1 = hb.get_project_attributes(project_1.id,
+                                                                  user_id=pytest.root_user_id)
+        assert len(project_1_scoped_attributes_1) == 1
+
+
+        """
+        Re-check Test project 2 scoping -- should be unscoped (no results)
+        """
+
+        #These two queries should be equivalent -- requesting for attributes scoped to the project
+        project_2_scoped_attributes = hb.get_attributes(project_id=project_2.id,
+                                                        user_id=pytest.root_user_id)
+        assert len(project_2_scoped_attributes) == 0
+
+        project_2_scoped_attributes_1 = hb.get_project_attributes(project_2.id,
+                                                                  user_id=pytest.root_user_id)
+        assert len(project_2_scoped_attributes_1) == 0
 
 
     def test_get_template_attributes(self, session):
@@ -512,263 +784,5 @@ class TestAttributeMap:
         """
             SKELETON
             def check_attribute_mapping_exists(resource_attr_id_source, resource_attr_id_target, **kwargs):
-        """
-        pass
-
-
-
-
-
-
-
-
-
-
-
-class TestAttributeGroups:
-    """
-        Test for attribute Groups-based functionality
-    """
-
-
-    def test_add_attribute_group(self, session, projectmaker, attribute):
-        project = projectmaker.create()
-
-        newgroup = JSONObject({
-            'project_id'  : project.id,
-            'name'        : "Attribute Group %s" % (datetime.datetime.now(),),
-            'description' : "A description of an attribute group",
-            'layout'      : {"color": "green"},
-            'exclusive'   : 'Y',
-        })
-
-        newgroup = hb.add_attribute_group(newgroup, user_id=pytest.root_user_id)
-
-        retrieved_new_group = hb.get_attribute_group(newgroup.id, user_id=pytest.root_user_id)
-
-        assert retrieved_new_group.name == newgroup.name
-
-    def test_update_attribute_group(self, session, attributegroup):
-
-        newname = attributegroup.name + " Updated"
-
-        attributegroup.name = newname
-
-        hb.update_attribute_group(attributegroup, user_id=pytest.root_user_id)
-
-        retrieved_new_group = hb.get_attribute_group(attributegroup.id, user_id=pytest.root_user_id)
-
-        assert retrieved_new_group.name == newname
-
-
-    def test_delete_attribute_group(self, session, attributegroup):
-
-        hb.delete_attribute_group(attributegroup.id, user_id=pytest.root_user_id)
-
-        with pytest.raises(hb.HydraError):
-            hb.get_attribute_group(attributegroup.id, user_id=pytest.root_user_id)
-
-    def test_basic_add_attribute_group_items(self, session, projectmaker, network_with_data, attributegroupmaker):
-        project = projectmaker.create()
-
-        #convenience naming
-        network = network_with_data
-
-        #Create two groups -- attributes which are associated with a network,
-        #and everything else.
-        group_1 = attributegroupmaker.create(project.id, "Network Attributes")
-        group_2 = attributegroupmaker.create(project.id, "Node Attributes")
-
-        network_attributes = []
-        for netattr in network.attributes:
-            network_attributes.append(JSONObject({'attr_id'    : netattr.attr_id,
-                                       'network_id' : netattr.network_id,
-                                       'group_id'   : group_1.id}))
-
-        node_attr_tracker = []
-        node_attributes = []
-        for node in network.nodes:
-            for node_attr in node.attributes:
-                if node_attr.attr_id not in node_attr_tracker:
-                    node_attributes.append(JSONObject({'attr_id'    : node_attr.attr_id,
-                                            'network_id' : node.network_id,
-                                            'group_id'   : group_2.id}))
-                    node_attr_tracker.append(node_attr.attr_id)
-
-
-        hb.add_attribute_group_items(network_attributes, user_id=pytest.root_user_id)
-
-        hb.add_attribute_group_items(node_attributes, user_id=pytest.root_user_id)
-
-        all_items_in_network = hb.get_network_attributegroup_items(network.id, user_id=pytest.root_user_id)
-
-
-        assert len(all_items_in_network) == len(network_attributes)+len(node_attributes)
-
-    def test_exclusive_add_attribute_group_items(self, session, projectmaker, network_with_data, attributegroupmaker):
-        """
-            add attributes to a group that are already in an exclusive group
-        """
-
-        project = projectmaker.create()
-
-        #convenience naming
-        network = network_with_data
-
-        #Create two groups -- attributes which are associated with a network,
-        #and everything else.
-        group_1 = attributegroupmaker.create(project.id, "Network Attributes", 'Y')
-        group_2 = attributegroupmaker.create(project.id, "Node Attributes")
-
-        network_attributes = []
-        node_attributes = []
-
-        for netattr in network.attributes:
-            network_attributes.append(JSONObject({'attr_id'    : netattr.attr_id,
-                                       'network_id' : netattr.network_id,
-                                       'group_id'   : group_1.id}))
-            #Put these attributes into both groups. THis should fail, as group 1
-            #is exclusive, and already has these attributes
-            node_attributes.append(JSONObject({'attr_id'    : netattr.attr_id,
-                                       'network_id' : netattr.network_id,
-                                       'group_id'   : group_2.id}))
-
-
-        node_attr_tracker = []
-        for node in network.nodes:
-            for node_attr in node.attributes:
-                if node_attr.attr_id not in node_attr_tracker:
-                    node_attributes.append(JSONObject({'attr_id'    : node_attr.attr_id,
-                                            'network_id' : node.network_id,
-                                            'group_id'   : group_2.id}))
-                    node_attr_tracker.append(node_attr.attr_id)
-
-
-        log.info("Adding items to group 1 (network attributes)")
-        hb.add_attribute_group_items(network_attributes, user_id=pytest.root_user_id)
-
-        #add a group with attributes that are already in an exclusive group
-        with pytest.raises(hb.HydraError):
-            log.info("Adding items to group 2 (node attributes, plus network attributes)")
-            hb.add_attribute_group_items(node_attributes, user_id=pytest.root_user_id)
-
-    def test_reverse_exclusive_add_attribute_group_items(self, session, projectmaker, network_with_data, attributegroupmaker):
-        """
-            add attributes to an exclusive group that are already in another group
-        """
-
-        project = projectmaker.create()
-
-        #convenience naming
-        network = network_with_data
-
-        #Create two groups -- attributes which are associated with a network,
-        #and everything else.
-        group_1 = attributegroupmaker.create(project.id, "Network Attributes", 'Y')
-        group_2 = attributegroupmaker.create(project.id, "Node Attributes")
-
-        network_attributes = []
-        node_attributes = []
-
-        for netattr in network.attributes:
-            network_attributes.append(JSONObject({'attr_id'    : netattr.attr_id,
-                                       'network_id' : netattr.network_id,
-                                       'group_id'   : group_1.id}))
-            #Put these attributes into both groups. THis should fail, as group 1
-            #is exclusive, and already has these attributes
-            node_attributes.append(JSONObject({'attr_id'    : netattr.attr_id,
-                                       'network_id' : netattr.network_id,
-                                       'group_id'   : group_2.id}))
-
-
-        node_attr_tracker = []
-        for node in network.nodes:
-            for node_attr in node.attributes:
-                if node_attr.attr_id not in node_attr_tracker:
-                    node_attributes.append(JSONObject({'attr_id'    : node_attr.attr_id,
-                                            'network_id' : node.network_id,
-                                            'group_id'   : group_2.id}))
-                    node_attr_tracker.append(node_attr.attr_id)
-
-
-        log.info("Adding items to group 2 (node attributes, plus network attributes)")
-        hb.add_attribute_group_items(node_attributes, user_id=pytest.root_user_id)
-
-        #add attributes to an exclusive group that are already in another group
-        with pytest.raises(hb.HydraError):
-            log.info("Adding items to group 1 (network attributes)")
-            hb.add_attribute_group_items(network_attributes, user_id=pytest.root_user_id)
-
-    def test_delete_attribute_group_items(self, session, projectmaker, network_with_data, attributegroupmaker):
-        project = projectmaker.create()
-
-        #convenience naming
-        network = network_with_data
-
-        #Create two groups -- attributes which are associated with a network,
-        #and everything else.
-        group_1 = attributegroupmaker.create(project.id, "Network Attributes")
-        group_2 = attributegroupmaker.create(project.id, "Node Attributes")
-
-        network_attributes = []
-        for netattr in network.attributes:
-            network_attributes.append(JSONObject({'attr_id'    : netattr.attr_id,
-                                       'network_id' : netattr.network_id,
-                                       'group_id'   : group_1.id}))
-
-        node_attr_tracker = []
-        node_attributes   = []
-        for node in network.nodes:
-            for node_attr in node.attributes:
-                if node_attr.attr_id not in node_attr_tracker:
-                    node_attributes.append(JSONObject({'attr_id'    : node_attr.attr_id,
-                                            'network_id' : node.network_id,
-                                            'group_id'   : group_2.id}))
-                    node_attr_tracker.append(node_attr.attr_id)
-
-
-        hb.add_attribute_group_items(network_attributes, user_id=pytest.root_user_id)
-
-        hb.add_attribute_group_items(node_attributes, user_id=pytest.root_user_id)
-
-        all_items_in_network = hb.get_network_attributegroup_items(network.id, user_id=pytest.root_user_id)
-
-        assert len(all_items_in_network) == len(network_attributes)+len(node_attributes)
-
-        #Now remove all the node attributes
-        hb.delete_attribute_group_items(node_attributes, user_id=pytest.root_user_id)
-
-        all_items_in_network = hb.get_network_attributegroup_items(network.id, user_id=pytest.root_user_id)
-
-        assert len(all_items_in_network) == len(network_attributes)
-
-    def test_get_attribute_group(self, session):
-        """
-            SKELETON
-            def get_attribute_group(group_id, **kwargs):
-        """
-        pass
-    def test_get_network_attributegroup_items(self, session):
-        """
-            SKELETON
-            def get_network_attributegroup_items(network_id, **kwargs):
-        """
-        pass
-    def test_get_group_attributegroup_items(self, session):
-        """
-            SKELETON
-            def get_group_attributegroup_items(network_id, group_id, **kwargs):
-        """
-        pass
-    def test_get_attribute_item_groups(self, session):
-        """
-            SKELETON
-            def get_attribute_item_groups(network_id, attr_id, **kwargs):
-        """
-        pass
-    def test_add_attribute_group_items(self, session):
-        """
-            SKELETON
-            def add_attribute_group_items(attributegroupitems, **kwargs):
         """
         pass

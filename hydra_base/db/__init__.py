@@ -87,7 +87,7 @@ def create_mysql_db(db_url):
 
     return db_url
 
-def connect(db_url=None):
+def connect(db_url=None, use_default_data=True):
     if db_url is None:
         db_url = config.get('mysqld', 'url')
 
@@ -108,6 +108,11 @@ def connect(db_url=None):
 
     global DeclarativeBase
     DeclarativeBase.metadata.create_all(engine)
+
+    if use_default_data:
+
+        from ..util.hdb import insert_default_data
+        insert_default_data()
 
 def get_session():
     global DBSession

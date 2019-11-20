@@ -30,6 +30,7 @@ from ..db.model import Attr,\
         TemplateType,\
         ResourceAttr,\
         TypeAttr,\
+        ProjectAttr,\
         ResourceAttrMap,\
         ResourceScenario,\
         Dataset,\
@@ -117,6 +118,126 @@ def get_attribute_by_name_and_dimension(name, dimension_id=None,**kwargs):
     except NoResultFound:
         return None
 
+def add_project_attribute(attr_id, project_id, display_name=None, **kwargs):
+    """
+        Add an entry to the tProjectAttr table to scope the attribute to a project
+    """
+
+    log.info("Adding attribute %s to project %s", attr_id, project_id)
+    try:
+        project_i = db.DBSession.query(Project).filter(Project.id == project_id).one()
+    except NoResultFound:
+        raise HydraError("Project with ID {} not found".format(project_id))
+
+    try:
+        attr_i = db.DBSession.query(Attr).filter(Attr.id==attr_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError("Attribute (attribute id=%s) does not exist"%(attr_id))
+
+    project_attr = _add_project_attribute(attr_i, project_id, display_name=display_name)
+
+    db.DBSession.flush()
+
+    log.info("Attribute %s added to project %s", attr_id, project_id)
+    return project_attr
+
+def update_project_attribute(attr_id, project_id, display_name=None, **kwargs):
+    """
+        Update an entry to the tProjectAttr table to scope the attribute to a project.
+        THis will be used mainly to update the display name, as it's the only thing
+        that can change in it.
+    """
+
+    log.info("Adding attribute %s to project %s", attr_id, project_id)
+    try:
+        projectattr_i = db.DBSession.query(ProjectAttr)\
+                                .filter(
+                                    ProjectAttr.project_id == project_id,
+                                    ProjectAttr.attr_id==attr_id).one()
+
+        projectattr_i.display_name = display_name
+    except NoResultFound:
+        raise ResourceNotFoundError("Project Attribute (attr_id : %s) (project_id : %s) not found".format(attr_id, project_id))
+
+    db.DBSession.flush()
+
+    log.info("Project Attribute (attr_id : %s) (project_id : %s) updated", attr_id, project_id)
+
+    return 'OK'
+
+
+def _add_project_attribute(attr_i, project_id, display_name=None):
+    """
+        scope an attribute to an project. this is a private function which takes
+        an attr_i object as an argument instead of an attr_id, as a flush may not
+        have happened yet so an attr_id may not yet exist.
+
+        args:
+            attr_id (int): The attribute to de-scope
+            project_id (int): The project to descope the attribute from
+            display_name (string): An optional string which can be used for displaying this attribute's name inside this project
+        returns:
+            ProjectAttr (SQLAlchemy ORM object)
+        raises:
+            HydraError if a project attribute already exists
+    """
+    projectattr_i = db.DBSession.query(ProjectAttr)\
+                                .filter(
+                                    ProjectAttr.project_id == project_id,
+                                    ProjectAttr.attr_id==attr_i.id).first()
+
+    if projectattr_i is not None:
+        raise HydraError("Project Attribute (attr_id : %s) (project_id : %s) already exists".format(attr_i.id, project_id))
+
+    project_attr_i = ProjectAttr(project_id=project_id)
+    project_attr_i.attr = attr_i
+    project_attr_i.display_name=display_name
+    db.DBSession.add(project_attr_i)
+
+    return project_attr_i
+
+def remove_project_attribute(attr_id, project_id, flush=True, **kwargs):
+    """
+        De-scope an attribute from a project so it's no longer scoped to the project
+        args:
+            attr_id (int): The attribute to de-scope
+            project_id (int): The project to descope the attribute from
+            flush (bool) default=True: Flag to indicate whether to flush, only used if inside another function which will flush later.
+
+        returns:
+            'OK'
+    """
+
+    project_attr = db.DBSession.query(ProjectAttr).filter(ProjectAttr.project_id==project_id,
+                                                          ProjectAttr.attr_id==attr_id).first()
+
+    if project_attr is not None:
+        db.DBSession.delete(project_attr)
+
+    if flush is True:
+        db.DBSession.flush()
+
+    return 'OK'
+
+def get_project_attributes(project_id, **kwargs):
+    """
+        Get all the attributes scoped to this project
+    """
+
+    project_scoped_attrs_i = db.DBSession.query(Attr, ProjectAttr).filter(
+                                            Attr.id==ProjectAttr.attr_id,
+                                            ProjectAttr.project_id==project_id).all()
+    project_scoped_attrs_j = []
+
+    for project_scoped_attr_i in project_scoped_attrs_i:
+        project_scoped_attr_j = JSONObject(project_scoped_attr_i.Attr)
+        project_scoped_attr_j.project_info = JSONObject({
+            'display_name': project_scoped_attr_i.ProjectAttr.display_name
+        })
+        project_scoped_attrs_j.append(project_scoped_attr_j)
+
+    return project_scoped_attrs_j
+
 def add_attribute(attr,**kwargs):
     """
     Add a generic attribute, which can then be used in creating
@@ -138,24 +259,47 @@ def add_attribute(attr,**kwargs):
                                                  Attr.dimension_id == attr.dimension_id).one()
         log.info("Attr already exists")
     except NoResultFound:
-        attr_i = Attr(name = attr.name, dimension_id = attr.dimension_id)
-        attr_i.description = attr.description
-        db.DBSession.add(attr_i)
-        db.DBSession.flush()
-        log.info("New attr added")
+        attr_i = _add_attribute(attr, flush=True)
+
     return JSONObject(attr_i)
+
+def _add_attribute(attr, flush=False):
+    attr_i = Attr()
+    attr_i.name         = attr.name
+    attr_i.dimension_id = attr.dimension_id
+    attr_i.description  = attr.description
+
+    db.DBSession.add(attr_i)
+
+    if attr.project_id is not None:
+        _add_project_attribute(attr_i, attr.project_id)
+
+    if flush is True:
+        db.DBSession.flush()
+
+    log.info("New attr added")
+
+    return attr_i
+
 
 def update_attribute(attr,**kwargs):
     """
     Add a generic attribute, which can then be used in creating
     a resource attribute, and put into a type.
 
+    If a project_id is provided, an entry is added to tProjectAttribute which
+    scopes the attribute to a project, thereby allowing it to be searched by project
+
+    Non-presence of a project_id does NOT remove a project attiribute. Project attribute
+    connections need to be removed explicitly with the remove_project_attribute function.
+
     .. code-block:: python
 
         (Attr){
-            id = 1020
-            name = "Test Attr"
-            dimension_id = 123
+            id = 1020 (optional)
+            name = "Test Attr" (mandatory)
+            dimension_id = 123 (mandatory)
+            project_id = 123 (optional)
         }
 
     """
@@ -166,8 +310,8 @@ def update_attribute(attr,**kwargs):
     attr_i.dimension_id = attr.dimension_id
     attr_i.description = attr.description
 
-    #Make sure an update hasn't caused an inconsistency.
-    #check_sion(attr_i.id)
+    if attr.project_id is not None:
+        _add_project_attribute(attr_i, attr.project_id)
 
     db.DBSession.flush()
     return JSONObject(attr_i)
@@ -223,28 +367,46 @@ def add_attributes(attrs,**kwargs):
 
     new_attrs = []
     for attr in attrs_to_add:
-        attr_i = Attr()
-        attr_i.name = attr.name
-        attr_i.dimension_id = attr.dimension_id
-        attr_i.description = attr.description
-        db.DBSession.add(attr_i)
+        attr_i = _add_attribute(attr, flush=False)
         new_attrs.append(attr_i)
 
     db.DBSession.flush()
-    
+
 
     new_attrs = new_attrs + existing_attrs
 
     return [JSONObject(a) for a in new_attrs]
 
-def get_attributes(**kwargs):
+def get_all_attributes(project_id=None, **kwargs):
+    """
+        A synonym for 'get_attributes'
+    """
+    return get_attributes(project_id=project_id, **kwargs)
+
+def get_attributes(project_id=None, **kwargs):
     """
         Get all attributes
+        args:
+            project_id (int): Optional argument which returns only attributes scoped to this project (contain entries in the tProjectAttr linking table)
+        returns:
+            list (JSONObject objects) Why? Because these can include the display
+            name which is specified in the project scoping
     """
+    if project_id is None:
+        attrs_i = db.DBSession.query(Attr).order_by(Attr.name).all()
+        attrs_j = [JSONObject(a) for a in attrs_i]
+    else:
+        attrs_i = db.DBSession.query(Attr, ProjectAttr.display_name).filter(ProjectAttr.project_id==project_id,\
+                                                        ProjectAttr.attr_id==Attr.id).all()
+        attrs_j = []
+        for attr_i in attrs_i:
+            attr_j = JSONObject(attr_i.Attr)
+            attr_j.project_info = JSONObject({
+                'display_name': attr_i.display_name
+            })
+            attrs_j.append(attr_j)
 
-    attrs = db.DBSession.query(Attr).order_by(Attr.name).all()
-
-    return attrs
+    return attrs_j
 
 def _get_attr(attr_id):
     try:

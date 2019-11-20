@@ -68,13 +68,9 @@ def session(db, engine, request):
     if six.PY2 and isinstance(session.connection().connection.connection,sqlite3.Connection):
         session.connection().connection.connection.text_factory = lambda x: unicode(x, 'utf-8', 'ignore')
 
-    # Now apply the default users and roles
-    #hydra_base.db.DBSession.begin_nested()
-    create_default_users_and_perms()
+    hydra_base.insert_default_data()
 
-    root_user_id = make_root_user()
-
-    create_default_units_and_dimensions()
+    root_user_id = hydra_base.get_root_user().id
 
     pytest.root_user_id = root_user_id
 

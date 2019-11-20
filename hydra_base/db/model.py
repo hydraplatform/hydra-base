@@ -484,6 +484,26 @@ class AttrGroupItem(Base, Inspect):
     _parents  = ['tAttrGroup']
     _children = []
 
+class ProjectAttr(Base, Inspect, AuditMixin):
+    """
+        This table creates project-scoped attributes, meaning attributes not relevant to a project can be left out, making
+        searching and accesssing attributes within a project much easier.
+
+        A 'display name' can be given to an attribute within a project, allowing 2 projects to use the same attributes but
+        to represent them differently visually.
+    """
+
+    __tablename__='tProjectAttr'
+
+    attr_id      = Column(Integer(), ForeignKey('tAttr.id'), primary_key=True, nullable=False)
+    project_id   = Column(Integer(), ForeignKey('tProject.id'), primary_key=True, nullable=False)
+    display_name = Column(String(200), nullable=True)
+
+    project   = relationship('Project', backref=backref('scoped_attributes', uselist=True, cascade="all, delete-orphan"))
+
+    #THe backref here is not expected to be used for anything other than to ensure that entries in this table are deleted when the attr is deleted.
+    attr      = relationship('Attr', backref=backref('project_attributes', uselist=True, cascade="all, delete-orphan"))
+
 class ResourceAttrMap(Base, Inspect):
     """
     """

@@ -29,6 +29,7 @@ from ..exceptions import HydraError
 import transaction
 from sqlalchemy.orm import load_only
 from ..lib.objects import JSONObject
+from hydra_base.exceptions import ResourceNotFoundError
 
 import logging
 log = logging.getLogger(__name__)
@@ -127,6 +128,16 @@ def make_root_user():
 
     return user_id
 
+def get_root_user():
+    return db.DBSession.query(User).filter(User.username=='root').one()
+
+def insert_default_data():
+    log.info("Inserting default data")
+    create_default_users_and_perms()
+    make_root_user()
+    create_default_units_and_dimensions()
+    create_default_net()
+    log.info("Default data inserted")
 
 def login_user(username, password):
     try:
@@ -152,6 +163,7 @@ def login_user(username, password):
         raise HydraError(username)
 
 def create_default_net():
+    log.info("Creating default network")
     try:
         net = db.DBSession.query(Network).filter(Network.id==1).one()
     except NoResultFound:
@@ -176,7 +188,9 @@ def create_default_users_and_perms():
     # if len(perms) > 0:
     #     return
 
-    default_perms = ( ("add_user",   "Add User"),
+    log.info("Creating default users and permissions")
+    default_perms = (
+                    ("add_user",   "Add User"),
                     ("edit_user",  "Edit User"),
                     ("add_role",   "Add Role"),
                     ("edit_role",  "Edit Role"),
@@ -215,8 +229,6 @@ def create_default_users_and_perms():
                     ('update_rules',  "Edit Rules"),
                     ('share_rules', "Share Rules"),
                     ('delete_rules', "Delete Rules")
-
-
                     )
 
     default_roles = (
@@ -227,7 +239,7 @@ def create_default_users_and_perms():
                     ("grad",     "Graduate"),
                     ("developer", "Developer"),
                     ("decision", "Decision Maker"),
-                )
+                    )
 
     roleperms = (
             # Admin permissions
@@ -260,7 +272,7 @@ def create_default_users_and_perms():
             ('admin', "add_unit"),
             ('admin', "update_unit"),
             ('admin', "delete_unit"),
-                    
+
             ('admin', 'view_rules'),
             ('admin', 'add_rules'),
             ('admin', 'update_rules'),
