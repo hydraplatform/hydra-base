@@ -18,7 +18,7 @@
 #
 
 import hydra_base as hb
-from hydra_base.exceptions import HydraError, ResourceNotFoundError
+from hydra_base.exceptions import HydraError, ResourceNotFoundError, ValidationError
 from hydra_base.lib.objects import JSONObject
 from .fixtures import *
 import pytest
@@ -421,6 +421,53 @@ class TestUnits():
         # calculate the sum.
         assert sum(new_val) - sum(old_val_conv) < 0.00001, \
             "Unit conversion did not work"
+
+    def test_apply_unit_to_network_rs(self, session, network_with_data):
+        
+        network_id = network_with_data.id 
+
+        dimension_list = hb.get_dimensions()
+
+        rs_to_change = network_with_data.scenarios[0].resourcescenarios[0]
+        
+        #The ID of the attribute for which these changes will be made
+        attr_id = rs_to_change.resourceattr.attr_id
+
+        #identify a unit to change
+        unit_to_change = rs_to_change.dataset.unit_id
+
+        #find another valid unit to replace it with
+        unit = hb.get_unit(unit_to_change, user_id = pytest.root_user_id)
+        dimension = hb.get_dimension(unit.dimension_id, user_id = pytest.root_user_id)
+
+        new_unit = dimension.units[0].id
+        
+        hb.apply_unit_to_network_rs(network_id, new_unit, attr_id, user_id = pytest.root_user_id)
+        
+        #now try to apply an incompatible unit. Just go grab another dimension, ensuring it's not accidenally
+        #the one we're using
+        bad_dimension = dimension_list[0]
+        if bad_dimension.id == dimension.id:
+            bad_dimension == dimension_list[1]
+
+        bad_unit = bad_dimension.units[0].id
+
+        with pytest.raises(ValidationError):
+            hb.apply_unit_to_network_rs(network_id, bad_unit, attr_id, user_id = pytest.root_user_id)
+
+        updated_scenario = hb.get_scenario(rs_to_change.scenario_id, user_id = pytest.root_user_id)
+        
+        #it's possible that the same unit spans multiple attributes in the original scenario
+        #so the updated scenario can only be tested for datsets which are attached to the attribute
+        old_unit_rs = [rs for rs in network_with_data.scenarios[0].resourcescenarios if rs.resourceattr.attr_id==attr_id and rs.dataset.unit_id==unit_to_change]
+        new_unit_rs = [rs for rs in updated_scenario.resourcescenarios if rs.resourceattr.attr_id==attr_id and rs.dataset.unit_id==new_unit]
+
+        assert len(old_unit_rs) == len(new_unit_rs)
+
+        for rs in updated_scenario.resourcescenarios:
+            if rs.resourceattr.attr_id == attr_id:
+                assert rs.dataset.unit_id == new_unit
+
 
 
 if __name__ == '__main__':
