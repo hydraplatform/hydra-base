@@ -29,13 +29,16 @@ Text, \
 DateTime,\
 Unicode
 
+
+from sqlalchemy.orm.exc import NoResultFound
+
 from sqlalchemy.ext.declarative import declared_attr
 
 import datetime
 
 from sqlalchemy import inspect, func
 
-from ..exceptions import HydraError, PermissionError
+from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
 
 from sqlalchemy.orm import relationship, backref
 
@@ -1649,12 +1652,25 @@ class Rule(AuditMixin, Base, Inspect, PermissionControlled):
         types_to_delete   = existingtypes - newtypes
 
         for ruletypecode in types_to_add:
+
+            self.check_type_definition_exists(ruletypecode)
+
             ruletypelink = RuleTypeLink()
             ruletypelink.code = ruletypecode
             self.types.append(ruletypelink)
 
         for type_to_delete in types_to_delete:
             get_session().delete(existing_type_map[type_to_delete])
+
+    def check_type_definition_exists(self, code):
+        """
+        A convenience function to check if a rule type definition exists before trying to add a link to it
+        """
+
+        try:
+            get_session().query(RuleTypeDefinition).filter(RuleTypeDefinition.code==code).one()
+        except NoResultFound:
+            raise ResourceNotFoundError("Rule type definition with code {} does not exist".format(code))
 
 
 class Note(Base, Inspect, PermissionControlled):
