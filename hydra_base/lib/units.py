@@ -30,7 +30,7 @@ from ..util.dataset_util import arr_to_vector
 from ..util.dataset_util import vector_to_arr
 from ..db.model import Dataset, Unit, Dimension
 from .objects import JSONObject
-from ..exceptions import HydraError, ResourceNotFoundError
+from ..exceptions import HydraError, ResourceNotFoundError, ValidationError
 
 from ..util.permissions import required_perms
 
@@ -517,6 +517,30 @@ def check_consistency(measure_or_unit_abbreviation, dimension,**kwargs):
     """
     dim = get_dimension_by_unit_measure_or_abbreviation(measure_or_unit_abbreviation)
     return dim == dimension
+
+def check_unit_matches_dimension(unit_id, dimension_id,**kwargs):
+    """
+        Check whether a specified unit is part of the specified dimension.
+        args:
+            unit_id (int): The ID of the unit to compare with the dimension
+            dimension_id (int): The ID of the dimension to check
+        throws
+            hydra_base.ValidationError when the unit_id does not match the supplied dimension
+        returns:
+            None
+    """
+    #ensure the unit exists
+    unit_i = db.DBSession.query(Unit).filter(Unit.id==unit_id).one()
+
+    if dimension_id is not None:
+        #ensure the dimension exists
+        dimension_i = db.DBSession.query(Dimension).filter(Dimension.id==dimension_id).one()
+        dimension_name = dimension_i.name
+    else:
+        dimension_name = None
+
+    if unit_i.dimension.id != dimension_id:
+        raise ValidationError(f"Unit {unit_i.name} has a dimension of {unit_i.dimension.name}, not {dimension_name}") 
 
 
 """
