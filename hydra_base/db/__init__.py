@@ -97,7 +97,7 @@ def connect(db_url=None):
     db_url = create_mysql_db(db_url)
 
     global engine
-    engine = create_engine(db_url, encoding='utf-8')
+    engine = create_engine(db_url, encoding='utf8')
 
     global DBSession
 

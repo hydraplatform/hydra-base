@@ -26,11 +26,19 @@ TIMESTAMP,\
 BIGINT,\
 Float,\
 Text, \
+DateTime,\
 Unicode
+
+
+from sqlalchemy.orm.exc import NoResultFound
+
+from sqlalchemy.ext.declarative import declared_attr
+
+import datetime
 
 from sqlalchemy import inspect, func
 
-from ..exceptions import HydraError, PermissionError
+from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
 
 from sqlalchemy.orm import relationship, backref
 
@@ -72,6 +80,14 @@ def get_timestamp(ordinal):
     timestamp = str(ordinal_to_timestamp(ordinal))
     return timestamp
 
+def get_user_id_from_engine(ctx):
+    """
+        The session will have a user ID bound to it when checking for the permission.
+    """
+    if hasattr(get_session(), 'user_id'):
+        return get_session().user_id
+    else:
+        return None
 
 #***************************************************
 #Data
@@ -81,6 +97,7 @@ def _is_admin(user_id):
     """
         Is the specified user an admin
     """
+
     user = get_session().query(User).filter(User.id==user_id).one()
 
     if user.is_admin():
@@ -96,16 +113,154 @@ class Inspect(object):
     def get_columns_and_relationships(self):
         return inspect(self).attrs.keys()
 
+class AuditMixin(object):
+
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+
+    @declared_attr
+    def created_by(cls):
+        return Column(Integer, ForeignKey('tUser.id'), default=get_user_id_from_engine)
+
+    @declared_attr
+    def updated_by(cls):
+        return Column(Integer, ForeignKey('tUser.id'), onupdate=get_user_id_from_engine)
+
+    updated_at = Column(DateTime,  nullable=False, default=datetime.datetime.utcnow(), onupdate=datetime.datetime.utcnow())
+
+class PermissionControlled(object):
+    def set_owner(self, user_id, read='Y', write='Y', share='Y'):
+        owner = None
+        for o in self.owners:
+            if user_id == o.user_id:
+                owner = o
+                break
+        else:
+            owner = self.__ownerclass__()
+            setattr(owner, self.__ownerfk__,  self.id)
+            owner.user_id = int(user_id)
+            self.owners.append(owner)
+
+        owner.view  = read
+        owner.edit  = write
+        owner.share = share
+        return owner
+
+    def unset_owner(self, user_id):
+        owner = None
+        if str(user_id) == str(self.created_by):
+            log.warning("Cannot unset %s as owner, as they created the dataset", user_id)
+            return
+        for o in self.owners:
+            if user_id == o.user_id:
+                owner = o
+                get_session().delete(owner)
+                break
+
+    def _is_open(self):
+        """
+            Check to see whether this entity is visible globally, without any
+            need for permission checking
+        """
+        pass
+
+    def check_read_permission(self, user_id, do_raise=True):
+        """
+            Check whether this user can read this dataset
+        """
+        if _is_admin(user_id):
+            return True
+
+        if str(user_id) == str(self.created_by):
+            return True
+
+        #Check if this entity is publicly open, therefore no need to check permissions.
+        if self._is_open() == True:
+            return True
+
+        for owner in self.owners:
+            if int(owner.user_id) == int(user_id):
+                if owner.view == 'Y':
+                    break
+        else:
+            if do_raise is True:
+                raise PermissionError("Permission denied. User %s does not have read"
+                             " access on dataset %s" %
+                             (user_id, self.id))
+            else:
+                return False
+
+        return True
+
+    def check_write_permission(self, user_id, do_raise=True):
+        """
+            Check whether this user can write this dataset
+        """
+        if _is_admin(user_id):
+            return True
+
+        for owner in self.owners:
+            if owner.user_id == int(user_id):
+                if owner.view == 'Y' and owner.edit == 'Y':
+                    break
+        else:
+            if do_raise is True:
+                raise PermissionError("Permission denied. User %s does not have edit"
+                             " access on dataset %s" %
+                             (user_id, self.id))
+            else:
+                return False
+
+        return True
+
+    def check_share_permission(self, user_id):
+        """
+            Check whether this user can write this dataset
+        """
+
+        if _is_admin(user_id):
+            return
+
+        for owner in self.owners:
+            if owner.user_id == int(user_id):
+                if owner.view == 'Y' and owner.share == 'Y':
+                    break
+        else:
+            raise PermissionError("Permission denied. User %s does not have share"
+                             " access on dataset %s" %
+                             (user_id, self.id))
+
 
 #***************************************************
 # Classes definition
 #***************************************************
 
-class Dataset(Base, Inspect):
+class DatasetOwner(Base, Inspect):
+    """
+    """
+
+    __tablename__='tDatasetOwner'
+
+    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
+    dataset_id = Column(Integer(), ForeignKey('tDataset.id'), primary_key=True, nullable=False)
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    view = Column(String(1),  nullable=False)
+    edit = Column(String(1),  nullable=False)
+    share = Column(String(1),  nullable=False)
+
+    user = relationship('User')
+    dataset = relationship('Dataset', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
+
+    _parents  = ['tDataset', 'tUser']
+    _children = []
+
+class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
     """
         Table holding all the attribute values
     """
     __tablename__='tDataset'
+
+    __ownerclass__ = DatasetOwner
+    __ownerfk__    = 'dataset_id'
 
     id         = Column(Integer(), primary_key=True, index=True, nullable=False)
     name       = Column(String(200),  nullable=False)
@@ -113,11 +268,9 @@ class Dataset(Base, Inspect):
     unit_id    = Column(Integer(), ForeignKey('tUnit.id'),  nullable=True)
     hash       = Column(BIGINT(),  nullable=False, unique=True)
     cr_date    = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    created_by = Column(Integer(), ForeignKey('tUser.id'))
     hidden     = Column(String(1),  nullable=False, server_default=text(u"'N'"))
-    value      = Column('value', Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
+    value      = Column('value', Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
 
-    user = relationship('User', backref=backref("datasets", order_by=id))
     unit = relationship('Unit', backref=backref("dataset_unit", order_by=unit_id))
 
     _parents  = ['tResourceScenario', 'tUnit']
@@ -195,113 +348,16 @@ class Dataset(Base, Inspect):
 
         return metadata
 
-    def set_owner(self, user_id, read='Y', write='Y', share='Y'):
-        owner = None
-        for o in self.owners:
-            if user_id == o.user_id:
-                owner = o
-                break
-        else:
-            owner = DatasetOwner()
-            owner.dataset_id = self.id
-            owner.user_id = int(user_id)
-            self.owners.append(owner)
 
-        owner.view  = read
-        owner.edit  = write
-        owner.share = share
-        return owner
-
-    def unset_owner(self, user_id):
-        owner = None
-        if str(user_id) == str(self.created_by):
-            log.warning("Cannot unset %s as owner, as they created the dataset", user_id)
-            return
-        for o in self.owners:
-            if user_id == o.user_id:
-                owner = o
-                get_session().delete(owner)
-                break
-
-    def check_read_permission(self, user_id, do_raise=True):
+    def _is_open(self):
         """
-            Check whether this user can read this dataset
+            Check if this dataset is globally open (the default). This negates the
+            need to check for ownership
         """
-
-        if _is_admin(user_id):
-            return True
-
-        if str(user_id) == str(self.created_by):
-            return True
-
         if self.hidden == 'N':
             return True
 
-        for owner in self.owners:
-            if int(owner.user_id) == int(user_id):
-                if owner.view == 'Y':
-                    break
-        else:
-            if do_raise is True:
-                raise PermissionError("Permission denied. User %s does not have read"
-                             " access on dataset %s" %
-                             (user_id, self.id))
-            else:
-                return False
-
-        return True
-
-    def check_user(self, user_id):
-        """
-            Check whether this user can read this dataset
-        """
-
-        if self.hidden == 'N':
-            return True
-
-        for owner in self.owners:
-            if int(owner.user_id) == int(user_id):
-                if owner.view == 'Y':
-                    return True
         return False
-
-    def check_write_permission(self, user_id, do_raise=True):
-        """
-            Check whether this user can write this dataset
-        """
-        if _is_admin(user_id):
-            return True
-
-        for owner in self.owners:
-            if owner.user_id == int(user_id):
-                if owner.view == 'Y' and owner.edit == 'Y':
-                    break
-        else:
-            if do_raise is True:
-                raise PermissionError("Permission denied. User %s does not have edit"
-                             " access on dataset %s" %
-                             (user_id, self.id))
-            else:
-                return False
-
-        return True
-
-    def check_share_permission(self, user_id):
-        """
-            Check whether this user can write this dataset
-        """
-
-        if _is_admin(user_id):
-            return
-
-        for owner in self.owners:
-            if owner.user_id == int(user_id):
-                if owner.view == 'Y' and owner.share == 'Y':
-                    break
-        else:
-            raise PermissionError("Permission denied. User %s does not have share"
-                             " access on dataset %s" %
-                             (user_id, self.id))
 
 class DatasetCollection(Base, Inspect):
     """
@@ -400,7 +456,7 @@ class AttrGroup(Base, Inspect):
     id               = Column(Integer(), primary_key=True, nullable=False, index=True)
     name             = Column(String(200), nullable=False)
     description      = Column(String(1000))
-    layout           = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
+    layout           = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
     exclusive        = Column(String(1),  nullable=False, server_default=text(u"'N'"))
     project_id       = Column(Integer(), ForeignKey('tProject.id'), primary_key=False, nullable=False)
     cr_date          = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
@@ -458,7 +514,7 @@ class Template(Base, Inspect):
     name = Column(String(200),  nullable=False, unique=True)
     description = Column(String(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    layout  = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
+    layout  = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
 
     _parents  = []
     _children = ['tTemplateType']
@@ -478,7 +534,7 @@ class TemplateType(Base, Inspect):
     template_id = Column(Integer(), ForeignKey('tTemplate.id'), nullable=False)
     resource_type = Column(String(200))
     alias = Column(String(100))
-    layout  = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
+    layout  = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     template = relationship('Template', backref=backref("templatetypes", order_by=id, cascade="all, delete-orphan"))
@@ -498,10 +554,10 @@ class TypeAttr(Base, Inspect):
     default_dataset_id = Column(Integer(), ForeignKey('tDataset.id'))
     attr_is_var        = Column(String(1), server_default=text(u"'N'"))
     data_type          = Column(String(60))
-    data_restriction   = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
+    data_restriction   = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
     unit_id            = Column(Integer(), ForeignKey('tUnit.id'), nullable=True)
     description        = Column(String(1000))
-    properties         = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
+    properties         = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     attr = relationship('Attr')
@@ -832,7 +888,7 @@ class Network(Base, Inspect):
     id = Column(Integer(), primary_key=True, nullable=False)
     name = Column(String(200),  nullable=False)
     description = Column(String(1000))
-    layout  = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
+    layout  = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
     project_id = Column(Integer(), ForeignKey('tProject.id'),  nullable=False)
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
@@ -1043,7 +1099,7 @@ class Link(Base, Inspect):
     node_2_id = Column(Integer(), ForeignKey('tNode.id'), nullable=False)
     name = Column(String(200))
     description = Column(String(1000))
-    layout  = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
+    layout  = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     network = relationship('Network', backref=backref("links", order_by=network_id, cascade="all, delete-orphan"), lazy='joined')
@@ -1117,7 +1173,7 @@ class Node(Base, Inspect):
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     x = Column(Float(precision=10, asdecimal=True))
     y = Column(Float(precision=10, asdecimal=True))
-    layout  = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
+    layout  = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     network = relationship('Network', backref=backref("nodes", order_by=network_id, cascade="all, delete-orphan"), lazy='joined')
@@ -1354,7 +1410,7 @@ class Scenario(Base, Inspect):
     id = Column(Integer(), primary_key=True, index=True, nullable=False)
     name = Column(String(200),  nullable=False)
     description = Column(String(1000))
-    layout  = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
+    layout  = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     network_id = Column(Integer(), ForeignKey('tNetwork.id'), index=True)
     start_time = Column(String(60))
@@ -1405,10 +1461,10 @@ class Scenario(Base, Inspect):
             the ones closest to this scenario (my immediate parent's values are used instead
             of its parents)
 
-            If an explicit list of RAs is provided, only return data for these. This is used 
+            If an explicit list of RAs is provided, only return data for these. This is used
             when requesting data for a specific resource, for example.
         """
-        
+
         #This avoids python's mutable keyword argumets causing child_data to keep its values beween
         #function calls
         if child_data is None:
@@ -1418,8 +1474,8 @@ class Scenario(Base, Inspect):
         childrens_ras = []
         for child_rs in child_data:
             childrens_ras.append(child_rs.resource_attr_id)
-        
-        #Add resource attributes which are not defined already 
+
+        #Add resource attributes which are not defined already
         rs_query = get_session().query(ResourceScenario).filter(ResourceScenario.scenario_id==self.id)
 
         if ra_ids is not None:
@@ -1457,8 +1513,8 @@ class Scenario(Base, Inspect):
         childrens_groups = []
         for child_rgi in child_items:
             childrens_groups.append(child_rgi.group_id)
-        
-        #Add resource attributes which are not defined already 
+
+        #Add resource attributes which are not defined already
         for this_rgi in self.resourcegroupitems:
             if this_rgi.group_id not in childrens_groups:
                 child_items.append(this_rgi)
@@ -1467,9 +1523,74 @@ class Scenario(Base, Inspect):
             return self.parent.get_group_items(child_items=child_items,
                                                get_parent_items=get_parent_items)
 
-        return child_items 
+        return child_items
 
-class Rule(Base, Inspect):
+class RuleTypeDefinition(AuditMixin, Base, Inspect):
+    """
+        Describes the types of rules available in the system
+
+        A rule type is a simple way of categorising rules. A rule may have no
+        type or it may have 1. A rule type consists of a unique code and a name.
+
+        In addition to separating rules, this enables rules to be searched more easily.
+    """
+
+    __tablename__='tRuleTypeDefinition'
+
+    __table_args__ = (
+        UniqueConstraint('code', name="Unique Rule Code"),
+    )
+
+    code = Column(String(200), nullable=False, primary_key=True)
+    name = Column(String(200), nullable=False)
+
+
+class RuleTypeLink(AuditMixin, Base, Inspect):
+    """
+        Links rules to type definitions.
+
+        A rule type is a simple way of categorising rules. A rule may have no
+        type or it may have 1. A rule type consists of a unique code and a name.
+
+        In addition to separating rules, this enables rules to be searched more easily.
+    """
+
+    __tablename__='tRuleTypeLink'
+
+    __table_args__ = (
+        UniqueConstraint('code', 'rule_id', name="Unique Rule / Type"),
+    )
+
+    code    = Column(String(200), ForeignKey('tRuleTypeDefinition.code'), primary_key=True, nullable=False)
+    rule_id = Column(Integer(), ForeignKey('tRule.id'), primary_key=True, nullable=False)
+
+    #Set the backrefs so that when a type definition or a rule are deleted, so are the links.
+    typedefinition = relationship('RuleTypeDefinition', uselist=False, lazy='joined',
+                                  backref=backref('ruletypes', cascade="all, delete-orphan"))
+    rule = relationship('Rule', backref=backref('types', order_by=code, uselist=True, cascade="all, delete-orphan"))
+
+class RuleOwner(AuditMixin, Base, Inspect):
+    """
+        This table tracks the owners of rules, to ensure rules which contain confidential logic
+        can be kept hidden
+    """
+
+    __tablename__='tRuleOwner'
+
+    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
+    rule_id = Column(Integer(), ForeignKey('tRule.id'), primary_key=True, nullable=False)
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    view = Column(String(1),  nullable=False)
+    edit = Column(String(1),  nullable=False)
+    share = Column(String(1),  nullable=False)
+
+    user = relationship('User', foreign_keys=[user_id])
+    rule = relationship('Rule', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
+
+    _parents  = ['tRule', 'tUser']
+    _children = []
+
+class Rule(AuditMixin, Base, Inspect, PermissionControlled):
     """
         A rule is an arbitrary piece of text applied to resources
         within a scenario. A scenario itself cannot have a rule applied
@@ -1481,21 +1602,24 @@ class Rule(Base, Inspect):
         UniqueConstraint('scenario_id', 'name', name="unique rule name"),
     )
 
+    __ownerclass__ = RuleOwner
+    __ownerfk__    = 'rule_id'
 
     id = Column(Integer(), primary_key=True, nullable=False)
 
     name = Column(String(200), nullable=False)
-    description = Column(String(1000), nullable=False)
+    description = Column(String(1000), nullable=True)
 
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    format = Column(String(80), nullable=False, server_default='text')
+
     ref_key = Column(String(60),  nullable=False, index=True)
 
-    value = Column(Text().with_variant(mysql.TEXT(4294967295), 'mysql'),  nullable=True)
+    value = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
 
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
-    scenario_id = Column(Integer(), ForeignKey('tScenario.id'),  nullable=False)
+    scenario_id = Column(Integer(), ForeignKey('tScenario.id'),  nullable=True)
 
-    network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), index=True, nullable=True,)
+    network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), index=True, nullable=True)
     node_id     = Column(Integer(),  ForeignKey('tNode.id'), index=True, nullable=True)
     link_id     = Column(Integer(),  ForeignKey('tLink.id'), index=True, nullable=True)
     group_id    = Column(Integer(),  ForeignKey('tResourceGroup.id'), index=True, nullable=True)
@@ -1505,7 +1629,51 @@ class Rule(Base, Inspect):
     _parents  = ['tScenario', 'tNode', 'tLink', 'tProject', 'tNetwork', 'tResourceGroup']
     _children = []
 
-class Note(Base, Inspect):
+
+    def set_types(self, types):
+        """
+            Accepts a list of type JSONObjects or spyne objects and sets
+            the type of the rule to be exactly this. This means deleting rules
+            which are not in the list
+        """
+
+        #We take this to mean don't touch types.
+        if types is None:
+            return
+
+        existingtypes = set([t.code for t in self.types])
+
+        #Map a type code to a type object
+        existing_type_map = dict((t.code, t) for t in self.types)
+
+        newtypes      = set([t.code for t in types])
+
+        types_to_add      = newtypes - existingtypes
+        types_to_delete   = existingtypes - newtypes
+
+        for ruletypecode in types_to_add:
+
+            self.check_type_definition_exists(ruletypecode)
+
+            ruletypelink = RuleTypeLink()
+            ruletypelink.code = ruletypecode
+            self.types.append(ruletypelink)
+
+        for type_to_delete in types_to_delete:
+            get_session().delete(existing_type_map[type_to_delete])
+
+    def check_type_definition_exists(self, code):
+        """
+        A convenience function to check if a rule type definition exists before trying to add a link to it
+        """
+
+        try:
+            get_session().query(RuleTypeDefinition).filter(RuleTypeDefinition.code==code).one()
+        except NoResultFound:
+            raise ResourceNotFoundError("Rule type definition with code {} does not exist".format(code))
+
+
+class Note(Base, Inspect, PermissionControlled):
     """
         A note is an arbitrary piece of text which can be applied
         to any resource. A note is NOT scenario dependent. It is applied
@@ -1632,25 +1800,6 @@ class NetworkOwner(Base, Inspect):
     network = relationship('Network', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
 
     _parents  = ['tNetwork', 'tUser']
-    _children = []
-
-class DatasetOwner(Base, Inspect):
-    """
-    """
-
-    __tablename__='tDatasetOwner'
-
-    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
-    dataset_id = Column(Integer(), ForeignKey('tDataset.id'), primary_key=True, nullable=False)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    view = Column(String(1),  nullable=False)
-    edit = Column(String(1),  nullable=False)
-    share = Column(String(1),  nullable=False)
-
-    user = relationship('User')
-    dataset = relationship('Dataset', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
-
-    _parents  = ['tDataset', 'tUser']
     _children = []
 
 class Perm(Base, Inspect):

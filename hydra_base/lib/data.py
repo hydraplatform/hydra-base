@@ -450,7 +450,7 @@ def update_dataset(dataset_id, name, data_type, val, unit_id, metadata={}, flush
 
         #Is there a dataset in the DB already which is identical to the updated dataset?
         existing_dataset = db.DBSession.query(Dataset).filter(Dataset.hash==dataset.hash, Dataset.id != dataset.id).first()
-        if existing_dataset is not None and existing_dataset.check_user(user_id):
+        if existing_dataset is not None and existing_dataset.check_read_permission(user_id, do_raise=False) is True:
             log.warning("An identical dataset %s has been found to dataset %s."
                      " Deleting dataset and returning dataset %s",
                      existing_dataset.id, dataset.id, existing_dataset.id)
@@ -483,7 +483,7 @@ def add_dataset(data_type, val, unit_id=None, metadata={}, name="", user_id=None
 
     try:
         existing_dataset = db.DBSession.query(Dataset).filter(Dataset.hash==d.hash).one()
-        if existing_dataset.check_user(user_id):
+        if existing_dataset.check_read_permission(user_id, do_raise=False) is True:
             d = existing_dataset
         else:
             d.set_metadata({'created_at': datetime.datetime.now()})
@@ -548,13 +548,15 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
         if  existing_data.get(current_hash) is not None:
 
             dataset = existing_data.get(current_hash)
+            
             #Is this user allowed to use this dataset?
-            if dataset.check_user(user_id) == False:
+            if dataset.check_read_permission(user_id, do_raise=False) == False:
                 new_dataset = _make_new_dataset(dataset_dict)
                 new_datasets.append(new_dataset)
                 metadata[new_dataset['hash']] = dataset_dict['metadata']
             else:
-                hash_id_map[current_hash] = dataset#existing_data[current_hash]
+                hash_id_map[current_hash] = dataset
+
         elif current_hash in hash_id_map:
             new_datasets.append(dataset_dict)
         else:

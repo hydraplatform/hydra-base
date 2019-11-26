@@ -807,6 +807,18 @@ def delete_resource_scenario(scenario_id, resource_attr_id, quiet=False, **kwarg
 
     _delete_resourcescenario(scenario_id, resource_attr_id, suppress_error=quiet)
 
+def delete_resource_scenarios(scenario_id, resource_attr_ids, quiet=False, **kwargs):
+    """
+        Remove the data associated with a list of resources in a scenario.
+    """
+
+    log.info("Deleting %s resource scenarios from from scenario %s", len(resource_attr_ids), scenario_id)
+
+    _check_can_edit_scenario(scenario_id, kwargs['user_id'])
+
+    for resource_attr_id in resource_attr_ids:
+        _delete_resourcescenario(scenario_id, resource_attr_id, suppress_error=quiet)
+
 def delete_resourcedata(scenario_id, resource_scenario, quiet = False, **kwargs):
     """
         Remove the data associated with a resource in a scenario.
@@ -814,12 +826,15 @@ def delete_resourcedata(scenario_id, resource_scenario, quiet = False, **kwargs)
         an error.
     """
 
+
     _check_can_edit_scenario(scenario_id, kwargs['user_id'])
 
     _delete_resourcescenario(scenario_id, resource_scenario.resource_attr_id, suppress_error=quiet)
 
 
 def _delete_resourcescenario(scenario_id, resource_attr_id, suppress_error=False):
+
+    log.debug("Deleting resource scenario for RA %s from scenario %s", resource_attr_id, scenario_id)
 
     try:
         sd_i = db.DBSession.query(ResourceScenario).filter(
@@ -846,19 +861,21 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
     ra_id = resource_scenario.resource_attr_id
 
     log.debug("Assigning resource attribute: %s",ra_id)
+    #count the number of new RS to report it in the logs
+    new_rs = 0
     try:
         r_scen_i = db.DBSession.query(ResourceScenario).filter(
                         ResourceScenario.scenario_id==scenario.id,
                         ResourceScenario.resource_attr_id==ra_id).one()
     except NoResultFound as e:
-        log.info("Creating new RS")
+        log.debug("Creating new RS for RS %s in scenario %s", resource_scenario.resource_attr_id, scenario.id)
         r_scen_i = ResourceScenario()
         r_scen_i.resource_attr_id = resource_scenario.resource_attr_id
         r_scen_i.scenario_id      = scenario.id
         r_scen_i.scenario = scenario
+        new_rs = new_rs + 1
 
         db.DBSession.add(r_scen_i)
-
 
     if scenario.locked == 'Y':
         log.info("Scenario %s is locked",scenario.id)

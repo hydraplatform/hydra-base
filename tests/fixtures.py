@@ -11,6 +11,7 @@ import six
 
 import datetime
 
+from hydra_client.connection import JSONConnection
 
 def pytest_namespace():
     return {'root_user_id': 1}
@@ -18,7 +19,6 @@ def pytest_namespace():
 @pytest.fixture()
 def dateformat():
     return hydra_base.config.get('DEFAULT', 'datetime_format', "%Y-%m-%dT%H:%M:%S.%f000Z")
-
 
 @pytest.fixture()
 def testdb_uri(db_backend):
@@ -95,6 +95,13 @@ def session(db, engine, request):
     except:
         session.rollback()
 
+
+@pytest.fixture(scope='function')
+def client():
+    client = JSONConnection(app_name='Hydra Network Utilities App', session=hydra_base.db.DBSession)
+    #fake a login using the test's session
+    client.user_id = 1
+    return client
 
 @pytest.fixture()
 def network(project_id=None, num_nodes=10, new_proj=True, map_projection='EPSG:4326'):

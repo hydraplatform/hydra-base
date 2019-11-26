@@ -59,6 +59,11 @@ def required_perms(*req_perms):
         @wraps(wfunc)
         def wrapped(*args, **kwargs):
             user_id = kwargs.get("user_id")
+
+            #bind this here so that the 'updated by' columns can be updated
+            #automatically in the DB, in order to ensure correct auditing
+            db.DBSession.user_id = user_id
+            
             for perm in req_perms:
                 check_perm(user_id, perm)
 

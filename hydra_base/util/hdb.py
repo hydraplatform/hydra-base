@@ -130,7 +130,7 @@ def make_root_user():
 
 def login_user(username, password):
     try:
-        user_i = db.DBSession.query(User).filter( User.username==username ).one()
+        user_i = db.DBSession.query(User).filter(User.username==username).one()
     except NoResultFound:
         raise HydraError(username)
 
@@ -185,10 +185,12 @@ def create_default_users_and_perms():
 
                     ("add_network",    "Add network"),
                     ("edit_network",   "Edit network"),
+                    ("view_network",   "View network"),
                     ("delete_network", "Delete network"),
                     ("share_network",  "Share network"),
                     ("edit_topology",  "Edit network topology"),
 
+                    ("view_project",   "View Project"),
                     ("add_project",    "Add Project"),
                     ("edit_project",   "Edit Project"),
                     ("delete_project", "Delete Project"),
@@ -204,9 +206,15 @@ def create_default_users_and_perms():
                     ("update_dimension", "Update Dimension"),
                     ("delete_dimension", "Delete Dimension"),
 
-                    ("add_unit", "Add Unit"),
+                    ("add_unit",    "Add Unit"),
                     ("update_unit", "Update Unit"),
-                    ("delete_unit", "Delete Unit")
+                    ("delete_unit", "Delete Unit"),
+
+                    ('view_rules',  "View Rules"),
+                    ('add_rules',   "Add Rules"),
+                    ('update_rules',  "Edit Rules"),
+                    ('share_rules', "Share Rules"),
+                    ('delete_rules', "Delete Rules")
 
 
                     )
@@ -229,10 +237,12 @@ def create_default_users_and_perms():
             ('admin', "edit_role"),
             ('admin', "add_perm"),
             ('admin', "edit_perm"),
+            ('admin', "view_network"),
             ('admin', "add_network"),
             ('admin', "edit_network"),
             ('admin', "delete_network"),
             ('admin', "share_network"),
+            ('admin', "view_project"),
             ('admin', "add_project"),
             ('admin', "edit_project"),
             ('admin', "delete_project"),
@@ -250,12 +260,19 @@ def create_default_users_and_perms():
             ('admin', "add_unit"),
             ('admin', "update_unit"),
             ('admin', "delete_unit"),
+                    
+            ('admin', 'view_rules'),
+            ('admin', 'add_rules'),
+            ('admin', 'update_rules'),
+            ('admin', 'share_rules'),
+            ('admin', 'delete_rules'),
 
             # Developer permissions
             ("developer", "add_network"),
             ("developer", "edit_network"),
             ("developer", "delete_network"),
             ("developer", "share_network"),
+            ('developer', "view_project"),
             ("developer", "add_project"),
             ("developer", "edit_project"),
             ("developer", "delete_project"),
@@ -280,6 +297,7 @@ def create_default_users_and_perms():
             ("modeller", "delete_network"),
             ("modeller", "share_network"),
             ("modeller", "edit_topology"),
+            ("modeller", "view_project"),
             ("modeller", "add_project"),
             ("modeller", "edit_project"),
             ("modeller", "delete_project"),
