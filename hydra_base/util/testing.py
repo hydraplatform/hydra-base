@@ -686,7 +686,7 @@ def create_network_with_child_scenario(project_id=None,
                              map_projection=map_projection)
     parent_scenario = network.scenarios[0]
     parent_scenario_id = parent_scenario.id
-    scenario_count = len(network.scenarios) + 1 
+    scenario_count = len(network.scenarios) + 1
     for level in range(levels-1):
         new_scenario_j = hydra_base.create_child_scenario(parent_scenario_id, "Scenario {0}".format(scenario_count), user_id=pytest.root_user_id)
         parent_scenario_id = new_scenario_j.id
@@ -838,7 +838,7 @@ def create_dataframe(resource_attr, name='Test Data Frame', dataframe_value=None
     #with a resource attribute.
 
     if dataframe_value is None:
-        val_1 = 1 
+        val_1 = 1
         val_2 = 2
         val_3 = 3
 

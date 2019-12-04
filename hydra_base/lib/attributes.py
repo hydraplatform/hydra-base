@@ -231,7 +231,7 @@ def add_attributes(attrs,**kwargs):
         new_attrs.append(attr_i)
 
     db.DBSession.flush()
-    
+
 
     new_attrs = new_attrs + existing_attrs
 
@@ -375,6 +375,70 @@ def add_resource_attrs_from_type(type_id, resource_type, resource_id,**kwargs):
     db.DBSession.flush()
 
     return new_resource_attrs
+
+
+def get_all_network_attributes(network_id, template_id=None, **kwargs):
+    """
+        Get all the attributes for all the nodes, links and groups in the network
+        including network attributes. This is used primarily to avoid retrieving
+        all global attributes for menus etc, most of which are not necessary.
+
+        args:
+            network_id (int): The ID of the network containing the attributes
+            template_id (int): A filter which will cause the function to return attributes associated to that template
+
+        returns:
+            A list of Attributes as JSONObjects, with the additional data of 'attr_is_var'
+            from its assocated ResourceAttribute. ex:
+                {id:123,
+                name: 'cost'
+                dimension_id: 124,
+                attr_is_var: 'Y' #comes from the ResourceAttr
+                }
+    """
+
+    resource_attr_qry = db.DBSession.query(Attr, ResourceAttr.attr_is_var).\
+            join(ResourceAttr, ResourceAttr.attr_id==Attr.id).\
+            outerjoin(Network, Network.id==ResourceAttr.network_id).\
+            outerjoin(Node, Node.id==ResourceAttr.node_id).\
+            outerjoin(Link, Link.id==ResourceAttr.link_id).\
+            outerjoin(ResourceGroup, ResourceGroup.id==ResourceAttr.group_id).filter(
+        or_(
+            and_(ResourceAttr.network_id != None,
+                    ResourceAttr.network_id == network_id),
+
+            and_(ResourceAttr.node_id != None,
+                    ResourceAttr.node_id == Node.id,
+                                        Node.network_id==network_id),
+
+            and_(ResourceAttr.link_id != None,
+                    ResourceAttr.link_id == Link.id,
+                                        Link.network_id==network_id),
+
+            and_(ResourceAttr.group_id != None,
+                    ResourceAttr.group_id == ResourceGroup.id,
+                                        ResourceGroup.network_id==network_id)
+        ))
+
+    if template_id is not None:
+        attr_ids = []
+        rs = db.DBSession.query(TypeAttr).join(TemplateType,
+                                            TemplateType.id==TypeAttr.type_id).filter(
+                                                TemplateType.template_id==template_id).all()
+        for r in rs:
+            attr_ids.append(r.attr_id)
+
+        resource_attr_qry = resource_attr_qry.filter(ResourceAttr.attr_id.in_(attr_ids))
+
+    resource_attrs = resource_attr_qry.all()
+
+    network_attributes = []
+    for ra in resource_attrs:
+        attr_j = JSONObject(ra[0])
+        attr_j.attr_is_var = ra.attr_is_var
+        network_attributes.append(attr_j)
+
+    return network_attributes
 
 def get_all_resource_attributes(ref_key, network_id, template_id=None, **kwargs):
     """

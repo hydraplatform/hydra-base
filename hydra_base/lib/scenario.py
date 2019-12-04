@@ -164,7 +164,7 @@ def get_scenario(scenario_id, get_parent_data=False, include_data=True, include_
     scen_i = _get_scenario(scenario_id, user_id)
 
     scen_j = JSONObject(scen_i)
-    
+
     rscen_rs = []
     if include_data is True:
         rscen_rs = scen_i.get_data(get_parent_data=get_parent_data)
@@ -423,7 +423,7 @@ def clone_scenario(scenario_id, retain_results=False, scenario_name=None, **kwar
     scen_i = _get_scenario(scenario_id, user_id)
 
     log.info("cloning scenario %s", scen_i.name)
-    
+
 
     if scenario_name is None:
         existing_scenarios = db.DBSession.query(Scenario).filter(Scenario.network_id==scen_i.network_id).all()
@@ -1023,7 +1023,7 @@ def get_scenario_data(scenario_id, get_parent_data=False, **kwargs):
     scenario_i = _get_scenario(scenario_id, user_id)
 
     scenario_rs = scenario_i.get_data(get_parent_data=get_parent_data)
-    
+
     dataset_ids = []
     datasets = []
     for rs in scenario_rs:
@@ -1041,7 +1041,7 @@ def get_scenario_data(scenario_id, get_parent_data=False, **kwargs):
         dataset_ids.append(rs.dataset.id)
 
     log.info("Retrieved %s datasets", len(datasets))
-    return datasets 
+    return datasets
 
 def get_attribute_data(attr_ids, node_ids, **kwargs):
     """
@@ -1091,17 +1091,17 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id=None, expunge_sessio
     ra_rs_map = {}
     for rs in requested_rs:
         ra_rs_map[rs.resource_attr_id] = rs
-       
+
     #make a lookup table between an attr ID and an RS for filtering by types later.
     attr_rs_lookup = {} # Used later to remove results if they're not required
     for ra in resource_i.attributes:
         #Is there data for this RA?
         if ra_rs_map.get(ra.id) is not None:
             attr_rs_lookup[ra.attr_id] = ra_rs_map[ra.id]
-    
+
     #Remove RS that are not defined by the specified type.
     if type_id is not None:
-        
+
         type_limited_rs = []
 
         attr_ids = []
@@ -1109,7 +1109,7 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id=None, expunge_sessio
         for r in rs:
             type_limited_rs.append(attr_rs_lookup[r.attr_id])
 
-        requested_rs = type_limited_rs 
+        requested_rs = type_limited_rs
 
     for rs in requested_rs:
 
@@ -1120,7 +1120,7 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id=None, expunge_sessio
                 rs.dataset.check_read_permission(user_id)
            except:
                rs.dataset.value      = None
-    
+
         #lazy load the dataset's unit and metadata
         rs.dataset.unit
         rs.dataset.metadata
@@ -1131,7 +1131,7 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id=None, expunge_sessio
     if expunge_session == True:
         db.DBSession.expunge_all()
 
-    return requested_rs 
+    return requested_rs
 
 def _check_can_edit_scenario(scenario_id, user_id):
     scenario_i = _get_scenario(scenario_id, user_id)
@@ -1156,8 +1156,11 @@ def get_attribute_datasets(attr_id, scenario_id, get_parent_data=False, **kwargs
         a = db.DBSession.query(Attr).filter(Attr.id == attr_id).one()
     except NoResultFound:
         raise HydraError("Attribute %s not found"%(attr_id,))
-    
+
     scenario_rs_i = scenario_i.get_data(get_parent_data=get_parent_data)
+
+    #just in case the calling funciton hasn't cast this as as int
+    attr_id = int(attr_id)
 
     requested_rs = []
     for rs_i in scenario_rs_i:
@@ -1208,7 +1211,7 @@ def get_resourcegroupitems(group_id, scenario_id, get_parent_items=False, **kwar
                 tmp_items.append(item_i)
         requested_items = tmp_items
 
-    return requested_items 
+    return requested_items
 
 def delete_resourcegroupitems(scenario_id, item_ids, **kwargs):
     """

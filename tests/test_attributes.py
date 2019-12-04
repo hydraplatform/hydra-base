@@ -232,8 +232,24 @@ class TestResourceAttribute:
         """
         pass
 
+    def test_get_all_network_attributes(self, session, network_with_data):
+        all_network_attributes = hb.get_all_network_attributes(network_with_data.id, user_id=pytest.root_user_id)
 
+        manual_all_network_attributes = [a.attr_id for a in network_with_data.attributes]
+        for n in network_with_data.nodes:
+            for a in n.attributes:
+                if a.attr_id not in manual_all_network_attributes:
+                    manual_all_network_attributes.append(a.attr_id)
+        for n in network_with_data.links:
+            for a in n.attributes:
+                if a.attr_id not in manual_all_network_attributes:
+                    manual_all_network_attributes.append(a.attr_id)
+        for n in network_with_data.resourcegroups:
+            for a in n.attributes:
+                if a.attr_id not in manual_all_network_attributes:
+                    manual_all_network_attributes.append(a.attr_id)
 
+        assert len(all_network_attributes) == len(manual_all_network_attributes)
 
 
     def test_add_group_attribute(self, session, network_with_data, attribute):
