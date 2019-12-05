@@ -97,7 +97,13 @@ def connect(db_url=None):
     db_url = create_mysql_db(db_url)
 
     global engine
-    engine = create_engine(db_url, encoding='utf8')
+
+    db_pool_size = config.get('mysqld', 'pool_size', 5)
+    db_max_overflow = config.get('mysqld', 'max_overflow', 10)
+    engine = create_engine(db_url,
+                           encoding='utf8',
+                           pool_size=db_pool_size,
+                           max_overflow=db_max_overflow)
 
     global DBSession
 
