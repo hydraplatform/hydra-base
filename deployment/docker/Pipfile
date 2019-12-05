@@ -1,0 +1,16 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+
+[packages]
+##############
+# github.com #
+##############
+hydra-base          = {git = "https://github.com/hydraplatform/hydra-base.git",           ref = "master"}
+
+
+[requires]
+python_version  = "3.6"
