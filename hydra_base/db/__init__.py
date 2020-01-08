@@ -102,8 +102,8 @@ def connect(db_url=None):
     db_max_overflow = config.get('mysqld', 'max_overflow', 10)
     engine = create_engine(db_url,
                            encoding='utf8',
-                           pool_size=db_pool_size,
-                           max_overflow=db_max_overflow)
+                           pool_size=int(db_pool_size),
+                           max_overflow=int(db_max_overflow))
 
     global DBSession
 
