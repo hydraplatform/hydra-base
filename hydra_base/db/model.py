@@ -520,6 +520,94 @@ class Template(Base, Inspect):
     _parents  = []
     _children = ['tTemplateType']
 
+    def set_owner(self, user_id, read='Y', write='Y', share='Y'):
+        owner = None
+        for o in self.owners:
+            if str(user_id) == str(o.user_id):
+                owner = o
+                break
+        else:
+            owner = TemplateOwner()
+            owner.template_id = self.template_id
+            self.owners.append(owner)
+
+        owner.user_id = int(user_id)
+        owner.view  = read
+        owner.edit  = write
+        owner.share = share
+
+        return owner
+
+    def unset_owner(self, user_id):
+        owner = None
+        if str(user_id) == str(self.created_by):
+            log.warn("Cannot unset %s as owner, as they created the template", user_id)
+            return
+        for o in self.owners:
+            if user_id == o.user_id:
+                owner = o
+                DBSession.delete(owner)
+                break
+
+    def check_read_permission(self, user_id):
+        """
+            Check whether this user can read this template
+        """
+
+        for owner in self.owners:
+            if int(owner.user_id) == int(user_id):
+                if owner.view == 'Y':
+                    break
+        else:
+            raise PermissionError("Permission denied. User %s does not have read"
+                             " access on template %s" %
+                             (user_id, self.template_id))
+
+    def check_write_permission(self, user_id):
+        """
+            Check whether this user can write this project
+        """
+
+        for owner in self.owners:
+            if owner.user_id == int(user_id):
+                if owner.view == 'Y' and owner.edit == 'Y':
+                    break
+        else:
+            raise PermissionError("Permission denied. User %s does not have edit"
+                             " access on template %s" %
+                             (user_id, self.network_id))
+
+    def check_share_permission(self, user_id):
+        """
+            Check whether this user can write this template
+        """
+
+        for owner in self.owners:
+            if owner.user_id == int(user_id):
+                if owner.view == 'Y' and owner.share == 'Y':
+                    break
+        else:
+            raise PermissionError("Permission denied. User %s does not have share"
+                             " access on template %s" %
+                             (user_id, self.template))
+
+class TemplateOwner(Base, Inspect):
+    """
+    """
+
+    __tablename__='tTemplateOwner'
+
+    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
+    template_id = Column(Integer(), ForeignKey('tTemplate.id'), primary_key=True, nullable=False)
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    view = Column(String(1),  nullable=False)
+    edit = Column(String(1),  nullable=False)
+    share = Column(String(1),  nullable=False)
+
+    user = relationship('User')
+    template = relationship('Template', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
+
+
 class TemplateType(Base, Inspect):
     """
     """
