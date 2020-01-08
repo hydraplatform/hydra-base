@@ -79,6 +79,9 @@ class JSONObject(dict):
                 #Layout is often valid JSON, but we dont want to treat it as a JSON object necessarily
                 dict_layout = get_layout_as_dict(v)
                 setattr(self, k, dict_layout)
+            elif k == 'owners':
+                owners_objs = [JSONObject(o) for o in v]
+                setattr(self, k, owners_objs)
             elif isinstance(v, dict):
                 #TODO what is a better way to identify a dataset?
                 if 'unit_id' in v or 'unit' in v or 'metadata' in v or 'type' in v:
