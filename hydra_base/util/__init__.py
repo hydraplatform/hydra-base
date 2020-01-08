@@ -243,6 +243,9 @@ def get_layout_as_dict(layout):
         until a dict is retrieved or until a non-json structure is identified.
     """
 
+    if not layout:
+        return {}
+
     if isinstance(layout, dict):
         return layout
 
