@@ -1043,7 +1043,7 @@ class Network(Base, Inspect):
         node = Node()
         node.name        = name
         node.description = desc
-        node.layout      = str(layout) if layout is not None else None
+        node.layout      = json.dumps(layout) if layout is not None else None
         node.x           = node_x
         node.y           = node_y
 
