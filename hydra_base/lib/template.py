@@ -1385,8 +1385,12 @@ def add_template(template, **kwargs):
     """
         Add template and a type and typeattrs.
     """
+
+    user_id = kwargs.get('user_id')
+
     tmpl = Template()
     tmpl.name = template.name
+    tmpl.created_by = user_id
     if template.description:
         tmpl.description = template.description
     if template.layout:
