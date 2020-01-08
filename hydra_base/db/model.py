@@ -2050,7 +2050,7 @@ class Unit(Base, Inspect):
     #     cf = Column(Unicode(60, collation='utf8_bin'),  nullable=True)
     #     description = Column(Unicode(1000, collation='utf8_bin'))
     name = Column(Unicode(60),  nullable=False)
-    abbreviation = Column(Unicode(60).with_variant(mysql.VARCHAR(60, collation='utf8_bin'), 'mysql'),  nullable=False)
+    abbreviation = Column(Unicode(60).with_variant(mysql.VARCHAR(60, collation='utf8mb4_bin'), 'mysql'),  nullable=False)
     lf = Column(Unicode(60),  nullable=True)
     cf = Column(Unicode(60),  nullable=True)
     description = Column(Unicode(1000))

@@ -78,7 +78,7 @@ def create_mysql_db(db_url):
                 no_db_url = db_url
                 db_url = no_db_url + "/" + db_name
 
-        db_url = "{}?charset=utf8&use_unicode=1".format(db_url)
+        db_url = "{}?charset=utf8mb4&use_unicode=1".format(db_url)
 
         if config.get('mysqld', 'auto_create', 'Y') == 'Y':
             tmp_engine = create_engine(no_db_url)
