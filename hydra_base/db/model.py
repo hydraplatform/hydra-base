@@ -690,6 +690,10 @@ class ResourceAttr(Base, Inspect):
     link_id     = Column(Integer(),  ForeignKey('tLink.id'), index=True, nullable=True)
     group_id    = Column(Integer(),  ForeignKey('tResourceGroup.id'), index=True, nullable=True)
     attr_is_var = Column(String(1),  nullable=False, server_default=text(u"'N'"))
+    data_type = Column(String(60),  nullable=True, server_default=text(u"''"))
+    unit = Column(String(60), nullable=True, server_default=text(u"''"))
+    description = Column(String(1000),  nullable=True, server_default=text(u"''"))
+    properties = Column(String(1000),  nullable=True, server_default=text(u"'{}'"))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     attr = relationship('Attr')
