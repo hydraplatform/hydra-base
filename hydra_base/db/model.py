@@ -583,8 +583,8 @@ class Template(Base, Inspect):
         """
 
         for owner in self.owners:
-            if owner.user_id == int(user_id):
-                if owner.view == 'Y' and owner.share == 'Y':
+            if int(owner.user_id) == int(user_id) or int(owner.user_id) == 1:
+                if owner.view == 'Y':
                     break
         else:
             raise PermissionError("Permission denied. User %s does not have share"
