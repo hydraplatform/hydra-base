@@ -513,6 +513,7 @@ class Template(Base, Inspect):
     id = Column(Integer(), primary_key=True, nullable=False)
     name = Column(String(200),  nullable=False, unique=True)
     description = Column(String(1000))
+    created_by = Column(Integer(), ForeignKey('tUser.id'))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     layout  = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
 
