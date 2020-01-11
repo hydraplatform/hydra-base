@@ -218,7 +218,7 @@ def add_scenario(network_id, scenario,**kwargs):
     scen.resourcegroupitems   = []
 
     #Just in case someone puts in a negative ID for the scenario.
-    if scenario.id < 0:
+    if isinstance(scenario.id, int) and scenario.id < 0:
         scenario.id = None
 
     if scenario.resourcescenarios is not None:
