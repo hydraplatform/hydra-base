@@ -341,7 +341,7 @@ def set_scenario_status(scenario_id, status, **kwargs):
     db.DBSession.flush()
     return 'OK'
 
-def purge_scenario(scenario_id, **kwargs):
+def purge_scenario(scenario_id, delete_children=False, **kwargs):
     """
         Set the status of a scenario.
     """
@@ -352,7 +352,18 @@ def purge_scenario(scenario_id, **kwargs):
 
     scenario_i = _get_scenario(scenario_id, user_id)
 
-    db.DBSession.delete(scenario_i)
+    scenarios = [scenario_i]
+
+    if delete_children:
+        def recursive_get_children(parent_id):
+            child_scenarios = db.DBSession.query(Scenario).filter(Scenario.parent_id == parent_id).all()
+            if child_scenarios:
+                scenarios.extend(child_scenarios)
+                for child_scenario_i in child_scenarios:
+                    recursive_get_children(child_scenario_i.id)
+
+    for scen_i in scenarios:
+        db.DBSession.delete(scen_i)
     db.DBSession.flush()
     return 'OK'
 
