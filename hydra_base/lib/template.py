@@ -1474,6 +1474,9 @@ def get_templates(load_all=True, **kwargs):
         templates = db.DBSession.query(Template).options(joinedload('templatetypes')
                                                          .joinedload('typeattrs')).all()
 
+    for template in templates:
+        template.owners
+
     return templates
 
 def remove_attr_from_type(type_id, attr_id,**kwargs):
@@ -1499,6 +1502,9 @@ def get_template(template_id,**kwargs):
         for tmpltype_i in tmpl_i.templatetypes:
             for typeattr_i in tmpltype_i.typeattrs:
                 typeattr_i.attr
+
+        # lazy load owners
+        tmpl_i.owners
 
         return tmpl_i
     except NoResultFound:
