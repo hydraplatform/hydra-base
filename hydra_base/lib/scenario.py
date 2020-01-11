@@ -365,6 +365,8 @@ def purge_scenario(scenario_id, delete_children=False, **kwargs):
                         scenarios_to_delete.append(child_scenario_i)
                         recursive_get_children(child_scenario_i.id)
 
+        recursive_get_children(scenario_id)
+
     for scen_i in scenarios_to_delete:
         db.DBSession.delete(scen_i)
     db.DBSession.flush()
