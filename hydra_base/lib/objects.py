@@ -75,7 +75,7 @@ class JSONObject(dict):
 
             if isinstance(v, JSONObject):
                 setattr(self, k, v)
-            elif k == 'layout':
+            elif k in ['layout', 'properties']:
                 #Layout is often valid JSON, but we dont want to treat it as a JSON object necessarily
                 dict_layout = get_layout_as_dict(v)
                 setattr(self, k, dict_layout)
