@@ -352,17 +352,20 @@ def purge_scenario(scenario_id, delete_children=False, **kwargs):
 
     scenario_i = _get_scenario(scenario_id, user_id)
 
-    scenarios = [scenario_i]
+    scenarios_to_delete = [scenario_i]
+    scenario_ids_to_delete = []
 
     if delete_children:
         def recursive_get_children(parent_id):
             child_scenarios = db.DBSession.query(Scenario).filter(Scenario.parent_id == parent_id).all()
             if child_scenarios:
-                scenarios.extend(child_scenarios)
                 for child_scenario_i in child_scenarios:
-                    recursive_get_children(child_scenario_i.id)
+                    if child_scenario_i.id not in scenario_ids_to_delete:  # this is a check
+                        scenario_ids_to_delete.append(child_scenario_i.id)
+                        scenarios_to_delete.append(child_scenario_i)
+                        recursive_get_children(child_scenario_i.id)
 
-    for scen_i in scenarios:
+    for scen_i in scenarios_to_delete:
         db.DBSession.delete(scen_i)
     db.DBSession.flush()
     return 'OK'
