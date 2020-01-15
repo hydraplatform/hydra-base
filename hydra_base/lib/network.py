@@ -1069,7 +1069,7 @@ def get_network(network_id, summary=False, include_data='N', include_results='Y'
 
     return net
 
-def get_nodes(network_id, template_id=None, **kwargs):
+def get_nodes(network_id, template_id=None, node_ids=None, **kwargs):
     """
         Get all the nodes in a network.
         args:
@@ -1092,6 +1092,9 @@ def get_nodes(network_id, template_id=None, **kwargs):
                         ).options(
                             joinedload('attributes').joinedload('attr')
                         )
+    if node_ids:
+        node_qry = node_qry.Filter(Link.id.in_(node_ids))
+
     if template_id is not None:
         node_qry = node_qry.filter(ResourceType.node_id==Node.id,
                                    TemplateType.id==ResourceType.type_id,
@@ -1100,7 +1103,7 @@ def get_nodes(network_id, template_id=None, **kwargs):
 
     return nodes
 
-def get_links(network_id, template_id=None, **kwargs):
+def get_links(network_id, template_id=None, link_ids=None, **kwargs):
     """
         Get all the links in a network.
         args:
@@ -1123,6 +1126,9 @@ def get_links(network_id, template_id=None, **kwargs):
                                         ).options(
                                             joinedload('attributes').joinedload('attr')
                                         )
+
+    if link_ids:
+        link_qry = link_qry.Filter(Link.id.in_(link_ids))
 
     if template_id is not None:
         link_qry = link_qry.filter(ResourceType.link_id==Link.id,
