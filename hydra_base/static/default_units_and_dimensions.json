@@ -1396,21 +1396,21 @@
         "name": "Energy price",
         "unit": [
           {
-            "name": "USDollars per kilowatt-hour",
+            "name": "US Dollar per kilowatt-hour",
             "abbr": "USD kWh^-1",
             "lf": "2.77777777e-07",
             "cf": "0",
             "description": "Cost in US Dollars per energy unit (kilowatt-hour)."
           },
           {
-            "name": "USDollars per kilojoule",
+            "name": "US Dollar per kilojoule",
             "abbr": "USD kJ^-1",
             "lf": "0.001",
             "cf": "0",
             "description": "Cost in US Dollars per energy unit (kilojoule)."
           },
           {
-            "name": "USDollars per joule",
+            "name": "US Dollar per joule",
             "abbr": "USD J^-1",
             "lf": "1",
             "cf": "0",
