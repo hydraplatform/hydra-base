@@ -289,7 +289,7 @@ def update_resource_attribute(resource_attr_id, is_var,
 
     db.DBSession.flush()
 
-    return 'OK'
+    return JSONObject(ra)
 
 def delete_resource_attribute(resource_attr_id, **kwargs):
     """
