@@ -1223,6 +1223,65 @@ def get_resource_attribute_datasets(resource_attr_id, scenario_id, **kwargs):
 
     return ras
 
+def get_scenarios_data(scenario_id, attr_id, type_id, **kwargs):
+    """
+        Get all the resource scenarios for a given attribute and/or type
+        in a given scenario.
+    """
+
+    user_id = kwargs.get('user_id')
+
+    # This can be either a single ID or list, so make them consistent
+    if not isinstance(scenario_id, list):
+        scenario_id = [scenario_id]
+
+    scenarios = db.DBSession.query(Scenario).filter(Scenario.id.in_(scenario_id)).all()
+    for scenario in scenarios:
+        resource_data_qry = db.DBSession.query(ResourceScenario).filter(
+            ResourceScenario.dataset_id == Dataset.id,
+            ResourceAttr.id == ResourceScenario.resource_attr_id,
+            ResourceScenario.scenario_id == scenario.scenario_id) \
+            .distinct() \
+            .options(joinedload('resourceattr')) \
+            .options(joinedload_all('dataset.metadata'))
+
+        attr_ids = []
+        if type_id is not None:
+            if not isinstance(type_id, list):
+                type_id = [type_id]
+            rs = db.DBSession.query(TypeAttr).filter(TypeAttr.type_id.in_(type_id)).all()
+            for r in rs:
+                attr_ids.append(r.attr_id)
+        if attr_id is not None:
+            if not isinstance(attr_id, list):
+                attr_id = [attr_id]
+            attr_ids.extend(attr_id)
+        attr_ids = set(attr_ids)
+
+        if attr_ids:
+            resource_data = resource_data_qry.filter(ResourceAttr.attr_id.in_(attr_ids))
+
+        else:
+            resource_data = resource_data_qry.all()
+
+        for rs in resource_data:
+            try:
+                rs.dataset.value = zlib.decompress(rs.dataset.value)
+            except zlib.error:
+                pass
+
+            if rs.dataset.hidden == 'Y':
+                try:
+                    rs.dataset.check_read_permission(user_id)
+                except:
+                    rs.dataset.value = None
+                    rs.dataset.frequency = None
+                    rs.dataset.start_time = None
+        scenario.resourcescenarios = resource_data
+        scenario.resourcegroupitems = []
+        db.DBSession.expunge_all()
+    return scenarios
+
 def _check_can_edit_scenario(scenario_id, user_id):
     scenario_i = _get_scenario(scenario_id, user_id)
 
