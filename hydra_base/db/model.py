@@ -528,7 +528,7 @@ class Template(Base, Inspect):
                 break
         else:
             owner = TemplateOwner()
-            owner.template_id = self.template_id
+            owner.template_id = self.id
             self.owners.append(owner)
 
         owner.user_id = int(user_id)
@@ -546,7 +546,7 @@ class Template(Base, Inspect):
         for o in self.owners:
             if user_id == o.user_id:
                 owner = o
-                DBSession.delete(owner)
+                get_session().delete(owner)
                 break
 
     def check_read_permission(self, user_id):
@@ -561,7 +561,7 @@ class Template(Base, Inspect):
         else:
             raise PermissionError("Permission denied. User %s does not have read"
                              " access on template %s" %
-                             (user_id, self.template_id))
+                             (user_id, self.id))
 
     def check_write_permission(self, user_id):
         """
@@ -607,6 +607,8 @@ class TemplateOwner(Base, Inspect):
     user = relationship('User')
     template = relationship('Template', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
 
+    _parents = ['tTemplate', 'tUser']
+    _children = []
 
 class TemplateType(Base, Inspect):
     """

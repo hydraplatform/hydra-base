@@ -18,7 +18,7 @@
 #
 
 from .. import db
-from ..db.model import Template, TemplateType, TypeAttr, Attr, Network, Node, Link, ResourceGroup, ResourceType, ResourceAttr, ResourceScenario, Scenario
+from ..db.model import Template, TemplateOwner, TemplateType, TypeAttr, Attr, Network, Node, Link, ResourceGroup, ResourceType, ResourceAttr, ResourceScenario, Scenario
 from .objects import JSONObject, Dataset
 from .data import add_dataset
 
@@ -66,6 +66,27 @@ def _check_dimension(typeattr, unit_id=None):
                             (unit_id, units.get_unit(unit_id).abbreviation,
                             unit_dimension_id, units.get_dimension(unit_dimension_id, do_accept_dimension_id_none=True).name,
                             dimension_id, units.get_dimension(dimension_id, do_accept_dimension_id_none=True).name))
+
+def _set_template_owners(templates_i):
+    flush = False
+    for tmpl_i in templates_i:
+        if not tmpl_i.owners:
+            owner = tmpl_i.set_owner(tmpl_i.created_by)
+            db.DBSession.add(owner)
+            flush = True
+    if flush:
+        db.DBSession.flush()
+
+def _get_template_owners(template_id):
+    """
+        Get all the owners of a template
+    """
+    owners_i = db.DBSession.query(TemplateOwner).filter(
+                        TemplateOwner.template_id==template_id).options(noload('template')).options(joinedload('user')).all()
+
+    owners = [JSONObject(owner_i) for owner_i in owners_i]
+
+    return owners
 
 
 def get_types_by_attr(resource, template_id=None):
@@ -1471,19 +1492,17 @@ def get_templates(load_all=True, **kwargs):
             List of Template objects
     """
     if load_all is False:
-        templates = db.DBSession.query(Template).all()
+        templates_i = db.DBSession.query(Template).all()
     else:
-        templates = db.DBSession.query(Template).options(joinedload('templatetypes')
+        templates_i = db.DBSession.query(Template).options(joinedload('templatetypes')
                                                          .joinedload('typeattrs')).all()
 
-    for template in templates:
-        template.owners
+    _set_template_owners(templates_i)
 
-        # add missing owner
-        if not template.owners:
-            owner = template.set_owner(template.created_by)
-            db.DBSession.add(owner)
-            db.DBSession.flush()
+    templates = [JSONObject(tmpl_i) for tmpl_i in templates_i]
+
+    for template in templates:
+        template.owners = _get_template_owners(template.id)
 
     return templates
 
@@ -1505,16 +1524,18 @@ def get_template(template_id,**kwargs):
                                                                                        .joinedload('typeattrs')
                                                                                        .joinedload('default_dataset')
                                                                                        .joinedload('metadata')).one()
+        _set_template_owners([tmpl_i])
 
         #Load the attributes.
         for tmpltype_i in tmpl_i.templatetypes:
             for typeattr_i in tmpltype_i.typeattrs:
                 typeattr_i.attr
 
-        # lazy load owners
-        tmpl_i.owners
 
-        return tmpl_i
+        template = JSONObject(tmpl_i)
+        template.owners = _get_template_owners(template_id)
+
+        return template
     except NoResultFound:
         raise HydraError("Template %s not found"%template_id)
 
