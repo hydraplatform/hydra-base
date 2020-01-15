@@ -1153,6 +1153,24 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id=None, expunge_sessio
 
     return requested_rs
 
+def get_resource_attribute_datasets(resource_attr_id, scenario_id, **kwargs):
+    """
+        Retrieve all the datasets in given scenarios for given resource attributes.
+    """
+
+    try:
+        a = db.DBSession.query(ResourceAttr).filter(ResourceAttr.id == resource_attr_id[0]).one()
+    except NoResultFound:
+        raise HydraError("Resource attribute %s not found" % (resource_attr_id,))
+
+    ras = db.DBSession.query(ResourceAttr).filter(
+        ResourceAttr.id.in_(resource_attr_id),
+        ResourceScenario.scenario_id.in_(scenario_id),
+        ResourceScenario.resource_attr_id == ResourceAttr.id
+    ).all()
+
+    return ras
+
 def _check_can_edit_scenario(scenario_id, user_id):
     scenario_i = _get_scenario(scenario_id, user_id)
 
