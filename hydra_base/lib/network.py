@@ -1049,6 +1049,8 @@ def get_network(network_id, summary=False, include_data='N', include_results='Y'
                 group_i.attributes = all_attributes['GROUP'].get(group_i.id, [])
             log.info("Group attributes set")
 
+            log.info("Getting scenarios")
+            net.scenarios = _get_scenarios(network_id, include_data, include_results, user_id, scenario_ids)
 
         log.info("Setting types")
         all_types = _get_all_templates(network_id, template_id)
@@ -1060,9 +1062,6 @@ def get_network(network_id, summary=False, include_data='N', include_results='Y'
         for group_i in net.resourcegroups:
             group_i.types = all_types['GROUP'].get(group_i.id, [])
 
-        log.info("Getting scenarios")
-
-        net.scenarios = _get_scenarios(network_id, include_data, include_results, user_id, scenario_ids)
 
     except NoResultFound:
         raise ResourceNotFoundError("Network (network_id=%s) not found." %
