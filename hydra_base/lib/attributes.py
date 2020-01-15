@@ -272,7 +272,21 @@ def update_resource_attribute(resource_attr_id, is_var, **kwargs):
 
     ra.check_write_permission(user_id)
 
-    ra.is_var = is_var
+    ra.attr_is_var = is_var
+
+    description = kwargs.get('description')
+    if description is not None:
+        ra.description = description
+
+    data_type = kwargs.get('data_type')
+    if data_type is not None:
+        ra.data_type = data_type
+
+    properties = kwargs.get('properties')
+    if properties is not None:
+        ra.properties = properties
+
+    db.DBSession.flush()
 
     return 'OK'
 
