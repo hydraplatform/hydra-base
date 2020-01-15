@@ -1223,7 +1223,7 @@ def get_resource_attribute_datasets(resource_attr_id, scenario_id, **kwargs):
 
     return ras
 
-def get_scenarios_data(scenario_id, attr_id, type_id, **kwargs):
+def get_scenarios_data(scenario_id, attr_id, type_id, node_ids=None, link_ids=None, **kwargs):
     """
         Get all the resource scenarios for a given attribute and/or type
         in a given scenario.
@@ -1259,10 +1259,19 @@ def get_scenarios_data(scenario_id, attr_id, type_id, **kwargs):
         attr_ids = set(attr_ids)
 
         if attr_ids:
-            resource_data = resource_data_qry.filter(ResourceAttr.attr_id.in_(attr_ids))
+            resource_data_qry = resource_data_qry.filter(ResourceAttr.attr_id.in_(attr_ids))
 
-        else:
-            resource_data = resource_data_qry.all()
+        if node_ids and link_ids:
+            resource_data_qry = resource_data_qry.filter( or_(
+                ResourceAttr.node_id.in_(set(node_ids)),
+                ResourceAttr.link_id.in_(set(link_ids))
+                ))
+        elif node_ids:
+            resource_data_qry = resource_data_qry.filter( ResourceAttr.node_id.in_(set(node_ids)))
+        elif link_ids:
+            resource_data_qry = resource_data_qry.filter( ResourceAttr.link_id.in_(set(link_ids)))
+
+        resource_data = resource_data_qry.all()
 
         for rs in resource_data:
             try:
