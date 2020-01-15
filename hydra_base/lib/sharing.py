@@ -21,10 +21,17 @@ from ..exceptions import HydraError, ResourceNotFoundError
 import logging
 log = logging.getLogger(__name__)
 from .. import db
-from ..db.model import Network, Project, ProjectOwner, NetworkOwner, User, Dataset
+from ..db.model import Template, Network, Project, ProjectOwner, NetworkOwner, User, Dataset
 from hydra_base.lib.objects import JSONObject
 from sqlalchemy.orm.exc import NoResultFound
 from hydra_base.util.permissions import required_role
+
+def _get_template(template_id):
+    try:
+        tmpl_i = db.DBSession.query(Template).filter(Template.id == template_id).one()
+        return tmpl_i
+    except NoResultFound:
+        raise ResourceNotFoundError("Network %s not found" % (template_id))
 
 def _get_project(project_id):
     try:
@@ -238,6 +245,82 @@ def set_network_permission(network_id, usernames, read, write, share,**kwargs):
                              (network_id, username))
 
         net_i.set_owner(user_i.id, read=read, write=write, share=share)
+    db.DBSession.flush()
+
+def share_template(template_id, usernames, read_only, share, **kwargs):
+    """
+        Share a template with a list of users, identifed by
+        their usernames.
+        The read_only flag ('Y' or 'N') must be set
+        to 'Y' to allow write access or sharing.
+        The share flat ('Y' or 'N') must be set to 'Y' to allow the
+        template to be shared with other users
+    """
+    user_id = kwargs.get('user_id')
+    user_id = int(user_id)
+
+    tmpl_i = _get_template(template_id)
+
+    # Is the sharing user allowed to share this project?
+    tmpl_i.check_share_permission(user_id)
+
+    for owner in tmpl_i.owners:
+        if user_id == owner.user_id:
+            break
+    else:
+        raise HydraError("Permission Denied. Cannot share project.")
+
+    if read_only == 'Y':
+        write = 'N'
+        share = 'N'
+    else:
+        write = 'Y'
+
+    if tmpl_i.created_by != user_id and share == 'Y':
+        raise HydraError("Cannot share the 'sharing' ability as user %s is not"
+                         " the owner of project %s" %
+                         (user_id, template_id))
+
+    for username in usernames:
+        user_i = _get_user(username)
+        tmpl_i.set_owner(user_i.user_id, write=write, share=share)
+    db.DBSession.flush()
+
+def set_template_permission(template_id, usernames, read, write, share, **kwargs):
+    """
+        Set permissions on a template to a list of users, identifed by
+        their usernames.
+        The read flag ('Y' or 'N') sets read access, the write
+        flag sets write access. If the read flag is 'N', then there is
+        automatically no write access or share access.
+    """
+    user_id = kwargs.get('user_id')
+
+    tmpl_i = _get_template(template_id)
+
+    # Is the sharing user allowed to share this project?
+    tmpl_i.check_share_permission(user_id)
+
+    # You cannot edit something you cannot see.
+    if read == 'N':
+        write = 'N'
+        share = 'N'
+
+    for username in usernames:
+        user_i = _get_user(username)
+
+        # The creator of a project must always have read and write access
+        # to their project
+        if tmpl_i.created_by == user_i.user_id:
+            raise HydraError("Cannot set permissions on template %s"
+                             " for user %s as this user is the creator." %
+                             (template_id, username))
+
+        if read == 'N' and write == 'N':
+            tmpl_i.unset_owner(user_i.user_id)
+        else:
+            tmpl_i.set_owner(user_i.user_id, read=read, write=write, share=share)
+
     db.DBSession.flush()
 
 def hide_dataset(dataset_id, exceptions, read, write, share,**kwargs):
