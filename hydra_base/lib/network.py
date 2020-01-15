@@ -987,7 +987,8 @@ def _get_scenarios(network_id, include_data, include_results, user_id, scenario_
 
     return scens
 
-def get_network(network_id, summary=False, include_data='N', include_results='Y', scenario_ids=None, template_id=None, **kwargs):
+def get_network(network_id, summary=False, include_data='N', include_results='Y', scenario_ids=None, template_id=None,
+                include_resources=True, **kwargs):
     """
         Return a whole network as a dictionary.
         network_id: ID of the network to retrieve
@@ -1022,9 +1023,16 @@ def get_network(network_id, summary=False, include_data='N', include_results='Y'
 
         net = JSONObject(net_i)
 
-        net.nodes          = _get_nodes(network_id, template_id=template_id)
-        net.links          = _get_links(network_id, template_id=template_id)
-        net.resourcegroups = _get_groups(network_id, template_id=template_id)
+        if include_resources == True:
+            net.nodes          = _get_nodes(network_id, template_id=template_id)
+            net.links          = _get_links(network_id, template_id=template_id)
+            net.resourcegroups = _get_groups(network_id, template_id=template_id)
+
+        else:
+            net.nodes = []
+            net.links = []
+            net.resourcegroups = []
+
         net.owners         = _get_network_owners(network_id)
 
         if summary is False:
@@ -2434,7 +2442,7 @@ def get_all_resource_attributes_in_network(attr_id, network_id, **kwargs):
                                                'link':JSONObject(ra.link) if ra.link else None,
                                                'resourcegroup':JSONObject(ra.resourcegroup) if ra.resourcegroup else None,
                                                'network':JSONObject(ra.network) if ra.network else None})
-        
+
         if ra_j.node is not None:
             ra_j.resource = ra_j.node
         elif ra_j.link is not None:
@@ -2443,7 +2451,7 @@ def get_all_resource_attributes_in_network(attr_id, network_id, **kwargs):
             ra_j.resource = ra_j.resourcegroup
         elif ra.network is not None:
             ra_j.resource = ra_j.network
-        
+
         json_ra.append(ra_j)
 
     return json_ra
@@ -2545,7 +2553,7 @@ def clone_network(network_id,
                   recipient_user_id=None,
                   new_network_name=None,
                   project_id=None,
-                  project_name=None, 
+                  project_name=None,
                   new_project=True,
                   **kwargs):
     """
@@ -2654,7 +2662,7 @@ def clone_network(network_id,
     scenario_id_map = _clone_scenarios(network_id, newnetworkid, ra_id_map, node_id_map, link_id_map, group_id_map, user_id)
 
 
-    
+
     _clone_rules(
         network_id,
         newnetworkid,
@@ -2734,8 +2742,8 @@ def _clone_nodes(old_network_id, new_network_id, user_id):
     #map old IDS to new IDS
 
     nodes = db.DBSession.query(Node).filter(Node.network_id==new_network_id).all()
-    
-    
+
+
     for n in nodes:
         old_node_id = old_node_name_map[n.name]
         id_map[old_node_id] = n.node_id
@@ -3016,7 +3024,7 @@ def _clone_scenario(old_scenario, newnetworkid, ra_id_map, node_id_map, link_id_
     db.DBSession.bulk_insert_mappings(ResourceGroupItem, new_rgis)
 
     return scenario_id
-  
+
 @required_perms("edit_network")
 def apply_unit_to_network_rs(network_id, unit_id, attr_id, scenario_id=None, **kwargs):
     """
@@ -3035,7 +3043,7 @@ def apply_unit_to_network_rs(network_id, unit_id, attr_id, scenario_id=None, **k
     #Now get all the RS associated to both the attr and network.
     network_rs_query = db.DBSession.query(ResourceScenario).filter(
                                                         Scenario.network_id==network_id,
-                                                        ResourceScenario.scenario_id==Scenario.id,    
+                                                        ResourceScenario.scenario_id==Scenario.id,
                                                         ResourceScenario.resource_attr_id==ResourceAttr.id,
                                                         ResourceAttr.attr_id==attr_id)
 
@@ -3049,7 +3057,7 @@ def apply_unit_to_network_rs(network_id, unit_id, attr_id, scenario_id=None, **k
 
     #now check whether the supplied unit can be applied by comparing it to the attribute's dimension
     units.check_unit_matches_dimension(unit_id, attr_i.dimension_id)
-    
+
     #set the unit ID for each of the resource scenarios
     for rs in network_rs_list:
         rs.dataset.unit_id = unit_id
