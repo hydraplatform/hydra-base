@@ -1279,7 +1279,7 @@ def get_scenarios_data(scenario_id, attr_id, type_id, **kwargs):
                     rs.dataset.start_time = None
         scenario.resourcescenarios = resource_data
         scenario.resourcegroupitems = []
-        db.DBSession.expunge_all()
+    db.DBSession.expunge_all()
     return scenarios
 
 def _check_can_edit_scenario(scenario_id, user_id):
