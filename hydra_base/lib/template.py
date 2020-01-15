@@ -1404,6 +1404,8 @@ def add_template(template, **kwargs):
             ttype = _update_templatetype(templatetype)
             tmpl.templatetypes.append(ttype)
 
+    tmpl.set_owner(user_id)
+
     db.DBSession.flush()
     return tmpl
 
@@ -1476,6 +1478,12 @@ def get_templates(load_all=True, **kwargs):
 
     for template in templates:
         template.owners
+
+        # add missing owner
+        if not template.owners:
+            owner = template.set_owner(template.created_by)
+            db.DBSession.add(owner)
+            db.DBSession.flush()
 
     return templates
 
