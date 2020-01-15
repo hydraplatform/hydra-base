@@ -1023,10 +1023,6 @@ def get_network(network_id, summary=False, include_data='N', include_results='Y'
 
         net = JSONObject(net_i)
 
-        log.info("Setting types")
-        all_types = _get_all_templates(network_id, template_id)
-        net.types = all_types['NETWORK'].get(network_id, [])
-
         if include_resources == True:
             net.nodes          = _get_nodes(network_id, template_id=template_id)
             net.links          = _get_links(network_id, template_id=template_id)
