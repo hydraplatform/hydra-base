@@ -332,7 +332,7 @@ def add_resource_attribute(resource_type, resource_id, attr_id, is_var, error_on
             raise HydraError("Duplicate attribute. %s %s already has attribute %s"
                              %(resource_type, resource_i.get_name(), attr.name))
 
-    attr_is_var = 'Y' if is_var == 'Y' else 'N'
+    attr_is_var = is_var
 
     new_ra = resource_i.add_attribute(attr_id, attr_is_var)
     db.DBSession.flush()
