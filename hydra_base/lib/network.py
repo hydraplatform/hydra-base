@@ -988,7 +988,7 @@ def _get_scenarios(network_id, include_data, include_results, user_id, scenario_
     return scens
 
 def get_network(network_id, summary=False, include_data='N', include_results='Y', scenario_ids=None, template_id=None,
-                include_resources=True, **kwargs):
+                include_resources='Y', **kwargs):
     """
         Return a whole network as a dictionary.
         network_id: ID of the network to retrieve
@@ -1023,7 +1023,7 @@ def get_network(network_id, summary=False, include_data='N', include_results='Y'
 
         net = JSONObject(net_i)
 
-        if include_resources == True:
+        if include_resources == 'Y':
             net.nodes          = _get_nodes(network_id, template_id=template_id)
             net.links          = _get_links(network_id, template_id=template_id)
             net.resourcegroups = _get_groups(network_id, template_id=template_id)
