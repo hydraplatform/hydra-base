@@ -877,7 +877,7 @@ def _get_metadata(network_id, user_id):
 
 def _get_network_owners(network_id):
     """
-        Get all the nodes in a network
+        Get all the owners of a network
     """
     owners_i = db.DBSession.query(NetworkOwner).filter(
                         NetworkOwner.network_id==network_id).options(noload('network')).options(joinedload('user')).all()
