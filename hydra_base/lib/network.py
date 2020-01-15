@@ -624,6 +624,8 @@ def _get_all_resource_attributes(network_id, template_id=None):
     group_attr_dict = dict()
     network_attr_dict = dict()
 
+    all_attributes = [JSONObject(attr) for attr in all_attributes]
+
     for attr in all_attributes:
         if attr.ref_key == 'NODE':
             nodeattr = node_attr_dict.get(attr.node_id, [])
@@ -987,7 +989,7 @@ def _get_scenarios(network_id, include_data, include_results, user_id, scenario_
 
     return scens
 
-def get_network(network_id, summary=False, include_data='N', include_results='Y', scenario_ids=None, template_id=None,
+def get_network(network_id, summary='N', include_data='N', include_results='Y', scenario_ids=None, template_id=None,
                 include_resources='Y', **kwargs):
     """
         Return a whole network as a dictionary.
@@ -1035,7 +1037,7 @@ def get_network(network_id, summary=False, include_data='N', include_results='Y'
 
         net.owners         = _get_network_owners(network_id)
 
-        if summary is False:
+        if summary == 'N':
             all_attributes = _get_all_resource_attributes(network_id, template_id)
             log.info("Setting attributes")
             net.attributes = all_attributes['NETWORK'].get(network_id, [])
