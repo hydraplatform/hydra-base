@@ -1095,7 +1095,7 @@ def get_nodes(network_id, template_id=None, node_ids=None, **kwargs):
                             joinedload('attributes').joinedload('attr')
                         )
     if node_ids:
-        node_qry = node_qry.Filter(Link.id.in_(node_ids))
+        node_qry = node_qry.filter(Link.id.in_(node_ids))
 
     if template_id is not None:
         node_qry = node_qry.filter(ResourceType.node_id==Node.id,
@@ -1130,7 +1130,7 @@ def get_links(network_id, template_id=None, link_ids=None, **kwargs):
                                         )
 
     if link_ids:
-        link_qry = link_qry.Filter(Link.id.in_(link_ids))
+        link_qry = link_qry.filter(Link.id.in_(link_ids))
 
     if template_id is not None:
         link_qry = link_qry.filter(ResourceType.link_id==Link.id,
