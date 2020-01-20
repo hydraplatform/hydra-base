@@ -385,10 +385,12 @@ def get_all_network_attributes(network_id, template_id=None, **kwargs):
 
         args:
             network_id (int): The ID of the network containing the attributes
-            template_id (int): A filter which will cause the function to return attributes associated to that template
+            template_id (int): A filter which will cause the function to
+                                return attributes associated to that template
 
         returns:
-            A list of Attributes as JSONObjects, with the additional data of 'attr_is_var'
+            A list of Attributes as JSONObjects, with the
+            additional data of 'attr_is_var'
             from its assocated ResourceAttribute. ex:
                 {id:123,
                 name: 'cost'

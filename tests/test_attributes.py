@@ -109,6 +109,15 @@ class TestAttribute:
                 assert len(list(filter(lambda x: x["name"] == test_attr.name, new_attrs_list))) > 0,\
                     "Adding new attributes didn't work as expected."
 
+        #Try adding the attributes again. It should ignore them as theyr'e already there.
+        new_attrs_list = hb.add_attributes(test_attrs, user_id=pytest.root_user_id)
+
+        all_attributes = hb.get_attributes(user_id=pytest.root_user_id)
+
+        attributeset = set([(a.name, a.dimension) for a in all_attributes])
+        log.info(attributeset)
+        assert len(attributeset) == len(all_attributes)
+
 
     def test_get_attributes(self, session):
         """
