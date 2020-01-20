@@ -124,13 +124,15 @@ class TestRules:
         assert client.get_resource_rules('NETWORK', cloned_network.id)[0].value == net_rule_j.value;
 
         #sorted the nodes here to ensure we identified the matching node from the original network
-        assert len(client.get_resource_rules('NODE', sorted(cloned_network.nodes, key=lambda x: x.name)[0].id)) == 2
-        assert client.get_resource_rules('NODE', sorted(cloned_network.nodes, key=lambda x: x.name)[0].id)[0].scenario_id == None
-        assert client.get_resource_rules('NODE', sorted(cloned_network.nodes, key=lambda x: x.name)[0].id)[0].value == node_rule_no_scenario_j.value
+        sorted_nodes = sorted(cloned_network.nodes, key=lambda x: x.name)
+        node_rules = sorted(client.get_resource_rules('NODE', sorted_nodes[0].id), key=lambda x:x.value)
+        assert len(node_rules) == 2
+        assert node_rules[0].scenario_id == None
+        assert node_rules[0].value == node_rule_no_scenario_j.value
 
         #sorted the nodes here to ensure we identified the matching node from the original network
-        assert client.get_resource_rules('NODE', sorted(cloned_network.nodes, key=lambda x: x.name)[0].id)[1].scenario_id == cloned_network.scenarios[0].id
-        assert client.get_resource_rules('NODE', sorted(cloned_network.nodes, key=lambda x: x.name)[0].id)[1].value == node_rule_with_scenario_j.value
+        assert node_rules[1].scenario_id == cloned_network.scenarios[0].id
+        assert node_rules[1].value == node_rule_with_scenario_j.value
 
     def test_get_rules_by_type(self, session, client, network_with_data):
         ruletype_A_j = client.add_rule_type_definition(JSONObject({'name':'A new Rule', 'code':'a_new_rule'}))
