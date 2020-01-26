@@ -1195,7 +1195,7 @@ def get_resource_attribute_data(ref_key, ref_id, scenario_id, attr_id, **kwargs)
     for rs in resource_data:
         try:
             rs.dataset.value = zlib.decompress(rs.dataset.value)
-        except zlib.error:
+        except TypeError:
             pass
 
         if rs.dataset.hidden == 'Y':
@@ -1298,7 +1298,7 @@ def get_scenarios_data(scenario_id, attr_id, type_id, node_ids=None, link_ids=No
         for rs in resource_data:
             try:
                 rs.dataset.value = zlib.decompress(rs.dataset.value)
-            except zlib.error:
+            except TypeError:
                 pass
 
             if rs.dataset.hidden == 'Y':
