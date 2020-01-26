@@ -301,6 +301,10 @@ def update_scenario(scenario,update_data=True,update_groups=True,flush=True,**kw
     scen.start_time           = start_time
     scen.end_time             = end_time
     scen.time_step            = scenario.time_step
+    if hasattr(scenario, 'parent_id'):
+        scen.parent_id = scenario.parent_id
+    else:
+        scen.parent_id = None
 
     if scenario.resourcescenarios == None:
         scenario.resourcescenarios = []
