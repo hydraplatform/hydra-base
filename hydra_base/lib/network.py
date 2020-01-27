@@ -1981,7 +1981,11 @@ def update_link(link,**kwargs):
     if link.types is not None:
         hdb.add_resource_types(link_i, link.types)
 
-    db.DBSession.flush()
+    try:
+        db.DBSession.flush()
+    except Exception as err:
+        db.DBSession.rollback()
+        raise
     return link_i
 
 def set_link_status(link_id, status, **kwargs):

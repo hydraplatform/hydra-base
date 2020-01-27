@@ -24,7 +24,7 @@ String,\
 LargeBinary,\
 TIMESTAMP,\
 BIGINT,\
-Float,\
+Numeric,\
 Text, \
 DateTime,\
 Unicode
@@ -1267,8 +1267,8 @@ class Node(Base, Inspect):
     description = Column(String(1000))
     name = Column(String(200),  nullable=False)
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
-    x = Column(Float(precision=10, asdecimal=True))
-    y = Column(Float(precision=10, asdecimal=True))
+    x = Column(Numeric(precision=15, scale=10, asdecimal=True))
+    y = Column(Numeric(precision=15, scale=10, asdecimal=True))
     layout  = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
