@@ -17,6 +17,8 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
+from ast import literal_eval
+
 from ..exceptions import ResourceNotFoundError
 from . import scenario
 import logging
@@ -329,7 +331,10 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
             network_i.owners
             net_j = JSONObject(network_i)
             if net_j.layout is not None:
-                net_j.layout = JSONObject(net_j.layout)
+                try:
+                    net_j.layout = JSONObject(net_j.layout)
+                except ValueError:
+                    net_j.layout = literal_eval(net_j.layout)
             else:
                 net_j.layout = JSONObject({})
             networks_j.append(net_j)
