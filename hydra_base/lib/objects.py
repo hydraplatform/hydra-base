@@ -68,7 +68,6 @@ class JSONObject(dict):
                 raise ValueError("Unrecognised value. It must be a valid JSON dict, a SQLAlchemy result or a dictionary.")
 
         for k, v in obj.items():
-
             #This occurs regularly enough to warrant its own if statement.
             #if isinstance(k, int):
             #    raise TypeError('JSONObject Error: Cannot set attribute %s to %s. It is an int'%(k, v))
@@ -101,16 +100,12 @@ class JSONObject(dict):
                         for m in obj_dict.get('metadata', []):
                             metadata_dict[m.key] = m.value
                         setattr(self, k, metadata_dict)
-                            
+
                 else:
-                    is_list_of_objects = True
+                    is_list_of_objects = False
                     if len(v) > 0:
-                        if isinstance(v[0], float):
-                            is_list_of_objects = False
-                        elif isinstance(v[0], six.string_types) and len(v[0]) == 0:
-                            is_list_of_objects = False
-                        elif isinstance(v[0], six.string_types) and v[0][0] not in VALID_JSON_FIRST_CHARS:
-                            is_list_of_objects=False
+                        if isinstance(v[0], dict):
+                            is_list_of_objects = True
 
                     if is_list_of_objects is True:
                         l = [JSONObject(item, obj_dict) for item in v]
