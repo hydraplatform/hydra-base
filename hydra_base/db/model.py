@@ -1505,7 +1505,7 @@ class Scenario(Base, Inspect):
 
     id = Column(Integer(), primary_key=True, index=True, nullable=False)
     name = Column(String(200),  nullable=False)
-    description = Column(String(1000))
+    description = Column(String(2000))
     layout  = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     network_id = Column(Integer(), ForeignKey('tNetwork.id'), index=True)
