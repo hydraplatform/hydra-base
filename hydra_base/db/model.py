@@ -647,7 +647,7 @@ class TypeAttr(Base, Inspect):
     data_type          = Column(String(60))
     data_restriction   = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
     unit_id            = Column(Integer(), ForeignKey('tUnit.id'), nullable=True)
-    description        = Column(String(1000))
+    description        = Column(String(2000))
     properties         = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
