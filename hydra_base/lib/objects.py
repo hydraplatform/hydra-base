@@ -102,10 +102,18 @@ class JSONObject(dict):
                         setattr(self, k, metadata_dict)
 
                 else:
-                    is_list_of_objects = False
+                    is_list_of_objects = True
                     if len(v) > 0:
-                        if isinstance(v[0], dict):
-                            is_list_of_objects = True
+                        if isinstance(v[0], float):
+                            is_list_of_objects = False
+                        elif isinstance(v[0], int):
+                            is_list_of_objects = False
+                        elif isinstance(v[0], six.string_types) and len(v[0]) == 0:
+                            is_list_of_objects = False
+                        elif isinstance(v[0], six.string_types) and v[0][0] not in VALID_JSON_FIRST_CHARS:
+                            is_list_of_objects=False
+                        elif isinstance(v[0], list):
+                            is_list_of_objects=False
 
                     if is_list_of_objects is True:
                         l = [JSONObject(item, obj_dict) for item in v]

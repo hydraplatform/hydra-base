@@ -23,6 +23,8 @@ log = logging.getLogger(__name__)
 from decimal import Decimal
 import pandas as pd
 
+from ast import literal_eval
+
 import json
 import six
 from .. import config
@@ -253,4 +255,11 @@ def get_layout_as_dict(layout):
         try:
             return get_layout_as_dict(json.loads(layout))
         except:
-            return layout
+            try:
+                layout_dict = literal_eval(layout)
+                if isinstance(layout_dict, dict):
+                    return layout_dict
+                else:
+                    return layout
+            except:
+                return layout
