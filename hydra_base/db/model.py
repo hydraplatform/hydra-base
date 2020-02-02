@@ -269,8 +269,8 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
     hash       = Column(BIGINT(),  nullable=False, unique=True)
     cr_date    = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     hidden     = Column(String(1),  nullable=False, server_default=text(u"'N'"))
-    value      = Column('value', Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
-
+    value = Column('value', Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
+    value_blob = Column('value_blob', LargeBinary(), nullable=True)
     unit = relationship('Unit', backref=backref("dataset_unit", order_by=unit_id))
 
     _parents  = ['tResourceScenario', 'tUnit']

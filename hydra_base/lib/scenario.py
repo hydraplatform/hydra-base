@@ -1194,7 +1194,23 @@ def get_resource_attribute_data(ref_key, ref_id, scenario_id, attr_id, **kwargs)
 
     for rs in resource_data:
         try:
-            rs.dataset.value = zlib.decompress(rs.dataset.value)
+            if rs.dataset.value:
+                rs.dataset.value_blob = None
+            else:
+
+                value_blob = rs.dataset.value_blob
+                if value_blob:
+                    if isinstance(value_blob, bytes):
+                        try:
+                            val = value_blob.decode()
+                        except UnicodeDecodeError:
+                            val = zlib.decompress(value_blob).decode()
+                        except:
+                            raise
+                    else:
+                        val = value_blob
+                    rs.dataset.value = val
+                    rs.dataset.value_blob = None
         except TypeError:
             pass
 
