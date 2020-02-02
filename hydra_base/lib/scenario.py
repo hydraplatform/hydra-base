@@ -1158,6 +1158,25 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id=None, expunge_sessio
 
     return requested_rs
 
+def get_dataset_value(dataset):
+    val = None
+    if dataset.value is not None:
+        val = dataset.value
+    else:
+        value_blob = dataset.value_blob
+        if value_blob is not None:
+            if isinstance(value_blob, bytes):
+                try:
+                    val = value_blob.decode()
+                except UnicodeDecodeError:
+                    val = zlib.decompress(value_blob).decode()
+                except:
+                    raise
+            else:
+                val = value_blob
+    return val
+
+
 def get_resource_attribute_data(ref_key, ref_id, scenario_id, attr_id, **kwargs):
     """
         Get all the resource scenarios for a given resource attribute
@@ -1194,23 +1213,8 @@ def get_resource_attribute_data(ref_key, ref_id, scenario_id, attr_id, **kwargs)
 
     for rs in resource_data:
         try:
-            if rs.dataset.value:
-                rs.dataset.value_blob = None
-            else:
-
-                value_blob = rs.dataset.value_blob
-                if value_blob:
-                    if isinstance(value_blob, bytes):
-                        try:
-                            val = value_blob.decode()
-                        except UnicodeDecodeError:
-                            val = zlib.decompress(value_blob).decode()
-                        except:
-                            raise
-                    else:
-                        val = value_blob
-                    rs.dataset.value = val
-                    rs.dataset.value_blob = None
+            rs.dataset.value = get_dataset_value(rs.dataset)
+            rs.dataset.value_blob = None
         except TypeError:
             pass
 
@@ -1313,7 +1317,8 @@ def get_scenarios_data(scenario_id, attr_id, type_id, node_ids=None, link_ids=No
 
         for rs in resource_data:
             try:
-                rs.dataset.value = zlib.decompress(rs.dataset.value)
+                rs.dataset.value = get_dataset_value(rs.dataset)
+                rs.dataset.value_blob = None
             except TypeError:
                 pass
 
