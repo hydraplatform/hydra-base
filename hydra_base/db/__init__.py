@@ -100,8 +100,13 @@ def connect(db_url=None):
 
     db_pool_size = config.get('mysqld', 'pool_size', 5)
     db_max_overflow = config.get('mysqld', 'max_overflow', 10)
+    ssl_ca = config.get('mysqld', 'ssl_ca', False)
+    connect_args = {}
+    if ssl_ca:
+        connect_args['ssl'] = {'ssl_ca': ssl_ca}
     engine = create_engine(db_url,
                            encoding='utf8',
+                           connect_args=connect_args,
                            pool_size=int(db_pool_size),
                            max_overflow=int(db_max_overflow))
 
