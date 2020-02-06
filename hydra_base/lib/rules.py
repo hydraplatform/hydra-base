@@ -32,7 +32,7 @@ def _get_rule(rule_id, user_id, check_write=False):
 
     #lazy load owners
     rule_i.owners
-    
+
     #lazy load types
     rule_i.types
 
@@ -86,7 +86,7 @@ def get_resource_rules(ref_key, ref_id, scenario_id=None, **kwargs):
         rule_qry = rule_qry.filter(Rule.scenario_id==scenario_id)
 
     rules = rule_qry.all()
-    
+
     #lazy load types
     for r in rules:
         r.types
@@ -115,7 +115,7 @@ def get_rules_of_type(typecode, scenario_id=None, **kwargs):
 
     if scenario_id is not None:
         rule_qry = rule_qry.filter(Rule.scenario_id==scenario_id)
-    
+
     rules = rule_qry.all()
 
     return rules
@@ -163,7 +163,7 @@ def remove_rule_owner(rule_id, rule_user_id, **kwargs):
     rule_i.check_write_permissions(user_id)
 
     rule_i.unset_owner(rule_user_id)
-   
+
 @required_perms("view_network", "view_rules")
 def get_rule(rule_id, **kwargs):
     """
@@ -229,7 +229,7 @@ def update_rule(rule, **kwargs):
     """
 
     user_id = kwargs.get('user_id')
-    
+
     rule_i = _get_rule(rule.id, user_id, check_write=True)
 
     rule_i.ref_key = rule.ref_key
@@ -270,7 +270,7 @@ def set_rule_type(rule_id, typecode, **kwargs):
     user_id = kwargs.get('user_id')
 
     rule_i = _get_rule(rule_id, user_id, check_write=True)
-    
+
     ruletypelink = RuleTypeLink()
     ruletypelink.code = typecode
 
@@ -278,7 +278,7 @@ def set_rule_type(rule_id, typecode, **kwargs):
 
     db.DBSession.flush()
 
-    return rule_i 
+    return rule_i
 
 @required_perms("edit_network", "view_rules", "add_rules")
 def clone_resource_rules(ref_key, ref_id, target_ref_key=None, target_ref_id=None, scenario_id_map={}, **kwargs):
@@ -301,8 +301,8 @@ def clone_resource_rules(ref_key, ref_id, target_ref_key=None, target_ref_id=Non
 
     resource_rules = get_resource_rules(ref_key, ref_id, user_id=user_id)
 
-    cloned_rules = [] 
-    
+    cloned_rules = []
+
     for rule in resource_rules:
         cloned_rules.append(clone_rule(rule.id,
                    target_ref_key=target_ref_key,
@@ -323,7 +323,7 @@ def clone_rule(rule_id, target_ref_key=None, target_ref_id=None, scenario_id_map
             target_ref_id (int): If the rule is to be cloned into a different resources, specify the resource ID.
             scenario_id_map (dict): If the old rule is specified in a scenario, then provide a dictionary mapping from the old scenario ID to the new one, like {123 : 456}
         Cloning will only occur into a different resource if both ref_key AND ref_id are provided. Otherwise it will
-        maintain its original ref_key and ref_id. 
+        maintain its original ref_key and ref_id.
 
         return:
             SQLAlchemy ORM object
@@ -339,9 +339,9 @@ def clone_rule(rule_id, target_ref_key=None, target_ref_id=None, scenario_id_map
 
     #lazy load owners
     rule_i.owners
-    
+
     rule_j = JSONObject(rule_i)
-     
+
     #Unset the reference ID for the rule in case the target resource type
     #has changed, then apply the new ref_key and ref_id
     if target_ref_key is not None and target_ref_id is not None:
@@ -349,20 +349,20 @@ def clone_rule(rule_id, target_ref_key=None, target_ref_id=None, scenario_id_map
         rule_j.node_id    = None
         rule_j.link_id    = None
         rule_j.group_id   = None
-        rule_j.ref_key    = target_ref_key 
+        rule_j.ref_key    = target_ref_key
         if target_ref_key == 'NODE':
-            rule_j.node_id = target_ref_id 
+            rule_j.node_id = target_ref_id
         elif target_ref_key == 'LINK':
-            rule_j.link_id = target_ref_id 
+            rule_j.link_id = target_ref_id
         elif target_ref_key == 'GROUP':
-            rule_j.group_id = target_ref_id 
+            rule_j.group_id = target_ref_id
         elif target_ref_key == 'NETWORK':
-            rule_j.network_id = target_ref_id 
-       
+            rule_j.network_id = target_ref_id
+
         #this should only be done if theres a possibility that this is being cloned
         #to a new network -- the most likely scenario.
         rule_j.scenario_id = scenario_id_map.get(rule_i.scenario_id)
-    
+
     #This is a blunt way of dealing with a situation where a rule is being cloned
     #into a new network, but it has a scenario ID pointing to the original. We must
     #ensure that there is no cross-network inconsistency, so simply make the rule non-scenario specific.
@@ -399,7 +399,7 @@ def activate_rule(rule_id, **kwargs):
         returns:
             None
     """
-    
+
     user_id = kwargs.get('user_id')
     rule_i = _get_rule(rule_id, user_id, check_write=True)
 
@@ -417,7 +417,7 @@ def purge_rule(rule_id, **kwargs):
             None
     """
     user_id = kwargs.get('user_id')
-    
+
     rule_i = _get_rule(rule_id, user_id, check_write=True)
 
     db.DBSession.delete(rule_i)
@@ -436,17 +436,22 @@ def add_rule_type_definition(ruletypedefinition, **kwargs):
         Returns:
             ruletype_i (SQLAlchemy ORM Object) new rule type from DB
     """
-
     rule_type_i = RuleTypeDefinition()
 
     rule_type_i.code = ruletypedefinition.code
     rule_type_i.name = ruletypedefinition.name
 
-    db.DBSession.add(rule_type_i)
+    existing_rtd = db.DBSession.query(RuleTypeDefinition).filter(
+                    RuleTypeDefinition.code == ruletypedefinition.code).first()
 
-    db.DBSession.flush()
+    if existing_rtd is None:
+        db.DBSession.add(rule_type_i)
 
-    return rule_type_i
+        db.DBSession.flush()
+
+        return rule_type_i
+    else:
+        return existing_rtd
 
 @required_perms("edit_network", "view_rules")
 def get_rule_type_definitions(**kwargs):
@@ -472,7 +477,7 @@ def get_rule_type_definition(typecode,**kwargs):
         raises:
             ResourceNotFoundError if the rule type definintion code does not exist
     """
-    try: 
+    try:
         rule_type_definition_i = db.DBSession.query(RuleTypeDefinition).filter(RuleTypeDefinition.code==typecode).one()
     except NoResultFound:
         raise ResourceNotFoundError("Rule Type Definition {0} not found".format(typecode))
@@ -482,12 +487,12 @@ def get_rule_type_definition(typecode,**kwargs):
 @required_perms("edit_network", "update_rules")
 def purge_rule_type_definition(typecode, **kwargs):
     """
-        Delete a rule type from the DB. Doing this will revert all existing rules to 
+        Delete a rule type from the DB. Doing this will revert all existing rules to
         having no type (rather than deleting them)
         args:
             typecode: Type definitions do not used IDs, rather codes. This is to code to purge
         returns:
-             None   
+             None
         raises:
             ResourceNotFoundError if the rule type definintion code does not exist
     """
@@ -497,6 +502,5 @@ def purge_rule_type_definition(typecode, **kwargs):
         raise ResourceNotFoundError("Rule Type {0} not found.".format(typecode))
 
     db.DBSession.delete(rule_type_definition_i)
-    
-    db.DBSession.flush()
 
+    db.DBSession.flush()
