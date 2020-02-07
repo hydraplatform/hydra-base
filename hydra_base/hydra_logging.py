@@ -25,8 +25,8 @@ import ctypes
 import inspect
 
 def init(level=None):
- #   if level is None:
- #       level = config.get('DEFAULT', 'log_level')
+    if level is None:
+        level = config.get('DEFAULT', 'log_level')
 
  #   if os.name == "nt":
  #       logging.addLevelName( logging.INFO, logging.getLevelName(logging.INFO))
@@ -110,7 +110,7 @@ def init(level=None):
         'loggers': {
             '': {
                 'handlers': ['default'],
-                'level': 'INFO',
+                'level': level or 'INFO',
                 'propagate': True
             },
         }
