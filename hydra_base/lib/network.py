@@ -764,7 +764,7 @@ def _get_all_group_items(network_id):
     for item in all_items:
 
         items = item_dict.get(item.scenario_id, [])
-        items.append(item)
+        items.append(JSONObject(item))
         item_dict[item.scenario_id] = items
 
     logging.info("items processed in %s", time.time()-x)
