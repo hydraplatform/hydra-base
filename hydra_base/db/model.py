@@ -514,6 +514,7 @@ class Template(Base, Inspect):
     name = Column(String(200),  nullable=False, unique=True)
     description = Column(String(1000))
     created_by = Column(Integer(), ForeignKey('tUser.id'))
+    project_id = Column(Integer(), ForeignKey('tProject.id', ondelete='CASCADE'))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     layout  = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
 
