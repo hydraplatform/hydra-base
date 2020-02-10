@@ -65,7 +65,7 @@ def _add_project_attribute_data(project_i, attr_map, attribute_data):
         resource_scenarios.append(rscen)
     return resource_scenarios
 
-@required_perms('add_project')
+# @required_perms('add_project')
 def add_project(project,**kwargs):
     """
         Add a new project
