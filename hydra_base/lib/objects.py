@@ -79,8 +79,17 @@ class JSONObject(dict):
                 dict_layout = get_layout_as_dict(v)
                 setattr(self, k, dict_layout)
             elif k == 'owners':
-                owners_objs = [JSONObject(o) for o in v]
+                owners_objs = []
+                for owner in v:
+                    if isinstance(owner, dict):
+                        owners_objs.append(owner)
+                    else:
+                        owner.user # lazyload user
+                        owners_objs.append(JSONObject(owner))
                 setattr(self, k, owners_objs)
+            elif k == 'user':
+                user = JSONObject(dict(id=v.id, username=v.username, display_name=v.display_name))
+                setattr(self, k, user)
             elif isinstance(v, dict):
                 #TODO what is a better way to identify a dataset?
                 if 'unit_id' in v or 'unit' in v or 'metadata' in v or 'type' in v:
