@@ -129,7 +129,6 @@ def load_config():
 
     read_values_from_environment(config, 'mysqld', 'url')
 
-
     CONFIG = config
 
     return config
@@ -138,7 +137,7 @@ def read_values_from_environment(config, section_key, options_key):
     #####################################
     # Settings for docker ENV variables #
     #####################################
-    env_var_name='HYDRA_DOCKER__' + section_key + '__' + options_key
+    env_var_name='HYDRA_{}_{}'.format(section_key.upper(), options_key.upper())
 
     env_value = os.environ.get(env_var_name, '-')
     if (env_value != '-'):
