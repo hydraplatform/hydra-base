@@ -126,7 +126,7 @@ def load_config():
         hydra_base = os.environ.get('HYDRA_BASE_DIR', modulepath)
     config.set('DEFAULT', 'hydra_base_dir', os.path.expanduser(hydra_base))
 
-    read_values_from_environment(config, 'mysqld', 'server_name')
+    read_values_from_environment(config, 'mysqld', 'url')
 
 
     CONFIG = config
