@@ -106,6 +106,7 @@ def load_config():
     env_value = os.environ.get('HYDRA_CONFIG')
     if env_value is not None:
         if os.path.exists(env_value):
+            logging.info("Setting config from {}".format(env_value))
             config.read(env_value)
         else:
             logging.warning('HYDRA_CONFIG set as %s but file does not exist', env_value)
