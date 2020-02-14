@@ -131,7 +131,15 @@ def load_config():
         hydra_base = os.environ.get('HYDRA_BASE_DIR', modulepath)
     config.set('DEFAULT', 'hydra_base_dir', os.path.expanduser(hydra_base))
 
-    read_values_from_environment(config, 'mysqld', 'url')
+    # read_values_from_environment(config, 'mysqld', 'url')
+    for k, v in os.environ.items():
+        parts = k.split('__')
+        if len(parts) == 3 and parts[0] == 'HYDRA':
+            section_key = parts[1]
+            if section_key != 'DEFAULT':
+                section_key = section_key.lower()
+            options_key = parts[2].lower()
+            config.set(section_key, options_key, v)
 
     CONFIG = config
 
