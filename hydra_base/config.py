@@ -104,7 +104,6 @@ def load_config():
         config.read(ini_file)
 
     env_value = os.environ.get('HYDRA_CONFIG')
-    print('HYDRA_CONFIG: {}'.format(env_value))
     if env_value is not None:
         if os.path.isabs(env_value):
             config_path = env_value
@@ -132,12 +131,15 @@ def load_config():
         hydra_base = os.environ.get('HYDRA_BASE_DIR', modulepath)
     config.set('DEFAULT', 'hydra_base_dir', os.path.expanduser(hydra_base))
 
-    # read_values_from_environment(config, 'mysqld', 'url')
+    # read values from environment using pattern HYDRA__section_key__options_key (case insensitive)
+    # i.e., all hydra.ini settings can be set via environment variables
     for k, v in os.environ.items():
         parts = k.split('__')
         if len(parts) == 3 and parts[0] == 'HYDRA':
             section_key = parts[1]
-            if section_key != 'DEFAULT':
+            if section_key.lower() == 'default':
+                section_key = section_key.upper()
+            else:
                 section_key = section_key.lower()
             options_key = parts[2].lower()
             config.set(section_key, options_key, v)
@@ -145,18 +147,6 @@ def load_config():
     CONFIG = config
 
     return config
-
-def read_values_from_environment(config, section_key, options_key):
-    #####################################
-    # Settings for docker ENV variables #
-    #####################################
-    env_var_name='HYDRA_{}_{}'.format(section_key.upper(), options_key.upper())
-
-    env_value = os.environ.get(env_var_name, '-')
-    if (env_value != '-'):
-        # Substitute the server_name with the end variable
-        # print("Presente")
-        config.set(section_key, options_key, env_value)
 
 
 def set_windows_env_variables(config):
