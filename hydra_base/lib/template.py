@@ -1543,7 +1543,7 @@ def get_templates(load_all=True, template_ids=None, project_id=None, **kwargs):
     tpl_query = db.DBSession.query(Template)
     if project_id:
         tpl_query = tpl_query.filter(Template.project_id == project_id)
-    elif template_ids:
+    elif template_ids is not None:
         tpl_query = tpl_query.filter(Template.id.in_(template_ids))
 
     if load_all is False:
