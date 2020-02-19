@@ -1454,6 +1454,8 @@ def add_template(template, **kwargs):
         tmpl.description = template.description
     if template.layout:
         tmpl.layout = get_layout_as_string(template.layout)
+    if template.project_id:
+        tmpl.project_id = template.project_id
 
     db.DBSession.add(tmpl)
 
