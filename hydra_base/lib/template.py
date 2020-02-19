@@ -1468,7 +1468,10 @@ def add_template(template, **kwargs):
     tmpl.set_owner(user_id)
 
     db.DBSession.flush()
-    return tmpl
+
+    ret_tmpl = get_template(tmpl.id)
+
+    return ret_tmpl
 
 
 def update_template(template, update_types='Y', **kwargs):
