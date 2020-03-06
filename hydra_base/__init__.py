@@ -65,3 +65,4 @@ from .lib.template import *
 from .lib.units import *
 from .lib.users import *
 from .lib.service import *
+from .lib.usergroups import *

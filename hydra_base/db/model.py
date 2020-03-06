@@ -1867,38 +1867,62 @@ class RoleUser(Base, Inspect):
     """
     """
 
-    __tablename__='tRoleUser'
+    __tablename__= 'tRoleUser'
 
     user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
     role_id = Column(Integer(), ForeignKey('tRole.id'), primary_key=True, nullable=False)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     user = relationship('User', lazy='joined')
     role = relationship('Role', lazy='joined')
 
-    _parents  = ['tRole', 'tUser']
+    _parents = ['tRole', 'tUser']
     _children = []
 
     def __repr__(self):
         return "{0}".format(self.role.name)
 
+class RoleUserGroup(Base, Inspect):
+    """
+    The role asigned to a user within the context of a user group
+    ex: a user can be an admin in a user group, enabling them to create groups,
+    see networks etc, but only in the context of that group.
+    The user must be in the UserGroupMember table
+    """
+
+    __tablename__= 'tRoleUserGroup'
+
+    usergroup_id = Column(Integer(), ForeignKey('tUserGroup.id'), primary_key=True, nullable=False)
+    user_id = Column(Integer(), ForeignKey('tUserGroupMember.id'), primary_key=True, nullable=False)
+    role_id = Column(Integer(), ForeignKey('tRole.id'), primary_key=True, nullable=False)
+    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+
+    usergroup = relationship('UserGroup', lazy='joined')
+    role = relationship('Role', lazy='joined')
+    user = relationship('UserGroupMember', lazy='joined')
+
+    _parents = ['tRole',  'tUserGroup', 'tUserGroupMember']
+    _children = []
+
+    def __repr__(self):
+        return "{0}".format(self.role.name)
 
 class User(Base, Inspect):
     """
     """
 
-    __tablename__='tUser'
+    __tablename__= 'tUser'
 
     id = Column(Integer(), primary_key=True, nullable=False)
     username = Column(String(60),  nullable=False, unique=True)
-    password = Column(LargeBinary(),  nullable=False)
-    display_name = Column(String(200),  nullable=False, server_default=text(u"''"))
+    password = Column(LargeBinary(), nullable=False)
+    display_name = Column(String(200), nullable=False, server_default=text(u"''"))
     last_login = Column(TIMESTAMP())
     last_edit = Column(TIMESTAMP())
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     roleusers = relationship('RoleUser', lazy='joined')
 
-    _parents  = []
+    _parents = []
     _children = ['tRoleUser']
 
     def validate_password(self, password):
@@ -1935,6 +1959,67 @@ class User(Base, Inspect):
     def __repr__(self):
         return "{0}".format(self.username)
 
+
+class UserGroupType(AuditMixin, Base, Inspect):
+    """
+        The definition of a type of user group.
+        Examples could include: 'organisation', 'department', 'team'
+    """
+
+    id = Column(Integer(), primary_key=True, nullable=False)
+    name = Column(String(200), primary_key=True, nullable=False)
+
+    def __repr__(self):
+        return "User Group {0} (id={1})".format(self.name, self.id)
+
+
+class UserGroup(AuditMixin, Base, Inspect):
+    """
+    """
+    __tablename__ = 'tUserGroup'
+
+    id = Column(Integer(), primary_key=True, nullable=False)
+    name = Column(String(200), primary_key=True, nullable=False)
+    type_id = Column(Integer(), primary_key=True, nullable=False)
+    parent_id = Column(Integer(), ForeignKey('tUserGroup.id'), nullable=True)
+
+    grouptype = relationship('UserGroupType', lazy='joined',
+                             backref=backref("groups",
+                                             uselist=True,
+                                             order_by="id",
+                                             cascade="all, delete-orphan"))
+
+    parent = relationship('UserGroup', lazy='joined', remote_side=[id],
+                          backref=backref("groups",
+                                          uselist=True,
+                                          order_by="id",
+                                          cascade="all, delete-orphan"))
+
+    _parents = []
+    _children = ['tRoleUserGroup']
+
+    def __repr__(self):
+        return "{0}".format(self.name)
+
+class UserGroupMember(AuditMixin, Base, Inspect):
+    """
+    """
+
+    __tablename__ = 'tUserGroupUser'
+
+    usergroup_id = Column(Integer(), primary_key=True, nullable=False)
+    user_id = Column(Integer(), primary_key=True, nullable=False)
+
+    group = relationship('UserGroup', lazy='joined',
+                         backref=backref("users",
+                                         uselist=True,
+                                         order_by="id",
+                                         cascade="all, delete-orphan"))
+    _parents = ['tUserGroup']
+    _children = ['tRoleUserGroup']
+
+    def __repr__(self):
+        return "{0} : {1}".format(self.group_id, self.user_id)
 
 class Unit(Base, Inspect):
     """
