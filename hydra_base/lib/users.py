@@ -20,8 +20,9 @@
 from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm.exc import NoResultFound
 
-from ..db.model import User, Role, Perm, RoleUser, RolePerm
-from .. import db
+from hydra_base.db.model import User, Role, Perm, RoleUser, RolePerm
+from hydra_base import db
+from hydra_base.util.permissions import required_perms
 
 import bcrypt
 
@@ -80,7 +81,7 @@ def get_usernames_like(username,**kwargs):
     rs = db.DBSession.query(User.username).filter(User.username.like(checkname)).all()
     return [r.username for r in rs]
 
-
+@required_perms('add_user')
 def add_user(user, **kwargs):
     """
         Add a user
@@ -105,6 +106,7 @@ def add_user(user, **kwargs):
 
     return u
 
+@required_perms('update_user')
 def update_user_display_name(user,**kwargs):
     """
         Update a user's display name
@@ -117,6 +119,7 @@ def update_user_display_name(user,**kwargs):
     except NoResultFound:
         raise ResourceNotFoundError("User (id=%s) not found"%(user.id))
 
+@required_perms('update_user')
 def update_user_password(new_pwd_user_id, new_password,**kwargs):
     """
         Update a user's password
@@ -160,6 +163,7 @@ def get_user_by_id(uid,**kwargs):
     except NoResultFound:
         return None
 
+@required_perms('update_user')
 def delete_user(deleted_user_id,**kwargs):
     """
         Delete a user

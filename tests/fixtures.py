@@ -191,3 +191,19 @@ def attributegroupmaker():
 @pytest.fixture()
 def new_dataset():
     return util.create_dataset()
+
+@pytest.fixture()
+def usergroupmaker():
+    class usergroupmaker:
+        def create(self, client, name=None):
+            if name is None:
+                name = 'User Group %s' % (datetime.datetime.now())
+            return client.add_usergroup(name=name)
+
+@pytest.fixture()
+def grouptypemaker():
+    class grouptypemaker:
+        def create(self, name=None):
+            if name is None:
+                name = 'Group Type %s' % (datetime.datetime.now())
+            return client.add_usergrouptype(name=name)
