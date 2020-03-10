@@ -70,165 +70,7 @@ try:
 except NameError:
     basestring = str
 
-
-def get_timestamp(ordinal):
-    """
-        Turn an ordinal timestamp into a datetime string.
-    """
-    if ordinal is None:
-        return None
-    timestamp = str(ordinal_to_timestamp(ordinal))
-    return timestamp
-
-def get_user_id_from_engine(ctx):
-    """
-        The session will have a user ID bound to it when checking for the permission.
-    """
-    if hasattr(get_session(), 'user_id'):
-        return get_session().user_id
-    else:
-        return None
-
-#***************************************************
-#Data
-#***************************************************
-
-def _is_admin(user_id):
-    """
-        Is the specified user an admin
-    """
-
-    user = get_session().query(User).filter(User.id==user_id).one()
-
-    if user.is_admin():
-        return True
-    else:
-        return False
-
-
-class Inspect(object):
-    _parents = []
-    _children = []
-
-    def get_columns_and_relationships(self):
-        return inspect(self).attrs.keys()
-
-class AuditMixin(object):
-
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-
-    @declared_attr
-    def created_by(cls):
-        return Column(Integer, ForeignKey('tUser.id'), default=get_user_id_from_engine)
-
-    @declared_attr
-    def updated_by(cls):
-        return Column(Integer, ForeignKey('tUser.id'), onupdate=get_user_id_from_engine)
-
-    updated_at = Column(DateTime,  nullable=False, default=datetime.datetime.utcnow(), onupdate=datetime.datetime.utcnow())
-
-class PermissionControlled(object):
-    def set_owner(self, user_id, read='Y', write='Y', share='Y'):
-        owner = None
-        for o in self.owners:
-            if user_id == o.user_id:
-                owner = o
-                break
-        else:
-            owner = self.__ownerclass__()
-            setattr(owner, self.__ownerfk__,  self.id)
-            owner.user_id = int(user_id)
-            self.owners.append(owner)
-
-        owner.view  = read
-        owner.edit  = write
-        owner.share = share
-        return owner
-
-    def unset_owner(self, user_id):
-        owner = None
-        if str(user_id) == str(self.created_by):
-            log.warning("Cannot unset %s as owner, as they created the dataset", user_id)
-            return
-        for o in self.owners:
-            if user_id == o.user_id:
-                owner = o
-                get_session().delete(owner)
-                break
-
-    def _is_open(self):
-        """
-            Check to see whether this entity is visible globally, without any
-            need for permission checking
-        """
-        pass
-
-    def check_read_permission(self, user_id, do_raise=True):
-        """
-            Check whether this user can read this dataset
-        """
-        if _is_admin(user_id):
-            return True
-
-        if str(user_id) == str(self.created_by):
-            return True
-
-        #Check if this entity is publicly open, therefore no need to check permissions.
-        if self._is_open() == True:
-            return True
-
-        for owner in self.owners:
-            if int(owner.user_id) == int(user_id):
-                if owner.view == 'Y':
-                    break
-        else:
-            if do_raise is True:
-                raise PermissionError("Permission denied. User %s does not have read"
-                             " access on dataset %s" %
-                             (user_id, self.id))
-            else:
-                return False
-
-        return True
-
-    def check_write_permission(self, user_id, do_raise=True):
-        """
-            Check whether this user can write this dataset
-        """
-        if _is_admin(user_id):
-            return True
-
-        for owner in self.owners:
-            if owner.user_id == int(user_id):
-                if owner.view == 'Y' and owner.edit == 'Y':
-                    break
-        else:
-            if do_raise is True:
-                raise PermissionError("Permission denied. User %s does not have edit"
-                             " access on dataset %s" %
-                             (user_id, self.id))
-            else:
-                return False
-
-        return True
-
-    def check_share_permission(self, user_id):
-        """
-            Check whether this user can write this dataset
-        """
-
-        if _is_admin(user_id):
-            return
-
-        for owner in self.owners:
-            if owner.user_id == int(user_id):
-                if owner.view == 'Y' and owner.share == 'Y':
-                    break
-        else:
-            raise PermissionError("Permission denied. User %s does not have share"
-                             " access on dataset %s" %
-                             (user_id, self.id))
-
+from .models.common import *
 
 #***************************************************
 # Classes definition
@@ -726,11 +568,53 @@ class ResourceType(Base, Inspect):
         elif ref_key == 'GROUP':
             return self.group_id
 
+
+#***************************************************
+#Ownership & Permissions
+#***************************************************
+class ProjectOwner(Base, Inspect):
+    """
+    """
+
+    __tablename__='tProjectOwner'
+
+    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
+    project_id = Column(Integer(), ForeignKey('tProject.id'), primary_key=True, nullable=False)
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    view = Column(String(1),  nullable=False)
+    edit = Column(String(1),  nullable=False)
+    share = Column(String(1),  nullable=False)
+
+    user = relationship('User')
+    project = relationship('Project', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
+
+    _parents  = ['tProject', 'tUser']
+    _children = []
+
+class NetworkOwner(Base, Inspect):
+    """
+    """
+
+    __tablename__='tNetworkOwner'
+
+    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
+    network_id = Column(Integer(), ForeignKey('tNetwork.id'), primary_key=True, nullable=False)
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    view = Column(String(1),  nullable=False)
+    edit = Column(String(1),  nullable=False)
+    share = Column(String(1),  nullable=False)
+
+    user = relationship('User')
+    network = relationship('Network', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
+
+    _parents  = ['tNetwork', 'tUser']
+    _children = []
+
 #*****************************************************
 # Topology & Scenarios
 #*****************************************************
 
-class Project(Base, Inspect):
+class Project(Base, Inspect, PermissionControlled):
     """
     """
 
@@ -743,6 +627,8 @@ class Project(Base, Inspect):
     )
 
     attribute_data = []
+    __ownerclass__ = ProjectOwner
+    __ownerfk__    = 'project_id'
 
     id = Column(Integer(), primary_key=True, nullable=False)
     name = Column(String(200),  nullable=False, unique=False)
@@ -774,108 +660,8 @@ class Project(Base, Inspect):
 
         return res_attr
 
-    def set_owner(self, user_id, read='Y', write='Y', share='Y'):
 
-        for o in self.owners:
-            if user_id == o.user_id:
-                owner = o
-                break
-        else:
-            owner = ProjectOwner()
-            owner.project_id = self.id
-            owner.user_id = int(user_id)
-            self.owners.append(owner)
-
-        owner.view = read
-        owner.edit = write
-        owner.share = share
-
-        return owner
-
-    def unset_owner(self, user_id):
-        owner = None
-        if str(user_id) == str(self.created_by):
-            log.warning("Cannot unset %s as owner, as they created the project", user_id)
-            return
-        for o in self.owners:
-            if user_id == o.user_id:
-                owner = o
-                get_session().delete(owner)
-                break
-
-    def check_read_permission(self, user_id, do_raise=True):
-        """
-            Check whether this user can read this project
-        """
-
-        if _is_admin(user_id):
-            return True
-
-        if str(user_id) == str(self.created_by):
-            return True
-
-        for owner in self.owners:
-            if owner.user_id == user_id:
-                if owner.view == 'Y':
-                    break
-        else:
-            if do_raise is True:
-                raise PermissionError("Permission denied. User %s does not have read"
-                             " access on project %s" %
-                             (user_id, self.id))
-            else:
-                return False
-
-        return True
-
-    def check_write_permission(self, user_id, do_raise=True):
-        """
-            Check whether this user can write this project
-        """
-
-        if _is_admin(user_id):
-            return True
-
-        if str(user_id) == str(self.created_by):
-            return True
-
-        for owner in self.owners:
-            if owner.user_id == int(user_id):
-                if owner.view == 'Y' and owner.edit == 'Y':
-                    break
-        else:
-            if do_raise is True:
-                raise PermissionError("Permission denied. User %s does not have edit"
-                             " access on project %s" %
-                             (user_id, self.id))
-            else:
-                return False
-
-        return True
-
-    def check_share_permission(self, user_id):
-        """
-            Check whether this user can write this project
-        """
-
-        if _is_admin(user_id):
-            return
-
-        if str(user_id) == str(self.created_by):
-            return
-
-        for owner in self.owners:
-            if owner.user_id == int(user_id):
-                if owner.view == 'Y' and owner.share == 'Y':
-                    break
-        else:
-            raise PermissionError("Permission denied. User %s does not have share"
-                             " access on project %s" %
-                             (user_id, self.id))
-
-
-
-class Network(Base, Inspect):
+class Network(Base, Inspect, PermissionControlled):
     """
     """
 
@@ -884,6 +670,8 @@ class Network(Base, Inspect):
         UniqueConstraint('name', 'project_id', name="unique net name"),
     )
     ref_key = 'NETWORK'
+    __ownerclass__ = NetworkOwner
+    __ownerfk__ = 'network_id'
 
     id = Column(Integer(), primary_key=True, nullable=False)
     name = Column(String(200),  nullable=False)
@@ -982,104 +770,6 @@ class Network(Base, Inspect):
 
 
         return group_i
-
-    def set_owner(self, user_id, read='Y', write='Y', share='Y'):
-        owner = None
-        for o in self.owners:
-            if str(user_id) == str(o.user_id):
-                owner = o
-                break
-        else:
-            owner = NetworkOwner()
-            owner.network_id = self.id
-            self.owners.append(owner)
-
-        owner.user_id = int(user_id)
-        owner.view  = read
-        owner.edit  = write
-        owner.share = share
-
-        return owner
-
-    def unset_owner(self, user_id):
-
-        owner = None
-        if str(user_id) == str(self.created_by):
-            log.warning("Cannot unset %s as owner, as they created the network", user_id)
-            return
-        for o in self.owners:
-            if user_id == o.user_id:
-                owner = o
-                get_session().delete(owner)
-                break
-
-    def check_read_permission(self, user_id, do_raise=True):
-        """
-            Check whether this user can read this network
-        """
-        if _is_admin(user_id):
-            return True
-
-        if int(self.created_by) == int(user_id):
-            return True
-
-        for owner in self.owners:
-            if int(owner.user_id) == int(user_id):
-                if owner.view == 'Y':
-                    break
-        else:
-            if do_raise is True:
-                raise PermissionError("Permission denied. User %s does not have read"
-                             " access on network %s" %
-                             (user_id, self.id))
-            else:
-                return False
-
-        return True
-
-    def check_write_permission(self, user_id, do_raise=True):
-        """
-            Check whether this user can write this project
-        """
-        if _is_admin(user_id):
-            return True
-
-        if int(self.created_by) == int(user_id):
-            return True
-
-        for owner in self.owners:
-            if owner.user_id == int(user_id):
-                if owner.view == 'Y' and owner.edit == 'Y':
-                    break
-        else:
-            if do_raise is True:
-                raise PermissionError("Permission denied. User %s does not have edit"
-                             " access on network %s" %
-                             (user_id, self.id))
-            else:
-                return False
-
-        return True
-
-    def check_share_permission(self, user_id):
-        """
-            Check whether this user can write this project
-        """
-
-        if _is_admin(user_id):
-            return
-
-        if int(self.created_by) == int(user_id):
-            return
-
-        for owner in self.owners:
-            if owner.user_id == int(user_id):
-                if owner.view == 'Y' and owner.share == 'Y':
-                    break
-        else:
-            raise PermissionError("Permission denied. User %s does not have share"
-                             " access on network %s" %
-                             (user_id, self.id))
 
 class Link(Base, Inspect):
     """
@@ -1761,47 +1451,6 @@ class Note(Base, Inspect, PermissionControlled):
             return self.project
 
 
-#***************************************************
-#Ownership & Permissions
-#***************************************************
-class ProjectOwner(Base, Inspect):
-    """
-    """
-
-    __tablename__='tProjectOwner'
-
-    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
-    project_id = Column(Integer(), ForeignKey('tProject.id'), primary_key=True, nullable=False)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    view = Column(String(1),  nullable=False)
-    edit = Column(String(1),  nullable=False)
-    share = Column(String(1),  nullable=False)
-
-    user = relationship('User')
-    project = relationship('Project', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
-
-    _parents  = ['tProject', 'tUser']
-    _children = []
-
-class NetworkOwner(Base, Inspect):
-    """
-    """
-
-    __tablename__='tNetworkOwner'
-
-    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
-    network_id = Column(Integer(), ForeignKey('tNetwork.id'), primary_key=True, nullable=False)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    view = Column(String(1),  nullable=False)
-    edit = Column(String(1),  nullable=False)
-    share = Column(String(1),  nullable=False)
-
-    user = relationship('User')
-    network = relationship('Network', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
-
-    _parents  = ['tNetwork', 'tUser']
-    _children = []
-
 class Perm(Base, Inspect):
     """
     """
@@ -1867,159 +1516,20 @@ class RoleUser(Base, Inspect):
     """
     """
 
-    __tablename__= 'tRoleUser'
+    __tablename__='tRoleUser'
 
     user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
     role_id = Column(Integer(), ForeignKey('tRole.id'), primary_key=True, nullable=False)
-    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     user = relationship('User', lazy='joined')
     role = relationship('Role', lazy='joined')
 
-    _parents = ['tRole', 'tUser']
+    _parents  = ['tRole', 'tUser']
     _children = []
 
     def __repr__(self):
         return "{0}".format(self.role.name)
-
-class RoleUserGroup(Base, Inspect):
-    """
-    The role asigned to a user within the context of a user group
-    ex: a user can be an admin in a user group, enabling them to create groups,
-    see networks etc, but only in the context of that group.
-    The user must be in the UserGroupMember table
-    """
-
-    __tablename__= 'tRoleUserGroup'
-
-    usergroup_id = Column(Integer(), ForeignKey('tUserGroup.id'), primary_key=True, nullable=False)
-    user_id = Column(Integer(), ForeignKey('tUserGroupMember.id'), primary_key=True, nullable=False)
-    role_id = Column(Integer(), ForeignKey('tRole.id'), primary_key=True, nullable=False)
-    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-
-    usergroup = relationship('UserGroup', lazy='joined')
-    role = relationship('Role', lazy='joined')
-    user = relationship('UserGroupMember', lazy='joined')
-
-    _parents = ['tRole',  'tUserGroup', 'tUserGroupMember']
-    _children = []
-
-    def __repr__(self):
-        return "{0}".format(self.role.name)
-
-class User(Base, Inspect):
-    """
-    """
-
-    __tablename__= 'tUser'
-
-    id = Column(Integer(), primary_key=True, nullable=False)
-    username = Column(String(60),  nullable=False, unique=True)
-    password = Column(LargeBinary(), nullable=False)
-    display_name = Column(String(200), nullable=False, server_default=text(u"''"))
-    last_login = Column(TIMESTAMP())
-    last_edit = Column(TIMESTAMP())
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    roleusers = relationship('RoleUser', lazy='joined')
-
-    _parents = []
-    _children = ['tRoleUser']
-
-    def validate_password(self, password):
-        if bcrypt.hashpw(password.encode('utf-8'), self.password.encode('utf-8')) == self.password.encode('utf-8'):
-            return True
-        return False
-
-    @property
-    def permissions(self):
-        """Return a set with all permissions granted to the user."""
-        perms = set()
-        for r in self.roles:
-            perms = perms | set(r.permissions)
-        return perms
-
-    @property
-    def roles(self):
-        """Return a set with all roles granted to the user."""
-        roles = []
-        for ur in self.roleusers:
-            roles.append(ur.role)
-        return set(roles)
-
-    def is_admin(self):
-        """
-            Check that the user has a role with the code 'admin'
-        """
-        for ur in self.roleusers:
-            if ur.role.code == 'admin':
-                return True
-
-        return False
-
-    def __repr__(self):
-        return "{0}".format(self.username)
-
-
-class UserGroupType(AuditMixin, Base, Inspect):
-    """
-        The definition of a type of user group.
-        Examples could include: 'organisation', 'department', 'team'
-    """
-
-    id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(200), primary_key=True, nullable=False)
-
-    def __repr__(self):
-        return "User Group {0} (id={1})".format(self.name, self.id)
-
-
-class UserGroup(AuditMixin, Base, Inspect):
-    """
-    """
-    __tablename__ = 'tUserGroup'
-
-    id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(200), primary_key=True, nullable=False)
-    type_id = Column(Integer(), primary_key=True, nullable=False)
-    parent_id = Column(Integer(), ForeignKey('tUserGroup.id'), nullable=True)
-
-    grouptype = relationship('UserGroupType', lazy='joined',
-                             backref=backref("groups",
-                                             uselist=True,
-                                             order_by="id",
-                                             cascade="all, delete-orphan"))
-
-    parent = relationship('UserGroup', lazy='joined', remote_side=[id],
-                          backref=backref("groups",
-                                          uselist=True,
-                                          order_by="id",
-                                          cascade="all, delete-orphan"))
-
-    _parents = []
-    _children = ['tRoleUserGroup']
-
-    def __repr__(self):
-        return "{0}".format(self.name)
-
-class UserGroupMember(AuditMixin, Base, Inspect):
-    """
-    """
-
-    __tablename__ = 'tUserGroupUser'
-
-    usergroup_id = Column(Integer(), primary_key=True, nullable=False)
-    user_id = Column(Integer(), primary_key=True, nullable=False)
-
-    group = relationship('UserGroup', lazy='joined',
-                         backref=backref("users",
-                                         uselist=True,
-                                         order_by="id",
-                                         cascade="all, delete-orphan"))
-    _parents = ['tUserGroup']
-    _children = ['tRoleUserGroup']
-
-    def __repr__(self):
-        return "{0} : {1}".format(self.group_id, self.user_id)
 
 class Unit(Base, Inspect):
     """
@@ -2134,3 +1644,7 @@ def create_resourcedata_view():
         Dataset.value]).where(ResourceScenario.resource_attr_id==ResourceAttr.attr_id).where(ResourceAttr.attr_id==Attr.id).where(ResourceScenario.dataset_id==Dataset.id)
 
     stuff_view = view("vResourceData", Base.metadata, view_qry)
+"""
+    Import all models defined in the new models submodule
+"""
+from .models import *

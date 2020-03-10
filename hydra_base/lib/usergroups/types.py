@@ -1,11 +1,14 @@
 import logging
-from models import UserGroup, UserGroupType, UserGroupMember, UserGroupRole
+from hydra_base.db.models import UserGroup, UserGroupType, UserGroupMember, GroupRoleUser
 from hydra_base import db
+from hydra_base.lib.objects import JSONObject
 from sqlalchemy.orm.exc import NoResultFound
 from hydra_base.exceptions import HydraError, ResourceNotFoundError
 from hydra_base.util.permissions import required_perms, required_role
 
 LOG = logging.getLogger('hydra_usergroups')
+
+IGNORE_COLUMNS = ['updated_at', 'updated_by', 'cr_date']
 
 def _get_usergroup_type(id, user_id, write=False):
     """
@@ -32,6 +35,27 @@ def _get_usergroup_type(id, user_id, write=False):
 
     return grouptype_i
 
+@required_role('admin')
+def get_usergrouptype(usergrouptypeid, **kwargs):
+    """
+    Get a usergroup types.
+    args:
+        usergrouptypeid (JSONObject): The name of the type
+    returns:
+        hydra_base.JSONObject representing the new usergroup type
+    thows:
+        HydraError if a group with this name already exists
+    """
+    LOG.info("Getting user group type [ %s ]", usergrouptypeid)
+
+    user_id = kwargs.get('user_id')
+
+    usergrouptype_i = _get_usergroup_type(usergrouptypeid, user_id, write=True)
+
+    LOG.info("Retrieved group type [ %s ] updated", usergrouptypeid)
+
+    return JSONObject(usergrouptype_i)
+
 #This role could be within the scope of a group, and not a global fole
 @required_role('admin')
 def add_usergrouptype(usergrouptype, **kwargs):
@@ -51,11 +75,15 @@ def add_usergrouptype(usergrouptype, **kwargs):
     #containing the correct attributes and values.
     for name, value in usergrouptype.items():
         LOG.debug("[Usergrouptype]: Setting %s : %s", name, value)
-        setattr(usergrouptype_i, name, value)
+        if name not in IGNORE_COLUMNS:
+            setattr(usergrouptype_i, name, value)
 
     db.DBSession.add(usergrouptype_i)
     db.DBSession.flush()
+    #load any defaulted columns (like cr_date)
+    db.DBSession.refresh(usergrouptype_i)
     LOG.info("Usergroup type %s added with ID %s", usergrouptype.name, usergrouptype_i.id)
+    return usergrouptype_i
 
 @required_role('admin')
 def update_usergrouptype(usergrouptype, **kwargs):
@@ -72,18 +100,21 @@ def update_usergrouptype(usergrouptype, **kwargs):
 
     user_id = kwargs.get('user_id')
 
-    usergrouptype_i = _get_usergroup_type(usergrouptype, user_id, write=True)
+    usergrouptype_i = _get_usergroup_type(usergrouptype.id, user_id, write=True)
 
     #this is a general way to set the attributes of an ORM object without having
     #to revisit it every time a new column is added. It relies on the JSONObjects
     #containing the correct attributes and values.
     for name, value in usergrouptype.items():
-        LOG.debug("[Usergrouptype]: Setting %s : %s", name, value)
-        setattr(usergrouptype_i, name, value)
+        LOG.info("[Usergrouptype]: Setting %s : %s", name, value)
+        if name not in IGNORE_COLUMNS:
+            setattr(usergrouptype_i, name, value)
 
     db.DBSession.flush()
 
     LOG.info("User group type [ %s ] updated", usergrouptype.id)
+
+    return usergrouptype_i
 
 @required_role('admin')
 def delete_usergrouptype(type_id, **kwargs):

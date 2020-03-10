@@ -63,7 +63,7 @@ def required_perms(*req_perms):
             #bind this here so that the 'updated by' columns can be updated
             #automatically in the DB, in order to ensure correct auditing
             db.DBSession.user_id = user_id
-            
+
             for perm in req_perms:
                 check_perm(user_id, perm)
 
@@ -74,7 +74,7 @@ def required_perms(*req_perms):
 
 def required_role(req_role):
     """
-       Decorator applied to functions requiring caller to possess the specified role 
+       Decorator applied to functions requiring caller to possess the specified role
     """
     def dec_wrapper(wfunc):
         @wraps(wfunc)

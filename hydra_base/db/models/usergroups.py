@@ -32,16 +32,17 @@ Unicode
 
 from sqlalchemy.orm import relationship, backref
 
-from hydra_base.db.models import AuditMixin, Base, Inspect
+from .common import AuditMixin, Base, Inspect, PermissionControlled
 
-class UserGroupType(AuditMixin, Base, Inspect):
+class UserGroupType(AuditMixin, Base, Inspect, PermissionControlled):
     """
         The definition of a type of user group.
         Examples could include: 'organisation', 'department', 'team'
     """
+    __tablename__ = 'tUserGroupType'
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(200), primary_key=True, nullable=False)
+    name = Column(String(200), unique=True, nullable=False)
 
     def __repr__(self):
         return "User Group {0} (id={1})".format(self.name, self.id)
@@ -52,21 +53,21 @@ class UserGroup(AuditMixin, Base, Inspect):
     """
     __tablename__ = 'tUserGroup'
 
-    id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(200), primary_key=True, nullable=False)
-    type_id = Column(Integer(), primary_key=True, nullable=False)
+    id = Column(Integer(), primary_key=True, index=True, nullable=False)
+    name = Column(String(200), nullable=False)
+    type_id = Column(Integer(), ForeignKey('tUserGroupType.id'), nullable=False)
     parent_id = Column(Integer(), ForeignKey('tUserGroup.id'), nullable=True)
 
     grouptype = relationship('UserGroupType', lazy='joined',
                              backref=backref("groups",
                                              uselist=True,
-                                             order_by="id",
+                                             order_by=id,
                                              cascade="all, delete-orphan"))
 
     parent = relationship('UserGroup', lazy='joined', remote_side=[id],
                           backref=backref("groups",
                                           uselist=True,
-                                          order_by="id",
+                                          order_by=id,
                                           cascade="all, delete-orphan"))
 
     def __repr__(self):
@@ -74,21 +75,27 @@ class UserGroup(AuditMixin, Base, Inspect):
 
 class UserGroupMember(AuditMixin, Base, Inspect):
     """
+        Lists the members of a group by linking to tuser User table
     """
 
-    __tablename__ = 'tUserGroupUser'
-
-    usergroup_id = Column(Integer(), primary_key=True, nullable=False)
-    user_id = Column(Integer(), primary_key=True, nullable=False)
+    __tablename__ = 'tUserGroupMember'
+    id = Column(Integer(), primary_key=True, index=True, nullable=False)
+    usergroup_id = Column(Integer(), ForeignKey('tUserGroup.id'), primary_key=True, nullable=False)
+    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
 
     group = relationship('UserGroup', lazy='joined',
-                         backref=backref("users",
+                         backref=backref("ausers",
                                          uselist=True,
-                                         order_by="id",
+                                         order_by=usergroup_id,
                                          cascade="all, delete-orphan"))
 
+    user = relationship('User', lazy='joined', foreign_keys=[user_id],
+                        backref=backref("usergroups",
+                                        uselist=True,
+                                        order_by=user_id,
+                                        cascade="all, delete-orphan"))
     def __repr__(self):
-        return "{0} : {1}".format(self.group_id, self.user_id)
+        return "{0} : {1}".format(self.usergroup_id, self.user_id)
 
 class GroupRoleUser(Base, Inspect):
     """
@@ -97,13 +104,11 @@ class GroupRoleUser(Base, Inspect):
 
     __tablename__ = 'tGroupRoleUser'
 
-    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
+    member_id = Column(Integer(), ForeignKey('tUserGroupMember.id'), primary_key=True, nullable=False)
     role_id = Column(Integer(), ForeignKey('tRole.id'), primary_key=True, nullable=False)
-    usergroup_id = Column(Integer(), ForeignKey('tUserGroup.id'), primary_key=True, nullable=True)
 
-    user = relationship('User', lazy='joined')
+    user = relationship('UserGroupMember', lazy='joined')
     role = relationship('Role', lazy='joined')
-    usergroup = relationship('UserGroup', lazy='joined')
 
     _parents = ['tRole', 'tUser', 'tUserGroup']
     _children = []

@@ -83,6 +83,10 @@ def session(db, engine, request):
     pytest.user_b = util.create_user("UserB")
     pytest.user_c = util.create_user("UserC", role='developer')
 
+    #this emulates what happens on login, and is used to track who performed inserts
+    #and updates
+    session.user_id = root_user_id
+
     yield session
 
     # Tear down the session
@@ -194,16 +198,18 @@ def new_dataset():
 
 @pytest.fixture()
 def usergroupmaker():
-    class usergroupmaker:
+    class UserGroupMaker:
         def create(self, client, name=None):
             if name is None:
                 name = 'User Group %s' % (datetime.datetime.now())
-            return client.add_usergroup(name=name)
+            return client.add_usergroup({'name':name})
+    return UserGroupMaker()
 
 @pytest.fixture()
 def grouptypemaker():
-    class grouptypemaker:
-        def create(self, name=None):
+    class GroupTypeMaker:
+        def create(self, client, name=None):
             if name is None:
                 name = 'Group Type %s' % (datetime.datetime.now())
-            return client.add_usergrouptype(name=name)
+            return client.add_usergrouptype({'name':name})
+    return GroupTypeMaker()

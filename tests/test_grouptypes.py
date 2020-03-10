@@ -27,39 +27,43 @@ class TestUserGroupType:
     """ A collection of tests which test the management of users within an organisation.
     """
 
-    def test_add_usergrouptype(self, client, grouptypemaker):
+    def test_add_usergrouptype(self, session, client, grouptypemaker):
         """Test adding a usergroup type"""
+        #This tests the grouptypemaker, which is almost identical to the add
+        #call below. 
         newgroup_j = grouptypemaker.create(client)
 
         assert newgroup_j.id > 0
 
         groupname = 'My Group'
-        newgroup_j = grouptypemaker.add_usergroup_type(client, groupname)
+        newgroup_j = client.add_usergrouptype({'name':groupname})
 
         assert newgroup_j.id > 0
         assert newgroup_j.name == groupname
 
-    def test_remove_usergrouptype(self, client, grouptypemaker):
+    def test_delete_usergrouptype(self, session, client, grouptypemaker):
         """Test removing a usergroup type"""
 
-        group_to_delete_j = grouptypemaker.create(client)
+        grouptype_to_delete_j = grouptypemaker.create(client)
 
-        client.delete_user_group(group_to_delete_j.id)
+        client.delete_usergrouptype(grouptype_to_delete_j.id)
 
         with pytest.raises(ResourceNotFoundError):
-            client.get_user_group(group_to_delete_j.id)
+            client.get_usergrouptype(grouptype_to_delete_j.id)
 
-    def test_update_usergrouptype(self, client, grouptypemaker):
+    def test_update_usergrouptype(self, session, client, grouptypemaker):
         """Test updating a usergroup type"""
 
         newgrouptype_j = grouptypemaker.create(client)
 
         newname = 'Updated Grouptype Name'
 
-        newgrouptype_j.newname = newname
+        newgrouptype_j.name = newname
 
-        updated_grouptype_j = client.update_usergroup_type(newgrouptype_j)
+        updated_grouptype_j = client.update_usergrouptype(newgrouptype_j)
 
-        retrieved_grouptype_j = client.get_usergroup_type(updated_grouptype_j.id)
+        retrieved_grouptype_j = client.get_usergrouptype(updated_grouptype_j.id)
 
         assert retrieved_grouptype_j.name == newname
+        assert retrieved_grouptype_j.updated_at != newgrouptype_j.updated_at
+        assert retrieved_grouptype_j.cr_date == newgrouptype_j.cr_date
