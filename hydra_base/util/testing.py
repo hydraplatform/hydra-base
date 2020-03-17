@@ -1021,3 +1021,6 @@ def create_dataset():
             flush    = True
     ))
     # return JSONObject(hydra_base.add_dataset(dataset), user_id=pytest.root_user_id)
+
+def create_user_group_type(usergrouptype):
+    return JSONObject(hydra_base.add_usergrouptype(JSONObject(usergrouptype), user_id=pytest.root_user_id))

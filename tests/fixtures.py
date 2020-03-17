@@ -29,7 +29,7 @@ def testdb_uri(db_backend):
         # This is designed to work on Travis CI
         return 'postgresql://postgres@localhost:5432/hydra_base_test'
     elif db_backend == 'mysql':
-        return 'mysql+mysqldb://root@localhost/hydra_base_test'
+        return 'mysql+mysqldb://root:root@localhost/hydra_base_test'
     else:
         raise ValueError('Database backend "{}" not supported when running the tests.'.format(db_backend))
 
@@ -199,10 +199,13 @@ def new_dataset():
 @pytest.fixture()
 def usergroupmaker():
     class UserGroupMaker:
-        def create(self, client, name=None):
+        def create(self, client, name=None, parentgroup_id=None, type_id=None):
+            if type_id is None:
+                grouptype = client.add_usergrouptype({'name':'Default Group Type'})
+                type_id=grouptype.id
             if name is None:
                 name = 'User Group %s' % (datetime.datetime.now())
-            return client.add_usergroup({'name':name})
+            return client.add_usergroup({'name':name, 'parent_id':parentgroup_id, 'type_id':type_id})
     return UserGroupMaker()
 
 @pytest.fixture()
@@ -213,3 +216,7 @@ def grouptypemaker():
                 name = 'Group Type %s' % (datetime.datetime.now())
             return client.add_usergrouptype({'name':name})
     return GroupTypeMaker()
+
+@pytest.fixture()
+def usergrouptype():
+    return util.create_user_group_type({'name':'Default Type'})

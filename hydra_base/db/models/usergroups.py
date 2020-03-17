@@ -30,6 +30,9 @@ Text, \
 DateTime,\
 Unicode
 
+from sqlalchemy import UniqueConstraint
+
+
 from sqlalchemy.orm import relationship, backref
 
 from .common import AuditMixin, Base, Inspect, PermissionControlled
@@ -48,10 +51,14 @@ class UserGroupType(AuditMixin, Base, Inspect, PermissionControlled):
         return "User Group {0} (id={1})".format(self.name, self.id)
 
 
-class UserGroup(AuditMixin, Base, Inspect):
+class UserGroup(AuditMixin, Base, Inspect, PermissionControlled):
     """
     """
     __tablename__ = 'tUserGroup'
+
+    __table_args__ = (
+        UniqueConstraint('name', 'parent_id', 'created_by', name="unique net name"),
+    )
 
     id = Column(Integer(), primary_key=True, index=True, nullable=False)
     name = Column(String(200), nullable=False)

@@ -36,15 +36,34 @@ def _get_usergroup_type(id, user_id, write=False):
     return grouptype_i
 
 @required_role('admin')
+def get_usergrouptypes(**kwargs):
+    """
+    Get all usergroup types.
+    args:
+
+    returns:
+        list(hydra_base.JSONObject) representing the usergroup types
+    thows:
+        HydraError if a group with this name already exists
+    """
+    LOG.info("Getting all user group types")
+
+    usergrouptypes_i = db.DBSession.query(UserGroupType).all()
+
+    LOG.info("Retrieved %s, group types", len(usergrouptypes_i))
+
+    return usergrouptypes_i
+
+@required_role('admin')
 def get_usergrouptype(usergrouptypeid, **kwargs):
     """
-    Get a usergroup types.
+    Get a usergroup type.
     args:
         usergrouptypeid (JSONObject): The name of the type
     returns:
-        hydra_base.JSONObject representing the new usergroup type
+        hydra_base.JSONObject representing the usergroup type
     thows:
-        HydraError if a group with this name already exists
+        HydraError if a group with this ID doesn't exist
     """
     LOG.info("Getting user group type [ %s ]", usergrouptypeid)
 
