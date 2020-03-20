@@ -575,11 +575,21 @@ def add_network(network,**kwargs):
 
     return net_i
 
-def _get_all_resource_attributes(network_id, template_id=None):
+def _get_all_resource_attributes(network_id, template_id=None, include_non_template_attributes=False):
     """
         Get all the attributes for the nodes, links and groups of a network.
         Return these attributes as a dictionary, keyed on type (NODE, LINK, GROUP)
         then by ID of the node or link.
+
+        args:
+            network_id (int) The ID of the network from which to retrieve the attributes
+            template_id (int): Optional ID of a template, which when specified only returns
+                               attributes relating to that template
+           include_non_template_attributes (bool): If template_id is specified and any
+                                resource has attribtues which are NOT associated to any
+                                network template, this flag indicates whether to return them or not.
+        returns:
+            A list of sqlalchemy result proxy objects
     """
     base_qry = db.DBSession.query(
                                ResourceAttr.id.label('id'),
@@ -604,53 +614,93 @@ def _get_all_resource_attributes(network_id, template_id=None):
     network_attribute_qry = base_qry.filter(ResourceAttr.network_id==network_id)
 
 
-    #Filter the group attributes by template
-    if template_id is not None:
-        all_node_attribute_qry = all_node_attribute_qry.join(ResourceType).join(TemplateType).join(TypeAttr).filter(TemplateType.template_id==template_id).filter(ResourceAttr.attr_id==TypeAttr.attr_id)
-        all_link_attribute_qry = all_link_attribute_qry.join(ResourceType).join(TemplateType).join(TypeAttr).filter(TemplateType.template_id==template_id).filter(ResourceAttr.attr_id==TypeAttr.attr_id)
-        all_group_attribute_qry = all_group_attribute_qry.join(ResourceType).join(TemplateType).join(TypeAttr).filter(TemplateType.template_id==template_id).filter(ResourceAttr.attr_id==TypeAttr.attr_id)
-        network_attribute_qry = network_attribute_qry.join(ResourceType, ResourceAttr.network_id==ResourceType.network_id).join(TemplateType).join(TypeAttr).filter(TemplateType.template_id==template_id).filter(ResourceAttr.attr_id==TypeAttr.attr_id)
-
     x = time.time()
     logging.info("Getting all attributes using execute")
-    attribute_qry = all_node_attribute_qry.union(all_link_attribute_qry, all_group_attribute_qry, network_attribute_qry)
-    all_attributes = db.DBSession.execute(attribute_qry.statement).fetchall()
-    log.info("%s attrs retrieved in %s", len(all_attributes), time.time()-x)
+    attribute_qry = all_node_attribute_qry.union(all_link_attribute_qry,
+                                                 all_group_attribute_qry,
+                                                 network_attribute_qry)
+    all_resource_attributes = db.DBSession.execute(attribute_qry.statement).fetchall()
+    log.info("%s attrs retrieved in %s", len(all_resource_attributes), time.time()-x)
 
     logging.info("Attributes retrieved. Processing results...")
     x = time.time()
-    node_attr_dict = dict()
-    link_attr_dict = dict()
-    group_attr_dict = dict()
-    network_attr_dict = dict()
 
-    for attr in all_attributes:
-        if attr.ref_key == 'NODE':
-            nodeattr = node_attr_dict.get(attr.node_id, [])
-            nodeattr.append(attr)
-            node_attr_dict[attr.node_id] = nodeattr
-        elif attr.ref_key == 'LINK':
-            linkattr = link_attr_dict.get(attr.link_id, [])
-            linkattr.append(attr)
-            link_attr_dict[attr.link_id] = linkattr
-        elif attr.ref_key == 'GROUP':
-            groupattr = group_attr_dict.get(attr.group_id, [])
-            groupattr.append(attr)
-            group_attr_dict[attr.group_id] = groupattr
-        elif attr.ref_key == 'NETWORK':
-            networkattr = network_attr_dict.get(attr.network_id, [])
-            networkattr.append(attr)
-            network_attr_dict[attr.network_id] = networkattr
-
-    all_attributes = {
-        'NODE' : node_attr_dict,
-        'LINK' : link_attr_dict,
-        'GROUP': group_attr_dict,
-        'NETWORK': network_attr_dict,
+    rt_attribute_dict = {
+        'NODE' : {},
+        'LINK' : {},
+        'GROUP': {},
+        'NETWORK': {},
     }
 
+    template_attr_lookup, all_network_typeattrs = _get_network_template_attribute_lookup(network_id)
+
+    for resource_attr in all_resource_attributes:
+        if template_id is not None:
+            #check if it's in the template. If not, it's either associated to another
+            #template or to no template
+            if resource_attr.attr_id not in template_attr_lookup.get(template_id, []):
+                #check if it's in any other template
+                if include_non_template_attributes is True:
+                    #if it's associated to a template (but not this one because
+                    #it wouldn't have reached this far) then ignore it
+                    if resource_attr.attr_id in all_network_typeattrs:
+                        continue
+                else:
+                    #The attr is associated to another template.
+                    continue
+
+        attr_dict = rt_attribute_dict[resource_attr.ref_key]
+        resourceid = _get_resource_id(resource_attr)
+        resourceattrlist = attr_dict.get(resourceid, [])
+        resourceattrlist.append(resource_attr)
+        attr_dict[resourceid] = resourceattrlist
+
     logging.info("Attributes processed in %s", time.time()-x)
-    return all_attributes
+    return rt_attribute_dict
+
+def _get_resource_id(attr):
+    """
+        return either the node, link, group or network ID of an attribute.
+        Whichever one is not None
+    """
+
+    for resourcekey in ('node_id', 'link_id', 'network_id', 'group_id'):
+        if getattr(attr, resourcekey) is not None:
+            return getattr(attr, resourcekey)
+
+    return None
+
+def _get_network_template_attribute_lookup(network_id):
+    """
+        Given a network ID, identify all the templates associated to the network
+        and build a dictionary of template_id: [attr_id, attr_id...]
+    """
+    #First identify all templates associated to the network (assuming the network
+    #types are 100% representative if all templates linked to this network)
+    network_types = db.DBSession.query(TemplateType)\
+                                .join(ResourceType, ResourceType.type_id == TemplateType.id)\
+                                .filter(ResourceType.network_id == network_id).all()
+
+    template_ids = [t.template_id for t in network_types]
+    #Now with access to all templates, get all type attributes for all the templates.
+    network_typeattrs = db.DBSession.query(TemplateType.template_id.label('template_id'),\
+                                           TemplateType.id.label('type_id'),\
+                                           TypeAttr.attr_id.label('attr_id'))\
+                                           .join(TypeAttr, TypeAttr.type_id == TemplateType.id)\
+                                           .join(ResourceType, TemplateType.id == ResourceType.type_id)\
+                                           .filter(TemplateType.template_id.in_(template_ids)).all()
+    typeattr_lookup = {}
+    all_network_typeattrs = []
+
+    for typeattr in network_typeattrs:
+        if typeattr.template_id not in typeattr_lookup:
+            typeattr_lookup[typeattr.template_id] = [typeattr.attr_id]
+        else:
+            typeattr_lookup[typeattr.template_id].append(typeattr.attr_id)
+
+        all_network_typeattrs.append(typeattr.attr_id)
+
+    return typeattr_lookup, all_network_typeattrs
 
 def _get_all_templates(network_id, template_id):
     """
@@ -987,7 +1037,13 @@ def _get_scenarios(network_id, include_data, include_results, user_id, scenario_
 
     return scens
 
-def get_network(network_id, summary=False, include_data='N', include_results='Y', scenario_ids=None, template_id=None, **kwargs):
+def get_network(network_id,
+                summary=False,
+                include_data='N',
+                include_results='Y',
+                scenario_ids=None,
+                template_id=None,
+                include_non_template_attributes=False, **kwargs):
     """
         Return a whole network as a dictionary.
         network_id: ID of the network to retrieve
@@ -1028,7 +1084,9 @@ def get_network(network_id, summary=False, include_data='N', include_results='Y'
         net.owners         = _get_network_owners(network_id)
 
         if summary is False:
-            all_attributes = _get_all_resource_attributes(network_id, template_id)
+            all_attributes = _get_all_resource_attributes(network_id,
+                                                          template_id,
+                                                          include_non_template_attributes)
             log.info("Setting attributes")
             net.attributes = all_attributes['NETWORK'].get(network_id, [])
             for node_i in net.nodes:
@@ -1057,8 +1115,7 @@ def get_network(network_id, summary=False, include_data='N', include_results='Y'
         net.scenarios = _get_scenarios(network_id, include_data, include_results, user_id, scenario_ids)
 
     except NoResultFound:
-        raise ResourceNotFoundError("Network (network_id=%s) not found." %
-                                  network_id)
+        raise ResourceNotFoundError("Network (network_id=%s) not found." % network_id)
 
     return net
 
@@ -1077,8 +1134,8 @@ def get_nodes(network_id, template_id=None, **kwargs):
         raise ResourceNotFoundError("Network %s not found"%(network_id))
 
     node_qry = db.DBSession.query(Node).filter(
-                        Node.network_id==network_id,
-                        Node.status=='A').options(
+                        Node.network_id == network_id,
+                        Node.status == 'A').options(
                             noload('network')
                         ).options(
                             joinedload('types').joinedload('templatetype')
@@ -2434,7 +2491,7 @@ def get_all_resource_attributes_in_network(attr_id, network_id, **kwargs):
                                                'link':JSONObject(ra.link) if ra.link else None,
                                                'resourcegroup':JSONObject(ra.resourcegroup) if ra.resourcegroup else None,
                                                'network':JSONObject(ra.network) if ra.network else None})
-        
+
         if ra_j.node is not None:
             ra_j.resource = ra_j.node
         elif ra_j.link is not None:
@@ -2443,7 +2500,7 @@ def get_all_resource_attributes_in_network(attr_id, network_id, **kwargs):
             ra_j.resource = ra_j.resourcegroup
         elif ra.network is not None:
             ra_j.resource = ra_j.network
-        
+
         json_ra.append(ra_j)
 
     return json_ra
@@ -2545,7 +2602,7 @@ def clone_network(network_id,
                   recipient_user_id=None,
                   new_network_name=None,
                   project_id=None,
-                  project_name=None, 
+                  project_name=None,
                   new_project=True,
                   **kwargs):
     """
@@ -2654,7 +2711,7 @@ def clone_network(network_id,
     scenario_id_map = _clone_scenarios(network_id, newnetworkid, ra_id_map, node_id_map, link_id_map, group_id_map, user_id)
 
 
-    
+
     _clone_rules(
         network_id,
         newnetworkid,
@@ -2734,8 +2791,8 @@ def _clone_nodes(old_network_id, new_network_id, user_id):
     #map old IDS to new IDS
 
     nodes = db.DBSession.query(Node).filter(Node.network_id==new_network_id).all()
-    
-    
+
+
     for n in nodes:
         old_node_id = old_node_name_map[n.name]
         id_map[old_node_id] = n.node_id
@@ -3016,7 +3073,7 @@ def _clone_scenario(old_scenario, newnetworkid, ra_id_map, node_id_map, link_id_
     db.DBSession.bulk_insert_mappings(ResourceGroupItem, new_rgis)
 
     return scenario_id
-  
+
 @required_perms("edit_network")
 def apply_unit_to_network_rs(network_id, unit_id, attr_id, scenario_id=None, **kwargs):
     """
@@ -3035,7 +3092,7 @@ def apply_unit_to_network_rs(network_id, unit_id, attr_id, scenario_id=None, **k
     #Now get all the RS associated to both the attr and network.
     network_rs_query = db.DBSession.query(ResourceScenario).filter(
                                                         Scenario.network_id==network_id,
-                                                        ResourceScenario.scenario_id==Scenario.id,    
+                                                        ResourceScenario.scenario_id==Scenario.id,
                                                         ResourceScenario.resource_attr_id==ResourceAttr.id,
                                                         ResourceAttr.attr_id==attr_id)
 
@@ -3049,8 +3106,7 @@ def apply_unit_to_network_rs(network_id, unit_id, attr_id, scenario_id=None, **k
 
     #now check whether the supplied unit can be applied by comparing it to the attribute's dimension
     units.check_unit_matches_dimension(unit_id, attr_i.dimension_id)
-    
+
     #set the unit ID for each of the resource scenarios
     for rs in network_rs_list:
         rs.dataset.unit_id = unit_id
-
