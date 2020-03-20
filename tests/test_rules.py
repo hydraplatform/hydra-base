@@ -134,16 +134,41 @@ class TestRules:
         assert node_rules[1].scenario_id == cloned_network.scenarios[0].id
         assert node_rules[1].value == node_rule_with_scenario_j.value
 
+    def test_share_network_with_rules(self, session, client, network_with_data):
+
+        net_rule_j = self.add_rule(client, network_with_data)
+
+        cloned_network_id = client.clone_network(network_with_data.id)
+
+        cloned_network = client.get_network(cloned_network_id)
+
+        assert len(client.get_resource_rules('NETWORK', cloned_network.id)) == 1
+        assert client.get_resource_rules('NETWORK', cloned_network.id)[0].value == net_rule_j.value;
+
+        #sorted the nodes here to ensure we identified the matching node from the original network
+        sorted_nodes = sorted(cloned_network.nodes, key=lambda x: x.name)
+        node_rules = sorted(client.get_resource_rules('NODE', sorted_nodes[0].id), key=lambda x:x.value)
+        assert len(node_rules) == 2
+        assert node_rules[0].scenario_id == None
+        assert node_rules[0].value == node_rule_no_scenario_j.value
+
+        #sorted the nodes here to ensure we identified the matching node from the original network
+        assert node_rules[1].scenario_id == cloned_network.scenarios[0].id
+        assert node_rules[1].value == node_rule_with_scenario_j.value
+
     def test_get_rules_by_type(self, session, client, network_with_data):
-        ruletype_A_j = client.add_rule_type_definition(JSONObject({'name':'A new Rule', 'code':'a_new_rule'}))
-        ruletype_B_j = client.add_rule_type_definition(JSONObject({'name':'A new Rule 1', 'code':'a_new_rule_1'}))
+        ruletype_A_j = client.add_rule_type_definition(JSONObject({'name':'A new Rule',
+                                                                   'code':'a_new_rule'}))
+        ruletype_B_j = client.add_rule_type_definition(JSONObject({'name':'A new Rule 1',
+                                                                   'code':'a_new_rule_1'}))
 
         scenario_id = network_with_data.scenarios[0].id
 
         #Create 3 rules, 2 of type A and 1 of type B
         self.add_rule(client, network_with_data, name="Test1", types=[ruletype_A_j.code])
         self.add_rule(client, network_with_data, name="Test2", types=[ruletype_A_j.code])
-        self.add_rule(client, network_with_data, name="Test3", types=[ruletype_A_j.code, ruletype_B_j.code], scenario_id=scenario_id)
+        self.add_rule(client, network_with_data, name="Test3", types=[ruletype_A_j.code, ruletype_B_j.code],
+                      scenario_id=scenario_id)
         self.add_rule(client, network_with_data, name="Rule Type B", types=[ruletype_B_j.code])
 
         #Get all the rules of type A, of which there should be 2

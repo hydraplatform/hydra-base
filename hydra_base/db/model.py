@@ -188,8 +188,16 @@ class PermissionControlled(object):
                              (user_id, self.id))
             else:
                 return False
+        #Check that the user is in a group which can read this network
+        self.check_group_read_permission(user_id)
 
         return True
+
+    def check_group_read_permission(self, user_id):
+        """
+            1: Find which user groups a user is if
+            2: Check if any of these groups has permission to read the object
+        """
 
     def check_write_permission(self, user_id, do_raise=True):
         """
