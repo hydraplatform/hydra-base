@@ -582,7 +582,7 @@ def _get_all_resource_attributes(network_id, template_id=None, include_non_templ
         then by ID of the node or link.
 
         args:
-            network_id (int) THe ID of the network from which to retrieve the attributes
+            network_id (int) The ID of the network from which to retrieve the attributes
             template_id (bool): Optional ID of a template, which when specified only returns
                                attributes relating to that template
            include_non_template_attributes (bool): If template_id is specified and any
