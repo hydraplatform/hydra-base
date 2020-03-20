@@ -589,7 +589,7 @@ def _get_all_resource_attributes(network_id, template_id=None, include_non_templ
                                 resource has attribtues which are NOT associated to any
                                 network template, this flag indicates whether to return them or not.
         returns:
-            a list of sqlalchemy resuylt proxy objectgs
+            A list of sqlalchemy result proxy objects
     """
     base_qry = db.DBSession.query(
                                ResourceAttr.id.label('id'),
