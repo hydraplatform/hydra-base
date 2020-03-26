@@ -172,12 +172,9 @@ def create_default_users_and_perms():
         It is possible adding new role or perm and connecting them just modifiying the following lists
     """
 
-    # perms = db.DBSession.query(Perm).all()
-    # if len(perms) > 0:
-    #     return
-
     default_perms = ( ("add_user",   "Add User"),
                     ("edit_user",  "Edit User"),
+                    ("get_users", "View Users"),
                     ("add_role",   "Add Role"),
                     ("edit_role",  "Edit Role"),
                     ("add_perm",   "Add Permission"),
@@ -233,6 +230,7 @@ def create_default_users_and_perms():
             # Admin permissions
             ('admin', "add_user"),
             ('admin', "edit_user"),
+            ('admin', "get_users"),
             ('admin', "add_role"),
             ('admin', "edit_role"),
             ('admin', "add_perm"),
@@ -260,7 +258,7 @@ def create_default_users_and_perms():
             ('admin', "add_unit"),
             ('admin', "update_unit"),
             ('admin', "delete_unit"),
-                    
+
             ('admin', 'view_rules'),
             ('admin', 'add_rules'),
             ('admin', 'update_rules'),
@@ -320,8 +318,8 @@ def create_default_users_and_perms():
     for code, name in default_perms:
         perm = Perm(code=code, name=name)
         perm_dict[code] = perm
-        perms_by_name = db.DBSession.query(Perm).filter(Perm.code==code).all()
-        if len(perms_by_name)==0:
+        perms_by_name = db.DBSession.query(Perm).filter(Perm.code == code).all()
+        if len(perms_by_name) == 0:
             # Adding perm
             log.debug("# Adding PERM {}".format(code))
             db.DBSession.add(perm)
@@ -349,7 +347,10 @@ def create_default_users_and_perms():
     for role_code, perm_code in roleperms:
         #log.info("Link Role:{}({}) <---> Perm:{}({})".format(role_code, id_maps_dict["role"][role_code], perm_code, id_maps_dict["perm"][perm_code]))
 
-        links_found = db.DBSession.query(RolePerm).filter(RolePerm.role_id==id_maps_dict["role"][role_code]).filter(RolePerm.perm_id==id_maps_dict["perm"][perm_code]).all()
+        links_found = db.DBSession.query(RolePerm).filter(
+            RolePerm.role_id == id_maps_dict["role"][role_code]).filter(
+                RolePerm.perm_id == id_maps_dict["perm"][perm_code]).all()
+
         if len(links_found)==0:
             # Adding link
             log.debug("# Adding link")

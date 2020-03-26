@@ -21,7 +21,7 @@ import pytest
 
 from hydra_base.lib.objects import JSONObject
 from hydra_base.exceptions import ResourceNotFoundError, HydraError
-from .fixtures import *
+from ..fixtures import *
 
 class TestUserGroupType:
     """ A collection of tests which test the management of users within an organisation.
@@ -30,7 +30,7 @@ class TestUserGroupType:
     def test_add_usergrouptype(self, session, client, grouptypemaker):
         """Test adding a usergroup type"""
         #This tests the grouptypemaker, which is almost identical to the add
-        #call below. 
+        #call below.
         newgroup_j = grouptypemaker.create(client)
 
         assert newgroup_j.id > 0

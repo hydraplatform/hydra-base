@@ -19,114 +19,120 @@
 
 from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.orm import joinedload
 
-from ..db.model import UserGroup, usergroup, UserGroupMember
-from ..util.permissions import required_role
-from .. import db
+
+from hydra_base.db.model import UserGroup, UserGroup, UserGroupMember
+from hydra_base.util.permissions import required_role, required_perms
+from hydra_base.exceptions import ResourceNotFoundError, HydraError
+from hydra_base.lib.objects import JSONObject
+from hydra_base import db
+
 
 import bcrypt
 
-from ..exceptions import ResourceNotFoundError, HydraError
 import logging
 
 log = logging.getLogger(__name__)
 
 def _get_usergroup(id):
-    return None
-
-@required_role('admin')
-def add_usergroup(group, **kwargs):
     """
-    Add a new usergroup.
-
-    args:
-        group (JSONObject): The name of the usergroup
-        The name of an usergroup must not be the same as a user's username.
-    returns:
-        An usergroup ORM object
-    throws:
-        HydraError if an usergroup or user exists with the same name
-
-    a Group JSONObject is formatted as follows:
-    {
-    'name': 'My group',
-    'type' : 'TYPECODE',
-    }
+        Get a usergroup from the DB
     """
+    usergroup_i = db.DBSession.query(UserGroup).filter(UserGroup.id == id).options(joinedload('members')).first()
 
-@required_role('admin')
-def get_usergroup(id, **kwargs):
-    """
-        Get an usergroup by id
-        args:
-            id (int): The ID of the usergroup
-        returns:
-            An usergroup ORM object
-        throws:
-            ResourceNotFoundError if no usergroup exists with the specified id
-    """
-
-@required_role('admin')
-def get_usergroup_ny_name(name, **kwargs):
-    """
-        Get an usergroup by id
-        args:
-            name (string): The name of the usergroup
-        returns:
-            An usergroup ORM object
-        throws:
-            ResourceNotFoundError if no usergroup exists with the specified name
-    """
-
-@required_role('admin')
-def get_all_usergroups(**kwargs):
-    """
-        Get all usergroups
-        args:
-        returns:
-            list of usergroup ORM objects
-        throws:
-    """
-
-def add_usergroup_member(usergroup_id, new_owner_id, **kwargs):
-    """
-    """
-    usergroup_i = _get_usergroup(usergroup_id)
-
-    usergroup_i.add_owner(new_owner_id)
-
-def remove_usergroup_member(usergroup_id, owner_id_to_remove, **kwargs):
-    """
-    """
-    user_id=kwargs.get('user_id')
-
-    usergroup_i = _get_usergroup(usergroup_id)
-
-    usergroup_i.check_write_permission(user_id)
-
-    usergroup_i.remove_owner(new_owner_id)
-
-@required_role('admin')
-def add_user_group(usergroup_id, group, **kwargs):
-    """
-        Create a new user group
-    """
-
-    if _get_user_group_by_name(group.name, exception=False) is not None:
-        raise HydraError(f"A user group with the name {group.name} already exists!")
-
-    usergroup_i = UserGroup(name=group.name)
-    db.DBSession.add(usergroup_i)
-    db.DBSession.flush()
+    if usergroup_i is None:
+        raise HydraError(f"User group with ID ({id}) not found")
 
     return usergroup_i
 
+def _get_member(usergroup_id, user_id, do_raise=True):
+    """
+        Get the membership record of a user in a group
+        args:
+            usergroup_id
+            user_id
+        returns:
+            UserGroupMember object
+        raises
+            ResourceNotFoundError if the member doesnt' exist
+    """
+    new_member = db.DBSession.query(UserGroupMember).filter(
+        UserGroupMember.usergroup_id == usergroup_id,
+        UserGroupMember.user_id == user_id
+        ).first()
+
+    if new_member is None and do_raise is True:
+        raise ResourceNotFoundError(f"User {user_id} not found in usergroup {usergroup_id}")
+
+    return new_member
+
+#this user should be group admin, not a global admin
 @required_role('admin')
-def get_user_groups(usergroup_id, **kwargs):
+def add_usergroup_member(usergroup_id, new_member_user_id, **kwargs):
     """
-        Get all user groups
+        Add a new member to a usergroup
+        args:
+            usergroup_id (int): THe ID of the group to add the member to
+            user_id (int): THe ID of the user to add to the group
+        returns:
+            UserGroupMember object of the new membership entry, complete with unique ID
+        raises
+            ResourceNotFoundError if the target user group is not found.
     """
+    user_id = kwargs.get('user_id')
 
-    groups = db.DBSession.query(UserGroup).filter(UserGroup.usergroup_id == usergroup_id).all()
+    usergroup_i = _get_usergroup(usergroup_id)
 
-    return groups
+    #check the user has permission to modify the group
+    usergroup_i.check_write_permission(user_id)
+
+    usergroup_i.add_member(new_member_user_id)
+
+    db.DBSession.flush()
+
+    #Do this because members have IDs, so this will return the newly created ID
+    new_member_i = _get_member(usergroup_id, new_member_user_id)
+
+    return new_member_i
+
+@required_role('admin')
+def remove_usergroup_member(usergroup_id, member_user_id, **kwargs):
+    """
+        Remove a member from a usergroup
+        args:
+            usergroup_id (int): THe ID of the group to remove the member from
+            user_id (int): THe ID of the user to remove from the group
+        returns:
+            {'status': 'OK'}
+        raises
+            ResourceNotFoundError if the target user group is not found, or
+            the user is not a member of the usergroup
+    """
+    user_id = kwargs.get('user_id')
+
+    usergroup_i = _get_usergroup(usergroup_id)
+
+    #check the user has permission to modify the group
+    usergroup_i.check_write_permission(user_id)
+
+    usergroup_i.remove_member(member_user_id)
+
+    db.DBSession.flush()
+
+    #Tell sqlalchemy to forget about this object, so it forces a reload
+    db.DBSession.expunge(usergroup_i)
+
+    return {'status': 'OK'}
+
+@required_perms('get_users')
+def get_usergroup_members(usergroup_id, **kwargs):
+    user_id = kwargs.get('user_id')
+
+    usergroup_i = _get_usergroup(usergroup_id)
+
+    usergroup_i.check_read_permission(user_id)
+
+    usergroup_members = usergroup_i.members
+
+    return usergroup_members

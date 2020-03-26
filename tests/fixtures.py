@@ -218,5 +218,9 @@ def grouptypemaker():
     return GroupTypeMaker()
 
 @pytest.fixture()
+def usergroup():
+    return util.create_user_group('Test Group')
+
+@pytest.fixture()
 def usergrouptype():
     return util.create_user_group_type({'name':'Default Type'})

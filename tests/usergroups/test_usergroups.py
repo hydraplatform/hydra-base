@@ -20,7 +20,7 @@
 import hydra_base
 from hydra_base.exceptions import HydraError
 from hydra_base.lib.objects import JSONObject
-from .fixtures import *
+from ..fixtures import *
 import datetime
 import bcrypt
 import pytest
@@ -118,17 +118,3 @@ class TestUserGroup:
         #This proves that the 'tree' structure is not preserved. All groups
         #are returned in a flat structure, to simplify searching
         assert len(usergroups_j) == 1
-
-class TestUserGroupMembership:
-    """ A collection of tests which test the management of users
-        within a user group.
-    """
-
-    def test_add_usergroup_member(self, session, client, usergrouptype):
-        """Test adding a user to a user group"""
-
-    def test_get_users(self, session, client, usergrouptype):
-        """ Test fetching all the users in an organisation"""
-
-    def test_get_projects(self, session, client, usergrouptype):
-        """ Test fetching all the projects to which a user has access within an organisation"""

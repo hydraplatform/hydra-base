@@ -125,7 +125,10 @@ class AuditMixin(object):
     def updated_by(cls):
         return Column(Integer, ForeignKey('tUser.id'), onupdate=get_user_id_from_engine)
 
-    updated_at = Column(DateTime,  nullable=False, default=datetime.datetime.utcnow(), onupdate=datetime.datetime.utcnow())
+    updated_at = Column(DateTime,
+                        nullable=False,
+                        default=datetime.datetime.utcnow(),
+                        onupdate=datetime.datetime.utcnow())
 
 class PermissionControlled(object):
     def set_owner(self, user_id, read='Y', write='Y', share='Y'):
@@ -280,3 +283,22 @@ class User(Base, Inspect):
 
     def __repr__(self):
         return "{0}".format(self.username)
+
+class OwnerMixin(object):
+    """
+    """
+
+    @declared_attr
+    def user_id(cls):
+        return Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
+
+    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    view = Column(String(1), nullable=False)
+    edit = Column(String(1), nullable=False)
+    share = Column(String(1), nullable=False)
+
+    @declared_attr
+    def user(cls):
+        return relationship('User', foreign_keys=[cls.user_id])
+
+    _children = []

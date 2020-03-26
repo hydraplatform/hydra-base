@@ -28,11 +28,6 @@ def _get_usergroup_type(id, user_id, write=False):
     except NoResultFound:
         raise ResourceNotFoundError(f"No User Group Type with ID {id}")
 
-    grouptype_i.check_read_permission(user_id)
-
-    if write is True:
-        grouptype_i.check_write_permission(user_id)
-
     return grouptype_i
 
 @required_role('admin')

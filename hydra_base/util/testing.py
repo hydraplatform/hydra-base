@@ -1023,4 +1023,28 @@ def create_dataset():
     # return JSONObject(hydra_base.add_dataset(dataset), user_id=pytest.root_user_id)
 
 def create_user_group_type(usergrouptype):
-    return JSONObject(hydra_base.add_usergrouptype(JSONObject(usergrouptype), user_id=pytest.root_user_id))
+    return JSONObject(hydra_base.add_usergrouptype(JSONObject(usergrouptype),
+                                                   user_id=pytest.root_user_id))
+
+def create_user_group(name=None, type_id=None, parentgroup_id=None):
+    """
+        Create a user group.
+        args:
+            name (str): The name of the group. Defaults to 'User Group %now()%'
+            type_id (int): THe type of the group. Uses a default if none specified
+            parentgroup_id (int): ID of the Parent group of the new group. Defaults to None
+        returns:
+            JSONObject of the new group
+    """
+    if type_id is None:
+        grouptype = hydra_base.add_usergrouptype(JSONObject({'name':'Default Group Type'}),
+                                                 user_id=pytest.root_user_id)
+        type_id = grouptype.id
+
+    if name is None:
+        name = 'User Group %s' % (datetime.datetime.now())
+
+    return JSONObject(hydra_base.add_usergroup(JSONObject({'name':name,
+                                                'parent_id':parentgroup_id,
+                                                'type_id':type_id}),
+                                               user_id=pytest.root_user_id))

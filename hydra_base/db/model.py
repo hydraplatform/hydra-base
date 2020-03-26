@@ -70,30 +70,20 @@ try:
 except NameError:
     basestring = str
 
-from .models.common import *
+from .models.common import Inspect, PermissionControlled, User, OwnerMixin, AuditMixin
 
-#***************************************************
-# Classes definition
-#***************************************************
 
-class DatasetOwner(Base, Inspect):
+class DatasetOwner(Base, Inspect, OwnerMixin):
     """
     """
 
     __tablename__='tDatasetOwner'
 
-    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
     dataset_id = Column(Integer(), ForeignKey('tDataset.id'), primary_key=True, nullable=False)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    view = Column(String(1),  nullable=False)
-    edit = Column(String(1),  nullable=False)
-    share = Column(String(1),  nullable=False)
 
-    user = relationship('User')
-    dataset = relationship('Dataset', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
+    dataset = relationship('Dataset', backref=backref('owners', uselist=True, cascade="all, delete-orphan"))
 
     _parents  = ['tDataset', 'tUser']
-    _children = []
 
 class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
     """
@@ -572,43 +562,22 @@ class ResourceType(Base, Inspect):
 #***************************************************
 #Ownership & Permissions
 #***************************************************
-class ProjectOwner(Base, Inspect):
+class ProjectOwner(Base, Inspect, OwnerMixin):
     """
     """
-
-    __tablename__='tProjectOwner'
-
-    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
+    __tablename__= 'tProjectOwner'
     project_id = Column(Integer(), ForeignKey('tProject.id'), primary_key=True, nullable=False)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    view = Column(String(1),  nullable=False)
-    edit = Column(String(1),  nullable=False)
-    share = Column(String(1),  nullable=False)
+    project = relationship('Project', backref=backref('owners', uselist=True, cascade="all, delete-orphan"))
+    _parents = ['tProject', 'tUser']
 
-    user = relationship('User')
-    project = relationship('Project', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
-
-    _parents  = ['tProject', 'tUser']
-    _children = []
-
-class NetworkOwner(Base, Inspect):
+class NetworkOwner(Base, Inspect, OwnerMixin):
     """
     """
 
-    __tablename__='tNetworkOwner'
-
-    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
+    __tablename__= 'tNetworkOwner'
     network_id = Column(Integer(), ForeignKey('tNetwork.id'), primary_key=True, nullable=False)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    view = Column(String(1),  nullable=False)
-    edit = Column(String(1),  nullable=False)
-    share = Column(String(1),  nullable=False)
-
-    user = relationship('User')
-    network = relationship('Network', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
-
-    _parents  = ['tNetwork', 'tUser']
-    _children = []
+    network = relationship('Network', backref=backref('owners', uselist=True, cascade="all, delete-orphan"))
+    _parents = ['tNetwork', 'tUser']
 
 #*****************************************************
 # Topology & Scenarios
@@ -1259,7 +1228,7 @@ class RuleTypeLink(AuditMixin, Base, Inspect):
                                   backref=backref('ruletypes', cascade="all, delete-orphan"))
     rule = relationship('Rule', backref=backref('types', order_by=code, uselist=True, cascade="all, delete-orphan"))
 
-class RuleOwner(AuditMixin, Base, Inspect):
+class RuleOwner(Base, Inspect, AuditMixin, OwnerMixin):
     """
         This table tracks the owners of rules, to ensure rules which contain confidential logic
         can be kept hidden
@@ -1267,18 +1236,11 @@ class RuleOwner(AuditMixin, Base, Inspect):
 
     __tablename__='tRuleOwner'
 
-    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
     rule_id = Column(Integer(), ForeignKey('tRule.id'), primary_key=True, nullable=False)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    view = Column(String(1),  nullable=False)
-    edit = Column(String(1),  nullable=False)
-    share = Column(String(1),  nullable=False)
 
-    user = relationship('User', foreign_keys=[user_id])
-    rule = relationship('Rule', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
+    rule = relationship('Rule', backref=backref('owners', uselist=True, cascade="all, delete-orphan"))
 
     _parents  = ['tRule', 'tUser']
-    _children = []
 
 class Rule(AuditMixin, Base, Inspect, PermissionControlled):
     """

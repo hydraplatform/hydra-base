@@ -31,13 +31,17 @@ DateTime,\
 Unicode
 
 from sqlalchemy import UniqueConstraint
-
-
+from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import relationship, backref
 
-from .common import AuditMixin, Base, Inspect, PermissionControlled
+from hydra_base.exceptions import HydraError
 
-class UserGroupType(AuditMixin, Base, Inspect, PermissionControlled):
+from .common import AuditMixin, Base, Inspect, PermissionControlled, OwnerMixin
+
+from .. import DeclarativeBase as Base, get_session
+
+
+class UserGroupType(AuditMixin, Base, Inspect):
     """
         The definition of a type of user group.
         Examples could include: 'organisation', 'department', 'team'
@@ -50,11 +54,33 @@ class UserGroupType(AuditMixin, Base, Inspect, PermissionControlled):
     def __repr__(self):
         return "User Group {0} (id={1})".format(self.name, self.id)
 
+class UserGroupOwner(OwnerMixin, Base, Inspect):
+    """
+    The owner of a user group -- defines permissions for whether a user can
+    read or write that usergroup (The share permission not used)
+    """
+
+    __tablename__ = 'tUserGroupOwner'
+
+    @declared_attr
+    def usergroup_id(cls):
+        return Column(Integer(),
+                      ForeignKey('tUserGroup.id'),
+                      primary_key=True,
+                      nullable=False)
+
+    usergroup = relationship('UserGroup', backref=backref('owners',
+                                                          uselist=True,
+                                                          cascade="all, delete-orphan"))
+
+    _parents = ['tUserGroup', 'tUser']
 
 class UserGroup(AuditMixin, Base, Inspect, PermissionControlled):
     """
     """
     __tablename__ = 'tUserGroup'
+    __ownerclass__ = UserGroupOwner
+    __ownerfk__ = 'usergroup_id'
 
     __table_args__ = (
         UniqueConstraint('name', 'parent_id', 'created_by', name="unique net name"),
@@ -80,6 +106,35 @@ class UserGroup(AuditMixin, Base, Inspect, PermissionControlled):
     def __repr__(self):
         return "{0}".format(self.name)
 
+    def add_member(self, user_id):
+        """
+            Add a member to the group
+        """
+
+        for m in self.members:
+            if m.user_id == user_id:
+                raise HydraError(f"User {user_id} already exists in group {self.id}")
+
+        new_member = UserGroupMember()
+
+        new_member.user_id = user_id
+
+        self.members.append(new_member)
+
+    def remove_member(self, user_id):
+        """
+            Remove a member from the group
+        """
+
+        existing_member = get_session().query(UserGroupMember).filter(
+            UserGroupMember.usergroup_id == self.id,
+            UserGroupMember.user_id == user_id).first()
+
+        if existing_member is None:
+            raise HydraError(f"User {user_id} is not in in usergroup {self.id}")
+
+        get_session().delete(existing_member)
+
 class UserGroupMember(AuditMixin, Base, Inspect):
     """
         Lists the members of a group by linking to tuser User table
@@ -87,11 +142,11 @@ class UserGroupMember(AuditMixin, Base, Inspect):
 
     __tablename__ = 'tUserGroupMember'
     id = Column(Integer(), primary_key=True, index=True, nullable=False)
-    usergroup_id = Column(Integer(), ForeignKey('tUserGroup.id'), primary_key=True, nullable=False)
-    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
+    usergroup_id = Column(Integer(), ForeignKey('tUserGroup.id'), nullable=False)
+    user_id = Column(Integer(), ForeignKey('tUser.id'), nullable=False)
 
     group = relationship('UserGroup', lazy='joined',
-                         backref=backref("ausers",
+                         backref=backref("members",
                                          uselist=True,
                                          order_by=usergroup_id,
                                          cascade="all, delete-orphan"))
@@ -102,7 +157,7 @@ class UserGroupMember(AuditMixin, Base, Inspect):
                                         order_by=user_id,
                                         cascade="all, delete-orphan"))
     def __repr__(self):
-        return "{0} : {1}".format(self.usergroup_id, self.user_id)
+        return "Group {0} : Member {1}".format(self.usergroup_id, self.user_id)
 
 class GroupRoleUser(Base, Inspect):
     """
@@ -111,8 +166,14 @@ class GroupRoleUser(Base, Inspect):
 
     __tablename__ = 'tGroupRoleUser'
 
-    member_id = Column(Integer(), ForeignKey('tUserGroupMember.id'), primary_key=True, nullable=False)
-    role_id = Column(Integer(), ForeignKey('tRole.id'), primary_key=True, nullable=False)
+    member_id = Column(Integer(),
+                       ForeignKey('tUserGroupMember.id'),
+                       primary_key=True,
+                       nullable=False)
+    role_id = Column(Integer(),
+                     ForeignKey('tRole.id'),
+                     primary_key=True,
+                     nullable=False)
 
     user = relationship('UserGroupMember', lazy='joined')
     role = relationship('Role', lazy='joined')

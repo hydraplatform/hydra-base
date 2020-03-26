@@ -20,7 +20,7 @@
 import hydra_base
 import hydra_base.exceptions
 from hydra_base.lib.objects import JSONObject
-from .fixtures import *
+from ..fixtures import *
 import datetime
 import bcrypt
 import pytest

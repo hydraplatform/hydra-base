@@ -106,7 +106,7 @@ def add_user(user, **kwargs):
 
     return u
 
-@required_perms('update_user')
+@required_perms('edit_user')
 def update_user_display_name(user,**kwargs):
     """
         Update a user's display name
@@ -119,7 +119,7 @@ def update_user_display_name(user,**kwargs):
     except NoResultFound:
         raise ResourceNotFoundError("User (id=%s) not found"%(user.id))
 
-@required_perms('update_user')
+@required_perms('edit_user')
 def update_user_password(new_pwd_user_id, new_password,**kwargs):
     """
         Update a user's password
@@ -163,7 +163,7 @@ def get_user_by_id(uid,**kwargs):
     except NoResultFound:
         return None
 
-@required_perms('update_user')
+@required_perms('edit_user')
 def delete_user(deleted_user_id,**kwargs):
     """
         Delete a user
@@ -177,7 +177,6 @@ def delete_user(deleted_user_id,**kwargs):
 
 
     return 'OK'
-
 
 def add_role(role,**kwargs):
     """
