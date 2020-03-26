@@ -4,31 +4,25 @@ Hydra utility library
 Utility functions
 -----------------
 
-.. automodule:: HydraLib.util
+.. automodule:: lib.util
    :members:
 
-
-Plug-in development
--------------------
-
-.. automodule:: HydraLib.PluginLib
-   :members:
 
 Units and Dimensions
 --------------------
 
-.. automodule:: HydraLib.units
+.. automodule:: hydra_base.lib.units
    :members:
 
 Logging
 -------
 
-.. automodule:: HydraLib.hydra_logging
+.. automodule:: hydra_base.hydra_logging
    :members:
 
 Error classes
 -------------
 
-.. automodule:: HydraLib.HydraException
+.. automodule:: hydra_base.exceptions
    :members:
 

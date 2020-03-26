@@ -97,20 +97,22 @@ def is_global_unit(unit_id,**kwargs):
 
 def convert_units(values, source_measure_or_unit_abbreviation, target_measure_or_unit_abbreviation,**kwargs):
     """
-        Convert a value from one unit to another one.
+    Convert a value from one unit to another one.
 
-        Example::
+    Args:
+        values: single measure or an array of measures
+        source_measure_or_unit_abbreviation: A measure in the source unit, or just the abbreviation of the source unit, from which convert the provided measure value/values
+        target_measure_or_unit_abbreviation: A measure in the target unit, or just the abbreviation of the target unit, into which convert the provided measure value/values
 
-            >>> cli = PluginLib.connect()
-            >>> cli.service.convert_units(20.0, 'm', 'km')
-            0.02
-        Parameters:
-            values: single measure or an array of measures
-            source_measure_or_unit_abbreviation: A measure in the source unit, or just the abbreviation of the source unit, from which convert the provided measure value/values
-            target_measure_or_unit_abbreviation: A measure in the target unit, or just the abbreviation of the target unit, into which convert the provided measure value/values
+    Example:
 
-        Returns:
-            Always a list
+        >>> cli = PluginLib.connect()
+        >>> cli.service.convert_units(20.0, 'm', 'km')
+        0.02
+
+    Returns:
+        Always a list
+
     """
     if numpy.isscalar(values):
         # If it is a scalar, converts to an array
@@ -518,16 +520,19 @@ def check_consistency(measure_or_unit_abbreviation, dimension,**kwargs):
     dim = get_dimension_by_unit_measure_or_abbreviation(measure_or_unit_abbreviation)
     return dim == dimension
 
-def check_unit_matches_dimension(unit_id, dimension_id,**kwargs):
+def check_unit_matches_dimension(unit_id, dimension_id, **kwargs):
     """
-        Check whether a specified unit is part of the specified dimension.
-        args:
-            unit_id (int): The ID of the unit to compare with the dimension
-            dimension_id (int): The ID of the dimension to check
-        throws
-            hydra_base.ValidationError when the unit_id does not match the supplied dimension
-        returns:
-            None
+    Check whether a specified unit is part of the specified dimension.
+
+    Args:
+        unit_id (int): The ID of the unit to compare with the dimension
+        dimension_id (int): The ID of the dimension to check
+
+    Throws:
+        hydra_base.ValidationError when the unit_id does not match the supplied dimension
+
+    Returns:
+        None
     """
     #ensure the unit exists
     unit_i = db.DBSession.query(Unit).filter(Unit.id==unit_id).one()
@@ -540,7 +545,7 @@ def check_unit_matches_dimension(unit_id, dimension_id,**kwargs):
         dimension_name = None
 
     if unit_i.dimension.id != dimension_id:
-        raise ValidationError(f"Unit {unit_i.name} has a dimension of {unit_i.dimension.name}, not {dimension_name}") 
+        raise ValidationError(f"Unit {unit_i.name} has a dimension of {unit_i.dimension.name}, not {dimension_name}")
 
 
 """

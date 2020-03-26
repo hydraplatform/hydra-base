@@ -12,7 +12,7 @@ Technical documents
    techdocs/libraries_and_templates
 
 
-API doumentation
+API documentation
 ----------------
 
 .. toctree::

@@ -3,36 +3,22 @@ Unit test suite for Hydra Platform
 
 .. automodule:: server 
    :members:
-.. automodule:: test_network
+.. automodule:: tests.test_network
    :members:
-.. automodule:: test_scenario
+.. automodule:: tests.test_scenario
    :members:
-.. automodule:: test_data
+.. automodule:: tests.test_data
    :members:
-.. automodule:: test_plugins
+.. automodule:: tests.test_units
    :members:
-.. automodule:: test_units
+.. automodule:: tests.test_attributes
    :members:
-.. automodule:: test_attributes
+.. automodule:: tests.test_project
    :members:
-.. automodule:: test_image
+.. automodule:: tests.test_templates
    :members:
-.. automodule:: test_notes
+.. automodule:: tests.test_users
    :members:
-.. automodule:: test_project
-   :members:
-.. automodule:: test_templates
-   :members:
-.. automodule:: test_users
-   :members:
-.. automodule:: test_concurrency
-   :members:
-.. automodule:: test_load
-   :members:
-.. automodule:: test_permissions
-   :members:
-.. automodule:: test_rules
-   :members:
-.. automodule:: test_timeseries
+.. automodule:: tests.test_rules
    :members:
 

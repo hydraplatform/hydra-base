@@ -46,10 +46,6 @@ class TestAttribute:
         Test for attribute-based functionality
     """
 
-    """
-        TESTED
-    """
-
     def test_add_attribute(self, session):
         test_attr = JSONObject({
             "name": 'Test Attribute 1',
@@ -121,7 +117,7 @@ class TestAttribute:
 
     def test_get_attributes(self, session):
         """
-            def get_attributes(**kwargs):
+            def get_attributes(\*\*kwargs):
         """
         test_attr = JSONObject({
             "name": 'Test Attribute 1',
@@ -135,7 +131,7 @@ class TestAttribute:
     def test_get_template_attributes(self, session):
         """
             SKELETON
-            def get_template_attributes(template_id, **kwargs):
+            def get_template_attributes(template_id, \*\*kwargs):
         """
         pass
 
@@ -174,7 +170,7 @@ class TestAttribute:
 
     def test_check_attr_dimension(self, session, new_dataset):
         """
-            def check_attr_dimension(attr_id, **kwargs):
+         def check_attr_dimension(attr_id, \*\*kwargs):
         """
         test_attr = JSONObject({
             "name": 'Test Attribute 1',
@@ -193,7 +189,7 @@ class TestResourceAttribute:
     def test_add_resource_attribute(self, session):
         """
             SKELETON
-            def add_resource_attribute(resource_type, resource_id, attr_id, is_var, error_on_duplicate=True, **kwargs):
+            def add_resource_attribute(resource_type, resource_id, attr_id, is_var, error_on_duplicate=True, \*\*kwargs):
         """
         pass
 
@@ -201,14 +197,14 @@ class TestResourceAttribute:
     def test_update_resource_attribute(self, session):
         """
             SKELETON
-            def update_resource_attribute(resource_attr_id, is_var, **kwargs):
+            def update_resource_attribute(resource_attr_id, is_var, \*\*kwargs):
         """
         pass
 
     def test_delete_resource_attribute(self, session):
         """
             SKELETON
-            def delete_resource_attribute(resource_attr_id, **kwargs):
+            def delete_resource_attribute(resource_attr_id, \*\*kwargs):
         """
         pass
 
@@ -216,28 +212,28 @@ class TestResourceAttribute:
     def test_add_resource_attrs_from_type(self, session):
         """
             SKELETON
-            def add_resource_attrs_from_type(type_id, resource_type, resource_id,**kwargs):
+            def add_resource_attrs_from_type(type_id, resource_type, resource_id,\*\*kwargs):
         """
         pass
 
     def test_get_resource_attribute(self, session):
         """
             SKELETON
-            def get_resource_attribute(resource_attr_id, **kwargs):
+            def get_resource_attribute(resource_attr_id, \*\*kwargs):
         """
         pass
 
     def test_get_all_resource_attributes(self, session):
         """
             SKELETON
-            def get_all_resource_attributes(ref_key, network_id, template_id=None, **kwargs):
+            def get_all_resource_attributes(ref_key, network_id, template_id=None, \*\*kwargs):
         """
         pass
 
     def test_get_resource_attributes(self, session):
         """
             SKELETON
-            def get_resource_attributes(ref_key, ref_id, type_id=None, **kwargs):
+            def get_resource_attributes(ref_key, ref_id, type_id=None, \*\*kwargs):
         """
         pass
 
@@ -500,43 +496,43 @@ class TestAttributeMap:
     def test_delete_attribute_mapping(self, session):
         """
             SKELETON
-            def delete_attribute_mapping(resource_attr_a, resource_attr_b, **kwargs):
+            def delete_attribute_mapping(resource_attr_a, resource_attr_b, \*\*kwargs):
         """
         pass
     def test_delete_mappings_in_network(self, session):
         """
             SKELETON
-            def delete_mappings_in_network(network_id, network_2_id=None, **kwargs):
+            def delete_mappings_in_network(network_id, network_2_id=None, \*\*kwargs):
         """
         pass
     def test_get_mappings_in_network(self, session):
         """
             SKELETON
-            def get_mappings_in_network(network_id, network_2_id=None, **kwargs):
+            def get_mappings_in_network(network_id, network_2_id=None, \*\*kwargs):
         """
         pass
     def test_get_node_mappings(self, session):
         """
             SKELETON
-            def get_node_mappings(node_id, node_2_id=None, **kwargs):
+            def get_node_mappings(node_id, node_2_id=None, \*\*kwargs):
         """
         pass
     def test_get_link_mappings(self, session):
         """
             SKELETON
-            def get_link_mappings(link_id, link_2_id=None, **kwargs):
+            def get_link_mappings(link_id, link_2_id=None, \*\*kwargs):
         """
         pass
     def test_get_network_mappings(self, session):
         """
             SKELETON
-            def get_network_mappings(network_id, network_2_id=None, **kwargs):
+            def get_network_mappings(network_id, network_2_id=None, \*\*kwargs):
         """
         pass
     def test_check_attribute_mapping_exists(self, session):
         """
             SKELETON
-            def check_attribute_mapping_exists(resource_attr_id_source, resource_attr_id_target, **kwargs):
+            def check_attribute_mapping_exists(resource_attr_id_source, resource_attr_id_target, \*\*kwargs):
         """
         pass
 
@@ -770,30 +766,30 @@ class TestAttributeGroups:
     def test_get_attribute_group(self, session):
         """
             SKELETON
-            def get_attribute_group(group_id, **kwargs):
+            def get_attribute_group(group_id, \*\*kwargs):
         """
         pass
     def test_get_network_attributegroup_items(self, session):
         """
             SKELETON
-            def get_network_attributegroup_items(network_id, **kwargs):
+            def get_network_attributegroup_items(network_id, \*\*kwargs):
         """
         pass
     def test_get_group_attributegroup_items(self, session):
         """
             SKELETON
-            def get_group_attributegroup_items(network_id, group_id, **kwargs):
+            def get_group_attributegroup_items(network_id, group_id, \*\*kwargs):
         """
         pass
     def test_get_attribute_item_groups(self, session):
         """
             SKELETON
-            def get_attribute_item_groups(network_id, attr_id, **kwargs):
+            def get_attribute_item_groups(network_id, attr_id, \*\*kwargs):
         """
         pass
     def test_add_attribute_group_items(self, session):
         """
             SKELETON
-            def add_attribute_group_items(attributegroupitems, **kwargs):
+            def add_attribute_group_items(attributegroupitems, \*\*kwargs):
         """
         pass

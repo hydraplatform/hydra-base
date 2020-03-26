@@ -20,20 +20,10 @@ import alabaster
 
 #If building from the 'doc' folder on master
 sys.path.insert(0, os.path.abspath('../'))
-sys.path.insert(0, os.path.abspath('../HydraServer/python'))
-sys.path.insert(0, os.path.abspath('../HydraServer/python/HydraServer/unittests'))
-sys.path.insert(0, os.path.abspath('../HydraPlugins/CSVplugin/ImportCSV'))
-sys.path.insert(0, os.path.abspath('../HydraPlugins/CSVplugin/ExportCSV'))
-sys.path.insert(0, os.path.abspath('../HydraPlugins/WaterML/ImportWML'))
+sys.path.insert(0, os.path.abspath('../../hydra-server/'))
 
 #If building for gh-pages (so from the Hydra Platform base)
 sys.path.insert(0, os.path.abspath('./'))
-sys.path.insert(0, os.path.abspath('./HydraServer/python'))
-sys.path.insert(0, os.path.abspath('./HydraServer/python/HydraServer/unittests'))
-sys.path.insert(0, os.path.abspath('./HydraPlugins/CSVplugin/ImportCSV'))
-sys.path.insert(0, os.path.abspath('./HydraPlugins/CSVplugin/ExportCSV'))
-sys.path.insert(0, os.path.abspath('./HydraPlugins/WaterML/ImportWML'))
-
 
 # -- General configuration -----------------------------------------------------
 
@@ -42,7 +32,7 @@ sys.path.insert(0, os.path.abspath('./HydraPlugins/WaterML/ImportWML'))
 
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest', 'sphinx.ext.todo', 'sphinx.ext.coverage', 'sphinx.ext.pngmath', 'sphinx.ext.ifconfig', 'alabaster', 'sphinxcontrib.napoleon']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest', 'sphinx.ext.todo', 'sphinx.ext.coverage', 'sphinx.ext.imgmath', 'sphinx.ext.ifconfig', 'alabaster']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -57,11 +47,11 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'HydraPlatform'
+project = u'Hydra Platform'
 
 rst_epilog = """
-.. |csvreadme| replace:: './CSVPlugins/ImportCSV'
 """
+# .. |csvreadme| replace:: './CSVPlugins/ImportCSV'
 
 #copyright = u'2015, CH2M Hill Halcrow and The University of Manchester'
 
@@ -119,8 +109,8 @@ html_theme = 'alabaster'
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
-    'github_user': 'UMWRG',
-    'github_repo': 'HydraPlatform',
+    'github_user': 'hydraplatform',
+    'github_repo': 'hydra-base',
     'github_button': 'true',
     'github_banner': 'true',
 }

@@ -38,7 +38,7 @@ header for all subsequent requests
     cli.set_options(soapheaders=token)
 
     #Finally, for easier usage, make a sensible namespace:
-    cli.add_prefix('hyd', 'soap_server.hydra_complexmodels')
+    cli.add_prefix('hyd', 'server.complexmodels')
 
 Creating a network instance
 ***************************
