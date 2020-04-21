@@ -825,6 +825,8 @@ def _get_all_resourcescenarios(network_id, include_results, user_id):
         returns a dictionary of dict objects, keyed on scenario_id
     """
 
+    import pudb; pudb.set_trace()
+
     rs_qry = db.DBSession.query(
                 Dataset.type,
                 Dataset.unit_id,
@@ -1830,7 +1832,7 @@ def set_node_status(node_id, status, **kwargs):
 def _unique_data_qry(count=1):
     rs = aliased(ResourceScenario)
 
-    subqry=db.DBSession.query(
+    subqry = db.DBSession.query(
                            rs.dataset_id,
                            func.count(rs.dataset_id).label('dataset_count')).\
                                 group_by(rs.dataset_id).\
@@ -2582,12 +2584,12 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
         if ra.hidden == 'Y':
            try:
                 d = db.DBSession.query(Dataset).filter(
-                        Dataset.id==ra.dataset_id
+                    Dataset.id == ra.dataset_id
                     ).options(noload('metadata')).one()
                 d.check_read_permission(kwargs.get('user_id'))
            except:
-               ra_dict['value']     = None
-               ra_dict['metadata']  = []
+                ra_dict['value'] = None
+                ra_dict['metadata'] = []
         else:
             if include_metadata == 'Y':
                 ra_dict['metadata'] = metadata_dict.get(ra.dataset_id, [])
@@ -2604,6 +2606,8 @@ def clone_network(network_id,
                   project_id=None,
                   project_name=None,
                   new_project=True,
+                  include_outputs=False,
+                  scenario_ids=[],
                   **kwargs):
     """
      Create an exact clone of the specified network for the specified user.
@@ -2633,8 +2637,8 @@ def clone_network(network_id,
             project_name=ex_proj.name + " (Cloned by %s)" % user.display_name
 
         #check a project with this name doesn't already exist:
-        ex_project =  db.DBSession.query(Project).filter(Project.name==project_name,
-                                                         Project.created_by==user_id).all()
+        ex_project = db.DBSession.query(Project).filter(Project.name == project_name,
+                                                         Project.created_by == user_id).all()
         #If it exists, use it.
         if len(ex_project) > 0:
             project=ex_project[0]
@@ -2650,20 +2654,21 @@ def clone_network(network_id,
         db.DBSession.add(project)
         db.DBSession.flush()
 
-        project_id=project.id
+        project_id = project.id
 
     elif project_id is None:
         log.info("Using current project for cloned network")
-        project_id=ex_net.project_id
+        project_id = ex_net.project_id
 
     if new_network_name is None or new_network_name == "":
-        new_network_name=ex_net.name
+        new_network_name = ex_net.name
 
     log.info('Cloning Network...')
 
     #Find if there's any projects with this name in the project already
-    ex_network =  db.DBSession.query(Network).filter(Network.project_id==project_id,
-                                                     Network.name.like("{0}%".format(new_network_name))).all()
+    ex_network = db.DBSession.query(Network).filter(Network.project_id == project_id,
+                                                    Network.name.like(
+                                                        f"{new_network_name}%")).all()
 
     if len(ex_network) > 0:
         new_network_name = new_network_name + " " + str(len(ex_network))
@@ -2696,21 +2701,31 @@ def clone_network(network_id,
 
     log.info('CLoning Groups')
     group_id_map = _clone_groups(network_id,
-                                          newnetworkid,
-                                          node_id_map,
-                                          link_id_map,
-                                          user_id)
+                                 newnetworkid,
+                                 node_id_map,
+                                 link_id_map,
+                                 user_id)
 
     log.info("Cloning Resource Attributes")
-    ra_id_map = _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, group_id_map)
+    ra_id_map = _clone_resourceattrs(network_id,
+                                     newnetworkid,
+                                     node_id_map,
+                                     link_id_map,
+                                     group_id_map)
 
     log.info("Cloning Resource Types")
     _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, group_id_map)
 
     log.info('Cloning Scenarios')
-    scenario_id_map = _clone_scenarios(network_id, newnetworkid, ra_id_map, node_id_map, link_id_map, group_id_map, user_id)
-
-
+    scenario_id_map = _clone_scenarios(network_id,
+                                       newnetworkid,
+                                       ra_id_map,
+                                       node_id_map,
+                                       link_id_map,
+                                       group_id_map,
+                                       user_id,
+                                       include_outputs=include_outputs,
+                                       scenario_ids=scenario_ids)
 
     _clone_rules(
         network_id,
@@ -3004,19 +3019,48 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
     db.DBSession.flush()
     log.info("Insertion Complete")
 
-def _clone_scenarios(network_id, newnetworkid, ra_id_map, node_id_map, link_id_map, group_id_map, user_id):
-    scenarios = db.DBSession.query(Scenario).filter(Scenario.network_id==network_id)
+def _clone_scenarios(network_id,
+                     newnetworkid,
+                     ra_id_map,
+                     node_id_map,
+                     link_id_map,
+                     group_id_map,
+                     user_id,
+                     include_outputs=False,
+                     scenario_ids=[]):
+
+    scenarios = db.DBSession.query(Scenario).filter(Scenario.network_id == network_id).all()
 
     id_map = {}
 
-    for s in scenarios:
-        if s.status == 'A':
-            new_scenario_id = _clone_scenario(s, newnetworkid, ra_id_map, node_id_map, link_id_map, group_id_map, user_id)
-            id_map[s.id] = new_scenario_id
+    for scenario in scenarios:
+        #if scenario_ids are specified (the list is not empty) then filter out
+        #the scenarios not specified.
+        if len(scenario_ids) > 0 and scenario.id not in scenario_ids:
+            log.info("Not cloning scenario %s", scenario.id)
+            continue
+
+        if scenario.status == 'A':
+            new_scenario_id = _clone_scenario(scenario,
+                                              newnetworkid,
+                                              ra_id_map,
+                                              node_id_map,
+                                              link_id_map,
+                                              group_id_map,
+                                              user_id,
+                                              include_outputs=include_outputs)
+            id_map[scenario.id] = new_scenario_id
 
     return id_map
 
-def _clone_scenario(old_scenario, newnetworkid, ra_id_map, node_id_map, link_id_map, group_id_map, user_id):
+def _clone_scenario(old_scenario,
+                    newnetworkid,
+                    ra_id_map,
+                    node_id_map,
+                    link_id_map,
+                    group_id_map,
+                    user_id,
+                    include_outputs=False):
 
     log.info("Adding scenario shell to get scenario ID")
     news = Scenario()
@@ -3028,21 +3072,26 @@ def _clone_scenario(old_scenario, newnetworkid, ra_id_map, node_id_map, link_id_
     news.end_time = old_scenario.end_time
     news.time_step = old_scenario.time_step
     news.parent_id = old_scenario.parent_id
-    news.created_by=user_id
+    news.created_by = user_id
 
     db.DBSession.add(news)
 
     db.DBSession.flush()
 
-    scenario_id= news.id
+    scenario_id = news.id
     log.info("New Scenario %s created", scenario_id)
 
     log.info("Getting old resource scenarios for scenario %s", old_scenario.id)
-    old_rscen_rs = db.DBSession.query(ResourceScenario).filter(
-                                        ResourceScenario.scenario_id==old_scenario.id,
-                                        ResourceAttr.id==ResourceScenario.resource_attr_id,
-                                        ResourceAttr.attr_is_var == 'N'
-                                    ).all()
+    old_rscen_qry = db.DBSession.query(ResourceScenario).filter(
+        ResourceScenario.scenario_id == old_scenario.id,
+        ResourceAttr.id == ResourceScenario.resource_attr_id,
+    )
+
+    #Filter out output data unless explicitly requested not to.
+    if include_outputs is not True:
+        old_rscen_qry = old_rscen_qry.filter(ResourceAttr.attr_is_var == 'N')
+
+    old_rscen_rs = old_rscen_qry.all()
 
     new_rscens = []
     for old_rscen in old_rscen_rs:
@@ -3059,14 +3108,16 @@ def _clone_scenario(old_scenario, newnetworkid, ra_id_map, node_id_map, link_id_
 
 
     log.info("Getting old resource group items for scenario %s", old_scenario.id)
-    old_rgis = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.scenario_id==old_scenario.id).all()
+    old_rgis = db.DBSession.query(ResourceGroupItem).filter(
+        ResourceGroupItem.scenario_id == old_scenario.id).all()
+
     new_rgis = []
     for old_rgi in old_rgis:
         new_rgis.append(dict(
             ref_key=old_rgi.ref_key,
-            node_id = node_id_map.get(old_rgi.node_id),
-            link_id = link_id_map.get(old_rgi.link_id),
-            group_id = group_id_map.get(old_rgi.group_id),
+            node_id=node_id_map.get(old_rgi.node_id),
+            link_id=link_id_map.get(old_rgi.link_id),
+            group_id=group_id_map.get(old_rgi.group_id),
             scenario_id=scenario_id,
         ))
 
@@ -3081,8 +3132,10 @@ def apply_unit_to_network_rs(network_id, unit_id, attr_id, scenario_id=None, **k
         as the supplied resource_attr_id.
         args:
             unit_id (int): The unit ID to set on the network's datasets
-            resource_attr_id (int): The resource attribute from which the network ID and attribute ID can be derived
-            scenario_id (int) (optional): Supplied if only datasets in a specific scenario are to be affected
+            resource_attr_id (int): The resource attribute from which the
+                                    network ID and attribute ID can be derived
+            scenario_id (int) (optional): Supplied if only datasets in a
+                                          specific scenario are to be affected
         returns:
             None
         raises:
@@ -3091,22 +3144,22 @@ def apply_unit_to_network_rs(network_id, unit_id, attr_id, scenario_id=None, **k
 
     #Now get all the RS associated to both the attr and network.
     network_rs_query = db.DBSession.query(ResourceScenario).filter(
-                                                        Scenario.network_id==network_id,
-                                                        ResourceScenario.scenario_id==Scenario.id,
-                                                        ResourceScenario.resource_attr_id==ResourceAttr.id,
-                                                        ResourceAttr.attr_id==attr_id)
+        Scenario.network_id == network_id,
+        ResourceScenario.scenario_id == Scenario.id,
+        ResourceScenario.resource_attr_id == ResourceAttr.id,
+        ResourceAttr.attr_id == attr_id)
 
     if scenario_id is not None:
-        network_rs_query.filter(Scenario.id==scenario_id)
+        network_rs_query.filter(Scenario.id == scenario_id)
 
     network_rs_list = network_rs_query.all()
 
     #Get the attribute in question so we can check its dimension
-    attr_i = db.DBSession.query(Attr).filter(Attr.id==attr_id).one()
+    attr_i = db.DBSession.query(Attr).filter(Attr.id == attr_id).one()
 
     #now check whether the supplied unit can be applied by comparing it to the attribute's dimension
     units.check_unit_matches_dimension(unit_id, attr_i.dimension_id)
 
     #set the unit ID for each of the resource scenarios
-    for rs in network_rs_list:
-        rs.dataset.unit_id = unit_id
+    for network_rs in network_rs_list:
+        network_rs.dataset.unit_id = unit_id
