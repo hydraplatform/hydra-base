@@ -825,8 +825,6 @@ def _get_all_resourcescenarios(network_id, include_results, user_id):
         returns a dictionary of dict objects, keyed on scenario_id
     """
 
-    import pudb; pudb.set_trace()
-
     rs_qry = db.DBSession.query(
                 Dataset.type,
                 Dataset.unit_id,
