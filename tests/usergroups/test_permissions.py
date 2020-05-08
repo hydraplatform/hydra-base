@@ -18,43 +18,48 @@
 #
 
 import hydra_base
-import hydra_base.exceptions
+from hydra_base.exceptions import HydraError
 from hydra_base.lib.objects import JSONObject
 from ..fixtures import *
 import datetime
 import bcrypt
 import pytest
 
-class TestUserGroup:
-    """ A collection of tests which test the management of users within an organisation.
-    """
-
-    def test_add_usergroup(self, client, usergroupmaker):
-        """Test adding a usergroup to an organisation"""
-
-    def test_add_sub_usergroup(self, client, usergroupmaker):
-        """Test adding a usergroup to an organisation"""
-
-    def test_remove_usergroup(self, client, usergroupmaker):
-        """Test removing a usergroup"""
-
-    def test_add_usergroup_member(self, client, usergroupmaker):
-        """Test adding a user to a user group"""
-
-    def test_get_users(self, client, usergroupmaker):
-        """ Test fetching all the users in an organisation"""
-
-    def test_get_projects(self, client, usergroupmaker):
-        """ Test fetching all the projects to which a user has access within an organisation"""
-
 class TestUserGroupPermissions:
     """ A collection of tests which test the management of users permissions and roles
         within an organisation.
     """
-    def test_add_user_role(self, client, usergroupmaker):
+    @pytest.mark.skip(reason="Not sure how / if this should be implemented")
+    def test_add_user_role(self, session, client, usergroupmaker):
         """
-            Test applying a role to a user within an organisation
+            Test applying a role to a user within a group
         """
+
+        user_id = pytest.user_a.id
+
+        usergroup = usergroupmaker.create(client)
+
+        #Get the group's members top check the user's not already there
+        group_members = client.get_usergroup_members(usergroup.id)
+
+        #Check the user's been added successfully
+        assert user_id not in [member.user_id for member in group_members]
+
+        #add user_a to the usergroup
+        client.add_usergroup_member(usergroup.id, user_id)
+
+        #Now set the role of the user within the group they are operating in....
+        client.set_user_role()
+
+        #Get the group's members
+        group_members = client.get_usergroup_members(usergroup.id)
+
+        #Check the user's been added successfully
+        assert user_id in [member.user_id for member in group_members]
+
+        #add user_a to a group he's already in should error
+        with pytest.raises(HydraError):
+            client.add_usergroup_member(usergroup.id, user_id)
 
     def test_remove_user_role(self, client, usergroupmaker):
         """

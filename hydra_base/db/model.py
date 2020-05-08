@@ -592,39 +592,52 @@ class Project(Base, Inspect, PermissionControlled):
 
 
     __table_args__ = (
-        UniqueConstraint('name', 'created_by', 'status', name="unique proj name"),
+        UniqueConstraint('name', 'created_by', 'status', 'parent_id', name="unique proj name"),
     )
 
     attribute_data = []
     __ownerclass__ = ProjectOwner
-    __ownerfk__    = 'project_id'
+    __ownerfk__ = 'project_id'
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(200),  nullable=False, unique=False)
+    name = Column(String(200), nullable=False, unique=False)
     description = Column(String(1000))
-    status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    status = Column(String(1), nullable=False, server_default=text(u"'A'"))
+    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     created_by = Column(Integer(), ForeignKey('tUser.id'), nullable=False)
+    parent_id = Column(Integer(), ForeignKey('tProject.id'), nullable=True)
+    #TODO: THis is a hack to allow projects to store attributes. better to have FK
+    #from the scenasrio table or come up with a non-scenario way to store project data
+    scenario_id = Column(Integer(), ForeignKey('tScenario.id', use_alter=True), nullable=True)
 
     user = relationship('User', backref=backref("projects", order_by=id))
+    parent = relationship('Project', remote_side=[id], backref=backref("children", order_by=id))
 
-    _parents  = []
+    _parents = []
     _children = ['tNetwork']
 
     def get_name(self):
-        return self.project_name
+        return self.name
 
     def get_attribute_data(self):
-        attribute_data_rs = get_session().query(ResourceScenario).join(ResourceAttr).filter(ResourceAttr.project_id==self.id).all()
+        """
+            Get data assocoated to this project
+        """
+        attribute_data_rs = get_session().query(ResourceScenario)\
+            .join(ResourceAttr).filter(ResourceAttr.project_id == self.id).all()
+
         self.attribute_data = attribute_data_rs
         return attribute_data_rs
 
     def add_attribute(self, attr_id, attr_is_var='N'):
+        """
+            Add an attribute to this project
+        """
         res_attr = ResourceAttr()
         res_attr.attr_id = attr_id
         res_attr.attr_is_var = attr_is_var
         res_attr.ref_key = self.ref_key
-        res_attr.project_id  = self.id
+        res_attr.project_id = self.id
         self.attributes.append(res_attr)
 
         return res_attr
@@ -835,7 +848,11 @@ class Node(Base, Inspect):
     layout  = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
-    network = relationship('Network', backref=backref("nodes", order_by=network_id, cascade="all, delete-orphan"), lazy='joined')
+    network = relationship('Network',
+                           backref=backref("nodes",
+                                           order_by=network_id,
+                                           cascade="all, delete-orphan"),
+                           lazy='joined')
 
     _parents  = ['tNetwork']
     _children = ['tResourceAttr', 'tResourceType']
@@ -1067,16 +1084,16 @@ class Scenario(Base, Inspect):
     )
 
     id = Column(Integer(), primary_key=True, index=True, nullable=False)
-    name = Column(String(200),  nullable=False)
+    name = Column(String(200), nullable=False)
     description = Column(String(1000))
-    layout  = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
-    status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
+    layout  = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'), nullable=True)
+    status = Column(String(1), nullable=False, server_default=text(u"'A'"))
     network_id = Column(Integer(), ForeignKey('tNetwork.id'), index=True)
     start_time = Column(String(60))
     end_time = Column(String(60))
-    locked = Column(String(1),  nullable=False, server_default=text(u"'N'"))
+    locked = Column(String(1), nullable=False, server_default=text(u"'N'"))
     time_step = Column(String(60))
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     created_by = Column(Integer(), ForeignKey('tUser.id'), nullable=False)
     parent_id = Column(Integer(), ForeignKey('tScenario.id'), nullable=True)
 

@@ -69,12 +69,31 @@ def _get_member(usergroup_id, user_id, do_raise=True):
 
 #this user should be group admin, not a global admin
 @required_role('admin')
+def add_usergroup_members(usergroup_id, new_member_user_ids, **kwargs):
+    """
+        Add multiple new member to a usergroup
+        args:
+            usergroup_id (int): THe ID of the group to add the member to
+            new_member_user_ids list(int): THe ID of the user to add to the group
+        returns:
+            list(UserGroupMember) object of the new membership entry, complete with unique ID
+        raises
+            ResourceNotFoundError if the target user group is not found.
+    """
+    new_members = []
+    for new_member_user_id in new_member_user_ids:
+        new_member = add_usergroup_member(usergroup_id, new_member_user_id, **kwargs)
+        new_members.append(new_member)
+    return new_members
+
+#this user should be group admin, not a global admin
+@required_role('admin')
 def add_usergroup_member(usergroup_id, new_member_user_id, **kwargs):
     """
         Add a new member to a usergroup
         args:
             usergroup_id (int): THe ID of the group to add the member to
-            user_id (int): THe ID of the user to add to the group
+            new_member_user_id (int): THe ID of the user to add to the group
         returns:
             UserGroupMember object of the new membership entry, complete with unique ID
         raises

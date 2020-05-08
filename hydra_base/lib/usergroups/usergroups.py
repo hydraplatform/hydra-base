@@ -34,16 +34,16 @@ LOG = logging.getLogger(__name__)
 IGNORE_COLUMNS = ['updated_at', 'updated_by', 'cr_date']
 
 
-def _check_usergroup_exists(id, user_id):
+def _check_usergroup_exists(group_id, user_id):
     """
         Check if a usergroup exists. Raise a HydraError if not.
     """
 
     existing_group = db.DBSession.query(UserGroup)\
-                             .filter(UserGroup.id == id).first()
+                             .filter(UserGroup.id == group_id).first()
 
     if existing_group is None:
-         raise HydraError(f"User Group {id} does not exist.")
+         raise HydraError(f"User Group {group_id} does not exist.")
 
 def _check_unique_usergroup(usergroup, user_id):
     """
@@ -95,11 +95,11 @@ def _get_usergroups_by_name(id, user_id, write=False):
 
     return groups_to_return_i
 
-def _get_usergroup(id, user_id, write=False):
+def _get_usergroup(group_id, user_id, write=False):
     """
         Get a user group type by ID.
         args:
-            id: The ID of the group
+            group_id: The ID of the group
             user_id: THe user making the request
             write: Whether to check for write permission (if it's to be updated or deleted)
         returns:
@@ -109,7 +109,7 @@ def _get_usergroup(id, user_id, write=False):
     """
 
     try:
-        group_i = db.DBSession.query(UserGroup).filter(UserGroup.id == id).one()
+        group_i = db.DBSession.query(UserGroup).filter(UserGroup.id == group_id).one()
     except NoResultFound:
         raise ResourceNotFoundError(f"No User Group with ID {id}")
 
