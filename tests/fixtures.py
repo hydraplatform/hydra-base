@@ -14,10 +14,16 @@ import datetime
 from hydra_client.connection import JSONConnection
 
 def pytest_namespace():
+    """
+    set the pytest namespace
+    """
     return {'root_user_id': 1}
 
 @pytest.fixture()
 def dateformat():
+    """
+        returns the hydra date format
+    """
     return hydra_base.config.get('DEFAULT', 'datetime_format', "%Y-%m-%dT%H:%M:%S.%f000Z")
 
 @pytest.fixture()
@@ -31,7 +37,8 @@ def testdb_uri(db_backend):
     elif db_backend == 'mysql':
         return 'mysql+mysqldb://root:root@localhost/hydra_base_test'
     else:
-        raise ValueError('Database backend "{}" not supported when running the tests.'.format(db_backend))
+        raise ValueError(f"Database backend \"{db_backend}\" "
+                         "not supported when running the tests.")
 
 
 @pytest.fixture(scope='function')
@@ -79,9 +86,10 @@ def session(db, engine, request):
     pytest.root_user_id = root_user_id
 
     # Add some users
-    pytest.user_a = util.create_user("UserA")
-    pytest.user_b = util.create_user("UserB")
+    pytest.user_a = util.create_user("UserA") # admin user
+    pytest.user_b = util.create_user("UserB", role="modeller") # admin user
     pytest.user_c = util.create_user("UserC", role='developer')
+    pytest.user_d = util.create_user("UserD", role='manager')
 
     #this emulates what happens on login, and is used to track who performed inserts
     #and updates
@@ -162,10 +170,10 @@ def attribute():
 @pytest.fixture()
 def projectmaker():
     class ProjectMaker:
-        def create(self, name=None, share=True):
+        def create(self, name=None, parent_id=None, share=True):
             if name is None:
                 name = 'Project %s' % (datetime.datetime.now())
-            return util.create_project(name=name, share=share)
+            return util.create_project(name=name, parent_id=parent_id, share=share)
 
     return ProjectMaker()
 

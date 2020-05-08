@@ -40,15 +40,18 @@ class TestProject:
         attr2 = util.create_attr("proj_attr_2")
         attr3 = util.create_attr("proj_attr_3")
 
-        proj_attr_1  = JSONObject({})
+        proj_attr_1 = JSONObject({})
         proj_attr_1.id = -1
         proj_attr_1.attr_id = attr1.id
-        proj_attr_2  = JSONObject({})
+        proj_attr_1.attr_is_var = 'N'
+        proj_attr_2 = JSONObject({})
         proj_attr_2.attr_id = attr2.id
         proj_attr_2.id = -2
-        proj_attr_3  = JSONObject({})
+        proj_attr_2.attr_is_var = 'N'
+        proj_attr_3 = JSONObject({})
         proj_attr_3.attr_id = attr3.id
         proj_attr_3.id = -3
+        proj_attr_3.attr_is_var = 'N'
 
         attributes = []
 
@@ -74,12 +77,67 @@ class TestProject:
 
         return project
 
+    def test_add_project(self, session, client, network_with_data):
+        """
+            Test adding a project
+            Test adding a project as a child of another project
+        """
+        project = JSONObject({})
+        project.name = 'Test Project %s'%(datetime.datetime.now())
+        project.description = \
+            'A project created through the hydra client interface.'
+        project = self.add_attributes(project)
+        project = self.add_data(project)
+
+        parent_i = client.add_project(project)
+
+        child_project = JSONObject({})
+        child_project.name = 'Test Child Project %s'%(datetime.datetime.now())
+        child_project.description = \
+            'A project created as a child of another project.'
+        child_project.parent_id = parent_i.id
+        child_project = self.add_attributes(child_project)
+        child_project = self.add_data(child_project)
+
+        child_i = client.add_project(child_project)
+        uid = client.user_id
+        projects = client.get_projects(uid=uid)
+
+        assert parent_i.id in [proj.id for proj in projects]
+        assert child_i.id not in [proj.id for proj in projects]
+
+        #now get all the projects inside the parent project
+        child_projects = client.get_projects(uid=uid, parent_id=parent_i.id)
+        assert len(child_projects) == 1
+        assert child_projects[0].id == child_i.id
+
+    def test_move_project(self, session, client, projectmaker, network_with_data):
+        """
+            Test adding a project to a parent project, then moving it to
+            another parent project
+            Test adding a project as a child of another project
+        """
+        parent1 = projectmaker.create('Parent1')
+        parent2 = projectmaker.create('Parent2')
+        child = projectmaker.create(name='child', parent_id=parent1.id)
+
+        uid = client.user_id
+        assert len(client.get_projects(uid, parent_id=parent1.id)) == 1
+        assert len(client.get_projects(uid, parent_id=parent2.id)) == 0
+
+        child.parent_id = parent2.id
+        client.update_project(project=child)
+
+        assert len(client.get_projects(uid, parent_id=parent1.id)) == 0
+        assert len(client.get_projects(uid, parent_id=parent2.id)) == 1
+
     def test_update(self, session, network_with_data):
         """
             The network here is necessary for a scenario with ID 1 to exist.
             Under normal circumstances, scenario 1 will always exist, as it's an initial requirement
             of the database setup.
         """
+
         project = JSONObject({})
         project.name = 'SOAP test %s'%(datetime.datetime.now())
         project.description = \
@@ -88,9 +146,6 @@ class TestProject:
         project = self.add_data(project)
 
         new_project_i = hb.add_project(project, user_id=pytest.root_user_id)
-
-        #TODO: Fix issue in JSONObject caused by unusual project structure causing a recursion issue when loading attribute_data
-        hb.db.DBSession.expunge_all()
 
         project_i = hb.get_project(new_project_i.id, user_id=pytest.root_user_id)
 
@@ -200,13 +255,13 @@ class TestProject:
 
     def test_get_all_project_owners(self, session, projectmaker):
         proj = projectmaker.create()
-        
+
         projectowners = hb.get_all_project_owners(user_id=pytest.root_user_id)
 
         assert len(projectowners) == 4
-        
+
         projectowners = hb.get_all_project_owners([proj.id], user_id=pytest.root_user_id)
-        
+
         assert len(projectowners) == 4
 
         with pytest.raises(hb.exceptions.PermissionError):
@@ -214,11 +269,11 @@ class TestProject:
 
     def test_bulk_set_project_owners(self, session, projectmaker):
         proj = projectmaker.create(share=False)
-        
+
         projectowners = hb.get_all_project_owners([proj.id], user_id=pytest.root_user_id)
 
         assert len(projectowners) == 1
-        
+
         projectowners = hb.get_all_project_owners([proj.id], user_id=pytest.root_user_id)
 
         new_owner = JSONObject(dict(
@@ -257,7 +312,7 @@ class TestProject:
 
         assert cloned_project.name == new_project_name
         assert len(cloned_project.networks) == 2
-        
+
         #check with no name provided
         cloned_project_id = hb.clone_project(proj.id,
                                           recipient_user_id=recipient_user.id,
@@ -267,5 +322,5 @@ class TestProject:
         cloned_project = hb.get_project(cloned_project_id,
                                         user_id=pytest.root_user_id)
 
-        assert cloned_project.name.find('Cloned') > 0 
+        assert cloned_project.name.find('Cloned') > 0
         assert len(cloned_project.networks) == 2

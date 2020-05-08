@@ -17,46 +17,95 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
+import logging
+import bcrypt
+
 from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm.exc import NoResultFound
 
-from hydra_base.db.model import User, Role, Perm, RoleUser, RolePerm
+from hydra_base.db.model import User, Role, Perm, RoleUser, RolePerm, ProjectOwner
+from hydra_base.db.models.usergroups import UserGroupMember
 from hydra_base import db
 from hydra_base.util.permissions import required_perms
 
-import bcrypt
-
 from ..exceptions import ResourceNotFoundError, HydraError
-import logging
 
 log = logging.getLogger(__name__)
 
+def _filter_users(req_user_id, users_qry, project_id=None, group_id=None):
+    """
+        filter the users query based on the groups that the user is in
+    """
+
+    req_user = db.DBSession.query(User).filter(User.id == req_user_id).one()
+
+    #if no contexts (group_id, project_id) are provided, AND the user is an admin
+    #then we can return all the users.
+    if group_id is None and project_id is None and req_user.is_admin():
+        return users_qry
+
+    #filter visibile users by the context of the project that the requesting user
+    #is currently in
+    if project_id is not None:
+        users_qry = users_qry.join(ProjectOwner, ProjectOwner.user_id == User.id)\
+                                   .filter(ProjectOwner.project_id == project_id)
+
+    #If searching from within the context of a group, only return users which
+    #are in that group
+    if group_id is not None:
+        #create an join which is guaranteed to return nothing
+        users_qry = users_qry.join(UserGroupMember,
+                                   UserGroupMember.user_id == User.id)\
+                                   .filter(UserGroupMember.usergroup_id == group_id)
+
+    #if no contexts are provided, then return all users visible to the requesting user
+    if group_id is None and project_id is None:
+        #get all the groups that the user is in
+        req_users_groups = db.DBSession.query(UserGroupMember).filter(
+            UserGroupMember.user_id == req_user_id).all()
+
+        #If none are found, don't filter (or filter everything???)
+        if len(req_users_groups) == 0:
+            #create an join which is guaranteed to return nothing
+            users_qry = users_qry.join(UserGroupMember,
+                                       UserGroupMember.user_id == User.id)\
+                                       .filter(UserGroupMember.id == -1)
+        else:
+            #filter the users to only those that are in groups which the requesting user is in.
+            users_group_ids = [grp.usergroup_id for grp in req_users_groups]
+            #create an join which is guaranteed to return nothing
+            users_qry = users_qry.join(UserGroupMember,
+                                       UserGroupMember.user_id == User.id)\
+                                       .filter(UserGroupMember.id.in_(users_group_ids))
+
+    return users_qry
+
 def _get_user_id(username):
     try:
-        rs = db.DBSession.query(User.id).filter(User.username==username).one()
-        return rs.id
-    except:
+        user_i = db.DBSession.query(User.id).filter(User.username == username).one()
+        return user_i.id
+    except NoResultFound:
         return None
 
 def _get_user(user_id, **kwargs):
     try:
-        user_i = db.DBSession.query(User).filter(User.id==user_id).one()
+        user_i = db.DBSession.query(User).filter(User.id == user_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("User %s does not exist"%user_id)
 
     return user_i
 
-def _get_role(role_id,**kwargs):
+def _get_role(role_id, **kwargs):
     try:
-        role_i = db.DBSession.query(Role).filter(Role.id==role_id).one()
+        role_i = db.DBSession.query(Role).filter(Role.id == role_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Role %s does not exist"%role_id)
 
     return role_i
 
-def _get_perm(perm_id,**kwargs):
+def _get_perm(perm_id, **kwargs):
     try:
-        perm_i = db.DBSession.query(Perm).filter(Perm.id==perm_id).one()
+        perm_i = db.DBSession.query(Perm).filter(Perm.id == perm_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Permission %s does not exist"%perm_id)
 
@@ -66,14 +115,14 @@ def get_username(uid,**kwargs):
     """
         Return the username of a given user_id
     """
-    rs = db.DBSession.query(User.username).filter(User.id==uid).one()
+    rs = db.DBSession.query(User.username).filter(User.id == uid).one()
 
     if rs is None:
         raise ResourceNotFoundError("User with ID %s not found"%uid)
 
     return rs.username
 
-def get_usernames_like(username,**kwargs):
+def get_usernames_like(username, **kwargs):
     """
         Return a list of usernames like the given string.
     """
@@ -107,7 +156,7 @@ def add_user(user, **kwargs):
     return u
 
 @required_perms('edit_user')
-def update_user_display_name(user,**kwargs):
+def update_user_display_name(user, **kwargs):
     """
         Update a user's display name
     """
@@ -120,7 +169,7 @@ def update_user_display_name(user,**kwargs):
         raise ResourceNotFoundError("User (id=%s) not found"%(user.id))
 
 @required_perms('edit_user')
-def update_user_password(new_pwd_user_id, new_password,**kwargs):
+def update_user_password(new_pwd_user_id, new_password, **kwargs):
     """
         Update a user's password
     """
@@ -142,7 +191,7 @@ def get_user(uid, **kwargs):
     user_i = _get_user(uid)
     return user_i
 
-def get_user_by_name(uname,**kwargs):
+def get_user_by_name(uname, **kwargs):
     """
         Get a user by username
     """
@@ -152,7 +201,7 @@ def get_user_by_name(uname,**kwargs):
     except NoResultFound:
         return None
 
-def get_user_by_id(uid,**kwargs):
+def get_user_by_id(uid, **kwargs):
     """
         Get a user by username
     """
@@ -164,13 +213,13 @@ def get_user_by_id(uid,**kwargs):
         return None
 
 @required_perms('edit_user')
-def delete_user(deleted_user_id,**kwargs):
+def delete_user(deleted_user_id, **kwargs):
     """
         Delete a user
     """
     #check_perm(kwargs.get('user_id'), 'edit_user')
     try:
-        user_i = db.DBSession.query(User).filter(User.id==deleted_user_id).one()
+        user_i = db.DBSession.query(User).filter(User.id == deleted_user_id).one()
         db.DBSession.delete(user_i)
     except NoResultFound:
         raise ResourceNotFoundError("User (user_id=%s) does not exist"%(deleted_user_id))
@@ -178,7 +227,7 @@ def delete_user(deleted_user_id,**kwargs):
 
     return 'OK'
 
-def add_role(role,**kwargs):
+def add_role(role, **kwargs):
     """
         Add a new role
     """
@@ -189,20 +238,20 @@ def add_role(role,**kwargs):
 
     return role_i
 
-def delete_role(role_id,**kwargs):
+def delete_role(role_id, **kwargs):
     """
         Delete a role
     """
     #check_perm(kwargs.get('user_id'), 'edit_role')
     try:
-        role_i = db.DBSession.query(Role).filter(Role.id==role_id).one()
+        role_i = db.DBSession.query(Role).filter(Role.id == role_id).one()
         db.DBSession.delete(role_i)
     except InvalidRequestError:
         raise ResourceNotFoundError("Role (role_id=%s) does not exist"%(role_id))
 
     return 'OK'
 
-def add_perm(perm,**kwargs):
+def add_perm(perm, **kwargs):
     """
         Add a permission
     """
@@ -213,14 +262,14 @@ def add_perm(perm,**kwargs):
 
     return perm_i
 
-def delete_perm(perm_id,**kwargs):
+def delete_perm(perm_id, **kwargs):
     """
         Delete a permission
     """
 
     #check_perm(kwargs.get('user_id'), 'edit_perm')
     try:
-        perm_i = db.DBSession.query(Perm).filter(Perm.id==perm_id).one()
+        perm_i = db.DBSession.query(Perm).filter(Perm.id == perm_id).one()
         db.DBSession.delete(perm_i)
     except InvalidRequestError:
         raise ResourceNotFoundError("Permission (id=%s) does not exist"%(perm_id))
@@ -247,7 +296,7 @@ def set_user_role(new_user_id, role_id, **kwargs):
 
     return role_i
 
-def delete_user_role(deleted_user_id, role_id,**kwargs):
+def delete_user_role(deleted_user_id, role_id, **kwargs):
     """
         Remove a user from a role
     """
@@ -255,14 +304,17 @@ def delete_user_role(deleted_user_id, role_id,**kwargs):
     try:
         _get_user(deleted_user_id)
         _get_role(role_id)
-        roleuser_i = db.DBSession.query(RoleUser).filter(RoleUser.user_id==deleted_user_id, RoleUser.role_id==role_id).one()
+        roleuser_i = db.DBSession.query(RoleUser)\
+            .filter(RoleUser.user_id == deleted_user_id,
+                    RoleUser.role_id == role_id).one()
+
         db.DBSession.delete(roleuser_i)
     except NoResultFound:
         raise ResourceNotFoundError("User Role does not exist")
 
     return 'OK'
 
-def set_role_perm(role_id, perm_id,**kwargs):
+def set_role_perm(role_id, perm_id, **kwargs):
     """
         Insert a permission into a role
     """
@@ -278,7 +330,7 @@ def set_role_perm(role_id, perm_id,**kwargs):
 
     return role_i
 
-def delete_role_perm(role_id, perm_id,**kwargs):
+def delete_role_perm(role_id, perm_id, **kwargs):
     """
         Remove a permission from a role
     """
@@ -287,14 +339,15 @@ def delete_role_perm(role_id, perm_id,**kwargs):
     _get_role(role_id)
 
     try:
-        roleperm_i = db.DBSession.query(RolePerm).filter(RolePerm.role_id==role_id, RolePerm.perm_id==perm_id).one()
+        roleperm_i = db.DBSession.query(RolePerm).filter(RolePerm.role_id == role_id,
+                                                         RolePerm.perm_id == perm_id).one()
         db.DBSession.delete(roleperm_i)
     except NoResultFound:
         raise ResourceNotFoundError("Role Perm does not exist")
 
     return 'OK'
 
-def update_role(role,**kwargs):
+def update_role(role, **kwargs):
     """
         Update the role.
         Used to add permissions and users to a role.
@@ -309,31 +362,33 @@ def update_role(role,**kwargs):
 
     for perm in role.permissions:
         _get_perm(perm.id)
-        roleperm_i = RolePerm(role_id=role.id,
-                              perm_id=perm.id
-                              )
+        roleperm_i = RolePerm(role_id=role.id, perm_id=perm.id)
 
         db.DBSession.add(roleperm_i)
 
     for user in role.users:
         _get_user(user.id)
-        roleuser_i = RoleUser(user_id=user.id,
-                                         perm_id=perm.id
-                                        )
-
+        roleuser_i = RoleUser(user_id=user.id, role_id=role.id)
         db.DBSession.add(roleuser_i)
 
     db.DBSession.flush()
     return role_i
 
 
-def get_all_users(**kwargs):
+def get_all_users(group_id=None, project_id=None, **kwargs):
     """
         Get the username & ID of all users.
         Use the the filter if it has been provided
         The filter has to be a list of values
     """
+    req_user_id = kwargs.get('user_id')
+
     users_qry = db.DBSession.query(User)
+
+    users_qry = _filter_users(req_user_id,
+                              users_qry,
+                              project_id=project_id,
+                              group_id=group_id)
 
     filter_type = kwargs.get('filter_type')
     filter_value = kwargs.get('filter_value')
@@ -345,8 +400,8 @@ def get_all_users(**kwargs):
                 # Trying to read a csv string
                 log.info("[HB.users] Getting user by Filter ID : %s", filter_value)
                 filter_value = eval(filter_value)
-                if type(filter_value) is int:
-                    users_qry = users_qry.filter(User.id==filter_value)
+                if isinstance(filter_value, int):
+                    users_qry = users_qry.filter(User.id == filter_value)
                 else:
                     users_qry = users_qry.filter(User.id.in_(filter_value))
         elif filter_type == "username":
@@ -358,7 +413,7 @@ def get_all_users(**kwargs):
                     log.info("[HB.users] >>> Getting user by single Username : %s", em)
                     filter_value[i] = em.strip()
                 if isinstance(filter_value, str):
-                    users_qry = users_qry.filter(User.username==filter_value)
+                    users_qry = users_qry.filter(User.username == filter_value)
                 else:
                     users_qry = users_qry.filter(User.username.in_(filter_value))
         else:
@@ -367,9 +422,14 @@ def get_all_users(**kwargs):
     else:
         log.info('[HB.users] Getting All Users')
 
-    rs = users_qry.all()
+    users_i = users_qry.all()
 
-    return rs
+    #This should always return at least the requesting user!
+    if (req_user_id not in [u.id for u in users_i]):
+        req_user = db.DBSession.query(User).filter(User.id==req_user_id).one()
+        users_i.append(req_user)
+
+    return users_i
 
 def get_all_perms(**kwargs):
     """

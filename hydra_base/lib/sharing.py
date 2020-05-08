@@ -17,7 +17,7 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
-from ..exceptions import HydraError, ResourceNotFoundError
+from ..exceptions import HydraError, PermissionError as HydraPermissionError, ResourceNotFoundError
 import logging
 log = logging.getLogger(__name__)
 from .. import db
@@ -40,6 +40,13 @@ def _get_network(network_id):
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id))
 
+def _get_user_by_id(user_id):
+    try:
+        user_i = db.DBSession.query(User).filter(User.id == user_id).one()
+        return user_i
+    except NoResultFound:
+        raise ResourceNotFoundError("User %s not found"%(username))
+
 def _get_user(username):
     try:
         user_i = db.DBSession.query(User).filter(User.username==username).one()
@@ -54,7 +61,7 @@ def _get_dataset(dataset_id):
     except NoResultFound:
         raise ResourceNotFoundError("Dataset %s not found"%(dataset_id))
 
-def share_network(network_id, usernames, read_only, share,**kwargs):
+def share_network(network_id, usernames, read_only, share, **kwargs):
     """
         Share a network with a list of users, identified by their usernames.
 
@@ -77,8 +84,8 @@ def share_network(network_id, usernames, read_only, share,**kwargs):
 
     if net_i.created_by != int(user_id) and share == 'Y':
         raise HydraError("Cannot share the 'sharing' ability as user %s is not"
-                     " the owner of network %s"%
-                     (user_id, network_id))
+                         " the owner of network %s"%
+                         (user_id, network_id))
 
     for username in usernames:
         user_i = _get_user(username)
@@ -92,7 +99,7 @@ def share_network(network_id, usernames, read_only, share,**kwargs):
             net_i.project.set_owner(user_i.id, write='N', share='N')
     db.DBSession.flush()
 
-def unshare_network(network_id, usernames,**kwargs):
+def unshare_network(network_id, usernames, **kwargs):
     """
         Un-Share a network with a list of users, identified by their usernames.
     """
@@ -105,10 +112,10 @@ def unshare_network(network_id, usernames,**kwargs):
         user_i = _get_user(username)
         #Set the owner ship on the network itself
 
-    net_i.unset_owner(user_i.id, write=write, share=share)
+    net_i.unset_owner(user_i.id)
     db.DBSession.flush()
 
-def share_project(project_id, usernames, read_only, share,**kwargs):
+def share_project(project_id, usernames, read_only, share, **kwargs):
     """
         Share an entire project with a list of users, identifed by
         their usernames.
@@ -142,8 +149,8 @@ def share_project(project_id, usernames, read_only, share,**kwargs):
 
     if proj_i.created_by != user_id and share == 'Y':
         raise HydraError("Cannot share the 'sharing' ability as user %s is not"
-                     " the owner of project %s"%
-                     (user_id, project_id))
+                         " the owner of project %s"%
+                         (user_id, project_id))
 
     for username in usernames:
         user_i = _get_user(username)
@@ -152,6 +159,10 @@ def share_project(project_id, usernames, read_only, share,**kwargs):
 
         for net_i in proj_i.networks:
             net_i.set_owner(user_i.id, write=write, share=share)
+
+    for child_project in proj_i.children:
+        share_project(child_project.id, usernames, read_only, share, **kwargs)
+
     db.DBSession.flush()
 
 def unshare_project(project_id, usernames,**kwargs):
@@ -166,10 +177,18 @@ def unshare_project(project_id, usernames,**kwargs):
     for username in usernames:
         user_i = _get_user(username)
         #Set the owner ship on the network itself
-        proj_i.unset_owner(user_i.id, write=write, share=share)
+        proj_i.unset_owner(user_i.id)
+
+    #make sure the user is removed from all sub-networks as well
+    for net_i in proj_i.networks:
+        net_i.unset_owner(user_i.id)
+
+    for child_i in proj_i.children:
+        unshare_project(child_i.id, usernames, **kwargs)
+
     db.DBSession.flush()
 
-def set_project_permission(project_id, usernames, read, write, share,**kwargs):
+def set_project_permission(project_id, usernames, read, write, share, **kwargs):
     """
         Set permissions on a project to a list of users, identifed by
         their usernames.
@@ -204,6 +223,10 @@ def set_project_permission(project_id, usernames, read, write, share,**kwargs):
 
         for net_i in proj_i.networks:
             net_i.set_owner(user_i.id, read=read, write=write, share=share)
+
+    for child_i in proj_i.children:
+        set_project_permission(child_i.id, usernames, read, write, share, **kwargs)
+
     db.DBSession.flush()
 
 def set_network_permission(network_id, usernames, read, write, share,**kwargs):
@@ -233,8 +256,8 @@ def set_network_permission(network_id, usernames, read, write, share,**kwargs):
         #The creator of a network must always have read and write access
         #to their project
         if net_i.created_by == user_i.id:
-            raise HydraError("Cannot set permissions on network %s"
-                             " for user %s as tis user is the creator." %
+            raise HydraPermissionError("Cannot set permissions on network %s"
+                             " for user %s as this user is the creator." %
                              (network_id, username))
 
         net_i.set_owner(user_i.id, read=read, write=write, share=share)
@@ -255,8 +278,8 @@ def hide_dataset(dataset_id, exceptions, read, write, share,**kwargs):
     #check that I can hide the dataset
     if dataset_i.created_by != int(user_id):
         raise HydraError('Permission denied. '
-                        'User %s is not the owner of dataset %s'
-                        %(user_id, dataset_i.name))
+                         'User %s is not the owner of dataset %s'
+                         %(user_id, dataset_i.name))
 
     dataset_i.hidden = 'Y'
     if exceptions is not None:
@@ -265,7 +288,7 @@ def hide_dataset(dataset_id, exceptions, read, write, share,**kwargs):
             dataset_i.set_owner(user_i.id, read=read, write=write, share=share)
     db.DBSession.flush()
 
-def unhide_dataset(dataset_id,**kwargs):
+def unhide_dataset(dataset_id, **kwargs):
     """
         Hide a particular piece of data so it can only be seen by its owner.
         Only an owner can hide (and unhide) data.
@@ -280,8 +303,8 @@ def unhide_dataset(dataset_id,**kwargs):
     #check that I can unhide the dataset
     if dataset_i.created_by != int(user_id):
         raise HydraError('Permission denied. '
-                        'User %s is not the owner of dataset %s'
-                        %(user_id, dataset_i.name))
+                         'User %s is not the owner of dataset %s'
+                         %(user_id, dataset_i.name))
 
     dataset_i.hidden = 'N'
     db.DBSession.flush()
@@ -291,16 +314,25 @@ def get_all_project_owners(project_ids=None, **kwargs):
     """
         Get the project owner entries for all the requested projects.
         If the project_ids argument is None, return all the owner entries
-        for ALL projects
+        for ALL projects.
     """
 
+    user_id = kwargs.get('user_id')
+    user = _get_user_by_id(user_id)
 
     projowner_qry = db.DBSession.query(ProjectOwner)
 
     if project_ids is not None:
-       projowner_qry = projowner_qry.filter(ProjectOwner.project_id.in_(project_ids))
+        projowner_qry = projowner_qry.filter(ProjectOwner.project_id.in_(project_ids))
+
+    if not user.is_admin():
+        user_projects = db.DBSession.query(ProjectOwner).filter(ProjectOwner.user_id == user_id).all()
+        projowner_qry.filter(ProjectOwner.project_id.in_(p.project_id for p in user_projects))
 
     project_owners_i = projowner_qry.all()
+
+    for owner in project_owners_i:
+        owner.project.check_read_permission(user_id)
 
     return [JSONObject(project_owner_i) for project_owner_i in project_owners_i]
 
@@ -316,7 +348,7 @@ def get_all_network_owners(network_ids=None, **kwargs):
     networkowner_qry = db.DBSession.query(NetworkOwner)
 
     if network_ids is not None:
-       networkowner_qry = networkowner_qry.filter(NetworkOwner.network_id.in_(network_ids))
+        networkowner_qry = networkowner_qry.filter(NetworkOwner.network_id.in_(network_ids))
 
     network_owners_i = networkowner_qry.all()
 
@@ -335,14 +367,14 @@ def bulk_set_project_owners(project_owners, **kwargs):
              'share'      : 'Y'/ 'N'
             }
            """
-    
+
     project_ids = [po.project_id for po in project_owners]
 
     existing_projowners = db.DBSession.query(ProjectOwner).filter(ProjectOwner.project_id.in_(project_ids)).all()
 
     #Create a lookup based on the unique key for this table (project_id, user_id)
     po_lookup = {}
-    
+
     for po in existing_projowners:
         po_lookup[(po.project_id, po.user_id)] = po
 
@@ -375,14 +407,14 @@ def bulk_set_network_owners(network_owners, **kwargs):
              'share'      : 'Y'/ 'N'
             }
            """
-    
+
     network_ids = [no.network_id for no in network_owners]
 
     existing_projowners = db.DBSession.query(NetworkOwner).filter(NetworkOwner.network_id.in_(network_ids)).all()
 
     #Create a lookup based on the unique key for this table (network_id, user_id)
     no_lookup = {}
-    
+
     for no in existing_projowners:
         no_lookup[(no.network_id, no.user_id)] = no
 
@@ -401,5 +433,3 @@ def bulk_set_network_owners(network_owners, **kwargs):
         db.DBSession.add(new_no)
 
     db.DBSession.flush()
-
-

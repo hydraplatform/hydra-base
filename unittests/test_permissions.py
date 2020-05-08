@@ -9,7 +9,7 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
@@ -74,12 +74,12 @@ class SharingTest(server.SoapServerTest):
     def test_share_network(self):
 
         #One client is for the 'root' user and must remain open so it
-        #can be closed correctly in the tear down. 
+        #can be closed correctly in the tear down.
         old_client = self.client
         new_client = server.connect()
         self.client = new_client
         self.login("UserA", 'password')
-        
+
         network_1 = self.create_network_with_data()
         network_2 = self.create_network_with_data()
 
@@ -91,7 +91,7 @@ class SharingTest(server.SoapServerTest):
         self.client.service.logout("UserA")
 
         self.login("UserB", 'password')
-       
+
         net1 = self.client.service.get_network(network_1.id)
         try:
             net2 = self.client.service.get_network(network_2.id)
@@ -105,7 +105,7 @@ class SharingTest(server.SoapServerTest):
         self.client.service.logout("UserB")
 
         self.login("UserC", 'password')
-        
+
         net2 = self.client.service.get_network(network_2.id)
         try:
             net1 = self.client.service.get_network(network_1.id)
@@ -125,14 +125,14 @@ class SharingTest(server.SoapServerTest):
         self.client = old_client
 
     def test_unshare_network(self):
-        
+
         #One client is for the 'root' user and must remain open so it
-        #can be closed correctly in the tear down. 
+        #can be closed correctly in the tear down.
         old_client = self.client
         new_client = server.connect()
         self.client = new_client
         self.login("UserA", 'password')
-        
+
         network_1 = self.create_network_with_data()
 
         self.client.service.share_network(network_1.id, ["UserB"], 'Y', 'N')
@@ -140,7 +140,7 @@ class SharingTest(server.SoapServerTest):
         self.client.service.logout("UserA")
 
         self.login("UserB", 'password')
-       
+
         net1 = self.client.service.get_network(network_1.id)
         assert net1 is not None
 
@@ -165,12 +165,12 @@ class SharingTest(server.SoapServerTest):
     def test_share_project(self):
 
         #One client is for the 'root' user and must remain open so it
-        #can be closed correctly in the tear down. 
+        #can be closed correctly in the tear down.
         old_client = self.client
         new_client = server.connect()
         self.client = new_client
         self.login("UserA", 'password')
-        
+
         #create a project with two networks.
         network_1 = self.create_network_with_data(new_proj=True)
         network_2 = self.create_network_with_data(network_1.project_id)
@@ -183,10 +183,10 @@ class SharingTest(server.SoapServerTest):
         self.client.service.share_network(network_2.id, ["UserC"], 'N', 'N')
 
         self.client.service.logout("UserA")
-        
+
         #User B should be able to see the project but not edit it or anything in it.
         self.login("UserB", 'password')
-       
+
         userb_networks = self.client.service.get_networks(network_1.project_id)
         assert len(userb_networks.Network) == 2
 
@@ -201,7 +201,7 @@ class SharingTest(server.SoapServerTest):
 
         #User C should be able to edit network 2
         self.login("UserC", 'password')
-        
+
         userc_networks = self.client.service.get_networks(network_2.project_id)
 
         assert len(userc_networks.Network) == 1
@@ -222,12 +222,12 @@ class SharingTest(server.SoapServerTest):
     def test_unshare_project(self):
 
         #One client is for the 'root' user and must remain open so it
-        #can be closed correctly in the tear down. 
+        #can be closed correctly in the tear down.
         old_client = self.client
         new_client = server.connect()
         self.client = new_client
         self.login("UserA", 'password')
-        
+
         #create a project with two networks.
         network_1 = self.create_network_with_data(new_proj=True)
         self.create_network_with_data(project_id=network_1.project_id)
@@ -238,17 +238,17 @@ class SharingTest(server.SoapServerTest):
         self.client.service.logout("UserA")
 
         self.login("UserB", 'password')
-       
+
         userb_networks = self.client.service.get_networks(network_1.project_id)
         assert len(userb_networks.Network) == 2
 
         self.client.service.logout("UserB")
-        
+
         #re-login as user A and un-share the project
         self.login("UserA", 'password')
         self.client.service.set_project_permission(network_1.project_id, ["UserB"], 'N', 'N')
         self.client.service.logout("UserA")
-      
+
         #re-login as user B and try to access the formerly accessible project
         self.login("UserB", 'password')
         try:
@@ -264,12 +264,12 @@ class SharingTest(server.SoapServerTest):
     def test_sharing_shared_network(self):
 
         #One client is for the 'root' user and must remain open so it
-        #can be closed correctly in the tear down. 
+        #can be closed correctly in the tear down.
         old_client = self.client
         new_client = server.connect()
         self.client = new_client
         self.login("UserA", 'password')
-        
+
         network_1 = self.create_network_with_data(new_proj=True)
 
         #share the whole project with user B, and allow them to share.
@@ -278,15 +278,10 @@ class SharingTest(server.SoapServerTest):
         self.client.service.logout("UserA")
 
         self.login("UserB", 'password')
-       
+
         self.assertRaises(suds.WebFault, self.client.service.share_project, network_1.project_id, ["UserC"], 'Y', 'Y')
         self.assertRaises(suds.WebFault, self.client.service.share_network, network_1.id, ["UserC"], 'Y', 'Y')
 
         self.client.service.logout("UserB")
 
         self.client = old_client
-
-
-
-if __name__ == '__main__':
-    server.run()

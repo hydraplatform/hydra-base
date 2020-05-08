@@ -34,18 +34,19 @@ def check_perm(user_id, permission_code):
         error is thrown.
     """
     try:
-        perm = db.DBSession.query(Perm).filter(Perm.code==permission_code).one()
+        perm = db.DBSession.query(Perm).filter(Perm.code == permission_code).one()
     except NoResultFound:
         raise PermissionError("Nonexistent permission type: %s"%(permission_code))
 
 
     try:
-        res = db.DBSession.query(User).join(RoleUser, RoleUser.user_id==User.id).\
-            join(Perm, Perm.id==perm.id).\
-            join(RolePerm, RolePerm.perm_id==Perm.id).filter(User.id==user_id).one()
+        db.DBSession.query(RolePerm)\
+            .filter(RolePerm.perm_id == perm.id)\
+            .join(RoleUser, RoleUser.role_id == RolePerm.role_id)\
+            .filter(RoleUser.user_id == user_id).one()
     except NoResultFound:
         raise PermissionError("Permission denied. User %s does not have permission %s"%
-                        (user_id, permission_code))
+                              (user_id, permission_code))
 
 
 
@@ -81,10 +82,12 @@ def required_role(req_role):
         def wrapped(*args, **kwargs):
             user_id = kwargs.get("user_id")
             try:
-                res = db.DBSession.query(RoleUser).filter(RoleUser.user_id==user_id).join(Role, Role.code==req_role).one()
+                res = db.DBSession.query(RoleUser).\
+                    filter(RoleUser.user_id == user_id).\
+                    join(Role).filter(Role.code == req_role).one()
             except NoResultFound:
                 raise PermissionError("Permission denied. User %s does not have role %s"%
-                                (user_id, req_role))
+                                      (user_id, req_role))
 
             return wfunc(*args, **kwargs)
 

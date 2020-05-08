@@ -45,7 +45,7 @@ def logout(username):
 def create_user(name):
 
     existing_user = hydra_base.get_user_by_name(name)
-    
+
     if existing_user is not None:
         return existing_user
 
@@ -173,7 +173,7 @@ def create_template(use_existing_template=True):
     typeattr_1.attr_id = link_attr_1.id
     typeattrs.append(typeattr_1)
 
-    typeattr_2 = JSONObject() 
+    typeattr_2 = JSONObject()
     typeattr_2.attr_id = link_attr_2.id
     typeattrs.append(typeattr_2)
 
@@ -194,7 +194,7 @@ def create_template(use_existing_template=True):
 
     typeattrs = []
 
-    typeattr_1 = JSONObject() 
+    typeattr_1 = JSONObject()
     typeattr_1.attr_id = group_attr_1.id
     typeattrs.append(typeattr_1)
 
@@ -210,7 +210,7 @@ def create_template(use_existing_template=True):
 
     new_template_i = hydra_base.add_template(template, user_id=user_id)
     new_template = JSONObject(new_template_i)
-    
+
     assert new_template.name == template.name, "Names are not the same!"
     assert new_template.id is not None, "New Template has no ID!"
     assert new_template.id > 0, "New Template has incorrect ID!"
@@ -226,18 +226,21 @@ def create_template(use_existing_template=True):
 
     return new_template
 
-def create_project(name=None):
+def create_project(name=None, parent_id=None):
 
     if name is None:
         name = "Unittest Project"
 
     try:
-        p = JSONObject(hydra_base.get_project_by_name(name, user_id=user_id))
+        p = JSONObject(hydra_base.get_project_by_name(name,
+                                                      parent_id=parent_id,
+                                                      user_id=user_id))
         return p
-    except Exception, e:
+    except Exception as e:
         project = JSONObject()
         project.name = name
         project.description = "Project which contains all unit test networks"
+        project.parent_id = parent_id
         project = JSONObject(hydra_base.add_project(project, user_id=user_id))
         hydra_base.share_project(project.project_id,
                                  ["UserA", "UserB", "UserC"],
@@ -481,7 +484,7 @@ def build_network(project_id=None, num_nodes=10, new_proj=True,
 
     #For nodes, use the following:
     #A time series, where the value may be a 1-D array
-    
+
     nodes[0].attributes
     for n in nodes:
         for na in n.attributes:

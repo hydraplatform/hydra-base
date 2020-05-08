@@ -151,11 +151,12 @@ class PermissionControlled(object):
     def unset_owner(self, user_id):
         owner = None
         if str(user_id) == str(self.created_by):
-            log.warning("Cannot unset %s as owner, as they created the dataset", user_id)
+            log.warning("Cannot unset %s as owner, as they are the creator", user_id)
             return
+
         for o in self.owners:
             if user_id == o.user_id:
-                owner = o
+                owner = o#
                 get_session().delete(owner)
                 break
 
@@ -187,8 +188,8 @@ class PermissionControlled(object):
         else:
             if do_raise is True:
                 raise PermissionError("Permission denied. User %s does not have read"
-                             " access on dataset %s" %
-                             (user_id, self.id))
+                             " access on %s %s" %
+                             (user_id, self.__class__.__name__, self.id))
             else:
                 return False
 
@@ -208,8 +209,8 @@ class PermissionControlled(object):
         else:
             if do_raise is True:
                 raise PermissionError("Permission denied. User %s does not have edit"
-                             " access on dataset %s" %
-                             (user_id, self.id))
+                             " access on %s %s" %
+                             (user_id, self.__class__.__name__, self.id))
             else:
                 return False
 
@@ -229,8 +230,8 @@ class PermissionControlled(object):
                     break
         else:
             raise PermissionError("Permission denied. User %s does not have share"
-                             " access on dataset %s" %
-                             (user_id, self.id))
+                             " access on %s %s" %
+                             (user_id, self.__class__.__name__, self.id))
 
 class User(Base, Inspect):
     """

@@ -218,7 +218,7 @@ def add_scenario(network_id, scenario,**kwargs):
     scen.resourcegroupitems   = []
 
     #Just in case someone puts in a negative ID for the scenario.
-    if scenario.id < 0:
+    if scenario.id is not None and scenario.id < 0:
         scenario.id = None
 
     if scenario.resourcescenarios is not None:
@@ -878,7 +878,7 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
         db.DBSession.add(r_scen_i)
 
     if scenario.locked == 'Y':
-        log.info("Scenario %s is locked",scenario.id)
+        log.info("Scenario %s is locked", scenario.id)
         return r_scen_i
 
 
@@ -894,7 +894,7 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
     log.debug("Assigning %s to resource attribute: %s", value, ra_id)
 
     if value is None:
-        log.info("Cannot set data on resource attribute %s",ra_id)
+        log.info("Cannot set data on resource attribute %s", ra_id)
         return None
 
     metadata = dataset.get_metadata_as_dict(source=source, user_id=user_id)
@@ -927,7 +927,7 @@ def assign_value(rs, data_type, val,
 
     if rs.scenario.locked == 'Y':
         raise PermissionError("Cannot assign value. Scenario %s is locked"
-                             %(rs.scenario_id))
+                              %(rs.scenario_id))
 
     #Check if this RS is the only RS in the DB connected to this dataset.
     #If no results is found, the RS isn't in the DB yet, so the condition is false.
@@ -967,7 +967,7 @@ def assign_value(rs, data_type, val,
                                 unit_id,
                                 metadata=metadata,
                                 name=name,
-                                **dict(user_id=user_id))
+                                user_id=user_id)
         rs.dataset = dataset
         rs.source = source
 

@@ -167,7 +167,7 @@ class TestUser:
         """ Test fetching all the users """
 
         # These are the users added for the tests.
-        existing_users = {1: 'root', 2: 'UserA', 3: 'UserB', 4: 'UserC'}
+        existing_users = {1: 'root', 2: 'UserA', 3: 'UserB', 4: 'UserC', 5: 'UserD'}
 
         # Add one user
         client.add_user(user_json_object)
@@ -179,6 +179,38 @@ class TestUser:
                 assert user.username == existing_users[user.id]
             except KeyError:
                 assert user.username == user_json_object.username
+
+        #set the clent to mimic user 5, a non-admin user
+        client.user_id = 5
+        users = client.get_all_users()
+        assert len(users) == 1
+        assert users[0].id == 5
+
+    def test_get_users_in_project(self, session, client, user_json_object, projectmaker):
+        """ Test fetching all the users """
+
+        project = projectmaker.create()
+        project = client.get_project(project.id)
+
+        #set the clent to mimic one of the  non-admin owners of the project
+        project_owners = [o.user_id for o in project.owners]
+        project_owners.sort() #get the hightest user ID, as they're not admins
+        client.user_id = project_owners[-1]
+        users = client.get_all_users(project_id=project.id)
+        assert len(users) == 4
+        assert pytest.user_d.id not in [u.id for u in users]
+
+    def test_get_users_in_group(self, session, client, user_json_object, usergroupmaker):
+        """ Test fetching all the users """
+
+        group = usergroupmaker.create(client)
+        group_users = [pytest.user_a.id, pytest.user_b.id]
+        client.add_usergroup_members(group.id, group_users)
+
+        client.user_id = pytest.user_a.id
+        users = client.get_all_users(group_id=group.id)
+        assert len(users) == 2
+        assert len(set([u.id for u in users]).difference(set(group_users))) == 0
 
     def test_get_username(self, session, client, user_json_object):
         """ Test retrieving a username """
