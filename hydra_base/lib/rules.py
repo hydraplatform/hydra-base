@@ -461,17 +461,22 @@ def add_rule_type_definition(ruletypedefinition, **kwargs):
         Returns:
             ruletype_i (SQLAlchemy ORM Object) new rule type from DB
     """
-
     rule_type_i = RuleTypeDefinition()
 
     rule_type_i.code = ruletypedefinition.code
     rule_type_i.name = ruletypedefinition.name
 
-    db.DBSession.add(rule_type_i)
+    existing_rtd = db.DBSession.query(RuleTypeDefinition).filter(
+                    RuleTypeDefinition.code == ruletypedefinition.code).first()
 
-    db.DBSession.flush()
+    if existing_rtd is None:
+        db.DBSession.add(rule_type_i)
 
-    return rule_type_i
+        db.DBSession.flush()
+
+        return rule_type_i
+    else:
+        return existing_rtd
 
 @required_perms("edit_network", "view_rules")
 def get_rule_type_definitions(**kwargs):

@@ -77,7 +77,7 @@ class TestNetwork:
 
 
 
-    def test_get_network_with_template(self, session, network_with_data):
+    def test_get_network_with_template(self, session, network_with_data, attribute):
         """
             Test for the potentially likely case of creating a network with two
             scenarios, then querying for the network without data to identify
@@ -85,13 +85,14 @@ class TestNetwork:
             a select few scenarios.
         """
         net = network_with_data
-        logging.info("%s nodes before"%(len(net.nodes)))
+        logging.info("%s nodes before",(len(net.nodes)))
         #All the nodes are in this template, so return them all
         assert len(net.nodes) == 10
         #The type has only 2 attributes, so these are the only
         #ones which should be returned.
         for n in net.nodes:
             assert len(n.attributes) == 4
+
         #only 4 of the links in the network have a type, so only these
         #4 should be returned.
         logging.info("%s links before"%(len(net.links)))
@@ -107,9 +108,12 @@ class TestNetwork:
         template_id = net.nodes[0].types[0].template_id
 
         filtered_net = hb.get_network(net.id, template_id=template_id, user_id=pytest.root_user_id)
-        logging.info("%s nodes after"%(len(filtered_net.nodes)))
+        logging.info("%s nodes after",(len(filtered_net.nodes)))
         #All the nodes are in this template, so return them all
         assert len(filtered_net.nodes) == 10
+
+        assert len(filtered_net.attributes) == 2
+
         #The type has only 2 attributes, so these are the only
         #ones which should be returned.
         for n in filtered_net.nodes:
@@ -123,6 +127,18 @@ class TestNetwork:
             assert len(l.attributes) == 3
 
         assert len(filtered_net.resourcegroups) == 0
+
+        unfiltered_net = hb.get_network(net.id, user_id=pytest.root_user_id)
+
+        assert len(unfiltered_net.attributes) == 3
+
+        filtered_net_with_extra_attributes = hb.get_network(net.id,
+                                                            template_id = template_id,
+                                                            include_non_template_attributes = True,
+                                                            user_id = pytest.root_user_id)
+
+        assert len(filtered_net.attributes) == len(filtered_net_with_extra_attributes.attributes) - 1
+
 
     def test_get_network(self, session, networkmaker):
         """
@@ -154,7 +170,7 @@ class TestNetwork:
         network_with_results = hb.get_network(new_scenario.network_id, summary=True, include_data='Y', scenario_ids=scen_ids, user_id=pytest.root_user_id)
         network_no_results = hb.get_network(new_scenario.network_id, summary=True, include_data='Y', include_results='N', scenario_ids=scen_ids, user_id=pytest.root_user_id)
 
-        #there should be one more result in the 
+        #there should be one more result in the
         assert len(network_with_results.scenarios[0].resourcescenarios) == len(network_no_results.scenarios[0].resourcescenarios) + 10
 
         with pytest.raises(hb.exceptions.HydraError):
@@ -616,7 +632,7 @@ class TestNetwork:
         network = network_with_data
 
         link_to_delete = network.links[0]
-        
+
         hb.set_link_status(link_to_delete.id, 'X', user_id=pytest.root_user_id)
 
         new_network = JSONObject(hb.get_network(network.id, user_id=pytest.root_user_id))
@@ -991,11 +1007,11 @@ class TestNetwork:
                                  'N',
                                  'Y',
                                  user_id=pytest.root_user_id)
-        
+
         networkowners = hb.get_all_network_owners(user_id=pytest.root_user_id)
 
         assert len(networkowners) == 2
-        
+
         networkowners = hb.get_all_network_owners([proj.id], user_id=pytest.root_user_id)
         assert len(networkowners) == 2
 
@@ -1004,11 +1020,11 @@ class TestNetwork:
 
     def test_bulk_set_network_owners(self, session, networkmaker):
         net = networkmaker.create()
-        
+
         networkowners = hb.get_all_network_owners([net.id], user_id=pytest.root_user_id)
 
         assert len(networkowners) == 1
-        
+
         new_owner = JSONObject(dict(
             network_id=net.id,
             user_id=2,
@@ -1038,15 +1054,15 @@ class TestNetwork:
 
         cloned_network = hb.get_network(cloned_network_id, include_data=True, user_id=pytest.root_user_id)
 
-        assert cloned_network.name == net.name + " 1" 
+        assert cloned_network.name == net.name + " 1"
         assert len(net.nodes) == len(cloned_network.nodes)
         assert len(net.links) == len(cloned_network.links)
         assert len(net.resourcegroups) == len(cloned_network.resourcegroups)
         assert len(net.scenarios) == len(cloned_network.scenarios)
         assert len(net.scenarios[0].resourcescenarios) == len(cloned_network.scenarios[0].resourcescenarios) + 10 #this ignores results
         assert len(net.scenarios[0].resourcegroupitems) == len(cloned_network.scenarios[0].resourcegroupitems)
-        
-        
+
+
         cloned_network_id = hb.clone_network(net.id,
                                           recipient_user_id=recipient_user.id,
                                           new_network_name='My New Name',
@@ -1070,7 +1086,7 @@ class TestNetwork:
                                           project_name=None,
                                           new_project=True,
                                           user_id=pytest.root_user_id)
-        
+
         cloned_network = hb.get_network(cloned_network_id, include_data='Y', user_id=pytest.root_user_id)
         #No need to assert that the clone itself worked, as the other test does that.
         assert cloned_network.project_id != net.project_id
