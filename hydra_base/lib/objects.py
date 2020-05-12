@@ -106,7 +106,11 @@ class JSONObject(dict):
                         setattr(self, k, JSONObject(obj_dict.get_metadata_as_dict()))
                     else:
                         metadata_dict = JSONObject()
-                        for m in obj_dict.get('metadata', []):
+                        if hasattr(obj_dict, 'metadata'):
+                            metadata = obj_dict.metadata
+                        else:
+                            metadata = obj_dict.get('metadata', [])
+                        for m in metadata:
                             metadata_dict[m.key] = m.value
                         setattr(self, k, metadata_dict)
 
