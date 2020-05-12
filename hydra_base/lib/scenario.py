@@ -171,7 +171,16 @@ def get_scenario(scenario_id, get_parent_data=False, include_data=True, include_
         rscen_rs = scen_i.get_data(get_parent_data=get_parent_data)
 
     #lazy load resource attributes and attributes
+    delete_blobs = False
     for rs in rscen_rs:
+        try:
+            rs.dataset.value = get_dataset_value(rs.dataset)
+            if rs.dataset.value_blob is not None:
+                delete_blobs = True
+                rs.dataset.value_blob = None
+        except TypeError:
+            pass
+
         rs.resourceattr
         rs.resourceattr.attr
         rs.dataset
@@ -190,6 +199,9 @@ def get_scenario(scenario_id, get_parent_data=False, include_data=True, include_
         scen_j.resourcescenarios.append(rs_j)
 
     scen_j.resourcegroupitems =[JSONObject(r) for r in rgi_rs]
+
+    if delete_blobs:
+        db.DBSession.commit()
 
     return scen_j
 
@@ -1211,10 +1223,13 @@ def get_resource_attribute_data(ref_key, ref_id, scenario_id, attr_id, **kwargs)
 
     resource_data = resource_data_qry.all()
 
+    delete_blobs = False
     for rs in resource_data:
         try:
             rs.dataset.value = get_dataset_value(rs.dataset)
-            rs.dataset.value_blob = None
+            if rs.dataset.value_blob is not None:
+                delete_blobs = True
+                rs.dataset.value_blob = None
         except TypeError:
             pass
 
@@ -1226,7 +1241,8 @@ def get_resource_attribute_data(ref_key, ref_id, scenario_id, attr_id, **kwargs)
                 rs.dataset.frequency = None
                 rs.dataset.start_time = None
 
-    db.DBSession.expunge_all()
+    if delete_blobs:
+        db.DBSession.commit()
     return resource_data
 
 def get_resource_attribute_datasets(resource_attr_id, scenario_id, **kwargs):
@@ -1258,6 +1274,8 @@ def get_scenarios_data(scenario_id, attr_id, type_id, node_ids=None, link_ids=No
     # This can be either a single ID or list, so make them consistent
     if not isinstance(scenario_id, list):
         scenario_id = [scenario_id]
+
+    delete_blobs = False
 
     scenarios = db.DBSession.query(Scenario).filter(Scenario.id.in_(scenario_id)).all()
     for scenario in scenarios:
@@ -1318,7 +1336,9 @@ def get_scenarios_data(scenario_id, attr_id, type_id, node_ids=None, link_ids=No
         for rs in resource_data:
             try:
                 rs.dataset.value = get_dataset_value(rs.dataset)
-                rs.dataset.value_blob = None
+                if rs.dataset.value_blob is not None:
+                    delete_blobs = True
+                    rs.dataset.value_blob = None
             except TypeError:
                 pass
 
@@ -1331,7 +1351,10 @@ def get_scenarios_data(scenario_id, attr_id, type_id, node_ids=None, link_ids=No
                     rs.dataset.start_time = None
         scenario.resourcescenarios = resource_data
         scenario.resourcegroupitems = []
-    db.DBSession.expunge_all()
+
+    if delete_blobs:
+        db.DBSession.expunge_all()
+
     return scenarios
 
 def _check_can_edit_scenario(scenario_id, user_id):
