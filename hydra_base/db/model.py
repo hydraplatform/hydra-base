@@ -1597,13 +1597,13 @@ class Rule(AuditMixin, Base, Inspect, PermissionControlled):
         to it.
     """
 
-    __tablename__='tRule'
+    __tablename__ = 'tRule'
     __table_args__ = (
         UniqueConstraint('scenario_id', 'name', name="unique rule name"),
     )
 
     __ownerclass__ = RuleOwner
-    __ownerfk__    = 'rule_id'
+    __ownerfk__ = 'rule_id'
 
     id = Column(Integer(), primary_key=True, nullable=False)
 
@@ -1612,21 +1612,49 @@ class Rule(AuditMixin, Base, Inspect, PermissionControlled):
 
     format = Column(String(80), nullable=False, server_default='text')
 
-    ref_key = Column(String(60),  nullable=False, index=True)
+    ref_key = Column(String(60), nullable=False, index=True)
 
-    value = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
+    value = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'), nullable=True)
 
-    status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
-    scenario_id = Column(Integer(), ForeignKey('tScenario.id'),  nullable=True)
+    status = Column(String(1), nullable=False, server_default=text(u"'A'"))
+    scenario_id = Column(Integer(), ForeignKey('tScenario.id'), nullable=True)
 
-    network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), index=True, nullable=True)
-    node_id     = Column(Integer(),  ForeignKey('tNode.id'), index=True, nullable=True)
-    link_id     = Column(Integer(),  ForeignKey('tLink.id'), index=True, nullable=True)
-    group_id    = Column(Integer(),  ForeignKey('tResourceGroup.id'), index=True, nullable=True)
+    network_id = Column(Integer(), ForeignKey('tNetwork.id'), index=True, nullable=True)
+    node_id = Column(Integer(), ForeignKey('tNode.id'), index=True, nullable=True)
+    link_id = Column(Integer(), ForeignKey('tLink.id'), index=True, nullable=True)
+    group_id = Column(Integer(), ForeignKey('tResourceGroup.id'), index=True, nullable=True)
 
-    scenario = relationship('Scenario', backref=backref('rules', uselist=True, cascade="all, delete-orphan"), uselist=True, lazy='joined')
+    scenario = relationship('Scenario',
+                            backref=backref('rules',
+                                            uselist=True,
+                                            cascade="all, delete-orphan"),
+                            lazy='joined')
+    network = relationship('Network',
+                           backref=backref("rules",
+                                           order_by=network_id,
+                                           cascade="all, delete-orphan"),
+                           lazy='joined')
+    node = relationship('Node',
+                        backref=backref("rules",
+                                        order_by=node_id,
+                                        uselist=True,
+                                        cascade="all, delete-orphan"),
 
-    _parents  = ['tScenario', 'tNode', 'tLink', 'tProject', 'tNetwork', 'tResourceGroup']
+                        lazy='joined')
+    link = relationship('Link',
+                        backref=backref("rules",
+                                        order_by=link_id,
+                                        uselist=True,
+                                        cascade="all, delete-orphan"),
+                        lazy='joined')
+    group = relationship('ResourceGroup',
+                         backref=backref("rules",
+                                         order_by=group_id,#
+                                         uselist=True,
+                                         cascade="all, delete-orphan"),
+                         lazy='joined')
+
+    _parents = ['tScenario', 'tNode', 'tLink', 'tProject', 'tNetwork', 'tResourceGroup']
     _children = []
 
 
@@ -1646,10 +1674,10 @@ class Rule(AuditMixin, Base, Inspect, PermissionControlled):
         #Map a type code to a type object
         existing_type_map = dict((t.code, t) for t in self.types)
 
-        newtypes      = set([t.code for t in types])
+        newtypes = set([t.code for t in types])
 
-        types_to_add      = newtypes - existingtypes
-        types_to_delete   = existingtypes - newtypes
+        types_to_add = newtypes - existingtypes
+        types_to_delete = existingtypes - newtypes
 
         for ruletypecode in types_to_add:
 
@@ -1668,10 +1696,27 @@ class Rule(AuditMixin, Base, Inspect, PermissionControlled):
         """
 
         try:
-            get_session().query(RuleTypeDefinition).filter(RuleTypeDefinition.code==code).one()
+            get_session().query(RuleTypeDefinition).filter(RuleTypeDefinition.code == code).one()
         except NoResultFound:
             raise ResourceNotFoundError("Rule type definition with code {} does not exist".format(code))
 
+    def get_network(self):
+        """
+        Rules are associated with a network directly or nodes/links/groups in a network,
+        so rules are always associated to one network.
+        This function returns that network
+        """
+        rule_network = None
+        if self.ref_key.upper() == 'NETWORK':
+            rule_network = self.network
+        elif self.ref_key.upper() == 'NODE':
+            rule_network = self.node.network
+        elif self.ref_key.upper() == 'LINK':
+            rule_network = self.link.network
+        elif self.ref_key.upper() == 'GROUP':
+            rule_network = self.group.network
+
+        return rule_network
 
 class Note(Base, Inspect, PermissionControlled):
     """

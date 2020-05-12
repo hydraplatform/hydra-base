@@ -34,7 +34,8 @@ log = logging.getLogger(__name__)
 
 class TestRules:
 
-    def add_rule(self, client, network, name='A Test Rule', text='e=mc^2', scenario_id=None, ref_key=None, ref_id=None, types=[]):
+    def add_rule(self, client, network, name='A Test Rule', text='e=mc^2',
+                 scenario_id=None, ref_key=None, ref_id=None, types=[]):
         """
             A utility function which creates a rule and associates it
             with either a resource type, resource instance or resource
@@ -178,6 +179,10 @@ class TestRules:
         assert len(rules_of_type_b) == 1
 
     def test_add_rule(self, session, client, network_with_data):
+
+        #Sharae the network with user A to thest the sharing feature.
+        client.share_network(network_with_data.id, ['UserC'], 'Y', 'Y')
+
         rulename = 'Added Rule'
         ruletext = 'e=mc^3'#yes this is delibrate, so it's different to the default
         new_rule_j = self.add_rule(client, network_with_data, name=rulename, text=ruletext)
@@ -185,6 +190,13 @@ class TestRules:
         assert new_rule_j.id is not None
         assert new_rule_j.name == rulename
         assert new_rule_j.value == ruletext
+
+        #sanity check to ensure we''re actually testing that the ownership functionality
+        #is testing correctly
+        rule_network = client.get_network(network_with_data.id)
+        assert len(rule_network.owners) == 2
+
+        assert len(new_rule_j.owners) == 2
 
     def test_clone_rule(self, session, client, network_with_data):
 

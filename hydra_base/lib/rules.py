@@ -183,7 +183,7 @@ def get_rule(rule_id, **kwargs):
     return rule
 
 @required_perms("edit_network", "add_rules")
-def add_rule(rule, **kwargs):
+def add_rule(rule, include_network_users=True, **kwargs):
     """
         Add a new rule.
         Args:
@@ -215,11 +215,19 @@ def add_rule(rule, **kwargs):
 
     rule_i.set_types(rule.types)
 
-    rule_i.set_owner(user_id)
-
     db.DBSession.add(rule_i)
 
     db.DBSession.flush()
+
+    #Set the owner of this rule to be the creator, and also allow access
+    #to all other users of the network in which it resides.
+    rule_i.set_owner(user_id)
+    if include_network_users is True:
+        for owner in rule_i.get_network().owners:
+            #apply ownership with the same conditions as on the parent network
+            rule_i.set_owner(owner.user_id, owner.view, owner.edit, owner.share)
+
+        db.DBSession.flush()
 
     return rule_i
 
