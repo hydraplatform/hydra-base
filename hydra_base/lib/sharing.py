@@ -54,7 +54,7 @@ def _get_dataset(dataset_id):
     except NoResultFound:
         raise ResourceNotFoundError("Dataset %s not found"%(dataset_id))
 
-def share_network(network_id, usernames, read_only, share,**kwargs):
+def share_network(network_id, usernames, read_only, share, **kwargs):
     """
         Share a network with a list of users, identified by their usernames.
 
@@ -90,6 +90,10 @@ def share_network(network_id, usernames, read_only, share,**kwargs):
         else:
             #Give the user read access to the containing project
             net_i.project.set_owner(user_i.id, write='N', share='N')
+
+        for rule_i in net_i.rules:
+            rule_i.set_owner(user_i.id, write=write, share=share)
+
     db.DBSession.flush()
 
 def unshare_network(network_id, usernames,**kwargs):
@@ -335,14 +339,14 @@ def bulk_set_project_owners(project_owners, **kwargs):
              'share'      : 'Y'/ 'N'
             }
            """
-    
+
     project_ids = [po.project_id for po in project_owners]
 
     existing_projowners = db.DBSession.query(ProjectOwner).filter(ProjectOwner.project_id.in_(project_ids)).all()
 
     #Create a lookup based on the unique key for this table (project_id, user_id)
     po_lookup = {}
-    
+
     for po in existing_projowners:
         po_lookup[(po.project_id, po.user_id)] = po
 
@@ -375,14 +379,14 @@ def bulk_set_network_owners(network_owners, **kwargs):
              'share'      : 'Y'/ 'N'
             }
            """
-    
+
     network_ids = [no.network_id for no in network_owners]
 
     existing_projowners = db.DBSession.query(NetworkOwner).filter(NetworkOwner.network_id.in_(network_ids)).all()
 
     #Create a lookup based on the unique key for this table (network_id, user_id)
     no_lookup = {}
-    
+
     for no in existing_projowners:
         no_lookup[(no.network_id, no.user_id)] = no
 
@@ -401,5 +405,3 @@ def bulk_set_network_owners(network_owners, **kwargs):
         db.DBSession.add(new_no)
 
     db.DBSession.flush()
-
-
