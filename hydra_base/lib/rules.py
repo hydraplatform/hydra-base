@@ -16,15 +16,17 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-
+import logging
 from sqlalchemy.orm.exc import NoResultFound
 from hydra_base.lib.objects import JSONObject
-from ..db.model import Rule, RuleTypeDefinition, RuleTypeLink, RuleOwner
+from ..db.model import Rule,RuleTypeDefinition, RuleTypeLink, RuleOwner,\
+                       Node, Link, ResourceGroup, Network
 from .. import db
 from ..exceptions import HydraError, ResourceNotFoundError
 
 from ..util.permissions import required_perms
 
+LOG = logging.getLogger(__name__)
 
 def _get_rule(rule_id, user_id, check_write=False):
     try:
@@ -54,6 +56,70 @@ def get_scenario_rules(scenario_id, **kwargs):
                                             Rule.status == 'A').all()
 
     return rules
+
+@required_perms("view_network", "view_rules")
+def get_network_rules(network_id, scenario_id=None, summary=True, **kwargs):
+    """
+        Get all the rules within a network -- including rules associated to
+        all nodes, links and group=s.
+        Args:
+            network_id (int): ID of the resource
+            scenario_id (int): Optional which filters on scenario ID also
+        Returns:
+            List of Rule SQLAlchemy objects
+    """
+    user_id = kwargs.get('user_id')
+
+    #just in case
+    network_id = int(network_id)
+
+    rule_qry = db.DBSession.query(Rule).filter(Rule.status != 'X')
+    rule_qry = rule_qry.join(RuleOwner).filter(RuleOwner.user_id == int(user_id))
+
+    #Network rules
+    network_rule_qry = rule_qry.filter(Rule.network_id == network_id)
+
+    if scenario_id is not None:
+        network_rule_qry = network_rule_qry.filter(Rule.scenario_id == scenario_id)
+
+    network_rules = network_rule_qry.all()
+
+    #get node rules
+    node_rule_qry = rule_qry.filter(Rule.node_id == Node.id,
+                                    Node.network_id == Network.id,
+                                    Network.id == network_id)
+    if scenario_id is not None:
+        node_rule_qry = node_rule_qry.filter(Rule.scenario_id == scenario_id)
+
+    node_rules = node_rule_qry.all()
+
+    #Link Rules
+    link_rule_qry = rule_qry.filter(Link.id == Rule.link_id,
+                                    Link.network_id == Network.id,
+                                    Network.id == network_id)
+    if scenario_id is not None:
+        link_rule_qry = link_rule_qry.filter(Rule.scenario_id == scenario_id)
+
+    link_rules = link_rule_qry.all()
+
+    #ResourceGroup Rules
+    group_rule_qry = rule_qry.filter(ResourceGroup.id == Rule.group_id,
+                                     ResourceGroup.network_id == Network.id,
+                                     Network.id == network_id)
+    if scenario_id is not None:
+        group_rule_qry = group_rule_qry.filter(Rule.scenario_id == scenario_id)
+
+    group_rules = group_rule_qry.all()
+
+    all_network_rules = network_rules + node_rules + link_rules + group_rules
+
+    #lazy load types
+    if summary is False:
+        for rule in all_network_rules:
+            rule.types
+
+    return all_network_rules
+
 
 @required_perms("view_network", "view_rules")
 def get_resource_rules(ref_key, ref_id, scenario_id=None, **kwargs):
@@ -181,6 +247,14 @@ def get_rule(rule_id, **kwargs):
     user_id = kwargs.get('user_id')
     rule = _get_rule(rule_id, user_id)
     return rule
+
+@required_perms("edit_network", "add_rules")
+def add_rules(rules, include_network_users=True, **kwargs):
+    LOG.info("Adding %s rules."%len(rules))
+    for rule in rules:
+        add_rule(rule, include_network_users=include_network_users, **kwargs)
+
+    LOG.info("Rules Added")
 
 @required_perms("edit_network", "add_rules")
 def add_rule(rule, include_network_users=True, **kwargs):

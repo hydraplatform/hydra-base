@@ -667,7 +667,9 @@ def import_template_xml(template_xml, allow_update=True, **kwargs):
     xmlschema.assertValid(xml_tree)
 
     template_name = xml_tree.find('template_name').text
-    template_description = xml_tree.find('template_description').text
+    template_description = xml_tree.find('template_description')
+    if template_description:
+        template_description = template_description.text
 
     template_layout = None
     if xml_tree.find('layout') is not None and \
@@ -677,9 +679,10 @@ def import_template_xml(template_xml, allow_update=True, **kwargs):
         template_layout = json.dumps(layout_string)
 
     try:
-        tmpl_i = db.DBSession.query(Template).filter(Template.name==template_name).options(joinedload('templatetypes')
-                                                                                           .joinedload('typeattrs')
-                                                                                           .joinedload('attr')).one()
+        tmpl_i = db.DBSession.query(Template).filter(Template.name == template_name)\
+            .options(joinedload('templatetypes')
+            .joinedload('typeattrs')
+            .joinedload('attr')).one()
 
         if allow_update == False:
             raise HydraError("Existing Template Found with name %s"%(template_name,))
@@ -993,7 +996,7 @@ def assign_types_to_resources(resource_types,**kwargs):
         elif resource_type.ref_key == 'GROUP':
             grp_ids.append(ref_id)
     if net_id:
-        net = db.DBSession.query(Network).filter(Network.id==net_id).one()
+        net = db.DBSession.query(Network).filter(Network.id == net_id).one()
     nodes = _get_nodes(node_ids)
     links = _get_links(link_ids)
     groups = _get_groups(grp_ids)
@@ -1010,7 +1013,7 @@ def assign_types_to_resources(resource_types,**kwargs):
         elif ref_key == 'GROUP':
             resource = groups[ref_id]
 
-        ra, rt, rs= set_resource_type(resource, type_id, types)
+        ra, rt, rs = set_resource_type(resource, type_id, types)
         if rt is not None:
             res_types.append(rt)
         if len(ra) > 0:
@@ -1021,24 +1024,39 @@ def assign_types_to_resources(resource_types,**kwargs):
     log.debug("Retrieved all the appropriate resources")
     if len(res_types) > 0:
         new_types = db.DBSession.execute(ResourceType.__table__.insert(), res_types)
+
+    new_ras = []
     if len(res_attrs) > 0:
         new_res_attrs = db.DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
-        new_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.id>=new_res_attrs.lastrowid, ResourceAttr.id<(new_res_attrs.lastrowid+len(res_attrs)))).all()
+        new_ras = db.DBSession.query(ResourceAttr).filter(
+            and_(ResourceAttr.id>=new_res_attrs.lastrowid,
+                 ResourceAttr.id<(new_res_attrs.lastrowid+len(res_attrs)))).all()
 
     ra_map = {}
-    for ra in new_ras:
-        ra_map[(ra.ref_key, ra.attr_id, ra.node_id, ra.link_id, ra.group_id, ra.network_id)] = ra.id
+    for new_ra in new_ras:
+        ra_map[(new_ra.ref_key,
+                new_ra.attr_id,
+                new_ra.node_id,
+                new_ra.link_id,
+                new_ra.group_id,
+                new_ra.network_id)] = new_ra.id
 
     for rs in res_scenarios:
-        rs['resource_attr_id'] = ra_map[(rs['ref_key'], rs['attr_id'], rs['node_id'], rs['link_id'], rs['group_id'], rs['network_id'])]
+        rs['resource_attr_id'] = ra_map[(rs['ref_key'],
+                                         rs['attr_id'],
+                                         rs['node_id'],
+                                         rs['link_id'],
+                                         rs['group_id'],
+                                         rs['network_id'])]
 
     if len(res_scenarios) > 0:
-        new_scenarios = db.DBSession.execute(ResourceScenario.__table__.insert(), res_scenarios)
+        db.DBSession.execute(ResourceScenario.__table__.insert(), res_scenarios)
+
     #Make DBsession 'dirty' to pick up the inserts by doing a fake delete.
+    db.DBSession.query(ResourceAttr).filter(ResourceAttr.attr_id == None).delete()
 
-    db.DBSession.query(ResourceAttr).filter(ResourceAttr.attr_id==None).delete()
+    ret_val = list(types.values())
 
-    ret_val = [t for t in types.values()]
     return ret_val
 
 def check_type_compatibility(type_1_id, type_2_id):
