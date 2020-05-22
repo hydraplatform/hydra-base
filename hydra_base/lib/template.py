@@ -668,7 +668,7 @@ def import_template_xml(template_xml, allow_update=True, **kwargs):
 
     template_name = xml_tree.find('template_name').text
     template_description = xml_tree.find('template_description')
-    if template_description:
+    if template_description is not None:
         template_description = template_description.text
 
     template_layout = None
