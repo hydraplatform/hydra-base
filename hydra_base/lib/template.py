@@ -700,8 +700,8 @@ def import_template_xml(template_xml, allow_update=True, **kwargs):
     type_name_map = {r.name:r.id for r in tmpl_i.templatetypes}
     attr_name_map = {}
     for type_i in tmpl_i.templatetypes:
-        for attr in type_i.typeattrs:
-            attr_name_map[attr.attr.name] = (attr.id, attr.type_id)
+        for typeattr in type_i.typeattrs:
+            attr_name_map[typeattr.attr.name] = (typeattr.attr.id, typeattr.type_id)
 
     existing_types = set([r.name for r in tmpl_i.templatetypes])
 
