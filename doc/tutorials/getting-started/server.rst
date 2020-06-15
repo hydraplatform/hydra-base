@@ -174,12 +174,12 @@ Try:
 
 Pandas allows us to manipulate and store timeseries and arrays in a very efficient and flexible way.
 
-winpaths 
+winpath
 ********
 Try:
-`pip install winpaths`
+`pip install winpath`
 
-winpaths is a python module that retrieves the names of common Windows folders.
+winpath is a python module that retrieves the names of common Windows folders.
 
 CherryPy
 *********
