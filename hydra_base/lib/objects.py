@@ -24,7 +24,7 @@ import enum
 from datetime import datetime
 from ..exceptions import HydraError
 
-from .HydraTypes.Registry import HydraObjectFactory 
+from .HydraTypes.Registry import HydraObjectFactory
 
 from ..util import generate_data_hash, get_layout_as_dict, get_layout_as_string
 from .. import config
@@ -95,14 +95,15 @@ class JSONObject(dict):
                         setattr(self, k, JSONObject(obj_dict.get_metadata_as_dict()))
                     else:
                         metadata_dict = JSONObject()
-                        for m in obj_dict.get('metadata', []):
-                            metadata_dict[m.key] = m.value
+                        if hasattr(obj_dict, 'get'):#special case for resource data and row proxies
+                            for m in obj_dict.get('metadata', []):
+                                metadata_dict[m.key] = m.value
                         setattr(self, k, metadata_dict)
-                            
+
                 else:
                     is_list_of_objects = True
                     if len(v) > 0:
-                        if isinstance(v[0], float):
+                        if isinstance(v[0], (float, int)):
                             is_list_of_objects = False
                         elif isinstance(v[0], six.string_types) and len(v[0]) == 0:
                             is_list_of_objects = False

@@ -38,7 +38,6 @@ from .. import db
 from sqlalchemy import func, and_, or_, distinct
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import aliased
-from ..util.hydra_dateutil import timestamp_to_ordinal
 from ..util import hdb
 
 from sqlalchemy import case
@@ -511,8 +510,8 @@ def add_network(network,**kwargs):
             scen.name                 = s.name
             scen.description          = s.description
             scen.layout               = s.get_layout()
-            scen.start_time           = str(timestamp_to_ordinal(s.start_time)) if s.start_time else None
-            scen.end_time             = str(timestamp_to_ordinal(s.end_time)) if s.end_time else None
+            scen.start_time           = s.start_time
+            scen.end_time             = s.end_time
             scen.time_step            = s.time_step
             scen.created_by           = user_id
 
@@ -812,7 +811,7 @@ def _get_all_group_items(network_id):
     for item in all_items:
 
         items = item_dict.get(item.scenario_id, [])
-        items.append(item)
+        items.append(JSONObject(item))
         item_dict[item.scenario_id] = items
 
     logging.info("items processed in %s", time.time()-x)
@@ -1038,7 +1037,7 @@ def _get_scenarios(network_id, include_data, include_results, user_id, scenario_
     return scens
 
 def get_network(network_id,
-                summary=False,
+                include_attributes=True,
                 include_data='N',
                 include_results='Y',
                 scenario_ids=None,
@@ -1047,6 +1046,7 @@ def get_network(network_id,
     """
         Return a whole network as a dictionary.
         network_id: ID of the network to retrieve
+        include_attributes (bool): include attributes to save on data
         include_data: 'Y' or 'N'. Indicate whether scenario data is to be returned.
                       This has a significant speed impact as retrieving large amounts
                       of data can be expensive.
@@ -1059,6 +1059,7 @@ def get_network(network_id,
                       template on the network, groups, nodes and links.
     """
     log.debug("getting network %s"%network_id)
+
     user_id = kwargs.get('user_id')
 
     network_id = int(network_id)
@@ -1066,13 +1067,13 @@ def get_network(network_id,
     try:
         log.debug("Querying Network %s", network_id)
         net_i = db.DBSession.query(Network).filter(
-                                Network.id == network_id).options(
-                                noload('scenarios')).options(
-                                noload('nodes')).options(
-                                noload('links')).options(
-                                noload('types')).options(
-                                noload('attributes')).options(
-                                noload('resourcegroups')).one()
+            Network.id == network_id).options(
+            noload('scenarios')).options(
+            noload('nodes')).options(
+            noload('links')).options(
+            noload('types')).options(
+            noload('attributes')).options(
+            noload('resourcegroups')).one()
 
         net_i.check_read_permission(user_id)
 
@@ -1083,7 +1084,7 @@ def get_network(network_id,
         net.resourcegroups = _get_groups(network_id, template_id=template_id)
         net.owners         = _get_network_owners(network_id)
 
-        if summary is False:
+        if include_attributes in ('Y', True):
             all_attributes = _get_all_resource_attributes(network_id,
                                                           template_id,
                                                           include_non_template_attributes)
@@ -1484,8 +1485,8 @@ def update_network(network,
             else:
                 log.info("Adding new group %s", group.name)
                 g_i = net_i.add_group(group.name,
-                                   group.description,
-                                   group.status)
+                                      group.description,
+                                      group.status)
                 net_i.resourcegroups.append(net_i)
                 group_id_map[g_i.group_id] = g_i
 
@@ -1740,9 +1741,9 @@ def add_node(network_id, node,**kwargs):
             if len(all_rs) > 0:
                 db.DBSession.bulk_insert_mappings(ResourceScenario, all_rs)
 
-
     db.DBSession.refresh(new_node)
-
+    #lazy load attributes
+    new_node.attributes
     return new_node
 #########################################################################
 
@@ -1993,6 +1994,9 @@ def add_link(network_id, link,**kwargs):
 
     db.DBSession.refresh(link_i)
 
+    #lazy load attributes
+    link_i.attributes
+
     return link_i
 
 def update_link(link,**kwargs):
@@ -2115,8 +2119,9 @@ def add_group(network_id, group,**kwargs):
             if len(all_rs) > 0:
                 db.DBSession.bulk_insert_mappings(ResourceScenario, all_rs)
 
-
     db.DBSession.refresh(res_grp_i)
+    #lazy load attributes
+    res_grp_i.attributes
 
     return res_grp_i
 
@@ -2262,12 +2267,18 @@ def get_resources_of_type(network_id, type_id, **kwargs):
         Return the Nodes, Links and ResourceGroups which
         have the type specified.
     """
-
+    #'set a ref key on the resources to easily distinguish them'
     nodes_with_type = db.DBSession.query(Node).join(ResourceType).filter(Node.network_id==network_id, ResourceType.type_id==type_id).all()
+    for n in nodes_with_type:
+        n.ref_key = 'NODE'
     links_with_type = db.DBSession.query(Link).join(ResourceType).filter(Link.network_id==network_id, ResourceType.type_id==type_id).all()
+    for l in links_with_type:
+        l.ref_key = 'LINK'
     groups_with_type = db.DBSession.query(ResourceGroup).join(ResourceType).filter(ResourceGroup.network_id==network_id, ResourceType.type_id==type_id).all()
+    for g in groups_with_type:
+        g.ref_key = 'GROUP'
 
-    return nodes_with_type, links_with_type, groups_with_type
+    return nodes_with_type+links_with_type+groups_with_type
 
 def clean_up_network(network_id, **kwargs):
     """
@@ -2468,19 +2479,19 @@ def get_all_resource_attributes_in_network(attr_id, network_id, **kwargs):
         raise HydraError("Attribute %s not found"%(attr_id,))
 
     ra_qry = db.DBSession.query(ResourceAttr).filter(
-                ResourceAttr.attr_id==attr_id,
+                ResourceAttr.attr_id == attr_id,
                 or_(Network.id == network_id,
-                Node.network_id==network_id,
-                Link.network_id==network_id,
-                ResourceGroup.network_id==network_id)
-            ).outerjoin('node')\
-             .outerjoin('link')\
-             .outerjoin('network')\
-             .outerjoin('resourcegroup')\
-             .options(joinedload('node'))\
-             .options(joinedload('link'))\
-             .options(joinedload('resourcegroup'))\
-             .options(joinedload('network'))
+                Node.network_id == network_id,
+                Link.network_id == network_id,
+                ResourceGroup.network_id == network_id)
+                ).outerjoin('node')\
+                .outerjoin('link')\
+                .outerjoin('network')\
+                .outerjoin('resourcegroup')\
+                .options(joinedload('node'))\
+                .options(joinedload('link'))\
+                .options(joinedload('resourcegroup'))\
+                .options(joinedload('network'))
 
     resourceattrs = ra_qry.all()
 

@@ -19,7 +19,6 @@
 
 import hydra_base
 import hydra_base.exceptions
-from .fixtures import *
 import datetime
 import bcrypt
 import pytest
@@ -28,45 +27,44 @@ class TestLogin:
     """ A collection of tests of the User part of the DB.
     """
 
-    def test_login(self, session):
+    def test_login(self, client):
         """ Test adding a new user to the DB """
 
-        user_id, session_id = hydra_base.login('root', '')
+        user_id, session_id = client.login('root', '')
 
         assert user_id == 1
 
         assert session_id is not None
 
+    def test_logout(self, client):
 
-
-    def test_logout(self, session):
-
-        user_id, session_id = hydra_base.login('root', '')
+        user_id, session_id = client.login('root', '')
 
         assert user_id == 1
 
         assert session_id is not None
 
-        bad_logout_result = hydra_base.logout('i_am_not_a_session')
-
-        assert bad_logout_result == 'OK'
-
-        logout_result = hydra_base.logout(session_id)
+        logout_result = client.logout()
 
         assert logout_result == 'OK'
 
-    def test_get_session_user(self, session):
+    def test_get_session_user(self, client):
 
-        user_id, session_id = hydra_base.login('root', '')
+        #only run this for local clients, as the remote client doesn't
+        # user sessions (in the test suite)
+        if client.test_server is not None:
+            return
+
+        user_id, session_id = client.login('root', '')
 
         assert user_id == 1
 
         assert session_id is not None
 
-        retrieved_user_id = hydra_base.get_session_user('i_am_not_a_session')
+        retrieved_user_id = client.get_session_user(session_id='i_am_not_a_session')
 
-        assert retrieved_user_id == None
+        assert retrieved_user_id is None
 
-        retrieved_user_id = hydra_base.get_session_user(session_id)
+        retrieved_user_id = client.get_session_user(session_id=session_id)
 
         assert retrieved_user_id == user_id

@@ -9,7 +9,7 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
@@ -49,7 +49,7 @@ class AttributeTest(server.SoapServerTest):
             attr = self.client.service.add_attribute(attr)
 
             assert attr.description == "Attribute description"
-            
+
         return attr
 
     def test_add_attributes(self):
@@ -114,21 +114,18 @@ class AttributeTest(server.SoapServerTest):
         existing_attrs = self.test_add_attributes()
         name1     = existing_attrs[0].name
         name2     = existing_attrs[1].name
-        dimension = existing_attrs[0].dimen 
-        attrs = self.client.factory.create('hyd:AttrArray')
+        dimension = existing_attrs[0].dimen
+
         attr1 = {'name'  : name1,
                 'dimen' : dimension,
                 }
-        attrs.Attr.append(attr1)
         attr2 = {'name' : name2,
                  'dimen' : dimension,
                 }
-        attrs.Attr.append(attr2)
-
-        attrs = self.client.service.get_attributes(attrs)
-        assert attrs.Attr[0].id == existing_attrs[0].id
-        assert attrs.Attr[1].id == existing_attrs[1].id
-        assert attrs.Attr[1].description == existing_attrs[1].description
+        attrs = [attr1, attr2]
+        assert attrs[0].id == existing_attrs[0].id
+        assert attrs[1].id == existing_attrs[1].id
+        assert attrs[1].description == existing_attrs[1].description
 
     def test_add_network_attribute(self):
         network = self.create_network_with_data()
@@ -150,15 +147,15 @@ class AttributeTest(server.SoapServerTest):
         before_net_attrs = []
         for ra in network.attributes.ResourceAttr:
             before_net_attrs.append(ra.attr_id)
-            
-        self.client.service.add_network_attrs_from_type(type_id, network.id) 
-        
+
+        self.client.service.add_network_attrs_from_type(type_id, network.id)
+
         updated_network = self.client.service.get_network(network.id)
         after_net_attrs = []
         for ra in updated_network.attributes.ResourceAttr:
             after_net_attrs.append(ra.attr_id)
 
-        t = self.client.service.get_templatetype(type_id) 
+        t = self.client.service.get_templatetype(type_id)
 
         assert len(after_net_attrs) == len(before_net_attrs) + 1
 
@@ -183,7 +180,7 @@ class AttributeTest(server.SoapServerTest):
         for ra in node_attributes.ResourceAttr:
             network_attr_ids.append(ra.attr_id)
         assert new_attr.id in network_attr_ids
-        
+
         self.assertRaises(WebFault, self.client.service.add_node_attribute, node.id, new_attr.id, 'Y')
 
     def test_get_all_node_attributes(self):
@@ -196,7 +193,7 @@ class AttributeTest(server.SoapServerTest):
                 node_attr_ids.append(a.id)
 
         node_attributes = self.client.service.get_all_node_attributes(network.id)
-        
+
         #Check that the retrieved attributes are in the list of node attributes
         retrieved_ras = []
         for n in node_attributes.ResourceAttr:
@@ -206,13 +203,13 @@ class AttributeTest(server.SoapServerTest):
         template_id = network.types.TypeSummary[0].template_id
 
         node_attributes = self.client.service.get_all_node_attributes(network.id, template_id)
-        
+
         #Check that the retrieved attributes are in the list of node attributes
         retrieved_ras = []
         for n in node_attributes.ResourceAttr:
             retrieved_ras.append(n.id)
         assert set(node_attr_ids) == set(retrieved_ras)
-        
+
 
     def test_add_link_attribute(self):
         network = self.create_network_with_data()
@@ -262,7 +259,7 @@ class AttributeTest(server.SoapServerTest):
                 group_attr_ids.append(a.id)
 
         group_attributes = self.client.service.get_all_group_attributes(network.id)
-        
+
         #Check that the retrieved attributes are in the list of group attributes
         retrieved_ras = []
         for ra in group_attributes.ResourceAttr:
@@ -299,19 +296,19 @@ class AttributeMapTest(server.SoapServerTest):
 
         self.client.service.set_attribute_mapping(attr_1.id, attr_2.id)
         self.client.service.set_attribute_mapping(attr_1.id, attr_3.id)
-        
+
         all_mappings_1 = self.client.service.get_mappings_in_network(net1.id)
         all_mappings_2 = self.client.service.get_mappings_in_network(net2.id, net2.id)
-        #print all_mappings_1 
-        #print all_mappings_2 
+        #print all_mappings_1
+        #print all_mappings_2
         assert len(all_mappings_1[0]) == 2
         assert len(all_mappings_2[0]) == 1
 
         node_mappings_1 = self.client.service.get_node_mappings(node_1.id)
         node_mappings_2 = self.client.service.get_node_mappings(node_1.id, node_2.id)
         #print "*"*100
-        #print node_mappings_1 
-        #print node_mappings_2 
+        #print node_mappings_1
+        #print node_mappings_2
         assert len(node_mappings_1[0]) == 2
         assert len(node_mappings_2[0]) == 1
 
@@ -321,12 +318,12 @@ class AttributeMapTest(server.SoapServerTest):
         assert map_exists == 'N'
         map_exists = self.client.service.check_mapping_exists(attr_2.id, attr_3.id)
         assert map_exists == 'N'
-        
-       
+
+
         updated_rs = self.client.service.update_value_from_mapping(attr_1.id, attr_2.id, s1.id, s2.id)
-    
+
         assert str(updated_rs.value) == str(rs_to_update_from.value)
-       
+
         log.info("Deleting %s -> %s", attr_1.id, attr_2.id)
         self.client.service.delete_attribute_mapping(attr_1.id, attr_2.id)
         all_mappings_1 = self.client.service.get_mappings_in_network(net1.id)
@@ -361,7 +358,7 @@ class ResourceAttributeCollectionTest(server.SoapServerTest):
         new_ra_collection = self.client.service.add_resource_attr_collection(ra_collection)
 
         assert len(new_ra_collection.resource_attr_ids.integer) == len(item_ids.integer)
-        
+
         retrieved_ra_collection = self.client.service.get_resource_attr_collection(new_ra_collection.id)
         assert len(retrieved_ra_collection.resource_attr_ids.integer) == len(item_ids.integer)
 
@@ -377,7 +374,7 @@ class ResourceAttributeCollectionTest(server.SoapServerTest):
         item_ids_to_add.integer.append(new_ra_collection.resource_attr_ids.integer[0])
 
         larger_ra_collection = self.client.service.add_items_to_attr_collection(new_ra_collection.id, item_ids_to_add)
-         
+
         assert len(larger_ra_collection.resource_attr_ids.integer) == len(item_ids.integer)
 
         #Test searching for items
@@ -389,7 +386,7 @@ class ResourceAttributeCollectionTest(server.SoapServerTest):
 
         no_items = self.client.service.get_resource_attr_collections_for_attr(999)
         assert len(no_items) == 0
-        
+
 
         #Test searching for items
         network_items = self.client.service.get_resource_attr_collections_in_network(net.id)
@@ -416,7 +413,7 @@ class ResourceAttributeCollectionTest(server.SoapServerTest):
         self.assertRaises(WebFault, self.client.service.get_resource_attr_collection, new_ra_collection.id)
 
 
-        
+
 
 
 if __name__ == '__main__':

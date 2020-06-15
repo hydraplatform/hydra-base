@@ -93,7 +93,7 @@ def add_project(project,**kwargs):
 
     return proj_i
 
-@required_perms('edit_project')
+@required_perms('get_project')
 def update_project(project,**kwargs):
     """
         Update a project
@@ -116,6 +116,7 @@ def update_project(project,**kwargs):
 
     return proj_i
 
+@required_perms('get_project')
 def get_project(project_id, include_deleted_networks=False, **kwargs):
     """
         get a project complexmodel
@@ -126,10 +127,13 @@ def get_project(project_id, include_deleted_networks=False, **kwargs):
 
     #lazy load owners
     proj_i.owners
+    proj_i.attributes
 
     proj_i.check_read_permission(user_id)
 
     proj_j = JSONObject(proj_i)
+    attr_data = get_project_attribute_data(proj_i.id, user_id=user_id)
+    proj_j.attribute_data = [JSONObject(rs) for rs in attr_data]
 
     proj_j.networks = []
     for net_i in proj_i.networks:
@@ -149,6 +153,7 @@ def get_project(project_id, include_deleted_networks=False, **kwargs):
 
     return proj_j
 
+@required_perms('get_project')
 def get_project_by_network_id(network_id,**kwargs):
     """
         get a project complexmodel by a network_id
@@ -169,6 +174,7 @@ def get_project_by_network_id(network_id,**kwargs):
     return ret_project
 
 
+@required_perms('get_project')
 def get_project_by_name(project_name,**kwargs):
     """
         get a project complexmodel
@@ -255,6 +261,7 @@ def to_named_tuple(obj, visited_children=None, back_relationships=None, levels=N
     return result
 
 
+@required_perms('get_project')
 def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=None, **kwargs):
     """
         Get all the projects owned by the specified user.
@@ -342,6 +349,15 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
 
     return projects_j
 
+@required_perms('get_project')
+def get_project_attribute_data(project_id, **kwargs):
+    req_user_id = kwargs.get('user_id')
+
+    project_i = _get_project(project_id)
+
+    project_i.check_read_permission(req_user_id)
+
+    return project_i.get_attribute_data()
 
 @required_perms('delete_project')
 def set_project_status(project_id, status, **kwargs):
@@ -367,7 +383,7 @@ def delete_project(project_id,**kwargs):
 
     return 'OK'
 
-@required_perms("view_project")
+@required_perms("get_project")
 def get_networks(project_id, include_data='N', **kwargs):
     """
         Get all networks in a project
@@ -393,6 +409,7 @@ def get_networks(project_id, include_data='N', **kwargs):
 
     return networks
 
+@required_perms('get_project')
 def get_network_project(network_id, **kwargs):
     """
         get the project that a network is in
@@ -406,6 +423,7 @@ def get_network_project(network_id, **kwargs):
     return net_proj
 
 
+@required_perms('get_project', 'add_project')
 def clone_project(project_id, recipient_user_id=None, new_project_name=None, new_project_description=None, **kwargs):
     """
         Create an exact clone of the specified project for the specified user.
@@ -427,7 +445,7 @@ def clone_project(project_id, recipient_user_id=None, new_project_name=None, new
                                                      Project.created_by==user_id).all()
     if len(project_with_name) > 0:
         raise HydraError("A project with the name {0} already exists".format(new_project_name))
-    
+
     new_project = Project()
     new_project.name = new_project_name
     if new_project_description:
@@ -435,8 +453,8 @@ def clone_project(project_id, recipient_user_id=None, new_project_name=None, new
     else:
         new_project.description = project.description
 
-    new_project.created_by = user_id 
-    
+    new_project.created_by = user_id
+
     if recipient_user_id is not None:
         project.check_share_permission(user_id)
         new_project.set_owner(recipient_user_id)
@@ -457,5 +475,4 @@ def clone_project(project_id, recipient_user_id=None, new_project_name=None, new
 
     db.DBSession.flush()
 
-    return new_project.id 
-
+    return new_project.id

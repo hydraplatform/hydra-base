@@ -164,6 +164,13 @@ def get_val(dataset, timestamp=None):
 
         timeseries = pd.read_json(val, convert_axes=True)
 
+        if isinstance(timeseries.index, pd.DatetimeIndex):
+            if timeseries.index.tz is None:
+                timeseries = timeseries.tz_localize('UTC')
+            else:
+                timeseries = timeseries.tz_convert('UTC')
+
+
         if timestamp is None:
             return timeseries
         else:

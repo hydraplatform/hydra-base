@@ -42,7 +42,6 @@ from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
 
 from sqlalchemy.orm import relationship, backref
 
-from ..util.hydra_dateutil import ordinal_to_timestamp, get_datetime
 
 from . import DeclarativeBase as Base, get_session
 
@@ -69,16 +68,6 @@ try:
     basestring
 except NameError:
     basestring = str
-
-
-def get_timestamp(ordinal):
-    """
-        Turn an ordinal timestamp into a datetime string.
-    """
-    if ordinal is None:
-        return None
-    timestamp = str(ordinal_to_timestamp(ordinal))
-    return timestamp
 
 def get_user_id_from_engine(ctx):
     """
@@ -294,6 +283,8 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
         """
         if metadata_dict is None:
             return
+        if isinstance(metadata_dict, str):
+            metadata_dict = json.loads(metadata_dict)
 
         existing_metadata = []
         for m in self.metadata:
@@ -603,8 +594,8 @@ class ResourceAttr(Base, Inspect):
     id = Column(Integer(), primary_key=True, nullable=False)
     attr_id = Column(Integer(), ForeignKey('tAttr.id'),  nullable=False)
     ref_key = Column(String(60),  nullable=False, index=True)
-    network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), index=True, nullable=True,)
-    project_id  = Column(Integer(),  ForeignKey('tProject.id'), index=True, nullable=True,)
+    network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), index=True, nullable=True)
+    project_id  = Column(Integer(),  ForeignKey('tProject.id'), index=True, nullable=True)
     node_id     = Column(Integer(),  ForeignKey('tNode.id'), index=True, nullable=True)
     link_id     = Column(Integer(),  ForeignKey('tLink.id'), index=True, nullable=True)
     group_id    = Column(Integer(),  ForeignKey('tResourceGroup.id'), index=True, nullable=True)
@@ -769,6 +760,9 @@ class Project(Base, Inspect):
 
     def get_attribute_data(self):
         attribute_data_rs = get_session().query(ResourceScenario).join(ResourceAttr).filter(ResourceAttr.project_id==self.id).all()
+        #lazy load datasets
+        [rs.dataset.metadata for rs in attribute_data_rs]
+        [rs.resourceattr.attr for rs in attribute_data_rs]
         self.attribute_data = attribute_data_rs
         return attribute_data_rs
 
@@ -2055,7 +2049,6 @@ def create_resourcedata_view():
     from sqlalchemy.schema import DDLElement
     from sqlalchemy.sql import table
     from sqlalchemy.ext import compiler
-    from .model import ResourceAttr, ResourceScenario, Attr, Dataset
 
     class CreateView(DDLElement):
         def __init__(self, name, selectable):
@@ -2102,3 +2095,5 @@ def create_resourcedata_view():
         Dataset.value]).where(ResourceScenario.resource_attr_id==ResourceAttr.attr_id).where(ResourceAttr.attr_id==Attr.id).where(ResourceScenario.dataset_id==Dataset.id)
 
     stuff_view = view("vResourceData", Base.metadata, view_qry)
+#TODO: Understand why this view is not being created.
+#create_resourcedata_view()

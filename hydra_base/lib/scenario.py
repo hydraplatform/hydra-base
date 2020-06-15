@@ -36,7 +36,6 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import or_, and_, func
 from sqlalchemy.orm import joinedload, aliased
 from . import data
-from ..util.hydra_dateutil import timestamp_to_ordinal
 from collections import namedtuple
 from copy import deepcopy
 
@@ -56,6 +55,7 @@ def _get_scenario(scenario_id, user_id):
     try:
         scenario_qry = db.DBSession.query(Scenario).filter(Scenario.id==scenario_id)
         scenario = scenario_qry.one()
+
         return scenario
     except NoResultFound:
         raise ResourceNotFoundError("Scenario %s does not exist."%(scenario_id))
@@ -211,8 +211,8 @@ def add_scenario(network_id, scenario,**kwargs):
     scen.layout               = scenario.get_layout()
     scen.network_id           = network_id
     scen.created_by           = user_id
-    scen.start_time           = str(timestamp_to_ordinal(scenario.start_time)) if scenario.start_time else None
-    scen.end_time             = str(timestamp_to_ordinal(scenario.end_time)) if scenario.end_time else None
+    scen.start_time           = scenario.start_time
+    scen.end_time             = scenario.end_time
     scen.time_step            = scenario.time_step
     scen.resourcescenarios    = []
     scen.resourcegroupitems   = []
@@ -274,27 +274,11 @@ def update_scenario(scenario,update_data=True,update_groups=True,flush=True,**kw
     if scen.locked == 'Y':
         raise PermissionError('Scenario is locked. Unlock before editing.')
 
-    start_time = None
-    if isinstance(scenario.start_time, float):
-        start_time = six.text_type(scenario.start_time)
-    else:
-        start_time = timestamp_to_ordinal(scenario.start_time)
-        if start_time is not None:
-            start_time = six.text_type(start_time)
-
-    end_time = None
-    if isinstance(scenario.end_time, float):
-        end_time = six.text_type(scenario.end_time)
-    else:
-        end_time = timestamp_to_ordinal(scenario.end_time)
-        if end_time is not None:
-            end_time = six.text_type(end_time)
-
     scen.name                 = scenario.name
     scen.description          = scenario.description
     scen.layout               = scenario.get_layout()
-    scen.start_time           = start_time
-    scen.end_time             = end_time
+    scen.start_time           = scenario.start_time
+    scen.end_time             = scenario.end_time
     scen.time_step            = scenario.time_step
 
     if scenario.resourcescenarios == None:
@@ -437,6 +421,14 @@ def clone_scenario(scenario_id, retain_results=False, scenario_name=None, **kwar
             cloned_name = cloned_name + " %s"%(num_cloned_scenarios)
     else:
         cloned_name = scenario_name
+
+        #check this scenario name is available
+        existing_scenario_with_name = db.DBSession.query(Scenario).filter(
+            Scenario.network_id==scen_i.network_id, Scenario.name==scenario_name).first()
+
+        if existing_scenario_with_name is not None:
+            netname = existing_scenario_with_name.network.name
+            raise HydraError(f"A scenario with name {scenario_name} already exists in network {netname}")
 
     log.info("Cloned scenario name is %s", cloned_name)
 
@@ -750,12 +742,14 @@ def bulk_update_resourcedata(scenario_ids, resource_scenarios,**kwargs):
         _check_can_edit_scenario(scenario_id, kwargs['user_id'])
 
         scen_i = _get_scenario(scenario_id, user_id)
-        res[scenario_id] = []
+        #this is cast as a string so it can be read into a JSONObject
+        res[str(scenario_id)] = []
 
         for rs in resource_scenarios:
             if rs.dataset is not None:
                 updated_rs = _update_resourcescenario(scen_i, rs, user_id=user_id, source=kwargs.get('app_name'))
-                res[scenario_id].append(updated_rs)
+                #this is cast as a string so it can be read into a JSONObject
+                res[str(scenario_id)].append(updated_rs)
             else:
                 _delete_resourcescenario(scenario_id, rs.resource_attr_id)
 
@@ -1347,6 +1341,9 @@ def update_value_from_mapping(source_resource_attr_id, target_resource_attr_id, 
         log.info("Source Resource Scenario does not exist. Deleting destination Resource Scenario")
         if rs2 is not None:
             db.DBSession.delete(rs2)
+
+    #lazy load the dataset
+    return_value.dataset
 
     db.DBSession.flush()
     return return_value

@@ -127,8 +127,3 @@ def test_fail_create_dataframe(value):
     with pytest.raises( (HydraError, TypeError, ValueError) ):
         dataframe_dataset = hb.lib.objects.Dataset({'type':'dataframe', 'value': json.dumps(value)})
         value = dataframe_dataset.parse_value()
-
-
-if __name__ == "__main__":
-#    pytest.main(['-v', '-s', __file__])
-    pytest.main(['-v', __file__])
