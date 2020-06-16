@@ -236,7 +236,7 @@ a single data_id, which is contained in tTimeSeries.
 
  * dataset_id: Reference to data_id in tTimeSeries
  * ts_time: Timestamp
- * ts_value: a multi-dimensional array, stored as a blob. Can also just be a single value.
+ * ts_value: a multi-dimensional array, stored as text. Can also just be a single value.
 
 tMetaData
 ^^^^^^^^^
