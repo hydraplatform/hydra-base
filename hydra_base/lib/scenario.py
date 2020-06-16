@@ -172,13 +172,6 @@ def get_scenario(scenario_id, get_parent_data=False, include_data=True, include_
 
     #lazy load resource attributes and attributes
     for rs in rscen_rs:
-        try:
-            rs.dataset.value = get_dataset_value(rs.dataset)
-            if rs.dataset.value_blob is not None:
-                rs.dataset.value_blob = None
-        except TypeError:
-            pass
-
         rs.resourceattr
         rs.resourceattr.attr
         rs.dataset
@@ -1165,24 +1158,6 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id=None, expunge_sessio
 
     return requested_rs
 
-def get_dataset_value(dataset):
-    val = None
-    if dataset.value is not None:
-        val = dataset.value
-    else:
-        value_blob = dataset.value_blob
-        if value_blob is not None:
-            if isinstance(value_blob, bytes):
-                try:
-                    val = value_blob.decode()
-                except UnicodeDecodeError:
-                    val = zlib.decompress(value_blob).decode()
-                except:
-                    raise
-            else:
-                val = value_blob
-    return val
-
 
 def get_resource_attribute_data(ref_key, ref_id, scenario_id, attr_id, **kwargs):
     """
@@ -1217,14 +1192,6 @@ def get_resource_attribute_data(ref_key, ref_id, scenario_id, attr_id, **kwargs)
         resource_data_qry = resource_data_qry.filter(ResourceAttr.attr_id.in_(attr_id))
 
     resource_data = resource_data_qry.all()
-
-    for rs in resource_data:
-        try:
-            rs.dataset.value = get_dataset_value(rs.dataset)
-            if rs.dataset.value_blob is not None:
-                rs.dataset.value_blob = None
-        except TypeError:
-            pass
 
     for rs in resource_data:
         if rs.dataset.hidden == 'Y':
@@ -1322,14 +1289,6 @@ def get_scenarios_data(scenario_id, attr_id, type_id, node_ids=None, link_ids=No
             resource_data_qry = resource_data_qry.filter(ResourceAttr.link_id.in_(set(link_ids)))
 
         resource_data = resource_data_qry.all()
-
-        for rs in resource_data:
-            try:
-                rs.dataset.value = get_dataset_value(rs.dataset)
-                if rs.dataset.value_blob is not None:
-                    rs.dataset.value_blob = None
-            except TypeError:
-                pass
 
         scenario.resourcescenarios = resource_data
         scenario.resourcegroupitems = []
