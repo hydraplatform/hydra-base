@@ -716,7 +716,8 @@ class TestUtil:
                 for t in before_ts_times:
                     try:
                         before_times.append(get_datetime(t))
-                    except:
+                    except Exception as err:
+                        log.critical(err)
                         before_times.append(t)
 
         after_times = []
@@ -729,11 +730,12 @@ class TestUtil:
                 for t in after_ts_times:
                     try:
                         after_times.append(get_datetime(t))
-                    except:
+                    except Exception as err:
+                        log.critical(err)
                         after_times.append(t)
 
         for d in after_times:
-            assert d in before_times, f"{d} is not in {after_times}"
+            assert d in before_times, f"{d} is not in {before_times}"
 
 
     def create_scalar(self, resource_attr, val=1.234, unit='m^3'):
