@@ -733,7 +733,7 @@ class TestUtil:
                         after_times.append(t)
 
         for d in after_times:
-            assert d in before_times, "%s is incorrect"%(d)
+            assert d in before_times, f"{d} is not in {after_times}"
 
 
     def create_scalar(self, resource_attr, val=1.234, unit='m^3'):
