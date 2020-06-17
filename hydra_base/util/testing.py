@@ -735,7 +735,7 @@ class TestUtil:
                     except Exception as err:
                         LOG.critical(err)
                         after_times.append(t)
-        LOG.info("Before TImes: %s", after_times)
+        LOG.info("Before TImes: %s", before_times)
         LOG.info("After TImes: %s", after_times)
         for d in after_times:
             assert d in before_times, f"{d} is not in {before_times}"
