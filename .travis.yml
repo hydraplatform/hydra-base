@@ -13,13 +13,6 @@ env:
 - DB=mysql  CONNECTION_TYPE=remote
 
 before_script:
-  #Assume that hydra-client-python and hydra-server have the same branch as this.
-  #If not, their default is master
-  - export BRANCH=$(if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then echo $TRAVIS_BRANCH; else echo $TRAVIS_PULL_REQUEST_BRANCH; fi)
-  - export HYDRA_CLIENT_URL=https://git@github.com/hydraplatform/hydra-client-python.git
-  - export HYDRA_CLIENT_BRANCH=$(if [ -z "$(git ls-remote $HYDRA_CLIENT_URL $BRANCH)" ]; then echo master else echo $BRANCH; fi)
-  - export HYDRA_SERVER_URL=https://git@github.com/hydraplatform/hydra-server.git
-  - export HYDRA_SERVER_BRANCH=$(if [ -z "$(git ls-remote $HYDRA_SERVER_URL $BRANCH)" ]; then echo master else echo $BRANCH; fi)
   - pip install --upgrade pytest pytest-cov codecov
   - |
     set -e
@@ -30,10 +23,19 @@ before_script:
       mysql -e 'CREATE DATABASE hydra_base_test;'
     fi
 
+before_install:
+  #Assume that hydra-client-python and hydra-server have the same branch as this.
+  #If not, their default is master
+  - export BRANCH=$(if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then echo $TRAVIS_BRANCH; else echo $TRAVIS_PULL_REQUEST_BRANCH; fi)
+  - export HYDRA_CLIENT_URL=https://git@github.com/hydraplatform/hydra-client-python.git
+  - export HYDRA_CLIENT_BRANCH=$(if [ -z "$(git ls-remote $HYDRA_CLIENT_URL $BRANCH)" ]; then echo master else echo $BRANCH; fi)
+  - export HYDRA_SERVER_URL=https://git@github.com/hydraplatform/hydra-server.git
+  - export HYDRA_SERVER_BRANCH=$(if [ -z "$(git ls-remote $HYDRA_SERVER_URL $BRANCH)" ]; then echo master else echo $BRANCH; fi)
+
 install:
-  - pip install -e .
   - pip install git+https://github.com/hydraplatform/hydra-client-python/@${HYDRA_CLIENT_BRANCH}
   - pip install git+https://github.com/hydraplatform/hydra-server/@${HYDRA_SERVER_BRANCH}
+  - pip install -e .
 
 script:
   - pytest tests --db-backend=${DB} --connection-type=${CONNECTION_TYPE} --cov-report term --cov hydra_base
