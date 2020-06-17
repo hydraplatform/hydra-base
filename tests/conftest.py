@@ -44,8 +44,8 @@ def pytest_report_header(config):
 """
     Test Fixtures
 """
-def pytest_namespace():
-    return {'root_user_id': 1}
+#def pytest_namespace():
+#    return {'root_user_id': 1}
 
 @pytest.fixture()
 def dateformat():
