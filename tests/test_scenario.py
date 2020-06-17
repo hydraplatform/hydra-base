@@ -468,8 +468,7 @@ class TestScenario:
 
         node2 = network1.nodes[-1]
 
-        descriptor = client.testutils.create_descriptor(client.testutils.get_by_name('node_attr_a', node1.attributes),
-                                                "updated_descriptor")
+        descriptor = client.testutils.create_descriptor(node1attr, "updated_descriptor")
 
         val_to_delete = client.testutils.get_by_name('node_attr_a', node2.attributes)
 
@@ -499,11 +498,11 @@ class TestScenario:
         updated_scenario2_data = client.get_scenario(scenario2_to_update.id)
 
         for rs in updated_scenario1_data.resourcescenarios:
-            ra_id = resourcescenario.resource_attr_id
+            ra_id = rs.resource_attr_id
             if ra_id == descriptor['resource_attr_id']:
                 assert rs.dataset.value == descriptor.dataset.value
         for rs in updated_scenario2_data.resourcescenarios:
-            ra_id = resourcescenario.resource_attr_id
+            ra_id = rs.resource_attr_id
             if ra_id == descriptor['resource_attr_id']:
                 assert rs.dataset.value == descriptor.dataset.value
 
