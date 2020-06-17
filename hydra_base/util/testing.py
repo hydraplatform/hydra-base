@@ -26,7 +26,7 @@ from hydra_base.lib.objects import JSONObject, Dataset
 from hydra_base import config
 
 LOG = logging.getLogger(__name__)
-LOG.setLevel(logging.ERROR)
+LOG.setLevel(logging.INFO)
 
 
 class TestUtil:
