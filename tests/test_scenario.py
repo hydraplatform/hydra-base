@@ -501,11 +501,11 @@ class TestScenario:
         for rs in updated_scenario1_data.resourcescenarios:
             ra_id = resourcescenario.resource_attr_id
             if ra_id == descriptor['resource_attr_id']:
-                assert rs.dataset.value == descriptor.dataset
+                assert rs.dataset.value == descriptor.dataset.value
         for rs in updated_scenario2_data.resourcescenarios:
             ra_id = resourcescenario.resource_attr_id
             if ra_id == descriptor['resource_attr_id']:
-                assert rs.dataset.value == descriptor.dataset
+                assert rs.dataset.value == descriptor.dataset.value
 
 
 
@@ -592,10 +592,10 @@ class TestScenario:
 
         assert len(updated_network.scenarios[1].resourcescenarios) > 0, "Data was not cloned!"
 
-        scen_2_val = updated_network.scenarios[1].resourcescenarios[0].dataset.id
-        scen_1_val = network.scenarios[0].resourcescenarios[0].dataset.id
+        scen_2_vals = set([rs.dataset.value for rs in updated_network.scenarios[0].resourcescenarios])
+        scen_1_vals = set([rs.dataset.value for rs in network.scenarios[0].resourcescenarios])
 
-        assert scen_2_val == scen_1_val, "Data was not cloned correctly"
+        assert scen_2_vals == scen_1_vals, "Data was not cloned correctly"
 
 
   #      scen_1_constraint  = network.scenarios[0].constraints.Constraint[0].value
