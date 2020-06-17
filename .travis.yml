@@ -16,20 +16,10 @@ before_script:
   #Assume that hydra-client-python and hydra-server have the same branch as this.
   #If not, their default is master
   - export BRANCH=$(if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then echo $TRAVIS_BRANCH; else echo $TRAVIS_PULL_REQUEST_BRANCH; fi)
-  - | set -e
-      if [ -z "$(git ls-remote https://git@github.com/hydraplatform/hydra-client-python.git $BRANCH)" ]
-      then
-        export HYDRA_CLIENT_BRANCH=master
-      else
-        export HYDRA_CLIENT_BRANCH=$BRANCH
-      fi
-  - | set -e
-      if [ -z "$(git ls-remote https://git@github.com/hydraplatform/hydra-server.git $BRANCH)" ]
-      then
-        export HYDRA_SERVER_BRANCH=master
-      else
-        export HYDRA_SERVER_BRANCH=$BRANCH
-      fi
+  - export HYDRA_CLIENT_URL=https://git@github.com/hydraplatform/hydra-client-python.git
+  - export HYDRA_CLIENT_BRANCH=$(if [ -z "$(git ls-remote HYDRA_CLIENT_URL $BRANCH)" ]; then echo master else echo $BRANCH; fi)
+  - export HYDRA_SERVER_URL=https://git@github.com/hydraplatform/hydra-server.git
+  - export HYDRA_SERVER_BRANCH=$(if [ -z "$(git ls-remote HYDRA_SERVER_URL $BRANCH)" ]; then echo master else echo $BRANCH; fi)
   - pip install --upgrade pytest pytest-cov codecov
   - |
     set -e
