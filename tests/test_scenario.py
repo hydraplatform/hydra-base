@@ -592,10 +592,15 @@ class TestScenario:
 
         assert len(updated_network.scenarios[1].resourcescenarios) > 0, "Data was not cloned!"
 
-        scen_2_vals = set([rs.dataset.value for rs in updated_network.scenarios[0].resourcescenarios])
-        scen_1_vals = set([rs.dataset.value for rs in network.scenarios[0].resourcescenarios])
+        #Find the correct scenarios to compare, to satisfy stupid postgres
+        for original_scenario in network.scenarios:
+            for updated_scenario in network.scenarios:
+                if original_scenario.name == updated_scenario.name:
+                    scen_2_vals = set([rs.dataset.value for rs in original_scenario.resourcescenarios])
+                    scen_1_vals = set([rs.dataset.value for rs in updated_scenario.resourcescenarios])
 
-        assert scen_2_vals == scen_1_vals, "Data was not cloned correctly"
+                    assert scen_2_vals == scen_1_vals, "Data was not cloned correctly"
+                    break
 
 
   #      scen_1_constraint  = network.scenarios[0].constraints.Constraint[0].value
