@@ -715,9 +715,10 @@ class TestUtil:
                 before_times = []
                 for t in before_ts_times:
                     try:
+                        LOG.info("BEFORE_TIMES: ATTEMPTING TO TURN %s of type %s into a datetime", t, type(t))
                         before_times.append(get_datetime(t))
                     except Exception as err:
-                        log.critical(err)
+                        LOG.critical(err)
                         before_times.append(t)
 
         after_times = []
@@ -729,11 +730,13 @@ class TestUtil:
                 after_times = []
                 for t in after_ts_times:
                     try:
+                        LOG.info("AFTER_TIMES: ATTEMPTING TO TURN %s of type %s into a datetime", t, type(t))
                         after_times.append(get_datetime(t))
                     except Exception as err:
-                        log.critical(err)
+                        LOG.critical(err)
                         after_times.append(t)
-
+        LOG.info("Before TImes: %s", after_times)
+        LOG.info("After TImes: %s", after_times)
         for d in after_times:
             assert d in before_times, f"{d} is not in {before_times}"
 
