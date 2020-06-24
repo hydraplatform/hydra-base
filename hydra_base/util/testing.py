@@ -54,7 +54,7 @@ class TestUtil:
         user = JSONObject(dict(
             username=name,
             password="password",
-            display_name="test useer",
+            display_name="test user",
         ))
 
         new_user = JSONObject(self.client.add_user(user))
