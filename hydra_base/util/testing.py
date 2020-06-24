@@ -215,7 +215,7 @@ class TestUtil:
 
         assert len(new_template.templatetypes) == len(types), "Resource types did not add correctly"
         for t in new_template.templatetypes[1].typeattrs:
-            assert t.attr_id in (node_attr_1.id, node_attr_2.id, node_attr_3.id, node_attr_4.id);
+            assert t.attr_id in (node_attr_1.id, node_attr_2.id, node_attr_3.id, node_attr_4.id),
             "Node types were not added correctly!"
 
         for t in new_template.templatetypes[2].typeattrs:
