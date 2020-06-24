@@ -188,7 +188,7 @@ class TestUtil:
         #**********************
         group_type = JSONObject()
         group_type.name = "Default Group"
-        group_type.resource_type='GROUP'
+        group_type.resource_type = 'GROUP'
 
         typeattrs = []
 
