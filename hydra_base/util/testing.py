@@ -163,7 +163,7 @@ class TestUtil:
         #**********************
         link_type = JSONObject()
         link_type.name = "Default Link"
-        link_type.resource_type='LINK'
+        link_type.resource_type = 'LINK'
 
         typeattrs = []
 
