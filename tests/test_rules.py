@@ -87,7 +87,7 @@ class TestRules:
         assert rule_j.name == 'A Test Rule'
         assert rule_j.value == 'e=mc^2'
 
-        #2nd error handle is to conver errors coming from the server
+        #2nd error handle is to cover errors coming from the server
         with pytest.raises((ResourceNotFoundError, HydraError)):
             rule_j = JSONObject(client.get_rule(2))
 
