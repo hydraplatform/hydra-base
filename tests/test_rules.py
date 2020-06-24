@@ -423,7 +423,7 @@ class TestRules:
         rules_of_type_in_scenario = client.get_rules_of_type(ruletype_A_j.code, scenario_id=scenario_id)
 
         assert len(rules_of_type) >= 3
-        #CHeck that the added nodes are indeed present
+        #Check that the added nodes are indeed present
         assert {'Test1', 'Test2', 'Test3'}.issubset({r.name for r in rules_of_type})
         assert len(rules_of_type_in_scenario) == 1
 
