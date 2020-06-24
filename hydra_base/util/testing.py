@@ -131,7 +131,7 @@ class TestUtil:
         node_type = JSONObject()
         node_type.name = "Default Node"
         node_type.alias = "Test type alias"
-        node_type.resource_type='NODE'
+        node_type.resource_type = 'NODE'
 
         typeattrs = []
 
