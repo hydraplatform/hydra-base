@@ -219,7 +219,7 @@ class TestUtil:
             "Node types were not added correctly!"
 
         for t in new_template.templatetypes[2].typeattrs:
-            assert t.attr_id in (link_attr_1.id, link_attr_2.id, link_attr_3.id);
+            assert t.attr_id in (link_attr_1.id, link_attr_2.id, link_attr_3.id),
             "Link types were not added correctly!"
 
         return new_template
@@ -580,7 +580,7 @@ class TestUtil:
                                  map_projection='EPSG:4326'):
         """
             Test adding data to a network through a scenario.
-            This test adds attributes to one node and then assignes data to them.
+            This test adds attributes to one node and then assigns data to them.
             It assigns a descriptor, array and timeseries to the
             attributes node.
         """
@@ -612,7 +612,7 @@ class TestUtil:
                                         map_projection='EPSG:4326'):
         """
             Test adding data to a network through a scenario.
-            This test adds attributes to one node and then assignes data to them.
+            This test adds attributes to one node and then assigns data to them.
             It assigns a descriptor, array and timeseries to the
             attributes node.
         """
@@ -917,7 +917,7 @@ class TestUtil:
 
         added_attrs = self.client.add_attributes(new_attrs)
 
-        # The inserted attributes summed with the inserted ones are the total of "attrs" array
+        # The existing attributes summed with the inserted ones are the total of "attrs" array
         total_attrs = existing_attrs + added_attrs
 
         assert len(total_attrs) == len(attrs)
@@ -963,7 +963,7 @@ class TestUtil:
 
     def get_by_name(self, name, entity_list):
         """
-            given a list of JSONObjects with a name attribute, return the JSONObeect with the
+            given a list of JSONObjects with a name attribute, return the JSONObject with the
             specified name
         """
         entity_dict = {}
