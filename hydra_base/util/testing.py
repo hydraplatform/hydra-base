@@ -45,7 +45,7 @@ class TestUtil:
             return unit
 
         return self.unitmap[abbreviation]
-    
+
     def create_user(self, name, role='admin'):
 
         existing_user = self.client.get_user_by_name(name)
@@ -216,12 +216,12 @@ class TestUtil:
 
         assert len(new_template.templatetypes) == len(types), "Resource types did not add correctly"
         for t in new_template.templatetypes[1].typeattrs:
-            assert t.attr_id in (node_attr_1.id, node_attr_2.id, node_attr_3.id, node_attr_4.id),
-            "Node types were not added correctly!"
+            assert t.attr_id in (node_attr_1.id, node_attr_2.id, node_attr_3.id, node_attr_4.id),\
+                "Node types were not added correctly!"
 
         for t in new_template.templatetypes[2].typeattrs:
-            assert t.attr_id in (link_attr_1.id, link_attr_2.id, link_attr_3.id),
-            "Link types were not added correctly!"
+            assert t.attr_id in (link_attr_1.id, link_attr_2.id, link_attr_3.id),\
+                "Link types were not added correctly!"
 
         return new_template
 

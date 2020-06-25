@@ -8,8 +8,6 @@ import time
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-import six
-
 import hydra_base
 from hydra_base.db import DeclarativeBase as _db
 from hydra_base.util.hdb import create_default_users_and_perms, make_root_user,\
@@ -77,11 +75,14 @@ def client(connection_type, testdb_uri):
     else:
 
         from spyne.server.null import NullServer
-        from hydra_server import initialize_hydra_server
+        from hydra_server import initialize_api_server
 
-        hydra_server = initialize_hydra_server(testdb_uri, test=True)
+        hydra_server = initialize_api_server(testdb_uri, test=True)
 
         null_server = NullServer(hydra_server.json_application, ostr=True)
+
+        #The url argument here is to avoid the connection complaining.
+        #It's not actually used, as we're using a null (testing) server
         client = RemoteJSONConnection(url='localhost:8080/json',
                                       app_name='Hydra Remote Test Suite',
                                       test_server=null_server)
