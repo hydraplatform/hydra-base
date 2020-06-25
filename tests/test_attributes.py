@@ -425,7 +425,7 @@ class TestResourceAttribute:
         type_id = network.types[0].id
 
         #Get the template type, and add a new typeattr to it
-        templatetype_j = JSONObject(hb.get_templatetype(type_id))
+        templatetype_j = JSONObject(client.get_templatetype(type_id))
 
         new_typeattr = JSONObject({
             'attr_id' : attribute.id
