@@ -22,6 +22,9 @@ from beaker import session
 from .. import util
 from .. import config
 
+DEFAULT_VALIDATE_KEY = 'YxaDbzUUSo08b+'
+DEFAULT_DATA_DIR = '/tmp'
+DEFAULT_FILE_DIR = '/tmp/auth'
 
 def login(username, password, **kwargs):
     """
@@ -43,11 +46,11 @@ def login(username, password, **kwargs):
 
     hydra_session = session.Session(
         {}, #This is normally a request object, but in this case is empty
-        validate_key=config.get('COOKIES', 'VALIDATE_KEY', 'YxaDbzUUSo08b+'),
+        validate_key=config.get('COOKIES', 'VALIDATE_KEY', DEFAULT_VALIDATE_KEY),
         type='file',
         cookie_expires=True,
-        data_dir=config.get('COOKIES', 'DATA_DIR', '/tmp'),
-        file_dir=config.get('COOKIES', 'FILE_DIR', '/tmp/auth')
+        data_dir=config.get('COOKIES', 'DATA_DIR', DEFAULT_DATA_DIR),
+        file_dir=config.get('COOKIES', 'FILE_DIR', DEFAULT_FILE_DIR)
     )
 
     hydra_session['user_id'] = user_id
@@ -71,11 +74,11 @@ def logout(session_id, **kwargs):
 
     hydra_session_object = session.SessionObject(
         {}, #This is normally a request object, but in this case is empty
-        validate_key=config.get('COOKIES', 'VALIDATE_KEY', 'YxaDbzUUSo08b+'),
+        validate_key=config.get('COOKIES', 'VALIDATE_KEY', DEFAULT_VALIDATE_KEY),
         type='file',
         cookie_expires=True,
-        data_dir=config.get('COOKIES', 'DATA_DIR', '/tmp'),
-        file_dir=config.get('COOKIES', 'FILE_DIR', '/tmp/auth'))
+        data_dir=config.get('COOKIES', 'DATA_DIR', DEFAULT_DATA_DIR),
+        file_dir=config.get('COOKIES', 'FILE_DIR', DEFAULT_FILE_DIR))
 
     hydra_session = hydra_session_object.get_by_id(session_id)
 
@@ -98,11 +101,11 @@ def get_session_user(session_id, **kwargs):
 
     hydra_session_object = session.SessionObject(
         {}, #This is normally a request object, but in this case is empty
-        validate_key=config.get('COOKIES', 'VALIDATE_KEY', 'YxaDbzUUSo08b+'),
+        validate_key=config.get('COOKIES', 'VALIDATE_KEY', DEFAULT_VALIDATE_KEY),
         type='file',
         cookie_expires=True,
-        data_dir=config.get('COOKIES', 'DATA_DIR', '/tmp'),
-        file_dir=config.get('COOKIES', 'FILE_DIR', '/tmp/auth'))
+        data_dir=config.get('COOKIES', 'DATA_DIR', DEFAULT_DATA_DIR),
+        file_dir=config.get('COOKIES', 'FILE_DIR', DEFAULT_FILE_DIR))
 
     hydra_session = hydra_session_object.get_by_id(session_id)
 
