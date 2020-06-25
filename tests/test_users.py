@@ -64,6 +64,7 @@ class TestUser:
         new_user = client.add_user(user)
         assert new_user.username == user.username, "Usernames are not the same!"
         #convert pwd to bytes if it's not bytes
+        #Add user returns the password *hash*, not the plain-text password
         pwd_hash = new_user.password if isinstance(new_user.password, bytes) else new_user.password.encode('utf-8')
         assert bcrypt.checkpw(user.password.encode('utf-8'), pwd_hash)
         assert new_user.display_name == user.display_name
