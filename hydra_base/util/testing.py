@@ -45,6 +45,7 @@ class TestUtil:
             return unit
 
         return self.unitmap[abbreviation]
+    
     def create_user(self, name, role='admin'):
 
         existing_user = self.client.get_user_by_name(name)
