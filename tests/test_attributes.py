@@ -144,7 +144,7 @@ class TestAttribute:
 
         all_attributes_after_add_2 = client.get_attributes()
 
-        #This should hve returned the attributes with the IDS from the first insert
+        #This should have returned the attributes with the IDS from the first insert
         assert sorted([a.id for a in new_attrs_list_1]) == sorted([a.id for a in new_attrs_list_2])
 
         assert len(all_attributes_after_add_1) == len(all_attributes_after_add_2)

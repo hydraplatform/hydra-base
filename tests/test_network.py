@@ -49,7 +49,7 @@ class TestNetwork:
 
         resources_of_type = list(client.get_resources_of_type(net.id, type_id))
 
-        #this returns a tuple of the node, link and grop types. Link types are at
+        #this returns a tuple of the node, link and group types. Link types are at
         #index 1 of this tuple
         assert len(resources_of_type) == 4
         for r in list(resources_of_type):
