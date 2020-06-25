@@ -100,6 +100,8 @@ class TestUnits():
 
         assert dimension_list is not None and len(dimension_list) != 0, \
             "Could not get the full list of dimensions."
+        assert dimension_list[0].id is not None, \
+            "The first element of the list has no ID.  An ID is expected on a dimension"
 
     def test_get_dimension_by_name(self, client):
         # Returns a dimension searching by ID. The result contains all the
