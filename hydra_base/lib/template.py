@@ -832,6 +832,7 @@ def apply_template_to_network(template_id, network_id, **kwargs):
 
     db.DBSession.flush()
 
+@required_perms("edit_network")
 def set_network_template(template_id, network_id, **kwargs):
     """
        Apply an existing template to a network. Used when a template has changed, and additional attributes
@@ -975,6 +976,7 @@ def get_matching_resource_types(resource_type, resource_id, **kwargs):
     matching_types = get_types_by_attr(resource_i, **kwargs)
     return matching_types
 
+@required_perms("edit_network")
 def assign_types_to_resources(resource_types, **kwargs):
     """
         Assign new types to list of resources.
@@ -1232,6 +1234,7 @@ def _get_groups(group_ids):
 
     return group_dict
 
+@required_perms("edit_network")
 def assign_type_to_resource(type_id, resource_type, resource_id, **kwargs):
     """Assign new type to a resource. This function checks if the necessary
     attributes are present and adds them if needed. Non existing attributes
@@ -1272,6 +1275,7 @@ def assign_type_to_resource(type_id, resource_type, resource_id, **kwargs):
 
     return db.DBSession.query(TemplateType).filter(TemplateType.id == type_id).one()
 
+@required_perms("edit_network")
 def set_resource_type(resource, type_id, types={}, **kwargs):
     """
         Set this resource to be a certain type.
@@ -1371,6 +1375,7 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
 
     return new_res_attrs, resource_type, new_res_scenarios
 
+@required_perms("edit_network")
 def remove_type_from_resource( type_id, resource_type, resource_id,**kwargs):
     """
         Remove a resource type trom a resource
@@ -1418,6 +1423,7 @@ def _parse_data_restriction(restriction_dict):
 
     return json.dumps(ret_dict)
 
+@required_perms("add_template")
 def add_template(template, **kwargs):
     """
         Add template and a type and typeattrs.
@@ -1441,6 +1447,7 @@ def add_template(template, **kwargs):
 
     return tmpl
 
+@required_perms("edit_template")
 def update_template(template, **kwargs):
     """
         Update template and a type and typeattrs.
@@ -1482,6 +1489,7 @@ def update_template(template, **kwargs):
 
     return tmpl
 
+@required_perms("delete_template")
 def delete_template(template_id, **kwargs):
     """
         Delete a template and its type and typeattrs.
@@ -1494,6 +1502,7 @@ def delete_template(template_id, **kwargs):
     db.DBSession.flush()
     return 'OK'
 
+@required_perms("get_template")
 def get_templates(load_all=True, **kwargs):
     """
         Get all templates.
@@ -1510,6 +1519,7 @@ def get_templates(load_all=True, **kwargs):
 
     return templates
 
+@required_perms("edit_template")
 def remove_attr_from_type(type_id, attr_id,**kwargs):
     """
 
@@ -1519,6 +1529,7 @@ def remove_attr_from_type(type_id, attr_id,**kwargs):
                                                   TypeAttr.attr_id==attr_id).one()
     db.DBSession.delete(typeattr_i)
 
+@required_perms("get_template")
 def get_template(template_id,**kwargs):
     """
         Get a specific resource template template, by ID.
@@ -1539,6 +1550,7 @@ def get_template(template_id,**kwargs):
     except NoResultFound:
         raise HydraError("Template %s not found"%template_id)
 
+@required_perms("get_template")
 def get_template_by_name(name,**kwargs):
     """
         Get a specific resource template, by name.
@@ -1554,6 +1566,7 @@ def get_template_by_name(name,**kwargs):
         log.info("%s is not a valid identifier for a template",name)
         raise HydraError('Template "%s" not found'%name)
 
+@required_perms("edit_template")
 def add_templatetype(templatetype, **kwargs):
     """
         Add a template type with typeattrs.
@@ -1565,6 +1578,7 @@ def add_templatetype(templatetype, **kwargs):
 
     return type_i
 
+@required_perms("edit_template")
 def update_templatetype(templatetype, **kwargs):
     """
         Update a resource type and its typeattrs.
@@ -1706,6 +1720,7 @@ def _update_templatetype(templatetype, existing_tt=None):
 
     return tmpltype_i
 
+@required_perms("edit_template")
 def delete_templatetype(type_id, template_i=None, **kwargs):
     """
         Delete a template type and its typeattrs.
@@ -1723,6 +1738,7 @@ def delete_templatetype(type_id, template_i=None, **kwargs):
     db.DBSession.delete(tmpltype_i)
     db.DBSession.flush()
 
+@required_perms("get_template")
 def get_templatetype(type_id, **kwargs):
     """
         Get a specific resource type by ID.
@@ -1734,6 +1750,7 @@ def get_templatetype(type_id, **kwargs):
 
     return templatetype
 
+@required_perms("get_template")
 def get_templatetype_by_name(template_id, type_name, **kwargs):
     """
         Get a specific resource type by name.
@@ -1748,6 +1765,7 @@ def get_templatetype_by_name(template_id, type_name, **kwargs):
 
     return templatetype
 
+@required_perms("edit_template")
 def add_typeattr(typeattr, **kwargs):
     """
         Add an typeattr to an existing type.
@@ -1764,6 +1782,7 @@ def add_typeattr(typeattr, **kwargs):
     return ta
 
 
+@required_perms("edit_template")
 def delete_typeattr(typeattr, **kwargs):
     """
         Remove an typeattr from an existing type
@@ -1780,6 +1799,7 @@ def delete_typeattr(typeattr, **kwargs):
 
     return 'OK'
 
+@required_perms('get_network')
 def validate_attr(resource_attr_id, scenario_id, template_id=None, **kwargs):
     """
         Check that a resource attribute satisfies the requirements of all the types of the
@@ -1811,6 +1831,7 @@ def validate_attr(resource_attr_id, scenario_id, template_id=None, **kwargs):
             error_text=e.args[0]))
     return error
 
+@required_perms('get_network')
 def validate_attrs(resource_attr_ids, scenario_id, template_id=None, **kwargs):
     """
         Check that multiple resource attribute satisfy the requirements of the types of resources to
@@ -2046,6 +2067,7 @@ def _validate_resource(resource, tmpl_types, resource_scenarios=[], **kwargs):
 
     return errors
 
+@required_perms('get_network')
 def get_network_as_xml_template(network_id, **kwargs):
     """
         Turn an existing network into an xml template

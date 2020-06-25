@@ -209,6 +209,7 @@ def create_default_users_and_perms():
         ("add_template", "Add Template"),
         ("edit_template", "Edit Template"),
         ("get_template", "Get Template"),
+        ("delete_template", "Delete Template"),
 
         ("add_dimension", "Add Dimension"),
         ("update_dimension", "Update Dimension"),
@@ -264,6 +265,7 @@ def create_default_users_and_perms():
         ('admin', "add_template"),
         ('admin', "edit_template"),
         ('admin', "get_template"),
+        ('admin', "delete_template"),
 
         ('admin', "add_dimension"),
         ('admin', "update_dimension"),
