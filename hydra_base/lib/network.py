@@ -3141,8 +3141,7 @@ def apply_unit_to_network_rs(network_id, unit_id, attr_id, scenario_id=None, **k
         as the supplied resource_attr_id.
         args:
             unit_id (int): The unit ID to set on the network's datasets
-            resource_attr_id (int): The resource attribute from which the
-                                    network ID and attribute ID can be derived
+            attr_id (int): The attribute ID
             scenario_id (int) (optional): Supplied if only datasets in a
                                           specific scenario are to be affected
         returns:
