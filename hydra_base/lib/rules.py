@@ -19,7 +19,7 @@
 import logging
 from sqlalchemy.orm.exc import NoResultFound
 from hydra_base.lib.objects import JSONObject
-from ..db.model import Rule,RuleTypeDefinition, RuleTypeLink, RuleOwner,\
+from ..db.model import Rule, RuleTypeDefinition, RuleTypeLink, RuleOwner,\
                        Node, Link, ResourceGroup, Network
 from .. import db
 from ..exceptions import HydraError, ResourceNotFoundError
@@ -47,7 +47,7 @@ def _get_rule(rule_id, user_id, check_write=False):
 
     return rule_i
 
-@required_perms("view_network", "view_rules")
+@required_perms("get_network", "get_rules")
 def get_scenario_rules(scenario_id, **kwargs):
     """
         Get all the rules for a given scenario.
@@ -57,7 +57,7 @@ def get_scenario_rules(scenario_id, **kwargs):
 
     return rules
 
-@required_perms("view_network", "view_rules")
+@required_perms("get_network", "get_rules")
 def get_network_rules(network_id, scenario_id=None, summary=True, **kwargs):
     """
         Get all the rules within a network -- including rules associated to
@@ -121,7 +121,7 @@ def get_network_rules(network_id, scenario_id=None, summary=True, **kwargs):
     return all_network_rules
 
 
-@required_perms("view_network", "view_rules")
+@required_perms("get_network", "get_rules")
 def get_resource_rules(ref_key, ref_id, scenario_id=None, **kwargs):
     """
         Get all the rules for a given resource.
@@ -163,7 +163,7 @@ def get_resource_rules(ref_key, ref_id, scenario_id=None, **kwargs):
 
     return rules
 
-@required_perms("view_network", "view_rules")
+@required_perms("get_network", "get_rules")
 def get_rules_of_type(typecode, scenario_id=None, **kwargs):
     """
         Get all the rules for a given resource.
@@ -235,7 +235,7 @@ def remove_rule_owner(rule_id, rule_user_id, **kwargs):
 
     rule_i.unset_owner(rule_user_id)
 
-@required_perms("view_network", "view_rules")
+@required_perms("get_network", "get_rules")
 def get_rule(rule_id, **kwargs):
     """
         Get a rule by its ID
@@ -296,6 +296,7 @@ def add_rule(rule, include_network_users=True, **kwargs):
     #Set the owner of this rule to be the creator, and also allow access
     #to all other users of the network in which it resides.
     rule_i.set_owner(user_id)
+
     if include_network_users is True:
         for owner in rule_i.get_network().owners:
             #apply ownership with the same conditions as on the parent network
@@ -368,7 +369,7 @@ def set_rule_type(rule_id, typecode, **kwargs):
 
     return rule_i
 
-@required_perms("edit_network", "view_rules", "add_rules")
+@required_perms("edit_network", "get_rules", "add_rules")
 def clone_resource_rules(ref_key, ref_id, target_ref_key=None, target_ref_id=None, scenario_id_map={}, **kwargs):
     """
         Clone a rule
@@ -407,7 +408,7 @@ def clone_resource_rules(ref_key, ref_id, target_ref_key=None, target_ref_id=Non
 
     return cloned_rules
 
-@required_perms("edit_network", "view_rules", "add_rules")
+@required_perms("edit_network", "get_rules", "add_rules")
 def clone_rule(rule_id, target_ref_key=None, target_ref_id=None, scenario_id_map={}, **kwargs):
     """
         Clone a rule
@@ -541,7 +542,7 @@ def add_rule_type_definition(ruletypedefinition, **kwargs):
     rule_type_i.name = ruletypedefinition.name
 
     existing_rtd = db.DBSession.query(RuleTypeDefinition).filter(
-                    RuleTypeDefinition.code == ruletypedefinition.code).first()
+        RuleTypeDefinition.code == ruletypedefinition.code).first()
 
     if existing_rtd is None:
         db.DBSession.add(rule_type_i)
@@ -552,7 +553,7 @@ def add_rule_type_definition(ruletypedefinition, **kwargs):
     else:
         return existing_rtd
 
-@required_perms("edit_network", "view_rules")
+@required_perms("edit_network", "get_rules")
 def get_rule_type_definitions(**kwargs):
     """
         Get all rule types
@@ -565,7 +566,7 @@ def get_rule_type_definitions(**kwargs):
 
     return all_rule_type_definitions_i
 
-@required_perms("edit_network", "view_rules")
+@required_perms("edit_network", "get_rules")
 def get_rule_type_definition(typecode, **kwargs):
     """
         Get a Type with the given typecode

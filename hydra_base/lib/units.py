@@ -269,7 +269,7 @@ def get_dimension_by_unit_measure_or_abbreviation(measure_or_unit_abbreviation,*
         raise HydraError('Unit %s has multiple dimensions not found.'%(unit_abbreviation))
     else:
         dimension = db.DBSession.query(Dimension).filter(Dimension.id==units[0].dimension_id).one()
-        return str(dimension.name)
+        return dimension
 
 def get_dimension_by_unit_id(unit_id, do_accept_unit_id_none=False, **kwargs):
     """
@@ -315,9 +315,12 @@ def add_dimension(dimension,**kwargs):
         If dimension["project_id"] is None it means that the dimension is global, otherwise is property of a project
         If the dimension exists emits an exception
     """
-    if numpy.isscalar(dimension):
-        # If it is a scalar, converts to an Object
-        dimension = {'name': dimension}
+
+    db_dimension = db.DBSession.query(Dimension).filter(Dimension.name==dimension['name']).first()
+
+    if db_dimension is not None:
+        raise HydraError(f"A dimension with name {dimension['name']} "
+                         f"already exists with ID {db_dimension.id}")
 
     new_dimension = Dimension()
     new_dimension.name = dimension["name"]
@@ -333,6 +336,8 @@ def add_dimension(dimension,**kwargs):
 
     # Load all the record
     db_dimension = db.DBSession.query(Dimension).filter(Dimension.id==new_dimension.id).one()
+    #lazy load units
+    db_dimension.units
 
     return JSONObject(db_dimension)
 
@@ -347,7 +352,8 @@ def update_dimension(dimension,**kwargs):
     dimension = JSONObject(dimension)
     try:
         db_dimension = db.DBSession.query(Dimension).filter(Dimension.id==dimension.id).filter().one()
-
+        #laxy load units
+        db_dimension.units
         if "description" in dimension and dimension["description"] is not None:
             db_dimension.description = dimension["description"]
         if "project_id" in dimension and dimension["project_id"] is not None and dimension["project_id"] != "" and dimension["project_id"].isdigit():
@@ -516,7 +522,7 @@ def check_consistency(measure_or_unit_abbreviation, dimension,**kwargs):
         dimension asked for by the attribute or the dataset.
     """
     dim = get_dimension_by_unit_measure_or_abbreviation(measure_or_unit_abbreviation)
-    return dim == dimension
+    return dim.name == dimension
 
 def check_unit_matches_dimension(unit_id, dimension_id,**kwargs):
     """
@@ -540,7 +546,7 @@ def check_unit_matches_dimension(unit_id, dimension_id,**kwargs):
         dimension_name = None
 
     if unit_i.dimension.id != dimension_id:
-        raise ValidationError(f"Unit {unit_i.name} has a dimension of {unit_i.dimension.name}, not {dimension_name}") 
+        raise ValidationError(f"Unit {unit_i.name} has a dimension of {unit_i.dimension.name}, not {dimension_name}")
 
 
 """

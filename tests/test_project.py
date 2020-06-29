@@ -20,9 +20,6 @@ import datetime
 import copy
 import pytest
 
-from .fixtures import *
-import hydra_base.util.testing as util
-
 import hydra_base as hb
 from hydra_base.lib.objects import JSONObject
 
@@ -34,11 +31,11 @@ class TestProject:
         Test for working with projects in Hydra
     """
 
-    def add_attributes(self, proj):
+    def add_attributes(self, client, proj):
         #Create some attributes, which we can then use to put data on our nodes
-        attr1 = util.create_attr("proj_attr_1")
-        attr2 = util.create_attr("proj_attr_2")
-        attr3 = util.create_attr("proj_attr_3")
+        attr1 = client.testutils.create_attribute("proj_attr_1")
+        attr2 = client.testutils.create_attribute("proj_attr_2")
+        attr3 = client.testutils.create_attribute("proj_attr_3")
 
         proj_attr_1  = JSONObject({})
         proj_attr_1.id = -1
@@ -60,21 +57,21 @@ class TestProject:
 
         return proj
 
-    def add_data(self, project):
+    def add_data(self, client, project):
 
         attribute_data = []
 
         attrs = project.attributes
 
-        attribute_data.append(util.create_descriptor(attrs[0], val="just project desscriptor"))
-        attribute_data.append(util.create_array(attrs[1]))
-        attribute_data.append(util.create_timeseries(attrs[2]))
+        attribute_data.append(client.testutils.create_descriptor(attrs[0], val="just project desscriptor"))
+        attribute_data.append(client.testutils.create_array(attrs[1]))
+        attribute_data.append(client.testutils.create_timeseries(attrs[2]))
 
         project.attribute_data = attribute_data
 
         return project
 
-    def test_update(self, session, network_with_data):
+    def test_update(self, client, network_with_data):
         """
             The network here is necessary for a scenario with ID 1 to exist.
             Under normal circumstances, scenario 1 will always exist, as it's an initial requirement
@@ -84,24 +81,19 @@ class TestProject:
         project.name = 'SOAP test %s'%(datetime.datetime.now())
         project.description = \
             'A project created through the SOAP interface.'
-        project = self.add_attributes(project)
-        project = self.add_data(project)
+        project = self.add_attributes(client, project)
+        project = self.add_data(client, project)
 
-        new_project_i = hb.add_project(project, user_id=pytest.root_user_id)
+        new_project_i = client.add_project(project)
 
-        #TODO: Fix issue in JSONObject caused by unusual project structure causing a recursion issue when loading attribute_data
-        hb.db.DBSession.expunge_all()
-
-        project_i = hb.get_project(new_project_i.id, user_id=pytest.root_user_id)
-
-        project_j = JSONObject(project_i)
+        project_j = client.get_project(new_project_i.id)
 
         new_project = copy.deepcopy(project_j)
 
         new_project.description = \
             'An updated project created through the Hydra Base interface.'
 
-        updated_project = hb.update_project(new_project, user_id=pytest.root_user_id)
+        updated_project = client.update_project(new_project)
 
         assert project_j.id == updated_project.id, \
             "project_id changed on update."
@@ -115,73 +107,74 @@ class TestProject:
             'An updated project created through the Hydra Base interface.', \
             "Update did not work correctly."
 
-        rs_to_check = updated_project.get_attribute_data()[0]
+        rs_to_check = client.get_project_attribute_data(new_project.id)[0]
         assert rs_to_check.dataset.type == 'descriptor' and \
                rs_to_check.dataset.value == 'just project desscriptor', \
                "There is an inconsistency with the attributes."
 
-    def test_load(self, session):
+    def test_load(self, client):
         project = JSONObject({})
         project.name = 'Test Project %s'%(datetime.datetime.now())
         project.description = \
             'A project created through the SOAP interface.'
-        project = hb.add_project(project, user_id=pytest.root_user_id)
+        project = client.add_project(project)
 
-        new_project = hb.get_project(project.id, user_id=pytest.root_user_id)
+        new_project = client.get_project(project.id)
 
         assert new_project.name == project.name, \
             "project_name is not loaded correctly."
         assert project.description == new_project.description,\
             "project_description did not load correctly."
 
-    def test_set_project_status(self, session):
+    def test_set_project_status(self, client):
         project = JSONObject({})
         project.name = 'SOAP test %s'%(datetime.datetime.now())
         project.description = \
             'A project created through the SOAP interface.'
-        project = hb.add_project(project, user_id=pytest.root_user_id)
+        project = client.add_project(project)
 
-        hb.set_project_status(project.id, 'X', user_id=pytest.root_user_id)
+        client.set_project_status(project.id, 'X')
 
-        proj = hb.get_project(project.id, user_id=pytest.root_user_id)
+        proj = client.get_project(project.id)
 
         assert proj.status == 'X', \
             'Deleting project did not work correctly.'
 
-    def test_delete(self, session, network_with_data):
+    def test_delete(self, client, network_with_data):
         net = network_with_data
         project_id = net.project_id
         log.info("Purging project %s", project_id)
-        res = hb.delete_project(project_id, user_id=pytest.root_user_id)
+        res = client.delete_project(project_id)
 
         assert res == 'OK'
         log.info("Trying to get project %s. Should fail.",project_id)
         with pytest.raises(hb.HydraError):
-            hb.get_project(project_id, user_id=pytest.root_user_id)
+            client.get_project(project_id)
 
-    def test_get_projects(self, session):
+    def test_get_projects(self, client):
 
         project = JSONObject({})
 
         project.name = 'SOAP test %s'%(datetime.datetime.now())
         project.description = \
             'A project created through the SOAP interface.'
-        project = hb.add_project(project, user_id=pytest.root_user_id)
 
-        projects = hb.get_projects(pytest.root_user_id, user_id=pytest.root_user_id)
+        project = client.add_project(project)
+
+        projects = client.get_projects(pytest.root_user_id)
 
         assert len(projects) > 0, "Projects for user were not retrieved."
 
         assert projects[0].status == 'A'
 
-    def test_get_networks(self, session, projectmaker, networkmaker):
+    def test_get_networks(self, client, projectmaker, networkmaker):
 
         proj = projectmaker.create()
 
         net1 = networkmaker.create(project_id=proj.id)
 
         net2 = networkmaker.create(project_id=proj.id)
-        nets = hb.get_networks(proj.id, user_id=pytest.root_user_id)
+        nets = client.get_networks(proj.id)
 
         test_net = nets[0]
         assert test_net.scenarios is not None
@@ -193,33 +186,38 @@ class TestProject:
 
         assert len(nets) == 2, "Networks were not retrieved correctly"
 
-        nets = hb.get_networks(proj.id, include_data='Y', user_id=pytest.root_user_id)
+        nets = client.get_networks(proj.id, include_data='Y')
 
         test_scenario = nets[0].scenarios[0]
         assert len(test_scenario.resourcescenarios) > 0
 
-    def test_get_all_project_owners(self, session, projectmaker):
+    def test_get_all_project_owners(self, client, projectmaker):
         proj = projectmaker.create()
-        
-        projectowners = hb.get_all_project_owners(user_id=pytest.root_user_id)
+
+        projectowners = client.get_all_project_owners()
+
+        #there should be at LEAST 4, owing to the project for this test
+        assert len(projectowners) >= 4
+
+        projectowners = client.get_all_project_owners([proj.id])
 
         assert len(projectowners) == 4
-        
-        projectowners = hb.get_all_project_owners([proj.id], user_id=pytest.root_user_id)
-        
-        assert len(projectowners) == 4
 
-        with pytest.raises(hb.exceptions.PermissionError):
-            projectowners = hb.get_all_project_owners([proj.id], user_id=5)
+        with pytest.raises(hb.exceptions.HydraError):
+            #check for non-admin users
+            client.user_id = 5
+            projectowners = client.get_all_project_owners([proj.id])
+        #set back to admin
+        client.user_id=1
 
-    def test_bulk_set_project_owners(self, session, projectmaker):
+    def test_bulk_set_project_owners(self, client, projectmaker):
         proj = projectmaker.create(share=False)
-        
-        projectowners = hb.get_all_project_owners([proj.id], user_id=pytest.root_user_id)
+
+        projectowners = client.get_all_project_owners([proj.id])
 
         assert len(projectowners) == 1
-        
-        projectowners = hb.get_all_project_owners([proj.id], user_id=pytest.root_user_id)
+
+        projectowners = client.get_all_project_owners([proj.id])
 
         new_owner = JSONObject(dict(
             project_id=proj.id,
@@ -229,13 +227,13 @@ class TestProject:
             share='Y',
         ))
 
-        hydra_base.bulk_set_project_owners([new_owner], user_id=pytest.root_user_id)
+        client.bulk_set_project_owners([new_owner])
 
-        projectowners = hb.get_all_project_owners([proj.id], user_id=pytest.root_user_id)
+        projectowners = client.get_all_project_owners([proj.id])
 
         assert len(projectowners) == 2
 
-    def test_clone_project(self, session, projectmaker, networkmaker):
+    def test_clone_project(self, client, projectmaker, networkmaker):
 
         proj = projectmaker.create()
 
@@ -243,29 +241,43 @@ class TestProject:
 
         net2 = networkmaker.create(project_id=proj.id)
 
-        recipient_user = hb.get_user_by_name('UserA')
+        recipient_user = client.get_user_by_name('UserA')
 
         new_project_name = 'New Project'
 
-        cloned_project_id = hb.clone_project(proj.id,
-                                          recipient_user_id=recipient_user.id,
-                                          new_project_name=new_project_name,
-                                          user_id=pytest.root_user_id)
+        cloned_project_id = client.clone_project(
+            proj.id,
+            recipient_user_id=recipient_user.id,
+            new_project_name=new_project_name)
 
-        cloned_project = hb.get_project(cloned_project_id,
-                                        user_id=pytest.root_user_id)
+        cloned_project = client.get_project(cloned_project_id)
 
         assert cloned_project.name == new_project_name
-        assert len(cloned_project.networks) == 2
-        
+        cloned_networks = client.get_networks(cloned_project.id)
+        assert len(cloned_networks) == 2
+
         #check with no name provided
-        cloned_project_id = hb.clone_project(proj.id,
-                                          recipient_user_id=recipient_user.id,
-                                          new_project_name=None,
-                                          user_id=pytest.root_user_id)
+        cloned_project_id = client.clone_project(
+            proj.id,
+            recipient_user_id=recipient_user.id,
+            new_project_name=None)
 
-        cloned_project = hb.get_project(cloned_project_id,
-                                        user_id=pytest.root_user_id)
+        cloned_project = client.get_project(cloned_project_id)
 
-        assert cloned_project.name.find('Cloned') > 0 
-        assert len(cloned_project.networks) == 2
+        assert cloned_project.name.find('Cloned') > 0
+        cloned_networks = client.get_networks(cloned_project.id)
+        assert len(cloned_networks) == 2
+
+    def test_get_project_by_network_id(self, client, projectmaker, networkmaker):
+
+        proj = projectmaker.create()
+
+        net1 = networkmaker.create(project_id=proj.id)
+
+        net2 = networkmaker.create(project_id=proj.id)
+        nets = client.get_networks(proj.id)
+
+
+        project_i = client.get_project_by_network_id(net1.id)
+
+        assert project_i.id == proj.id

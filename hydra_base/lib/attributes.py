@@ -20,6 +20,8 @@
 import logging
 log = logging.getLogger(__name__)
 
+import json
+
 from ..db.model import Attr,\
         Node,\
         Link,\
@@ -40,6 +42,7 @@ from ..db.model import Attr,\
 from .. import db
 from sqlalchemy.orm.exc import NoResultFound
 from ..exceptions import HydraError, ResourceNotFoundError
+from ..util.permissions import required_perms
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import aliased
 from . import units
@@ -85,12 +88,12 @@ def get_attribute_by_id(attr_id, **kwargs):
     """
         Get a specific attribute by its ID.
     """
-
     try:
         attr_i = db.DBSession.query(Attr).filter(Attr.id==attr_id).one()
-        return attr_i
     except NoResultFound:
-        return None
+        raise ResourceNotFoundError("Attribute (attribute id=%s) does not exist"%(attr_id))
+
+    return attr_i
 
 def get_template_attributes(template_id, **kwargs):
     """
@@ -117,6 +120,7 @@ def get_attribute_by_name_and_dimension(name, dimension_id=None,**kwargs):
     except NoResultFound:
         return None
 
+@required_perms('add_attribute')
 def add_attribute(attr,**kwargs):
     """
     Add a generic attribute, which can then be used in creating
@@ -145,6 +149,7 @@ def add_attribute(attr,**kwargs):
         log.info("New attr added")
     return JSONObject(attr_i)
 
+@required_perms('edit_attribute')
 def update_attribute(attr,**kwargs):
     """
     Add a generic attribute, which can then be used in creating
@@ -160,14 +165,20 @@ def update_attribute(attr,**kwargs):
 
     """
 
-    log.debug("Updating attribute: %s", attr.name)
-    attr_i = _get_attr(attr.id)
-    attr_i.name = attr.name
-    attr_i.dimension_id = attr.dimension_id
-    attr_i.description = attr.description
-
-    #Make sure an update hasn't caused an inconsistency.
-    #check_sion(attr_i.id)
+    existing_attr_i = db.DBSession.query(Attr).filter(
+        Attr.name == attr.name,
+        Attr.dimension_id == attr.dimension_id,
+        Attr.id != attr.id).first() #its ok if this is the one being updated!
+    if existing_attr_i is not None:
+        raise HydraError(f"Cannot update attribute. An attribute with name {attr.name}"
+                         f"and dimension {attr.dimension} already exists with "
+                         f"ID {existing_attr_i.id}")
+    else:
+        log.debug("Updating attribute: %s", attr.name)
+        attr_i = _get_attr(attr.id)
+        attr_i.name = attr.name
+        attr_i.dimension_id = attr.dimension_id
+        attr_i.description = attr.description
 
     db.DBSession.flush()
     return JSONObject(attr_i)
@@ -350,15 +361,15 @@ def add_resource_attrs_from_type(type_id, resource_type, resource_id,**kwargs):
     resourceattr_qry = db.DBSession.query(ResourceAttr).filter(ResourceAttr.ref_key==resource_type)
 
     if resource_type == 'NETWORK':
-        resourceattr_qry.filter(ResourceAttr.network_id==resource_id)
+        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.network_id==resource_id)
     elif resource_type == 'NODE':
-        resourceattr_qry.filter(ResourceAttr.node_id==resource_id)
+        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.node_id==resource_id)
     elif resource_type == 'LINK':
-        resourceattr_qry.filter(ResourceAttr.link_id==resource_id)
+        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.link_id==resource_id)
     elif resource_type == 'GROUP':
-        resourceattr_qry.filter(ResourceAttr.group_id==resource_id)
+        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.group_id==resource_id)
     elif resource_type == 'PROJECT':
-        resourceattr_qry.filter(ResourceAttr.project_id==resource_id)
+        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.project_id==resource_id)
 
     resource_attrs = resourceattr_qry.all()
 
@@ -816,9 +827,10 @@ def update_attribute_group(attributegroup, **kwargs):
         group_i = db.DBSession.query(AttrGroup).filter(AttrGroup.id==attributegroup.id).one()
         group_i.project.check_write_permission(user_id)
 
+        layout = attributegroup.layout
         group_i.name        = attributegroup.name
         group_i.description = attributegroup.description
-        group_i.layout      = attributegroup.layout
+        group_i.layout = json.dumps(layout) if not isinstance(layout, str) else layout
         group_i.exclusive   = attributegroup.exclusive
 
         db.DBSession.flush()
@@ -936,7 +948,7 @@ def add_attribute_group_items(attributegroupitems, **kwargs):
         in any other group (within a network).
     """
 
-    user_id=kwargs.get('user_id')
+    user_id = kwargs.get('user_id')
 
     if not isinstance(attributegroupitems, list):
         raise HydraError("Cannpt add attribute group items. Attributegroupitems must be a list")
@@ -953,7 +965,6 @@ def add_attribute_group_items(attributegroupitems, **kwargs):
 
     #'agi' = shorthand for 'attribute group item'
     for agi in attributegroupitems:
-
 
         network_i = network_lookup.get(agi.network_id)
 

@@ -17,8 +17,14 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
+import sqlalchemy
 from sqlalchemy.orm import scoped_session
 from sqlalchemy import create_engine
+
+#Import these as a test for foreign key checking in
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+
 from .. import config
 from zope.sqlalchemy import register
 
@@ -40,6 +46,15 @@ DBSession = None
 global engine
 engine = None
 
+#logger_sqlalchemy = logging.getLogger('sqlalchemy')
+#logger_sqlalchemy.setLevel(logging.DEBUG)
+
+# @event.listens_for(Engine, "connect")
+# def set_sqlite_pragma(dbapi_connection, connection_record):
+#     cursor = dbapi_connection.cursor()
+#     cursor.execute("PRAGMA foreign_keys=ON")
+#     cursor.close()
+
 def create_mysql_db(db_url):
     """
         To simplify deployment, create the mysql DB if it's not there.
@@ -53,6 +68,10 @@ def create_mysql_db(db_url):
 
         if no DB name is specified, it is retrieved from config
     """
+
+    #add a special case for a memory-based sqlite session
+    if db_url == 'sqlite://':
+        return db_url
 
     #Remove trailing whitespace and forwardslashes
     db_url = db_url.strip().strip('/')
@@ -100,10 +119,13 @@ def connect(db_url=None):
 
     db_pool_size = config.get('mysqld', 'pool_size', 5)
     db_max_overflow = config.get('mysqld', 'max_overflow', 10)
-    engine = create_engine(db_url,
-                           encoding='utf8',
-                           pool_size=db_pool_size,
-                           max_overflow=db_max_overflow)
+    if db_url.startswith('sqlite'):
+        engine = create_engine(db_url, encoding='utf8')
+    else:
+        engine = create_engine(db_url,
+                               encoding='utf8',
+                               pool_size=db_pool_size,
+                               max_overflow=db_max_overflow)
 
     global DBSession
 
@@ -113,7 +135,10 @@ def connect(db_url=None):
 
 
     global DeclarativeBase
-    DeclarativeBase.metadata.create_all(engine)
+    try:
+        DeclarativeBase.metadata.create_all(engine, checkfirst=True)
+    except sqlalchemy.exc.OperationalError as err:
+        log.warning("Error creating database: %s", err)
 
 def get_session():
     global DBSession

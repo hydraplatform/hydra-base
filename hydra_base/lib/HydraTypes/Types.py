@@ -309,7 +309,7 @@ class Timeseries(DataType):
                     date = date.replace(seasonal_key, seasonal_year)
 
                 ts = pd.Timestamp(date)
-                print(ts, type(ts))
+
                 assert isinstance(ts, base_ts.__class__) # Same type as known valid ts
 
 
