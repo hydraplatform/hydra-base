@@ -1033,7 +1033,7 @@ def assign_types_to_resources(resource_types, **kwargs):
         elif ref_key == 'GROUP':
             resource = groups[ref_id]
 
-        ra, rt, rs = set_resource_type(resource, type_id, types)
+        ra, rt, rs = set_resource_type(resource, type_id, types, **kwargs)
         if rt is not None:
             res_types.append(rt)
         if len(ra) > 0:
