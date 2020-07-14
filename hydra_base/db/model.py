@@ -541,7 +541,7 @@ class Template(Base, Inspect):
     def unset_owner(self, user_id):
         owner = None
         if str(user_id) == str(self.created_by):
-            log.warn("Cannot unset %s as owner, as they created the template", user_id)
+            log.warning("Cannot unset %s as owner, as they created the template", user_id)
             return
         for o in self.owners:
             if user_id == o.user_id:
