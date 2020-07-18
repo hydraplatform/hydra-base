@@ -23,7 +23,7 @@ from ..exceptions import ResourceNotFoundError
 from . import scenario
 import logging
 from ..exceptions import PermissionError, HydraError
-from ..db.model import Project, ProjectOwner, Network, NetworkOwner, User
+from ..db.model import Project, ProjectOwner, Network, NetworkOwner, Template, User
 from .. import db
 from . import network
 from .objects import JSONObject
@@ -367,6 +367,12 @@ def delete_project(project_id,**kwargs):
     user_id = kwargs.get('user_id')
     project = _get_project(project_id)
     project.check_write_permission(user_id)
+
+    templates = db.DBSession.query(Template).filter(Template.project_id==project_id).all()
+    for template in templates:
+        db.DBSession.delete(template)
+    db.DBSession.flush()
+
     db.DBSession.delete(project)
     db.DBSession.flush()
 
