@@ -490,12 +490,16 @@ class ResourceAttrMap(Base, Inspect):
     """
     """
 
-    __tablename__='tResourceAttrMap'
+    __tablename__ = 'tResourceAttrMap'
 
-    network_a_id       = Column(Integer(), ForeignKey('tNetwork.id'), primary_key=True, nullable=False)
-    network_b_id       = Column(Integer(), ForeignKey('tNetwork.id'), primary_key=True, nullable=False)
-    resource_attr_id_a = Column(Integer(), ForeignKey('tResourceAttr.id'), primary_key=True, nullable=False)
-    resource_attr_id_b = Column(Integer(), ForeignKey('tResourceAttr.id'), primary_key=True, nullable=False)
+    network_a_id = Column(Integer(), ForeignKey('tNetwork.id'),
+                          primary_key=True, nullable=False)
+    network_b_id = Column(Integer(), ForeignKey('tNetwork.id'),
+                          primary_key=True, nullable=False)
+    resource_attr_id_a = Column(Integer(), ForeignKey('tResourceAttr.id'),
+                                primary_key=True, nullable=False)
+    resource_attr_id_b = Column(Integer(), ForeignKey('tResourceAttr.id'),
+                                primary_key=True, nullable=False)
 
     resourceattr_a = relationship("ResourceAttr", foreign_keys=[resource_attr_id_a])
     resourceattr_b = relationship("ResourceAttr", foreign_keys=[resource_attr_id_b])
@@ -505,72 +509,87 @@ class ResourceAttrMap(Base, Inspect):
 
 class Template(Base, Inspect):
     """
+    Template
     """
 
-    __tablename__='tTemplate'
+    __tablename__ = 'tTemplate'
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(200),  nullable=False, unique=True)
+    name = Column(String(200), nullable=False, unique=True)
     description = Column(String(1000))
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    layout  = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
+    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    layout = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'), nullable=True)
 
-    _parents  = []
+    _parents = []
     _children = ['tTemplateType']
 
 class TemplateType(Base, Inspect):
     """
+    Template Type
     """
 
-    __tablename__='tTemplateType'
+    __tablename__ = 'tTemplateType'
     __table_args__ = (
         UniqueConstraint('template_id', 'name', 'resource_type', name="unique type name"),
     )
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(200),  nullable=False)
+    name = Column(String(200), nullable=False)
     description = Column(String(1000))
     template_id = Column(Integer(), ForeignKey('tTemplate.id'), nullable=False)
     resource_type = Column(String(200))
     alias = Column(String(100))
-    layout  = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    layout = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'), nullable=True)
+    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
-    template = relationship('Template', backref=backref("templatetypes", order_by=id, cascade="all, delete-orphan"))
+    template = relationship('Template',
+                            backref=backref("templatetypes",
+                                            order_by=id,
+                                            cascade="all, delete-orphan"))
 
-
-    _parents  = ['tTemplate']
+    _parents = ['tTemplate']
     _children = ['tTypeAttr']
 
 class TypeAttr(Base, Inspect):
     """
+        Type Attribute
     """
 
-    __tablename__='tTypeAttr'
+    __tablename__ = 'tTypeAttr'
 
     attr_id = Column(Integer(), ForeignKey('tAttr.id'), primary_key=True, nullable=False)
-    type_id = Column(Integer(), ForeignKey('tTemplateType.id', ondelete='CASCADE'), primary_key=True, nullable=False)
+    type_id = Column(Integer(), ForeignKey('tTemplateType.id', ondelete='CASCADE'),
+                     primary_key=True, nullable=False)
     default_dataset_id = Column(Integer(), ForeignKey('tDataset.id'))
-    attr_is_var        = Column(String(1), server_default=text(u"'N'"))
-    data_type          = Column(String(60))
-    data_restriction   = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
-    unit_id            = Column(Integer(), ForeignKey('tUnit.id'), nullable=True)
-    description        = Column(String(1000))
-    properties         = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    attr_is_var = Column(String(1), server_default=text(u"'N'"))
+    data_type = Column(String(60))
+    data_restriction = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'), nullable=True)
+    unit_id = Column(Integer(), ForeignKey('tUnit.id'), nullable=True)
+    description = Column(String(1000))
+    properties = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'), nullable=True)
+    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+
 
     attr = relationship('Attr')
-    templatetype = relationship('TemplateType',  backref=backref("typeattrs", order_by=attr_id, cascade="all, delete-orphan"))
-    unit = relationship('Unit', backref=backref("typeattr_unit", order_by=unit_id))
+    templatetype = relationship('TemplateType',
+                                backref=backref("typeattrs",
+                                                order_by=attr_id,
+                                                cascade="all, delete-orphan"))
+    unit = relationship('Unit',
+                        backref=backref("typeattr_unit",
+                                        order_by=unit_id))
     default_dataset = relationship('Dataset')
 
-    _parents  = ['tTemplateType', 'tUnit']
+    _parents = ['tTemplateType', 'tUnit']
     _children = []
 
     def get_attr(self):
+        """
+            Get the attribute object
+        """
 
         if self.attr is None:
-            attr = get_session().query(Attr).filter(Attr.id==self.attr_id).first()
+            attr = get_session().query(Attr).filter(Attr.id == self.attr_id).first()
         else:
             attr = self.attr
 
@@ -581,35 +600,55 @@ class ResourceAttr(Base, Inspect):
     """
     """
 
-    __tablename__='tResourceAttr'
+    __tablename__ = 'tResourceAttr'
 
     __table_args__ = (
-        UniqueConstraint('network_id', 'attr_id', name = 'net_attr_1'),
-        UniqueConstraint('project_id', 'attr_id', name = 'proj_attr_1'),
-        UniqueConstraint('node_id',    'attr_id', name = 'node_attr_1'),
-        UniqueConstraint('link_id',    'attr_id', name = 'link_attr_1'),
-        UniqueConstraint('group_id',   'attr_id', name = 'group_attr_1'),
+        UniqueConstraint('network_id', 'attr_id', name='net_attr_1'),
+        UniqueConstraint('project_id', 'attr_id', name='proj_attr_1'),
+        UniqueConstraint('node_id', 'attr_id', name='node_attr_1'),
+        UniqueConstraint('link_id', 'attr_id', name='link_attr_1'),
+        UniqueConstraint('group_id', 'attr_id', name='group_attr_1'),
     )
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    attr_id = Column(Integer(), ForeignKey('tAttr.id'),  nullable=False)
-    ref_key = Column(String(60),  nullable=False, index=True)
-    network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), index=True, nullable=True)
-    project_id  = Column(Integer(),  ForeignKey('tProject.id'), index=True, nullable=True)
-    node_id     = Column(Integer(),  ForeignKey('tNode.id'), index=True, nullable=True)
-    link_id     = Column(Integer(),  ForeignKey('tLink.id'), index=True, nullable=True)
-    group_id    = Column(Integer(),  ForeignKey('tResourceGroup.id'), index=True, nullable=True)
-    attr_is_var = Column(String(1),  nullable=False, server_default=text(u"'N'"))
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    attr_id = Column(Integer(), ForeignKey('tAttr.id'), nullable=False)
+    ref_key = Column(String(60), nullable=False, index=True)
+    network_id = Column(Integer(), ForeignKey('tNetwork.id'), index=True, nullable=True)
+    project_id = Column(Integer(), ForeignKey('tProject.id'), index=True, nullable=True)
+    node_id = Column(Integer(), ForeignKey('tNode.id'), index=True, nullable=True)
+    link_id = Column(Integer(), ForeignKey('tLink.id'), index=True, nullable=True)
+    group_id = Column(Integer(), ForeignKey('tResourceGroup.id'), index=True, nullable=True)
+    attr_is_var = Column(String(1), nullable=False, server_default=text(u"'N'"))
+    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     attr = relationship('Attr')
-    project = relationship('Project', backref=backref('attributes', uselist=True, cascade="all, delete-orphan"), uselist=False)
-    network = relationship('Network', backref=backref('attributes', uselist=True, cascade="all, delete-orphan"), uselist=False)
-    node = relationship('Node', backref=backref('attributes', uselist=True, cascade="all, delete-orphan"), uselist=False)
-    link = relationship('Link', backref=backref('attributes', uselist=True, cascade="all, delete-orphan"), uselist=False)
-    resourcegroup = relationship('ResourceGroup', backref=backref('attributes', uselist=True, cascade="all, delete-orphan"), uselist=False)
+    project = relationship('Project',
+                           backref=backref('attributes',
+                                           uselist=True,
+                                           cascade="all, delete-orphan"),
+                           uselist=False)
+    network = relationship('Network',
+                           backref=backref('attributes',
+                                           uselist=True,
+                                           cascade="all, delete-orphan"),
+                           uselist=False)
+    node = relationship('Node',
+                        backref=backref('attributes',
+                                        uselist=True,
+                                        cascade="all, delete-orphan"),
+                        uselist=False)
+    link = relationship('Link',
+                        backref=backref('attributes',
+                                        uselist=True,
+                                        cascade="all, delete-orphan"),
+                        uselist=False)
+    resourcegroup = relationship('ResourceGroup',
+                                 backref=backref('attributes',
+                                                 uselist=True,
+                                                 cascade="all, delete-orphan"),
+                                 uselist=False)
 
-    _parents  = ['tNode', 'tLink', 'tResourceGroup', 'tNetwork', 'tProject']
+    _parents = ['tNode', 'tLink', 'tResourceGroup', 'tNetwork', 'tProject']
     _children = []
 
     def get_network(self):
