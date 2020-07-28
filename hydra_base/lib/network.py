@@ -818,7 +818,7 @@ def _get_all_group_items(network_id):
 
     return item_dict
 
-def _get_all_resourcescenarios(network_id, include_results, user_id):
+def _get_all_resourcescenarios(network_id, scenario_ids, include_results, user_id):
     """
         Get all the resource scenarios in a network, across all scenarios
         returns a dictionary of dict objects, keyed on scenario_id
@@ -847,6 +847,9 @@ def _get_all_resourcescenarios(network_id, include_results, user_id):
 
     if include_results == 'N' or include_results == False:
         rs_qry = rs_qry.filter(ResourceAttr.attr_is_var=='N')
+
+    if scenario_ids is not None and len(scenario_ids) > 0:
+        rs_qry = rs_qry.filter(ResourceScenario.scenario_id.in_(scenario_ids))
 
     x = time.time()
     logging.info("Getting all resource scenarios")
@@ -1022,7 +1025,7 @@ def _get_scenarios(network_id, include_data, include_results, user_id, scenario_
     all_resource_group_items = _get_all_group_items(network_id)
 
     if include_data == 'Y' or include_data == True:
-        all_rs = _get_all_resourcescenarios(network_id, include_results, user_id)
+        all_rs = _get_all_resourcescenarios(network_id, scenario_ids, include_results, user_id)
         metadata = _get_metadata(network_id, user_id)
 
     for s in scens:
