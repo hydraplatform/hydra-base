@@ -169,8 +169,18 @@ class TestNetwork:
         network_with_results = client.get_network(new_scenario.network_id, include_attributes=True, include_data='Y', scenario_ids=scen_ids)
         network_no_results = client.get_network(new_scenario.network_id, include_attributes=True, include_data='Y', include_results='N', scenario_ids=scen_ids)
 
+        sample_rs= network_with_results.scenarios[0].resourcescenarios[0]
         #there should be one more result in the
         assert len(network_with_results.scenarios[0].resourcescenarios) == len(network_no_results.scenarios[0].resourcescenarios) + 10
+        assert len(sample_rs.dataset.metadata) == 0
+
+        network_with_results_and_metadata = client.get_network(new_scenario.network_id, include_attributes=True, include_data='Y', scenario_ids=scen_ids, include_metadata=True)
+
+        sample_rs= network_with_results_and_metadata.scenarios[0].resourcescenarios[0]
+        #there should be one more result in the
+        assert len(sample_rs.dataset.metadata) > 0
+
+
 
         with pytest.raises(hb.exceptions.HydraError):
             client.get_network_by_name(net.project_id, "I am not a network")
