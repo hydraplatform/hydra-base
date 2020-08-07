@@ -432,33 +432,7 @@ class TestTemplates:
 
         template = mock_template
 
-        attr_1 = client.testutils.create_attribute("link_attr_1", dimension='Pressure')
-        attr_2 = client.testutils.create_attribute("link_attr_2", dimension='Speed')
-        attr_3 = client.testutils.create_attribute("node_attr_1", dimension='Volume')
-
-        templatetype = JSONObject()
-        templatetype.name = "Test type name @ %s"%(datetime.datetime.now())
-        templatetype.alias = "%s alias" % templatetype.name
-        templatetype.resource_type = 'LINK'
-        templatetype.template_id = template.id
-        templatetype.layout = {"color": "red", "shapefile": "blah.shp"}
-
-        templatetype.typeattrs = []
-
-        tattr_1 = JSONObject()
-        tattr_1.attr_id = attr_1.id
-        tattr_1.description = "added type description 1"
-        tattr_1.properties = {"add_type_test_property": "property value"}
-        templatetype.typeattrs.append(tattr_1)
-
-        tattr_2 = JSONObject()
-        tattr_2.attr_id = attr_2.id
-        tattr_1.description = "added type description 2"
-        templatetype.typeattrs.append(tattr_2)
-
-        tattr_3 = JSONObject()
-        tattr_3.attr_id = attr_3.id
-        templatetype.typeattrs.append(tattr_3)
+        templatetype = client.testutils.create_templatetype(template.id)
 
         new_type_i = client.add_templatetype(templatetype)
         new_type_j = JSONObject(new_type_i)

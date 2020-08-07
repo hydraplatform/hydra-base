@@ -87,7 +87,10 @@ def get_types_by_attr(resource, template_id=None, **kwargs):
         attr_ids.append(res_attr.attr_id)
     all_resource_attr_ids = set(attr_ids)
 
-    all_types = db.DBSession.query(TemplateType).options(joinedload('typeattrs')).filter(TemplateType.resource_type==resource.ref_key)
+    all_types = db.DBSession.query(TemplateType)\
+            .options(joinedload('typeattrs'))\
+            .filter(TemplateType.resource_type==resource.ref_key)
+
     if template_id is not None:
         all_types = all_types.filter(TemplateType.template_id==template_id)
 
@@ -819,11 +822,11 @@ def apply_template_to_network(template_id, network_id, **kwargs):
     for node_i in net_i.nodes:
         templates = get_types_by_attr(node_i, template_id, **kwargs)
         if len(templates) > 0:
-            assign_type_to_resource(templates[0].id, 'NODE', node_i.id,**kwargs)
+            assign_type_to_resource(templates[0].id, 'NODE', node_i.id, **kwargs)
     for link_i in net_i.links:
         templates = get_types_by_attr(link_i, template_id, **kwargs)
         if len(templates) > 0:
-            assign_type_to_resource(templates[0].id, 'LINK', link_i.id,**kwargs)
+            assign_type_to_resource(templates[0].id, 'LINK', link_i.id, **kwargs)
 
     for group_i in net_i.resourcegroups:
         templates = get_types_by_attr(group_i, template_id, **kwargs)
@@ -1376,7 +1379,7 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
     return new_res_attrs, resource_type, new_res_scenarios
 
 @required_perms("edit_network")
-def remove_type_from_resource( type_id, resource_type, resource_id,**kwargs):
+def remove_type_from_resource( type_id, resource_type, resource_id, **kwargs):
     """
         Remove a resource type trom a resource
     """
@@ -1430,6 +1433,8 @@ def add_template(template, **kwargs):
     """
     tmpl = Template()
     tmpl.name = template.name
+    if template.parent_id:
+        tmpl.parent_id = template.parent_id
     if template.description:
         tmpl.description = template.description
     if template.layout:
@@ -1446,6 +1451,29 @@ def add_template(template, **kwargs):
     db.DBSession.flush()
 
     return tmpl
+
+def add_child_template(parent_id, name, description=None, **kwargs):
+    """
+        Add template and a type and typeattrs.
+    """
+    parent_template = db.DBSession.query(Template).filter(Template.id == parent_id).one()
+
+    tmpl = Template()
+    tmpl.name = name
+    if description is not None:
+        tmpl.description = description
+    else:
+        tmpl.description = parent_template.description
+    tmpl.layout = parent_template.layout
+    tmpl.parent_id = parent_id
+
+    db.DBSession.add(tmpl)
+
+    db.DBSession.flush()
+
+    return tmpl
+
+
 
 @required_perms("edit_template")
 def update_template(template, **kwargs):
@@ -1481,9 +1509,9 @@ def update_template(template, **kwargs):
                 new_templatetype_i = _update_templatetype(templatetype)
                 existing_templatetypes.append(new_templatetype_i.id)
 
-    for tt in tmpl.templatetypes:
-        if tt.id not in existing_templatetypes:
-            delete_templatetype(tt.id)
+    for ttype in tmpl.templatetypes:
+        if ttype.id not in existing_templatetypes:
+            delete_templatetype(ttype.id)
 
     db.DBSession.flush()
 
@@ -1495,7 +1523,7 @@ def delete_template(template_id, **kwargs):
         Delete a template and its type and typeattrs.
     """
     try:
-        tmpl = db.DBSession.query(Template).filter(Template.id==template_id).one()
+        tmpl = db.DBSession.query(Template).filter(Template.id == template_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Template %s not found"%(template_id,))
     db.DBSession.delete(tmpl)
@@ -1507,7 +1535,8 @@ def get_templates(load_all=True, **kwargs):
     """
         Get all templates.
         Args:
-            load_all Boolean: Returns just the template entry or the full template structure (template types and type attrs)
+            load_all Boolean: Returns just the template entry or the full
+            template structure (template types and type attrs)
         Returns:
             List of Template objects
     """
@@ -1520,50 +1549,54 @@ def get_templates(load_all=True, **kwargs):
     return templates
 
 @required_perms("edit_template")
-def remove_attr_from_type(type_id, attr_id,**kwargs):
+def remove_attr_from_type(type_id, attr_id, **kwargs):
     """
 
         Remove an attribute from a type
     """
-    typeattr_i = db.DBSession.query(TypeAttr).filter(TypeAttr.type_id==type_id,
-                                                  TypeAttr.attr_id==attr_id).one()
+    typeattr_i = db.DBSession.query(TypeAttr).filter(TypeAttr.type_id == type_id,
+                                                     TypeAttr.attr_id == attr_id).one()
     db.DBSession.delete(typeattr_i)
 
 @required_perms("get_template")
-def get_template(template_id,**kwargs):
+def get_template(template_id, **kwargs):
     """
         Get a specific resource template template, by ID.
     """
     try:
         tmpl_i = db.DBSession.query(Template).filter(
-            Template.id==template_id).options(joinedload('templatetypes')
-               .joinedload('typeattrs')
-               .joinedload('default_dataset')
-               .joinedload('metadata')).one()
+            Template.id == template_id).one()
 
-        #Load the attributes.
-        for tmpltype_i in tmpl_i.templatetypes:
-            for typeattr_i in tmpltype_i.typeattrs:
-                typeattr_i.attr
+        inherited_types = tmpl_i.get_types()
+#        for i_t in inherited_types:
+#            i_t.typeattrs = [JSONObject(ta) for ta in i_t.ta_tree.values()]
+        tmpl_i.templatetypes = inherited_types
 
-        return tmpl_i
+
+        tmpl_j = JSONObject(tmpl_i)
+
+
+        #ignore the messing around we've been doing to the ORM objects
+        db.DBSession.expunge(tmpl_i)
+
+        return tmpl_j
     except NoResultFound:
         raise HydraError("Template %s not found"%template_id)
 
 @required_perms("get_template")
-def get_template_by_name(name,**kwargs):
+def get_template_by_name(name, **kwargs):
     """
         Get a specific resource template, by name.
     """
     try:
         tmpl_i = db.DBSession.query(Template).filter(
             Template.name == name).options(joinedload('templatetypes')
-                .joinedload('typeattrs')
-               .joinedload('default_dataset')
-               .joinedload('metadata')).one()
+                                           .joinedload('typeattrs')
+                                           .joinedload('default_dataset')
+                                           .joinedload('metadata')).one()
         return tmpl_i
     except NoResultFound:
-        log.info("%s is not a valid identifier for a template",name)
+        log.info("%s is not a valid identifier for a template", name)
         raise HydraError('Template "%s" not found'%name)
 
 @required_perms("edit_template")
@@ -1578,12 +1611,63 @@ def add_templatetype(templatetype, **kwargs):
 
     return type_i
 
+def add_child_templatetype(parent_id, child_template_id, **kwargs):
+    """
+        Add template and a type and typeattrs.
+    """
+
+    #check if the type is already there:
+    #this means we can only add one child type per template
+    existing_child = db.DBSession.query(TemplateType).filter(
+        TemplateType.parent_id == parent_id,
+        TemplateType.template_id == child_template_id).first()
+
+    if existing_child is not None:
+        return existing_child
+
+    #The child doesn't exist already, so create it.
+    child_type_i = TemplateType()
+    child_type_i.template_id = child_template_id
+    child_type_i.parent_id = parent_id
+
+    db.DBSession.add(child_type_i)
+
+    db.DBSession.flush()
+
+    return child_type_i
+
+def add_child_typeattr(parent_id, child_template_id, **kwargs):
+    """
+        Add template and a type and typeattrs.
+    """
+
+    parent_typeattr = db.DBSession.query(TypeAttr)\
+            .filter(TypeAttr.id == parent_id).one()
+
+    child_type = add_child_templatetype(parent_typeattr.type_id, child_template_id)
+
+    child_typeattr_i = TypeAttr()
+    child_typeattr_i.attr_id = parent_typeattr.attr_id
+    child_typeattr_i.type_id = child_type.id
+    child_typeattr_i.parent_id = parent_id
+
+    db.DBSession.add(child_typeattr_i)
+
+    db.DBSession.flush()
+
+    return child_typeattr_i
+
+
+
 @required_perms("edit_template")
 def update_templatetype(templatetype, **kwargs):
     """
         Update a resource type and its typeattrs.
         New typeattrs will be added. typeattrs not sent will be ignored.
         To delete typeattrs, call delete_typeattr
+
+        args:
+            templatetype: A template type JSON object
     """
 
     tmpltype_i = db.DBSession.query(TemplateType).filter(TemplateType.id == templatetype.id).one()
@@ -1624,6 +1708,7 @@ def _set_typeattr(typeattr, existing_ta=None):
     ta.unit_id = typeattr.unit_id
     ta.type_id = typeattr.type_id
     ta.data_type = typeattr.data_type
+    ta.status = typeattr.status if typeattr.status is not None else 'A'
 
     if hasattr(typeattr, 'default_dataset_id') and typeattr.default_dataset_id is not None:
         ta.default_dataset_id = typeattr.default_dataset_id
@@ -1636,26 +1721,26 @@ def _set_typeattr(typeattr, existing_ta=None):
 
     ta.data_restriction = _parse_data_restriction(typeattr.data_restriction)
 
-    if typeattr.dimension_id is None:
+    if typeattr.unit_id is None:
         # All right. Check passed
         pass
     else:
-
+        unit = units.get_unit(typeattr.unit_id)
+        dimension = units.get_dimension(unit.dimension_id)
         if typeattr.attr_id is not None and typeattr.attr_id > 0:
             # Getting the passed attribute, so we need to check consistency between attr dimension id and typeattr dimension id
             attr = ta.attr
-
-            if attr is not None and attr.dimension_id is not None and attr.dimension_id != typeattr.dimension_id or \
-               attr is not None and attr.dimension_id is not None:
-                # In this case there is an inconsistency between attr.dimension_id and typeattr.dimension_id
-                raise HydraError("Cannot set a dimension on type attribute which "
+            if attr is not None and attr.unit_id is not None and attr.dimension_id != dimension.id or \
+               attr is not None and attr.unit_id is not None:
+                # In this case there is an inconsistency between attr.dimension_id and typeattr.unit_id
+                raise HydraError("Cannot set a unit %s on type attribute which "
                                 "does not match its attribute. Create a new attribute if "
                                 "you want to use attribute %s with dimension_id %s"%
-                                (attr.name, typeattr.dimension_id))
+                                (unit.name, attr.name, dimension.id))
         elif typeattr.attr_id is None and typeattr.name is not None:
             # Getting/creating the attribute by typeattr dimension id and typeattr name
             # In this case the dimension_id "null"/"not null" status is ininfluent
-            attr = _get_attr_by_name_and_dimension(typeattr.name, typeattr.dimension_id)
+            attr = _get_attr_by_name_and_dimension(typeattr.name, dimension.id)
 
             ta.attr_id = attr.id
             ta.attr = attr
@@ -1671,28 +1756,67 @@ def _set_typeattr(typeattr, existing_ta=None):
 
     return ta
 
+def _set_cols(source, target, reference=None):
+    """
+        Set the value on the column of a target row.
+        This checks if the value is the same as that of another reference row,
+        and if it is the same, it sets that column to None.
+        Ex:
+            reference is: {'status': 'x'} and value is 'x'}, then
+            target will be set to {'status': None}. If status is 'y',
+            then target will be {'status', 'y'}
+        Args:
+            target: DB row to write the column to
+            source: The incoming object (a JSONObjhect) containing the request data
+            reference: DB row used for comparison
+            colnames: The column names to set
+            value: The value to set.
+    """
+    for colname in source:
+
+        if colname not in target.__table__.columns:
+            continue
+
+        if hasattr(reference, '_protected_columns') and colname in reference._protected_columns:
+            #yuo can't change stuff like IDS, cr dates etc.
+            continue
+
+        newval = getattr(source, colname)
+
+        if colname == 'layout':
+            newval = get_layout_as_string(newval)
+
+        if reference is None:
+            setattr(target, colname, newval)
+            continue
+
+        refval = getattr(reference, colname)
+
+        if newval != refval:
+            setattr(target, colname, newval)
+        else:
+            setattr(target, colname, None)
+
+
 def _update_templatetype(templatetype, existing_tt=None):
     """
         Add or update a templatetype. If an existing template type is passed in,
         update that one. Otherwise search for an existing one. If not found, add.
     """
+    #flag to indicate if this update results in an insert
+    is_new = False
+
     if existing_tt is None:
         if "id" in templatetype and templatetype.id is not None:
             tmpltype_i = db.DBSession.query(TemplateType).filter(TemplateType.id == templatetype.id).one()
         else:
+            is_new = True
             tmpltype_i = TemplateType()
+            tmpltype_i.template_id = templatetype.template_id
     else:
         tmpltype_i = existing_tt
 
-    tmpltype_i.template_id = templatetype.template_id
-    tmpltype_i.name        = templatetype.name
-    tmpltype_i.description = templatetype.description
-    tmpltype_i.alias       = templatetype.alias
-
-    if templatetype.layout is not None:
-        tmpltype_i.layout = get_layout_as_string(templatetype.layout)
-
-    tmpltype_i.resource_type = templatetype.resource_type
+    _set_cols(templatetype, tmpltype_i, existing_tt)
 
     ta_dict = {}
     for t in tmpltype_i.typeattrs:
@@ -1715,7 +1839,7 @@ def _update_templatetype(templatetype, existing_tt=None):
         if ta.attr_id not in existing_attrs:
             delete_typeattr(ta)
 
-    if existing_tt is None:
+    if is_new is True:
         db.DBSession.add(tmpltype_i)
 
     return tmpltype_i
@@ -1751,6 +1875,20 @@ def get_templatetype(type_id, **kwargs):
     return templatetype
 
 @required_perms("get_template")
+def get_typeattr(typeattr_id, **kwargs):
+    """
+        Get a specific resource type by ID.
+    """
+
+    templatetype = db.DBSession.query(TypeAttr).filter(
+                        TypeAttr.id==typeattr_id).options(
+                        joinedload("default_dataset")).one()
+
+    return templatetype
+
+
+
+@required_perms("get_template")
 def get_templatetype_by_name(template_id, type_name, **kwargs):
     """
         Get a specific resource type by name.
@@ -1781,6 +1919,26 @@ def add_typeattr(typeattr, **kwargs):
 
     return ta
 
+@required_perms("edit_template")
+def update_typeattr(typeattr, **kwargs):
+    """
+        Update an existing an typeattr with updated values.
+    """
+    #First check if an existing one already exists.
+    existing_ta = None
+    if typeattr.id is not None:
+        existing_ta = db.DBSession.query(TypeAttr)\
+                .filter(TypeAttr.id == typeattr.id).first()
+    else:
+        existing_ta = db.DBSession.query(TypeAttr)\
+            .filter(TypeAttr.type_id == typeattr.type_id,
+                    TypeAttr.attr_id == typeattr.attr_id).first()
+
+    typeattr_updated = _set_typeattr(typeattr, existing_ta)
+
+    db.DBSession.flush()
+
+    return typeattr_updated
 
 @required_perms("edit_template")
 def delete_typeattr(typeattr, **kwargs):

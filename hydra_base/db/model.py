@@ -42,6 +42,8 @@ from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
 
 from sqlalchemy.orm import relationship, backref
 
+from sqlalchemy.orm import noload, joinedload
+
 
 from . import DeclarativeBase as Base, get_session
 
@@ -273,33 +275,33 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
     _parents  = ['tResourceScenario', 'tUnit']
     _children = ['tMetadata']
 
-    def set_metadata(self, metadata_dict):
+    def set_metadata(self, metadata_tree):
         """
             Set the metadata on a dataset
 
-            **metadata_dict**: A dictionary of metadata key-vals.
+            **metadata_tree**: A dictionary of metadata key-vals.
             Transforms this dict into an array of metadata objects for
             storage in the DB.
         """
-        if metadata_dict is None:
+        if metadata_tree is None:
             return
-        if isinstance(metadata_dict, str):
-            metadata_dict = json.loads(metadata_dict)
+        if isinstance(metadata_tree, str):
+            metadata_tree = json.loads(metadata_tree)
 
         existing_metadata = []
         for m in self.metadata:
             existing_metadata.append(m.key)
-            if m.key in metadata_dict:
-                if m.value != metadata_dict[m.key]:
-                    m.value = metadata_dict[m.key]
+            if m.key in metadata_tree:
+                if m.value != metadata_tree[m.key]:
+                    m.value = metadata_tree[m.key]
 
 
-        for k, v in metadata_dict.items():
+        for k, v in metadata_tree.items():
             if k not in existing_metadata:
                 m_i = Metadata(key=str(k),value=str(v))
                 self.metadata.append(m_i)
 
-        metadata_to_delete =  set(existing_metadata).difference(set(metadata_dict.keys()))
+        metadata_to_delete =  set(existing_metadata).difference(set(metadata_tree.keys()))
         for m in self.metadata:
             if m.key in metadata_to_delete:
                 get_session().delete(m)
@@ -515,13 +517,118 @@ class Template(Base, Inspect):
     __tablename__ = 'tTemplate'
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(200), nullable=False, unique=True)
+    parent_id = Column(Integer(), ForeignKey('tTemplate.id'))
+    name = Column(String(200), unique=True)
     description = Column(String(1000))
     cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    layout = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'), nullable=True)
+    layout = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'))
+
+    parent = relationship('Template', remote_side=[id], backref=backref("children", order_by=id))
 
     _parents = []
     _children = ['tTemplateType']
+
+
+    def get_types(self, type_tree={}, child_types=None, get_parent_types=True):
+        """
+            Return all the templatetypes relevant to this template.
+            If this template inherits from another, look up the tree to compile
+            an exhaustive list of types, removing any duplicates, prioritising
+            the ones closest to this template (my immediate parent's values are used instead
+            of its parents)
+
+        """
+
+        #This avoids python's mutable keyword argumets causing child_data to keep its values beween
+        #function calls
+        if child_types is None:
+            child_types = []
+            type_tree = {}
+
+        #Add resource attributes which are not defined already
+        types = get_session().query(TemplateType).filter(
+            TemplateType.template_id == self.id).options(noload('typeattrs')).all()
+
+        #TODO need to check here to see if there is a parent / child type
+        #and then add or not add as approprioate
+        for this_type in types:
+
+            #THis keeps track of which type attributes are currently associated
+            #to this type. We'll use the data in this dict to set the 'typeattrs'
+            #at the end
+            if not hasattr(this_type, 'ta_tree'):
+                this_type.ta_tree = {}
+
+            #get all the type attrs for this type, and add any which are missing
+            typeattrs = get_session().query(TypeAttr)\
+                .filter(TypeAttr.type_id == this_type.id)\
+                .options(joinedload('default_dataset')).all()
+
+
+            #Is this type the parent of a type. If so, we don't want to add a new type
+            #we want to update an existing one with any data that it's missing
+            if this_type.id in type_tree:
+                #THis is a deleted type, so ignore it in the parent
+                if type_tree[this_type.id] is  None:
+                    continue
+
+                #Find the child type and update it.
+                child_type = type_tree[this_type.id]
+                for column in this_type.__table__.columns:
+                    colname = column.name
+                    colval = getattr(this_type, colname)
+                    #only update the child column if it's Null (and therefore
+                    #needs to be inherited)
+                    if getattr(child_type, colname) is None and colval is not None:
+                        setattr(child_type, colname, colval)
+
+                for typeattr in typeattrs:
+
+                    #Does this typeattr have a child?
+                    child_typeattr = type_tree[this_type.id].ta_tree.get(typeattr.id)
+                    if child_typeattr is None:
+                        #there is no child, so check if it is a child
+                        if typeattr.parent_id is not None:
+                            #it has a parent, so add it to the type's tree dict
+                            #for processing farther up the tree
+                            type_tree[this_type.id].ta_tree[typeattr.parent_id] = typeattr
+                        child_type.typeattrs.append(typeattr)
+                    else:
+                        for column in typeattr.__table__.columns:
+                            colname = column.name
+                            colval = getattr(typeattr, colname)
+                            #only update the child column if it's Null (and therefore
+                            #needs to be inherited)
+                            if getattr(child_typeattr, colname) is None and colval is not None:
+                                setattr(child_typeattr, colname, colval)
+
+
+                if this_type.parent_id is not None:
+                    type_tree[this_type.parent_id] = child_type
+
+            else:
+                if not hasattr(this_type, 'typeattrs'):
+                    setattr(this_type, 'typeattrs', [])
+                for typeattr in typeattrs:
+                    #is this a child? if so, register it as one
+                    if typeattr.parent_id is not None:
+                        this_type.ta_tree[typeattr.parent_id] = typeattr
+                    this_type.typeattrs.append(typeattr)
+
+                child_types.append(this_type)
+                #set
+                if this_type.parent_id is not None:
+                    type_tree[this_type.parent_id] = this_type
+
+
+
+
+        if self.parent is not None and get_parent_types is True:
+            return self.parent.get_types(type_tree=type_tree,
+                                         child_types=child_types,
+                                         get_parent_types=get_parent_types)
+
+        return child_types
 
 class TemplateType(Base, Inspect):
     """
@@ -533,14 +640,21 @@ class TemplateType(Base, Inspect):
         UniqueConstraint('template_id', 'name', 'resource_type', name="unique type name"),
     )
 
+    #these are columns which are not allowed to be changed by a child type
+    _protected_columns = ['id', 'template_id', 'parent_id', 'name', 'resource_type', 'cr_date']
+
     id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(200), nullable=False)
-    description = Column(String(1000))
+    parent_id = Column(Integer(), ForeignKey('tTemplateType.id'))
     template_id = Column(Integer(), ForeignKey('tTemplate.id'), nullable=False)
+    name = Column(String(200))
+    description = Column(String(1000))
     resource_type = Column(String(200))
     alias = Column(String(100))
-    layout = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'), nullable=True)
+    status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
+    layout = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'))
     cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+
+    parent = relationship('TemplateType', remote_side=[id], backref=backref("children", order_by=id))
 
     template = relationship('Template',
                             backref=backref("templatetypes",
@@ -557,18 +671,23 @@ class TypeAttr(Base, Inspect):
 
     __tablename__ = 'tTypeAttr'
 
-    attr_id = Column(Integer(), ForeignKey('tAttr.id'), primary_key=True, nullable=False)
+    id = Column(Integer(), primary_key=True, nullable=False)
+    parent_id = Column(Integer(), ForeignKey('tTypeAttr.id'))
+    attr_id = Column(Integer(), ForeignKey('tAttr.id'), nullable=False)
     type_id = Column(Integer(), ForeignKey('tTemplateType.id', ondelete='CASCADE'),
-                     primary_key=True, nullable=False)
+                     nullable=False)
     default_dataset_id = Column(Integer(), ForeignKey('tDataset.id'))
     attr_is_var = Column(String(1), server_default=text(u"'N'"))
     data_type = Column(String(60))
-    data_restriction = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'), nullable=True)
-    unit_id = Column(Integer(), ForeignKey('tUnit.id'), nullable=True)
+    data_restriction = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'))
+    unit_id = Column(Integer(), ForeignKey('tUnit.id'))
     description = Column(String(1000))
-    properties = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'), nullable=True)
+    properties = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'))
+    status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
+
+    parent = relationship('TypeAttr', remote_side=[id], backref=backref("children", order_by=id))
 
     attr = relationship('Attr')
     templatetype = relationship('TemplateType',
@@ -594,6 +713,18 @@ class TypeAttr(Base, Inspect):
             attr = self.attr
 
         return attr
+
+    @property
+    def is_var(self):
+        return self.attr_is_var
+
+    def get_properties(self):
+        """
+            This is here to match the JSONObject TypeAttr class which also
+            has a get_properties, and which is required by some functions where
+            both types can be validly passed in (like _set_typeattr)
+        """
+        return self.properties
 
 
 class ResourceAttr(Base, Inspect):
