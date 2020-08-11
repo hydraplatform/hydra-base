@@ -135,6 +135,10 @@ def login_user(username, password):
     except NoResultFound:
         raise HydraError(username)
 
+    log.info("User {} has {} ({}) fails.".format(user_i.username, user_i.failed_logins, type(user_i.failed_logins)))
+    log.info("passwd: {}".format(password))
+    fails = user_i.failed_logins
+
     userPassword = ""
     try:
         userPassword = user_i.password.encode('utf-8')
@@ -147,9 +151,26 @@ def login_user(username, password):
         pass
 
     if bcrypt.hashpw(password, userPassword) == userPassword:
+        log.info("Setting last_login to {}".format(datetime.datetime.now()))
         user_i.last_login = datetime.datetime.now()
-        return user_i.id
+        user_i.failed_logins = 0
+        user_id = user_i.id
+        #db.DBSession.query(User).filter(User.username == username).update({User.last_login: datetime.datetime.now(), User.failed_logins: 0})
+        db.DBSession.flush()
+        transaction.commit()
+        #return user_i.id
+        return user_id
     else:
+        log.info("inc failed_logins...")
+        """
+        if user_i.failed_logins is not None:
+            user_i.failed_logins = user_i.failed_logins + 1
+        else:
+            user_i.failed_logins = 1
+        """
+        db.DBSession.query(User).filter(User.username == username).update({User.failed_logins: fails+1})
+        db.DBSession.flush()
+        transaction.commit()
         raise HydraError(username)
 
 def create_default_net():
