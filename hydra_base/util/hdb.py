@@ -138,19 +138,23 @@ def login_user(username, password):
     userPassword = ""
     try:
         userPassword = user_i.password.encode('utf-8')
-    except AttributeError:
+    except (AttributeError, UnicodeEncodeError):
         userPassword = user_i.password
 
     try:
         password = password.encode('utf-8')
-    except AttributeError:
+    except (AttributeError, UnicodeEncodeError):
         pass
 
-    if bcrypt.hashpw(password, userPassword) == userPassword:
+    if bcrypt.checkpw(password, userPassword):
+        user_id = user_i.id
         user_i.last_login = datetime.datetime.now()
-        return user_i.id
+        db.DBSession.flush()
+        transaction.commit()
+        return user_id
     else:
         raise HydraError(username)
+
 
 def create_default_net():
     try:
