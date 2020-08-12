@@ -1455,7 +1455,7 @@ class Scenario(Base, Inspect):
             group_item_i.link     = resource
         self.resourcegroupitems.append(group_item_i)
 
-    def get_data(self, child_data=None, get_parent_data=False, ra_ids=None):
+    def get_data(self, child_data=None, get_parent_data=False, ra_ids=None, include_results=True):
         """
             Return all the resourcescenarios relevant to this scenario.
             If this scenario inherits from another, look up the tree to compile
@@ -1482,6 +1482,9 @@ class Scenario(Base, Inspect):
 
         if ra_ids is not None:
             rs_query = rs_query.filter(ResourceScenario.resource_attr_id.in_(ra_ids))
+
+        if include_results is False:
+            rs_query = rs_query.outerjoin(ResourceAttr).filter(ResourceAttr.attr_is_var=='N')
 
         resourcescenarios = rs_query.all()
 
