@@ -142,36 +142,41 @@ def login_user(username, password):
     userPassword = ""
     try:
         userPassword = user_i.password.encode('utf-8')
-    except AttributeError:
+    except (AttributeError, UnicodeEncodeError):
         userPassword = user_i.password
 
     try:
         password = password.encode('utf-8')
-    except AttributeError:
+    except (AttributeError, UnicodeEncodeError):
         pass
 
-    if bcrypt.hashpw(password, userPassword) == userPassword:
+    if bcrypt.checkpw(password, userPassword):
         log.info("Setting last_login to {}".format(datetime.datetime.now()))
         user_i.last_login = datetime.datetime.now()
         user_i.failed_logins = 0
         user_id = user_i.id
-        #db.DBSession.query(User).filter(User.username == username).update({User.last_login: datetime.datetime.now(), User.failed_logins: 0})
         db.DBSession.flush()
         transaction.commit()
-        #return user_i.id
         return user_id
     else:
         log.info("inc failed_logins...")
-        """
         if user_i.failed_logins is not None:
             user_i.failed_logins = user_i.failed_logins + 1
         else:
             user_i.failed_logins = 1
-        """
-        db.DBSession.query(User).filter(User.username == username).update({User.failed_logins: fails+1})
         db.DBSession.flush()
         transaction.commit()
         raise HydraError(username)
+
+
+def get_failed_login_count(username):
+    try:
+        user_i = db.DBSession.query(User).filter(User.username == username).one()
+    except NoResultFound:
+        raise HydraError(username)
+
+    return user_i.failed_logins
+
 
 def create_default_net():
     try:
