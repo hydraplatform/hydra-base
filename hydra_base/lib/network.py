@@ -128,7 +128,8 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
     #First get all the attributes assigned from the csv files.
     t0 = time.time()
     for resource in resources:
-        resource_i = resource_name_map[resource.name]
+        #cast name as string here in case the name is a number
+        resource_i = resource_name_map[str(resource.name)]
         resource_attrs[resource.id] = []
         if resource.attributes is not None:
             for ra in resource.attributes:
@@ -152,7 +153,8 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
     #type
     resource_resource_types = []
     for resource in resources:
-        resource_i = resource_name_map[resource.name]
+        #cast name as string here in case the name is a number
+        resource_i = resource_name_map[str(resource.name)]
         existing_attrs = [ra['attr_id'] for ra in resource_attrs[resource.id]]
         if resource.types is not None:
             for resource_type in resource.types:
@@ -246,7 +248,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
 
     resource_attrs = {}
     for resource in resources:
-        iface_resource = resource_name_map[resource.name]
+        iface_resource = resource_name_map[str(resource.name)]
         if ref_key == 'NODE':
             ref_id = iface_resource.node_id
         elif ref_key == 'GROUP':
@@ -307,7 +309,8 @@ def _add_nodes(net_i, nodes):
         iface_nodes[n_i.name] = n_i
 
     for node in nodes:
-        node_id_map[node.id] = iface_nodes[node.name]
+        #cast node.name as str here as a node name can sometimes be a number
+        node_id_map[node.id] = iface_nodes[str(node.name)]
 
     node_attrs, defaults = _bulk_add_resource_attrs(net_i.id, 'NODE', nodes, iface_nodes)
 
@@ -349,6 +352,19 @@ def _add_links(net_i, links, node_id_map):
     if links is None or len(links) == 0:
         return link_id_map, link_attrs, {}
 
+    #check for duplicate names:
+    link_names = []
+    duplicate_link_names = []
+    for link in links:
+        if link.name in link_names:
+            duplicate_link_names.append(link.name)
+        else:
+            link_names.append(link.name)
+
+    if len(duplicate_link_names) > 0:
+        raise HydraError(f"Duplicate link names: {duplicate_link_names}")
+
+
     #Then add all the links.
 #################################################################
     _add_links_to_database(net_i, links, node_id_map)
@@ -357,14 +373,10 @@ def _add_links(net_i, links, node_id_map):
     iface_links = {}
 
     for l_i in net_i.links:
-
-        if iface_links.get(l_i.name) is not None:
-            raise HydraError("Duplicate Link Name: %s"%(l_i.name))
-
-        iface_links[l_i.name] = l_i
+        iface_links[str(l_i.name)] = l_i
 
     for link in links:
-        link_id_map[link.id] = iface_links[link.name]
+        link_id_map[link.id] = iface_links[str(link.name)]
 
     link_attrs, defaults = _bulk_add_resource_attrs(net_i.id, 'LINK', links, iface_links)
     log.info("Links added in %s", get_timing(start_time))
