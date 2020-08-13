@@ -47,7 +47,7 @@ from sqlalchemy.orm import noload, joinedload
 
 from . import DeclarativeBase as Base, get_session
 
-from ..util import generate_data_hash, get_val
+from ..util import generate_data_hash, get_val, get_layout_as_string
 
 from sqlalchemy.sql.expression import case
 from sqlalchemy import UniqueConstraint, and_
@@ -528,6 +528,118 @@ class Template(Base, Inspect):
     _parents = []
     _children = ['tTemplateType']
 
+    def set_inherited_columns(self, parent, child):
+        """
+            Set the value on the column of a target child.
+            This checks if the value is null on the child, and sets it from
+            the parent if so
+        """
+        for column in parent.__table__.columns:
+
+            colname = column.name
+
+            if hasattr(child, '_protected_columns')\
+               and colname in child._protected_columns:
+                #as a child, yuo can't change stuff like IDS, cr dates etc.
+                continue
+
+            newval = getattr(parent, colname)
+
+            if colname == 'layout':
+                newval = get_layout_as_string(newval)
+
+            refval = getattr(child, colname)
+
+            if refval is None:
+                setattr(child, colname, newval)
+
+        return child
+
+    def get_typeattr(self, typeattr_id, child_typeattr=None, get_parent_types=True):
+        """
+            Return an individual type attribute.
+            If this type attribute inherits from another, look up the tree to compile
+            the inherited data, with the leaf node taking priority
+        """
+
+        #get all the type attrs for this type, and add any which are missing
+        this_typeattr = get_session().query(TypeAttr)\
+            .filter(TypeAttr.id == typeattr_id)\
+            .options(joinedload('default_dataset')).one()
+
+
+        if child_typeattr is None:
+            child_typeattr = this_typeattr
+        else:
+            child_typeattr = self.set_inherited_columns(this_typeattr, child_typeattr)
+
+        if this_typeattr.parent_id is not None and get_parent_types is True:
+            return self.parent.get_typeattr(this_typeattr.parent_id,
+                                         child_typeattr=child_typeattr,
+                                         get_parent_types=get_parent_types)
+
+        return child_typeattr
+
+
+
+    def get_type(self, type_id, child_type=None, get_parent_types=True):
+        """
+            Return all the templatetypes relevant to this template.
+            If this template inherits from another, look up the tree to compile
+            an exhaustive list of types, removing any duplicates, prioritising
+            the ones closest to this template (my immediate parent's values are used instead
+            of its parents)
+
+        """
+
+        #Add resource attributes which are not defined already
+        this_type = get_session().query(TemplateType).filter(
+            TemplateType.id == type_id).options(noload('typeattrs')).one()
+
+        if not hasattr(this_type, 'ta_tree'):
+            this_type.ta_tree = {}
+
+        typeattrs = None
+
+        #get all the type attrs for this type, and add any which are missing
+        typeattrs = get_session().query(TypeAttr)\
+            .filter(TypeAttr.type_id == type_id)\
+            .options(joinedload('default_dataset')).all()
+
+
+        #Is this type the parent of a type. If so, we don't want to add a new type
+        #we want to update an existing one with any data that it's missing
+        if child_type is not None:
+            child_type = self.set_inherited_columns(this_type, child_type)
+
+            for typeattr in typeattrs:
+
+                #Does this typeattr have a child?
+                child_typeattr = child_type.ta_tree.get(typeattr.id)
+                if child_typeattr is None:
+                    #there is no child, so check if it is a child
+                    if typeattr.parent_id is not None:
+                        #it has a parent, so add it to the type's tree dict
+                        #for processing farther up the tree
+                        child_type.ta_tree[typeattr.parent_id] = typeattr
+                    child_type.typeattrs.append(typeattr)
+                else:
+                    child_typeattr = self.set_inherited_columns(typeattr, child_typeattr)
+
+        else:
+            if not hasattr(this_type, 'typeattrs'):
+                setattr(this_type, 'typeattrs', [])
+            for typeattr in typeattrs:
+                this_type.typeattrs.append(typeattr)
+            child_type = this_type
+
+        if this_type.parent_id is not None and get_parent_types is True:
+            return self.parent.get_type(this_type.parent_id,
+                                         child_type=child_type,
+                                         get_parent_types=get_parent_types)
+
+        return child_type
+
 
     def get_types(self, type_tree={}, child_types=None, get_parent_types=True):
         """
@@ -574,13 +686,8 @@ class Template(Base, Inspect):
 
                 #Find the child type and update it.
                 child_type = type_tree[this_type.id]
-                for column in this_type.__table__.columns:
-                    colname = column.name
-                    colval = getattr(this_type, colname)
-                    #only update the child column if it's Null (and therefore
-                    #needs to be inherited)
-                    if getattr(child_type, colname) is None and colval is not None:
-                        setattr(child_type, colname, colval)
+
+                child_type = self.set_inherited_columns(this_type, child_type)
 
                 for typeattr in typeattrs:
 
@@ -594,13 +701,7 @@ class Template(Base, Inspect):
                             type_tree[this_type.id].ta_tree[typeattr.parent_id] = typeattr
                         child_type.typeattrs.append(typeattr)
                     else:
-                        for column in typeattr.__table__.columns:
-                            colname = column.name
-                            colval = getattr(typeattr, colname)
-                            #only update the child column if it's Null (and therefore
-                            #needs to be inherited)
-                            if getattr(child_typeattr, colname) is None and colval is not None:
-                                setattr(child_typeattr, colname, colval)
+                        child_typeattr = self.set_inherited_columns(typeattr, child_typeattr)
 
 
                 if this_type.parent_id is not None:
@@ -641,7 +742,8 @@ class TemplateType(Base, Inspect):
     )
 
     #these are columns which are not allowed to be changed by a child type
-    _protected_columns = ['id', 'template_id', 'parent_id', 'name', 'resource_type', 'cr_date']
+    _protected_columns = ['id', 'template_id', 'parent_id', 'cr_date']
+    _hierarchy_columns = ['name', 'resource_type']
 
     id = Column(Integer(), primary_key=True, nullable=False)
     parent_id = Column(Integer(), ForeignKey('tTemplateType.id'))

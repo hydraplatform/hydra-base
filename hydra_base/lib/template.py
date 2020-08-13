@@ -1730,13 +1730,17 @@ def _set_typeattr(typeattr, existing_ta=None):
         if typeattr.attr_id is not None and typeattr.attr_id > 0:
             # Getting the passed attribute, so we need to check consistency between attr dimension id and typeattr dimension id
             attr = ta.attr
-            if attr is not None and attr.unit_id is not None and attr.dimension_id != dimension.id or \
-               attr is not None and attr.unit_id is not None:
+            if attr is not None and attr.dimension_id is not None and attr.dimension_id != dimension.id or \
+               attr is not None and attr.dimension_id is None:
+
+                attr_dimension = units.get_dimension(attr.dimension_id)
                 # In this case there is an inconsistency between attr.dimension_id and typeattr.unit_id
-                raise HydraError("Cannot set a unit %s on type attribute which "
-                                "does not match its attribute. Create a new attribute if "
-                                "you want to use attribute %s with dimension_id %s"%
-                                (unit.name, attr.name, dimension.id))
+                raise HydraError("Unit mismatch between type and attirbute."+
+                                 f"Type attribute for {attr.name} secifies "+
+                                 f"unit {unit.name}, dimension {dimension.name}."+
+                                 f"The attribute specifies a dimension of {attr_dimension.name}"+
+                                 "Cannot set a unit on a type attribute which "+
+                                 "does not match its attribute.")
         elif typeattr.attr_id is None and typeattr.name is not None:
             # Getting/creating the attribute by typeattr dimension id and typeattr name
             # In this case the dimension_id "null"/"not null" status is ininfluent
@@ -1777,8 +1781,15 @@ def _set_cols(source, target, reference=None):
         if colname not in target.__table__.columns:
             continue
 
-        if hasattr(reference, '_protected_columns') and colname in reference._protected_columns:
-            #yuo can't change stuff like IDS, cr dates etc.
+        if hasattr(reference, '_protected_columns')\
+           and colname in reference._protected_columns:
+            #as a child, yuo can't change stuff like IDS, cr dates etc.
+            continue
+
+        if target.parent_id is not None\
+           and hasattr(reference, '_hierarchy_columns')\
+           and colname in reference._hierarchy_columns:
+            #as a child, yuo can't change stuff like IDS, cr dates etc.
             continue
 
         newval = getattr(source, colname)
@@ -1794,8 +1805,6 @@ def _set_cols(source, target, reference=None):
 
         if newval != refval:
             setattr(target, colname, newval)
-        else:
-            setattr(target, colname, None)
 
 
 def _update_templatetype(templatetype, existing_tt=None):
@@ -1863,28 +1872,53 @@ def delete_templatetype(type_id, template_i=None, **kwargs):
     db.DBSession.flush()
 
 @required_perms("get_template")
-def get_templatetype(type_id, **kwargs):
+def get_templatetype(type_id, include_parent_data=True, **kwargs):
     """
-        Get a specific resource type by ID.
+        Get a specific template type by ID. As types can be inherited, this
+        type may contain data from its parent. If the 'include_parent_type' is false,
+        then just the data for this templatetype is returned.
     """
 
+    #First get the DB entry
     templatetype = db.DBSession.query(TemplateType).filter(
                         TemplateType.id==type_id).options(
                         joinedload("typeattrs")).one()
 
-    return templatetype
+    if include_parent_data == False:
+        return templatetype
+
+    #then get the template
+    template = db.DBSession.query(Template).filter(Template.id==templatetype.template_id).one()
+
+    #then get the type, but this time with inherited data.
+    inherited_templatetype = template.get_type(type_id)
+
+    #ignore the messing around we've been doing to the ORM objects
+    db.DBSession.expunge(inherited_templatetype)
+
+    return inherited_templatetype
 
 @required_perms("get_template")
-def get_typeattr(typeattr_id, **kwargs):
+def get_typeattr(typeattr_id, include_parent_data=True, **kwargs):
     """
         Get a specific resource type by ID.
     """
 
-    templatetype = db.DBSession.query(TypeAttr).filter(
-                        TypeAttr.id==typeattr_id).options(
-                        joinedload("default_dataset")).one()
+    typeattr = db.DBSession.query(TypeAttr)\
+            .filter(TypeAttr.id == typeattr_id)\
+            .options(joinedload("default_dataset")).one()
 
-    return templatetype
+    if include_parent_data == False:
+        return typeattrtype
+
+    template = typeattr.templatetype.template
+
+    #then get the type, but this time with inherited data.
+    inherited_typeattr = template.get_typeattr(typeattr_id)
+
+    db.DBSession.expunge(inherited_typeattr)
+
+    return inherited_typeattr
 
 
 
@@ -1901,7 +1935,11 @@ def get_templatetype_by_name(template_id, type_name, **kwargs):
     except NoResultFound:
         raise HydraError("%s is not a valid identifier for a type"%(type_name))
 
-    return templatetype
+    inherited_templatetype = get_templatetype(templatetype.id)
+
+    db.DBSession.expunge(inherited_templatetype)
+
+    return inherited_templatetype
 
 @required_perms("edit_template")
 def add_typeattr(typeattr, **kwargs):
