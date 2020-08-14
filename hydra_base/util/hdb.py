@@ -29,7 +29,7 @@ from ..exceptions import HydraError
 import transaction
 from sqlalchemy.orm import load_only
 from ..lib.objects import JSONObject
-from .. import config
+from ..lib.users import get_remaining_login_attempts, reset_failed_logins, inc_failed_login_attempts
 
 import logging
 log = logging.getLogger(__name__)
@@ -136,8 +136,7 @@ def login_user(username, password):
     except NoResultFound:
         raise HydraError(username)
 
-    log.info("User {} has {} ({}) fails.".format(user_i.username, user_i.failed_logins, type(user_i.failed_logins)))
-    log.info("passwd: {}".format(password))
+    log.info("User {} has {} fails.".format(user_i.username, user_i.failed_logins))
 
     if get_remaining_login_attempts(username) <= 0:
         """  Account is not permitted to login """
@@ -155,7 +154,6 @@ def login_user(username, password):
         pass
 
     if bcrypt.checkpw(password, userPassword):
-        log.info("Setting last_login to {}".format(datetime.datetime.now()))
         user_i.last_login = datetime.datetime.now()
         user_i.failed_logins = 0
         user_id = user_i.id
@@ -163,48 +161,9 @@ def login_user(username, password):
         transaction.commit()
         return user_id
     else:
-        if user_i.failed_logins is not None:
-            user_i.failed_logins = user_i.failed_logins + 1
-        else:
-            user_i.failed_logins = 1
-        log.info("User {} now has {} failed logins".format(username, user_i.failed_logins))
-        db.DBSession.flush()
-        transaction.commit()
+        log.info("User {} now has {} failed logins".format(username, user_i.failed_logins+1))
+        inc_failed_login_attempts(user_i.username)
         raise HydraError(username)
-
-
-def get_failed_login_count(username):
-    try:
-        user_i = db.DBSession.query(User).filter(User.username == username).one()
-    except NoResultFound:
-        """ Non-existent user should not raise """
-        return -1
-
-    return user_i.failed_logins
-
-
-def get_max_login_attempts():
-    max_login_attempts = int(config.get("security", "max_login_attempts"))
-
-    return max_login_attempts if max_login_attempts is not None else 0
-
-
-def get_remaining_login_attempts(username):
-    max_login_attempts = get_max_login_attempts()
-    failed_attempts = get_failed_login_count(username)
-
-    return max_login_attempts - failed_attempts
-
-
-def reset_failed_logins(username):
-    try:
-        user_i = db.DBSession.query(User).filter(User.username == username).one()
-    except NoResultFound:
-        raise HydraError(username)
-
-    user_i.failed_logins = 0
-    db.DBSession.flush()
-    transaction.commit()
 
 
 def create_default_net():

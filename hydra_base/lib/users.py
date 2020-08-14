@@ -21,12 +21,13 @@ from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm.exc import NoResultFound
 
 from ..db.model import User, Role, Perm, RoleUser, RolePerm
+from ..exceptions import ResourceNotFoundError, HydraError
 from .. import db
+from .. import config
 
 import bcrypt
-
-from ..exceptions import ResourceNotFoundError, HydraError
 import logging
+import transaction
 
 log = logging.getLogger(__name__)
 
@@ -173,6 +174,54 @@ def delete_user(deleted_user_id,**kwargs):
 
 
     return 'OK'
+
+def get_failed_login_count(username, **kwargs):
+    try:
+        user_i = db.DBSession.query(User).filter(User.username == username).one()
+    except NoResultFound:
+        """ Non-existent user should not raise """
+        return -1
+
+    return user_i.failed_logins
+
+
+def get_max_login_attempts(*args, **kwargs):
+    max_login_attempts = int(config.get("security", "max_login_attempts"))
+
+    return max_login_attempts if max_login_attempts is not None else 0
+
+
+def get_remaining_login_attempts(username, **kwargs):
+    max_login_attempts = get_max_login_attempts()
+    failed_attempts = get_failed_login_count(username)
+
+    return max_login_attempts - failed_attempts
+
+
+def inc_failed_login_attempts(username, **kwargs):
+    try:
+        user_i = db.DBSession.query(User).filter(User.username == username).one()
+    except NoResultFound:
+        raise HydraError(username)
+
+    if user_i.failed_logins is not None:
+        user_i.failed_logins = user_i.failed_logins + 1
+    else:
+        user_i.failed_logins = 1
+
+    db.DBSession.flush()
+    transaction.commit()
+
+
+def reset_failed_logins(username, **kwargs):
+    try:
+        user_i = db.DBSession.query(User).filter(User.username == username).one()
+    except NoResultFound:
+        raise HydraError(username)
+
+    user_i.failed_logins = 0
+    db.DBSession.flush()
+    transaction.commit()
 
 
 def add_role(role,**kwargs):
