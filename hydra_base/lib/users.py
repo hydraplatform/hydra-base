@@ -126,6 +126,7 @@ def update_user_password(new_pwd_user_id, new_password,**kwargs):
     try:
         user_i = db.DBSession.query(User).filter(User.id==new_pwd_user_id).one()
         user_i.password = bcrypt.hashpw(str(new_password).encode('utf-8'), bcrypt.gensalt())
+        reset_failed_logins(user_i.username)
         return user_i
     except NoResultFound:
         raise ResourceNotFoundError("User (id=%s) not found"%(new_pwd_user_id))
