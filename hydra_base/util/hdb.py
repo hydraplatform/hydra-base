@@ -29,7 +29,7 @@ from ..exceptions import HydraError
 import transaction
 from sqlalchemy.orm import load_only
 from ..lib.objects import JSONObject
-from ..lib.users import get_remaining_login_attempts, reset_failed_logins, inc_failed_login_attempts
+from ..lib.users import get_remaining_login_attempts, inc_failed_login_attempts
 
 import logging
 log = logging.getLogger(__name__)
@@ -135,8 +135,6 @@ def login_user(username, password):
         user_i = db.DBSession.query(User).filter(User.username == username).one()
     except NoResultFound:
         raise HydraError(username)
-
-    log.info("User {} has {} fails.".format(user_i.username, user_i.failed_logins))
 
     if get_remaining_login_attempts(username) <= 0:
         """  Account is not permitted to login """
