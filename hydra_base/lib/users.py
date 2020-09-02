@@ -187,9 +187,14 @@ def get_failed_login_count(username, **kwargs):
 
 
 def get_max_login_attempts(*args, **kwargs):
-    max_login_attempts = int(config.get("security", "max_login_attempts"))
+    """  NOTE:
+         In the absence of max_login_attempts defined in config,
+         a value of 0 will be returned and users will be unable to log
+         in.
+    """
+    max_login_attempts = int(config.get("security", "max_login_attempts", 0))
 
-    return max_login_attempts if max_login_attempts is not None else 0
+    return max_login_attempts
 
 
 def get_remaining_login_attempts(username, **kwargs):
