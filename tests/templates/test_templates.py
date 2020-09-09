@@ -396,10 +396,8 @@ class TestTemplates:
         network = network_with_data
         new_template = mock_template
 
-        retrieved_template_i = client.get_template(new_template.id)
-        assert retrieved_template_i is not None
-
-        retrieved_template_j = JSONObject(retrieved_template_i)
+        retrieved_template_j = client.get_template(new_template.id)
+        assert retrieved_template_j is not None
 
         client.apply_template_to_network(retrieved_template_j.id, network.id)
 
@@ -423,6 +421,33 @@ class TestTemplates:
         network_deleted_templatetypes = client.get_network(network.id)
 
         assert len(network_deleted_templatetypes.types) == 1
+
+    def test_get_types_by_attr(self, client, network_with_data, mock_template):
+
+        #Only applicable for tests. TODO: make this not rubbish.
+        client.template.ATTR_CACHE = {}
+
+        network = network_with_data
+        new_template = mock_template
+
+        retrieved_template_j = client.get_template(new_template.id)
+        assert retrieved_template_j is not None
+
+        client.apply_template_to_network(retrieved_template_j.id, network.id)
+
+        updated_network = client.get_network(network.id)
+        assert len(updated_network.types) == 2
+
+
+        node_types = client.get_types_by_attr(updated_network.nodes[0])
+
+        assert len(node_types) > 0
+
+        #there could be lots of templates in the system, so the node should
+        #match *at least* the number of node types, but may not be equal
+        assert len(node_types) >= len(updated_network.nodes[0].types)
+
+
 
     """
         TEMPLATE TYPES Functions
@@ -597,9 +622,11 @@ class TestTemplates:
 
         new_type = JSONObject(client.add_templatetype(templatetype))
 
-        tattr_2.type_id = new_type.id
+        assert len(new_type.typeattrs) == 2
 
-        client.delete_typeattr(tattr_2)
+        typeattr_to_delete = new_type.typeattrs[0]
+
+        client.delete_typeattr(typeattr_to_delete.id)
 
         updated_type = JSONObject(client.get_templatetype(new_type.id))
 

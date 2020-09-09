@@ -29,7 +29,7 @@ from . import units
 from .objects import JSONObject, Dataset as JSONDataset
 
 from ..util.permissions import required_perms
-from . import template
+from hydra_base.lib import template
 from ..db.model import Project, Network, Scenario, Node, Link, ResourceGroup,\
         ResourceAttr, Attr, ResourceType, ResourceGroupItem, Dataset, Metadata, DatasetOwner,\
         ResourceScenario, TemplateType, TypeAttr, Template, NetworkOwner, User, Rule

@@ -997,6 +997,26 @@ class ResourceType(Base, Inspect):
         elif ref_key == 'GROUP':
             return self.group_id
 
+    def get_templatetype(self):
+        """
+            If this type is taht of a child templatetype, then the full type
+            needs to be constructed by the template. So instead of getting the
+            template type directly, we get the template, then request the type.
+        """
+
+        type_i = get_session().query(TemplateType).filter(TemplateType.id == self.type_id).one()
+
+        if type_i.parent_id is None:
+            return type_i
+
+        template_i = get_session().query(Template)\
+                .filter(TemplateType.id == type_i.template_id).one()
+
+        type_i = template_i.get_type(self.type_id)
+
+        return type_i
+
+
 #*****************************************************
 # Topology & Scenarios
 #*****************************************************

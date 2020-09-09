@@ -136,6 +136,8 @@ class TestTemplateInheritance:
 
         parent_template_j = client.testutils.create_template()
 
+        un_updated_parent_template = client.get_template(parent_template_j.id)
+
         child_template_j = client.testutils.create_child_template(parent_template_j.id)
 
         child_template_received = client.get_template(child_template_j.id)

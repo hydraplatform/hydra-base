@@ -12,7 +12,7 @@ import hydra_base
 from hydra_base.db import DeclarativeBase as _db
 from hydra_base.util.hdb import create_default_users_and_perms, make_root_user,\
                                 create_default_units_and_dimensions
-from hydra_base.util import testing as util
+from hydra_base.util import testing
 from hydra_client.connection import JSONConnection, RemoteJSONConnection
 
 
@@ -88,7 +88,7 @@ def client(connection_type, testdb_uri):
                                       test_server=null_server)
         client.login('root', '')
 
-    client.testutils = hydra_base.util.testing.TestUtil(client)
+    client.testutils = testing.TestUtil(client)
     pytest.root_user_id = 1
     pytest.user_a = client.testutils.create_user("UserA")
     pytest.user_b = client.testutils.create_user("UserB")
