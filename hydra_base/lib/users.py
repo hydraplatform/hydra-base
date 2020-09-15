@@ -183,6 +183,10 @@ def get_failed_login_count(username, **kwargs):
         """ Non-existent user should not raise """
         return -1
 
+    if user_i.failed_logins is None:
+        log.info("User failed login count is None. Defaulting to 0")
+        return 0
+
     return user_i.failed_logins
 
 
@@ -200,6 +204,8 @@ def get_max_login_attempts(*args, **kwargs):
 def get_remaining_login_attempts(username, **kwargs):
     max_login_attempts = get_max_login_attempts()
     failed_attempts = get_failed_login_count(username)
+    
+    log.info("Max login attempts: %s, Failed logins: %s", max_login_attempts, failed_attempts)
 
     return max_login_attempts - failed_attempts
 
