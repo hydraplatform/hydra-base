@@ -236,3 +236,44 @@ class TestUser:
         role = client.get_role_by_code('admin')
 
         assert len(permissions) == len(role.roleperms)
+
+    def test_user_has_failed_login_count(self, client, user_json_object):
+        user = client.add_user(user_json_object)
+        failed_logins = client.get_failed_login_count(user.username)
+
+    def test_max_login_attempts_defined(self, client, user_json_object):
+        user = client.add_user(user_json_object)
+        max_attempts = client.get_max_login_attempts()
+        assert max_attempts is not None
+
+    def test_user_has_remaining_login_attempts(self, client, user_json_object):
+        user = client.add_user(user_json_object)
+        remaining_attempts = client.get_remaining_login_attempts(user.username)
+
+    def test_inc_user_failed_logins(self, client, user_json_object):
+        user = client.add_user(user_json_object)
+
+        initial_failed_logins = client.get_failed_login_count(user.username)
+        client.inc_failed_login_attempts(user.username)
+        final_failed_logins = client.get_failed_login_count(user.username)
+
+        assert final_failed_logins == initial_failed_logins + 1
+
+    def test_reset_user_failed_logins(self, client, user_json_object):
+        user = client.add_user(user_json_object)
+
+        client.inc_failed_login_attempts(user.username)
+        client.reset_failed_logins(user.username)
+        failed_logins = client.get_failed_login_count(user.username)
+
+        assert failed_logins == 0
+
+    def test_login_count_totals(self, client, user_json_object):
+        user = client.add_user(user_json_object)
+
+        client.inc_failed_login_attempts(user.username)
+        failed_logins = client.get_failed_login_count(user.username)
+        remaining_attempts = client.get_remaining_login_attempts(user.username)
+        max_attempts = client.get_max_login_attempts()
+
+        assert max_attempts == failed_logins + remaining_attempts
