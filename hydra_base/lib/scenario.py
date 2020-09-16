@@ -147,7 +147,7 @@ def get_scenario_by_name(network_id, scenario_name, get_parent_data=False, inclu
     except NoResultFound:
         raise ResourceNotFoundError("Scenario %s not found"%(scenario_name))
 
-def get_scenario(scenario_id, get_parent_data=False, include_data=True, include_group_items=True, **kwargs):
+def get_scenario(scenario_id, get_parent_data=False, include_data=True, include_group_items=True, include_results=True, **kwargs):
     """
         Get the specified scenario
         args:
@@ -167,7 +167,7 @@ def get_scenario(scenario_id, get_parent_data=False, include_data=True, include_
 
     rscen_rs = []
     if include_data is True:
-        rscen_rs = scen_i.get_data(get_parent_data=get_parent_data)
+        rscen_rs = scen_i.get_data(get_parent_data=get_parent_data, include_results=include_results)
 
     #lazy load resource attributes and attributes
     for rs in rscen_rs:

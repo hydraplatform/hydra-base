@@ -818,7 +818,7 @@ def _get_all_group_items(network_id):
 
     return item_dict
 
-def _get_all_resourcescenarios(network_id, include_results, user_id):
+def _get_all_resourcescenarios(network_id, scenario_ids, include_results, user_id):
     """
         Get all the resource scenarios in a network, across all scenarios
         returns a dictionary of dict objects, keyed on scenario_id
@@ -847,6 +847,9 @@ def _get_all_resourcescenarios(network_id, include_results, user_id):
 
     if include_results == 'N' or include_results == False:
         rs_qry = rs_qry.filter(ResourceAttr.attr_is_var=='N')
+
+    if scenario_ids is not None and len(scenario_ids) > 0:
+        rs_qry = rs_qry.filter(ResourceScenario.scenario_id.in_(scenario_ids))
 
     x = time.time()
     logging.info("Getting all resource scenarios")
@@ -888,7 +891,7 @@ def _get_all_resourcescenarios(network_id, include_results, user_id):
     return rs_dict
 
 
-def _get_metadata(network_id, user_id):
+def _get_metadata(network_id, scenario_ids, user_id):
     """
         Get all the metadata in a network, across all scenarios
         returns a dictionary of dict objects, keyed on dataset ID
@@ -905,6 +908,9 @@ def _get_metadata(network_id, user_id):
     rs_qry = db.DBSession.query(
                 Metadata
     ).join(dataset_qry, Metadata.dataset_id==dataset_qry.c.id)
+
+    if scenario_ids is not None and len(scenario_ids) > 0:
+        rs_qry = rs_qry.filter(ResourceScenario.scenario_id.in_(scenario_ids))
 
     x = time.time()
     logging.info("Getting all matadata")
@@ -1004,7 +1010,8 @@ def _get_groups(network_id, template_id=None):
 
     return groups
 
-def _get_scenarios(network_id, include_data, include_results, user_id, scenario_ids=None):
+def _get_scenarios(network_id, include_data, include_results, user_id,
+                   scenario_ids=None, include_metadata=False):
     """
         Get all the scenarios in a network
     """
@@ -1021,9 +1028,14 @@ def _get_scenarios(network_id, include_data, include_results, user_id, scenario_
 
     all_resource_group_items = _get_all_group_items(network_id)
 
+    #default to empty metadata
+    metadata = {}
+
     if include_data == 'Y' or include_data == True:
-        all_rs = _get_all_resourcescenarios(network_id, include_results, user_id)
-        metadata = _get_metadata(network_id, user_id)
+        all_rs = _get_all_resourcescenarios(network_id, scenario_ids, include_results, user_id)
+
+        if include_metadata is True:
+            metadata = _get_metadata(network_id, scenario_ids, user_id)
 
     for s in scens:
         s.resourcegroupitems = all_resource_group_items.get(s.id, [])
@@ -1042,7 +1054,9 @@ def get_network(network_id,
                 include_results='Y',
                 scenario_ids=None,
                 template_id=None,
-                include_non_template_attributes=False, **kwargs):
+                include_non_template_attributes=False,
+                include_metadata=False,
+                **kwargs):
     """
         Return a whole network as a dictionary.
         network_id: ID of the network to retrieve
@@ -1057,6 +1071,9 @@ def get_network(network_id,
                       will speed up this function call.
         template_id:  Return the network with only attributes associated with this
                       template on the network, groups, nodes and links.
+        include_non_template_attribute: Return attributes which are not associated to any template.
+        include_metadata: If data is included, then this flag indicates whether to include metadata.
+                          Setting this to True may have performance implications
     """
     log.debug("getting network %s"%network_id)
 
@@ -1113,7 +1130,12 @@ def get_network(network_id,
 
         log.info("Getting scenarios")
 
-        net.scenarios = _get_scenarios(network_id, include_data, include_results, user_id, scenario_ids)
+        net.scenarios = _get_scenarios(network_id,
+                                       include_data,
+                                       include_results,
+                                       user_id,
+                                       scenario_ids,
+                                       include_metadata=include_metadata)
 
     except NoResultFound:
         raise ResourceNotFoundError("Network (network_id=%s) not found." % network_id)

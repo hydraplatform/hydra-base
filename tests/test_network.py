@@ -21,6 +21,7 @@ import copy
 import datetime
 import pytest
 import datetime
+import json
 
 import hydra_base as hb
 
@@ -169,8 +170,20 @@ class TestNetwork:
         network_with_results = client.get_network(new_scenario.network_id, include_attributes=True, include_data='Y', scenario_ids=scen_ids)
         network_no_results = client.get_network(new_scenario.network_id, include_attributes=True, include_data='Y', include_results='N', scenario_ids=scen_ids)
 
+        sample_rs= network_with_results.scenarios[0].resourcescenarios[0]
         #there should be one more result in the
         assert len(network_with_results.scenarios[0].resourcescenarios) == len(network_no_results.scenarios[0].resourcescenarios) + 10
+        metadata = json.loads(sample_rs.dataset.metadata) if isinstance(sample_rs.dataset.metadata, str) else sample_rs.dataset.metadata
+        assert len(metadata) == 0
+
+        network_with_results_and_metadata = client.get_network(new_scenario.network_id, include_attributes=True, include_data='Y', scenario_ids=scen_ids, template_id=None, include_non_template_attributes=None, include_metadata=True)
+
+        sample_rs= network_with_results_and_metadata.scenarios[0].resourcescenarios[0]
+        metadata = json.loads(sample_rs.dataset.metadata) if isinstance(sample_rs.dataset.metadata, str) else sample_rs.dataset.metadata
+        #there should be one more result in the
+        assert len(metadata) > 0
+
+
 
         with pytest.raises(hb.exceptions.HydraError):
             client.get_network_by_name(net.project_id, "I am not a network")
