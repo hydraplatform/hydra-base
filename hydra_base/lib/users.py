@@ -21,12 +21,13 @@ from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm.exc import NoResultFound
 
 from ..db.model import User, Role, Perm, RoleUser, RolePerm
+from ..exceptions import ResourceNotFoundError, HydraError
 from .. import db
+from .. import config
 
 import bcrypt
-
-from ..exceptions import ResourceNotFoundError, HydraError
 import logging
+import transaction
 
 log = logging.getLogger(__name__)
 
@@ -125,6 +126,7 @@ def update_user_password(new_pwd_user_id, new_password,**kwargs):
     try:
         user_i = db.DBSession.query(User).filter(User.id==new_pwd_user_id).one()
         user_i.password = bcrypt.hashpw(str(new_password).encode('utf-8'), bcrypt.gensalt())
+        reset_failed_logins(user_i.username)
         return user_i
     except NoResultFound:
         raise ResourceNotFoundError("User (id=%s) not found"%(new_pwd_user_id))
@@ -173,6 +175,65 @@ def delete_user(deleted_user_id,**kwargs):
 
 
     return 'OK'
+
+def get_failed_login_count(username, **kwargs):
+    try:
+        user_i = db.DBSession.query(User).filter(User.username == username).one()
+    except NoResultFound:
+        """ Non-existent user should not raise """
+        return -1
+
+    if user_i.failed_logins is None:
+        log.info("User failed login count is None. Defaulting to 0")
+        return 0
+
+    return user_i.failed_logins
+
+
+def get_max_login_attempts(*args, **kwargs):
+    """  NOTE:
+         In the absence of max_login_attempts defined in config,
+         a value of 0 will be returned and users will be unable to log
+         in.
+    """
+    max_login_attempts = int(config.get("security", "max_login_attempts", 0))
+
+    return max_login_attempts
+
+
+def get_remaining_login_attempts(username, **kwargs):
+    max_login_attempts = get_max_login_attempts()
+    failed_attempts = get_failed_login_count(username)
+    
+    log.info("Max login attempts: %s, Failed logins: %s", max_login_attempts, failed_attempts)
+
+    return max_login_attempts - failed_attempts
+
+
+def inc_failed_login_attempts(username, **kwargs):
+    try:
+        user_i = db.DBSession.query(User).filter(User.username == username).one()
+    except NoResultFound:
+        raise HydraError(username)
+
+    if user_i.failed_logins is not None:
+        user_i.failed_logins = user_i.failed_logins + 1
+    else:
+        user_i.failed_logins = 1
+
+    db.DBSession.flush()
+    transaction.commit()
+
+
+def reset_failed_logins(username, **kwargs):
+    try:
+        user_i = db.DBSession.query(User).filter(User.username == username).one()
+    except NoResultFound:
+        raise HydraError(username)
+
+    user_i.failed_logins = 0
+    db.DBSession.flush()
+    transaction.commit()
 
 
 def add_role(role,**kwargs):

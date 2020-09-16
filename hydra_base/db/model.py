@@ -24,6 +24,7 @@ String,\
 LargeBinary,\
 TIMESTAMP,\
 BIGINT,\
+SMALLINT,\
 Float,\
 Text, \
 DateTime,\
@@ -2238,6 +2239,7 @@ class User(Base, Inspect):
     last_login = Column(TIMESTAMP())
     last_edit = Column(TIMESTAMP())
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    failed_logins = Column(SMALLINT, nullable=True, default=0)
     roleusers = relationship('RoleUser', lazy='joined')
 
     _parents  = []
