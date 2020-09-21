@@ -169,9 +169,16 @@ def update_attribute(attr,**kwargs):
         Attr.name == attr.name,
         Attr.dimension_id == attr.dimension_id,
         Attr.id != attr.id).first() #its ok if this is the one being updated!
+
     if existing_attr_i is not None:
+        if attr.dimension_id is not None:
+            dimension = units.get_dimension(attr.dimension_id)
+            dimension_name = dimension.name
+        else:
+            dimension_name = 'None'
+
         raise HydraError(f"Cannot update attribute. An attribute with name {attr.name}"
-                         f"and dimension {attr.dimension} already exists with "
+                         f" and dimension {dimension_name} already exists with "
                          f"ID {existing_attr_i.id}")
     else:
         log.debug("Updating attribute: %s", attr.name)

@@ -779,7 +779,7 @@ def validate_attr(resource_attr_id, scenario_id, template_id=None, **kwargs):
     error = None
 
     try:
-        _do_validate_resourcescenario(rs, template_id)
+        validate_resourcescenario(rs, template_id)
     except HydraError as e:
 
         error = JSONObject(dict(
@@ -810,7 +810,7 @@ def validate_attrs(resource_attr_ids, scenario_id, template_id=None, **kwargs):
     errors = []
     for rs in multi_rs:
         try:
-            _do_validate_resourcescenario(rs, template_id)
+            validate_resourcescenario(rs, template_id)
         except HydraError as e:
 
             error = dict(
@@ -844,7 +844,7 @@ def validate_scenario(scenario_id, template_id=None, **kwargs):
     errors = []
     for rs in scenario_rs:
         try:
-            _do_validate_resourcescenario(rs, template_id)
+            validate_resourcescenario(rs, template_id)
         except HydraError as e:
 
             error = dict(
@@ -863,7 +863,7 @@ def validate_scenario(scenario_id, template_id=None, **kwargs):
     return errors
 
 
-def _do_validate_resourcescenario(resourcescenario, template_id=None, **kwargs):
+def validate_resourcescenario(resourcescenario, template_id=None, **kwargs):
     """
         Perform a check to ensure a resource scenario's datasets are correct given what the
         definition of that resource (its type) specifies.
@@ -948,29 +948,29 @@ def validate_network(network_id, template_id, scenario_id=None, **kwargs):
     #Only check if there are type definitions for a network in the template.
     if resource_type_defs.get('NETWORK'):
         net_types = resource_type_defs['NETWORK']
-        errors.extend(_validate_resource(network, net_types, resource_scenario_dict))
+        errors.extend(validate_resource(network, net_types, resource_scenario_dict))
 
     #check all nodes
     if resource_type_defs.get('NODE'):
         node_types = resource_type_defs['NODE']
         for node in network.nodes:
-            errors.extend(_validate_resource(node, node_types, resource_scenario_dict))
+            errors.extend(validate_resource(node, node_types, resource_scenario_dict))
 
     #check all links
     if resource_type_defs.get('LINK'):
         link_types = resource_type_defs['LINK']
         for link in network.links:
-            errors.extend(_validate_resource(link, link_types, resource_scenario_dict))
+            errors.extend(validate_resource(link, link_types, resource_scenario_dict))
 
     #check all groups
     if resource_type_defs.get('GROUP'):
         group_types = resource_type_defs['GROUP']
         for group in network.resourcegroups:
-            errors.extend(_validate_resource(group, group_types, resource_scenario_dict))
+            errors.extend(validate_resource(group, group_types, resource_scenario_dict))
 
     return errors
 
-def _validate_resource(resource, tmpl_types, resource_scenarios=[], **kwargs):
+def validate_resource(resource, tmpl_types, resource_scenarios=[], **kwargs):
     errors = []
     resource_type = None
 

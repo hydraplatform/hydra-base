@@ -55,6 +55,8 @@ from hydra_base.lib.template.resource import get_types_by_attr,\
         validate_attr,\
         validate_attrs,\
         validate_scenario,\
+        validate_resource,\
+        validate_resourcescenario,\
         validate_network
 
 log = logging.getLogger(__name__)
@@ -600,8 +602,7 @@ def get_template(template_id, **kwargs):
             Template.id == template_id).one()
 
         inherited_types = tmpl_i.get_types()
-#        for i_t in inherited_types:
-#            i_t.typeattrs = [JSONObject(ta) for ta in_i_t.ta_tree.values()]
+
         tmpl_i.templatetypes = inherited_types
 
         tmpl_j = JSONObject(tmpl_i)
@@ -643,7 +644,7 @@ def add_templatetype(templatetype, **kwargs):
 
 def add_child_templatetype(parent_id, child_template_id, **kwargs):
     """
-        Add template and a type and typeattrs.
+        Add a child templatetype
     """
 
     #check if the type is already there:

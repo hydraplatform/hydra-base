@@ -638,7 +638,7 @@ class Template(Base, Inspect):
             return self.parent.get_type(this_type.parent_id,
                                          child_type=child_type,
                                          get_parent_types=get_parent_types)
-
+        child_type.ta_tree = None
         return child_type
 
 
@@ -729,6 +729,10 @@ class Template(Base, Inspect):
             return self.parent.get_types(type_tree=type_tree,
                                          child_types=child_types,
                                          get_parent_types=get_parent_types)
+
+        #clean up
+        for child_type in child_types:
+            child_type.ta_tree = None
 
         return child_types
 
