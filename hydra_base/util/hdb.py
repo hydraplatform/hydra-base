@@ -60,6 +60,7 @@ def add_resource_types(resource_i, types):
         rt_i = ResourceType()
         rt_i.type_id     = templatetype.id
         rt_i.ref_key     = resource_i.ref_key
+        rt_i.template_id = resource_i.child_template_id
         if resource_i.ref_key == 'NODE':
             rt_i.node_id      = resource_i.id
         elif resource_i.ref_key == 'LINK':
@@ -136,7 +137,7 @@ def login_user(username, password):
     except NoResultFound:
         raise HydraError(username)
 
-    if get_remaining_login_attempts(username) <= 0:
+    if get_remaining_login_attempts(username, user_id=user_i.id) <= 0:
         """  Account is not permitted to login """
         raise HydraError("Max login attempts exceeded for user {}".format(username))
 
@@ -190,10 +191,13 @@ def create_default_users_and_perms():
     #     return
 
     default_perms = (
+        ("get_user", "Get User"),
         ("add_user", "Add User"),
         ("edit_user", "Edit User"),
+        ("get_role", "Get Role"),
         ("add_role", "Add Role"),
         ("edit_role", "Edit Role"),
+        ("get_perm", "Get Permission"),
         ("add_perm", "Add Permission"),
         ("edit_perm", "Edit Permission"),
 
@@ -251,10 +255,13 @@ def create_default_users_and_perms():
 
     roleperms = (
         # Admin permissions
+        ('admin', "get_user"),
         ('admin', "add_user"),
         ('admin', "edit_user"),
+        ('admin', "get_role"),
         ('admin', "add_role"),
         ('admin', "edit_role"),
+        ('admin', "get_perm"),
         ('admin', "add_perm"),
         ('admin', "edit_perm"),
         ('admin', "add_attribute"),

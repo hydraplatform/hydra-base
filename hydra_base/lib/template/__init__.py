@@ -51,6 +51,7 @@ from hydra_base.lib.template.resource import get_types_by_attr,\
         check_type_compatibility,\
         assign_type_to_resource,\
         set_resource_type,\
+        get_network_template,\
         remove_type_from_resource,\
         validate_attr,\
         validate_attrs,\
@@ -479,7 +480,7 @@ def add_template(template, **kwargs):
     if template.templatetypes is not None:
         types = template.templatetypes
         for templatetype in types:
-            ttype = _update_templatetype(templatetype)
+            ttype = _update_templatetype(templatetype, **kwargs)
             tmpl.templatetypes.append(ttype)
 
     db.DBSession.flush()
@@ -519,35 +520,40 @@ def update_template(template, **kwargs):
     if template.description:
         tmpl.description = template.description
 
-    #Lazy load the rest of the template
-    for tt in tmpl.templatetypes:
-        for ta in tt.typeattrs:
-            ta.attr
+    template_types = tmpl.get_types()
 
     if template.layout:
         tmpl.layout = get_layout_as_string(template.layout)
 
-    type_dict = dict([(t.id, t) for t in tmpl.templatetypes])
+    type_dict = dict([(t.id, t) for t in template_types])
     existing_templatetypes = []
 
     if template.types is not None or template.templatetypes is not None:
         types = template.types if template.types is not None else template.templatetypes
         for templatetype in types:
+            if templatetype.id is not None and templatetype.template_id != tmpl.id:
+                log.info("Type %s is a part of a parent template. Ignoring.", templatetype.id)
+                continue
+
             if templatetype.id is not None:
                 type_i = type_dict[templatetype.id]
-                _update_templatetype(templatetype, type_i)
+                _update_templatetype(templatetype, type_i, **kwargs)
                 existing_templatetypes.append(type_i.id)
             else:
                 #Give it a template ID if it doesn't have one
                 templatetype.template_id = template.id
-                new_templatetype_i = _update_templatetype(templatetype)
+                new_templatetype_i = _update_templatetype(templatetype, **kwargs)
                 existing_templatetypes.append(new_templatetype_i.id)
 
-    for ttype in tmpl.templatetypes:
-        if ttype.id not in existing_templatetypes:
-            delete_templatetype(ttype.id)
+    for ttype in template_types:
+        if ttype.id not in type_dict:
+            delete_templatetype(ttype.id, **kwargs)
+
+    updated_templatetypes = tmpl.get_types()
 
     db.DBSession.flush()
+
+    tmpl.templatetypes = updated_templatetypes
 
     return tmpl
 
@@ -574,13 +580,16 @@ def get_templates(load_all=True, **kwargs):
         Returns:
             List of Template objects
     """
-    if load_all is False:
-        templates = db.DBSession.query(Template).all()
+    templates_i = db.DBSession.query(Template).all()
+    if load_all is True:
+        full_templates = []
+        for template_i in templates_i:
+            full_template = get_template(template_i.id, **kwargs)
+            full_templates.append(full_template)
     else:
-        templates = db.DBSession.query(Template).options(joinedload('templatetypes')
-                                                         .joinedload('typeattrs')).all()
+        full_templates = templates_i
 
-    return templates
+    return full_templates
 
 @required_perms("edit_template")
 def remove_attr_from_type(type_id, attr_id, **kwargs):
@@ -636,7 +645,7 @@ def add_templatetype(templatetype, **kwargs):
         Add a template type with typeattrs.
     """
 
-    type_i = _update_templatetype(templatetype)
+    type_i = _update_templatetype(templatetype, **kwargs)
 
     db.DBSession.flush()
 
@@ -656,6 +665,15 @@ def add_child_templatetype(parent_id, child_template_id, **kwargs):
     if existing_child is not None:
         return existing_child
 
+    #Now check that we're not adding a child template type to a template type
+    #which is already a child i.e. the template ID of the proposed parent is
+    #the same as the one we want to put the child into
+    parent_type = db.DBSession.query(TemplateType).filter(
+        TemplateType.id == parent_id).one()
+
+    if parent_type.template_id == child_template_id:
+        return existing_child
+
     #The child doesn't exist already, so create it.
     child_type_i = TemplateType()
     child_type_i.template_id = child_template_id
@@ -671,6 +689,14 @@ def add_child_typeattr(parent_id, child_template_id, **kwargs):
     """
         Add template and a type and typeattrs.
     """
+
+    #does this child already exist in this template?
+    existing_child_typeattr = db.DBSession.query(TypeAttr).join(TemplateType).filter(
+        TypeAttr.parent_id==parent_id).filter(
+            TemplateType.template_id==child_template_id).first()
+
+    if existing_child_typeattr is not None:
+        return existing_child_typeattr
 
     parent_typeattr = db.DBSession.query(TypeAttr)\
             .filter(TypeAttr.id == parent_id).one()
@@ -691,7 +717,7 @@ def add_child_typeattr(parent_id, child_template_id, **kwargs):
 
 
 @required_perms("edit_template")
-def update_templatetype(templatetype, **kwargs):
+def update_templatetype(templatetype, auto_delete=False, **kwargs):
     """
         Update a resource type and its typeattrs.
         New typeattrs will be added. typeattrs not sent will be ignored.
@@ -699,15 +725,18 @@ def update_templatetype(templatetype, **kwargs):
 
         args:
             templatetype: A template type JSON object
+            auto_delete (bool): Flag to indicate whether non-presence of typeattrs in imcoming object should delete them. Default to False
     """
 
     tmpltype_i = db.DBSession.query(TemplateType).filter(TemplateType.id == templatetype.id).one()
 
-    _update_templatetype(templatetype, tmpltype_i)
+    _update_templatetype(templatetype, tmpltype_i, auto_delete=auto_delete, **kwargs)
 
     db.DBSession.flush()
 
-    return tmpltype_i
+    updated_type = tmpltype_i.template.get_type(tmpltype_i.id)
+
+    return updated_type
 
 def _set_typeattr(typeattr, existing_ta=None):
     """
@@ -731,11 +760,15 @@ def _set_typeattr(typeattr, existing_ta=None):
         may be added, None are removed or replaced. To remove other type attrs, do it
         manually using delete_typeattr
     """
+
     if existing_ta is None:
         ta = TypeAttr(attr_id=typeattr.attr_id)
     else:
         ta = existing_ta
 
+
+
+    ta.attr_id = typeattr.attr_id
     ta.unit_id = typeattr.unit_id
     ta.type_id = typeattr.type_id
     ta.data_type = typeattr.data_type
@@ -748,7 +781,11 @@ def _set_typeattr(typeattr, existing_ta=None):
 
     ta.properties         = typeattr.get_properties()
 
-    ta.attr_is_var        = typeattr.is_var if typeattr.is_var is not None else 'N'
+    #support legacy use of 'is_var' instead of 'attr_is_var'
+    if hasattr(typeattr, 'is_var') and typeattr.is_var is not None:
+        typeattr.attr_is_var = typeattr.is_var
+
+    ta.attr_is_var        = typeattr.attr_is_var if typeattr.attr_is_var is not None else 'N'
 
     ta.data_restriction = _parse_data_restriction(typeattr.data_restriction)
 
@@ -760,7 +797,7 @@ def _set_typeattr(typeattr, existing_ta=None):
         dimension = units.get_dimension(unit.dimension_id)
         if typeattr.attr_id is not None and typeattr.attr_id > 0:
             # Getting the passed attribute, so we need to check consistency between attr dimension id and typeattr dimension id
-            attr = ta.attr
+            attr = ta.get_attr()
             if attr is not None and attr.dimension_id is not None and attr.dimension_id != dimension.id or \
                attr is not None and attr.dimension_id is None:
 
@@ -838,7 +875,7 @@ def _set_cols(source, target, reference=None):
             setattr(target, colname, newval)
 
 
-def _update_templatetype(templatetype, existing_tt=None):
+def _update_templatetype(templatetype, existing_tt=None, auto_delete=False, **kwargs):
     """
         Add or update a templatetype. If an existing template type is passed in,
         update that one. Otherwise search for an existing one. If not found, add.
@@ -876,9 +913,10 @@ def _update_templatetype(templatetype, existing_tt=None):
                 existing_attrs.append(ta.attr_id)
 
     log.debug("Deleting any type attrs not sent")
-    for ta in ta_dict.values():
-        if ta.attr_id not in existing_attrs:
-            delete_typeattr(ta)
+    if auto_delete is True:
+        for ta in ta_dict.values():
+            if ta.attr_id not in existing_attrs:
+                delete_typeattr(ta, **kwargs)
 
     if is_new is True:
         db.DBSession.add(tmpltype_i)

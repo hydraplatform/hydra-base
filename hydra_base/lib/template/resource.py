@@ -44,6 +44,48 @@ from hydra_base.util.permissions import required_perms
 
 log = logging.getLogger(__name__)
 
+def get_network_template(network_id, reference_type_id):
+    """
+        If a network type is defined with a child template id (it has been created
+        using a child template), then find this so that it can be used when
+        inserting nodes & links into that template.
+
+        THis is to avoid having to set the child template ID on all add_node add_link
+        functions etc.
+
+        THe reference_type_id is the type of the node or link being inserted, and
+        is needed because a network may have multiple types, and so a type from the same
+        template as one of those network types needs to be used for reference.
+    """
+    #Get all the network types
+    network_types = db.DBSession.query(ResourceType)\
+        .filter(ResourceType.network_id == network_id).all()
+
+    #get the template type of the incoming resource
+    ref_type = db.DBSession.query(TemplateType)\
+        .filter(TemplateType.id == reference_type_id).one()
+
+    #ab bit roundabout, but this gets the fully-populated, inherited child type
+    ref_type_inherited = ref_type.template.get_type(reference_type_id)
+
+    #Now go through each network type and try to find the matching template.
+    #Assume that a network cannot have 2 types which inherit from the same template.
+    for nt in network_types:
+        network_tt = db.DBSession.query(TemplateType)\
+            .filter(TemplateType.id == nt.type_id).one()
+
+        if ref_type.template_id == network_tt.template_id:
+            #if the network's type and the incoming type's template ID, we've found
+            #a match.
+            return nt.child_template_id
+        elif ref_type.template_id == nt.child_template_id:
+            #If the child template id of the network is the same as the template ID of the incoming node type
+            #then we've got a match -- this implies that the node type is defined in the child
+            #itself, meaning it has been modified compared to its parent in some way.
+            return nt.child_template_id
+
+    return None
+
 def _get_type(type_id):
     """
         Utility function to get a template type by querying the parent for it.
@@ -57,7 +99,7 @@ def _get_type(type_id):
         return type_i
 
     template_i = db.DBSession.query(Template)\
-            .filter(TemplateType.id == type_i.template_id).one()
+            .filter(Template.id == type_i.template_id).one()
 
     type_i = template_i.get_type(type_id)
 
@@ -653,6 +695,21 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
         ,new resource type object
     """
 
+    #get the resource#s network ID:
+    if kwargs.get('network_id') is not None:
+        network_id = kwargs['network_id']
+    elif isinstance(resource, Network):
+        network_id = resource.id
+    elif resource.network_id:
+        network_id = resource.network_id
+    elif resource.network:
+        network_id = resource.network.id
+
+    child_template_id = kwargs.get('child_template_id')
+    if kwargs.get('child_template_id') is None:
+        if network_id is not None:
+            child_template_id = get_network_template(network_id, type_id)
+
     ref_key = resource.ref_key
 
     existing_attr_ids = []
@@ -690,7 +747,6 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
             link_id=resource.id if ref_key == 'LINK' else None,
             group_id=resource.id if ref_key == 'GROUP' else None,
             network_id=resource.id if ref_key == 'NETWORK' else None,
-
         )
         new_res_attrs.append(ra_dict)
 
@@ -737,6 +793,7 @@ def set_resource_type(resource, type_id, types={}, **kwargs):
             network_id=resource.id if ref_key == 'NETWORK' else None,
             ref_key=ref_key,
             type_id=type_id,
+            child_template_id=child_template_id
         )
 
     return new_res_attrs, resource_type, new_res_scenarios

@@ -69,6 +69,11 @@ def upgrade():
             op.create_foreign_key('tTypeAttr_ibfk_2', 'tTypeAttr', 'tTemplateType', ['type_id'], ['id'])
         except Exception as e:
             log.critical(e)
+        try:
+            op.add_column('tResourceType', sa.Column('child_template_id', sa.Integer(), sa.ForeignKey('tTemplate.id'), nullable=True))
+        except Exception as e:
+            log.critical(e)
+
 
 
 def downgrade():
@@ -89,5 +94,6 @@ def downgrade():
             op.drop_column('tTypeAttr', 'status')
             op.add_constraint('tTypeAttr_ibfk_1', 'tTypeAttr', type_='foreignkey')
             op.add_constraint('tTypeAttr_ibfk_2', 'tTypeAttr', type_='foreignkey')
+            op.drop_column('tResourceType', 'child_template_id')
         except Exception as e:
             log.exception(e)

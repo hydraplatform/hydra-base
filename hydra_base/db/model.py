@@ -535,6 +535,7 @@ class Template(Base, Inspect):
             This checks if the value is null on the child, and sets it from
             the parent if so
         """
+        inherited_columns = []
         for column in parent.__table__.columns:
 
             colname = column.name
@@ -552,7 +553,15 @@ class Template(Base, Inspect):
             refval = getattr(child, colname)
 
             if refval is None:
+                inherited_columns.append(colname)
                 setattr(child, colname, newval)
+
+        if hasattr(child, 'inherited_columns'):
+            for c in inherited_columns:
+                if c not in child.inherited_columns:
+                    child.inherited_columns.append(c)
+        else:
+            child.inherited_columns = inherited_columns
 
         return child
 
@@ -576,12 +585,10 @@ class Template(Base, Inspect):
 
         if this_typeattr.parent_id is not None and get_parent_types is True:
             return self.parent.get_typeattr(this_typeattr.parent_id,
-                                         child_typeattr=child_typeattr,
-                                         get_parent_types=get_parent_types)
+                                            child_typeattr=child_typeattr,
+                                            get_parent_types=get_parent_types)
 
         return child_typeattr
-
-
 
     def get_type(self, type_id, child_type=None, get_parent_types=True):
         """
@@ -596,6 +603,8 @@ class Template(Base, Inspect):
         #Add resource attributes which are not defined already
         this_type = get_session().query(TemplateType).filter(
             TemplateType.id == type_id).options(noload('typeattrs')).one()
+
+        this_type.typeattrs = []
 
         if not hasattr(this_type, 'ta_tree'):
             this_type.ta_tree = {}
@@ -642,7 +651,7 @@ class Template(Base, Inspect):
         return child_type
 
 
-    def get_types(self, type_tree={}, child_types=None, get_parent_types=True):
+    def get_types(self, type_tree={}, child_types=None, get_parent_types=True, child_template_id=None):
         """
             Return all the templatetypes relevant to this template.
             If this template inherits from another, look up the tree to compile
@@ -662,14 +671,18 @@ class Template(Base, Inspect):
         types = get_session().query(TemplateType).filter(
             TemplateType.template_id == self.id).options(noload('typeattrs')).all()
 
+        if child_template_id is None:
+            child_template_id = self.id
+
         #TODO need to check here to see if there is a parent / child type
         #and then add or not add as approprioate
         for this_type in types:
+            this_type.child_template_id = child_template_id
 
             #THis keeps track of which type attributes are currently associated
             #to this type. We'll use the data in this dict to set the 'typeattrs'
             #at the end
-            if not hasattr(this_type, 'ta_tree'):
+            if not hasattr(this_type, 'ta_tree') or this_type.ta_tree is None:
                 this_type.ta_tree = {}
 
             #get all the type attrs for this type, and add any which are missing
@@ -723,12 +736,11 @@ class Template(Base, Inspect):
                     type_tree[this_type.parent_id] = this_type
 
 
-
-
         if self.parent is not None and get_parent_types is True:
             return self.parent.get_types(type_tree=type_tree,
                                          child_types=child_types,
-                                         get_parent_types=get_parent_types)
+                                         get_parent_types=get_parent_types,
+                                        child_template_id=child_template_id)
 
         #clean up
         for child_type in child_types:
@@ -770,6 +782,44 @@ class TemplateType(Base, Inspect):
 
     _parents = ['tTemplate']
     _children = ['tTypeAttr']
+
+    def get_typeattrs(self, ta_tree = {}, child_typeattrs = None, get_parent_types=True):
+	"""
+		**This is unfinished
+	"""
+        #This avoids python's mutable keyword argumets causing child_data to keep its values beween
+        #function calls
+        if child_typeattrs is None:
+            child_typeattrs = []
+            ta_tree = {}
+
+        #get all the type attrs for this type, and add any which are missing
+        typeattrs = get_session().query(TypeAttr)\
+            .filter(TypeAttr.type_id == self.id)\
+            .options(joinedload('default_dataset')).all()
+
+
+        for typeattr in typeattrs:
+
+            #Does this typeattr have a child?
+            child_typeattr = ta_tree.get(typeattr.id)
+            if child_typeattr is None:
+                #there is no child, so check if it is a child
+                if typeattr.parent_id is not None:
+                    #it has a parent, so add it to the tree dict
+                    #for processing farther up the tree
+                    ta_tree[typeattr.parent_id] = typeattr
+                typeattrs.append(typeattr)
+            else:
+                child_typeattr = self.set_inherited_columns(typeattr, child_typeattr)
+
+
+        if self.parent is not None and get_parent_types is True:
+            return self.parent.get_typesattrs(ta_tree=ta_tree,
+                                              child_typeattrs=child_typeattrs,
+                                              get_parent_types=get_parent_types)
+        return child_typeattrs
+
 
 class TypeAttr(Base, Inspect):
     """
@@ -958,6 +1008,11 @@ class ResourceType(Base, Inspect):
     )
     id = Column(Integer, primary_key=True, nullable=False)
     type_id = Column(Integer(), ForeignKey('tTemplateType.id'), primary_key=False, nullable=False)
+    #This template id is used when the template and the type are not from the same template
+    #i.e. the resource type is being used in a child template
+    #If null, then the resources has either been created using a non-child template, or with a resurce
+    #type in a child template which has been entered to the DB, because the parent type has been altered in the child
+    child_template_id = Column(Integer(), ForeignKey('tTemplate.id'), primary_key=False, nullable=True)
     ref_key = Column(String(60),nullable=False)
     network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), nullable=True,)
     node_id     = Column(Integer(),  ForeignKey('tNode.id'), nullable=True)
@@ -1004,18 +1059,23 @@ class ResourceType(Base, Inspect):
 
     def get_templatetype(self):
         """
-            If this type is taht of a child templatetype, then the full type
+            If this type is that of a child templatetype, then the full type
             needs to be constructed by the template. So instead of getting the
             template type directly, we get the template, then request the type.
         """
 
-        type_i = get_session().query(TemplateType).filter(TemplateType.id == self.type_id).one()
+        #This resource was created using a child template
+        if self.child_template_id is not None:
+            template_i = get_session.query(Template)\
+                .filter(Template.id == self.template_id).one()
+        else:
+            type_i = get_session().query(TemplateType).filter(TemplateType.id == self.type_id).one()
 
-        if type_i.parent_id is None:
-            return type_i
+            if type_i.parent_id is None:
+                return type_i
 
-        template_i = get_session().query(Template)\
-                .filter(TemplateType.id == type_i.template_id).one()
+            template_i = get_session().query(Template)\
+                    .filter(TemplateType.id == type_i.template_id).one()
 
         type_i = template_i.get_type(self.type_id)
 
