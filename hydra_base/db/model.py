@@ -784,9 +784,9 @@ class TemplateType(Base, Inspect):
     _children = ['tTypeAttr']
 
     def get_typeattrs(self, ta_tree = {}, child_typeattrs = None, get_parent_types=True):
-	"""
-		**This is unfinished
-	"""
+        """
+            This is unfinished
+        """
         #This avoids python's mutable keyword argumets causing child_data to keep its values beween
         #function calls
         if child_typeattrs is None:
