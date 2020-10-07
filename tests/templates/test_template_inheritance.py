@@ -377,7 +377,7 @@ class TestTemplateInheritance:
         #The network type needs to be linked to the template ID of the
         #child so we can find the correct template
 
-        project_j = client.add_project({'name': 'Template Inheritance Project'})
+        project_j = client.add_project(JSONObject({'name': 'Template Inheritance Project'}))
 
         network = JSONObject({
             'project_id': project_j.id,

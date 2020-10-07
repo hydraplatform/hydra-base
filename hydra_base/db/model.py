@@ -575,6 +575,7 @@ class Template(Base, Inspect):
         #get all the type attrs for this type, and add any which are missing
         this_typeattr = get_session().query(TypeAttr)\
             .filter(TypeAttr.id == typeattr_id)\
+            .options(joinedload('attr'))\
             .options(joinedload('default_dataset')).one()
 
 
@@ -614,6 +615,7 @@ class Template(Base, Inspect):
         #get all the type attrs for this type, and add any which are missing
         typeattrs = get_session().query(TypeAttr)\
             .filter(TypeAttr.type_id == type_id)\
+            .options(joinedload('attr'))\
             .options(joinedload('default_dataset')).all()
 
 
@@ -864,13 +866,39 @@ class TypeAttr(Base, Inspect):
         """
             Get the attribute object
         """
+        attr = None
+        try:
+            self.attr
 
-        if self.attr is None:
+            if self.attr is not None:
+                attr = self.attr
+        except:
+            log.info("Unable to lazy-load attribute on typeattr %s", self.id)
+
+        if attr is None:
             attr = get_session().query(Attr).filter(Attr.id == self.attr_id).first()
-        else:
-            attr = self.attr
 
         return attr
+
+    def get_unit(self):
+        """
+            Get the unit object
+        """
+        unit = None
+        try:
+            self.unit
+
+            if self.unit is not None:
+                unit = self.unit
+        except:
+            log.info("Unable to lazy-load unitibute on typeunit %s", self.id)
+
+        if unit is None:
+            unit = get_session().query(Unit).filter(unit.id == self.unit_id).first()
+
+        return unit
+
+
 
     @property
     def is_var(self):

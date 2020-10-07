@@ -532,19 +532,19 @@ class TestResourceAttribute:
         ra_attribute3 = client.get_attribute_by_id(ra3.attr_id)
 
         #create an attribute with the same name but a different dimension
-        duplicate_attribute1 = {
+        duplicate_attribute1 = JSONObject({
             'name': ra_attribute1.name,
             'dimension_id': 1
-        }
-        duplicate_attribute2 = {
+        })
+        duplicate_attribute2 = JSONObject({
             'name': ra_attribute2.name,
             'dimension_id': 1
-        }
+        })
 
-        duplicate_attribute3 = {
+        duplicate_attribute3 = JSONObject({
             'name': ra_attribute3.name,
             'dimension_id': 1
-        }
+        })
         dupeattr1 = client.add_attribute(duplicate_attribute1)
         dupeattr2 = client.add_attribute(duplicate_attribute2)
         dupeattr3 = client.add_attribute(duplicate_attribute3)
