@@ -487,6 +487,17 @@ def add_template(template, **kwargs):
 
     return tmpl
 
+
+def _get_network_type(template_id):
+    """find the network type in a template"""
+
+    templatetypes_i = db.DBSession.query(TemplateType).filter(TemplateType.template_id == template_id).all()
+
+    for templatetype in templatetypes_i:
+        if templatetype.resource_type == 'NETWORK':
+            return templatetype
+    return None
+
 def add_child_template(parent_id, name, description=None, **kwargs):
     """
         Add template and a type and typeattrs.
@@ -501,6 +512,23 @@ def add_child_template(parent_id, name, description=None, **kwargs):
         tmpl.description = parent_template.description
     tmpl.layout = parent_template.layout
     tmpl.parent_id = parent_id
+
+    #now add a default network type, but only if the parent has one defined
+    parent_type = _get_network_type(parent_id)
+
+    if parent_id is not None:
+
+        network_type = TemplateType()
+
+        network_type.name = None
+        network_type.resource_type = 'NETWORK'
+        network_type.parent_id = parent_type.id
+
+        tmpl.templatetypes.append(network_type)
+    else:
+        log.warn("Unable to set a network type on this template as its "
+                 "parent %s does not contain one, so cannot create a "
+                 "parent-child relationship.", parent_id)
 
     db.DBSession.add(tmpl)
 
@@ -692,8 +720,8 @@ def add_child_typeattr(parent_id, child_template_id, **kwargs):
 
     #does this child already exist in this template?
     existing_child_typeattr = db.DBSession.query(TypeAttr).join(TemplateType).filter(
-        TypeAttr.parent_id==parent_id).filter(
-            TemplateType.template_id==child_template_id).first()
+        TypeAttr.parent_id == parent_id).filter(
+            TemplateType.template_id == child_template_id).first()
 
     if existing_child_typeattr is not None:
         return existing_child_typeattr
@@ -725,7 +753,9 @@ def update_templatetype(templatetype, auto_delete=False, **kwargs):
 
         args:
             templatetype: A template type JSON object
-            auto_delete (bool): Flag to indicate whether non-presence of typeattrs in imcoming object should delete them. Default to False
+            auto_delete (bool): Flag to indicate whether non-presence of
+                                typeattrs in imcoming object should delete them.
+                                Default to False
     """
 
     tmpltype_i = db.DBSession.query(TemplateType).filter(TemplateType.id == templatetype.id).one()
@@ -766,8 +796,6 @@ def _set_typeattr(typeattr, existing_ta=None):
     else:
         ta = existing_ta
 
-
-
     ta.attr_id = typeattr.attr_id
     ta.unit_id = typeattr.unit_id
     ta.type_id = typeattr.type_id
@@ -777,15 +805,15 @@ def _set_typeattr(typeattr, existing_ta=None):
     if hasattr(typeattr, 'default_dataset_id') and typeattr.default_dataset_id is not None:
         ta.default_dataset_id = typeattr.default_dataset_id
 
-    ta.description        = typeattr.description
+    ta.description = typeattr.description
 
-    ta.properties         = typeattr.get_properties()
+    ta.properties = typeattr.get_properties()
 
     #support legacy use of 'is_var' instead of 'attr_is_var'
     if hasattr(typeattr, 'is_var') and typeattr.is_var is not None:
         typeattr.attr_is_var = typeattr.is_var
 
-    ta.attr_is_var        = typeattr.attr_is_var if typeattr.attr_is_var is not None else 'N'
+    ta.attr_is_var = typeattr.attr_is_var if typeattr.attr_is_var is not None else 'N'
 
     ta.data_restriction = _parse_data_restriction(typeattr.data_restriction)
 
@@ -796,13 +824,16 @@ def _set_typeattr(typeattr, existing_ta=None):
         unit = units.get_unit(typeattr.unit_id)
         dimension = units.get_dimension(unit.dimension_id)
         if typeattr.attr_id is not None and typeattr.attr_id > 0:
-            # Getting the passed attribute, so we need to check consistency between attr dimension id and typeattr dimension id
+            # Getting the passed attribute, so we need to check consistency
+            # between attr dimension id and typeattr dimension id
             attr = ta.get_attr()
-            if attr is not None and attr.dimension_id is not None and attr.dimension_id != dimension.id or \
+            if attr is not None and attr.dimension_id is not None and\
+               attr.dimension_id != dimension.id or \
                attr is not None and attr.dimension_id is None:
 
                 attr_dimension = units.get_dimension(attr.dimension_id)
-                # In this case there is an inconsistency between attr.dimension_id and typeattr.unit_id
+                # In this case there is an inconsistency between
+                # attr.dimension_id and typeattr.unit_id
                 raise HydraError("Unit mismatch between type and attirbute."+
                                  f"Type attribute for {attr.name} secifies "+
                                  f"unit {unit.name}, dimension {dimension.name}."+

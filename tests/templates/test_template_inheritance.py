@@ -342,3 +342,52 @@ class TestTemplateInheritance:
 
         assert updated_child_type_attr.status == 'X'
         assert un_updated_parent_type_attr.status == 'A'
+
+
+    def test_create_network_with_child_template(self, client):
+        """
+            This tests that a network is correctly linked with its template upon
+            creation. The issues is:
+            Upon creating using a template, a network is linked to a template with
+            the template's 'network' template type. In an inherited template, this
+            template type may belong to the parent, and so there is no direct means
+            of linking a network to the correct child template, as the type ID of the 'network'
+            template id will come from the parent. To mitigate this, a 'child template id' column
+            exists on the tResourceType table which allows us to explicitly say which template was
+            used to create the network..
+        """
+
+        #first create a template
+        parent_template_j = client.testutils.create_template()
+        parent_network_type = list(filter(lambda x: x.resource_type=='NETWORK', parent_template_j.templatetypes))[0]
+
+        #and a child
+        child_template_j = client.testutils.create_child_template(parent_template_j.id)
+        child_template_j = client.get_template(child_template_j.id)
+
+        child_network_type = list(filter(lambda x: x.resource_type=='NETWORK', child_template_j.templatetypes))[0]
+
+        #check that the child has a network type of its own
+        assert child_network_type.id != parent_network_type.id
+        assert child_network_type.parent_id == parent_network_type.id
+
+
+        node_type = list(filter(lambda x: x.resource_type=='NODE', child_template_j.templatetypes))[0]
+        #now create a network using the child's network type
+        #The network type needs to be linked to the template ID of the
+        #child so we can find the correct template
+
+        project_j = client.add_project({'name': 'Template Inheritance Project'})
+
+        network = JSONObject({
+            'project_id': project_j.id,
+            'name': 'Test Network with Child Template',
+            'types' : [{'id': child_network_type.id,
+                        'child_template_id': child_template_j.id}],
+            'nodes' : [{'name': 'Node1', 'x':0, 'y':0, 'types':[{'id':node_type.id}]}]
+        })
+
+        new_network = client.add_network(network)
+
+        assert network.nodes[0].types[0].child_template_id == child_template_j.id
+

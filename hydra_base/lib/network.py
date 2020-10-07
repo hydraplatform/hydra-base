@@ -175,8 +175,9 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
             for resource_type in resource.types:
                 #Go through all the resource types and add the appropriate resource
                 #type entries
+
                 if resource_type.child_template_id is None:
-                    if network_child_template_id is not None:
+                    if network_child_template_id is None:
                         network_child_template_id = template.get_network_template(network_id, resource_type.id)
                     resource_type.child_template_id = network_child_template_id
 

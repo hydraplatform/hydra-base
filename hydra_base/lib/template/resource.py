@@ -83,6 +83,17 @@ def get_network_template(network_id, reference_type_id):
             #then we've got a match -- this implies that the node type is defined in the child
             #itself, meaning it has been modified compared to its parent in some way.
             return nt.child_template_id
+        #Get the ID of the template which is the parent of the child template which
+        #the network was created with
+        #TODO: THis only works for single inheritance. We can only look up one
+        #level in the inheritance tree.
+        network_template_parent_id = db.DBSession.query(Template)\
+            .filter(Template.id==network_tt.template_id).one().parent_id
+
+        if ref_type.template_id == network_template_parent_id:
+            #if the parent template of the network type is the same as
+            #the the template ID of this type
+            return nt.child_template_id
 
     return None
 

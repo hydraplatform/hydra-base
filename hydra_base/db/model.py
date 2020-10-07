@@ -773,7 +773,8 @@ class TemplateType(Base, Inspect):
     layout = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'))
     cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
-    parent = relationship('TemplateType', remote_side=[id], backref=backref("children", order_by=id))
+    parent = relationship('TemplateType', remote_side=[id],
+                          backref=backref("children", order_by=id))
 
     template = relationship('Template',
                             backref=backref("templatetypes",
@@ -783,7 +784,7 @@ class TemplateType(Base, Inspect):
     _parents = ['tTemplate']
     _children = ['tTypeAttr']
 
-    def get_typeattrs(self, ta_tree = {}, child_typeattrs = None, get_parent_types=True):
+    def get_typeattrs(self, ta_tree={}, child_typeattrs=None, get_parent_types=True):
         """
             This is unfinished
         """
@@ -1075,7 +1076,7 @@ class ResourceType(Base, Inspect):
                 return type_i
 
             template_i = get_session().query(Template)\
-                    .filter(TemplateType.id == type_i.template_id).one()
+                    .filter(Template.id == type_i.template_id).one()
 
         type_i = template_i.get_type(self.type_id)
 
