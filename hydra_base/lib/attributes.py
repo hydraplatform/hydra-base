@@ -42,9 +42,9 @@ from ..db.model import Attr,\
 from .. import db
 from sqlalchemy.orm.exc import NoResultFound
 from ..exceptions import HydraError, ResourceNotFoundError
-from ..util.permissions import required_perms
+from ..util.permissions import required_perms, required_role
 from sqlalchemy import or_, and_
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, joinedload
 from . import units
 from .objects import JSONObject
 
@@ -119,6 +119,23 @@ def get_attribute_by_name_and_dimension(name, dimension_id=None,**kwargs):
         return attr_i
     except NoResultFound:
         return None
+
+@required_role('admin')
+def add_attribute_no_checks(attr,**kwargs):
+    """
+    ***WARNING*** This is used for test purposes only, and can allow
+    duplicate attributes to be created
+    """
+    log.debug("Adding attribute: %s", attr.name)
+
+    attr_i = Attr(name = attr.name, dimension_id = attr.dimension_id)
+    attr_i.description = attr.description
+    db.DBSession.add(attr_i)
+    db.DBSession.flush()
+    log.info("New attr added")
+    return JSONObject(attr_i)
+
+
 
 @required_perms('add_attribute')
 def add_attribute(attr,**kwargs):
@@ -1092,3 +1109,249 @@ def delete_attribute_group_items(attributegroupitems, **kwargs):
     log.info("Attribute group items deleted")
 
     return 'OK'
+
+@required_role('admin')
+def delete_all_duplicate_attributes(**kwargs):
+    """
+        duplicate attributes can appear i the DB when attributes are added
+        with a dimension of None (because muysql allows multiple entries
+        even if there is a unique constraint where one of the values is null)
+
+        This identifies one attribute of a duplicate set and then remaps all pointers to duplicates
+        to that attribute, before deleting all other duplicate attributes.
+
+        steps are:
+            1: Identify all duplicate attributes
+            2: Select one of the duplicates to be the one to keep
+            3: Remap all resource attributes and type attributes to point from
+               duplicate attrs to the keeper.
+            4: Delete the duplicates.
+    """
+
+    #step 1: get all attributes and filter out the duplicates
+    all_attributes = db.DBSession.query(Attr).all()
+
+    #a lookup based on name/dimension (The apparent unique identifier for an attribute)
+    attribute_lookup = {}
+    for attribute in all_attributes:
+        key = (attribute.name, attribute.dimension_id)
+
+        if attribute_lookup.get(key) is None:
+            attribute_lookup[key] = [attribute]
+        else:
+            attribute_lookup[key].append(attribute)
+
+    #Now identify the dupes -- any of the dict's valuyes which has a length > 1
+    duplicate_attributes = filter(lambda x: len(x) > 1, attribute_lookup.values())
+
+    for dupe_list in duplicate_attributes:
+        log.info("Duplicate attributes found: name: %s, dimension: %s",
+                 dupe_list[0].name, dupe_list[0].dimension_id)
+        delete_duplicate_attributes(dupe_list)
+
+    db.DBSession.flush()
+
+
+@required_perms('delete_attribute', 'edit_network')
+def delete_duplicate_resourceattributes(**kwargs):
+    """
+    for every resource, find any situations where there are duplicate attribute
+    names, ex 2 max_flows, but where the attribute IDs are different. In this case,
+    remove one of them, and keep the one which is used in the template for that node.
+    """
+
+    #get all the resource attrs in the system -- but limit by only inputs
+    all_ras = db.DBSession.query(ResourceAttr)\
+        .filter(ResourceAttr.attr_is_var == 'N')\
+        .options(joinedload('attr')).all()
+
+    #create a mapping for a node's resource attrs buy its ID and the name of the attr
+    ra_lookup = {}
+    for ra in all_ras:
+        key = (ra.ref_key, ra.get_resource_id(), ra.attr.name)
+        if ra_lookup.get(key) is None:
+            ra_lookup[key] = [ra]
+        else:
+            ra_lookup[key].append(ra)
+
+    duplicate_ra_list = filter(lambda x: len(x) > 1, ra_lookup.values())
+
+    #we now have the duplicate resourceattrs. We need to identify which of them
+    #to delete.
+    for duplicate_ras in duplicate_ra_list:
+        #first get the type of the resource
+        resource = duplicate_ras[0].get_resource()
+        #now get all the typeattrs defined for that resource
+        resource_typeattrs = []
+        for rt in resource.types:
+            for ta in rt.get_templatetype().typeattrs:
+                resource_typeattrs.append(ta.attr_id)
+
+        data_to_transfer = {}
+        ras_to_delete = []
+        #now identify the attributes which are not defined in a typeattr, and
+        #mark them for deletion
+        for duplicate_ra in duplicate_ras:
+            if duplicate_ra.attr_id not in resource_typeattrs:
+
+                #we've found  a resource attribute not defined on the type.
+                #Now check if there's data associated to it, and not the other.
+
+                ra_rs = db.DBSession.query(ResourceScenario)\
+                        .filter(ResourceScenario.resource_attr_id == duplicate_ra.id).first()
+
+                #If this is the case, then remap the resource scenario to the RA
+                #we wish to keep.
+                if ra_rs is not None:
+                    data_to_transfer[ra.attr.name] = ra_rs
+
+                ras_to_delete.append(duplicate_ra)
+
+        #None of the dupes are associated to a template, then delete any with
+        #no data. Leave any with data, and let the user deal with them individually
+        if len(ras_to_delete) == len(duplicate_ras):
+            for ra_to_delete in ras_to_delete:
+                ra_rs = db.DBSession.query(ResourceScenario)\
+                        .filter(ResourceScenario.resource_attr_id == ra_to_delete.id).first()
+                if ra_rs is None:
+                    log.info("A duplicate found for %s on %s %s. Deleting as it has no data.",
+                             ra_to_delete.attr.name,
+                             ra_to_delete.ref_key,
+                             resource.name)
+                    db.DBSession.delete(ra_to_delete)
+                else:
+                    log.info("A duplicate found for %s on %s %s. Not deleting as it has data.",
+                             ra_to_delete.attr.name,
+                             ra_to_delete.ref_key,
+                             resource.name)
+
+            #no need to go further, so continue the outer loop
+            continue
+
+        #do a second pass, this time transferring data from the bad resourceattributes
+        #to the keepers
+        for duplicate_ra in duplicate_ras:
+            #focus now on the keepers i.e. the ones defined in the template
+            if duplicate_ra.attr_id in resource_typeattrs:
+                ra_rs = db.DBSession.query(ResourceScenario)\
+                    .filter(ResourceScenario.resource_attr_id == duplicate_ra.id).first()
+
+                dupes_rs = data_to_transfer.get(ra.attr.name)
+                if ra_rs is None:
+                    #if this has no value, see if the dupe has a value and transfer it
+                    if dupes_rs is not None:
+                        log.info("Updating resource scenario with new reference to %s",
+                                 duplicate_ra.attr.name)
+                        newrs = ResourceScenario()
+                        newrs.scenario_id = dupes_rs.scenario_id
+                        newrs.resource_attr_id = duplicate_ra.id
+                        newrs.dataset_id = dupes_rs.dataset_id
+                        db.DBSession.add(newrs)
+                else:
+                    #delete any RS which are not needed
+                    if dupes_rs is not None:
+                        db.DBSession.delete(dupes_rs)
+
+
+        #now finally delete all the dupes
+        for ra_to_delete in ras_to_delete:
+
+            log.info("Deleting resource attr %s (id: %s) from %s %s",\
+                     duplicate_ra.attr.name,\
+                     duplicate_ra.id,\
+                     duplicate_ra.ref_key,\
+                     resource.name)
+            db.DBSession.delete(ra_to_delete)
+
+
+def delete_duplicate_attributes(dupe_list):
+    """
+        Take a list of duplicate attributes and delete all but one.
+        Steps are:
+            1: Select one of the duplicates to keep
+            2: Remap all resource attributes and type attributes to point
+               from duplicate attrs to the keeper
+            3: Delete the duplicates
+        args:
+            dupe_list: a list of iterables containing duplicate attributes
+    """
+
+    #sort by ID, and choose the attribute with the smallest ID to keep
+    #The rationale being that this likely has the most existing references
+    dupe_list.sort(key=lambda x: x.id)
+
+    keeper = dupe_list[0]
+
+    #remove all the rest in the list
+    attrs_to_remove = dupe_list[1:]
+
+    #remap all the attributes from those to delete to the keeper so they can be removed safely
+    for attr_to_remove in attrs_to_remove:
+        remap_attribute_reference(attr_to_remove.id, keeper.id)
+
+        #now that the remapping is done, we can safely delete the old attribute
+        delete_attribute(attr_to_remove.id)
+
+    db.DBSession.flush()
+
+def remap_attribute_reference(old_attr_id, new_attr_id, flush=False):
+    """
+        Remap everything which references old_attr_id to reference
+        new_attr_id
+    """
+    #first, remap all the resource attributes
+    ras_to_remap = db.DBSession.query(ResourceAttr)\
+        .filter(ResourceAttr.attr_id == old_attr_id).all()
+
+    deleted_ras = []
+    for ra_to_remap in ras_to_remap:
+        #is there an RA with the new attribute already on the same resource?
+        existing_ra = db.DBSession.query(ResourceAttr)\
+            .filter(ResourceAttr.attr_id == new_attr_id,
+                    ResourceAttr.ref_key == ra_to_remap.ref_key,
+                    ResourceAttr.node_id == ra_to_remap.node_id,
+                    ResourceAttr.link_id == ra_to_remap.link_id,
+                    ResourceAttr.group_id == ra_to_remap.group_id,
+                    ResourceAttr.network_id == ra_to_remap.network_id).first()
+
+        #if so, then it must be deleted so there is only one on the resource.
+        if existing_ra is not None:
+            #if the RA to be deleted is linked with data and the one to keep
+            #is not, then remap the resource scenario.
+            old_ra_rs = db.DBSession.query(ResourceScenario)\
+                .filter(ResourceScenario.resource_attr_id == ra_to_remap.id).first()
+            new_ra_rs = db.DBSession.query(ResourceScenario)\
+                .filter(ResourceScenario.resource_attr_id == existing_ra.id).first()
+
+            if old_ra_rs is not None and new_ra_rs is None:
+                old_ra_rs.resource_attr_id = existing_ra.id
+
+            #mark the RA as deleted so it can be ignored in the remapping
+            #process later
+            deleted_ras.append(ra_to_remap.id)
+            db.DBSession.delete(ra_to_remap)
+
+
+    for ra_to_remap in ras_to_remap:
+        #no need to remap as it's been deleted
+        if ra_to_remap.id in deleted_ras:
+            continue
+        ra_to_remap.attr_id = new_attr_id
+
+    tas_to_remap = db.DBSession.query(TypeAttr)\
+        .filter(TypeAttr.attr_id == old_attr_id).all()
+
+    for ta_to_remap in tas_to_remap:
+        #is there an existing type attr on the type with the same attr?
+        existing_ta = db.DBSession.query(TypeAttr)\
+            .filter(TypeAttr.attr_id == new_attr_id,
+                    TypeAttr.type_id == ta_to_remap.type_id).first()
+
+        #if so, delete it
+        if existing_ta is not None:
+            db.DBSession.delete(ta_to_remap)
+        else:
+            ta_to_remap.attr_id = new_attr_id
+
+    if flush is True:
+        db.DBSession.flush()

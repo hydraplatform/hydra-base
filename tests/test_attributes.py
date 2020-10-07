@@ -462,7 +462,136 @@ class TestResourceAttribute:
         assert len(net_attrs) == 3
         assert len(net_type_attrs) == 2
 
+    def test_delete_all_duplicate_attributes(self, client, network_with_data):
 
+        duplicate_attribute = JSONObject({'name': 'duplicate', 'dimension_id': None})
+
+        #use dedicated testing function  which allows duplicates
+        dupe_attr_1 = client.add_attribute_no_checks(duplicate_attribute)
+        dupe_attr_2 = client.add_attribute_no_checks(duplicate_attribute)
+
+
+        all_attrs = client.get_attributes()
+
+        assert dupe_attr_1.id in [a.id for a in all_attrs]
+        assert dupe_attr_2.id in [a.id for a in all_attrs]
+
+        #add duplicate resource attributes
+        client.add_resource_attribute('NETWORK', network_with_data.id, dupe_attr_1.id, 'Y')
+        client.add_resource_attribute('NETWORK', network_with_data.id, dupe_attr_2.id, 'Y')
+
+        #check the dupes are there
+        updated_net = client.get_network(network_with_data.id)
+        updated_net_ras = [ra.attr_id for ra in updated_net.attributes]
+        assert dupe_attr_1.id in updated_net_ras
+        assert dupe_attr_2.id in updated_net_ras
+
+        #now add duplicate attrs to the template type
+        templatetype_to_update = network_with_data.types[0].id
+        client.add_typeattr(JSONObject({'type_id': templatetype_to_update,
+                                        'attr_id': dupe_attr_1.id}))
+        client.add_typeattr(JSONObject({'type_id': templatetype_to_update,
+                                        'attr_id': dupe_attr_2.id}))
+
+        #check the dupes are there
+        updated_type = client.get_templatetype(templatetype_to_update)
+        assert dupe_attr_1.id in [ta.attr_id for ta in updated_type.typeattrs]
+        assert dupe_attr_1.id in [ta.attr_id for ta in updated_type.typeattrs]
+
+        client.delete_all_duplicate_attributes()
+
+        #check the dupes are gone
+        updated_net = client.get_network(network_with_data.id)
+        updated_net_ras = [ra.attr_id for ra in updated_net.attributes]
+        assert dupe_attr_1.id in updated_net_ras
+        assert dupe_attr_2.id not in updated_net_ras
+
+        #check the dupes are gone
+        updated_type = client.get_templatetype(templatetype_to_update)
+        assert dupe_attr_1.id in [ta.attr_id for ta in updated_type.typeattrs]
+        assert dupe_attr_2.id not in [ta.attr_id for ta in updated_type.typeattrs]
+
+        reduced_attrs = client.get_attributes()
+
+        #check that the first attr is there, but the dupe is not.
+        assert dupe_attr_1.id in [a.id for a in reduced_attrs]
+        assert dupe_attr_2.id not in [a.id for a in reduced_attrs]
+
+    def test_delete_duplicate_resourceattributes(self, client, network_with_data):
+
+        #first add a duplicate resourceattr to the network
+
+        #find a resourceattr.
+        network_with_data.attributes.sort(key=lambda x : x.attr_id)
+        ra1 = network_with_data.attributes[0]
+        ra2 = network_with_data.attributes[1]
+        ra3 = network_with_data.attributes[-1] # not associated to a template
+
+        ra_attribute1 = client.get_attribute_by_id(ra1.attr_id)
+        ra_attribute2 = client.get_attribute_by_id(ra2.attr_id)
+        ra_attribute3 = client.get_attribute_by_id(ra3.attr_id)
+
+        #create an attribute with the same name but a different dimension
+        duplicate_attribute1 = {
+            'name': ra_attribute1.name,
+            'dimension_id': 1
+        }
+        duplicate_attribute2 = {
+            'name': ra_attribute2.name,
+            'dimension_id': 1
+        }
+
+        duplicate_attribute3 = {
+            'name': ra_attribute3.name,
+            'dimension_id': 1
+        }
+        dupeattr1 = client.add_attribute(duplicate_attribute1)
+        dupeattr2 = client.add_attribute(duplicate_attribute2)
+        dupeattr3 = client.add_attribute(duplicate_attribute3)
+
+        dupe_ra1 = client.add_resource_attribute('NETWORK', network_with_data.id, dupeattr1.id, 'N')#
+        #get an arbitrary dataset
+        dataset = client.get_dataset(1)
+        #set a value on the RA which sould get transferred in the deletion later
+        new_rscen = client.add_data_to_attribute(network_with_data.scenarios[0].id,
+                                     dupe_ra1.id,
+                                     dataset)
+        #add 2 more dupes but with no data associated to them
+        dupe_ra2 = client.add_resource_attribute('NETWORK', network_with_data.id, dupeattr2.id, 'N')
+        dupe_ra3 = client.add_resource_attribute('NETWORK', network_with_data.id, dupeattr3.id, 'N')
+
+        updated_net = client.get_network(network_with_data.id, include_data=True)
+        updated_net_ras = [ra.attr_id for ra in updated_net.attributes]
+        assert dupeattr1.id in updated_net_ras
+        assert dupeattr2.id in updated_net_ras
+        assert dupeattr3.id in updated_net_ras
+
+        #verify the data has been associated to the dupe RA
+        original_rs = network_with_data.scenarios[0].resourcescenarios
+        new_rs = updated_net.scenarios[0].resourcescenarios
+        assert len(new_rs) == len(original_rs) + 1
+        assert ra1.id not in [rs.resource_attr_id for rs in new_rs]
+        assert dupe_ra1.id in [rs.resource_attr_id for rs in new_rs]
+
+        #now that the new attribute is added, try to delete it.
+        client.delete_duplicate_resourceattributes()
+
+        updated_net = client.get_network(network_with_data.id, include_data=True)
+        updated_net_ras = [ra.attr_id for ra in updated_net.attributes]
+        #the number of network attributes has decreased because BOTH duplicates
+        #of RA3 (which are not associated to a template) have been removed.
+        #This means one of the original ones is now gone
+        assert len(updated_net.attributes) == len(network_with_data.attributes) -1
+        assert dupeattr1.id not in updated_net_ras
+        assert dupeattr2.id not in updated_net_ras
+        assert dupeattr3.id not in updated_net_ras
+
+        #verify the data which was on the dupe has been remapped to the remaining, correct, attribute
+        original_rs = network_with_data.scenarios[0].resourcescenarios
+        new_rs = updated_net.scenarios[0].resourcescenarios
+        assert len(new_rs) == len(original_rs) + 1
+        assert ra1.id in [rs.resource_attr_id for rs in new_rs]
+        assert dupe_ra1.id not in [rs.resource_attr_id for rs in new_rs]
 
 class TestAttributeMap:
 
