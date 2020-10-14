@@ -790,7 +790,7 @@ class TemplateType(Base, Inspect):
         """
             This is unfinished
         """
-        #This avoids python's mutable keyword argumets causing child_data to keep its values beween
+        #This avoids python's mutable keyword arguments causing child_data to keep its values between
         #function calls
         if child_typeattrs is None:
             child_typeattrs = []
