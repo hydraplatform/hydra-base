@@ -240,8 +240,7 @@ def get_template_as_dict(template_id, **kwargs):
 @required_perms("add_template")
 def import_template_json(template_json_string, allow_update=True, **kwargs):
     """
-        Add the template, type and typeattrs described
-        in a JSON file.
+        Add the template, type and typeattrs described in a JSON file.
 
         Delete type, typeattr entries in the DB that are not in the JSON file.
         The assumption is that they have been deleted and are no longer required.
@@ -1090,4 +1089,3 @@ def delete_typeattr(typeattr_id, **kwargs):
     db.DBSession.flush()
 
     return 'OK'
-
