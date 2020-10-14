@@ -1115,8 +1115,8 @@ def delete_attribute_group_items(attributegroupitems, **kwargs):
 @required_role('admin')
 def delete_all_duplicate_attributes(**kwargs):
     """
-        duplicate attributes can appear i the DB when attributes are added
-        with a dimension of None (because muysql allows multiple entries
+        duplicate attributes can appear in the DB when attributes are added
+        with a dimension of None (because mysql allows multiple entries
         even if there is a unique constraint where one of the values is null)
 
         This identifies one attribute of a duplicate set and then remaps all pointers to duplicates
@@ -1139,7 +1139,7 @@ def delete_all_duplicate_attributes(**kwargs):
         key = (attribute.name, attribute.dimension_id)
         attribute_lookup[key].append(attribute)
 
-    #Now identify the dupes -- any of the dict's valuyes which has a length > 1
+    #Now identify the dupes -- any of the dict's values which has a length > 1
     duplicate_attributes = filter(lambda x: len(x) > 1, attribute_lookup.values())
 
     for dupe_list in duplicate_attributes:
@@ -1163,7 +1163,7 @@ def delete_duplicate_resourceattributes(**kwargs):
         .filter(ResourceAttr.attr_is_var == 'N')\
         .options(joinedload('attr')).all()
 
-    #create a mapping for a node's resource attrs buy its ID and the name of the attr
+    #create a mapping for a node's resource attrs by its ID and the name of the attr
     ra_lookup = defaultdict(lambda: [])
     for ra in all_ras:
         key = (ra.ref_key, ra.get_resource_id(), ra.attr.name)

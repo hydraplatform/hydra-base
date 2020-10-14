@@ -542,7 +542,7 @@ class Template(Base, Inspect):
 
             if hasattr(child, '_protected_columns')\
                and colname in child._protected_columns:
-                #as a child, yuo can't change stuff like IDS, cr dates etc.
+                # as a child, you can't change stuff like IDs, cr dates etc.
                 continue
 
             newval = getattr(parent, colname)
@@ -663,7 +663,7 @@ class Template(Base, Inspect):
 
         """
 
-        #This avoids python's mutable keyword argumets causing child_data to keep its values beween
+        #This avoids python's mutable keyword arguments causing child_data to keep its values between
         #function calls
         if child_types is None:
             child_types = []
@@ -681,7 +681,7 @@ class Template(Base, Inspect):
         for this_type in types:
             this_type.child_template_id = child_template_id
 
-            #THis keeps track of which type attributes are currently associated
+            #This keeps track of which type attributes are currently associated
             #to this type. We'll use the data in this dict to set the 'typeattrs'
             #at the end
             if not hasattr(this_type, 'ta_tree') or this_type.ta_tree is None:
@@ -696,7 +696,7 @@ class Template(Base, Inspect):
             #Is this type the parent of a type. If so, we don't want to add a new type
             #we want to update an existing one with any data that it's missing
             if this_type.id in type_tree:
-                #THis is a deleted type, so ignore it in the parent
+                #This is a deleted type, so ignore it in the parent
                 if type_tree[this_type.id] is  None:
                     continue
 
@@ -790,7 +790,7 @@ class TemplateType(Base, Inspect):
         """
             This is unfinished
         """
-        #This avoids python's mutable keyword argumets causing child_data to keep its values beween
+        #This avoids python's mutable keyword arguments causing child_data to keep its values between
         #function calls
         if child_typeattrs is None:
             child_typeattrs = []
@@ -1039,7 +1039,7 @@ class ResourceType(Base, Inspect):
     type_id = Column(Integer(), ForeignKey('tTemplateType.id'), primary_key=False, nullable=False)
     #This template id is used when the template and the type are not from the same template
     #i.e. the resource type is being used in a child template
-    #If null, then the resources has either been created using a non-child template, or with a resurce
+    #If null, then the resources has either been created using a non-child template, or with a resource
     #type in a child template which has been entered to the DB, because the parent type has been altered in the child
     child_template_id = Column(Integer(), ForeignKey('tTemplate.id'), primary_key=False, nullable=True)
     ref_key = Column(String(60),nullable=False)

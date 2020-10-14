@@ -80,7 +80,7 @@ class TestTemplateInheritance:
         #check that one has been added to both parent and child
         #so we now have 2 more than originally
         assert len(child_template_received.templatetypes)\
-                == len(original_tempaltetypes) + 2
+                == len(original_templatetypes) + 2
         assert len(child_template_received.templatetypes)\
                 == len(parent_template_received.templatetypes) + 1
 
@@ -120,7 +120,7 @@ class TestTemplateInheritance:
 
         updated_child_template = client.get_template(child_template_j.id)
 
-                #THis should be one less than before
+        #This should be one less than before
         assert len(updated_child_template.templatetypes) == len(original_child_types)
 
         for child_type in updated_child_template.templatetypes:
@@ -191,7 +191,7 @@ class TestTemplateInheritance:
     def test_update_child_typeattr(self, client):
         """
             Test updating a template type attribute in a child, by adding a type attribute
-            to a type in the child template, which has a perent in the parent template,
+            to a type in the child template, which has a parent in the parent template,
             and then setting the status of that to 'X'
         """
 
@@ -390,4 +390,3 @@ class TestTemplateInheritance:
         new_network = client.add_network(network)
 
         assert network.nodes[0].types[0].child_template_id == child_template_j.id
-
