@@ -26,9 +26,9 @@ from sqlalchemy.orm import noload, joinedload
 from sqlalchemy import or_, and_
 
 from hydra_base import db
-from hydra_base.db.model import Template, TemplateType, TypeAttr, Attr, \
-                                Network, Node, Link, ResourceGroup,\
-                                ResourceType, ResourceAttr, ResourceScenario, Scenario
+from hydra_base.db.model import (Template, TemplateType, TypeAttr, Attr,
+                                Network, Node, Link, ResourceGroup,
+                                ResourceType, ResourceAttr, ResourceScenario, Scenario)
 from hydra_base.lib.objects import JSONObject, Dataset
 from hydra_base.lib.data import add_dataset
 from hydra_base.exceptions import HydraError, ResourceNotFoundError
@@ -39,25 +39,25 @@ from hydra_base.util.permissions import required_perms
 
 from hydra_base.lib.template.utils import check_dimension, get_attr_by_name_and_dimension
 
-from hydra_base.lib.template.xml import get_template_as_xml, import_template_xml,\
-    get_network_as_xml_template
+from hydra_base.lib.template.xml import (get_template_as_xml, import_template_xml,
+    get_network_as_xml_template)
 
-from hydra_base.lib.template.resource import get_types_by_attr,\
-        apply_template_to_network,\
-        set_network_template,\
-        remove_template_from_network,\
-        get_matching_resource_types, assign_types_to_resources,\
-        check_type_compatibility,\
-        assign_type_to_resource,\
-        set_resource_type,\
-        get_network_template,\
-        remove_type_from_resource,\
-        validate_attr,\
-        validate_attrs,\
-        validate_scenario,\
-        validate_resource,\
-        validate_resourcescenario,\
-        validate_network
+from hydra_base.lib.template.resource import (get_types_by_attr,
+    apply_template_to_network,
+    set_network_template,
+    remove_template_from_network,
+    get_matching_resource_types, assign_types_to_resources,
+    check_type_compatibility,
+    assign_type_to_resource,
+    set_resource_type,
+    get_network_template,
+    remove_type_from_resource,
+    validate_attr,
+    validate_attrs,
+    validate_scenario,
+    validate_resource,
+    validate_resourcescenario,
+    validate_network)
 
 log = logging.getLogger(__name__)
 
@@ -422,7 +422,7 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
             default_dataset_j = None
             if typeattr_j.default_dataset is not None:
                 default_dataset_j = typeattr_j.default_dataset
-            elif typeattr_j.default is not None:
+            elif typeattr_j.default is not None: # for backward compatibility
                 default_dataset_j = typeattr_j.default_dataset
             elif typeattr_j.default_dataset_id is not None:
                 default_dataset_j = default_datasets_j[int(typeattr_j.default_dataset_id)]
