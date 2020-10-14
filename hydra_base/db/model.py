@@ -542,7 +542,7 @@ class Template(Base, Inspect):
 
             if hasattr(child, '_protected_columns')\
                and colname in child._protected_columns:
-                #as a child, yuo can't change stuff like IDS, cr dates etc.
+                # as a child, you can't change stuff like IDs, cr dates etc.
                 continue
 
             newval = getattr(parent, colname)
