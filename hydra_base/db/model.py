@@ -663,7 +663,7 @@ class Template(Base, Inspect):
 
         """
 
-        #This avoids python's mutable keyword argumets causing child_data to keep its values beween
+        #This avoids python's mutable keyword arguments causing child_data to keep its values between
         #function calls
         if child_types is None:
             child_types = []
