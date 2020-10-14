@@ -1289,6 +1289,8 @@ def delete_duplicate_attributes(dupe_list):
 
     db.DBSession.flush()
 
+    return keeper
+
 def remap_attribute_reference(old_attr_id, new_attr_id, flush=False):
     """
         Remap everything which references old_attr_id to reference
