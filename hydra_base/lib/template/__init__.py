@@ -444,7 +444,10 @@ def _parse_data_restriction(restriction_dict):
     if isinstance(restriction_dict, dict):
         new_dict = restriction_dict
     else:
-        new_dict = json.loads(restriction_dict)
+        try:
+            new_dict = json.loads(restriction_dict)
+        except:
+            raise HydraError(f"Unable to parse the JSON in the restriction data: {restriction_dict}")
 
     #Evaluate whether the dict actually contains anything.
     if not isinstance(new_dict, dict) or len(new_dict) == 0:
