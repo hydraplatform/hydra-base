@@ -120,7 +120,7 @@ class TestTemplateInheritance:
 
         updated_child_template = client.get_template(child_template_j.id)
 
-                #THis should be one less than before
+        #This should be one less than before
         assert len(updated_child_template.templatetypes) == len(original_child_types)
 
         for child_type in updated_child_template.templatetypes:
