@@ -621,7 +621,6 @@ def get_templates(load_all=True, **kwargs):
 @required_perms("edit_template")
 def remove_attr_from_type(type_id, attr_id, **kwargs):
     """
-
         Remove an attribute from a type
     """
     typeattr_i = db.DBSession.query(TypeAttr).filter(TypeAttr.type_id == type_id,
