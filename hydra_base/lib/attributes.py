@@ -1141,7 +1141,7 @@ def delete_all_duplicate_attributes(**kwargs):
         else:
             attribute_lookup[key].append(attribute)
 
-    #Now identify the dupes -- any of the dict's valuyes which has a length > 1
+    #Now identify the dupes -- any of the dict's values which has a length > 1
     duplicate_attributes = filter(lambda x: len(x) > 1, attribute_lookup.values())
 
     for dupe_list in duplicate_attributes:
