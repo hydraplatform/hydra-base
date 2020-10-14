@@ -22,6 +22,8 @@ log = logging.getLogger(__name__)
 
 import json
 
+from collections import defaultdict
+
 from ..db.model import Attr,\
         Node,\
         Link,\
@@ -1132,14 +1134,10 @@ def delete_all_duplicate_attributes(**kwargs):
     all_attributes = db.DBSession.query(Attr).all()
 
     #a lookup based on name/dimension (The apparent unique identifier for an attribute)
-    attribute_lookup = {}
+    attribute_lookup = defaultdict(lambda: [])
     for attribute in all_attributes:
         key = (attribute.name, attribute.dimension_id)
-
-        if attribute_lookup.get(key) is None:
-            attribute_lookup[key] = [attribute]
-        else:
-            attribute_lookup[key].append(attribute)
+        attribute_lookup[key].append(attribute)
 
     #Now identify the dupes -- any of the dict's valuyes which has a length > 1
     duplicate_attributes = filter(lambda x: len(x) > 1, attribute_lookup.values())
@@ -1166,13 +1164,10 @@ def delete_duplicate_resourceattributes(**kwargs):
         .options(joinedload('attr')).all()
 
     #create a mapping for a node's resource attrs buy its ID and the name of the attr
-    ra_lookup = {}
+    ra_lookup = defaultdict(lambda: [])
     for ra in all_ras:
         key = (ra.ref_key, ra.get_resource_id(), ra.attr.name)
-        if ra_lookup.get(key) is None:
-            ra_lookup[key] = [ra]
-        else:
-            ra_lookup[key].append(ra)
+        ra_lookup[key].append(ra)
 
     duplicate_ra_list = filter(lambda x: len(x) > 1, ra_lookup.values())
 
