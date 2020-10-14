@@ -80,7 +80,7 @@ class TestTemplateInheritance:
         #check that one has been added to both parent and child
         #so we now have 2 more than originally
         assert len(child_template_received.templatetypes)\
-                == len(original_tempaltetypes) + 2
+                == len(original_templatetypes) + 2
         assert len(child_template_received.templatetypes)\
                 == len(parent_template_received.templatetypes) + 1
 
@@ -390,4 +390,3 @@ class TestTemplateInheritance:
         new_network = client.add_network(network)
 
         assert network.nodes[0].types[0].child_template_id == child_template_j.id
-
