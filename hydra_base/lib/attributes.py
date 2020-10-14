@@ -1113,7 +1113,7 @@ def delete_attribute_group_items(attributegroupitems, **kwargs):
 @required_role('admin')
 def delete_all_duplicate_attributes(**kwargs):
     """
-        duplicate attributes can appear i the DB when attributes are added
+        duplicate attributes can appear in the DB when attributes are added
         with a dimension of None (because muysql allows multiple entries
         even if there is a unique constraint where one of the values is null)
 
