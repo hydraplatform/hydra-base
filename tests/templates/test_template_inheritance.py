@@ -191,7 +191,7 @@ class TestTemplateInheritance:
     def test_update_child_typeattr(self, client):
         """
             Test updating a template type attribute in a child, by adding a type attribute
-            to a type in the child template, which has a perent in the parent template,
+            to a type in the child template, which has a parent in the parent template,
             and then setting the status of that to 'X'
         """
 
