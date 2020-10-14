@@ -150,7 +150,7 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j, user
         val  = default.value
 
         data_type = default.type
-        name = default.name if default.name is not None else "%s Default"%attr_i.name
+        name = default.name if default.name not in (None, '') else "%s Default"%attr_i.name
 
         dataset_i = add_dataset(data_type,
                                val,
