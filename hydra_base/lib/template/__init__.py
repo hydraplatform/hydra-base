@@ -243,7 +243,7 @@ def import_template_json(template_json_string, allow_update=True, **kwargs):
         Add the template, type and typeattrs described
         in a JSON file.
 
-        Delete type, typeattr entries in the DB that are not in the XML file
+        Delete type, typeattr entries in the DB that are not in the JSON file.
         The assumption is that they have been deleted and are no longer required.
 
         The allow_update indicates whether an existing template of the same name should
@@ -1090,5 +1090,4 @@ def delete_typeattr(typeattr_id, **kwargs):
     db.DBSession.flush()
 
     return 'OK'
-
 
