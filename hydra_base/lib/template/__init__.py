@@ -380,7 +380,7 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
             else:
                 type_i.layout = type_j.layout
 
-        #delete any TypeAttrs which are in the DB but not in the XML file
+        #delete any TypeAttrs which are in the DB but not in the JSON file
         existing_attrs = []
         if not type_is_new:
             for r in template_i.templatetypes:
