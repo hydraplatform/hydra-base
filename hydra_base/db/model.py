@@ -696,7 +696,7 @@ class Template(Base, Inspect):
             #Is this type the parent of a type. If so, we don't want to add a new type
             #we want to update an existing one with any data that it's missing
             if this_type.id in type_tree:
-                #THis is a deleted type, so ignore it in the parent
+                #This is a deleted type, so ignore it in the parent
                 if type_tree[this_type.id] is  None:
                     continue
 
