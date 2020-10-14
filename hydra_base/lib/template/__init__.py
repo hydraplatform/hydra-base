@@ -423,7 +423,7 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
             if typeattr_j.default_dataset is not None:
                 default_dataset_j = typeattr_j.default_dataset
             elif typeattr_j.default is not None: # for backward compatibility
-                default_dataset_j = typeattr_j.default_dataset
+                default_dataset_j = typeattr_j.default
             elif typeattr_j.default_dataset_id is not None:
                 default_dataset_j = default_datasets_j[int(typeattr_j.default_dataset_id)]
 
