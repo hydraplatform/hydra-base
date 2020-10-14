@@ -1114,7 +1114,7 @@ def delete_attribute_group_items(attributegroupitems, **kwargs):
 def delete_all_duplicate_attributes(**kwargs):
     """
         duplicate attributes can appear in the DB when attributes are added
-        with a dimension of None (because muysql allows multiple entries
+        with a dimension of None (because mysql allows multiple entries
         even if there is a unique constraint where one of the values is null)
 
         This identifies one attribute of a duplicate set and then remaps all pointers to duplicates
