@@ -1165,7 +1165,7 @@ def delete_duplicate_resourceattributes(**kwargs):
         .filter(ResourceAttr.attr_is_var == 'N')\
         .options(joinedload('attr')).all()
 
-    #create a mapping for a node's resource attrs buy its ID and the name of the attr
+    #create a mapping for a node's resource attrs by its ID and the name of the attr
     ra_lookup = {}
     for ra in all_ras:
         key = (ra.ref_key, ra.get_resource_id(), ra.attr.name)
