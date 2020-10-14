@@ -1039,7 +1039,7 @@ class ResourceType(Base, Inspect):
     type_id = Column(Integer(), ForeignKey('tTemplateType.id'), primary_key=False, nullable=False)
     #This template id is used when the template and the type are not from the same template
     #i.e. the resource type is being used in a child template
-    #If null, then the resources has either been created using a non-child template, or with a resurce
+    #If null, then the resources has either been created using a non-child template, or with a resource
     #type in a child template which has been entered to the DB, because the parent type has been altered in the child
     child_template_id = Column(Integer(), ForeignKey('tTemplate.id'), primary_key=False, nullable=True)
     ref_key = Column(String(60),nullable=False)
