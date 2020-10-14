@@ -681,7 +681,7 @@ class Template(Base, Inspect):
         for this_type in types:
             this_type.child_template_id = child_template_id
 
-            #THis keeps track of which type attributes are currently associated
+            #This keeps track of which type attributes are currently associated
             #to this type. We'll use the data in this dict to set the 'typeattrs'
             #at the end
             if not hasattr(this_type, 'ta_tree') or this_type.ta_tree is None:
