@@ -514,7 +514,9 @@ class TestResourceAttribute:
         reduced_attrs = client.get_attributes()
 
         #check that the first attr is there, but the dupe is not.
-        assert dupe_attr_1.id in [a.id for a in reduced_attrs]
+        #the one to keep should be the one with the lowest ID
+        lowest_id = min(dupe_attr_1.id, dupe_attr_2.id)
+        assert lowest_id in [a.id for a in reduced_attrs]
         assert dupe_attr_2.id not in [a.id for a in reduced_attrs]
 
     def test_delete_duplicate_resourceattributes(self, client, network_with_data):
