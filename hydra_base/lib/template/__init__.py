@@ -872,7 +872,7 @@ def _set_cols(source, target, reference=None):
             then target will be {'status', 'y'}
         Args:
             target: DB row to write the column to
-            source: The incoming object (a JSONObjhect) containing the request data
+            source: The incoming object (a JSONObject) containing the request data
             reference: DB row used for comparison
             colnames: The column names to set
             value: The value to set.
@@ -884,13 +884,13 @@ def _set_cols(source, target, reference=None):
 
         if hasattr(reference, '_protected_columns')\
            and colname in reference._protected_columns:
-            #as a child, yuo can't change stuff like IDS, cr dates etc.
+            #as a child, you can't change stuff like IDS, cr dates etc.
             continue
 
         if target.parent_id is not None\
            and hasattr(reference, '_hierarchy_columns')\
            and colname in reference._hierarchy_columns:
-            #as a child, yuo can't change stuff like IDS, cr dates etc.
+            #as a child, you can't change stuff like IDS, cr dates etc.
             continue
 
         newval = getattr(source, colname)
