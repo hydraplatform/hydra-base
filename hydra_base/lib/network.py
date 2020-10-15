@@ -708,7 +708,10 @@ def _get_resource_id(attr):
 
     for resourcekey in ('node_id', 'link_id', 'network_id', 'group_id'):
         if isinstance(attr, dict):
-            return attr.get(resourcekey)
+            ##this if statement is needed to continue the loop, rather than just
+            #returning attr.get(resourcekey)
+            if attr.get(resourcekey) is not None:
+                return attr[resourcekey]
         else:
             if getattr(attr, resourcekey) is not None:
                 return getattr(attr, resourcekey)
