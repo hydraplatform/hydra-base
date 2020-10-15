@@ -578,25 +578,18 @@ def _get_nodes(node_ids):
         return nodes
 
     if len(node_ids) > 500:
-        idx = 0
-        extent = 500
-        while idx < len(node_ids):
-            log.debug("Querying %s nodes", len(node_ids[idx:extent]))
-
+        block_size = 500
+        limit = len(node_ids)
+        lower = 0
+        while lower < limit:
+            upper = lower+block_size
             rs = db.DBSession.query(Node)\
-                    .options(joinedload('attributes'))\
-                    .options(joinedload('types'))\
-                    .filter(Node.id.in_(node_ids[idx:extent])).all()
-
+                       .options(joinedload('attributes'))\
+                       .options(joinedload('types'))\
+                       .filter(Node.id.in_(node_ids[lower:upper])).all()
             log.debug("Retrieved %s nodes", len(rs))
-
             nodes.extend(rs)
-            idx = idx + 500
-
-            if idx + 500 > len(node_ids):
-                extent = len(node_ids)
-            else:
-                extent = extent + 500
+            lower = upper
     else:
         nodes = db.DBSession.query(Node)\
                 .options(joinedload('attributes'))\
@@ -618,22 +611,18 @@ def _get_groups(group_ids):
         return groups
 
     if len(group_ids) > 500:
-        idx = 0
-        extent = 500
-        while idx < len(group_ids):
-            log.debug("Querying %s groups", len(group_ids[idx:extent]))
+        block_size = 500
+        limit = len(group_ids)
+        lower = 0
+        while lower < limit:
+            upper = lower+block_size
             rs = db.DBSession.query(ResourceGroup)\
-                    .options(joinedload('attributes'))\
-                    .filter(ResourceGroup.id.in_(group_ids[idx:extent])).all()
-
+                       .options(joinedload('attributes'))\
+                       .options(joinedload('types'))\
+                       .filter(ResourceGroup.id.in_(group_ids[lower:upper])).all()
             log.debug("Retrieved %s groups", len(rs))
             groups.extend(rs)
-            idx = idx + 500
-
-            if idx + 500 > len(group_ids):
-                extent = len(group_ids)
-            else:
-                extent = extent + 500
+            lower = upper
     else:
         groups = db.DBSession.query(ResourceGroup)\
                 .options(joinedload('types'))\
