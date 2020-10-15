@@ -268,11 +268,12 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
     file_datasets   = template_file_j.get('datasets', {})
     template_j = JSONObject(template_file_j.get('template', {}))
 
+    #default datasets are optional, so don't force them to exist in the structure
     default_datasets_j = {}
     for k, v in file_datasets.items():
         default_datasets_j[int(k)] = Dataset(v)
 
-    if file_attributes is None or default_datasets_j is None or len(template_j) == 0:
+    if file_attributes is None or len(template_j) == 0:
         raise HydraError("Invalid template. The template must have the following structure: " + \
                             "{'attributes':\\{...\\}, 'datasets':\\{...\\}, 'template':\\{...\\}}")
 
