@@ -772,7 +772,7 @@ def update_templatetype(templatetype, auto_delete=False, **kwargs):
 
 def _set_typeattr(typeattr, existing_ta=None):
     """
-        Add or updsate a type attribute.
+        Add or update a type attribute.
         If an existing type attribute is provided, then update.
 
         Checks are performed to ensure that the dimension provided on the
