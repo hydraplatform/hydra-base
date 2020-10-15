@@ -640,9 +640,7 @@ def get_template(template_id, **kwargs):
         tmpl_i = db.DBSession.query(Template).filter(
             Template.id == template_id).one()
 
-        inherited_types = tmpl_i.get_types()
-
-        tmpl_i.templatetypes = inherited_types
+        tmpl_i.templatetypes = tmpl_i.get_types()
 
         tmpl_j = JSONObject(tmpl_i)
 
