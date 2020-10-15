@@ -229,9 +229,9 @@ class TestUtil:
         """
             Create a template type object (but don't add it to the DB)
             Args:
-                template_id: THe ID of the template to which to add this type
+                template_id: The ID of the template to which to add this type
             Returns:
-                JSONObject with some default values and the correct tempalte ID
+                JSONObject with some default values and the correct template ID
         """
         attr_1 = self.create_attribute("link_attr_1", dimension='Pressure')
         attr_2 = self.create_attribute("link_attr_2", dimension='Speed')
