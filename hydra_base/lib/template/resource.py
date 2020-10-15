@@ -1,7 +1,6 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# (c) Copyright 2013 to 2017 University of Manchester
+# (c) Copyright 2013 to 2020 University of Manchester
 #
 # HydraPlatform is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -261,7 +260,7 @@ def remove_template_from_network(network_id, template_id, remove_attrs, **kwargs
     """
         Remove all resource types in a network relating to the specified
         template.
-        remove_attrs
+        remove_attrs ('Y' or 'N')
             Flag to indicate whether the attributes associated with the template
             types should be removed from the resources in the network. These will
             only be removed if they are not shared with another template on the network
@@ -484,6 +483,11 @@ def check_type_compatibility(type_1_id, type_2_id, **kwargs):
 
         This function checks for any situations where different types specify the same
         attributes, but with different units.
+        args:
+            type_1_id: The ID of the type to compare
+            type_2_id: The ID of the type to compare
+        returns:
+            list of strings, with errors describing any incompatibilities
     """
     errors = []
 
