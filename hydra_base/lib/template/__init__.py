@@ -635,7 +635,7 @@ def remove_attr_from_type(type_id, attr_id, **kwargs):
 @required_perms("get_template")
 def get_template(template_id, **kwargs):
     """
-        Get a specific resource template template, by ID.
+        Get a specific resource template, by ID.
     """
     try:
         tmpl_i = db.DBSession.query(Template).filter(
@@ -755,7 +755,7 @@ def update_templatetype(templatetype, auto_delete=False, **kwargs):
         args:
             templatetype: A template type JSON object
             auto_delete (bool): Flag to indicate whether non-presence of
-                                typeattrs in imcoming object should delete them.
+                                typeattrs in incoming object should delete them.
                                 Default to False
     """
 
@@ -771,7 +771,7 @@ def update_templatetype(templatetype, auto_delete=False, **kwargs):
 
 def _set_typeattr(typeattr, existing_ta=None):
     """
-        Add or updsate a type attribute.
+        Add or update a type attribute.
         If an existing type attribute is provided, then update.
 
         Checks are performed to ensure that the dimension provided on the
@@ -779,11 +779,11 @@ def _set_typeattr(typeattr, existing_ta=None):
         The unit provided (stored on tattr) must conform to the dimension stored
         on the referring attribute (stored on tattr).
 
-        This is done so that multiple tempaltes can all use the same attribute,
+        This is done so that multiple templates can all use the same attribute,
         but specify different units.
 
         If no attr_id is provided, but an attr_name and dimension are provided,
-        then a new attribute can be created (or retrived) and used. I.e., no
+        then a new attribute can be created (or retrieved) and used. I.e., no
         attribute ID must be specified if attr_name and dimension are specified.
 
         ***WARNING***
@@ -836,7 +836,7 @@ def _set_typeattr(typeattr, existing_ta=None):
                 # In this case there is an inconsistency between
                 # attr.dimension_id and typeattr.unit_id
                 raise HydraError("Unit mismatch between type and attirbute."+
-                                 f"Type attribute for {attr.name} secifies "+
+                                 f"Type attribute for {attr.name} specifies "+
                                  f"unit {unit.name}, dimension {dimension.name}."+
                                  f"The attribute specifies a dimension of {attr_dimension.name}"+
                                  "Cannot set a unit on a type attribute which "+
@@ -871,7 +871,7 @@ def _set_cols(source, target, reference=None):
             then target will be {'status', 'y'}
         Args:
             target: DB row to write the column to
-            source: The incoming object (a JSONObjhect) containing the request data
+            source: The incoming object (a JSONObject) containing the request data
             reference: DB row used for comparison
             colnames: The column names to set
             value: The value to set.
@@ -883,13 +883,13 @@ def _set_cols(source, target, reference=None):
 
         if hasattr(reference, '_protected_columns')\
            and colname in reference._protected_columns:
-            #as a child, yuo can't change stuff like IDS, cr dates etc.
+            #as a child, you can't change stuff like IDS, cr dates etc.
             continue
 
         if target.parent_id is not None\
            and hasattr(reference, '_hierarchy_columns')\
            and colname in reference._hierarchy_columns:
-            #as a child, yuo can't change stuff like IDS, cr dates etc.
+            #as a child, you can't change stuff like IDS, cr dates etc.
             continue
 
         newval = getattr(source, colname)

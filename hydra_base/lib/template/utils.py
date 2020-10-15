@@ -157,7 +157,7 @@ def validate_resource(resource, tmpl_types, resource_scenarios=[], **kwargs):
     errors = []
     resource_type = None
 
-    #No validation required if the link has no type.
+    #No validation required if the resource has no type.
     if len(resource.types) == 0:
         return []
 
@@ -173,7 +173,7 @@ def validate_resource(resource, tmpl_types, resource_scenarios=[], **kwargs):
     for ta in resource_type.typeattrs:
         ta_dict[ta.attr_id] = ta
 
-    #Make sure the resource has all the attributes specified in the tempalte
+    #Make sure the resource has all the attributes specified in the template
     #by checking whether the template attributes are a subset of the resource
     #attributes.
     type_attrs = set([ta.attr_id for ta in resource_type.typeattrs])

@@ -55,7 +55,7 @@ class TestTemplateInheritance:
 
         child_template_j = client.testutils.create_child_template(parent_template_j.id)
 
-        original_tempaltetypes = parent_template_j.templatetypes
+        original_templatetypes = parent_template_j.templatetypes
 
         #Add a type to the child
         templatetype_j = client.testutils.create_templatetype(child_template_j.id)
@@ -75,7 +75,7 @@ class TestTemplateInheritance:
         child_template_received = client.get_template(child_template_j.id)
 
         assert len(parent_template_received.templatetypes)\
-                == len(original_tempaltetypes) + 1
+                == len(original_templatetypes) + 1
         #check that one has been added to both parent and child
         #so we now have 2 more than originally
         assert len(child_template_received.templatetypes)\
