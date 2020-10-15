@@ -756,7 +756,7 @@ def update_templatetype(templatetype, auto_delete=False, **kwargs):
         args:
             templatetype: A template type JSON object
             auto_delete (bool): Flag to indicate whether non-presence of
-                                typeattrs in imcoming object should delete them.
+                                typeattrs in incoming object should delete them.
                                 Default to False
     """
 
