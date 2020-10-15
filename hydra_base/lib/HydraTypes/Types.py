@@ -228,7 +228,7 @@ class Dataframe(DataType):
             # We also try to coerce the data to a regular numpy array first. If the shape is correct
             # this is a much faster way of creating the DataFrame instance.
             try:
-                np_data = np.array(data)
+                np_data = np.array(data, dtype=object)
             except ValueError:
                 np_data = None
 

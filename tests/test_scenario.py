@@ -16,7 +16,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from . import server
 import datetime
 import copy
 import json
@@ -1311,6 +1310,3 @@ class TestScenario:
 
         assert updated_resource_scenario.dataset.value == 'I am an updated test!', "Value was not updated correctly!!"
         assert new_resource_scenario.dataset.value == 'I am an updated test!', "Value was not updated correctly!!"
-
-if __name__ == '__main__':
-    server.run()

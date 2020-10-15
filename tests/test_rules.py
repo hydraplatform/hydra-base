@@ -16,12 +16,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from . import server
 import datetime
 import copy
 import json
 import hydra_base
-from hydra_base.util import testing as util
 from hydra_base.exceptions import ResourceNotFoundError
 import pytest
 from hydra_base.exceptions import HydraError, PermissionError

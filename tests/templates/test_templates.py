@@ -339,10 +339,10 @@ class TestTemplates:
             "properties" : {"test_property_of_added_type": "property value"}
         })
         new_template_j.templatetypes[0].typeattrs.append(type_attribute_3)
-        updated_template_i = client.update_template(new_template_j)
-        updated_template_j = JSONObject(updated_template_i)
+        updated_template_j = client.update_template(new_template_j)
+        updated_template_retrieved_j = client.get_template(new_template_j.id)
 
-        assert updated_template_j.name == template.name, "Names are not the same!"
+        assert updated_template_retrieved_j.name == template.name, "Names are not the same!"
 
         updated_type = None
         for tmpltype in new_template_j.templatetypes:
@@ -396,10 +396,8 @@ class TestTemplates:
         network = network_with_data
         new_template = mock_template
 
-        retrieved_template_i = client.get_template(new_template.id)
-        assert retrieved_template_i is not None
-
-        retrieved_template_j = JSONObject(retrieved_template_i)
+        retrieved_template_j = client.get_template(new_template.id)
+        assert retrieved_template_j is not None
 
         client.apply_template_to_network(retrieved_template_j.id, network.id)
 
@@ -424,6 +422,33 @@ class TestTemplates:
 
         assert len(network_deleted_templatetypes.types) == 1
 
+    def test_get_types_by_attr(self, client, network_with_data, mock_template):
+
+        #Only applicable for tests. TODO: make this not rubbish.
+        client.template.ATTR_CACHE = {}
+
+        network = network_with_data
+        new_template = mock_template
+
+        retrieved_template_j = client.get_template(new_template.id)
+        assert retrieved_template_j is not None
+
+        client.apply_template_to_network(retrieved_template_j.id, network.id)
+
+        updated_network = client.get_network(network.id)
+        assert len(updated_network.types) == 2
+
+
+        node_types = client.get_types_by_attr(updated_network.nodes[0])
+
+        assert len(node_types) > 0
+
+        #there could be lots of templates in the system, so the node should
+        #match *at least* the number of node types, but may not be equal
+        assert len(node_types) >= len(updated_network.nodes[0].types)
+
+
+
     """
         TEMPLATE TYPES Functions
     """
@@ -432,33 +457,7 @@ class TestTemplates:
 
         template = mock_template
 
-        attr_1 = client.testutils.create_attribute("link_attr_1", dimension='Pressure')
-        attr_2 = client.testutils.create_attribute("link_attr_2", dimension='Speed')
-        attr_3 = client.testutils.create_attribute("node_attr_1", dimension='Volume')
-
-        templatetype = JSONObject()
-        templatetype.name = "Test type name @ %s"%(datetime.datetime.now())
-        templatetype.alias = "%s alias" % templatetype.name
-        templatetype.resource_type = 'LINK'
-        templatetype.template_id = template.id
-        templatetype.layout = {"color": "red", "shapefile": "blah.shp"}
-
-        templatetype.typeattrs = []
-
-        tattr_1 = JSONObject()
-        tattr_1.attr_id = attr_1.id
-        tattr_1.description = "added type description 1"
-        tattr_1.properties = {"add_type_test_property": "property value"}
-        templatetype.typeattrs.append(tattr_1)
-
-        tattr_2 = JSONObject()
-        tattr_2.attr_id = attr_2.id
-        tattr_1.description = "added type description 2"
-        templatetype.typeattrs.append(tattr_2)
-
-        tattr_3 = JSONObject()
-        tattr_3.attr_id = attr_3.id
-        templatetype.typeattrs.append(tattr_3)
+        templatetype = client.testutils.create_templatetype(template.id)
 
         new_type_i = client.add_templatetype(templatetype)
         new_type_j = JSONObject(new_type_i)
@@ -496,35 +495,35 @@ class TestTemplates:
         templatetype.typeattrs = [tattr_1, tattr_2]
 
         new_type_i = client.add_templatetype(templatetype)
-        new_type_j = JSONObject(new_type_i)
+        type_to_update_j = JSONObject(new_type_i)
 
-        assert new_type_j.name == templatetype.name, "Names are not the same!"
-        assert new_type_j.alias == templatetype.alias, "Aliases are not the same!"
-        assert new_type_j.id is not templatetype, "New type has no ID!"
-        assert new_type_j.id > 0, "New type has incorrect ID!"
+        assert type_to_update_j.name == templatetype.name, "Names are not the same!"
+        assert type_to_update_j.alias == templatetype.alias, "Aliases are not the same!"
+        assert type_to_update_j.id is not templatetype, "New type has no ID!"
+        assert type_to_update_j.id > 0, "New type has incorrect ID!"
 
-        assert len(new_type_j.typeattrs) == 2, "Resource type attrs did not add correctly"
-        new_type_j.name = "Updated type name @ %s"%(datetime.datetime.now())
-        new_type_j.alias = templatetype.name + " alias"
-        new_type_j.resource_type = 'NODE'
+        assert len(type_to_update_j.typeattrs) == 2, "Resource type attrs did not add correctly"
+        type_to_update_j.name = "Updated type name @ %s"%(datetime.datetime.now())
+        type_to_update_j.alias = templatetype.name + " alias"
+        type_to_update_j.resource_type = 'NODE'
 
         tattr_3 = JSONObject()
         tattr_3.attr_id = attr_3.id
         tattr_3.description = "Descripton of added typeattr"
         tattr_3.properties = {"update_type_test_property": "property value"}
-        new_type_j.typeattrs.append(tattr_3)
+        type_to_update_j.typeattrs.append(tattr_3)
 
-        new_type_j.typeattrs[0].description = "Updated typeattr description"
+        type_to_update_j.typeattrs[0].description = "Updated typeattr description"
 
-        updated_type_i = client.update_templatetype(new_type_j)
+        updated_type_i = client.update_templatetype(type_to_update_j)
         updated_type_j = JSONObject(updated_type_i)
 
-        assert new_type_j.name == updated_type_j.name, "Names are not the same!"
-        assert new_type_j.alias == updated_type_j.alias, "Aliases are not the same!"
-        assert new_type_j.id == updated_type_j.id, "type ids to not match!"
-        assert new_type_j.id > 0, "New type has incorrect ID!"
-        assert new_type_j.typeattrs[0].description == "Updated typeattr description"
-        assert new_type_j.typeattrs[-1].properties['update_type_test_property'] == "property value"
+        assert type_to_update_j.name == updated_type_j.name, "Names are not the same!"
+        assert type_to_update_j.alias == updated_type_j.alias, "Aliases are not the same!"
+        assert type_to_update_j.id == updated_type_j.id, "type ids to not match!"
+        assert type_to_update_j.id > 0, "New type has incorrect ID!"
+        assert type_to_update_j.typeattrs[0].description == "Updated typeattr description"
+        assert type_to_update_j.typeattrs[-1].properties['update_type_test_property'] == "property value"
 
         assert len(updated_type_j.typeattrs) == 3, "Template type attrs did not update correctly"
 
@@ -623,9 +622,11 @@ class TestTemplates:
 
         new_type = JSONObject(client.add_templatetype(templatetype))
 
-        tattr_2.type_id = new_type.id
+        assert len(new_type.typeattrs) == 2
 
-        client.delete_typeattr(tattr_2)
+        typeattr_to_delete = new_type.typeattrs[0]
+
+        client.delete_typeattr(typeattr_to_delete.id)
 
         updated_type = JSONObject(client.get_templatetype(new_type.id))
 

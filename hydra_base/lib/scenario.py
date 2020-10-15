@@ -41,7 +41,7 @@ from copy import deepcopy
 
 from .network import get_resource
 
-from .objects import JSONObject
+from .objects import JSONObject, Dataset as JSONDataset
 
 log = logging.getLogger(__name__)
 
@@ -883,7 +883,9 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
 
     dataset = resource_scenario.dataset
 
-    value = dataset.parse_value()
+    dataset_j = JSONDataset(dataset)
+
+    value = dataset_j.parse_value()
 
     log.debug("Assigning %s to resource attribute: %s", value, ra_id)
 
@@ -891,16 +893,16 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
         log.info("Cannot set data on resource attribute %s",ra_id)
         return None
 
-    metadata = dataset.get_metadata_as_dict(source=source, user_id=user_id)
-    data_unit_id = dataset.unit_id
+    metadata = dataset_j.get_metadata_as_dict(source=source, user_id=user_id)
+    data_unit_id = dataset_j.unit_id
 
-    data_hash = dataset.get_hash(value, metadata)
+    data_hash = dataset_j.get_hash(value, metadata)
 
     assign_value(r_scen_i,
-                 dataset.type.lower(),
+                 dataset_j.type.lower(),
                  value,
                  data_unit_id,
-                 dataset.name,
+                 dataset_j.name,
                  metadata=metadata,
                  data_hash=data_hash,
                  user_id=user_id,
@@ -991,17 +993,18 @@ def add_data_to_attribute(scenario_id, resource_attr_id, dataset,**kwargs):
 
     data_type = dataset.type.lower()
 
-    value = dataset.parse_value()
+    dataset_j = JSONDataset(dataset)
+    value = dataset_j.parse_value()
 
-    dataset_metadata = dataset.get_metadata_as_dict(user_id=kwargs.get('user_id'),
+    dataset_metadata = dataset_j.get_metadata_as_dict(user_id=kwargs.get('user_id'),
                                                     source=kwargs.get('source'))
     if value is None:
         raise HydraError("Cannot set value to attribute. "
-            "No value was sent with dataset %s", dataset.id)
+            "No value was sent with dataset %s", dataset_j.id)
 
-    data_hash = dataset.get_hash(value, dataset_metadata)
+    data_hash = dataset_j.get_hash(value, dataset_metadata)
 
-    assign_value(r_scen_i, data_type, value, dataset.unit_id, dataset.name,
+    assign_value(r_scen_i, data_type, value, dataset_j.unit_id, dataset_j.name,
                           metadata=dataset_metadata, data_hash=data_hash, user_id=user_id)
 
     db.DBSession.flush()

@@ -225,6 +225,60 @@ class TestUtil:
 
         return new_template
 
+    def create_templatetype(self, template_id):
+        """
+            Create a template type object (but don't add it to the DB)
+            Args:
+                template_id: The ID of the template to which to add this type
+            Returns:
+                JSONObject with some default values and the correct template ID
+        """
+        attr_1 = self.create_attribute("link_attr_1", dimension='Pressure')
+        attr_2 = self.create_attribute("link_attr_2", dimension='Speed')
+        attr_3 = self.create_attribute("link_attr_3", dimension='Volume')
+
+        templatetype = JSONObject()
+        templatetype.name = "Test type name @ %s"%(datetime.datetime.now())
+        templatetype.alias = "%s alias" % templatetype.name
+        templatetype.resource_type = 'LINK'
+        templatetype.template_id = template_id
+        templatetype.layout = {"color": "red", "shapefile": "blah.shp"}
+
+        templatetype.typeattrs = []
+
+        tattr_1 = JSONObject()
+        tattr_1.attr_id = attr_1.id
+        tattr_1.description = "added type description 1"
+        tattr_1.properties = {"add_type_test_property": "property value"}
+        templatetype.typeattrs.append(tattr_1)
+
+        tattr_2 = JSONObject()
+        tattr_2.attr_id = attr_2.id
+        tattr_1.description = "added type description 2"
+        templatetype.typeattrs.append(tattr_2)
+
+        tattr_3 = JSONObject()
+        tattr_3.attr_id = attr_3.id
+        templatetype.typeattrs.append(tattr_3)
+
+        return templatetype
+
+    def create_child_template(self, parent_id):
+        """
+            Make a template which is a child of a parent template.
+        """
+
+        net_attr_child = self.create_attribute("net_attr_child", dimension=None)
+        link_attr_child = self.create_attribute("link_attr_child", dimension='Length')
+        node_attr_child = self.create_attribute("node_attr_child", dimension='Volumetric flow rate')
+        group_attr_child = self.create_attribute("grp_attr_child", dimension='Volume')
+
+        name = 'Child Template ' + str(datetime.datetime.now())
+
+        child_template_j = self.client.add_child_template(parent_id, name=name)
+
+        return child_template_j
+
     def create_project(self, name=None, share=True):
 
         if name is None:
