@@ -780,7 +780,7 @@ def _set_typeattr(typeattr, existing_ta=None):
         The unit provided (stored on tattr) must conform to the dimension stored
         on the referring attribute (stored on tattr).
 
-        This is done so that multiple tempaltes can all use the same attribute,
+        This is done so that multiple templates can all use the same attribute,
         but specify different units.
 
         If no attr_id is provided, but an attr_name and dimension are provided,
