@@ -634,7 +634,7 @@ def remove_attr_from_type(type_id, attr_id, **kwargs):
 @required_perms("get_template")
 def get_template(template_id, **kwargs):
     """
-        Get a specific resource template template, by ID.
+        Get a specific resource template, by ID.
     """
     try:
         tmpl_i = db.DBSession.query(Template).filter(
