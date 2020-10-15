@@ -837,7 +837,7 @@ def _set_typeattr(typeattr, existing_ta=None):
                 # In this case there is an inconsistency between
                 # attr.dimension_id and typeattr.unit_id
                 raise HydraError("Unit mismatch between type and attirbute."+
-                                 f"Type attribute for {attr.name} secifies "+
+                                 f"Type attribute for {attr.name} specifies "+
                                  f"unit {unit.name}, dimension {dimension.name}."+
                                  f"The attribute specifies a dimension of {attr_dimension.name}"+
                                  "Cannot set a unit on a type attribute which "+
