@@ -20,6 +20,8 @@ import json
 import logging
 import re
 
+from collections.abc import Sized
+
 from hydra_base import db
 from hydra_base.db.model import Attr
 from hydra_base.lib.objects import JSONObject
@@ -106,7 +108,7 @@ def parse_data_restriction(restriction_dict):
 
     ret_dict = {}
     for k, v in new_dict.items():
-        if (isinstance(v, str) or isinstance(v, list)) and len(v) == 1:
+        if isinstance(v, Sized) and len(v) == 1:
             ret_dict[k] = v[0]
         else:
             ret_dict[k] = v
