@@ -555,7 +555,9 @@ def update_template(template, **kwargs):
         tmpl.layout = get_layout_as_string(template.layout)
 
     type_dict = dict([(t.id, t) for t in template_types])
-    existing_templatetypes = []
+
+    #a list of all the templatetypes in the incoming template object
+    req_templatetype_ids = []
 
     if template.types is not None or template.templatetypes is not None:
         types = template.types if template.types is not None else template.templatetypes
@@ -567,16 +569,16 @@ def update_template(template, **kwargs):
             if templatetype.id is not None:
                 type_i = type_dict[templatetype.id]
                 _update_templatetype(templatetype, type_i, **kwargs)
-                existing_templatetypes.append(type_i.id)
+                req_templatetype_ids.append(type_i.id)
             else:
                 #Give it a template ID if it doesn't have one
                 templatetype.template_id = template.id
                 new_templatetype_i = _update_templatetype(templatetype, **kwargs)
-                existing_templatetypes.append(new_templatetype_i.id)
+                req_templatetype_ids.append(new_templatetype_i.id)
 
     for ttype in template_types:
-        if ttype.id not in type_dict:
-            delete_templatetype(ttype.id, **kwargs)
+        if ttype.id not in req_templatetype_ids:
+            delete_templatetype(ttype_id, **kwargs)
 
     updated_templatetypes = tmpl.get_types()
 
