@@ -541,7 +541,7 @@ def _get_links(link_ids):
     links = []
 
     if len(link_ids) == 0:
-        return links
+        return {}
 
     block_size = 500
     limit = len(link_ids)
@@ -570,7 +570,7 @@ def _get_nodes(node_ids):
     nodes = []
 
     if len(node_ids) == 0:
-        return nodes
+        return {}
 
     block_size = 500
     limit = len(node_ids)
@@ -598,7 +598,7 @@ def _get_groups(group_ids):
     groups = []
 
     if len(group_ids) == 0:
-        return groups
+        return {}
 
     block_size = 500
     limit = len(group_ids)
