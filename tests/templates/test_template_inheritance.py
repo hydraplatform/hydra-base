@@ -1,7 +1,6 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# (c) Copyright 2013 to 2017 University of Manchester
+# (c) Copyright 2013 to 2020 University of Manchester
 #
 # HydraPlatform is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -18,10 +17,10 @@
 #
 
 import logging
-from hydra_base.lib.objects import JSONObject
-from hydra_base.exceptions import HydraError
 import json
 import pytest
+from hydra_base.lib.objects import JSONObject
+from hydra_base.exceptions import HydraError
 log = logging.getLogger(__name__)
 
 
@@ -354,7 +353,21 @@ class TestTemplateInheritance:
             of linking a network to the correct child template, as the type ID of the 'network'
             template id will come from the parent. To mitigate this, a 'child template id' column
             exists on the tResourceType table which allows us to explicitly say which template was
-            used to create the network..
+            used to create the network.
+
+            When creating a network using a child template, it's possible that
+            there is no TemplateType entry for the network within the child template
+            i.e. there's no entry in the DB for that template type.
+
+            This means that when you request the template, the template type
+            which is returned is that of the parent, and the type_id points to
+            the template type entry in the parent template.
+
+            If we store only this type_id, then we have lost the connection to
+            the child template, as Hydra will only store the link to the type
+            which is in the parent, and therefore hydra will think that the
+            network was created using the parent template.
+
         """
 
         #first create a template
