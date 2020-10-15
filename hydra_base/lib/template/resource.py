@@ -543,24 +543,19 @@ def _get_links(link_ids):
     if len(link_ids) == 0:
         return links
 
-    if len(link_ids) > 500:
-        block_size = 500
-        limit = len(link_ids)
-        lower = 0
-        while lower < limit:
-            upper = lower+block_size
-            rs = db.DBSession.query(Link)\
-                       .options(joinedload('attributes'))\
-                       .options(joinedload('types'))\
-                       .filter(Link.id.in_(link_ids[lower:upper])).all()
-            log.debug("Retrieved %s links", len(rs))
-            links.extend(rs)
-            lower = upper
-    else:
-        links = db.DBSession.query(Link)\
-                .options(joinedload('attributes'))\
-                .options(joinedload('types'))\
-                .filter(Link.id.in_(link_ids)).all()
+    block_size = 500
+    limit = len(link_ids)
+    lower = 0
+    while lower < limit:
+        upper = lower+block_size
+        rs = db.DBSession.query(Link)\
+                   .options(joinedload('attributes'))\
+                   .options(joinedload('types'))\
+                   .filter(Link.id.in_(link_ids[lower:upper])).all()
+        log.debug("Retrieved %s links", len(rs))
+        links.extend(rs)
+        lower = upper
+
 
     link_dict = {}
 
@@ -577,23 +572,18 @@ def _get_nodes(node_ids):
     if len(node_ids) == 0:
         return nodes
 
-    if len(node_ids) > 500:
-        block_size = 500
-        limit = len(node_ids)
-        lower = 0
-        while lower < limit:
-            upper = lower+block_size
-            rs = db.DBSession.query(Node)\
-                       .options(joinedload('attributes'))\
-                       .options(joinedload('types'))\
-                       .filter(Node.id.in_(node_ids[lower:upper])).all()
-            log.debug("Retrieved %s nodes", len(rs))
-            nodes.extend(rs)
-            lower = upper
-    else:
-        nodes = db.DBSession.query(Node)\
-                .options(joinedload('attributes'))\
-                .options(joinedload('types')).filter(Node.id.in_(node_ids)).all()
+    block_size = 500
+    limit = len(node_ids)
+    lower = 0
+    while lower < limit:
+        upper = lower+block_size
+        rs = db.DBSession.query(Node)\
+                   .options(joinedload('attributes'))\
+                   .options(joinedload('types'))\
+                   .filter(Node.id.in_(node_ids[lower:upper])).all()
+        log.debug("Retrieved %s nodes", len(rs))
+        nodes.extend(rs)
+        lower = upper
 
     node_dict = {}
 
@@ -610,24 +600,19 @@ def _get_groups(group_ids):
     if len(group_ids) == 0:
         return groups
 
-    if len(group_ids) > 500:
-        block_size = 500
-        limit = len(group_ids)
-        lower = 0
-        while lower < limit:
-            upper = lower+block_size
-            rs = db.DBSession.query(ResourceGroup)\
-                       .options(joinedload('attributes'))\
-                       .options(joinedload('types'))\
-                       .filter(ResourceGroup.id.in_(group_ids[lower:upper])).all()
-            log.debug("Retrieved %s groups", len(rs))
-            groups.extend(rs)
-            lower = upper
-    else:
-        groups = db.DBSession.query(ResourceGroup)\
-                .options(joinedload('types'))\
-                .options(joinedload('attributes'))\
-                .filter(ResourceGroup.id.in_(group_ids))
+    block_size = 500
+    limit = len(group_ids)
+    lower = 0
+    while lower < limit:
+        upper = lower+block_size
+        rs = db.DBSession.query(ResourceGroup)\
+                   .options(joinedload('attributes'))\
+                   .options(joinedload('types'))\
+                   .filter(ResourceGroup.id.in_(group_ids[lower:upper])).all()
+        log.debug("Retrieved %s groups", len(rs))
+        groups.extend(rs)
+        lower = upper
+
     group_dict = {}
 
     for g in groups:
