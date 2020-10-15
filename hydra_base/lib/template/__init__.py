@@ -784,7 +784,7 @@ def _set_typeattr(typeattr, existing_ta=None):
         but specify different units.
 
         If no attr_id is provided, but an attr_name and dimension are provided,
-        then a new attribute can be created (or retrived) and used. I.e., no
+        then a new attribute can be created (or retrieved) and used. I.e., no
         attribute ID must be specified if attr_name and dimension are specified.
 
         ***WARNING***
