@@ -544,22 +544,18 @@ def _get_links(link_ids):
         return links
 
     if len(link_ids) > 500:
-        idx = 0
-        extent = 500
-        while idx < len(link_ids):
-            log.debug("Querying %s links", len(link_ids[idx:extent]))
+        block_size = 500
+        limit = len(link_ids)
+        lower = 0
+        while lower < limit:
+            upper = lower+block_size
             rs = db.DBSession.query(Link)\
-                    .options(joinedload('attributes'))\
-                    .options(joinedload('types'))\
-                    .filter(Link.id.in_(link_ids[idx:extent])).all()
+                       .options(joinedload('attributes'))\
+                       .options(joinedload('types'))\
+                       .filter(Link.id.in_(link_ids[lower:upper])).all()
             log.debug("Retrieved %s links", len(rs))
             links.extend(rs)
-            idx = idx + 500
-
-            if idx + 500 > len(link_ids):
-                extent = len(link_ids)
-            else:
-                extent = extent + 500
+            lower = upper
     else:
         links = db.DBSession.query(Link)\
                 .options(joinedload('attributes'))\
