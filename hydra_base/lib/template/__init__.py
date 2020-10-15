@@ -579,7 +579,7 @@ def update_template(template, **kwargs):
 
     for ttype in template_types:
         if ttype.id not in req_templatetype_ids:
-            delete_templatetype(ttype_id, **kwargs)
+            delete_templatetype(ttype.id, **kwargs)
 
     updated_templatetypes = tmpl.get_types()
 
@@ -787,7 +787,7 @@ def _set_typeattr(typeattr, existing_ta=None):
         attribute ID must be specified if attr_name and dimension are specified.
 
         ***WARNING***
-        Setting attribute ID to null means a new type attribute (and even a new attr)
+        Setting ID to null means a new type attribute (and even a new attr)
         may be added, None are removed or replaced. To remove other type attrs, do it
         manually using delete_typeattr
     """
