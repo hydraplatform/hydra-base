@@ -50,10 +50,10 @@ def get_network_template(network_id, reference_type_id):
         using a child template), then find this so that it can be used when
         inserting nodes & links into that template.
 
-        THis is to avoid having to set the child template ID on all add_node add_link
+        This is to avoid having to set the child template ID on all add_node add_link
         functions etc.
 
-        THe reference_type_id is the type of the node or link being inserted, and
+        The reference_type_id is the type of the node or link being inserted, and
         is needed because a network may have multiple types, and so a type from the same
         template as one of those network types needs to be used for reference.
     """
@@ -65,7 +65,7 @@ def get_network_template(network_id, reference_type_id):
     ref_type = db.DBSession.query(TemplateType)\
         .filter(TemplateType.id == reference_type_id).one()
 
-    #ab bit roundabout, but this gets the fully-populated, inherited child type
+    #a bit roundabout, but this gets the fully-populated, inherited child type
     ref_type_inherited = ref_type.template.get_type(reference_type_id)
 
     #Now go through each network type and try to find the matching template.
@@ -100,7 +100,7 @@ def get_network_template(network_id, reference_type_id):
 def _get_type(type_id):
     """
         Utility function to get a template type by querying the parent for it.
-        This must be done because types are constructed using tempalte inheritance,
+        This must be done because types are constructed using template inheritance,
         so cannot be queried directly
     """
 
@@ -373,7 +373,7 @@ def assign_types_to_resources(resource_types, template_id=None, **kwargs):
     #Get the template ID from the incoming data. We need this so we can get the
     #correct types from the template hierarchy.
     #We assume here that this function can only be called in the context of
-    #one template -- you can't send rresource types from 2 templates.
+    #one template -- you can't send resource types from 2 templates.
     if template_id is None and resource_types[0].template_id is None:
         db_type = _get_type(resource_types[0].type_id)
         template_id == db_type.template_id
