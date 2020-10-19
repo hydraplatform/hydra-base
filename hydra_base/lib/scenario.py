@@ -486,6 +486,7 @@ def clone_scenario(scenario_id, retain_results=False, scenario_name=None, **kwar
             ref_key=old_rgi.ref_key,
             node_id = old_rgi.node_id,
             link_id = old_rgi.link_id,
+            subgroup_id = old_rgi.subgroup_id,
             group_id = old_rgi.group_id,
             scenario_id=cloned_scenario_id,
         ))
