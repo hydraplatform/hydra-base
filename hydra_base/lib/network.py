@@ -947,24 +947,22 @@ def _get_metadata(network_id, scenario_ids, user_id):
         returns a dictionary of dict objects, keyed on dataset ID
     """
     log.info("Getting Metadata")
-    dataset_qry = db.DBSession.query(
-                Dataset
-    ).outerjoin(DatasetOwner, and_(DatasetOwner.dataset_id==Dataset.id, DatasetOwner.user_id==user_id)).filter(
-                or_(Dataset.hidden=='N', DatasetOwner.user_id != None),
+    metadata_qry = db.DBSession.query(Metadata)\
+        .join(Dataset)\
+        .outerjoin(DatasetOwner)\
+        .join(ResourceScenario)\
+        .join(Scenario)\
+        .filter(or_(Dataset.hidden=='N', DatasetOwner.user_id != None),
                 Scenario.id==ResourceScenario.scenario_id,
                 Scenario.network_id==network_id,
-                Dataset.id==ResourceScenario.dataset_id).distinct().subquery()
-
-    rs_qry = db.DBSession.query(
-                Metadata
-    ).join(dataset_qry, Metadata.dataset_id==dataset_qry.c.id)
+                Dataset.id==ResourceScenario.dataset_id).distinct()
 
     if scenario_ids is not None and len(scenario_ids) > 0:
-        rs_qry = rs_qry.filter(ResourceScenario.scenario_id.in_(scenario_ids))
+        metadata_qry = metadata_qry.filter(ResourceScenario.scenario_id.in_(scenario_ids))
 
     x = time.time()
     logging.info("Getting all matadata")
-    all_metadata = db.DBSession.execute(rs_qry.statement).fetchall()
+    all_metadata = db.DBSession.execute(metadata_qry.statement).fetchall()
     log.info("%s metadata jointly retrieved in %s",len(all_metadata), time.time()-x)
 
     logging.info("metadata retrieved. Processing results...")
