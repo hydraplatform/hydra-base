@@ -127,3 +127,34 @@ def test_fail_create_dataframe(value):
     with pytest.raises( (HydraError, TypeError, ValueError) ):
         dataframe_dataset = hb.lib.objects.Dataset({'type':'dataframe', 'value': json.dumps(value)})
         value = dataframe_dataset.parse_value()
+
+
+def test_dataframe_order_preserved():
+    #make the index deliberately non-ordered
+    index = ['0', '2', '1']
+    cols = ['A']
+    data = ['x', 'y', 'z']
+
+    df = pd.DataFrame(data, columns=cols, index=index)
+
+    dataframe_dataset = hb.lib.objects.Dataset({'type':'dataframe', 'value': df.to_json()})
+    parsed_value = dataframe_dataset.parse_value()
+
+    assert parsed_value == df.to_json()
+
+
+def test_dataframe_time_index_order_preserved():
+    #Test to make sure date time indices remain in the order they are sent to
+    #hydra, if they are not ordered by time for whatever reason.
+
+    #make the index deliberately non-ordered
+    index = ['2010-02-01', '2005-01-01', '2012-01-01']
+    cols = ['A']
+    data = ['x', 'y', 'z']
+
+    df = pd.DataFrame(data, columns=cols, index=index)
+
+    dataframe_dataset = hb.lib.objects.Dataset({'type':'dataframe', 'value': df.to_json()})
+    parsed_value = dataframe_dataset.parse_value()
+
+    assert parsed_value == df.to_json()

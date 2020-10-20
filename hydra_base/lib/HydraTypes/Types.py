@@ -215,35 +215,30 @@ class Dataframe(DataType):
             if isinstance(ordered_jo[cols[0]], list):
                 index = range(len(ordered_jo[cols[0]]))
             else:
-                index = list(ordered_jo[cols[0]].keys())
-            data = []
-            for c in cols:
-                if isinstance(ordered_jo[c], list):
-                    data.append(ordered_jo[c])
-                else:
-                    data.append(list(ordered_jo[c].values()))
+                #cater for when the indices are not the same by identifying
+                #all the indices, and then making a set of them.
+                longest_index = []
+                for col in ordered_jo.keys():
+                    index = list(ordered_jo[col].keys())
+                    if len(index) > len(longest_index):
+                        longest_index = index
+                index = longest_index
 
-            # This goes in 'sideways' (cols=index, index=cols), so it needs to be transposed after to keep
-            # the correct structure
-            # We also try to coerce the data to a regular numpy array first. If the shape is correct
-            # this is a much faster way of creating the DataFrame instance.
-            try:
-                np_data = np.array(data, dtype=object)
-            except ValueError:
-                np_data = None
+            df = pd.read_json(value)
 
-            if np_data is not None and np_data.shape == (len(cols), len(index)):
-                df = pd.DataFrame(np_data, columns=index, index=cols).transpose()
-            else:
-                # TODO should these heterogenous structure be supported?
-                # See https://github.com/hydraplatform/hydra-base/issues/72
-                df = pd.DataFrame(data, columns=index, index=cols).transpose()
+            #Make both indices the same type, so they can be compared
+            df.index = df.index.astype(str)
+            new_index = pd.Index(index).astype(str)
 
+            #Now reindex the dataframe so that the index is in the correct order,
+            #as per the data in the DB, and not with the default pandas ordering.
+            df = df.reindex(new_index)
 
         except ValueError as e:
             """ Raised on scalar types used as pd.DataFrame values
                 in absence of index arg
             """
+            log.exception(e)
             raise HydraError(str(e))
 
         except AssertionError as e:
