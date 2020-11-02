@@ -118,12 +118,14 @@ def connect(db_url=None):
     global engine
 
     db_pool_size = config.get('mysqld', 'pool_size', 5)
+    db_pool_recycle = config.get('mysqld', 'pool_recycle', 300)
     db_max_overflow = config.get('mysqld', 'max_overflow', 10)
     if db_url.startswith('sqlite'):
         engine = create_engine(db_url, encoding='utf8')
     else:
         engine = create_engine(db_url,
                                encoding='utf8',
+                               pool_recycle=db_pool_recycle,
                                pool_size=db_pool_size,
                                max_overflow=db_max_overflow)
 
