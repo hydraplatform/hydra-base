@@ -232,7 +232,12 @@ class Dataframe(DataType):
 
             #Now reindex the dataframe so that the index is in the correct order,
             #as per the data in the DB, and not with the default pandas ordering.
-            df = df.reindex(new_index)
+            new_df = df.reindex(new_index)
+
+            #If the reindex didn't work, don't use that value
+            if new_df.isnull().sum().sum() != len(df.index):
+                df = new_df
+
 
         except ValueError as e:
             """ Raised on scalar types used as pd.DataFrame values
