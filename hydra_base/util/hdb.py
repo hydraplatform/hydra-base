@@ -161,7 +161,7 @@ def login_user(username, password):
         return user_id
     else:
         log.info("User {} now has {} failed logins".format(username, user_i.failed_logins+1))
-        inc_failed_login_attempts(user_i.username)
+        inc_failed_login_attempts(user_i.username, user_id=1)
         raise HydraError(username)
 
 
