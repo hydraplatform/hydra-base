@@ -224,7 +224,7 @@ class Dataframe(DataType):
                         longest_index = index
                 index = longest_index
 
-            df = pd.read_json(value)
+            df = pd.read_json(value, convert_axes=False)
 
             #Make both indices the same type, so they can be compared
             df.index = df.index.astype(str)
