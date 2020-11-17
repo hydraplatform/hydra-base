@@ -1035,10 +1035,10 @@ class TestTemplates:
         client.testutils.update_template(network.types[0].template_id)
 
         scenario = network.scenarios[0]
-        template = network.nodes[0].types[0]
+        networktype = network.nodes[0].types[0]
         # Validate the network without data: should pass as the network is built
         # based on the template in these unit tests
-        errors1 = client.validate_network(network.id, template.template_id)
+        errors1 = client.validate_network(network.id, networktype.template_id)
         # The network should have an error, saying that the template has net_attr_c,
         # but the network does not
         assert len(errors1) == 1
@@ -1049,7 +1049,7 @@ class TestTemplates:
         # of the dataset used. In addition, node_attr_1 specified a unit of 'm^3'
         # whereas the timeseries in the data is in 'cm^3', so each will fail on unit
         # mismatch also.
-        errors2 = client.validate_network(network.id, template.template_id,
+        errors2 = client.validate_network(network.id, networktype.template_id,
                                                   scenario.id)
 
         assert len(errors2) > 0

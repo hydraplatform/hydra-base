@@ -153,7 +153,7 @@ class TestNetwork:
         clone = client.clone_scenario(scenario_id)
         new_scenario = client.get_scenario(clone.id)
 
-        full_network = client.get_network(new_scenario.network_id)
+        full_network = client.get_network(new_scenario.network_id, include_data=False)
 
         for s in full_network.scenarios:
             assert len(s.resourcescenarios) == 0

@@ -616,6 +616,7 @@ class Template(Base, Inspect):
         typeattrs = get_session().query(TypeAttr)\
             .filter(TypeAttr.type_id == type_id)\
             .options(joinedload('attr'))\
+            .options(joinedload('unit'))\
             .options(joinedload('default_dataset')).all()
 
 

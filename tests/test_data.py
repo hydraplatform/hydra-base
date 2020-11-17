@@ -124,14 +124,14 @@ class TestTimeSeries:
                 rs['dataset']['value'] = arbitrary_dataframe
 
         new_network_summary = client.add_network(network)
-        new_net = client.get_network(new_network_summary.id)
+        new_net = client.get_network(new_network_summary.id, include_data=True)
 
         new_s = new_net.scenarios[0]
         new_rss = new_s.resourcescenarios
         for new_rs in new_rss:
-            if new_rs.dataset.type == 'timeseries':
+            if new_rs.dataset.type == 'dataframe':
                 ret_ts_dict = {}
-                ret_ts_dict = list(json.loads(new_rs.value.value).values())[0]
+                ret_ts_dict = list(json.loads(new_rs.dataset.value).values())[0]
                 client_ts   = json.loads(arbitrary_dataframe)['0']
                 for new_timestep in client_ts.keys():
                     assert ret_ts_dict[new_timestep] == client_ts[new_timestep]
