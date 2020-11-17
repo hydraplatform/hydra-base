@@ -895,7 +895,7 @@ def _get_all_resourcescenarios(network_id, scenario_ids, include_results, user_i
                 Scenario.network_id==network_id,
                 Dataset.id==ResourceScenario.dataset_id)
 
-    if include_results == 'N' or include_results == False:
+    if include_results == False:
         rs_qry = rs_qry.filter(ResourceAttr.attr_is_var=='N')
 
     if scenario_ids is not None and len(scenario_ids) > 0:
@@ -1079,7 +1079,7 @@ def _get_scenarios(network_id, include_data, include_results, user_id,
     #default to empty metadata
     metadata = {}
 
-    if include_data == 'Y' or include_data == True:
+    if include_data == True:
         all_rs = _get_all_resourcescenarios(network_id, scenario_ids, include_results, user_id)
 
         if include_metadata is True:
@@ -1088,7 +1088,7 @@ def _get_scenarios(network_id, include_data, include_results, user_id,
     for s in scens:
         s.resourcegroupitems = all_resource_group_items.get(s.id, [])
 
-        if include_data == 'Y' or include_data == True:
+        if include_data == True:
             s.resourcescenarios  = all_rs.get(s.id, [])
 
             for rs in s.resourcescenarios:
@@ -1098,8 +1098,8 @@ def _get_scenarios(network_id, include_data, include_results, user_id,
 
 def get_network(network_id,
                 include_attributes=True,
-                include_data='N',
-                include_results='Y',
+                include_data=False,
+                include_results=True,
                 scenario_ids=None,
                 template_id=None,
                 include_non_template_attributes=False,
@@ -1109,10 +1109,10 @@ def get_network(network_id,
         Return a whole network as a dictionary.
         network_id: ID of the network to retrieve
         include_attributes (bool): include attributes to save on data
-        include_data: 'Y' or 'N'. Indicate whether scenario data is to be returned.
+        include_data: (bool). Indicate whether scenario data is to be returned.
                       This has a significant speed impact as retrieving large amounts
                       of data can be expensive.
-        include_results: 'Y' or 'N'. If data is requested, this flag allows results
+        include_results: (bool). If data is requested, this flag allows results
                          data to be ignored (attr is var), as this can often be very large.
         scenario_ids: list of IDS to be returned. Used if a network has multiple
                       scenarios but you only want one returned. Using this filter
@@ -1120,7 +1120,7 @@ def get_network(network_id,
         template_id:  Return the network with only attributes associated with this
                       template on the network, groups, nodes and links.
         include_non_template_attribute: Return attributes which are not associated to any template.
-        include_metadata: If data is included, then this flag indicates whether to include metadata.
+        include_metadata (bool): If data is included, then this flag indicates whether to include metadata.
                           Setting this to True may have performance implications
     """
     log.debug("getting network %s"%network_id)
@@ -2399,7 +2399,7 @@ def clean_up_network(network_id, **kwargs):
     db.DBSession.flush()
     return 'OK'
 
-def get_all_node_data(network_id, scenario_id, node_ids=None, include_metadata='N', **kwargs):
+def get_all_node_data(network_id, scenario_id, node_ids=None, include_metadata=False, **kwargs):
     resource_scenarios = get_attributes_for_resource(network_id, scenario_id, 'NODE', ref_ids=node_ids, include_metadata='N', **kwargs)
 
     node_data = []
@@ -2415,7 +2415,7 @@ def get_all_node_data(network_id, scenario_id, node_ids=None, include_metadata='
 
     return node_data
 
-def get_all_link_data(network_id, scenario_id, link_ids=None, include_metadata='N', **kwargs):
+def get_all_link_data(network_id, scenario_id, link_ids=None, include_metadata=False, **kwargs):
     resource_scenarios = get_attributes_for_resource(network_id, scenario_id, 'LINK', ref_ids=link_ids, include_metadata='N', **kwargs)
 
     link_data = []
@@ -2432,7 +2432,7 @@ def get_all_link_data(network_id, scenario_id, link_ids=None, include_metadata='
     return link_data
 
 
-def get_all_group_data(network_id, scenario_id, group_ids=None, include_metadata='N', **kwargs):
+def get_all_group_data(network_id, scenario_id, group_ids=None, include_metadata=False, **kwargs):
     resource_scenarios = get_attributes_for_resource(network_id, scenario_id, 'GROUP', ref_ids=group_ids, include_metadata='N', **kwargs)
 
     group_data = []
@@ -2448,7 +2448,7 @@ def get_all_group_data(network_id, scenario_id, group_ids=None, include_metadata
 
     return group_data
 
-def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, include_metadata='N', **kwargs):
+def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, include_metadata=False, **kwargs):
 
     try:
         db.DBSession.query(Network).filter(Network.id==network_id).one()
@@ -2479,7 +2479,7 @@ def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, 
     all_resource_scenarios = rs_qry.all()
     log.info("Data retrieved")
     resource_scenarios = []
-    dataset_ids      = []
+    dataset_ids = []
     if ref_ids is not None:
         log.info("Pulling out requested info")
         for rs in all_resource_scenarios:
@@ -2507,19 +2507,19 @@ def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, 
 
     log.info("Retrieved %s resource attrs", len(resource_scenarios))
 
-    if include_metadata == 'Y':
+    if include_metadata is True:
         metadata_qry = db.DBSession.query(Metadata).filter(
-                            ResourceAttr.ref_key==ref_key,
-                            ResourceScenario.resource_attr_id==ResourceAttr.id,
-                            ResourceScenario.scenario_id==scenario_id,
-                            Dataset.id==ResourceScenario.dataset_id,
-                            Metadata.dataset_id==Dataset.id)
+            ResourceAttr.ref_key == ref_key,
+            ResourceScenario.resource_attr_id == ResourceAttr.id,
+            ResourceScenario.scenario_id == scenario_id,
+            Dataset.id == ResourceScenario.dataset_id,
+            Metadata.dataset_id == Dataset.id)
 
         log.info("Querying node metadata")
         all_metadata = metadata_qry.all()
         log.info("Node metadata retrieved")
 
-        metadata   = []
+        metadata = []
         if ref_ids is not None:
             for m in all_metadata:
                 if m.dataset_id in dataset_ids:
@@ -2544,14 +2544,24 @@ def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, 
                d.value      = None
                d.metadata = []
         else:
-            if include_metadata == 'Y':
+            if include_metadata is True:
                 rs.dataset.metadata = metadata_dict.get(d.id, [])
 
     return resource_scenarios
 
-def get_all_resource_attributes_in_network(attr_id, network_id, **kwargs):
+def get_all_resource_attributes_in_network(attr_id, network_id, include_resources=True, **kwargs):
     """
         Find every resource attribute in the network matching the supplied attr_id
+        Args:
+            attr_id (int): The attribute on which to match
+            network_id (int): The ID of the network to search
+            include_resources (bool): A flag to indicate whether to return the
+                resource that the resource attribute belongs to.
+                Including resources can have a performance implication
+        Returns:
+            List of JSONObjects
+        Raises:
+            HydraError if the attr_id or network_id do not exist
     """
 
     user_id = kwargs.get('user_id')
@@ -2562,19 +2572,19 @@ def get_all_resource_attributes_in_network(attr_id, network_id, **kwargs):
         raise HydraError("Attribute %s not found"%(attr_id,))
 
     ra_qry = db.DBSession.query(ResourceAttr).filter(
-                ResourceAttr.attr_id == attr_id,
-                or_(Network.id == network_id,
-                Node.network_id == network_id,
-                Link.network_id == network_id,
-                ResourceGroup.network_id == network_id)
-                ).outerjoin('node')\
-                .outerjoin('link')\
-                .outerjoin('network')\
-                .outerjoin('resourcegroup')\
-                .options(joinedload('node'))\
-                .options(joinedload('link'))\
-                .options(joinedload('resourcegroup'))\
-                .options(joinedload('network'))
+        ResourceAttr.attr_id == attr_id,
+        or_(Network.id == network_id,
+            Node.network_id == network_id,
+            Link.network_id == network_id,
+            ResourceGroup.network_id == network_id)
+        ).outerjoin('node')\
+        .outerjoin('link')\
+        .outerjoin('network')\
+        .outerjoin('resourcegroup')\
+        .options(joinedload('node'))\
+        .options(joinedload('link'))\
+        .options(joinedload('resourcegroup'))\
+        .options(joinedload('network'))
 
     resourceattrs = ra_qry.all()
 
@@ -2582,9 +2592,9 @@ def get_all_resource_attributes_in_network(attr_id, network_id, **kwargs):
     #Load the metadata too
     for ra in resourceattrs:
         ra_j = JSONObject(ra, extras={'node':JSONObject(ra.node) if ra.node else None,
-                                               'link':JSONObject(ra.link) if ra.link else None,
-                                               'resourcegroup':JSONObject(ra.resourcegroup) if ra.resourcegroup else None,
-                                               'network':JSONObject(ra.network) if ra.network else None})
+                                      'link':JSONObject(ra.link) if ra.link else None,
+                                      'resourcegroup':JSONObject(ra.resourcegroup) if ra.resourcegroup else None,
+                                      'network':JSONObject(ra.network) if ra.network else None})
 
         if ra_j.node is not None:
             ra_j.resource = ra_j.node
@@ -2600,7 +2610,7 @@ def get_all_resource_attributes_in_network(attr_id, network_id, **kwargs):
     return json_ra
 
 
-def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, page_end=None, **kwargs):
+def get_all_resource_data(scenario_id, include_metadata=False, page_start=None, page_end=None, **kwargs):
     """
         A function which returns the data for all resources in a network.
         -
@@ -2650,14 +2660,15 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
 
     log.info("%s datasets retrieved", len(all_resource_data))
 
-    if include_metadata == 'Y':
-        metadata_qry = db.DBSession.query(distinct(Metadata.dataset_id).label('dataset_id'),
-                                      Metadata.key,
-                                      Metadata.value).filter(
-                            ResourceScenario.resource_attr_id==ResourceAttr.id,
-                            ResourceScenario.scenario_id==scenario_id,
-                            Dataset.id==ResourceScenario.dataset_id,
-                            Metadata.dataset_id==Dataset.id)
+    if include_metadata is True:
+        metadata_qry = db.DBSession.query(
+            distinct(Metadata.dataset_id).label('dataset_id'),
+            Metadata.key,
+            Metadata.value).filter(
+                ResourceScenario.resource_attr_id == ResourceAttr.id,
+                ResourceScenario.scenario_id == scenario_id,
+                Dataset.id == ResourceScenario.dataset_id,
+                Metadata.dataset_id == Dataset.id)
 
         log.info("Querying node metadata")
         metadata = metadata_qry.all()
@@ -2683,7 +2694,7 @@ def get_all_resource_data(scenario_id, include_metadata='N', page_start=None, pa
                 ra_dict['value'] = None
                 ra_dict['metadata'] = []
         else:
-            if include_metadata == 'Y':
+            if include_metadata is True:
                 ra_dict['metadata'] = metadata_dict.get(ra.dataset_id, [])
 
         return_data.append(namedtuple('ResourceData', ra_dict.keys())(**ra_dict))

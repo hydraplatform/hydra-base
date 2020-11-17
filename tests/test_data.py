@@ -100,7 +100,7 @@ class TestTimeSeries:
                 rs['dataset']['value'] = relative_dataframe
 
         new_network_summary = client.add_network(network)
-        new_net = client.get_network(new_network_summary.id, include_data='Y')
+        new_net = client.get_network(new_network_summary.id, include_data=True)
 
         new_s = new_net['scenarios'][0]
         new_rss = new_s['resourcescenarios']
@@ -146,7 +146,7 @@ class TestTimeSeries:
                 rs['dataset']['value'] = relative_dataframe
 
         new_network_summary = client.add_network(network)
-        new_net = client.get_network(new_network_summary.id, include_data='Y')
+        new_net = client.get_network(new_network_summary.id, include_data=True)
         scenario = new_net.scenarios[0]
         val_to_query = None
         for rs in scenario.resourcescenarios:
@@ -182,7 +182,7 @@ class TestTimeSeries:
                 rs['dataset']['value'] = seasonal_timeseries
 
         new_network_summary = client.add_network(network)
-        new_net = client.get_network(new_network_summary.id, include_data='Y')
+        new_net = client.get_network(new_network_summary.id, include_data=True)
 
         scenario = new_net.scenarios[0]
         val_to_query = None
@@ -240,7 +240,7 @@ class TestTimeSeries:
                 rs['dataset']['value'] = seasonal_timeseries
 
         client.update_network(network_with_data)
-        new_net = client.get_network(network_with_data.id, include_data='Y')
+        new_net = client.get_network(network_with_data.id, include_data=True)
 
         scenario = new_net.scenarios[0]
         val_to_query = None

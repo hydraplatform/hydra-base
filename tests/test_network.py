@@ -159,7 +159,7 @@ class TestNetwork:
             assert len(s.resourcescenarios) == 0
 
         scen_ids = [scenario_id]
-        partial_network = client.get_network(new_scenario.network_id, include_attributes=True, include_data='Y', include_results='Y', scenario_ids=scen_ids)
+        partial_network = client.get_network(new_scenario.network_id, include_attributes=True, include_data=True, include_results=True, scenario_ids=scen_ids)
 
         assert len(partial_network.scenarios) == 1
         assert len(full_network.scenarios) == 2
@@ -167,8 +167,8 @@ class TestNetwork:
         for s in partial_network.scenarios:
             assert len(s.resourcescenarios) > 0
 
-        network_with_results = client.get_network(new_scenario.network_id, include_attributes=True, include_data='Y', scenario_ids=scen_ids)
-        network_no_results = client.get_network(new_scenario.network_id, include_attributes=True, include_data='Y', include_results='N', scenario_ids=scen_ids)
+        network_with_results = client.get_network(new_scenario.network_id, include_attributes=True, include_data=True, scenario_ids=scen_ids)
+        network_no_results = client.get_network(new_scenario.network_id, include_attributes=True, include_data=True, include_results=False, scenario_ids=scen_ids)
 
         sample_rs= network_with_results.scenarios[0].resourcescenarios[0]
         #there should be one more result in the
@@ -176,7 +176,7 @@ class TestNetwork:
         metadata = json.loads(sample_rs.dataset.metadata) if isinstance(sample_rs.dataset.metadata, str) else sample_rs.dataset.metadata
         assert len(metadata) == 0
 
-        network_with_results_and_metadata = client.get_network(new_scenario.network_id, include_attributes=True, include_data='Y', scenario_ids=scen_ids, template_id=None, include_non_template_attributes=None, include_metadata=True)
+        network_with_results_and_metadata = client.get_network(new_scenario.network_id, include_attributes=True, include_data=True, scenario_ids=scen_ids, template_id=None, include_non_template_attributes=None, include_metadata=True)
 
         sample_rs= network_with_results_and_metadata.scenarios[0].resourcescenarios[0]
         metadata = json.loads(sample_rs.dataset.metadata) if isinstance(sample_rs.dataset.metadata, str) else sample_rs.dataset.metadata
@@ -927,7 +927,7 @@ class TestNetwork:
         log.info("Deleting node %s", node_id_to_delete)
         client.delete_node(node_id_to_delete, 'Y')
 
-        updated_net = client.get_network(net.id, 'Y')
+        updated_net = client.get_network(net.id, True)
 
         remaining_node_ids = [n.id for n in updated_net.nodes]
 
@@ -955,7 +955,7 @@ class TestNetwork:
         log.info("Deleting link %s", link_id_to_delete)
         client.delete_link(link_id_to_delete, 'Y')
 
-        updated_net = client.get_network(net.id, 'Y')
+        updated_net = client.get_network(net.id, True)
 
         remaining_link_ids = [n.id for n in updated_net.links]
 
@@ -1060,6 +1060,6 @@ class TestNetwork:
                                           project_name=None,
                                           new_project=True)
 
-        cloned_network = client.get_network(cloned_network_id, include_data='Y')
+        cloned_network = client.get_network(cloned_network_id, include_data=True)
         #No need to assert that the clone itself worked, as the other test does that.
         assert cloned_network.project_id != net.project_id

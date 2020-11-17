@@ -86,6 +86,41 @@ def _get_resource(ref_key, ref_id):
     except NoResultFound:
         raise ResourceNotFoundError("Resource %s with ID %s not found"%(ref_key, ref_id))
 
+def _get_ra_resource(ra):
+    ref_key = ra.ref_key
+    try:
+        if ref_key == 'NODE':
+            return db.DBSession.query(Node).filter(Node.id == ra.node_id).one()
+        elif ref_key == 'LINK':
+            return db.DBSession.query(Link).filter(Link.id == ra.link_id).one()
+        if ref_key == 'GROUP':
+            return db.DBSession.query(ResourceGroup).filter(ResourceGroup.id == ra.group_id).one()
+        elif ref_key == 'NETWORK':
+            return db.DBSession.query(Network).filter(Network.id == ra.network_id).one()
+        elif ref_key == 'SCENARIO':
+            return db.DBSession.query(Scenario).filter(Scenario.id == ra.scenario_id).one()
+        elif ref_key == 'PROJECT':
+            return db.DBSession.query(Project).filter(Project.id == ra.project_id).one()
+        else:
+            return None
+    except NoResultFound:
+        raise ResourceNotFoundError("Resource found on resource attribute %s"%(ra))
+
+
+
+def _get_resource_id(ra):
+    ref_key = ra.ref_key
+    if ref_key == 'NETWORK':
+        return ra.network_id
+    elif ref_key == 'NODE':
+        return ra.node_id
+    elif ref_key == 'LINK':
+        return ra.link_id
+    elif ref_key == 'GROUP':
+        return ra.group_id
+    elif ref_key == 'PROJECT':
+        return ra.project_id
+
 def get_attribute_by_id(attr_id, **kwargs):
     """
         Get a specific attribute by its ID.
@@ -413,6 +448,77 @@ def add_resource_attrs_from_type(type_id, resource_type, resource_id,**kwargs):
 
     return new_resource_attrs
 
+def get_all_network_resourceattributes(network_id, template_id=None, return_orm=False, **kwargs):
+    """
+        Get all the resource attributes for all the nodes, links and groups in the network
+        including network attributes. This is used primarily to avoid retrieving
+        all global attributes for menus etc, most of which are not necessary.
+
+        args:
+            network_id (int): The ID of the network containing the attributes
+            template_id (int): A filter which will cause the function to
+                                return attributes associated to that template
+            return_orm (bool): Flag to force the function to return ORM objects instead
+                                of JSONObjects, likely to be used internally from another
+                                function
+
+        returns:
+            A list of Attributes as JSONObjects, with the
+            additional data of 'attr_is_var'
+            from its assocated ResourceAttribute. ex:
+                {id:123,
+                name: 'cost'
+                dimension_id: 124,
+                attr_is_var: 'Y' #comes from the ResourceAttr
+                }
+    """
+
+    resource_attr_qry = db.DBSession.query(ResourceAttr).\
+            join(ResourceAttr, ResourceAttr.attr_id==Attr.id).\
+            outerjoin(Network, Network.id==ResourceAttr.network_id).\
+            outerjoin(Node, Node.id==ResourceAttr.node_id).\
+            outerjoin(Link, Link.id==ResourceAttr.link_id).\
+            outerjoin(ResourceGroup, ResourceGroup.id==ResourceAttr.group_id).filter(
+        or_(
+            and_(ResourceAttr.network_id != None,
+                    ResourceAttr.network_id == network_id),
+
+            and_(ResourceAttr.node_id != None,
+                    ResourceAttr.node_id == Node.id,
+                                        Node.network_id==network_id),
+
+            and_(ResourceAttr.link_id != None,
+                    ResourceAttr.link_id == Link.id,
+                                        Link.network_id==network_id),
+
+            and_(ResourceAttr.group_id != None,
+                    ResourceAttr.group_id == ResourceGroup.id,
+                                        ResourceGroup.network_id==network_id)
+        ))
+
+    if template_id is not None:
+        attr_ids = []
+        rs = db.DBSession.query(TypeAttr).join(TemplateType,
+                                            TemplateType.id==TypeAttr.type_id).filter(
+                                                TemplateType.template_id==template_id).all()
+        for r in rs:
+            attr_ids.append(r.attr_id)
+
+        resource_attr_qry = resource_attr_qry.filter(ResourceAttr.attr_id.in_(attr_ids))
+
+    resource_attrs = resource_attr_qry.all()
+
+    network_attributes = []
+    for ra in resource_attrs:
+        if return_orm is True:
+            network_attributes.append(ra)
+        else:
+            ra_j = JSONObject(ra)
+            ra_j.attr = JSONObject(ra.attr)
+            network_attributes.append(ra_j)
+
+    return network_attributes
+
 
 def get_all_network_attributes(network_id, template_id=None, **kwargs):
     """
@@ -474,7 +580,7 @@ def get_all_network_attributes(network_id, template_id=None, **kwargs):
     network_attributes = []
     for ra in resource_attrs:
         attr_j = JSONObject(ra[0])
-        attr_j.attr_is_var = ra.attr_is_var
+        attr_j.attr_is_var = ra[1]
         network_attributes.append(attr_j)
 
     return network_attributes
@@ -1151,17 +1257,20 @@ def delete_all_duplicate_attributes(**kwargs):
 
 
 @required_perms('delete_attribute', 'edit_network')
-def delete_duplicate_resourceattributes(**kwargs):
+def delete_duplicate_resourceattributes(network_id=None, **kwargs):
     """
     for every resource, find any situations where there are duplicate attribute
     names, ex 2 max_flows, but where the attribute IDs are different. In this case,
     remove one of them, and keep the one which is used in the template for that node.
     """
 
-    #get all the resource attrs in the system -- but limit by only inputs
-    all_ras = db.DBSession.query(ResourceAttr)\
-        .filter(ResourceAttr.attr_is_var == 'N')\
-        .options(joinedload('attr')).all()
+    if network_id is None:
+        #get all the resource attrs in the system -- but limit by only inputs
+        all_ras = db.DBSession.query(ResourceAttr)\
+            .filter(ResourceAttr.attr_is_var == 'N')\
+            .options(joinedload('attr')).all()
+    else:
+        all_ras = get_all_network_resourceattributes(network_id, return_orm=True)
 
     #create a mapping for a node's resource attrs by its ID and the name of the attr
     ra_lookup = defaultdict(lambda: [])

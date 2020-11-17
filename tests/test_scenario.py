@@ -558,7 +558,7 @@ class TestScenario:
 
         #self.create_constraint(network)
 
-        network = JSONObject(client.get_network(network.id, include_data='Y'))
+        network = JSONObject(client.get_network(network.id, include_data=True))
 
         scenario = network.scenarios[0]
         scenario_id = scenario.id
@@ -583,7 +583,7 @@ class TestScenario:
         assert len(new_scenario_with_results.resourcescenarios) > len(new_scenario.resourcescenarios)
 
 
-        updated_network = JSONObject(client.get_network(new_scenario.network_id, include_data='Y'))
+        updated_network = JSONObject(client.get_network(new_scenario.network_id, include_data=True))
 
 
         assert len(updated_network.scenarios) == 4, "The network should have 4 scenarios!"

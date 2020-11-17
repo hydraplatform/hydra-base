@@ -652,7 +652,7 @@ class TestUtil:
         if ret_full_net is True:
             LOG.info("Fetching new network...:")
             start = datetime.datetime.now()
-            net = self.client.get_network(response_network_summary.id, include_data='Y')
+            net = self.client.get_network(response_network_summary.id, include_data=True)
             response_net = JSONObject(net)
             LOG.info("Network Retrieval took: %s"%(datetime.datetime.now()-start))
             self.check_network(network, response_net)
@@ -734,7 +734,7 @@ class TestUtil:
             scenario_count = scenario_count + 1
 
 
-        updated_network = JSONObject(self.client.get_network(network.id, include_data='Y'))
+        updated_network = JSONObject(self.client.get_network(network.id, include_data=True))
 
         return updated_network
 

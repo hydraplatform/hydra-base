@@ -147,14 +147,25 @@ def get_scenario_by_name(network_id, scenario_name, get_parent_data=False, inclu
     except NoResultFound:
         raise ResourceNotFoundError("Scenario %s not found"%(scenario_name))
 
-def get_scenario(scenario_id, get_parent_data=False, include_data=True, include_group_items=True, include_results=True, **kwargs):
+def get_scenario(scenario_id,
+                 get_parent_data=False,
+                 include_data=True,
+                 include_group_items=True,
+                 include_results=True,
+                 include_only_results=False,
+                 **kwargs):
     """
         Get the specified scenario
         args:
             scenario_id: The ID of the scenario to retrieve
-            get_parent_data: Flag to indicate whether to include the data from the parent scenario also, or just this one.
+            get_parent_data: Flag to indicate whether to include the data from
+                the parent scenario also, or just this one.
             include_data: Flag to indicate wheter to return the list of resource scenarios
             include_group_items: Flag to indicate whether to return the list of resource group items
+            include_results: Flag (default True). Set to false if only inputs
+                are necessary. This can have a significant performance impact
+            include_only_results: Flag (default False). Set to True if you ONLY
+                want results data. This will only work when include_results is True
         return:
             A scenario JSONObject
     """
@@ -167,7 +178,9 @@ def get_scenario(scenario_id, get_parent_data=False, include_data=True, include_
 
     rscen_rs = []
     if include_data is True:
-        rscen_rs = scen_i.get_data(get_parent_data=get_parent_data, include_results=include_results)
+        rscen_rs = scen_i.get_data(get_parent_data=get_parent_data,
+                                   include_results=include_results,
+                                   include_only_results=include_only_results)
 
     #lazy load resource attributes and attributes
     for rs in rscen_rs:

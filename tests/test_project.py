@@ -186,7 +186,7 @@ class TestProject:
 
         assert len(nets) == 2, "Networks were not retrieved correctly"
 
-        nets = client.get_networks(proj.id, include_data='Y')
+        nets = client.get_networks(proj.id, include_data=True)
 
         test_scenario = nets[0].scenarios[0]
         assert len(test_scenario.resourcescenarios) > 0
