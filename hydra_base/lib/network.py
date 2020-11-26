@@ -735,7 +735,6 @@ def _get_network_template_attribute_lookup(network_id):
                                            TemplateType.id.label('type_id'),\
                                            TypeAttr.attr_id.label('attr_id'))\
                                            .join(TypeAttr, TypeAttr.type_id == TemplateType.id)\
-                                           .join(ResourceType, TemplateType.id == ResourceType.type_id)\
                                            .filter(TemplateType.template_id.in_(template_ids)).all()
     typeattr_lookup = {}
     all_network_typeattrs = []
