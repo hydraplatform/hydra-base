@@ -38,7 +38,7 @@ from .. import db
 from sqlalchemy import func, and_, or_, distinct
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import aliased
-from ..util.hydra_dateutil import timestamp_to_ordinal
+from ..util.hydra_dateutil import timestamp_to_ordinal, ordinal_to_timestamp, date_to_string
 from ..util import hdb
 
 from sqlalchemy import case
@@ -980,6 +980,8 @@ def _get_scenarios(network_id, include_data, include_results, user_id, scenario_
 
     for s in scens:
         s.resourcegroupitems = all_resource_group_items.get(s.id, [])
+        s.start_time = date_to_string(ordinal_to_timestamp(s.start_time))
+        s.end_time = date_to_string(ordinal_to_timestamp(s.end_time))
 
         if include_data == 'Y' or include_data == True:
             s.resourcescenarios  = all_rs.get(s.id, [])
