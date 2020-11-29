@@ -36,7 +36,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import or_, and_, func
 from sqlalchemy.orm import joinedload, joinedload_all, aliased
 from . import data
-from ..util.hydra_dateutil import timestamp_to_ordinal
+from ..util.hydra_dateutil import timestamp_to_ordinal, ordinal_to_timestamp, date_to_string, timestamp_to_timestamp
 from collections import namedtuple
 from copy import deepcopy
 import zlib
@@ -57,6 +57,15 @@ def _get_scenario(scenario_id, user_id):
     try:
         scenario_qry = db.DBSession.query(Scenario).filter(Scenario.id==scenario_id)
         scenario = scenario_qry.one()
+        try:
+            scenario.start_time = date_to_string(ordinal_to_timestamp(scenario.start_time))
+        except:
+            pass
+        try:
+            scenario.end_time = date_to_string(ordinal_to_timestamp(scenario.end_time))
+        except:
+            pass
+
         return scenario
     except NoResultFound:
         raise ResourceNotFoundError("Scenario %s does not exist."%(scenario_id))
@@ -212,8 +221,8 @@ def add_scenario(network_id, scenario,**kwargs):
     scen.layout               = scenario.get_layout()
     scen.network_id           = network_id
     scen.created_by           = user_id
-    scen.start_time           = str(timestamp_to_ordinal(scenario.start_time)) if scenario.start_time else None
-    scen.end_time             = str(timestamp_to_ordinal(scenario.end_time)) if scenario.end_time else None
+    scen.start_time           = timestamp_to_timestamp(scenario.start_time) if scenario.start_time else None
+    scen.end_time             = timestamp_to_timestamp(scenario.end_time) if scenario.end_time else None
     scen.time_step            = scenario.time_step
     scen.resourcescenarios    = []
     scen.resourcegroupitems   = []
@@ -277,23 +286,19 @@ def update_scenario(scenario,update_data=True,update_groups=True,flush=True,**kw
 
     start_time = None
     if isinstance(scenario.start_time, float):
-        start_time = six.text_type(scenario.start_time)
+        start_time = six.text_type(ordinal_to_timestamp(scenario.start_time))
     elif isinstance(scenario.start_time, int):
-        start_time = six.text_type(float(scenario.start_time))
+        start_time = six.text_type(ordinal_to_timestamp(float(scenario.start_time)))
     else:
-        start_time = timestamp_to_ordinal(scenario.start_time)
-        if start_time is not None:
-            start_time = six.text_type(start_time)
+        start_time = timestamp_to_timestamp(scenario.start_time)
 
     end_time = None
     if isinstance(scenario.end_time, float):
-        end_time = six.text_type(scenario.end_time)
+        end_time = six.text_type(ordinal_to_timestamp(scenario.end_time))
     elif isinstance(scenario.end_time, int):
-        end_time = six.text_type(float(scenario.end_time))
+        end_time = six.text_type(ordinal_to_timestamp(float(scenario.end_time)))
     else:
-        end_time = timestamp_to_ordinal(scenario.end_time)
-        if end_time is not None:
-            end_time = six.text_type(end_time)
+        end_time = timestamp_to_timestamp(scenario.end_time)
 
     scen.name                 = scenario.name
     scen.description          = scenario.description
@@ -315,10 +320,11 @@ def update_scenario(scenario,update_data=True,update_groups=True,flush=True,**kw
     scen.resourcescenarios
 
     if update_data is True:
-        datasets = [rs.dataset for rs in scenario.resourcescenarios]
-        updated_datasets = data._bulk_insert_data(datasets, user_id, kwargs.get('app_name'))
-        for i, r_scen in enumerate(scenario.resourcescenarios):
-            _update_resourcescenario(scen, r_scen, dataset=updated_datasets[i], user_id=user_id, source=kwargs.get('app_name'))
+        datasets = [rs.dataset for rs in scenario.resourcescenarios if rs.dataset]
+        if len(datasets) == len(scenario.resourcescenarios):
+            updated_datasets = data._bulk_insert_data(datasets, user_id, kwargs.get('app_name'))
+            for i, r_scen in enumerate(scenario.resourcescenarios):
+                _update_resourcescenario(scen, r_scen, dataset=updated_datasets[i], user_id=user_id, source=kwargs.get('app_name'))
 
     #lazy load resource grou items from the DB
     scen.resourcegroupitems

@@ -172,6 +172,21 @@ def date_to_string(date, seasonal=False):
         FORMAT = '%Y-%m-%dT%H:%M:%S.%f'
     return date.strftime(FORMAT)
 
+def timestamp_to_timestamp(date, seasonal=False):
+    """Convert a timestamp to a standard string used by Hydra. The resulting string
+    looks like this::
+
+        '2013-10-03T00:49:17.568-0400'
+
+    """
+
+    seasonal_key = config.get('DEFAULT', 'seasonal_key', '9999')
+    if seasonal:
+        FORMAT = seasonal_key+'-%m-%dT%H:%M:%S.%f'
+    else:
+        FORMAT = '%Y-%m-%dT%H:%M:%S.%f'
+    return datetime.fromisoformat(date).strftime(FORMAT)
+
 
 def guess_timefmt(datestr):
     """

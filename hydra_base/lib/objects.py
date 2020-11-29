@@ -92,9 +92,6 @@ class JSONObject(dict):
             elif k == 'user':
                 user = JSONObject(dict(id=v.id, username=v.username, display_name=v.display_name))
                 setattr(self, k, user)
-            elif k in ['start_time', 'end_time']:
-                time = date_to_string(ordinal_to_timestamp(v))
-                setattr(self, k, time)
             elif isinstance(v, dict):
                 #TODO what is a better way to identify a dataset?
                 if 'unit_id' in v or 'unit' in v or 'metadata' in v or 'type' in v:
