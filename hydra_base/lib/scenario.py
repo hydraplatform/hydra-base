@@ -36,7 +36,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy import or_, and_, func
 from sqlalchemy.orm import joinedload, joinedload_all, aliased
 from . import data
-from ..util.hydra_dateutil import timestamp_to_ordinal, ordinal_to_timestamp, date_to_string
+from ..util.hydra_dateutil import timestamp_to_ordinal
 from collections import namedtuple
 from copy import deepcopy
 import zlib
@@ -57,8 +57,6 @@ def _get_scenario(scenario_id, user_id):
     try:
         scenario_qry = db.DBSession.query(Scenario).filter(Scenario.id==scenario_id)
         scenario = scenario_qry.one()
-        scenario.start_time = date_to_string(ordinal_to_timestamp(scenario.start_time))
-        scenario.end_time = date_to_string(ordinal_to_timestamp(scenario.end_time))
         return scenario
     except NoResultFound:
         raise ResourceNotFoundError("Scenario %s does not exist."%(scenario_id))
@@ -334,9 +332,6 @@ def update_scenario(scenario,update_data=True,update_groups=True,flush=True,**kw
 
     if flush is True:
         db.DBSession.flush()
-
-    scen.start_time = date_to_string(ordinal_to_timestamp(scen.start_time))
-    scen.end_time = date_to_string(ordinal_to_timestamp(scen.end_time))
 
     return scen
 
