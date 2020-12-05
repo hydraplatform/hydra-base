@@ -218,6 +218,7 @@ def add_scenario(network_id, scenario,**kwargs):
     scen = Scenario()
     scen.name                 = scenario.name
     scen.description          = scenario.description
+    scen.parent_id            = scenario.parent_id
     scen.layout               = scenario.get_layout()
     scen.network_id           = network_id
     scen.created_by           = user_id
