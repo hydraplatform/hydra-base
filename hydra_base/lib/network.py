@@ -38,7 +38,7 @@ from .. import db
 from sqlalchemy import func, and_, or_, distinct
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import aliased
-from ..util.hydra_dateutil import timestamp_to_ordinal, date_to_string
+from ..util.hydra_dateutil import timestamp_to_ordinal, date_to_string, date_to_timestamp
 from ..util import hdb
 
 from sqlalchemy import case
@@ -511,8 +511,10 @@ def add_network(network,**kwargs):
             scen.name                 = s.name
             scen.description          = s.description
             scen.layout               = s.get_layout()
-            scen.start_time           = str(timestamp_to_ordinal(s.start_time)) if s.start_time else None
-            scen.end_time             = str(timestamp_to_ordinal(s.end_time)) if s.end_time else None
+            # scen.start_time           = str(timestamp_to_ordinal(s.start_time)) if s.start_time else None
+            # scen.end_time             = str(timestamp_to_ordinal(s.end_time)) if s.end_time else None
+            scen.start_time           = date_to_timestamp(s.start_time) if s.start_time else None
+            scen.end_time             = date_to_timestamp(s.end_time) if s.end_time else None
             scen.time_step            = s.time_step
             scen.created_by           = user_id
 

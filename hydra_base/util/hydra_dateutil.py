@@ -172,6 +172,7 @@ def date_to_string(date, seasonal=False):
         FORMAT = '%Y-%m-%dT%H:%M:%S.%f'
     return date.strftime(FORMAT)
 
+
 def timestamp_to_timestamp(date, seasonal=False):
     """Convert a timestamp to a standard string used by Hydra. The resulting string
     looks like this::
@@ -186,6 +187,15 @@ def timestamp_to_timestamp(date, seasonal=False):
     else:
         FORMAT = '%Y-%m-%dT%H:%M:%S.%f'
     return datetime.fromisoformat(date).strftime(FORMAT)
+
+
+def date_to_timestamp(date, seasonal=False):
+    try:
+        ordinal_date = Decimal(date)
+        timestamp = ordinal_to_timestamp(ordinal_date)
+    except:
+        timestamp = timestamp_to_timestamp(date, seasonal=seasonal)
+    return timestamp
 
 
 def guess_timefmt(datestr):
