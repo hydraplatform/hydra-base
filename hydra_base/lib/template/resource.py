@@ -103,6 +103,8 @@ def _get_type(type_id):
         so cannot be queried directly
     """
 
+    log.info("Getting type %s", type_id)
+
     type_i = db.DBSession.query(TemplateType).filter(TemplateType.id == type_id).one()
 
     if type_i.parent_id is None:
@@ -365,9 +367,10 @@ def assign_types_to_resources(resource_types, template_id=None, **kwargs):
         function can also be used to update resources, when a resource type has
         changed.
     """
+
+    log.info("Setting types of %s resources", len(resource_types))
     #Remove duplicate values from types by turning it into a set
     type_ids = list(set([rt.type_id for rt in resource_types]))
-
 
     #Get the template ID from the incoming data. We need this so we can get the
     #correct types from the template hierarchy.
