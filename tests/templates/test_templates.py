@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#s!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 # (c) Copyright 2013 to 2017 University of Manchester
@@ -746,6 +746,27 @@ class TestTemplates:
         assert len(node.types) == 2, 'Assigning type did not work properly.'
 
         assert str(result.id) in [str(x.type_id) for x in node.types]
+
+
+    def test_assign_types_to_resources(self, client, mock_template, network_with_data):
+        network = network_with_data
+        template = mock_template
+        templatetype = template.templatetypes[0]
+
+        node_to_assign = network.nodes[0]
+        
+        resource_types = [JSONObject({
+            'ref_key': 'NODE',
+            'ref_id':node_to_assign.id,
+            'type_id':templatetype.id
+            })]
+        results = client.assign_types_to_resources(resource_types)
+
+        node = client.get_node(node_to_assign.id)
+
+        assert len(node.types) == 2, 'Assigning type did not work properly.'
+
+        assert str(results[0].id) in [str(x.type_id) for x in node.types]
 
     def test_remove_type_from_resource(self, client, mock_template, network_with_data):
         network = network_with_data

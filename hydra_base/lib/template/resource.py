@@ -379,7 +379,7 @@ def assign_types_to_resources(resource_types, template_id=None, **kwargs):
     if template_id is None and resource_types[0].template_id is None:
         log.info("No template ID specified. Getting from type")
         db_type = _get_type(resource_types[0].type_id)
-        template_id == db_type.template_id
+        template_id = db_type.template_id
         log.info("Template ID set to: %s", template_id)
 
     template_i = db.DBSession.query(Template).filter(Template.id == template_id).one()
@@ -448,9 +448,10 @@ def assign_types_to_resources(resource_types, template_id=None, **kwargs):
     new_ras = []
     if len(res_attrs) > 0:
         new_res_attrs = db.DBSession.execute(ResourceAttr.__table__.insert(), res_attrs)
+        last_row_id = new_res_attrs.lastrowid or 0
         new_ras = db.DBSession.query(ResourceAttr).filter(
-            and_(ResourceAttr.id>=new_res_attrs.lastrowid,
-                 ResourceAttr.id<(new_res_attrs.lastrowid+len(res_attrs)))).all()
+            and_(ResourceAttr.id >= last_row_id,
+                 ResourceAttr.id < (last_row_id+len(res_attrs)))).all()
 
     ra_map = {}
     for new_ra in new_ras:
