@@ -415,7 +415,9 @@ def get_network_project(network_id, **kwargs):
         get the project that a network is in
     """
 
-    net_proj = db.DBSession.query(Project).join(Network, and_(Project.id==Network.id, Network.id==network_id)).first()
+    net_proj = db.DBSession.query(Project)\
+        .join(Network, Project.id == Network.project_id)\
+        .filter(Network.id == network_id).first()
 
     if net_proj is None:
         raise HydraError("Network %s not found"% network_id)
