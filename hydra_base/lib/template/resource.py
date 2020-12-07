@@ -374,8 +374,10 @@ def assign_types_to_resources(resource_types, template_id=None, **kwargs):
     #We assume here that this function can only be called in the context of
     #one template -- you can't send resource types from 2 templates.
     if template_id is None and resource_types[0].template_id is None:
+        log.info("No template ID specified. Getting from type")
         db_type = _get_type(resource_types[0].type_id)
         template_id == db_type.template_id
+        log.info("Template ID set to: %s", template_id)
 
     template_i = db.DBSession.query(Template).filter(Template.id == template_id).one()
 
