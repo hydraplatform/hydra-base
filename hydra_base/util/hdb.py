@@ -25,7 +25,7 @@ from .. import db
 import datetime
 import random
 import bcrypt
-from ..exceptions import HydraError
+from ..exceptions import HydraError, HydraLoginUserNotFound, HydraLoginUserMaxAttemptsExceeded, HydraLoginUserPasswordWrong
 import transaction
 from sqlalchemy.orm import load_only
 from ..lib.objects import JSONObject
@@ -135,11 +135,15 @@ def login_user(username, password):
     try:
         user_i = db.DBSession.query(User).filter(User.username == username).one()
     except NoResultFound:
+        """ The user has not been found in the DB """
+        raise HydraLoginUserNotFound(username)
+    except:
+        """ Generic DB Error """
         raise HydraError(username)
 
     if get_remaining_login_attempts(username, user_id=user_i.id) <= 0:
         """  Account is not permitted to login """
-        raise HydraError("Max login attempts exceeded for user {}".format(username))
+        raise HydraLoginUserMaxAttemptsExceeded("Max login attempts exceeded for user {}".format(username))
 
     userPassword = ""
     try:
@@ -162,7 +166,7 @@ def login_user(username, password):
     else:
         log.info("User {} now has {} failed logins".format(username, user_i.failed_logins+1))
         inc_failed_login_attempts(user_i.username, user_id=1)
-        raise HydraError(username)
+        raise HydraLoginUserPasswordWrong(username)
 
 
 def create_default_net():
