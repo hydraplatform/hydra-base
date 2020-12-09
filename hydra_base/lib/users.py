@@ -291,6 +291,7 @@ def reset_failed_logins(username, flush=True, **kwargs):
 
     if flush is True:
         db.DBSession.flush()
+        transaction.commit()
 
 
 @required_perms("add_role")
