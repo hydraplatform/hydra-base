@@ -487,6 +487,8 @@ def add_template(template, **kwargs):
 
     db.DBSession.flush()
 
+    log.info("[Added template]\n{}".format(template))
+
     return tmpl
 
 
@@ -522,7 +524,7 @@ def add_child_template(parent_id, name, description=None, **kwargs):
 
         network_type = TemplateType()
 
-        network_type.name = None
+        network_type.name = "{}-network".format(tmpl.name)
         network_type.resource_type = 'NETWORK'
         network_type.parent_id = parent_type.id
 
@@ -707,6 +709,7 @@ def add_child_templatetype(parent_id, child_template_id, **kwargs):
     child_type_i = TemplateType()
     child_type_i.template_id = child_template_id
     child_type_i.parent_id = parent_id
+    child_type_i.name = parent_type.name
 
     db.DBSession.add(child_type_i)
 
