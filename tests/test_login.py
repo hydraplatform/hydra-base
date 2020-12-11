@@ -70,23 +70,14 @@ class TestLogin:
         assert retrieved_user_id == user_id
 
     def test_login_wrong_user(self, client):
-        try:
-            user_id, session_id = client.login('wrong-user!', '')
-            assert False
-        except hydra_base.exceptions.HydraLoginUserNotFound as e:
-            assert True
-        except:
-            assert False
 
+        with pytest.raises(hydra_base.exceptions.HydraLoginUserNotFound):
+            user_id, session_id = client.login('wrong-user!', '')
 
     def test_login_wrong_password(self, client):
-        try:
+
+        with pytest.raises(hydra_base.exceptions.HydraLoginUserPasswordWrong):
             user_id, session_id = client.login('root', 'wrong-password!')
-            assert False
-        except hydra_base.exceptions.HydraLoginUserPasswordWrong as e:
-            assert True
-        except:
-            assert False
 
 
     def test_login_too_many_attempts(self, client):
