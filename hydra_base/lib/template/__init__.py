@@ -560,7 +560,7 @@ def activate_template(template_id, **kwargs):
 @required_perms("edit_template")
 def deactivate_template(template_id, **kwargs):
     """
-        Set the status of a template to active
+        Set the status of a template to inactive
     """
 
     _set_template_status(template_id, 'X')
@@ -638,7 +638,7 @@ def get_templates(load_all=True, include_inactive=False, **kwargs):
         Args:
             load_all Boolean: Returns just the template entry or the full
             template structure (template types and type attrs)
-            ignore_status Boolean: If true, returns all templates. If false, returns
+            include_inactive Boolean: If true, returns all templates. If false, returns
             only templates with a status of 'A'
         Returns:
             List of Template objects
