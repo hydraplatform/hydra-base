@@ -540,7 +540,32 @@ def add_child_template(parent_id, name, description=None, **kwargs):
 
     return tmpl
 
+def _set_template_status(template_id, status, **kwargs):
+    """
+        Set the status of a template to the specified status.
+        These can be 'A' or 'X'
+    """
+    tmpl = db.DBSession.query(Template).filter(Template.id == template_id).one()
 
+    tmpl.status = status
+
+    db.DBSession.flush()
+
+@required_perms("edit_template")
+def activate_template(template_id, **kwargs):
+    """
+        Set the status of a template to active
+    """
+
+    _set_template_status(template_id, 'A')
+
+@required_perms("edit_template")
+def deactivate_template(template_id, **kwargs):
+    """
+        Set the status of a template to inactive
+    """
+
+    _set_template_status(template_id, 'X')
 
 @required_perms("edit_template")
 def update_template(template, **kwargs):
@@ -549,6 +574,10 @@ def update_template(template, **kwargs):
     """
     tmpl = db.DBSession.query(Template).filter(Template.id==template.id).one()
     tmpl.name = template.name
+
+    if template.status is not None:
+        tmpl.status = template.status
+
     if template.description:
         tmpl.description = template.description
 
@@ -605,12 +634,14 @@ def delete_template(template_id, **kwargs):
     return 'OK'
 
 @required_perms("get_template")
-def get_templates(load_all=True, **kwargs):
+def get_templates(load_all=True, include_inactive=False, **kwargs):
     """
         Get all templates.
         Args:
             load_all Boolean: Returns just the template entry or the full
             template structure (template types and type attrs)
+            include_inactive Boolean: If true, returns all templates. If false, returns
+            only templates with a status of 'A'
         Returns:
             List of Template objects
     """
@@ -622,6 +653,10 @@ def get_templates(load_all=True, **kwargs):
             full_templates.append(full_template)
     else:
         full_templates = templates_i
+
+    #Filter out all the inactive templates
+    if include_inactive is False:
+        full_templates = list(filter(lambda x:x.status == 'A', full_templates))
 
     return full_templates
 

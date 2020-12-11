@@ -520,6 +520,7 @@ class Template(Base, Inspect):
     id = Column(Integer(), primary_key=True, nullable=False)
     parent_id = Column(Integer(), ForeignKey('tTemplate.id'))
     name = Column(String(200), unique=True)
+    status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     description = Column(String(1000))
     cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     layout = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'))
