@@ -261,8 +261,6 @@ def inc_failed_login_attempts(username, flush=True, **kwargs):
     log.info("[ inc_failed_login_attempts ] User {} has currently {} failed logins".format(username, user_i.failed_logins))
     if flush is True:
         db.DBSession.flush()
-        # # This is needed to avoid lock wait timeout in case of double wrong login
-        # db.commit_transaction()
 
 
 @required_perms("edit_user")
@@ -290,7 +288,6 @@ def reset_failed_logins(username, flush=True, **kwargs):
 
     if flush is True:
         db.DBSession.flush()
-        # db.commit_transaction()
 
 
 @required_perms("add_role")
