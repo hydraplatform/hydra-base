@@ -68,3 +68,35 @@ class TestLogin:
         retrieved_user_id = client.get_session_user(session_id=session_id)
 
         assert retrieved_user_id == user_id
+
+    def test_login_wrong_user(self, client):
+        try:
+            user_id, session_id = client.login('wrong-user!', '')
+            assert False
+        except hydra_base.exceptions.HydraLoginUserNotFound as e:
+            assert True
+        except:
+            assert False
+
+
+    def test_login_wrong_password(self, client):
+        try:
+            user_id, session_id = client.login('root', 'wrong-password!')
+            assert False
+        except hydra_base.exceptions.HydraLoginUserPasswordWrong as e:
+            assert True
+        except:
+            assert False
+
+
+    def test_login_too_many_attempts(self, client):
+        exception_raised=""
+        for i in range(1,10):
+            try:
+                user_id, session_id = client.login('root', 'wrong-password!')
+            except hydra_base.exceptions.HydraLoginUserMaxAttemptsExceeded as e:
+                exception_raised="HydraLoginUserMaxAttemptsExceeded"
+            except hydra_base.exceptions.HydraLoginUserPasswordWrong as e:
+                pass
+
+        assert exception_raised == "HydraLoginUserMaxAttemptsExceeded"
