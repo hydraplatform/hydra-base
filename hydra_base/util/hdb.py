@@ -124,6 +124,7 @@ def make_root_user():
 
     user_id = user.id
 
+    # Do not remove!
     db.commit_transaction()
 
     return user_id
@@ -160,7 +161,8 @@ def login_user(username, password):
         user_i.failed_logins = 0
         user_id = user_i.id
         db.DBSession.flush()
-        db.commit_transaction()
+        # Do not commit the transaction here because it is managed by HWI/Hydra-Server
+        # db.commit_transaction()
         return user_id
     else:
         log.info("User {} now has {} failed logins".format(username, user_i.failed_logins+1))
@@ -179,6 +181,7 @@ def create_default_net():
         net.scenarios.append(scen)
         db.DBSession.add(net)
     db.DBSession.flush()
+    # Do not remove!
     db.commit_transaction()
     return net
 
