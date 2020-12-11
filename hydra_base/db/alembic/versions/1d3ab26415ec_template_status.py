@@ -32,6 +32,6 @@ def upgrade():
 def downgrade():
     if op.get_bind().dialect.name == 'mysql':
         try:
-            op.add_column('tTemplate', 'status')
+            op.drop_column('tTemplate', 'status')
         except Exception as e:
             log.critical(e)
