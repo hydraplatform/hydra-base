@@ -656,6 +656,27 @@ class TestTemplates:
         with pytest.raises(HydraError):
             new_template = client.get_template_by_name("Not a template!")
 
+    def test_set_template_status(self, client, network_with_data,  mock_template):
+
+        all_templates = client.get_templates(load_all=False)
+        assert len(all_templates) > 1
+
+        tmpl_to_deactivate = all_templates[0].id
+
+        client.deactivate_template(tmpl_to_deactivate)
+
+        #this should return one fewer
+        filtered_templates = client.get_templates(load_all=False)
+        assert len(filtered_templates) == len(all_templates) - 1
+
+        unfiltered_templates = client.get_templates(load_all=False, include_inactive=True)
+        assert len(unfiltered_templates) == len(all_templates)
+
+        client.activate_template(tmpl_to_deactivate)
+
+        unfiltered_templates = client.get_templates(load_all=False)
+        assert len(unfiltered_templates) == len(all_templates)
+
     """
         Resource Types Functions
     """
@@ -754,7 +775,7 @@ class TestTemplates:
         templatetype = template.templatetypes[0]
 
         node_to_assign = network.nodes[0]
-        
+
         resource_types = [JSONObject({
             'ref_key': 'NODE',
             'ref_id':node_to_assign.id,
