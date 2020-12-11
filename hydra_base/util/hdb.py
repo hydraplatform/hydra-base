@@ -26,7 +26,6 @@ import datetime
 import random
 import bcrypt
 from ..exceptions import HydraError, HydraLoginUserNotFound, HydraLoginUserMaxAttemptsExceeded, HydraLoginUserPasswordWrong
-import transaction
 from sqlalchemy.orm import load_only
 from ..lib.objects import JSONObject
 from ..lib.users import get_remaining_login_attempts, inc_failed_login_attempts
@@ -125,7 +124,7 @@ def make_root_user():
 
     user_id = user.id
 
-    transaction.commit()
+    db.commit_transaction()
 
     return user_id
 
@@ -161,7 +160,7 @@ def login_user(username, password):
         user_i.failed_logins = 0
         user_id = user_i.id
         db.DBSession.flush()
-        transaction.commit()
+        db.commit_transaction()
         return user_id
     else:
         log.info("User {} now has {} failed logins".format(username, user_i.failed_logins+1))
@@ -180,7 +179,7 @@ def create_default_net():
         net.scenarios.append(scen)
         db.DBSession.add(net)
     db.DBSession.flush()
-    transaction.commit()
+    db.commit_transaction()
     return net
 
 
