@@ -27,6 +27,7 @@ class HydraError(Exception):
         super(HydraError, self).__init__({"message": message, "code": self.code})
 
 
+
 class HydraDBError(HydraError):
     __error_code__ = 'HYDRADB'
 
@@ -58,6 +59,16 @@ class DataError(HydraError):
 class ValidationError(HydraError):
     pass
 
+
+class HydraLoginUserNotFound(HydraError):
+    __error_code__ = 'HYDRA_LOGIN_USER_NOT_FOUND'
+
+class HydraLoginUserMaxAttemptsExceeded(HydraError):
+    __error_code__ = 'HYDRA_LOGIN_USER_MAX_ATTEMPTS_EXCEEDED'
+
+class HydraLoginUserPasswordWrong(HydraError):
+    __error_code__ = 'HYDRA_LOGIN_USER_PASSWORD_WRONG'
+
 #
 #ERROR CODES FOR HYDRA
 #Categories are:
@@ -68,13 +79,17 @@ class ValidationError(HydraError):
 #Permission Errors: 500 - 599
 #Data Errors        600 - 699
 #Ownership Errors   700 - 799
+#Login Errors       800 - 899
 #
 error_codes = {
-    'HYDRADB'      : "100",
-    'HYDRAPLUGIN'  : "200",
-    'HYDRARESOURCE': "300",
-    'HYDRAATTR'    : "400",
-    'HYDRAPERM'    : "500",
-    'HYDRADATA'    : "600",
-    'HYDRAOWNER'   : "700",
+    'HYDRADB'               : "100",
+    'HYDRAPLUGIN'           : "200",
+    'HYDRARESOURCE'         : "300",
+    'HYDRAATTR'             : "400",
+    'HYDRAPERM'             : "500",
+    'HYDRADATA'             : "600",
+    'HYDRAOWNER'            : "700",
+    'HYDRA_LOGIN_USER_NOT_FOUND'  : "800",
+    'HYDRA_LOGIN_USER_MAX_ATTEMPTS_EXCEEDED'  : "801",
+    'HYDRA_LOGIN_USER_PASSWORD_WRONG'  : "802"
 }

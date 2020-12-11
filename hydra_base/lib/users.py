@@ -22,7 +22,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from .objects import JSONObject
 from ..db.model import User, Role, Perm, RoleUser, RolePerm
-from ..exceptions import ResourceNotFoundError, HydraError
+from ..exceptions import ResourceNotFoundError, HydraError, HydraLoginUserNotFound, HydraLoginUserMaxAttemptsExceeded, HydraLoginUserPasswordWrong
 from .. import db
 from .. import config
 from ..util.permissions import required_perms
@@ -248,17 +248,17 @@ def inc_failed_login_attempts(username, flush=True, **kwargs):
         raises:
             HydraError if the username does not exist
     """
-
     try:
         user_i = db.DBSession.query(User).filter(User.username == username).one()
     except NoResultFound:
-        raise HydraError(username)
+        raise HydraLoginUserNotFound("User '{}' does not exist".format(username))
 
     if user_i.failed_logins is not None:
         user_i.failed_logins = user_i.failed_logins + 1
     else:
         user_i.failed_logins = 1
 
+    log.info("[ inc_failed_login_attempts ] User {} has currently {} failed logins".format(username, user_i.failed_logins))
     if flush is True:
         db.DBSession.flush()
 
@@ -281,7 +281,8 @@ def reset_failed_logins(username, flush=True, **kwargs):
     try:
         user_i = db.DBSession.query(User).filter(User.username == username).one()
     except NoResultFound:
-        raise HydraError(username)
+        # raise HydraError(username)
+        raise HydraLoginUserNotFound("User '{}' does not exist".format(username))
 
     user_i.failed_logins = 0
 

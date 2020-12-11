@@ -25,8 +25,7 @@ from .. import db
 import datetime
 import random
 import bcrypt
-from ..exceptions import HydraError
-import transaction
+from ..exceptions import HydraError, HydraLoginUserNotFound, HydraLoginUserMaxAttemptsExceeded, HydraLoginUserPasswordWrong
 from sqlalchemy.orm import load_only
 from ..lib.objects import JSONObject
 from ..lib.users import get_remaining_login_attempts, inc_failed_login_attempts
@@ -125,7 +124,8 @@ def make_root_user():
 
     user_id = user.id
 
-    transaction.commit()
+    # Do not remove!
+    db.commit_transaction()
 
     return user_id
 
@@ -135,11 +135,15 @@ def login_user(username, password):
     try:
         user_i = db.DBSession.query(User).filter(User.username == username).one()
     except NoResultFound:
+        """ The user has not been found in the DB """
+        raise HydraLoginUserNotFound(username)
+    except:
+        """ Generic DB Error """
         raise HydraError(username)
 
     if get_remaining_login_attempts(username, user_id=user_i.id) <= 0:
         """  Account is not permitted to login """
-        raise HydraError("Max login attempts exceeded for user {}".format(username))
+        raise HydraLoginUserMaxAttemptsExceeded("Max login attempts exceeded for user {}".format(username))
 
     userPassword = ""
     try:
@@ -157,12 +161,13 @@ def login_user(username, password):
         user_i.failed_logins = 0
         user_id = user_i.id
         db.DBSession.flush()
-        transaction.commit()
+        # Do not commit the transaction here because it is managed by HWI/Hydra-Server
+        # db.commit_transaction()
         return user_id
     else:
         log.info("User {} now has {} failed logins".format(username, user_i.failed_logins+1))
         inc_failed_login_attempts(user_i.username, user_id=1)
-        raise HydraError(username)
+        raise HydraLoginUserPasswordWrong(username)
 
 
 def create_default_net():
@@ -176,7 +181,8 @@ def create_default_net():
         net.scenarios.append(scen)
         db.DBSession.add(net)
     db.DBSession.flush()
-    transaction.commit()
+    # Do not remove!
+    db.commit_transaction()
     return net
 
 
