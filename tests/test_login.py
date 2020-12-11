@@ -86,6 +86,7 @@ class TestLogin:
             try:
                 user_id, session_id = client.login('root', 'wrong-password!')
             except hydra_base.exceptions.HydraLoginUserMaxAttemptsExceeded as e:
+                # this exception will be eventually raised at a certain point
                 exception_raised="HydraLoginUserMaxAttemptsExceeded"
             except hydra_base.exceptions.HydraLoginUserPasswordWrong as e:
                 pass
