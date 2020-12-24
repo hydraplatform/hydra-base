@@ -1246,7 +1246,7 @@ def get_scenarios_data(scenario_id, attr_id, type_id, node_ids=None, link_ids=No
         resource_data_qry = db.DBSession.query(ResourceScenario).filter(
             ResourceScenario.dataset_id == Dataset.id,
             ResourceAttr.id == ResourceScenario.resource_attr_id,
-            ResourceScenario.scenario_id == scenario.scenario_id) \
+            ResourceScenario.scenario_id == scenario.id) \
             .distinct() \
             .options(joinedload('resourceattr')) \
             .options(joinedload_all('dataset.metadata'))
