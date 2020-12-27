@@ -1229,17 +1229,26 @@ def get_resource_attribute_datasets(resource_attr_id, scenario_id, **kwargs):
 
     return ras
 
-def get_scenarios_data(scenario_id, attr_id, type_id, node_ids=None, link_ids=None, network_ids=None, **kwargs):
+def get_scenarios_data(scenario_id, attr_id=None, type_id=None, node_ids=None, link_ids=None, network_ids=None, **kwargs):
     """
         Get all the resource scenarios for a given attribute and/or type
         in a given scenario.
     """
+
+    if not (attr_id or type_id):
+        raise Exception('Either attr_id or type_id must be provided.')
 
     user_id = kwargs.get('user_id')
 
     # This can be either a single ID or list, so make them consistent
     if not isinstance(scenario_id, list):
         scenario_id = [scenario_id]
+
+    if attr_id and not isinstance(attr_id, list):
+        attr_id = [attr_id]
+
+    if type_id and not isinstance(type_id, list):
+        type_id = [type_id]
 
     scenarios = db.DBSession.query(Scenario).filter(Scenario.id.in_(scenario_id)).all()
     for scenario in scenarios:
@@ -1252,17 +1261,12 @@ def get_scenarios_data(scenario_id, attr_id, type_id, node_ids=None, link_ids=No
             .options(joinedload_all('dataset.metadata'))
 
         attr_ids = []
-        if type_id is not None:
-            if not isinstance(type_id, list):
-                type_id = [type_id]
+        if type_id and not attr_id:
             rs = db.DBSession.query(TypeAttr).filter(TypeAttr.type_id.in_(type_id)).all()
             for r in rs:
                 attr_ids.append(r.attr_id)
-        if attr_id is not None:
-            if not isinstance(attr_id, list):
-                attr_id = [attr_id]
-            attr_ids.extend(attr_id)
-        attr_ids = set(attr_ids)
+        else:
+            attr_ids = attr_id
 
         if attr_ids:
             resource_data_qry = resource_data_qry.filter(ResourceAttr.attr_id.in_(attr_ids))
