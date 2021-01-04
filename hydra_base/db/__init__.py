@@ -111,7 +111,7 @@ def connect(db_url=None):
         db_url = config.get('mysqld', 'url')
 
     log.info("Connecting to database")
-    log.debug("DB URL: %s", db_url)
+    log.info("DB URL: %s", db_url.split('@')[1])
 
     db_url = create_mysql_db(db_url)
 
@@ -141,6 +141,8 @@ def connect(db_url=None):
         DeclarativeBase.metadata.create_all(engine, checkfirst=True)
     except sqlalchemy.exc.OperationalError as err:
         log.warning("Error creating database: %s", err)
+
+    return db_url
 
 def get_session():
     global DBSession
