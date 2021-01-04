@@ -1,7 +1,7 @@
 """template_inheritance
 
 Revision ID: b04cb2e57cb0
-Revises: 35088e32c557
+Revises: 50bd5bac8701
 Create Date: 2020-08-14 10:42:47.565737
 
 """
