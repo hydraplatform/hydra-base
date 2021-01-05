@@ -118,7 +118,7 @@ def _get_type(type_id):
     return type_i
 
 @required_perms('get_template')
-def get_types_by_attr(resource, template_id=None, **kwargs):
+def get_types_by_attr(resource, resource_type, template_id=None, **kwargs):
     """
         Using the attributes of the resource, get all the
         types that this resource matches.
@@ -155,6 +155,10 @@ def get_types_by_attr(resource, template_id=None, **kwargs):
 
     #tmpl type attrs must be a subset of the resource's attrs
     for ttype in all_types:
+
+        if ttype.resource_type != resource_type:
+            continue
+
         type_attr_ids = []
         for typeattr in ttype.typeattrs:
             type_attr_ids.append(typeattr.attr_id)
@@ -193,16 +197,16 @@ def apply_template_to_network(template_id, network_id, **kwargs):
         log.debug("No network type to set.")
 
     for node_i in net_i.nodes:
-        templates = get_types_by_attr(node_i, template_id, **kwargs)
+        templates = get_types_by_attr(node_i, 'NODE', template_id, **kwargs)
         if len(templates) > 0:
             assign_type_to_resource(templates[0].id, 'NODE', node_i.id, **kwargs)
     for link_i in net_i.links:
-        templates = get_types_by_attr(link_i, template_id, **kwargs)
+        templates = get_types_by_attr(link_i, 'LINK', template_id, **kwargs)
         if len(templates) > 0:
             assign_type_to_resource(templates[0].id, 'LINK', link_i.id, **kwargs)
 
     for group_i in net_i.resourcegroups:
-        templates = get_types_by_attr(group_i, template_id, **kwargs)
+        templates = get_types_by_attr(group_i, 'GROUP', template_id, **kwargs)
         if len(templates) > 0:
             assign_type_to_resource(templates[0].id, 'GROUP', group_i.id, **kwargs)
 
@@ -354,7 +358,7 @@ def get_matching_resource_types(resource_type, resource_id, **kwargs):
         resource_i = db.DBSession.query(ResourceGroup).filter(
             ResourceGroup.id == resource_id).one()
 
-    matching_types = get_types_by_attr(resource_i, **kwargs)
+    matching_types = get_types_by_attr(resource_i, resource_type, **kwargs)
     return matching_types
 
 @required_perms("edit_network")

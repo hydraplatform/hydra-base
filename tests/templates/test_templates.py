@@ -439,7 +439,7 @@ class TestTemplates:
         assert len(updated_network.types) == 2
 
 
-        node_types = client.get_types_by_attr(updated_network.nodes[0])
+        node_types = client.get_types_by_attr(updated_network.nodes[0], 'NODE')
 
         assert len(node_types) > 0
 
