@@ -55,14 +55,20 @@ def run(source_network_id, target_network_id):
             if t.type_id == matching_type.type_id:
                 print(f"Node {n.name} already has the correct type")
                 continue
-
-        new_resource_types.append(
-                    {
-                        'ref_key' : 'NODE',
-                        'node_id' : n.id,
-                        'type_id' : matching_type.type_id,
-                        'child_template_id' : matching_type.child_template_id
-                    })
+        rt = ResourceType()
+        rt.ref_key = 'NODE'
+        rt.node_id = n.id
+        rt.type_id = matching_type.type_id
+        rt.child_template_id = matching_type.child_template_id
+        hb.db.DBSession.add(rt)
+        new_resource_types.append(rt)
+#        new_resource_types.append(
+#                    {
+#                        'ref_key' : 'NODE',
+#                        'node_id' : n.id,
+#                        'type_id' : matching_type.type_id,
+#                        'child_template_id' : matching_type.child_template_id
+#                    })
     for l in target_links:
         start_node = l.node_a.name
         end_node   = l.node_b.name
@@ -71,36 +77,52 @@ def run(source_network_id, target_network_id):
             if t.type_id == matching_type.type_id:
                 print(f"Link {l.name} already has the correct type")
                 continue
-        new_resource_types.append(
-                    {
-                        'ref_key' : 'LINK',
-                        'link_id' : l.id,
-                        'type_id' : matching_type.type_id,
-                        'child_template_id' : matching_type.child_template_id
-                    })
+        rt = ResourceType()
+        rt.ref_key = 'LINK'
+        rt.link_id = l.id
+        rt.type_id = matching_type.type_id
+        rt.child_template_id = matching_type.child_template_id
+        hb.db.DBSession.add(rt)
+        new_resource_types.append(rt)
+#        new_resource_types.append(
+#                    {
+#                        'ref_key' : 'LINK',
+#                        'link_id' : l.id,
+#                        'type_id' : matching_type.type_id,
+#                        'child_template_id' : matching_type.child_template_id
+#                    })
     for g in target_groups:
         matching_type = group_type_map[g.name]
         for t in g.types:
             if t.type_id == matching_type.type_id:
                 print(f"Group {g.name} already has the correct type")
                 continue
-        new_resource_types.append(
-                    {
-                        'ref_key' : 'GROUP',
-                        'group_id' : g.id,
-                        'type_id' : matching_type.type_id,
-                        'child_template_id' : matching_type.child_template_id
-                    })
+        rt = ResourceType()
+        rt.ref_key = 'GROUP'
+        rt.group_id = g.id
+        rt.type_id = matching_type.type_id
+        rt.child_template_id = matching_type.child_template_id
+        new_resource_types.append(rt)
+        hb.db.DBSession.add(rt)
+
+#        new_resource_types.append(
+#                    {
+#                        'ref_key' : 'GROUP',
+#                        'group_id' : g.id,
+#                        'type_id' : matching_type.type_id,
+#                        'child_template_id' : matching_type.child_template_id
+#                    })
 
     try:
 
-        if len(new_resource_types) > 0:
-            print("Inserting %s types"%len(new_resource_types))
-            hb.db.DBSession.bulk_insert_mappings(ResourceType, new_resource_types)
+#        if len(new_resource_types) > 0:
+#            print("Inserting %s types"%len(new_resource_types))
+#            hb.db.DBSession.bulk_insert_mappings(ResourceType, new_resource_types)
 
         hb.db.DBSession.flush()
 
         hb.commit_transaction()
+#        print("Inserted: %s types"%len(new_resource_types))
         print("Inserted: %s types"%len(new_resource_types))
     except Exception as e:
         print("An error has occurred: %s", e)
