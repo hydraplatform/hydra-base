@@ -403,3 +403,62 @@ class TestTemplateInheritance:
         new_network = client.add_network(network)
 
         assert network.nodes[0].types[0].child_template_id == child_template_j.id
+
+
+    def test_delete_child_template(self, client):
+        """
+            This test verifies that the deletion of a child template has no effect
+            on the parent template from which it is derived.
+
+        """
+        # Create both a parent and a child template
+        parent_template_j = client.testutils.create_template()
+        child_template_j = client.testutils.create_child_template(parent_template_j.id)
+
+        # Retrieve the types defined on the parent
+        parent_network_pre = list(filter(lambda x: x.resource_type=='NETWORK', parent_template_j.templatetypes))[0]
+        parent_nodes_pre = list(filter(lambda x: x.resource_type=='NODE', parent_template_j.templatetypes))
+        parent_links_pre = list(filter(lambda x: x.resource_type=='LINK', parent_template_j.templatetypes))
+        parent_groups_pre = list(filter(lambda x: x.resource_type=='GROUP', parent_template_j.templatetypes))
+
+        # Delete the child template
+        client.delete_template(child_template_j.id)
+
+        # Re-retrieve the parent following deletion of the child
+        parent_template_j = client.get_template(parent_template_j.id)
+
+        # Re-retrieve the parent's types following deletion of the child
+        parent_network_post = list(filter(lambda x: x.resource_type=='NETWORK', parent_template_j.templatetypes))[0]
+        parent_nodes_post = list(filter(lambda x: x.resource_type=='NODE', parent_template_j.templatetypes))
+        parent_links_post = list(filter(lambda x: x.resource_type=='LINK', parent_template_j.templatetypes))
+        parent_groups_post = list(filter(lambda x: x.resource_type=='GROUP', parent_template_j.templatetypes))
+
+        # Verify that the set of types prior to deletion is equal to that after deletion;
+        # this establishes equal cardinality and pairwise equality for members.
+        assert set(parent_nodes_pre) == set(parent_nodes_post)
+        assert set(parent_links_pre) == set(parent_links_post)
+        assert set(parent_groups_pre) == set(parent_groups_post)
+
+        # Verify that the network type defined on the parent is unchanged
+        assert parent_network_pre.id == parent_network_post.id
+        assert parent_network_pre.type_id == parent_network_post.type_id
+
+
+    def test_delete_parent_template(self, client):
+        """
+            This test confirms the workflow when deleting a template which is
+            the parent of another template.
+
+            Any child templates are themselves deleted.
+
+        """
+        # Create both a parent and a child template
+        parent_template_j = client.testutils.create_template()
+        child_template_j = client.testutils.create_child_template(parent_template_j.id)
+
+        # Delete the parent template
+        client.delete_template(parent_template_j.id)
+
+        # Attempt to retrieve the child template causes HydraError
+        with pytest.raises(HydraError):
+            child_template_j_post = client.get_template(child_template_j.id)
