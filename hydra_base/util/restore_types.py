@@ -67,6 +67,10 @@ def run(source_network_id, target_network_id):
         start_node = l.node_a.name
         end_node   = l.node_b.name
         matching_type = link_type_map[(start_node, end_node)]
+        for t in l.types:
+            if t.type_id == matching_type.type_id:
+                print(f"Link {l.name} already has the correct type")
+                continue
         new_resource_types.append(
                     {
                         'ref_key' : 'LINK',
@@ -76,6 +80,10 @@ def run(source_network_id, target_network_id):
                     })
     for g in target_groups:
         matching_type = group_type_map[g.name]
+        for t in g.types:
+            if t.type_id == matching_type.type_id:
+                print(f"Group {g.name} already has the correct type")
+                continue
         new_resource_types.append(
                     {
                         'ref_key' : 'GROUP',
@@ -92,11 +100,11 @@ def run(source_network_id, target_network_id):
 
         hb.db.DBSession.flush()
 
-        hb.db.commit_transaction()
+        hb.commit_transaction()
         print("Inserted: %s types"%len(new_resource_types))
     except Exception as e:
         print("An error has occurred: %s", e)
-        hb.db.rollback_transaction()
+        hb.rollback_transaction()
 
 if __name__ == '__main__':
     network_with_types = 4549
