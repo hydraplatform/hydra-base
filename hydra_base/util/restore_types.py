@@ -8,10 +8,19 @@ The names of the nodes in both networks need to be the same
 
 import click
 import hydra_base as hb
+from hydra_base.lib.objects import JSONObject
 from hydra_base.db.model import *
 
 class TypeRestorer:
-    def __init__(self, source_network_id, target_network_id):
+    def __init__(self, source_network_id, target_network_id, default_link):
+        """
+            The default link is the default link to use if a link exists in the
+            target network but not in the source
+
+            We do not provide a default node argument, because the basic functionality
+            relies on the nodes in the target being a subset of the source, and so no
+            default should be necessary
+        """
         self.source_network_id = source_network_id
         self.target_network_id = target_network_id
 
@@ -30,7 +39,12 @@ class TypeRestorer:
         self.link_type_map = {}
         self.group_type_map = {}
 
-        self.new_resource_types = {'NODE': 0, 'LINK': 0, 'GROUP': 0}
+        self.template = None
+
+        self.new_resource_types = {'NODE': 0, 'LINK': 0, 'GROUP': 0, 'NETWORK': 0}
+
+        self.default_link_name = default_link
+        self.default_link_type = None
 
     def load_data(self):
 
@@ -45,6 +59,13 @@ class TypeRestorer:
         self.target_nodes = hb.db.DBSession.query(Node).filter(Node.network_id == self.target_network_id).all()
         self.target_links = hb.db.DBSession.query(Link).filter(Link.network_id == self.target_network_id).all()
         self.target_groups = hb.db.DBSession.query(ResourceGroup).filter(ResourceGroup.network_id == self.target_network_id).all()
+
+        self.template = self.source_network.types[0].templatetype.template
+
+        if self.default_link_name is not None:
+            for t in self.template.templatetypes:
+                if t.name == self.default_link_name:
+                    self.default_link_type = JSONObject({'type_id': t.id})
 
         # SOURCE NODES
         for n in self.source_nodes:
@@ -85,7 +106,8 @@ class TypeRestorer:
 
     def check_networks_compatible(self):
         """
-            Check the 2 networks are compatible
+            Check the 2 networks are compatible by testing whether the source network
+            contains all the nodes needed by the target network
         """
         #first check we've got compatible networks
         for n in self.target_nodes:
@@ -94,13 +116,17 @@ class TypeRestorer:
                                 f" target network {self.target_network_id} which is "
                                 f"not in the source network {self.source_network_id}")
 
-        for l in self.target_links:
-            start_node = l.node_a.name
-            end_node   = l.node_b.name
-            if (start_node, end_node) not in self.link_type_map:
-                raise Exception(f"Unable to map types. Found a link name '{l.name}' in"
-                                f" target network {self.target_network_id} which is "
-                                f"not in the source network {self.source_network_id}")
+        #If a default link type is provided, it means that there are probably links the targtet
+        #network not present in the source. If this is the case, then don't bother checking
+        #for compatible links
+        if self.default_link_type is None:
+            for l in self.target_links:
+                start_node = l.node_a.name
+                end_node   = l.node_b.name
+                if (start_node, end_node) not in self.link_type_map:
+                    raise Exception(f"Unable to map types. Found a link name '{l.name}' in"
+                                    f" target network {self.target_network_id} which is "
+                                    f"not in the source network {self.source_network_id}")
 
         for g in self.target_groups:
             if g.name not in self.group_type_map:
@@ -124,7 +150,7 @@ class TypeRestorer:
         for l in self.target_links:
             start_node = l.node_a.name
             end_node   = l.node_b.name
-            matching_type = self.link_type_map[(start_node, end_node)]
+            matching_type = self.link_type_map.get((start_node, end_node), self.default_link_type)
             self.addResourceType("LINK", l, matching_type)
 
         for g in self.target_groups:
@@ -136,6 +162,7 @@ class TypeRestorer:
             # To reenable later
             hb.db.DBSession.flush()
             hb.commit_transaction()
+            #hb.rollback_transaction()
             print("Inserted types: %s"%self.new_resource_types)
         except Exception as e:
             print("An error has occurred: %s", e)
@@ -144,8 +171,9 @@ class TypeRestorer:
 @click.command()
 @click.argument('source_network_id')
 @click.argument('target_network_id')
-def restore(source_network_id, target_network_id):
-    restorer = TypeRestorer(source_network_id, target_network_id)
+@click.option('--default-link', default=None, help="Name of a default link type, if a link exists in the target but not the source")
+def restore(source_network_id, target_network_id, default_link=None):
+    restorer = TypeRestorer(source_network_id, target_network_id, default_link=default_link)
     restorer.load_data()
     restorer.run()
 
