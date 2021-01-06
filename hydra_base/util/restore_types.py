@@ -5,201 +5,149 @@ the resource types for the target network don't exist.
 
 The names of the nodes in both networks need to be the same
 """
+
+import click
 import hydra_base as hb
 from hydra_base.db.model import *
 
-# generic function to add a resourcetype
-def tryAddingResourceType(ref_key, target_resource, source_resource_type):
-    for t in target_resource.types:
-        if t.type_id == source_resource_type.type_id:
-            print(f"{ref_key} {target_resource.name} already has the correct type")
-            break
-    else:
-        rt = ResourceType()
-        rt.ref_key = ref_key
-        if ref_key == "GROUP":
-            rt.group_id = target_resource.id
-        elif ref_key == "NODE":
-            rt.node_id = target_resource.id
-        elif ref_key == "NETWORK":
-            rt.network_id = target_resource.id
-        elif ref_key == "LINK":
-            rt.link_id = target_resource.id
+class TypeRestorer:
+    def __init__(self, source_network_id, target_network_id):
+        self.source_network_id = source_network_id
+        self.target_network_id = target_network_id
+
+        self.source_network = None
+        self.source_nodes = []
+        self.source_links = []
+        self.source_groups = []
+
+        self.target_network = None
+        self.target_nodes = []
+        self.target_links = []
+        self.target_groups = []
+
+        self.network_type_map = {}
+        self.node_type_map = {}
+        self.link_type_map = {}
+        self.group_type_map = {}
+
+        self.new_resource_types = {'NODE': 0, 'LINK': 0, 'GROUP': 0}
+
+    def load_data(self):
+
+        hb.db.connect()
+
+        self.source_network = hb.db.DBSession.query(Network).filter(Network.id == self.source_network_id).one()
+        self.source_nodes = hb.db.DBSession.query(Node).filter(Node.network_id == self.source_network_id).all()
+        self.source_links = hb.db.DBSession.query(Link).filter(Link.network_id == self.source_network_id).all()
+        self.source_groups = hb.db.DBSession.query(ResourceGroup).filter(ResourceGroup.network_id == self.source_network_id).all()
+
+        self.target_network = hb.db.DBSession.query(Network).filter(Network.id == self.target_network_id).one()
+        self.target_nodes = hb.db.DBSession.query(Node).filter(Node.network_id == self.target_network_id).all()
+        self.target_links = hb.db.DBSession.query(Link).filter(Link.network_id == self.target_network_id).all()
+        self.target_groups = hb.db.DBSession.query(ResourceGroup).filter(ResourceGroup.network_id == self.target_network_id).all()
+
+        # SOURCE NODES
+        for n in self.source_nodes:
+            self.node_type_map[n.name] = n.types[0]
+        # SOURCE LINKS
+        for l in self.source_links:
+            start_node = l.node_a.name
+            end_node   = l.node_b.name
+            self.link_type_map[(start_node, end_node)] = l.types[0]
+        # SOURCE GROUPS
+        for g in self.source_groups:
+            self.group_type_map[g.name] = g.types[0]
+
+    # generic function to add a resourcetype
+    def addResourceType(self, ref_key, target_resource, source_resource_type):
+        for t in target_resource.types:
+            if t.type_id == source_resource_type.type_id:
+                print(f"{ref_key} {target_resource.name} already has the correct type")
+                break
         else:
-            raise Exception(f"The ref_key {ref_key} is not valid!")
+            rt = ResourceType()
+            rt.ref_key = ref_key
+            if ref_key == "GROUP":
+                rt.group_id = target_resource.id
+            elif ref_key == "NODE":
+                rt.node_id = target_resource.id
+            elif ref_key == "NETWORK":
+                rt.network_id = target_resource.id
+            elif ref_key == "LINK":
+                rt.link_id = target_resource.id
+            else:
+                raise Exception(f"The ref_key {ref_key} is not valid!")
 
-        rt.type_id = source_resource_type.type_id
-        rt.child_template_id = source_resource_type.child_template_id
-        new_resource_types.append(rt)
-        hb.db.DBSession.add(rt)
-        counters[rt.ref_key] = counters[rt.ref_key] + 1
+            rt.type_id = source_resource_type.type_id
+            rt.child_template_id = source_resource_type.child_template_id
+            self.new_resource_types[ref_key] = self.new_resource_types[ref_key] + 1
+            hb.db.DBSession.add(rt)
 
+    def check_networks_compatible(self):
+        """
+            Check the 2 networks are compatible
+        """
+        #first check we've got compatible networks
+        for n in self.target_nodes:
+            if n.name not in self.node_type_map:
+                raise Exception(f"Unable to map types. Found a node name '{n.name}' in"
+                                f" target network {self.target_network_id} which is "
+                                f"not in the source network {self.source_network_id}")
 
+        for l in self.target_links:
+            start_node = l.node_a.name
+            end_node   = l.node_b.name
+            if (start_node, end_node) not in self.link_type_map:
+                raise Exception(f"Unable to map types. Found a link name '{l.name}' in"
+                                f" target network {self.target_network_id} which is "
+                                f"not in the source network {self.source_network_id}")
 
-def run(source_network_id, target_network_id):
-    hb.db.connect()
+        for g in self.target_groups:
+            if g.name not in self.group_type_map:
+                raise Exception(f"Unable to map types. Found a group name '{g.name}' in"
+                                f" target network {self.target_network_id} which is "
+                                f"not in the source network {self.source_network_id}")
 
-    source_networks = hb.db.DBSession.query(Network).filter(Network.id == source_network_id).all()
-    source_nodes = hb.db.DBSession.query(Node).filter(Node.network_id == source_network_id).all()
-    source_links = hb.db.DBSession.query(Link).filter(Link.network_id == source_network_id).all()
-    source_groups = hb.db.DBSession.query(ResourceGroup).filter(ResourceGroup.network_id == source_network_id).all()
-    #map node name to type name
-    network_type_map = {}
-    node_type_map = {}
-    link_type_map = {}
-    group_type_map = {}
-    # SOURCE NETWORK
-    for n in source_networks:
-        network_type_map[n.name] = n.types[0]
-    # SOURCE NODES
-    for n in source_nodes:
-        node_type_map[n.name] = n.types[0]
-    # SOURCE LINKS
-    for l in source_links:
-        start_node = l.node_a.name
-        end_node   = l.node_b.name
-        link_type_map[(start_node, end_node)] = l.types[0]
-    # SOURCE GROUPS
-    for g in source_groups:
-        group_type_map[g.name] = g.types[0]
+    def run(self):
+        self.check_networks_compatible()
 
-    new_resource_types = []
-    target_networks = hb.db.DBSession.query(Network).filter(Network.id == target_network_id).all()
-    target_nodes = hb.db.DBSession.query(Node).filter(Node.network_id == target_network_id).all()
-    target_links = hb.db.DBSession.query(Link).filter(Link.network_id == target_network_id).all()
-    target_groups = hb.db.DBSession.query(ResourceGroup).filter(ResourceGroup.network_id == target_network_id).all()
+        #OK we have compatible networks. Now create some resource types
+        self.addResourceType("NETWORK",
+                                   self.target_network,
+                                   self.source_network.types[0])
 
-    counters={'NODE': 0, 'NETWORK': 0, 'LINK': 0, 'GROUP': 0}
-
-    #first check we've got compatible networks
-    for n in target_networks:
-        if n.name not in network_type_map:
-            raise Exception(f"Unable to map types. The network type for the network name '{n.name}' is"
-                            f" different between the target network id {target_network_id} and the  "
-                            f" source network {source_network_id}")
-
-    for n in target_nodes:
-        if n.name not in node_type_map:
-            raise Exception(f"Unable to map types. Found a node name '{n.name}' in"
-                            f" target network {target_network_id} which is "
-                            f"not in the source network {source_network_id}")
-
-    for l in target_links:
-        start_node = l.node_a.name
-        end_node   = l.node_b.name
-        if (start_node, end_node) not in link_type_map:
-            raise Exception(f"Unable to map types. Found a link name '{l.name}' in"
-                            f" target network {target_network_id} which is "
-                            f"not in the source network {source_network_id}")
-
-    #OK we have compatible networks. Now create some resource types
-    for n in target_networks:
-        matching_type = network_type_map[n.name]
-
-        # Please check
-        tryAddingResourceType("NETWORK", n, matching_type)
+        for n in self.target_nodes:
+            matching_type = self.node_type_map[n.name]
+            self.addResourceType("NODE", n, matching_type)
 
 
-        # for t in n.types:
-        #     if t.type_id == matching_type.type_id:
-        #         print(f"Network {n.name} already has the correct type")
-        #         break
-        # else:
-        #     print(f"Adding the correct type for the Network {n.name}")
-        #     rt = ResourceType()
-        #     rt.ref_key = 'NETWORK'
-        #     rt.network_id = n.id
-        #     rt.type_id = matching_type.type_id
-        #     rt.child_template_id = matching_type.child_template_id
-        #     hb.db.DBSession.add(rt)
-        #     new_resource_types.append(rt)
-        #     counters[rt.ref_key] = counters[rt.ref_key] + 1
+        for l in self.target_links:
+            start_node = l.node_a.name
+            end_node   = l.node_b.name
+            matching_type = self.link_type_map[(start_node, end_node)]
+            self.addResourceType("LINK", l, matching_type)
 
+        for g in self.target_groups:
+            matching_type = self.group_type_map[g.name]
+            self.addResourceType("GROUP", g, matching_type)
 
-    for n in target_nodes:
-        matching_type = node_type_map[n.name]
+        try:
 
-        # Please check
-        tryAddingResourceType("NODE", n, matching_type)
+            # To reenable later
+            hb.db.DBSession.flush()
+            hb.commit_transaction()
+            print("Inserted types: %s"%self.new_resource_types)
+        except Exception as e:
+            print("An error has occurred: %s", e)
+            hb.rollback_transaction()
 
-        # for t in n.types:
-        #     if t.type_id == matching_type.type_id:
-        #         print(f"Node {n.name} already has the correct type")
-        #         break
-        # else:
-        #     rt = ResourceType()
-        #     rt.ref_key = 'NODE'
-        #     rt.node_id = n.id
-        #     rt.type_id = matching_type.type_id
-        #     rt.child_template_id = matching_type.child_template_id
-        #     hb.db.DBSession.add(rt)
-        #     new_resource_types.append(rt)
-        #     counters[rt.ref_key] = counters[rt.ref_key] + 1
-
-    for l in target_links:
-        start_node = l.node_a.name
-        end_node   = l.node_b.name
-        matching_type = link_type_map[(start_node, end_node)]
-
-        # Please check
-        tryAddingResourceType("LINK", l, matching_type)
-
-        # for t in l.types:
-        #     if t.type_id == matching_type.type_id:
-        #         print(f"Link {l.name} already has the correct type")
-        #         break
-        # else:
-        #     rt = ResourceType()
-        #     rt.ref_key = 'LINK'
-        #     rt.link_id = l.id
-        #     rt.type_id = matching_type.type_id
-        #     rt.child_template_id = matching_type.child_template_id
-        #     hb.db.DBSession.add(rt)
-        #     new_resource_types.append(rt)
-        #     counters[rt.ref_key] = counters[rt.ref_key] + 1
-
-    for g in target_groups:
-        matching_type = group_type_map[g.name]
-
-        # Please check
-        tryAddingResourceType("GROUP", g, matching_type)
-
-        # for t in g.types:
-        #     if t.type_id == matching_type.type_id:
-        #         print(f"Group {g.name} already has the correct type")
-        #         break
-        # else:
-        #     rt = ResourceType()
-        #     rt.ref_key = 'GROUP'
-        #     rt.group_id = g.id
-        #     rt.type_id = matching_type.type_id
-        #     rt.child_template_id = matching_type.child_template_id
-        #     new_resource_types.append(rt)
-        #     hb.db.DBSession.add(rt)
-        #     counters[rt.ref_key] = counters[rt.ref_key] + 1
-
-
-    try:
-
-#        if len(new_resource_types) > 0:
-#            print("Inserting %s types"%len(new_resource_types))
-#            hb.db.DBSession.bulk_insert_mappings(ResourceType, new_resource_types)
-
-
-        # To reenable later
-        # hb.db.DBSession.flush()
-        # hb.commit_transaction()
-
-        hb.rollback_transaction()
-
-#        print("Inserted: %s types"%len(new_resource_types))
-        print("Inserted: %s types"%len(new_resource_types))
-        print(counters)
-    except Exception as e:
-        print("An error has occurred: %s", e)
-        hb.rollback_transaction()
+@click.command()
+@click.argument('source_network_id')
+@click.argument('target_network_id')
+def restore(source_network_id, target_network_id):
+    restorer = TypeRestorer(source_network_id, target_network_id)
+    restorer.load_data()
+    restorer.run()
 
 if __name__ == '__main__':
-    network_with_types = 4549
-    network_without_types = 4538
-    run(network_with_types,network_without_types)
+    restore()
