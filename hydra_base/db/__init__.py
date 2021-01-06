@@ -111,7 +111,10 @@ def connect(db_url=None):
         db_url = config.get('mysqld', 'url')
 
     log.info("Connecting to database")
-    log.info("DB URL: %s", db_url.split('@')[1])
+    if db_url.find('@') >= 0:
+        log.info("DB URL: %s", db_url.split('@')[1])
+    else:
+        log.info("DB URL: %s", db_url)
 
     db_url = create_mysql_db(db_url)
 
