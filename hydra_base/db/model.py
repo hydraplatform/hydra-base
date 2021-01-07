@@ -608,7 +608,7 @@ class Template(Base, Inspect):
 
         this_type.typeattrs = []
 
-        if not hasattr(this_type, 'ta_tree'):
+        if not hasattr(this_type, 'ta_tree') or this_type.ta_tree is None:
             this_type.ta_tree = {}
 
         typeattrs = None

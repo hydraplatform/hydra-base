@@ -178,7 +178,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
 
                 if resource_type.child_template_id is None:
                     if network_child_template_id is None:
-                        network_child_template_id = template.get_network_template(network_id, resource_type.id)
+                        network_child_template_id = template.get_network_template(network_id, resource_type.id)#TODO this should be type_id
                     resource_type.child_template_id = network_child_template_id
 
                 ref_id = resource_i.id
@@ -190,13 +190,13 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
                         'link_id' : resource_i.id if ref_key == 'LINK' else None,
                         'group_id' : resource_i.id if ref_key == 'GROUP' else None,
                         'network_id' : resource_i.id if ref_key == 'NETWORK' else None,
-                        'type_id' : resource_type.id,
+                        'type_id' : resource_type.id,#TODO this should be type_id
                         'child_template_id' : resource_type.child_template_id
                     }
                 )
                 #Go through all types in the resource and add attributes from these types
                 #which have not already been added.
-                typeattrs = type_dict.get(resource_type.id, [])
+                typeattrs = type_dict.get(resource_type.id, []) #TODO this should be type_id
 
                 for ta in typeattrs:
                     if ta.attr_id not in existing_attrs:
