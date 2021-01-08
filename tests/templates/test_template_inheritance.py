@@ -433,11 +433,18 @@ class TestTemplateInheritance:
         parent_links_post = list(filter(lambda x: x.resource_type=='LINK', parent_template_j.templatetypes))
         parent_groups_post = list(filter(lambda x: x.resource_type=='GROUP', parent_template_j.templatetypes))
 
+        parent_nodes_ids_pre = map(lambda n: n.id, parent_nodes_pre)
+        parent_nodes_ids_post = map(lambda n: n.id, parent_nodes_post)
+        parent_links_ids_pre = map(lambda n: n.id, parent_links_pre)
+        parent_links_ids_post = map(lambda n: n.id, parent_links_post)
+        parent_groups_ids_pre = map(lambda n: n.id, parent_groups_pre)
+        parent_groups_ids_post = map(lambda n: n.id, parent_groups_post)
+
         # Verify that the set of types prior to deletion is equal to that after deletion;
-        # this establishes equal cardinality and pairwise equality for members.
-        assert set(parent_nodes_pre) == set(parent_nodes_post)
-        assert set(parent_links_pre) == set(parent_links_post)
-        assert set(parent_groups_pre) == set(parent_groups_post)
+        # this establishes equal cardinality and pairwise equality of ids for members.
+        assert set(parent_nodes_ids_pre) == set(parent_nodes_ids_post)
+        assert set(parent_links_ids_pre) == set(parent_links_ids_post)
+        assert set(parent_groups_ids_pre) == set(parent_groups_ids_post)
 
         # Verify that the network type defined on the parent is unchanged
         assert parent_network_pre.id == parent_network_post.id
