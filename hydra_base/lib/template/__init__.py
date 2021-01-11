@@ -618,6 +618,8 @@ def update_template(template, **kwargs):
 
     tmpl.templatetypes = updated_templatetypes
 
+    db.DBSession.expunge_all()
+
     return tmpl
 
 @required_perms("delete_template")
