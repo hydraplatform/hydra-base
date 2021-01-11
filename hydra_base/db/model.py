@@ -30,6 +30,7 @@ Text, \
 DateTime,\
 Unicode
 
+from hydra_base.lib.objects import JSONObject
 
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -611,8 +612,6 @@ class Template(Base, Inspect):
         if not hasattr(this_type, 'ta_tree') or this_type.ta_tree is None:
             this_type.ta_tree = {}
 
-        typeattrs = None
-
         #get all the type attrs for this type, and add any which are missing
         typeattrs = get_session().query(TypeAttr)\
             .filter(TypeAttr.type_id == type_id)\
@@ -627,7 +626,6 @@ class Template(Base, Inspect):
             child_type = self.set_inherited_columns(this_type, child_type)
 
             for typeattr in typeattrs:
-
                 #Does this typeattr have a child?
                 child_typeattr = child_type.ta_tree.get(typeattr.id)
                 if child_typeattr is None:

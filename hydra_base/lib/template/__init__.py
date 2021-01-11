@@ -805,6 +805,8 @@ def update_templatetype(templatetype, auto_delete=False, **kwargs):
 
     updated_type = tmpltype_i.template.get_type(tmpltype_i.id)
 
+    db.DBSession.expunge(updated_type)
+
     return updated_type
 
 def _set_typeattr(typeattr, existing_ta=None):
