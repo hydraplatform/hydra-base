@@ -19,9 +19,11 @@
 
 import hydra_base
 import hydra_base.exceptions
+import hydra_server
 import datetime
 import bcrypt
 import pytest
+
 
 class TestLogin:
     """ A collection of tests of the User part of the DB.
@@ -70,25 +72,43 @@ class TestLogin:
         assert retrieved_user_id == user_id
 
     def test_login_wrong_user(self, client):
+        if client.app_name != "Hydra Remote Test Suite":
+            with pytest.raises(hydra_base.exceptions.HydraLoginUserNotFound):
+                user_id, session_id = client.login('wrong-user!', '')
+        else:
+            with pytest.raises(hydra_server.server.service.AuthenticationError):
+                user_id, session_id = client.login('wrong-user!', '')
 
-        with pytest.raises(hydra_base.exceptions.HydraLoginUserNotFound):
-            user_id, session_id = client.login('wrong-user!', '')
+
 
     def test_login_wrong_password(self, client):
 
-        with pytest.raises(hydra_base.exceptions.HydraLoginUserPasswordWrong):
-            user_id, session_id = client.login('root', 'wrong-password!')
+        if client.app_name != "Hydra Remote Test Suite":
+            with pytest.raises(hydra_base.exceptions.HydraLoginUserPasswordWrong):
+                user_id, session_id = client.login('root', 'wrong-password!')
+        else:
+            with pytest.raises(hydra_server.server.service.AuthenticationError):
+                user_id, session_id = client.login('wrong-user!', '')
 
 
     def test_login_too_many_attempts(self, client):
         exception_raised=""
         for i in range(1,10):
-            try:
-                user_id, session_id = client.login('root', 'wrong-password!')
-            except hydra_base.exceptions.HydraLoginUserMaxAttemptsExceeded as e:
-                # this exception will be eventually raised at a certain point
-                exception_raised="HydraLoginUserMaxAttemptsExceeded"
-            except hydra_base.exceptions.HydraLoginUserPasswordWrong as e:
-                pass
+            if client.app_name != "Hydra Remote Test Suite":
+                # Test on HB
+                try:
+                    user_id, session_id = client.login('root', 'wrong-password!')
+                except hydra_base.exceptions.HydraLoginUserMaxAttemptsExceeded as e:
+                    # this exception will be eventually raised at a certain point
+                    exception_raised="HydraLoginUserMaxAttemptsExceeded"
+                except hydra_base.exceptions.HydraLoginUserPasswordWrong as e:
+                    pass
+            else:
+                # Test on HS
+                with pytest.raises(hydra_server.server.service.AuthenticationError):
+                    user_id, session_id = client.login('root', 'wrong-password!')
+                    return
 
-        assert exception_raised == "HydraLoginUserMaxAttemptsExceeded"
+
+        if client.app_name != "Hydra Remote Test Suite":
+            assert exception_raised == "HydraLoginUserMaxAttemptsExceeded"
