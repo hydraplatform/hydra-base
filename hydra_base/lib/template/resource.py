@@ -1051,8 +1051,9 @@ def validate_resource(resource, tmpl_types, resource_scenarios=[], **kwargs):
 
     if not type_attrs.issubset(resource_attrs):
         for ta in type_attrs.difference(resource_attrs):
+            attr = db.DBSession.query(Attr).filter(Attr.id==ta).one()
             errors.append("Resource %s does not have attribute %s"%
-                          (resource.get_name(), ta_dict[ta].attr.name))
+                          (resource.get_name(), attr.name))
 
     resource_attr_ids = set([ra.id for ra in resource.attributes])
     #if data is included, check to make sure each dataset conforms
@@ -1069,7 +1070,9 @@ def validate_resource(resource, tmpl_types, resource_scenarios=[], **kwargs):
             rs_dimension_id = units.get_dimension_by_unit_id(rs_unit_id,
                                                              do_accept_unit_id_none=True).id
 
-            type_dimension_id = ta_dict[rs.resourceattr.attr_id].attr.dimension_id
+
+            attr = db.DBSession.query(Attr).filter(Attr.id==rs.resourceattr.attr_id).one()
+            type_dimension_id = attr.dimension_id
             type_unit_id = ta_dict[rs.resourceattr.attr_id].unit_id
 
             if rs_dimension_id != type_dimension_id:

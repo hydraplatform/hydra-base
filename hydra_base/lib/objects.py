@@ -173,7 +173,9 @@ class JSONObject(dict):
         # Make sure that "special" methods are returned as before.
 
         # Keys that start and end with "__" won't be retrievable via attributes
-        if name.startswith('__') and name.endswith('__'):
+        if name == '__table__':#special case for SQLAlchemy objects
+            return self.get('__table__')
+        elif name.startswith('__') and name.endswith('__'):
             return super(JSONObject, self).__getattr__(name)
         else:
             return self.get(name, None)

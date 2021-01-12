@@ -594,13 +594,14 @@ def update_template(template, **kwargs):
     if template.types is not None or template.templatetypes is not None:
         types = template.types if template.types is not None else template.templatetypes
         for templatetype in types:
+
             if templatetype.id is not None and templatetype.template_id != tmpl.id:
                 log.info("Type %s is a part of a parent template. Ignoring.", templatetype.id)
                 continue
 
             if templatetype.id is not None:
                 type_i = type_dict[templatetype.id]
-                _update_templatetype(templatetype, type_i, **kwargs)
+                _update_templatetype(templatetype, **kwargs)
                 req_templatetype_ids.append(type_i.id)
             else:
                 #Give it a template ID if it doesn't have one
@@ -612,15 +613,17 @@ def update_template(template, **kwargs):
         if ttype.id not in req_templatetype_ids:
             delete_templatetype(ttype.id, **kwargs)
 
-    updated_templatetypes = tmpl.get_types()
-
     db.DBSession.flush()
 
-    tmpl.templatetypes = updated_templatetypes
+    updated_templatetypes = tmpl.get_types()
 
-    db.DBSession.expunge_all()
+    tmpl_j = JSONObject(tmpl)
 
-    return tmpl
+    tmpl_j.templatetypes = updated_templatetypes
+
+    #db.DBSession.expunge(tmpl)
+
+    return tmpl_j
 
 @required_perms("delete_template")
 def delete_template(template_id, **kwargs):
@@ -680,12 +683,13 @@ def get_template(template_id, **kwargs):
         tmpl_i = db.DBSession.query(Template).filter(
             Template.id == template_id).one()
 
-        tmpl_i.templatetypes = tmpl_i.get_types()
 
         tmpl_j = JSONObject(tmpl_i)
 
+        tmpl_j.templatetypes = tmpl_i.get_types()
+
         #ignore the messing around we've been doing to the ORM objects
-        db.DBSession.expunge(tmpl_i)
+        #db.DBSession.expunge(tmpl_i)
 
         return tmpl_j
     except NoResultFound:
@@ -807,7 +811,7 @@ def update_templatetype(templatetype, auto_delete=False, **kwargs):
 
     updated_type = tmpltype_i.template.get_type(tmpltype_i.id)
 
-    db.DBSession.expunge(updated_type)
+#    db.DBSession.expunge(updated_type)
 
     return updated_type
 
@@ -833,11 +837,13 @@ def _set_typeattr(typeattr, existing_ta=None):
         may be added, None are removed or replaced. To remove other type attrs, do it
         manually using delete_typeattr
     """
-
     if existing_ta is None:
         ta = TypeAttr(attr_id=typeattr.attr_id)
     else:
-        ta = existing_ta
+        if typeattr.id is not None:
+            ta = db.DBSession.query(TypeAttr).filter(TypeAttr.id == typeattr.id).one()
+        else:
+            ta = existing_ta
 
     ta.attr_id = typeattr.attr_id
     ta.unit_id = typeattr.unit_id
@@ -869,7 +875,7 @@ def _set_typeattr(typeattr, existing_ta=None):
         if typeattr.attr_id is not None and typeattr.attr_id > 0:
             # Getting the passed attribute, so we need to check consistency
             # between attr dimension id and typeattr dimension id
-            attr = ta.get_attr()
+            attr = db.DBSession.query(Attr).filter(Attr.id==ta.attr_id).first()
             if attr is not None and attr.dimension_id is not None and\
                attr.dimension_id != dimension.id or \
                attr is not None and attr.dimension_id is None:
@@ -923,6 +929,9 @@ def _set_cols(source, target, reference=None):
         if colname not in target.__table__.columns:
             continue
 
+        if colname in ['cr_date', 'updated_at']:
+            continue
+
         if hasattr(reference, '_protected_columns')\
            and colname in reference._protected_columns:
             #as a child, you can't change stuff like IDS, cr dates etc.
@@ -971,7 +980,7 @@ def _update_templatetype(templatetype, existing_tt=None, auto_delete=False, **kw
     _set_cols(templatetype, tmpltype_i, existing_tt)
 
     ta_dict = {}
-    for t in tmpltype_i.typeattrs:
+    for t in tmpltype_i.get_typeattrs():
         ta_dict[t.attr_id] = t
 
     existing_attrs = []
@@ -979,6 +988,10 @@ def _update_templatetype(templatetype, existing_tt=None, auto_delete=False, **kw
     if templatetype.typeattrs is not None:
         for typeattr in templatetype.typeattrs:
             if typeattr.attr_id in ta_dict:
+                #this belongs to a parent. Ignore.
+                if typeattr.type_id is not None and typeattr.type_id != tmpltype_i.id:
+                    continue
+
                 ta = _set_typeattr(typeattr, ta_dict[typeattr.attr_id])
                 existing_attrs.append(ta.attr_id)
             else:
@@ -1040,7 +1053,7 @@ def get_templatetype(type_id, include_parent_data=True, **kwargs):
     inherited_templatetype = template.get_type(type_id)
 
     #ignore the messing around we've been doing to the ORM objects
-    db.DBSession.expunge(inherited_templatetype)
+#    db.DBSession.expunge(inherited_templatetype)
 
     return inherited_templatetype
 
@@ -1062,7 +1075,7 @@ def get_typeattr(typeattr_id, include_parent_data=True, **kwargs):
     #then get the type, but this time with inherited data.
     inherited_typeattr = template.get_typeattr(typeattr_id)
 
-    db.DBSession.expunge(inherited_typeattr)
+#    db.DBSession.expunge(inherited_typeattr)
 
     return inherited_typeattr
 
