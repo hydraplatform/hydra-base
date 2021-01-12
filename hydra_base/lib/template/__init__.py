@@ -520,7 +520,7 @@ def add_child_template(parent_id, name, description=None, **kwargs):
     #now add a default network type, but only if the parent has one defined
     parent_type = _get_network_type(parent_id)
 
-    if parent_id is not None:
+    if parent_type is not None:
 
         network_type = TemplateType()
 
@@ -568,11 +568,16 @@ def deactivate_template(template_id, **kwargs):
     _set_template_status(template_id, 'X')
 
 @required_perms("edit_template")
-def update_template(template, **kwargs):
+def update_template(template, auto_delete=False, **kwargs):
     """
         Update template and a type and typeattrs.
+        args:
+            template (JSONObject): The template to update
+            auto_delete (bool): A flag to indicated whether missing types from `template.templatetypes`
+                                should be deleted automatically. This flag is also
+                                used when updating the typeattrs of type. Defaults to False.
     """
-    tmpl = db.DBSession.query(Template).filter(Template.id==template.id).one()
+    tmpl = db.DBSession.query(Template).filter(Template.id == template.id).one()
     tmpl.name = template.name
 
     if template.status is not None:
@@ -597,21 +602,23 @@ def update_template(template, **kwargs):
 
             if templatetype.id is not None and templatetype.template_id != tmpl.id:
                 log.info("Type %s is a part of a parent template. Ignoring.", templatetype.id)
+                req_templatetype_ids.append(type_i.id)
                 continue
 
             if templatetype.id is not None:
                 type_i = type_dict[templatetype.id]
-                _update_templatetype(templatetype, **kwargs)
+                _update_templatetype(templatetype, auto_delete=auto_delete, **kwargs)
                 req_templatetype_ids.append(type_i.id)
             else:
                 #Give it a template ID if it doesn't have one
                 templatetype.template_id = template.id
-                new_templatetype_i = _update_templatetype(templatetype, **kwargs)
+                new_templatetype_i = _update_templatetype(templatetype, auto_delete=auto_delete, **kwargs)
                 req_templatetype_ids.append(new_templatetype_i.id)
 
-    for ttype in template_types:
-        if ttype.id not in req_templatetype_ids:
-            delete_templatetype(ttype.id, **kwargs)
+    if auto_delete is True:
+        for ttype in template_types:
+            if ttype.id not in req_templatetype_ids:
+                delete_templatetype(ttype.id, **kwargs)
 
     db.DBSession.flush()
 
