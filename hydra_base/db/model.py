@@ -1105,7 +1105,7 @@ class ResourceType(Base, Inspect):
 
         #This resource was created using a child template
         if self.child_template_id is not None:
-            template_i = get_session.query(Template)\
+            template_i = get_session().query(Template)\
                 .filter(Template.id == self.template_id).one()
         else:
             type_i = get_session().query(TemplateType).filter(TemplateType.id == self.type_id).one()
