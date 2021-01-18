@@ -1532,7 +1532,7 @@ def delete_template(template_id, **kwargs):
     return 'OK'
 
 
-def get_templates(load_all=True, template_ids=None, project_id=None, **kwargs):
+def get_templates(uid=None, load_all=True, include_shared_templates=True, template_ids=None, project_id=None, **kwargs):
     """
         Get all templates.
         Args:
@@ -1540,10 +1540,18 @@ def get_templates(load_all=True, template_ids=None, project_id=None, **kwargs):
         Returns:
             List of Template objects
     """
+
     tpl_query = db.DBSession.query(Template)
+    if uid:
+        if include_shared_templates:
+            tpl_query = tpl_query.join(TemplateOwner).filter(or_(TemplateOwner.user_id==uid,
+                                                               Template.created_by==uid))
+        else:
+            tpl_query = tpl_query.join(TemplateOwner).filter(Template.created_by == uid)
     if project_id:
         tpl_query = tpl_query.filter(Template.project_id == project_id)
-    elif template_ids is not None:
+
+    if template_ids is not None:
         tpl_query = tpl_query.filter(Template.id.in_(template_ids))
 
     if load_all is False:
