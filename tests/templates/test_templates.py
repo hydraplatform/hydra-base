@@ -413,7 +413,12 @@ class TestTemplates:
 
         assert expected_net_type in network_types
 
-        client.delete_template(new_template.id)
+        #can't delete this because there's a resource type associated to one
+        #of its types
+        with pytest.raises(HydraError):
+            client.delete_template(new_template.id)
+
+        client.delete_template(new_template.id, force=True)
 
         with pytest.raises(HydraError):
             client.get_template(new_template.id)

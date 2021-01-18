@@ -23,7 +23,7 @@ from decimal import Decimal
 
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import noload, joinedload
-from sqlalchemy import or_, and_
+from sqlalchemy import or_, and_, func
 
 from hydra_base import db
 from hydra_base.db.model import (Template, TemplateType, TypeAttr, Attr,
@@ -334,6 +334,11 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
             for i, tt in enumerate(template_i.templatetypes):
                 if tt.id == type_id:
                     type_i = template_i.templatetypes[i]
+
+                    #first remove all the type attributes associated to the type
+                    for ta_i in type_i.typeattrs:
+                        db.DBSession.delete(ta_i)
+
                     del(template_i.templatetypes[i])
                     log.debug("Deleting type %s (%s)", type_i.name, type_i.id)
                     del(type_name_map[type_to_delete])
@@ -633,14 +638,20 @@ def update_template(template, auto_delete=False, **kwargs):
     return tmpl_j
 
 @required_perms("delete_template")
-def delete_template(template_id, **kwargs):
+def delete_template(template_id, force=False, **kwargs):
     """
         Delete a template and its type and typeattrs.
+        The 'force' flag forces the template to remove any resource types
+        associated to the types in the network. Use with caution!
     """
     try:
         tmpl = db.DBSession.query(Template).filter(Template.id == template_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Template %s not found"%(template_id,))
+
+    for templatetype in tmpl.templatetypes:
+        delete_templatetype(templatetype.id, flush=False, force=force, user_id=kwargs.get('user_id'))
+
     db.DBSession.delete(tmpl)
     db.DBSession.flush()
     return 'OK'
@@ -757,7 +768,6 @@ def add_child_templatetype(parent_id, child_template_id, **kwargs):
     child_type_i = TemplateType()
     child_type_i.template_id = child_template_id
     child_type_i.parent_id = parent_id
-    child_type_i.name = parent_type.name
 
     db.DBSession.add(child_type_i)
 
@@ -1018,13 +1028,14 @@ def _update_templatetype(templatetype, existing_tt=None, auto_delete=False, **kw
     return tmpltype_i
 
 @required_perms("edit_template")
-def delete_templatetype(type_id, template_i=None, **kwargs):
+def delete_templatetype(type_id, template_i=None, force=False, flush=True, **kwargs):
     """
         Delete a template type and its typeattrs.
     """
+
     try:
-        tmpltype_i = db.DBSession.query(TemplateType).filter(
-            TemplateType.id == type_id).one()
+        tmpltype_i = db.DBSession.query(TemplateType)\
+                .filter(TemplateType.id == type_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Template Type %s not found"%(type_id,))
 
@@ -1032,10 +1043,30 @@ def delete_templatetype(type_id, template_i=None, **kwargs):
         template_i = db.DBSession.query(Template).filter(
             Template.id == tmpltype_i.template_id).one()
 
-    template_i.templatetypes.remove(tmpltype_i)
+    #Check if there are any resourcetypes associated to this type. If so,
+    #don't delete it.
+    resourcetype_count = db.DBSession.query(ResourceType.id)\
+            .filter(ResourceType.type_id==type_id).count()
+
+    if resourcetype_count > 0 and force is False:
+        raise HydraError(f"Unable to delete type. Template Type {type_id} has "
+                         f"{resourcetype_count} resources associated to it. "
+                         "Use the 'force' flag to delete these also.")
+    #delete all the resource types associated to this type
+    if force is True:
+        log.warn("Forcing the deletion of %s resource types from type %s",\
+                 resourcetype_count, type_id)
+        type_rs = db.DBSession.query(ResourceType).filter(ResourceType.type_id==type_id).all()
+        for rt in type_rs:
+            db.DBSession.delete(rt)
+    #first remove the templatetypes
+    for ta_i in tmpltype_i.typeattrs:
+        db.DBSession.delete(ta_i)
 
     db.DBSession.delete(tmpltype_i)
-    db.DBSession.flush()
+
+    if flush:
+        db.DBSession.flush()
 
 @required_perms("get_template")
 def get_templatetype(type_id, include_parent_data=True, **kwargs):

@@ -401,5 +401,11 @@ class TestTemplateInheritance:
         })
 
         new_network = client.add_network(network)
+        #Now do a get network to verify the network's there
+        requested_network = client.get_network(new_network.id)
 
-        assert network.nodes[0].types[0].child_template_id == child_template_j.id
+        assert requested_network.nodes[0].types[0].child_template_id == child_template_j.id
+
+        #Make sure that the correct attributes have been added from the child (inherihted
+        #from the parent)
+        assert len(requested_network.attributes) == len(parent_network_type.typeattrs)

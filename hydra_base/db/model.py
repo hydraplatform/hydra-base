@@ -860,10 +860,11 @@ class TypeAttr(Base, Inspect):
     parent = relationship('TypeAttr', remote_side=[id], backref=backref("children", order_by=id))
 
     attr = relationship('Attr')
+    #Don't use a cascade delete all here. Instead force the code to delete the typeattrs
+    #manually, to avoid accidentally deleting them
     templatetype = relationship('TemplateType',
                                 backref=backref("typeattrs",
-                                                order_by=attr_id,
-                                                cascade="all, delete-orphan"))
+                                                order_by=attr_id))
     unit = relationship('Unit',
                         backref=backref("typeattr_unit",
                                         order_by=unit_id))
@@ -1059,8 +1060,10 @@ class ResourceType(Base, Inspect):
     group_id    = Column(Integer(),  ForeignKey('tResourceGroup.id'), nullable=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
-
-    templatetype = relationship('TemplateType', backref=backref('resourcetypes', uselist=True, cascade="all, delete-orphan"))
+    #Don't used a delete cascade here because deleting the type accidentally can delete
+    #this data. INstead the resource types should be deleted manually before the deletion
+    #of the type
+    templatetype = relationship('TemplateType', backref=backref('resourcetypes', uselist=True))
 
     network = relationship('Network', backref=backref('types', uselist=True, cascade="all, delete-orphan"), uselist=False)
     node = relationship('Node', backref=backref('types', uselist=True, cascade="all, delete-orphan"), uselist=False)
