@@ -158,11 +158,9 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
 
     #Now get all the attributes supposed to be on the resources based on the types.
     t0 = time.time()
-    all_types = db.DBSession.query(TemplateType).options(joinedload('typeattrs')).all()
-    type_dict = {}
-    for t in all_types:
-        type_dict[t.id] = t.typeattrs
 
+    template_lookup = {} #a lookup of all the templates used by the resource
+    typeattr_lookup = {} # a lookup from type ID to a list of typeattrs
     network_child_template_id = None
     #Holds all the attributes supposed to be on a resource based on its specified
     #type
@@ -179,6 +177,13 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
                 if resource_type.child_template_id is None:
                     if network_child_template_id is None:
                         network_child_template_id = template.get_network_template(network_id, resource_type.id)#TODO this should be type_id
+
+                        #ok, so no child ID found. We need to just use the template
+                        #ID of the type which was given
+                        if network_child_template_id is None:
+                            t = template.get_templatetype(resource_type.id, user_id=1)
+                            network_child_template_id = t.template_id
+
                     resource_type.child_template_id = network_child_template_id
 
                 ref_id = resource_i.id
@@ -195,8 +200,18 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
                     }
                 )
                 #Go through all types in the resource and add attributes from these types
-                #which have not already been added.
-                typeattrs = type_dict.get(resource_type.id, []) #TODO this should be type_id
+
+                template_j = template_lookup.get(resource_type.child_template_id)
+                if template_j is None:
+                    #it's OK to use user ID 1 here because the calling function has been
+                    #validated for the calling user's permission to get the network
+                    tt = template.get_templatetype(resource_type.id, user_id=1)
+                    template_j = template.get_template(tt.template_id, user_id=1)
+                    template_lookup[template_j.id] = template_j
+                    for tt in template_j.templatetypes:
+                        typeattr_lookup[tt.id] = tt.typeattrs
+
+                typeattrs = typeattr_lookup.get(resource_type.id, []) #TODO this should be type_id
 
                 for ta in typeattrs:
                     if ta.attr_id not in existing_attrs:
