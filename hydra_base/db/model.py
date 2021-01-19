@@ -774,9 +774,9 @@ class TemplateType(Base, Inspect):
     id = Column(Integer(), primary_key=True, nullable=False)
     parent_id = Column(Integer(), ForeignKey('tTemplateType.id'))
     template_id = Column(Integer(), ForeignKey('tTemplate.id'), nullable=False)
-    name = Column(String(200))
+    name = Column(String(200), nullable=True)
     description = Column(String(1000))
-    resource_type = Column(String(200))
+    resource_type = Column(String(200), nullable=True)
     alias = Column(String(100))
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     layout = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'))
@@ -821,9 +821,9 @@ class TemplateType(Base, Inspect):
                     #for processing farther up the tree
                     ta_tree[typeattr.parent_id] = typeattr
 
-                child_typeattrs.append(typeattr)
             else:
-                child_typeattr = self.set_inherited_columns(typeattr, child_typeattr, typeattrs_i[i])
+                child_typeattr = self.template.set_inherited_columns(typeattr, child_typeattr, typeattrs_i[i])
+                child_typeattrs.append(typeattr)
 
 
 
@@ -1121,7 +1121,7 @@ class ResourceType(Base, Inspect):
 
         type_i = template_i.get_type(self.type_id)
 
-        return type_i
+        return JSONObject(type_i)
 
 
 #*****************************************************
