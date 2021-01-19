@@ -628,8 +628,15 @@ class Template(Base, Inspect):
         #we want to update an existing one with any data that it's missing
         if child_type is not None:
             child_type = self.set_inherited_columns(this_type, child_type, this_type_i)
+            #check the child's typeattrs. If a typeattr exists on the parent, with the
+            #same attr_id, then it should be ignore. THis can happen when adding a typeattr
+            #to the child first, then the parent
+            child_typeattrs = [ta.attr_id for ta in child_type.typeattrs]
 
             for r, typeattr in enumerate(typeattrs):
+                if typeattr.attr_id in child_typeattrs:
+                    log.info("Found a typeattr for attribute %s on the child type (%s). Ignoring")
+                    continue
                 #Does this typeattr have a child?
                 child_typeattr = child_type.ta_tree.get(typeattr.id)
                 if child_typeattr is None:
@@ -712,11 +719,20 @@ class Template(Base, Inspect):
 
                 child_type = self.set_inherited_columns(this_type, child_type, types_i[i])
 
+                #check the child's typeattrs. If a typeattr exists on the parent, with the
+                #same attr_id, then it should be ignore. THis can happen when adding a typeattr
+                #to the child first, then the parent
+                child_typeattrs = [ta.attr_id for ta in child_type.typeattrs]
+
                 for typeattr in typeattrs:
+                    if typeattr.attr_id in child_typeattrs:
+                        log.info("Found a typeattr for attribute %s on the child type (%s). Ignoring")
+                        continue
 
                     #Does this typeattr have a child?
                     child_typeattr = type_tree[this_type.id].ta_tree.get(typeattr.id)
                     if child_typeattr is None:
+
                         #there is no child, so check if it is a child
                         if typeattr.parent_id is not None:
                             #it has a parent, so add it to the type's tree dict
@@ -840,6 +856,10 @@ class TypeAttr(Base, Inspect):
     """
 
     __tablename__ = 'tTypeAttr'
+
+    __table_args__ = (
+        UniqueConstraint('type_id', 'attr_id', name='type_attr_1'),
+    )
 
     id = Column(Integer(), primary_key=True, nullable=False)
     parent_id = Column(Integer(), ForeignKey('tTypeAttr.id'))

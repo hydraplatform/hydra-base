@@ -187,6 +187,111 @@ class TestTemplateInheritance:
         assert len(updated_child_type_attrs) == len(original_type_attrs)+1
         assert len(updated_child_type_attrs) == len(un_updated_parent_type_attrs)+1
 
+    def test_add_typeattr_to_child_then_parent(self, client):
+        """
+        Test for the situation where a typeattr is added to a child, then added to the parent.
+        This is a valid case, and the behaviour should be that the parent typeattr should be ignored,
+        rather than returning both or returning some merged typeattr.
+        """
+
+        parent_template_j = client.testutils.create_template()
+
+        un_updated_parent_template = client.get_template(parent_template_j.id)
+
+        child_template_j = client.testutils.create_child_template(parent_template_j.id)
+
+        child_template_received = client.get_template(child_template_j.id)
+
+
+        #Get a type which inherits from the parent, and update it
+        type_to_update = None
+        for templatetype in child_template_received.templatetypes:
+            if templatetype.template_id == parent_template_j.id:
+                type_to_update = templatetype
+                break
+
+        #Create a child of a parent *type*, so we can add a typeattr to it.
+        #WHen the child template is requested, this type will contain all the
+        #parent type attributes, as well as the newly added one to the child
+        child_type = client.add_child_templatetype(type_to_update.id, child_template_j.id)
+
+        #create some random attribute
+        newattr = client.testutils.create_attribute('extra_attr', None)
+
+        #Link this new attribute to the child type using a type attribute
+        new_child_typeattr = JSONObject({
+            'attr_id': newattr.id,
+            'type_id': child_type.id
+        })
+        client.add_typeattr(new_child_typeattr)
+
+        #Save the original types attributes for comparison later
+        original_type_attrs = type_to_update.typeattrs
+
+        #Fetch the child and parent templates to verify that the child has
+        #been updated (with one extra type attr on one of its types) but the
+        #parent has not been updated.
+        updated_child_template = client.get_template(child_template_j.id)
+        un_updated_parent_template = client.get_template(parent_template_j.id)
+
+        updated_child_type_attrs = None
+        updated_parent_type_attrs = None
+        for templatetype in updated_child_template.templatetypes:
+            if templatetype.parent_id == type_to_update.id:
+                updated_child_type_attrs = templatetype.typeattrs
+                break
+        for templatetype in un_updated_parent_template.templatetypes:
+            if templatetype.id == type_to_update.id:
+                un_updated_parent_type_attrs = templatetype.typeattrs
+                break
+
+        assert len(updated_child_type_attrs) == len(original_type_attrs)+1
+        assert len(updated_child_type_attrs) == len(un_updated_parent_type_attrs)+1
+
+
+        #now add *the same* typeattr to the parent type. This should result in the child type returing its own typeattr
+        #and the parent type returning a different typeattr with the same attr_id
+        new_parent_typeattr = JSONObject({
+            'attr_id': newattr.id,
+            'type_id': type_to_update.id
+        })
+        client.add_typeattr(new_parent_typeattr)
+
+        #Fetch both the parent and child to verify that the child nd parent types
+        #have typeattrs with the same attr_id but different type_ids
+        updated_child_template = client.get_template(child_template_j.id)
+        updated_parent_template = client.get_template(parent_template_j.id)
+
+        updated_child_type_attrs = None
+        updated_parent_type_attrs = None
+        for templatetype in updated_child_template.templatetypes:
+            if templatetype.parent_id == type_to_update.id:
+                updated_child_type_attrs = templatetype.typeattrs
+                break
+        for templatetype in updated_parent_template.templatetypes:
+            if templatetype.id == type_to_update.id:
+                updated_parent_type_attrs = templatetype.typeattrs
+                break
+
+        #check the attr_ids are there
+        assert newattr.id in [ta.attr_id for ta in updated_child_type_attrs]
+        assert newattr.id in [ta.attr_id for ta in updated_parent_type_attrs]
+        #check the type IDs are there
+        assert child_type.id in [ta.type_id for ta in updated_child_type_attrs]
+        assert type_to_update.id in [ta.type_id for ta in updated_parent_type_attrs]
+
+        #check the type IDs are NOT in the other one's list of typeattrs. Specifically
+        #we want to ensure that there are no duplicate typeattrs being returned
+        assert child_type.id not in [ta.type_id for ta in updated_parent_type_attrs]
+        assert type_to_update.id in [ta.type_id for ta in updated_child_type_attrs]
+
+        #Make sure there are no duplicates returned explicitly
+        assert len(set([ta.attr_id for ta in updated_child_type_attrs])) == len([ta.attr_id for ta in updated_child_type_attrs])
+        assert len(set([ta.attr_id for ta in updated_parent_type_attrs])) == len([ta.attr_id for ta in updated_parent_type_attrs])
+
+
+
+
     def test_update_child_typeattr(self, client):
         """
             Test updating a template type attribute in a child, by adding a type attribute
