@@ -780,6 +780,7 @@ def _get_all_templates(network_id, template_id):
                                Template.name.label('template_name'),
                                Template.id.label('template_id'),
                                TemplateType.id.label('type_id'),
+                               TemplateType.parent_id.label('parent_id'),
                                TemplateType.layout.label('layout'),
                                TemplateType.name.label('type_name'),
                               ).filter(TemplateType.id==ResourceType.type_id,
@@ -817,12 +818,30 @@ def _get_all_templates(network_id, template_id):
     group_type_dict = dict()
     network_type_dict = dict()
 
+    #a lookup to avoid having to query for the same child type every time
+    child_type_lookup = {}
+
     for t in all_types:
+        child_layout = None
+        child_name = None
+        #Load all the inherited columns like layout and name and set them
+        if t.parent_id is not None:
+            if t.type_id in child_type_lookup:
+                child_type = child_type_lookup[t.type_id]
+            else:
+                #no need to check for user credentials here as it's called from a
+                #function which has done that for us
+                child_type = template.get_templatetype(t.type_id, user_id=1)
+                child_type_lookup[t.type_id] = child_type
+            #Now set the potentially missing columns
+            child_layout = child_type.layout
+            child_name = child_type.name
+
         templatetype = JSONObject({'template_id' : t.template_id,
                                    'id' : t.type_id,
                                    'template_name' :t.template_name,
-                                   'layout' : t.layout,
-                                   'name' : t.type_name,
+                                   'layout' : child_layout if child_layout else t.layout,
+                                   'name' : child_name if child_name else t.type_name,
                                    'child_template_id' : t.child_template_id})
 
         if t.ref_key == 'NODE':
