@@ -71,12 +71,12 @@ class TestLogin:
 
     def test_login_wrong_user(self, client):
 
-        with pytest.raises(hydra_base.exceptions.HydraLoginUserNotFound):
+        with pytest.raises(hydra_base.exceptions.HydraError):
             user_id, session_id = client.login('wrong-user!', '')
 
     def test_login_wrong_password(self, client):
 
-        with pytest.raises(hydra_base.exceptions.HydraLoginUserPasswordWrong):
+        with pytest.raises(hydra_base.exceptions.HydraError):
             user_id, session_id = client.login('root', 'wrong-password!')
 
 
@@ -85,10 +85,10 @@ class TestLogin:
         for i in range(1,10):
             try:
                 user_id, session_id = client.login('root', 'wrong-password!')
-            except hydra_base.exceptions.HydraLoginUserMaxAttemptsExceeded as e:
+            except hydra_base.exceptions.HydraError as e:
                 # this exception will be eventually raised at a certain point
                 exception_raised="HydraLoginUserMaxAttemptsExceeded"
-            except hydra_base.exceptions.HydraLoginUserPasswordWrong as e:
+            except hydra_base.exceptions.HydraError as e:
                 pass
 
         assert exception_raised == "HydraLoginUserMaxAttemptsExceeded"
