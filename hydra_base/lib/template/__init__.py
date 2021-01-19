@@ -856,6 +856,14 @@ def _set_typeattr(typeattr, existing_ta=None):
     """
     if existing_ta is None:
         ta = TypeAttr(attr_id=typeattr.attr_id)
+        #check for an existing TA
+        check_existing_ta = db.DBSession.query(TypeAttr)\
+            .filter(TypeAttr.attr_id == typeattr.attr_id, TypeAttr.type_id == typeattr.type_id).first()
+
+        #There's already a TA with this attr_id in this type
+        if existing_ta is not None:
+            raise HydraError(f"Attribute '{existing_ta.attr.name}' (ID: {existing_ta.attr.id}) is already "
+                             f"set on type '{existing_ta.templatetype.name}' (ID: {existing_ta.templatetype.id})")
     else:
         if typeattr.id is not None:
             ta = db.DBSession.query(TypeAttr).filter(TypeAttr.id == typeattr.id).one()
