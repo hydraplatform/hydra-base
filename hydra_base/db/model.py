@@ -849,6 +849,70 @@ class TemplateType(Base, Inspect):
                                               get_parent_types=get_parent_types)
         return child_typeattrs
 
+    def get_children(self):
+        """
+            Get the child types of a template type
+        """
+
+        child_types = get_session().query(TemplateType)\
+                .filter(TemplateType.parent_id==self.id).all()
+        return child_types
+
+    def check_can_delete_resourcetypes(self, delete_resourcetypes=False):
+        """
+            Check if the delete operation will allow the deletion
+            of resourcetypes. Default is NO
+        """
+        #Check if there are any resourcetypes associated to this type. If so,
+        #don't delete it.
+        resourcetype_count = get_session().query(ResourceType.id)\
+                .filter(ResourceType.type_id == self.id).count()
+
+        if resourcetype_count > 0 and delete_resourcetypes is False:
+            raise HydraError(f"Unable to delete type. Template Type {self.id} has "
+                             f"{resourcetype_count} resources associated to it. "
+                             "Use the 'force' flag to delete these also.")
+
+    def delete_children(self, delete_resourcetypes=False):
+        """
+            Delete the children associatecd to this type. THis should be done
+            with extreme caution.
+            args:
+                delete_resourcetypes (bool): If any resourcetypes are found to be
+                associated to a child, throw an error to avoid leaving nodes with no types.
+                If this flag is is set to true, then delete the resourcetypes
+
+            This function works its way all the way down the tree to the leaf nodes
+            and then deletes them from the leaf to the source
+        """
+
+        children = self.get_children()
+
+        for child in children:
+            child.delete_children(delete_resourcetypes=delete_resourcetypes)
+
+            child.check_can_delete_resourcetypes(delete_resourcetypes=delete_resourcetypes)
+            #delete all the resource types associated to this type
+            if delete_resourcetypes is True:
+                self.delete_resourcetypes()
+
+            #delete the typeattrs
+            for ta in child.typeattrs:
+                get_session().delete(ta)
+
+            get_session().delete(child)
+
+    def delete_resourcetypes(self):
+        """
+        Delete the resourcetypes associated to a type
+        """
+        type_rs = get_session().query(ResourceType).filter(ResourceType.type_id==self.id).all()
+
+        log.warn("Forcing the deletion of %s resource types from type %s",\
+                 len(type_rs), self.id)
+
+        for resource_type in type_rs:
+            get_session().delete(resource_type)
 
 class TypeAttr(Base, Inspect):
     """

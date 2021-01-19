@@ -514,3 +514,49 @@ class TestTemplateInheritance:
         #Make sure that the correct attributes have been added from the child (inherihted
         #from the parent)
         assert len(requested_network.attributes) == len(parent_network_type.typeattrs)
+
+
+    def test_delete_parent_type(self, client):
+        """
+            Test to ensure that when you delete a parent type, its child types
+            are also deleted (or not depoending on the 'force' flag)
+        """
+        #first create a template
+        parent_template_j = client.testutils.create_template()
+        parent_template_j = client.get_template(parent_template_j.id)
+        parent_type = list(filter(lambda x: x.resource_type=='NODE', parent_template_j.templatetypes))[0]
+
+        #and a child
+        child_template_j = client.testutils.create_child_template(parent_template_j.id)
+        child_template_j = client.get_template(child_template_j.id)
+
+        child_type = client.add_child_templatetype(parent_type.id, child_template_j.id)
+
+
+        #now delete the parent type, without force. This should error because there is a reference to it
+        #from the child
+        with pytest.raises(HydraError):
+            client.delete_templatetype(parent_type.id)
+
+        #now force the deletion
+        client.delete_templatetype(parent_type.id, delete_children=True)
+
+
+        updated_parent_template_j = client.get_template(parent_template_j.id)
+        assert len(updated_parent_template_j.templatetypes) == len(parent_template_j.templatetypes) - 1
+        assert child_type.id not in [t.id for t in updated_parent_template_j.templatetypes]
+
+
+        updated_child_template_j = client.get_template(child_template_j.id)
+        assert len(updated_child_template_j.templatetypes) == len(child_template_j.templatetypes) - 1
+        assert child_type.id not in [t.id for t in updated_child_template_j.templatetypes]
+        #all types in the child should now belong to the parent. The chid one is gone.
+        for tt in updated_child_template_j.templatetypes:
+            #there should always be a network type for the child
+            if tt.resource_type == 'NETWORK':
+                continue
+            assert tt.resource_type is not None
+            assert tt.name is not None
+            assert tt.template_id==parent_template_j.id
+
+

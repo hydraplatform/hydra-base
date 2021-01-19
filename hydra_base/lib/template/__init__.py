@@ -1035,7 +1035,7 @@ def _update_templatetype(templatetype, existing_tt=None, auto_delete=False, **kw
     return tmpltype_i
 
 @required_perms("edit_template")
-def delete_templatetype(type_id, template_i=None, force=False, flush=True, **kwargs):
+def delete_templatetype(type_id, template_i=None, force=False, flush=True, delete_children=False, **kwargs):
     """
         Delete a template type and its typeattrs.
     """
@@ -1050,22 +1050,18 @@ def delete_templatetype(type_id, template_i=None, force=False, flush=True, **kwa
         template_i = db.DBSession.query(Template).filter(
             Template.id == tmpltype_i.template_id).one()
 
-    #Check if there are any resourcetypes associated to this type. If so,
-    #don't delete it.
-    resourcetype_count = db.DBSession.query(ResourceType.id)\
-            .filter(ResourceType.type_id==type_id).count()
+    if len(tmpltype_i.get_children()) > 0 and delete_children is False:
+        raise HydraError("Unable to delete type. Template type {tmpltype_i.name} (ID: {type_id}) has"
+                         "children. If you want to delete this, use the 'delete_children' flag.")
 
-    if resourcetype_count > 0 and force is False:
-        raise HydraError(f"Unable to delete type. Template Type {type_id} has "
-                         f"{resourcetype_count} resources associated to it. "
-                         "Use the 'force' flag to delete these also.")
-    #delete all the resource types associated to this type
+    if delete_children is True:
+        tmpltype_i.delete_children(delete_resourcetypes=force)
+
+    tmpltype_i.check_can_delete_resourcetypes(delete_resourcetypes=force)
+
     if force is True:
-        log.warn("Forcing the deletion of %s resource types from type %s",\
-                 resourcetype_count, type_id)
-        type_rs = db.DBSession.query(ResourceType).filter(ResourceType.type_id==type_id).all()
-        for rt in type_rs:
-            db.DBSession.delete(rt)
+        tmpltype_i.delete_resourcetypes()
+
     #first remove the templatetypes
     for ta_i in tmpltype_i.typeattrs:
         db.DBSession.delete(ta_i)
