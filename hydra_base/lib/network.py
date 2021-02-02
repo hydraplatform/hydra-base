@@ -126,7 +126,7 @@ def _check_ra_duplicates(all_resource_attrs):
         if unique_ra_check.get(k) is None:
             unique_ra_check[k] = ra
         else:
-            raise HydraError(f"Duplicate Resource Attr specified: {k}")
+            raise HydraError(f"Duplicate Resource Attr specified: {ra}")
 
 def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
 
@@ -212,7 +212,6 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
                         typeattr_lookup[tt.id] = tt.typeattrs
 
                 typeattrs = typeattr_lookup.get(resource_type.id, []) #TODO this should be type_id
-
                 for ta in typeattrs:
                     if ta.attr_id not in existing_attrs:
                         resource_attrs[resource.id].append({
