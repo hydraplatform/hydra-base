@@ -70,8 +70,7 @@ def get_network_template(network_id, reference_type_id):
     #Now go through each network type and try to find the matching template.
     #Assume that a network cannot have 2 types which inherit from the same template.
     for nt in network_types:
-        network_tt = db.DBSession.query(TemplateType)\
-            .filter(TemplateType.id == nt.type_id).one()
+        network_tt = nt.get_templatetype()
 
         if ref_type.template_id == network_tt.template_id:
             #if the network's type and the incoming type's template ID, we've found
