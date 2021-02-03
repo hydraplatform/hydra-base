@@ -474,7 +474,7 @@ def get_all_network_resourceattributes(network_id, template_id=None, return_orm=
     """
 
     resource_attr_qry = db.DBSession.query(ResourceAttr).\
-            join(ResourceAttr, ResourceAttr.attr_id==Attr.id).\
+            join(Attr, ResourceAttr.attr_id==Attr.id).\
             outerjoin(Network, Network.id==ResourceAttr.network_id).\
             outerjoin(Node, Node.id==ResourceAttr.node_id).\
             outerjoin(Link, Link.id==ResourceAttr.link_id).\
