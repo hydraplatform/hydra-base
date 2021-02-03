@@ -1051,8 +1051,8 @@ def delete_templatetype(type_id, template_i=None, force=False, flush=True, delet
             Template.id == tmpltype_i.template_id).one()
 
     if len(tmpltype_i.get_children()) > 0 and delete_children is False:
-        raise HydraError("Unable to delete type. Template type {tmpltype_i.name} (ID: {type_id}) has"
-                         "children. If you want to delete this, use the 'delete_children' flag.")
+        raise HydraError(f"Unable to delete type. Template type {tmpltype_i.name} (ID: {type_id}) has"
+                         f"children. If you want to delete this, use the 'delete_children' flag.")
 
     if delete_children is True:
         tmpltype_i.delete_children(delete_resourcetypes=force)

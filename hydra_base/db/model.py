@@ -635,7 +635,9 @@ class Template(Base, Inspect):
 
             for r, typeattr in enumerate(typeattrs):
                 if typeattr.attr_id in child_typeattrs:
-                    log.info("Found a typeattr for attribute %s on the child type (%s). Ignoring")
+                    log.info("Found a typeattr for attribute %s on the "
+                             "child type %s (%s). Ignoring",
+                             typeattr.attr_id, child_type.name, child_type.id)
                     continue
                 #Does this typeattr have a child?
                 child_typeattr = child_type.ta_tree.get(typeattr.id)
@@ -726,7 +728,9 @@ class Template(Base, Inspect):
 
                 for typeattr in typeattrs:
                     if typeattr.attr_id in child_typeattrs:
-                        log.info("Found a typeattr for attribute %s on the child type (%s). Ignoring")
+                        log.info("Found a typeattr for attribute %s on the "
+                             "child type %s (%s). Ignoring",
+                             typeattr.attr_id, child_type.name, child_type.id)
                         continue
 
                     #Does this typeattr have a child?

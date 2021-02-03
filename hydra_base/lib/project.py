@@ -122,7 +122,7 @@ def get_project(project_id, include_deleted_networks=False, **kwargs):
         get a project complexmodel
     """
     user_id = kwargs.get('user_id')
-
+    log.info("Getting project %s", project_id)
     proj_i = _get_project(project_id)
 
     #lazy load owners
@@ -135,6 +135,7 @@ def get_project(project_id, include_deleted_networks=False, **kwargs):
     attr_data = get_project_attribute_data(proj_i.id, user_id=user_id)
     proj_j.attribute_data = [JSONObject(rs) for rs in attr_data]
 
+    log.info("Getting networks for project %s", project_id)
     proj_j.networks = []
     for net_i in proj_i.networks:
         #lazy load owners
@@ -150,6 +151,7 @@ def get_project(project_id, include_deleted_networks=False, **kwargs):
 
         net_j = JSONObject(net_i)
         proj_j.networks.append(net_j)
+    log.info("Project %s retrieved", project_id)
 
     return proj_j
 
