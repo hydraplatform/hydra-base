@@ -23,7 +23,6 @@ from decimal import Decimal
 
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import noload, joinedload
-from sqlalchemy import or_, and_, func
 
 from hydra_base import db
 from hydra_base.db.model import (Template, TemplateType, TypeAttr, Attr,
@@ -638,10 +637,10 @@ def update_template(template, auto_delete=False, **kwargs):
     return tmpl_j
 
 @required_perms("delete_template")
-def delete_template(template_id, force=False, **kwargs):
+def delete_template(template_id, delete_resourcetypes=False, **kwargs):
     """
         Delete a template and its type and typeattrs.
-        The 'force' flag forces the template to remove any resource types
+        The 'delete_resourcetypes' flag forces the template to remove any resource types
         associated to the types in the network. Use with caution!
     """
     try:
@@ -650,7 +649,7 @@ def delete_template(template_id, force=False, **kwargs):
         raise ResourceNotFoundError("Template %s not found"%(template_id,))
 
     for templatetype in tmpl.templatetypes:
-        delete_templatetype(templatetype.id, flush=False, force=force, user_id=kwargs.get('user_id'))
+        delete_templatetype(templatetype.id, flush=False, delete_resourcetypes=delete_resourcetypes, user_id=kwargs.get('user_id'))
 
     db.DBSession.delete(tmpl)
     db.DBSession.flush()
@@ -1035,7 +1034,7 @@ def _update_templatetype(templatetype, existing_tt=None, auto_delete=False, **kw
     return tmpltype_i
 
 @required_perms("edit_template")
-def delete_templatetype(type_id, template_i=None, force=False, flush=True, delete_children=False, **kwargs):
+def delete_templatetype(type_id, template_i=None, delete_resourcetypes=False, flush=True, delete_children=False, **kwargs):
     """
         Delete a template type and its typeattrs.
     """
@@ -1055,11 +1054,11 @@ def delete_templatetype(type_id, template_i=None, force=False, flush=True, delet
                          f"children. If you want to delete this, use the 'delete_children' flag.")
 
     if delete_children is True:
-        tmpltype_i.delete_children(delete_resourcetypes=force)
+        tmpltype_i.delete_children(delete_resourcetypes=delete_resourcetypes)
 
-    tmpltype_i.check_can_delete_resourcetypes(delete_resourcetypes=force)
+    tmpltype_i.check_can_delete_resourcetypes(delete_resourcetypes=delete_resourcetypes)
 
-    if force is True:
+    if delete_resourcetypes is True:
         tmpltype_i.delete_resourcetypes()
 
     #first remove the templatetypes

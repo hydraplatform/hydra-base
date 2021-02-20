@@ -250,14 +250,14 @@ class TestTemplateInheritance:
 
 
         #now add *the same* typeattr to the parent type. This should result in the child type returing its own typeattr
-        #and the parent type returning a different typeattr with the same attr_id
+        #and the parent type returning a different typeattr, i.e. a different type_id with the same attr_id
         new_parent_typeattr = JSONObject({
             'attr_id': newattr.id,
             'type_id': type_to_update.id
         })
         client.add_typeattr(new_parent_typeattr)
 
-        #Fetch both the parent and child to verify that the child nd parent types
+        #Fetch both the parent and child to verify that the child and parent types
         #have typeattrs with the same attr_id but different type_ids
         updated_child_template = client.get_template(child_template_j.id)
         updated_parent_template = client.get_template(parent_template_j.id)
@@ -513,13 +513,15 @@ class TestTemplateInheritance:
 
         #Make sure that the correct attributes have been added from the child (inherihted
         #from the parent)
-        assert len(requested_network.attributes) == len(parent_network_type.typeattrs)
+        attr_ids_a = set(a.attr_id for a in requested_network.attributes)
+        attr_ids_b = set(ta.attr_id for ta in parent_network_type.typeattrs)
+        assert len(attr_ids_a.difference(attr_ids_b)) == 0
 
 
     def test_delete_parent_type(self, client):
         """
             Test to ensure that when you delete a parent type, its child types
-            are also deleted (or not depoending on the 'force' flag)
+            are also deleted (or not depoending on the 'delete_children' flag)
         """
         #first create a template
         parent_template_j = client.testutils.create_template()

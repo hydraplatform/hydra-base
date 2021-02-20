@@ -418,7 +418,7 @@ class TestTemplates:
         with pytest.raises(HydraError):
             client.delete_template(new_template.id)
 
-        client.delete_template(new_template.id, force=True)
+        client.delete_template(new_template.id, delete_resourcetypes=True)
 
         with pytest.raises(HydraError):
             client.get_template(new_template.id)
