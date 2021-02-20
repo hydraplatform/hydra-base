@@ -633,7 +633,7 @@ class Template(Base, Inspect):
             #to the child first, then the parent
             child_typeattrs = [ta.attr_id for ta in child_type.typeattrs]
 
-            for r, typeattr in enumerate(typeattrs):
+            for i, typeattr in enumerate(typeattrs):
                 if typeattr.attr_id in child_typeattrs:
                     log.info("Found a typeattr for attribute %s on the "
                              "child type %s (%s). Ignoring",
