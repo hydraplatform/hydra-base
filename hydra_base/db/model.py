@@ -879,8 +879,8 @@ class TemplateType(Base, Inspect):
 
     def delete_children(self, delete_resourcetypes=False):
         """
-            Delete the children associatecd to this type. THis should be done
-            with extreme caution.
+            Delete the children associated to this type.
+            THIS SHOULD BE DONE WITH EXTREME CAUTION.
             args:
                 delete_resourcetypes (bool): If any resourcetypes are found to be
                 associated to a child, throw an error to avoid leaving nodes with no types.
