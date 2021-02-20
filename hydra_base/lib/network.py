@@ -45,6 +45,8 @@ from sqlalchemy.sql import null
 
 from collections import namedtuple
 
+from hydra_base import config
+
 import logging
 log = logging.getLogger(__name__)
 
@@ -159,6 +161,10 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
     #Now get all the attributes supposed to be on the resources based on the types.
     t0 = time.time()
 
+    ##the current user is validated, but some checks require admin permissions,
+    ##so call as a user with all permissions
+    admin_id = config.get('DEFAULT', 'ALL_PERMISSION_USER', 1)
+
     template_lookup = {} #a lookup of all the templates used by the resource
     typeattr_lookup = {} # a lookup from type ID to a list of typeattrs
     network_child_template_id = None
@@ -181,7 +187,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
                         #ok, so no child ID found. We need to just use the template
                         #ID of the type which was given
                         if network_child_template_id is None:
-                            t = template.get_templatetype(resource_type.id, user_id=1)
+                            t = template.get_templatetype(resource_type.id, user_id=admin_id)
                             network_child_template_id = t.template_id
 
                     resource_type.child_template_id = network_child_template_id
@@ -205,8 +211,8 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
                 if template_j is None:
                     #it's OK to use user ID 1 here because the calling function has been
                     #validated for the calling user's permission to get the network
-                    tt = template.get_templatetype(resource_type.id, user_id=1)
-                    template_j = template.get_template(tt.template_id, user_id=1)
+                    tt = template.get_templatetype(resource_type.id, user_id=admin_id)
+                    template_j = template.get_template(tt.template_id, user_id=admin_id)
                     template_lookup[template_j.id] = template_j
                     for tt in template_j.templatetypes:
                         typeattr_lookup[tt.id] = tt.typeattrs
@@ -820,6 +826,10 @@ def _get_all_templates(network_id, template_id):
     #a lookup to avoid having to query for the same child type every time
     child_type_lookup = {}
 
+    ##the current user is validated, but some checks require admin permissions,
+    ##so call as a user with all permissions
+    admin_id = config.get('DEFAULT', 'ALL_PERMISSION_USER', 1)
+
     for t in all_types:
         child_layout = None
         child_name = None
@@ -830,7 +840,7 @@ def _get_all_templates(network_id, template_id):
             else:
                 #no need to check for user credentials here as it's called from a
                 #function which has done that for us
-                child_type = template.get_templatetype(t.type_id, user_id=1)
+                child_type = template.get_templatetype(t.type_id, user_id=admin_id)
                 child_type_lookup[t.type_id] = child_type
             #Now set the potentially missing columns
             child_layout = child_type.layout
