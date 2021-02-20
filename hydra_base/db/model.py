@@ -875,7 +875,7 @@ class TemplateType(Base, Inspect):
         if resourcetype_count > 0 and delete_resourcetypes is False:
             raise HydraError(f"Unable to delete type. Template Type {self.id} has "
                              f"{resourcetype_count} resources associated to it. "
-                             "Use the 'force' flag to delete these also.")
+                             "Use the 'delete_resourcetypes' flag to delete these also.")
 
     def delete_children(self, delete_resourcetypes=False):
         """
