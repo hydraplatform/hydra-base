@@ -798,7 +798,7 @@ class TemplateType(Base, Inspect):
     description = Column(String(1000))
     resource_type = Column(String(200), nullable=True)
     alias = Column(String(100))
-    status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
+    status = Column(String(1),  nullable=True)
     layout = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'))
     cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
@@ -941,7 +941,7 @@ class TypeAttr(Base, Inspect):
     unit_id = Column(Integer(), ForeignKey('tUnit.id'))
     description = Column(String(1000))
     properties = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'))
-    status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
+    status = Column(String(1),  nullable=True)
     cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
 

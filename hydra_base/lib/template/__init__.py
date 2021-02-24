@@ -98,10 +98,11 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j, user
     else:
         typeattr_i = TypeAttr()
         log.debug("Creating type attr: type_id=%s, attr_id=%s", type_i.id, attr_i.id)
-        typeattr_i.type_id=type_i.id
-        typeattr_i.attr_id=attr_i.id
+        typeattr_i.type_id = type_i.id
+        typeattr_i.attr_id = attr_i.id
         typeattr_i.attr_is_var = typeattr_j.attr_is_var
         typeattr_i.attr = attr_i
+        typeattr_i.status = 'A'
         type_i.typeattrs.append(typeattr_i)
         db.DBSession.add(typeattr_i)
 
@@ -360,6 +361,7 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
             type_i = TemplateType()
             type_i.name = type_name
             template_i.templatetypes.append(type_i)
+            type_i.status = 'A' ## defaults to active
             type_is_new = True
 
         if type_j.description is not None:
@@ -531,6 +533,7 @@ def add_child_template(parent_id, name, description=None, **kwargs):
         network_type.name = "{}-network".format(tmpl.name)
         network_type.resource_type = 'NETWORK'
         network_type.parent_id = parent_type.id
+        network_type.status = 'A'
 
         tmpl.templatetypes.append(network_type)
     else:
@@ -854,7 +857,7 @@ def _set_typeattr(typeattr, existing_ta=None):
         manually using delete_typeattr
     """
     if existing_ta is None:
-        ta = TypeAttr(attr_id=typeattr.attr_id)
+
         #check for an existing TA
         check_existing_ta = db.DBSession.query(TypeAttr)\
             .filter(TypeAttr.attr_id == typeattr.attr_id, TypeAttr.type_id == typeattr.type_id).first()
@@ -862,6 +865,12 @@ def _set_typeattr(typeattr, existing_ta=None):
         #There's already a TA with this attr_id in this type
         if check_existing_ta is not None:
             ta = check_existing_ta
+        else:
+            ta = TypeAttr(attr_id=typeattr.attr_id)
+            ## default new type attrs to 'active'.
+            ##This has replaced the database default because for child typeattrs,
+            ##we need the status to be NULL so it can inherit from its parent
+            ta.status = 'A'
     else:
         if typeattr.id is not None:
             ta = db.DBSession.query(TypeAttr).filter(TypeAttr.id == typeattr.id).one()
@@ -997,6 +1006,11 @@ def _update_templatetype(templatetype, existing_tt=None, auto_delete=False, **kw
             is_new = True
             tmpltype_i = TemplateType()
             tmpltype_i.template_id = templatetype.template_id
+
+            ## default new template types to active
+            ## This has replaced the database default because for child typeattrs,
+            ## we need the status to be NULL so it can inherit from its parent
+            tmpltype_i.status = 'A'
     else:
         tmpltype_i = existing_tt
 
