@@ -30,6 +30,10 @@ from ..db.model import Scenario,\
         Dataset,\
         Network,\
         Attr,\
+        Node,\
+        Link,\
+        User,\
+        ResourceGroup,\
         ResourceAttrMap
 
 from sqlalchemy.orm.exc import NoResultFound
@@ -153,6 +157,8 @@ def get_scenario(scenario_id,
                  include_group_items=True,
                  include_results=True,
                  include_only_results=False,
+                 include_metadata=True,
+                 include_attr=True,
                  **kwargs):
     """
         Get the specified scenario
@@ -185,18 +191,28 @@ def get_scenario(scenario_id,
     #lazy load resource attributes and attributes
     for rs in rscen_rs:
         rs.resourceattr
-        rs.resourceattr.attr
+
+        if include_attr == True:
+            rs.resourceattr.attr
+
         rs.dataset
-        rs.dataset.metadata
+
+        if include_metadata == True:
+            rs.dataset.metadata
 
     rgi_rs = []
     if include_group_items is True:
         rgi_rs = scen_i.get_group_items(get_parent_items=get_parent_data)
 
     scen_j.resourcescenarios = []
+
+
+    user = db.DBSession.query(User).filter(User.id==user_id).one()
+    is_admin = user.is_admin()
+
     for rs in rscen_rs:
         rs_j = JSONObject(rs, extras={'resourceattr':JSONObject(rs.resourceattr)})
-        if rs.dataset.check_read_permission(user_id, do_raise=False) is False:
+        if rs.dataset.check_read_permission(user_id, do_raise=False, is_admin=is_admin) is False:
             rs_j.dataset['value'] = None
             rs_j.dataset.metadata = JSONObject({})
         scen_j.resourcescenarios.append(rs_j)
@@ -525,11 +541,9 @@ def _get_dataset_as_dict(rs, user_id):
     if rs.dataset is None:
         return None
 
-    dataset = deepcopy(rs.dataset.__dict__)
+    dataset = JSONDataset(rs.dataset)
 
     dataset['metadata'] = {}
-
-    del dataset['_sa_instance_state']
 
     try:
         rs.dataset.check_read_permission(user_id)
@@ -537,39 +551,85 @@ def _get_dataset_as_dict(rs, user_id):
            dataset['value']      = None
            dataset['metadata'] = {}
 
-    for m in rs.dataset.metadata:
-        dataset['metadata'][m.key] = m.value
+    #for m in rs.dataset.metadata:
+    #    dataset['metadata'][m.key] = m.value
 
     return dataset
 
-def _get_as_obj(obj_dict, name):
+def _get_scenario_network_resources(scenario_id, scenario_i=None):
     """
-        Turn a dictionary into a named tuple so it can be
-        passed into the constructor of a complex model generator.
+        Inspect the network of the given scenario and return a mapping of ID to Name
+        for each element in that network
     """
-    if obj_dict.get('_sa_instance_state'):
-        del obj_dict['_sa_instance_state']
-    obj = namedtuple(name, tuple(obj_dict.keys()))
-    for k, v in obj_dict.items():
-        setattr(obj, k, v)
-        log.info("%s = %s",k,getattr(obj,k))
-    return obj
+    if scenario_i is None:
+        scenario_i = db.DBSession.query(Scenario).filter(Scenario.id==scenario_id).one()
 
+    net = db.DBSession.query(Network.id, Network.name).filter(Network.id == scenario_i.network_id).all()
+    nodes = db.DBSession.query(Node.id, Node.name).filter(Node.network_id == scenario_i.network_id).all()
+    links = db.DBSession.query(Link.id, Link.name).filter(Link.network_id == scenario_i.network_id).all()
+    groups = db.DBSession.query(ResourceGroup.id, ResourceGroup.name).filter(ResourceGroup.network_id == scenario_i.network_id).all()
 
-def compare_scenarios(scenario_id_1, scenario_id_2,**kwargs):
+    mapping_dict = {}
+
+    mapping_dict['NETWORK'] = dict(net)
+    mapping_dict['NODE'] = dict(nodes)
+    mapping_dict['LINK'] = dict(links)
+    mapping_dict['GROUP'] = dict(groups)
+
+    return mapping_dict
+
+def _get_resource_id(resourceattr):
+    for col in ('node_id', 'link_id', 'group_id', 'network_id'):
+        if resourceattr.get(col) is not None:
+            return resourceattr.get(col)
+
+def compare_scenarios(scenario_id_1, scenario_id_2, allow_different_networks=False, include_results=False, **kwargs):
+    """
+        Compare two scenarios and return a 'diff' dictionary containing all the differences.
+        Args:
+            scenario_1_id (int): Scenario 1 ID
+            scenario_2_id (int): Scenario 2 ID
+            allow_different_networks (bool) (default False); Flag to indicate whether it should be allowed to compare the scenarios from two independent networks.
+            include_results (bool) (default False): If set to true, includes all 'attr_is_var' values. Otherwise it only compares inputs.
+        returns:
+            dict: Containing the differences
+        raises:
+            HydraError if the scenarios are not in the same network (and the allow_different_networks is false)
+    """
     user_id = kwargs.get('user_id')
 
-    scenario_1 = _get_scenario(scenario_id_1, user_id)
-    scenario_2 = _get_scenario(scenario_id_2, user_id)
+    scenario_1 = get_scenario(scenario_id_1,
+                              include_parent_data=True,
+                              include_results=include_results,
+                              include_attr=True,
+                              include_metadata=False,
+                              user_id=user_id)
 
-    scenario_1_rs = db.DBSession.query(ResourceScenario).filter(ResourceScenario.scenario_id==scenario_id_1).all()
-    scenario_2_rs = db.DBSession.query(ResourceScenario).filter(ResourceScenario.scenario_id==scenario_id_2).all()
-    scenario_1_rgi = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.scenario_id==scenario_id_1).all()
-    scenario_2_rgi = db.DBSession.query(ResourceGroupItem).filter(ResourceGroupItem.scenario_id==scenario_id_2).all()
+    scenario_2 = get_scenario(scenario_id_2,
+                              include_parent_data=True,
+                              include_results=include_results,
+                              include_attr=True,
+                              include_metadata=False,
+                              user_id=user_id)
 
-    if scenario_1.network_id != scenario_2.network_id:
+    if allow_different_networks is False and scenario_1.network_id != scenario_2.network_id:
         raise HydraError("Cannot compare scenarios that are not"
                          " in the same network!")
+
+    #find a mapping from ID to Name for all nodes / links / groups in scenario 1's network
+    s1_resource_mapping = _get_scenario_network_resources(scenario_1.id, scenario_1)
+    if scenario_1.network_id == scenario_2.network_id:
+        s2_resource_mapping = s1_resource_mapping
+    else:
+        s2_resource_mapping = _get_scenario_network_resources(scenario_2.id, scenario_2)
+
+
+    scenario_1_rs = scenario_1.resourcescenarios
+    scenario_2_rs = scenario_2.resourcescenarios
+
+    scenario_1_rgi = scenario_1.resourcegroupitems
+    scenario_2_rgi = scenario_2.resourcegroupitems
+
 
     scenariodiff = dict(
        object_type = 'ScenarioDiff'
@@ -591,8 +651,8 @@ def compare_scenarios(scenario_id_1, scenario_id_2,**kwargs):
     rscen_1_dataset_ids = set([r_scen.dataset_id for r_scen in scenario_1_rs])
     rscen_2_dataset_ids = set([r_scen.dataset_id for r_scen in scenario_2_rs])
 
-    log.info("Datasets In 1 not in 2: %s"%(rscen_1_dataset_ids - rscen_2_dataset_ids))
-    log.info("Datasets In 2 not in 1: %s"%(rscen_2_dataset_ids - rscen_1_dataset_ids))
+    log.info("Datasets In 1 not in 2: %s"%(len(rscen_1_dataset_ids - rscen_2_dataset_ids)))
+    log.info("Datasets In 2 not in 1: %s"%(len(rscen_2_dataset_ids - rscen_1_dataset_ids)))
 
     for ra_id, s1_rs in r_scen_1_dict.items():
         s2_rs = r_scen_2_dict.get(ra_id)
@@ -601,8 +661,10 @@ def compare_scenarios(scenario_id_1, scenario_id_2,**kwargs):
             if s1_rs.dataset_id != s2_rs.dataset_id:
                 resource_diff = dict(
                     resource_attr_id = s1_rs.resource_attr_id,
-                    scenario_1_dataset = _get_as_obj(_get_dataset_as_dict(s1_rs, user_id), 'Dataset'),
-                    scenario_2_dataset = _get_as_obj(_get_dataset_as_dict(s2_rs, user_id), 'Dataset'),
+                    scenario_1_dataset = s1_rs.dataset,
+                    scenario_2_dataset = s2_rs.dataset,
+                    attr_name = s1_rs.resourceattr.attr.name,
+                    resource_name = s1_resource_mapping[s1_rs.resourceattr.ref_key][_get_resource_id(s1_rs.resourceattr)],
                 )
                 resource_diffs.append(resource_diff)
 
@@ -610,8 +672,10 @@ def compare_scenarios(scenario_id_1, scenario_id_2,**kwargs):
         else:
             resource_diff = dict(
                 resource_attr_id = s1_rs.resource_attr_id,
-                scenario_1_dataset = _get_as_obj(_get_dataset_as_dict(s1_rs, user_id), 'Dataset'),
+                scenario_1_dataset = s1_rs.dataset,
                 scenario_2_dataset = None,
+                attr_name = s1_rs.resourceattr.attr.name,
+                resource_name = s1_resource_mapping[s1_rs.resourceattr.ref_key][_get_resource_id(s1_rs.resourceattr)],
             )
             resource_diffs.append(resource_diff)
 
@@ -623,7 +687,9 @@ def compare_scenarios(scenario_id_1, scenario_id_2,**kwargs):
             resource_diff = dict(
                 resource_attr_id = s1_rs.resource_attr_id,
                 scenario_1_dataset = None,
-                scenario_2_dataset = _get_as_obj(_get_dataset_as_dict(s2_rs, user_id), 'Dataset'),
+                scenario_2_dataset = s2_rs.dataset,
+                attr_name = s2_rs.resourceattr.attr.name,
+                resource_name = s1_resource_mapping[s1_rs.resourceattr.ref_key][_get_resource_id(s1_rs.resourceattr)],
             )
             resource_diffs.append(resource_diff)
 
