@@ -561,4 +561,19 @@ class TestTemplateInheritance:
             assert tt.name is not None
             assert tt.template_id==parent_template_j.id
 
+    def test_get_child_template_by_name(self, client):
+
+        #first create a template
+        parent_template_j = client.testutils.create_template()
+        parent_network_type = list(filter(lambda x: x.resource_type=='NETWORK', parent_template_j.templatetypes))[0]
+
+        #and a child
+        child_template_j = client.testutils.create_child_template(parent_template_j.id)
+        child_template_j = client.get_template(child_template_j.id)
+
+
+        child_template_2_j = client.get_template_by_name(child_template_j.name)
+
+        assert len(parent_template_j.templatetypes) == len(child_template_j.templatetypes) == len(child_template_2_j.templatetypes)
+
 

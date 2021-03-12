@@ -722,11 +722,13 @@ def get_template_by_name(name, **kwargs):
     """
     try:
         tmpl_i = db.DBSession.query(Template).filter(
-            Template.name == name).options(joinedload('templatetypes')
-                                           .joinedload('typeattrs')
-                                           .joinedload('default_dataset')
-                                           .joinedload('metadata')).one()
-        return tmpl_i
+            Template.name == name).one()
+
+        tmpl_j = JSONObject(tmpl_i)
+
+        tmpl_j.templatetypes = tmpl_i.get_types()
+
+        return tmpl_j
     except NoResultFound:
         log.info("%s is not a valid identifier for a template", name)
         raise HydraError('Template "%s" not found'%name)
