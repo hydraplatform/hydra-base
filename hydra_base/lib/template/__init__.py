@@ -766,7 +766,7 @@ def add_child_templatetype(parent_id, child_template_id, **kwargs):
         TemplateType.id == parent_id).one()
 
     if parent_type.template_id == child_template_id:
-        return existing_child
+        return parent_type
 
     #The child doesn't exist already, so create it.
     child_type_i = TemplateType()
