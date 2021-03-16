@@ -224,7 +224,7 @@ def get_val(dataset, timestamp=None):
                 log.critical("Unable to retrive data. Check timestamps.")
                 log.critical(e)
 
-def get_layout_as_string(layout):
+def get_json_as_string(json_string_or_dict):
     """
         Take a dict or string and return a string.
         The dict will be json dumped.
@@ -233,16 +233,16 @@ def get_layout_as_string(layout):
         until a dict is retrieved or until a non-json structure is identified.
     """
 
-    if isinstance(layout, dict):
-        return json.dumps(layout)
+    if isinstance(json_string_or_dict, dict):
+        return json.dumps(json_string_or_dict)
 
-    if(isinstance(layout, six.string_types)):
+    if(isinstance(json_string_or_dict, six.string_types)):
         try:
-            return get_layout_as_string(json.loads(layout))
+            return get_json_as_string(json.loads(json_string_or_dict))
         except:
-            return layout
+            return json_string_or_dict
 
-def get_layout_as_dict(layout):
+def get_json_as_dict(json_string_or_dict):
     """
         Take a dict or string and return a dict if the data is json-encoded.
         The string will json parsed to check for json validity. In order to deal
@@ -250,11 +250,11 @@ def get_layout_as_dict(layout):
         until a dict is retrieved or until a non-json structure is identified.
     """
 
-    if isinstance(layout, dict):
-        return layout
+    if isinstance(json_string_or_dict, dict):
+        return json_string_or_dict
 
-    if(isinstance(layout, six.string_types)):
+    if(isinstance(json_string_or_dict, six.string_types)):
         try:
-            return get_layout_as_dict(json.loads(layout))
+            return get_json_as_dict(json.loads(json_string_or_dict))
         except:
-            return layout
+            return json_string_or_dict

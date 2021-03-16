@@ -504,26 +504,31 @@ def add_network(network,**kwargs):
 
     insert_start = datetime.datetime.now()
 
-    proj_i = db.DBSession.query(Project).filter(Project.id == network.project_id).first()
+    proj_i = db.DBSession.query(Project)\
+            .filter(Project.id == network.project_id).first()
+
     if proj_i is None:
         raise HydraError("Project ID is none. A project ID must be specified on the Network")
 
-    existing_net = db.DBSession.query(Network).filter(Network.project_id == network.project_id, Network.name==network.name).first()
+    existing_net = db.DBSession.query(Network)\
+            .filter(Network.project_id == network.project_id,
+                    Network.name == network.name).first()
+
     if existing_net is not None:
-        raise HydraError("A network with the name %s is already in project %s"%(network.name, network.project_id))
+        raise HydraError(f"A network with the name {network.name} is already"
+                         " in project {network.project_id}")
 
     user_id = kwargs.get('user_id')
     proj_i.check_write_permission(user_id)
 
     net_i = Network()
-    net_i.project_id          = network.project_id
-    net_i.name                = network.name
-    net_i.description         = network.description
-    net_i.created_by          = user_id
-    net_i.projection          = network.projection
-
-    if network.layout is not None:
-        net_i.layout = network.get_layout()
+    net_i.project_id = network.project_id
+    net_i.name = network.name
+    net_i.description = network.description
+    net_i.created_by = user_id
+    net_i.projection = network.projection
+    net_i.layout = network.get_json('layout')
+    net_i.appdata = network.get_json('appdata')
 
     network.id = net_i.id
     db.DBSession.add(net_i)
@@ -1476,6 +1481,7 @@ def network_exists(project_id, network_name,**kwargs):
     except NoResultFound:
         return 'N'
 
+@required_perms("edit_network")
 def update_network(network,
     update_nodes = True,
     update_links = True,
@@ -1494,11 +1500,12 @@ def update_network(network,
     except NoResultFound:
         raise ResourceNotFoundError("Network with id %s not found"%(network.id))
 
-    net_i.project_id          = network.project_id
-    net_i.name                = network.name
-    net_i.description         = network.description
-    net_i.projection          = network.projection
-    net_i.layout              = network.get_layout()
+    net_i.project_id = network.project_id
+    net_i.name = network.name
+    net_i.description = network.description
+    net_i.projection = network.projection
+    net_i.layout = network.get_json('layout')
+    net_i.appdata = network.get_json('appdata')
 
     all_resource_attrs = {}
     new_network_attributes = _update_attributes(net_i, network.attributes)

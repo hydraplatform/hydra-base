@@ -33,7 +33,7 @@ from hydra_base.lib.objects import JSONObject, Dataset
 from hydra_base.lib.data import add_dataset
 from hydra_base.exceptions import HydraError, ResourceNotFoundError
 from hydra_base import config
-from hydra_base.util import dataset_util, get_layout_as_string, get_layout_as_dict
+from hydra_base.util import dataset_util, get_json_as_string, get_json_as_dict
 from hydra_base.lib import units
 from hydra_base.util.permissions import required_perms
 
@@ -206,7 +206,7 @@ def get_template_as_dict(template_id, **kwargs):
         ##Try to load the json into an object, as it will be re-encoded as json,
         ##and we don't want double encoding:
         if tmpltype_j.layout is not None:
-            tmpltype_j.layout = get_layout_as_dict(tmpltype_j.layout)
+            tmpltype_j.layout = get_json_as_dict(tmpltype_j.layout)
 
         for typeattr_j in tmpltype_j.typeattrs:
             typeattr_j.attr_id = str(typeattr_j.attr_id*-1)
@@ -480,7 +480,7 @@ def add_template(template, **kwargs):
     if template.description:
         tmpl.description = template.description
     if template.layout:
-        tmpl.layout = get_layout_as_string(template.layout)
+        tmpl.layout = get_json_as_string(template.layout)
 
     db.DBSession.add(tmpl)
 
@@ -594,7 +594,7 @@ def update_template(template, auto_delete=False, **kwargs):
     template_types = tmpl.get_types()
 
     if template.layout:
-        tmpl.layout = get_layout_as_string(template.layout)
+        tmpl.layout = get_json_as_string(template.layout)
 
     type_dict = dict([(t.id, t) for t in template_types])
 
@@ -890,8 +890,9 @@ def _set_typeattr(typeattr, existing_ta=None):
 
     ta.data_restriction = _parse_data_restriction(typeattr.data_restriction)
 
-    if typeattr.unit_id is None:
+    if typeattr.unit_id is None or typeattr.unit_id == '':
         # All right. Check passed
+        ta.unit_id = None
         pass
     else:
         unit = units.get_unit(typeattr.unit_id)
@@ -970,7 +971,7 @@ def _set_cols(source, target, reference=None):
         newval = getattr(source, colname)
 
         if colname == 'layout':
-            newval = get_layout_as_string(newval)
+            newval = get_json_as_string(newval)
 
         if reference is None:
             setattr(target, colname, newval)
