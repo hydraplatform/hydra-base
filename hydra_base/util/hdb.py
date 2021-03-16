@@ -27,6 +27,7 @@ import random
 import bcrypt
 from ..exceptions import HydraError, HydraLoginUserNotFound, HydraLoginUserMaxAttemptsExceeded, HydraLoginUserPasswordWrong
 from sqlalchemy.orm import load_only
+from sqlalchemy import func
 from ..lib.objects import JSONObject
 from ..lib.users import get_remaining_login_attempts, inc_failed_login_attempts
 
@@ -406,16 +407,34 @@ def create_default_users_and_perms():
 
     db.DBSession.flush()
 
-def create_default_units_and_dimensions():
+def create_default_units_and_dimensions(update=True):
     """
         Adds the units and the dimensions reading a json file. It adds only dimensions and units that are not inside the db
         It is possible adding new dimensions and units to the DB just modifiyin the json file
+
+        args:
+            update (bool) default True: If there are existing units / dimensions in the DB, then update
+            them with the defaults by adding any missing units. If False, do nothing if there are existing
+            units.
     """
+
+    log.info("Adding default units and dimensions.")
+    
+    if update is False:
+        #if update is set to false, check if there are dimensions. If there are
+        #any existing dimensions, then log it and return.
+        num_dimensions = db.DBSession.query(func.count(Dimension.id)).scalar()
+        if num_dimensions > 0:
+            log.info("Existing dimensions found. Not creating defaults.")
+            return
+
+
     default_units_file_location = os.path.realpath(\
         os.path.join(os.path.dirname(os.path.realpath(__file__)),
                      '../',
                      'static',
                      'default_units_and_dimensions.json'))
+
 
     d=None
 
