@@ -23,7 +23,6 @@ from decimal import Decimal
 
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import noload, joinedload
-from sqlalchemy import or_, and_, func
 
 from hydra_base import db
 from hydra_base.db.model import (Template, TemplateType, TypeAttr, Attr,
@@ -99,10 +98,11 @@ def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j, user
     else:
         typeattr_i = TypeAttr()
         log.debug("Creating type attr: type_id=%s, attr_id=%s", type_i.id, attr_i.id)
-        typeattr_i.type_id=type_i.id
-        typeattr_i.attr_id=attr_i.id
+        typeattr_i.type_id = type_i.id
+        typeattr_i.attr_id = attr_i.id
         typeattr_i.attr_is_var = typeattr_j.attr_is_var
         typeattr_i.attr = attr_i
+        typeattr_i.status = 'A'
         type_i.typeattrs.append(typeattr_i)
         db.DBSession.add(typeattr_i)
 
@@ -361,6 +361,7 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
             type_i = TemplateType()
             type_i.name = type_name
             template_i.templatetypes.append(type_i)
+            type_i.status = 'A' ## defaults to active
             type_is_new = True
 
         if type_j.description is not None:
@@ -532,6 +533,7 @@ def add_child_template(parent_id, name, description=None, **kwargs):
         network_type.name = "{}-network".format(tmpl.name)
         network_type.resource_type = 'NETWORK'
         network_type.parent_id = parent_type.id
+        network_type.status = 'A'
 
         tmpl.templatetypes.append(network_type)
     else:
@@ -638,10 +640,10 @@ def update_template(template, auto_delete=False, **kwargs):
     return tmpl_j
 
 @required_perms("delete_template")
-def delete_template(template_id, force=False, **kwargs):
+def delete_template(template_id, delete_resourcetypes=False, **kwargs):
     """
         Delete a template and its type and typeattrs.
-        The 'force' flag forces the template to remove any resource types
+        The 'delete_resourcetypes' flag forces the template to remove any resource types
         associated to the types in the network. Use with caution!
     """
     try:
@@ -650,7 +652,7 @@ def delete_template(template_id, force=False, **kwargs):
         raise ResourceNotFoundError("Template %s not found"%(template_id,))
 
     for templatetype in tmpl.templatetypes:
-        delete_templatetype(templatetype.id, flush=False, force=force, user_id=kwargs.get('user_id'))
+        delete_templatetype(templatetype.id, flush=False, delete_resourcetypes=delete_resourcetypes, user_id=kwargs.get('user_id'))
 
     db.DBSession.delete(tmpl)
     db.DBSession.flush()
@@ -720,11 +722,13 @@ def get_template_by_name(name, **kwargs):
     """
     try:
         tmpl_i = db.DBSession.query(Template).filter(
-            Template.name == name).options(joinedload('templatetypes')
-                                           .joinedload('typeattrs')
-                                           .joinedload('default_dataset')
-                                           .joinedload('metadata')).one()
-        return tmpl_i
+            Template.name == name).one()
+
+        tmpl_j = JSONObject(tmpl_i)
+
+        tmpl_j.templatetypes = tmpl_i.get_types()
+
+        return tmpl_j
     except NoResultFound:
         log.info("%s is not a valid identifier for a template", name)
         raise HydraError('Template "%s" not found'%name)
@@ -762,7 +766,7 @@ def add_child_templatetype(parent_id, child_template_id, **kwargs):
         TemplateType.id == parent_id).one()
 
     if parent_type.template_id == child_template_id:
-        return existing_child
+        return parent_type
 
     #The child doesn't exist already, so create it.
     child_type_i = TemplateType()
@@ -855,7 +859,7 @@ def _set_typeattr(typeattr, existing_ta=None):
         manually using delete_typeattr
     """
     if existing_ta is None:
-        ta = TypeAttr(attr_id=typeattr.attr_id)
+
         #check for an existing TA
         check_existing_ta = db.DBSession.query(TypeAttr)\
             .filter(TypeAttr.attr_id == typeattr.attr_id, TypeAttr.type_id == typeattr.type_id).first()
@@ -863,6 +867,12 @@ def _set_typeattr(typeattr, existing_ta=None):
         #There's already a TA with this attr_id in this type
         if check_existing_ta is not None:
             ta = check_existing_ta
+        else:
+            ta = TypeAttr(attr_id=typeattr.attr_id)
+            ## default new type attrs to 'active'.
+            ##This has replaced the database default because for child typeattrs,
+            ##we need the status to be NULL so it can inherit from its parent
+            ta.status = 'A'
     else:
         if typeattr.id is not None:
             ta = db.DBSession.query(TypeAttr).filter(TypeAttr.id == typeattr.id).one()
@@ -999,6 +1009,11 @@ def _update_templatetype(templatetype, existing_tt=None, auto_delete=False, **kw
             is_new = True
             tmpltype_i = TemplateType()
             tmpltype_i.template_id = templatetype.template_id
+
+            ## default new template types to active
+            ## This has replaced the database default because for child typeattrs,
+            ## we need the status to be NULL so it can inherit from its parent
+            tmpltype_i.status = 'A'
     else:
         tmpltype_i = existing_tt
 
@@ -1036,7 +1051,7 @@ def _update_templatetype(templatetype, existing_tt=None, auto_delete=False, **kw
     return tmpltype_i
 
 @required_perms("edit_template")
-def delete_templatetype(type_id, template_i=None, force=False, flush=True, delete_children=False, **kwargs):
+def delete_templatetype(type_id, template_i=None, delete_resourcetypes=False, flush=True, delete_children=False, **kwargs):
     """
         Delete a template type and its typeattrs.
     """
@@ -1056,11 +1071,11 @@ def delete_templatetype(type_id, template_i=None, force=False, flush=True, delet
                          f"children. If you want to delete this, use the 'delete_children' flag.")
 
     if delete_children is True:
-        tmpltype_i.delete_children(delete_resourcetypes=force)
+        tmpltype_i.delete_children(delete_resourcetypes=delete_resourcetypes)
 
-    tmpltype_i.check_can_delete_resourcetypes(delete_resourcetypes=force)
+    tmpltype_i.check_can_delete_resourcetypes(delete_resourcetypes=delete_resourcetypes)
 
-    if force is True:
+    if delete_resourcetypes is True:
         tmpltype_i.delete_resourcetypes()
 
     #first remove the templatetypes

@@ -633,7 +633,7 @@ class Template(Base, Inspect):
             #to the child first, then the parent
             child_typeattrs = [ta.attr_id for ta in child_type.typeattrs]
 
-            for r, typeattr in enumerate(typeattrs):
+            for i, typeattr in enumerate(typeattrs):
                 if typeattr.attr_id in child_typeattrs:
                     log.info("Found a typeattr for attribute %s on the "
                              "child type %s (%s). Ignoring",
@@ -798,7 +798,7 @@ class TemplateType(Base, Inspect):
     description = Column(String(1000))
     resource_type = Column(String(200), nullable=True)
     alias = Column(String(100))
-    status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
+    status = Column(String(1),  nullable=True)
     layout = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'))
     cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
@@ -875,12 +875,12 @@ class TemplateType(Base, Inspect):
         if resourcetype_count > 0 and delete_resourcetypes is False:
             raise HydraError(f"Unable to delete type. Template Type {self.id} has "
                              f"{resourcetype_count} resources associated to it. "
-                             "Use the 'force' flag to delete these also.")
+                             "Use the 'delete_resourcetypes' flag to delete these also.")
 
     def delete_children(self, delete_resourcetypes=False):
         """
-            Delete the children associatecd to this type. THis should be done
-            with extreme caution.
+            Delete the children associated to this type.
+            THIS SHOULD BE DONE WITH EXTREME CAUTION.
             args:
                 delete_resourcetypes (bool): If any resourcetypes are found to be
                 associated to a child, throw an error to avoid leaving nodes with no types.
@@ -941,7 +941,7 @@ class TypeAttr(Base, Inspect):
     unit_id = Column(Integer(), ForeignKey('tUnit.id'))
     description = Column(String(1000))
     properties = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'))
-    status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
+    status = Column(String(1),  nullable=True)
     cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
 

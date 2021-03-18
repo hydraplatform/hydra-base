@@ -83,12 +83,5 @@ class TestLogin:
     def test_login_too_many_attempts(self, client):
         exception_raised=""
         for i in range(1,10):
-            try:
+            with pytest.raises(hydra_base.exceptions.HydraError):
                 user_id, session_id = client.login('root', 'wrong-password!')
-            except hydra_base.exceptions.HydraError as e:
-                # this exception will be eventually raised at a certain point
-                exception_raised="HydraLoginUserMaxAttemptsExceeded"
-            except hydra_base.exceptions.HydraError as e:
-                pass
-
-        assert exception_raised == "HydraLoginUserMaxAttemptsExceeded"
