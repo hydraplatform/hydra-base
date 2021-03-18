@@ -189,7 +189,7 @@ class JSONObject(dict):
 
     def get_layout(self):
         """
-            Return the 'layout' attribuyte as a json string
+            Return the 'layout' attribute as a json string
             this is a shorcut for backward compatibility.
             calls the `get_json("layout")` function internally
 
