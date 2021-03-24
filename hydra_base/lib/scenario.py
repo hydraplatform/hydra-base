@@ -757,6 +757,26 @@ def get_resource_scenario(resource_attr_id, scenario_id, get_parent_data=False, 
     else:
         raise ResourceNotFoundError("resource scenario for %s not found in scenario %s"%(resource_attr_id, scenario_id))
 
+def get_resourceattr_data(resource_attr_ids, scenario_id, get_parent_data=False, **kwargs):
+    """
+        Get the resource scenarios associated to a list of resource attribute IDs
+    """
+    user_id = kwargs.get('user_id')
+
+    scenario_i = _get_scenario(scenario_id, user_id)
+
+    scenario_rs = scenario_i.get_data(get_parent_data=get_parent_data)
+
+    resource_scenario_dict = {}
+
+    for rs_i in scenario_rs:
+        if rs_i.resource_attr_id in resource_attr_ids:
+            rs_i.dataset
+            rs_i.dataset.metadata
+            resource_scenario_dict[rs_i.resource_attr_id] = rs_i
+
+    return resource_scenario_dict
+
 def lock_scenario(scenario_id, **kwargs):
     #user_id = kwargs.get('user_id')
     #check_perm(user_id, 'edit_network')

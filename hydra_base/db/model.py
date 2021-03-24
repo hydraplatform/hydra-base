@@ -49,7 +49,7 @@ from sqlalchemy.orm import noload, joinedload
 
 from . import DeclarativeBase as Base, get_session
 
-from ..util import generate_data_hash, get_val, get_layout_as_string
+from ..util import generate_data_hash, get_val, get_json_as_string
 
 from sqlalchemy.sql.expression import case
 from sqlalchemy import UniqueConstraint, and_
@@ -566,7 +566,7 @@ class Template(Base, Inspect):
             newval = getattr(parent, colname)
 
             if colname == 'layout':
-                newval = get_layout_as_string(newval)
+                newval = get_json_as_string(newval)
 
             refval = getattr(child, colname)
 
@@ -1357,8 +1357,7 @@ class Project(Base, Inspect):
         else:
             if do_raise is True:
                 raise PermissionError("Permission denied. User %s does not have edit"
-                             " access on project %s" %
-                             (user_id, self.id))
+                                      " access on project %s" % (user_id, self.id))
             else:
                 return False
 
@@ -1383,8 +1382,7 @@ class Project(Base, Inspect):
                     break
         else:
             raise PermissionError("Permission denied. User %s does not have share"
-                             " access on project %s" %
-                             (user_id, self.id))
+                                  " access on project %s" % (user_id, self.id))
 
 
 
@@ -1392,25 +1390,29 @@ class Network(Base, Inspect):
     """
     """
 
-    __tablename__='tNetwork'
+    __tablename__ = 'tNetwork'
     __table_args__ = (
         UniqueConstraint('name', 'project_id', name="unique net name"),
     )
     ref_key = 'NETWORK'
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(200),  nullable=False)
+    name = Column(String(200), nullable=False)
     description = Column(String(1000))
-    layout  = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
-    project_id = Column(Integer(), ForeignKey('tProject.id'),  nullable=False)
-    status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    layout = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'), nullable=True)
+    appdata = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'), nullable=True)
+    project_id = Column(Integer(), ForeignKey('tProject.id'), nullable=False)
+    status = Column(String(1), nullable=False, server_default=text(u"'A'"))
+    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     projection = Column(String(200))
     created_by = Column(Integer(), ForeignKey('tUser.id'), nullable=False)
 
-    project = relationship('Project', backref=backref("networks", order_by="asc(Network.cr_date)", cascade="all, delete-orphan"))
+    project = relationship('Project',
+                           backref=backref("networks",
+                                           order_by="asc(Network.cr_date)",
+                                           cascade="all, delete-orphan"))
 
-    _parents  = ['tNode', 'tLink', 'tResourceGroup']
+    _parents = ['tNode', 'tLink', 'tResourceGroup']
     _children = ['tProject']
 
     def get_name(self):
@@ -2390,7 +2392,6 @@ class Perm(Base, Inspect):
     code = Column(String(60),  nullable=False)
     name = Column(String(200),  nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    roleperms = relationship('RolePerm', lazy='joined')
 
     _parents  = ['tRole', 'tPerm']
     _children = []
@@ -2408,8 +2409,6 @@ class Role(Base, Inspect):
     code = Column(String(60),  nullable=False)
     name = Column(String(200),  nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    roleperms = relationship('RolePerm', lazy='joined', cascade='all')
-    roleusers = relationship('RoleUser', lazy='joined', cascade='all')
 
     _parents  = []
     _children = ['tRolePerm', 'tRoleUser']
@@ -2431,9 +2430,8 @@ class RolePerm(Base, Inspect):
     perm_id = Column(Integer(), ForeignKey('tPerm.id'), primary_key=True, nullable=False)
     role_id = Column(Integer(), ForeignKey('tRole.id'), primary_key=True, nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-
-    perm = relationship('Perm', lazy='joined')
-    role = relationship('Role', lazy='joined')
+    perm = relationship('Perm', backref=backref('roleperms', uselist=True, lazy='joined'), lazy='joined')
+    role = relationship('Role', backref=backref('roleperms', uselist=True, lazy='joined'), lazy='joined')
 
     _parents  = ['tRole', 'tPerm']
     _children = []
@@ -2450,9 +2448,8 @@ class RoleUser(Base, Inspect):
     user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
     role_id = Column(Integer(), ForeignKey('tRole.id'), primary_key=True, nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-
-    user = relationship('User', lazy='joined')
-    role = relationship('Role', lazy='joined')
+    role = relationship('Role', backref=backref('roleusers', uselist=True))
+    user = relationship('User', backref=backref('roleusers', uselist=True))
 
     _parents  = ['tRole', 'tUser']
     _children = []
@@ -2475,7 +2472,6 @@ class User(Base, Inspect):
     last_edit = Column(TIMESTAMP())
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     failed_logins = Column(SMALLINT, nullable=True, default=0)
-    roleusers = relationship('RoleUser', lazy='joined')
 
     _parents  = []
     _children = ['tRoleUser']

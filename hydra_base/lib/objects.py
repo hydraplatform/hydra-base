@@ -26,7 +26,9 @@ from ..exceptions import HydraError
 
 from .HydraTypes.Registry import HydraObjectFactory
 
-from ..util import generate_data_hash, get_layout_as_dict, get_layout_as_string
+from sqlalchemy.engine.row import Row
+
+from ..util import generate_data_hash, get_json_as_dict, get_json_as_string
 from .. import config
 import pandas as pd
 
@@ -77,7 +79,7 @@ class JSONObject(dict):
                 setattr(self, k, v)
             elif k == 'layout':
                 #Layout is often valid JSON, but we dont want to treat it as a JSON object necessarily
-                dict_layout = get_layout_as_dict(v)
+                dict_layout = get_json_as_dict(v)
                 setattr(self, k, dict_layout)
             elif isinstance(v, dict):
                 #TODO what is a better way to identify a dataset?
@@ -188,8 +190,23 @@ class JSONObject(dict):
         return json.dumps(self)
 
     def get_layout(self):
-        if self.get('layout') is not None:
-            return get_layout_as_string(self.layout)
+        """
+            Return the 'layout' attribute as a json string
+            this is a shorcut for backward compatibility.
+            calls the `get_json("layout")` function internally
+
+        """
+        return self.get_json('layout')
+
+    def get_json(self, key):
+        """
+            General function to take an attribute of the object, such as
+            layout or app data, which is expected to be in JSON format, and
+            return it as a JSON blob,
+
+        """
+        if self.get(key) is not None:
+            return get_json_as_string(self[key])
         else:
             return None
 
