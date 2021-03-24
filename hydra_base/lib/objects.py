@@ -26,6 +26,8 @@ from ..exceptions import HydraError
 
 from .HydraTypes.Registry import HydraObjectFactory
 
+from sqlalchemy.engine.row import Row
+
 from ..util import generate_data_hash, get_json_as_dict, get_json_as_string
 from .. import config
 import pandas as pd

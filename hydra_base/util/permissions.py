@@ -40,9 +40,13 @@ def check_perm(user_id, permission_code):
 
 
     try:
-        res = db.DBSession.query(User).join(RoleUser, RoleUser.user_id==User.id).\
-            join(Perm, Perm.id==perm.id).\
-            join(RolePerm, RolePerm.perm_id==Perm.id).filter(User.id==user_id).one()
+        #get all the roles where the specified user has the specified permission
+        qry = db.DBSession.query(RoleUser.role_id)\
+            .join(RolePerm, RolePerm.role_id == RoleUser.role_id)\
+            .filter(RolePerm.perm_id == perm.id)\
+            .filter(RoleUser.user_id == user_id)
+        print (qry.statement)
+        res = qry.all()
     except NoResultFound:
         raise PermissionError("Permission denied. User %s does not have permission %s"%
                         (user_id, permission_code))

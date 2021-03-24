@@ -29,7 +29,6 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import class_mapper, noload
 from sqlalchemy import and_, or_
 from ..util import hdb
-from sqlalchemy.util import KeyedTuple
 from ..util.permissions import required_perms
 
 log = logging.getLogger(__name__)
@@ -196,72 +195,6 @@ def get_project_by_name(project_name,**kwargs):
             log.info("Can't return project %s. User %s does not have permission to read it.", project_i.id, user_id)
 
     return ret_projects
-
-def to_named_tuple(obj, visited_children=None, back_relationships=None, levels=None, ignore=[], extras={}):
-    """
-        Altered from an example found on stackoverflow
-        http://stackoverflow.com/questions/23554119/convert-sqlalchemy-orm-result-to-dict
-    """
-
-    if visited_children is None:
-        visited_children = []
-
-    if back_relationships is None:
-        back_relationships = []
-
-    serialized_data = {c.key: getattr(obj, c.key) for c in obj.__table__.columns}
-
-
-    #Any other non-column data to include in the keyed tuple
-    for k, v in extras.items():
-        serialized_data[k] = v
-
-    relationships = class_mapper(obj.__class__).relationships
-
-    #Set the attributes to 'None' first, so the attributes are there, even if they don't
-    #get filled in:
-    for name, relation in relationships.items():
-        if relation.uselist:
-            serialized_data[name] = tuple([])
-        else:
-            serialized_data[name] = None
-
-
-    visitable_relationships = [(name, rel) for name, rel in relationships.items() if name not in back_relationships]
-
-    if levels is not None and levels > 0:
-        for name, relation in visitable_relationships:
-
-            levels = levels - 1
-
-            if name in ignore:
-                continue
-
-            if relation.backref:
-                back_relationships.append(relation.backref)
-
-            relationship_children = getattr(obj, name)
-
-            if relationship_children is not None:
-                if relation.uselist:
-                    children = []
-                    for child in [c for c in relationship_children if c not in visited_children]:
-                        visited_children.append(child)
-                        children.append(to_named_tuple(child, visited_children, back_relationships, ignore=ignore, levels=levels))
-                    serialized_data[name] = tuple(children)
-                else:
-                    serialized_data[name] = to_named_tuple(relationship_children, visited_children, back_relationships, ignore=ignore, levels=levels)
-
-    vals = []
-    cols = []
-    for k, v in serialized_data.items():
-        vals.append(k)
-        cols.append(v)
-
-    result = KeyedTuple(cols, vals)
-
-    return result
-
 
 @required_perms('get_project')
 def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=None, **kwargs):
