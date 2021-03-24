@@ -25,7 +25,7 @@ from ..db.model import Dataset, Metadata, DatasetOwner, DatasetCollection,\
         DatasetCollectionItem, ResourceScenario, ResourceAttr, TypeAttr
 from ..util import generate_data_hash
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.orm import aliased, make_transient, joinedload_all
+from sqlalchemy.orm import aliased, make_transient, joinedload
 from sqlalchemy.sql.expression import case
 from sqlalchemy import func
 from sqlalchemy import null
@@ -116,7 +116,7 @@ def clone_dataset(dataset_id,**kwargs):
         return None
 
     dataset = db.DBSession.query(Dataset).filter(
-            Dataset.id==dataset_id).options(joinedload_all('metadata')).first()
+            Dataset.id==dataset_id).options(joinedload('metadata')).first()
 
     if dataset is None:
         raise HydraError("Dataset %s does not exist."%(dataset_id))
