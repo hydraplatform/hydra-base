@@ -2003,7 +2003,7 @@ class Scenario(Base, Inspect):
 
         #Add resource attributes which are not defined already
         rs_query = get_session().query(ResourceScenario).filter(
-            ResourceScenario.scenario_id == self.id)
+            ResourceScenario.scenario_id == self.id).options(joinedload('dataset')).options(joinedload('resourceattr'))
 
         if ra_ids is not None:
             rs_query = rs_query.filter(ResourceScenario.resource_attr_id.in_(ra_ids))

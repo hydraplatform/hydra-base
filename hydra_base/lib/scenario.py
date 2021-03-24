@@ -181,7 +181,6 @@ def get_scenario(scenario_id,
     scen_i = _get_scenario(scenario_id, user_id)
 
     scen_j = JSONObject(scen_i)
-
     rscen_rs = []
     if include_data is True:
         rscen_rs = scen_i.get_data(get_parent_data=get_parent_data,
@@ -190,12 +189,8 @@ def get_scenario(scenario_id,
 
     #lazy load resource attributes and attributes
     for rs in rscen_rs:
-        rs.resourceattr
-
         if include_attr == True:
             rs.resourceattr.attr
-
-        rs.dataset
 
         if include_metadata == True:
             rs.dataset.metadata
@@ -205,7 +200,6 @@ def get_scenario(scenario_id,
         rgi_rs = scen_i.get_group_items(get_parent_items=get_parent_data)
 
     scen_j.resourcescenarios = []
-
 
     user = db.DBSession.query(User).filter(User.id==user_id).one()
     is_admin = user.is_admin()
