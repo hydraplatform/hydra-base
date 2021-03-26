@@ -673,12 +673,14 @@ def _get_all_resource_attributes(network_id, template_id=None, include_non_templ
                               ).filter(Attr.id==ResourceAttr.attr_id)
 
 
-    all_node_attribute_qry = base_qry.join(Node).filter(Node.network_id==network_id)
+    all_node_attribute_qry = base_qry.join(Node).filter(Node.network_id == network_id)
 
-    all_link_attribute_qry = base_qry.join(Link).filter(Link.network_id==network_id)
+    all_link_attribute_qry = base_qry.join(Link).filter(Link.network_id == network_id)
 
-    all_group_attribute_qry = base_qry.join(ResourceGroup).filter(ResourceGroup.network_id==network_id)
-    network_attribute_qry = base_qry.filter(ResourceAttr.network_id==network_id)
+    all_group_attribute_qry = base_qry.join(ResourceGroup)\
+            .filter(ResourceGroup.network_id == network_id)
+
+    network_attribute_qry = base_qry.filter(ResourceAttr.network_id == network_id)
 
 
     x = time.time()
@@ -686,7 +688,7 @@ def _get_all_resource_attributes(network_id, template_id=None, include_non_templ
     attribute_qry = all_node_attribute_qry.union(all_link_attribute_qry,
                                                  all_group_attribute_qry,
                                                  network_attribute_qry)
-    all_resource_attributes = db.DBSession.execute(attribute_qry.statement).fetchall()
+    all_resource_attributes = db.DBSession.execute(attribute_qry.statement).all()
     log.info("%s attrs retrieved in %s", len(all_resource_attributes), time.time()-x)
 
     logging.info("Attributes retrieved. Processing results...")
@@ -817,7 +819,7 @@ def _get_all_templates(network_id, template_id):
     x = time.time()
     log.info("Getting all types")
     type_qry = all_node_type_qry.union(all_link_type_qry, all_group_type_qry, network_type_qry)
-    all_types = db.DBSession.execute(type_qry.statement).fetchall()
+    all_types = type_qry.all()
     log.info("%s types retrieved in %s", len(all_types), time.time()-x)
 
 
@@ -898,7 +900,7 @@ def _get_all_group_items(network_id):
 
     x = time.time()
     logging.info("Getting all items")
-    all_items = db.DBSession.execute(item_qry.statement).fetchall()
+    all_items = item_qry.all()
     log.info("%s groups jointly retrieved in %s", len(all_items), time.time()-x)
 
 
@@ -950,7 +952,7 @@ def _get_all_resourcescenarios(network_id, scenario_ids, include_results, user_i
 
     x = time.time()
     logging.info("Getting all resource scenarios")
-    all_rs = db.DBSession.execute(rs_qry.statement).fetchall()
+    all_rs = rs_qry.all()
     log.info("%s resource scenarios retrieved in %s", len(all_rs), time.time()-x)
 
 
@@ -1009,7 +1011,7 @@ def _get_metadata(network_id, scenario_ids, user_id):
 
     x = time.time()
     logging.info("Getting all matadata")
-    all_metadata = db.DBSession.execute(metadata_qry.statement).fetchall()
+    all_metadata = metadata_qry.all()
     log.info("%s metadata jointly retrieved in %s",len(all_metadata), time.time()-x)
 
     logging.info("metadata retrieved. Processing results...")
@@ -1030,7 +1032,9 @@ def _get_network_owners(network_id):
         Get all the nodes in a network
     """
     owners_i = db.DBSession.query(NetworkOwner).filter(
-                        NetworkOwner.network_id==network_id).options(noload('network')).options(joinedload('user')).all()
+                        NetworkOwner.network_id == network_id)\
+            .options(noload('network'))\
+            .options(joinedload('user')).all()
 
     owners = [JSONObject(owner_i) for owner_i in owners_i]
 
@@ -1043,15 +1047,15 @@ def _get_nodes(network_id, template_id=None):
     extras = {'types':[], 'attributes':[]}
 
     node_qry = db.DBSession.query(Node).filter(
-                        Node.network_id==network_id,
-                        Node.status=='A').options(
+                        Node.network_id == network_id,
+                        Node.status == 'A').options(
                             noload('network')
                         )
     if template_id is not None:
-        node_qry = node_qry.filter(ResourceType.node_id==Node.id,
-                                   TemplateType.id==ResourceType.type_id,
-                                   TemplateType.template_id==template_id)
-    node_res = db.DBSession.execute(node_qry.statement).fetchall()
+        node_qry = node_qry.filter(ResourceType.node_id == Node.id,
+                                   TemplateType.id == ResourceType.type_id,
+                                   TemplateType.template_id == template_id)
+    node_res = node_qry.all()
 
     nodes = []
     for n in node_res:
@@ -1074,7 +1078,7 @@ def _get_links(network_id, template_id=None):
                                    TemplateType.id==ResourceType.type_id,
                                    TemplateType.template_id==template_id)
 
-    link_res = db.DBSession.execute(link_qry.statement).fetchall()
+    link_res = link_qry.all()
 
     links = []
     for l in link_res:
@@ -1094,11 +1098,11 @@ def _get_groups(network_id, template_id=None):
                                         )
 
     if template_id is not None:
-        group_qry = group_qry.filter(ResourceType.group_id==ResourceGroup.id,
-                                     TemplateType.id==ResourceType.type_id,
-                                     TemplateType.template_id==template_id)
+        group_qry = group_qry.filter(ResourceType.group_id == ResourceGroup.id,
+                                     TemplateType.id == ResourceType.type_id,
+                                     TemplateType.template_id == template_id)
 
-    group_res = db.DBSession.execute(group_qry.statement).fetchall()
+    group_res = group_qry.all()
     groups = []
     for g in group_res:
         groups.append(JSONObject(g, extras=extras))
@@ -1119,7 +1123,7 @@ def _get_scenarios(network_id, include_data, include_results, user_id,
         logging.info("Filtering by scenario_ids %s",scenario_ids)
         scen_qry = scen_qry.filter(Scenario.id.in_(scenario_ids))
     extras = {'resourcescenarios': [], 'resourcegroupitems': []}
-    scens = [JSONObject(s,extras=extras) for s in db.DBSession.execute(scen_qry.statement).fetchall()]
+    scens = [JSONObject(s,extras=extras) for s in scen_qry.all()]
 
     all_resource_group_items = _get_all_group_items(network_id)
 
@@ -1191,10 +1195,10 @@ def get_network(network_id,
 
         net = JSONObject(net_i)
 
-        net.nodes          = _get_nodes(network_id, template_id=template_id)
-        net.links          = _get_links(network_id, template_id=template_id)
+        net.nodes = _get_nodes(network_id, template_id=template_id)
+        net.links = _get_links(network_id, template_id=template_id)
         net.resourcegroups = _get_groups(network_id, template_id=template_id)
-        net.owners         = _get_network_owners(network_id)
+        net.owners = _get_network_owners(network_id)
 
         if include_attributes in ('Y', True):
             all_attributes = _get_all_resource_attributes(network_id,

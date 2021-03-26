@@ -2357,7 +2357,6 @@ class Perm(Base, Inspect):
     code = Column(String(60),  nullable=False)
     name = Column(String(200),  nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    roleperms = relationship('RolePerm', lazy='joined')
 
     _parents  = ['tRole', 'tPerm']
     _children = []
@@ -2375,8 +2374,6 @@ class Role(Base, Inspect):
     code = Column(String(60),  nullable=False)
     name = Column(String(200),  nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    roleperms = relationship('RolePerm', lazy='joined', cascade='all')
-    roleusers = relationship('RoleUser', lazy='joined', cascade='all')
 
     _parents  = []
     _children = ['tRolePerm', 'tRoleUser']
@@ -2398,9 +2395,8 @@ class RolePerm(Base, Inspect):
     perm_id = Column(Integer(), ForeignKey('tPerm.id'), primary_key=True, nullable=False)
     role_id = Column(Integer(), ForeignKey('tRole.id'), primary_key=True, nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-
-    perm = relationship('Perm', lazy='joined')
-    role = relationship('Role', lazy='joined')
+    perm = relationship('Perm', backref=backref('roleperms', uselist=True, lazy='joined'), lazy='joined')
+    role = relationship('Role', backref=backref('roleperms', uselist=True, lazy='joined'), lazy='joined')
 
     _parents  = ['tRole', 'tPerm']
     _children = []
@@ -2417,9 +2413,8 @@ class RoleUser(Base, Inspect):
     user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
     role_id = Column(Integer(), ForeignKey('tRole.id'), primary_key=True, nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-
-    user = relationship('User', lazy='joined')
-    role = relationship('Role', lazy='joined')
+    role = relationship('Role', backref=backref('roleusers', uselist=True))
+    user = relationship('User', backref=backref('roleusers', uselist=True))
 
     _parents  = ['tRole', 'tUser']
     _children = []
@@ -2442,7 +2437,6 @@ class User(Base, Inspect):
     last_edit = Column(TIMESTAMP())
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     failed_logins = Column(SMALLINT, nullable=True, default=0)
-    roleusers = relationship('RoleUser', lazy='joined')
 
     _parents  = []
     _children = ['tRoleUser']
