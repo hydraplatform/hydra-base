@@ -553,7 +553,7 @@ def _get_dataset_as_dict(rs, user_id):
 def _get_scenario_network_resources(scenario_id, scenario_i=None):
     """
         Inspect the network of the given scenario and return a mapping of ID to Name
-        for each element in that network
+        for each element in that network, categorised by resource type.
     """
     if scenario_i is None:
         scenario_i = db.DBSession.query(Scenario).filter(Scenario.id==scenario_id).one()
