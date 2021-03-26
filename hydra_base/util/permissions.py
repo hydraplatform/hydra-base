@@ -45,7 +45,7 @@ def check_perm(user_id, permission_code):
             .join(RolePerm, RolePerm.role_id == RoleUser.role_id)\
             .filter(RolePerm.perm_id == perm.id)\
             .filter(RoleUser.user_id == user_id)
-        print (qry.statement)
+
         res = qry.all()
     except NoResultFound:
         raise PermissionError("Permission denied. User %s does not have permission %s"%
