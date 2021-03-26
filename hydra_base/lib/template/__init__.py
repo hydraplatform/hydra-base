@@ -749,7 +749,6 @@ def add_child_templatetype(parent_id, child_template_id, **kwargs):
     """
         Add a child templatetype
     """
-
     #check if the type is already there:
     #this means we can only add one child type per template
     existing_child = db.DBSession.query(TemplateType).filter(

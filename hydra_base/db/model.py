@@ -156,15 +156,19 @@ class PermissionControlled(object):
         """
         pass
 
-    def check_read_permission(self, user_id, do_raise=True):
+    def check_read_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can read this dataset
         """
-        if _is_admin(user_id):
-            return True
-
         if str(user_id) == str(self.created_by):
             return True
+
+        if is_admin is None:
+            is_admin = _is_admin(user_id)
+
+        if is_admin is True:
+            return True
+
 
         #Check if this entity is publicly open, therefore no need to check permissions.
         if self._is_open() == True:
@@ -192,11 +196,17 @@ class PermissionControlled(object):
             2: Check if any of these groups has permission to read the object
         """
 
-    def check_write_permission(self, user_id, do_raise=True):
+    def check_write_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can write this dataset
         """
-        if _is_admin(user_id):
+        if str(user_id) == str(self.created_by):
+            return True
+
+        if is_admin is None:
+            is_admin = _is_admin(user_id)
+
+        if is_admin is True:
             return True
 
         for owner in self.owners:
@@ -213,13 +223,19 @@ class PermissionControlled(object):
 
         return True
 
-    def check_share_permission(self, user_id):
+    def check_share_permission(self, user_id, is_admin=None):
         """
             Check whether this user can write this dataset
         """
 
-        if _is_admin(user_id):
-            return
+        if str(user_id) == str(self.created_by):
+            return True
+
+        if is_admin is None:
+            is_admin = _is_admin(user_id)
+
+        if is_admin is True:
+            return True
 
         for owner in self.owners:
             if owner.user_id == int(user_id):
@@ -1109,17 +1125,17 @@ class ResourceAttr(Base, Inspect):
         elif ref_key == 'PROJECT':
             return self.project_id
 
-    def check_read_permission(self, user_id, do_raise=True):
+    def check_read_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can read this resource attribute
         """
-        return self.get_resource().check_read_permission(user_id, do_raise=do_raise)
+        return self.get_resource().check_read_permission(user_id, do_raise=do_raise, is_admin=is_admin)
 
-    def check_write_permission(self, user_id, do_raise=True):
+    def check_write_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can write this node
         """
-        return self.get_resource().check_write_permission(user_id, do_raise=do_raise)
+        return self.get_resource().check_write_permission(user_id, do_raise=do_raise, is_admin=is_admin)
 
 
 class ResourceType(Base, Inspect):
@@ -1292,15 +1308,18 @@ class Project(Base, Inspect):
                 get_session().delete(owner)
                 break
 
-    def check_read_permission(self, user_id, do_raise=True):
+    def check_read_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can read this project
         """
 
-        if _is_admin(user_id):
+        if str(user_id) == str(self.created_by):
             return True
 
-        if str(user_id) == str(self.created_by):
+        if is_admin is None:
+            is_admin = _is_admin(user_id)
+
+        if is_admin is True:
             return True
 
         for owner in self.owners:
@@ -1317,15 +1336,18 @@ class Project(Base, Inspect):
 
         return True
 
-    def check_write_permission(self, user_id, do_raise=True):
+    def check_write_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can write this project
         """
 
-        if _is_admin(user_id):
+        if str(user_id) == str(self.created_by):
             return True
 
-        if str(user_id) == str(self.created_by):
+        if is_admin is None:
+            is_admin = _is_admin(user_id)
+
+        if is_admin is True:
             return True
 
         for owner in self.owners:
@@ -1341,17 +1363,19 @@ class Project(Base, Inspect):
 
         return True
 
-    def check_share_permission(self, user_id):
+    def check_share_permission(self, user_id, is_admin=None):
         """
             Check whether this user can write this project
         """
 
-        if _is_admin(user_id):
-            return
-
         if str(user_id) == str(self.created_by):
-            return
+            return True
 
+        if is_admin is None:
+            is_admin = _is_admin(user_id)
+
+        if is_admin is True:
+            return True
         for owner in self.owners:
             if owner.user_id == int(user_id):
                 if owner.view == 'Y' and owner.share == 'Y':
@@ -1504,14 +1528,18 @@ class Network(Base, Inspect):
                 get_session().delete(owner)
                 break
 
-    def check_read_permission(self, user_id, do_raise=True):
+    def check_read_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can read this network
         """
-        if _is_admin(user_id):
+
+        if str(user_id) == str(self.created_by):
             return True
 
-        if int(self.created_by) == int(user_id):
+        if is_admin is None:
+            is_admin = _is_admin(user_id)
+
+        if is_admin is True:
             return True
 
         for owner in self.owners:
@@ -1528,14 +1556,18 @@ class Network(Base, Inspect):
 
         return True
 
-    def check_write_permission(self, user_id, do_raise=True):
+    def check_write_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can write this project
         """
-        if _is_admin(user_id):
+
+        if str(user_id) == str(self.created_by):
             return True
 
-        if int(self.created_by) == int(user_id):
+        if is_admin is None:
+            is_admin = _is_admin(user_id)
+
+        if is_admin is True:
             return True
 
         for owner in self.owners:
@@ -1552,16 +1584,19 @@ class Network(Base, Inspect):
 
         return True
 
-    def check_share_permission(self, user_id):
+    def check_share_permission(self, user_id, is_admin=None):
         """
             Check whether this user can write this project
         """
 
-        if _is_admin(user_id):
-            return
+        if str(user_id) == str(self.created_by):
+            return True
 
-        if int(self.created_by) == int(user_id):
-            return
+        if is_admin is None:
+            is_admin = _is_admin(user_id)
+
+        if is_admin is True:
+            return True
 
         for owner in self.owners:
             if owner.user_id == int(user_id):
@@ -1634,18 +1669,18 @@ class Link(Base, Inspect):
 
         return res_attr
 
-    def check_read_permission(self, user_id, do_raise=True):
+    def check_read_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can read this link
         """
-        return self.network.check_read_permission(user_id, do_raise=do_raise)
+        return self.network.check_read_permission(user_id, do_raise=do_raise, is_admin=is_none)
 
-    def check_write_permission(self, user_id, do_raise=True):
+    def check_write_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can write this link
         """
 
-        return self.network.check_write_permission(user_id, do_raise=do_raise)
+        return self.network.check_write_permission(user_id, do_raise=do_raise, is_admin=is_admin)
 
 class Node(Base, Inspect):
     """
@@ -1706,18 +1741,18 @@ class Node(Base, Inspect):
 
         return res_attr
 
-    def check_read_permission(self, user_id, do_raise=True):
+    def check_read_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can read this node
         """
-        return self.network.check_read_permission(user_id, do_raise=do_raise)
+        return self.network.check_read_permission(user_id, do_raise=do_raise, is_admin=is_admin)
 
-    def check_write_permission(self, user_id, do_raise=True):
+    def check_write_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can write this node
         """
 
-        return self.network.check_write_permission(user_id, do_raise=do_raise)
+        return self.network.check_write_permission(user_id, do_raise=do_raise, is_admin=is_admin)
 
 class ResourceGroup(Base, Inspect):
     """
@@ -1785,18 +1820,18 @@ class ResourceGroup(Base, Inspect):
 
         return items
 
-    def check_read_permission(self, user_id, do_raise=True):
+    def check_read_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can read this group
         """
-        return self.network.check_read_permission(user_id, do_raise=do_raise)
+        return self.network.check_read_permission(user_id, do_raise=do_raise, is_admin=is_admin)
 
-    def check_write_permission(self, user_id, do_raise=True):
+    def check_write_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can write this group
         """
 
-        return self.network.check_write_permission(user_id, do_raise=do_raise)
+        return self.network.check_write_permission(user_id, do_raise=do_raise, is_admin=is_admin)
 
 class ResourceGroupItem(Base, Inspect):
     """
@@ -1968,7 +2003,7 @@ class Scenario(Base, Inspect):
 
         #Add resource attributes which are not defined already
         rs_query = get_session().query(ResourceScenario).filter(
-            ResourceScenario.scenario_id == self.id)
+            ResourceScenario.scenario_id == self.id).options(joinedload('dataset')).options(joinedload('resourceattr'))
 
         if ra_ids is not None:
             rs_query = rs_query.filter(ResourceScenario.resource_attr_id.in_(ra_ids))
