@@ -688,7 +688,7 @@ def _get_all_resource_attributes(network_id, template_id=None, include_non_templ
     attribute_qry = all_node_attribute_qry.union(all_link_attribute_qry,
                                                  all_group_attribute_qry,
                                                  network_attribute_qry)
-    all_resource_attributes = db.DBSession.execute(attribute_qry.statement).all()
+    all_resource_attributes = attribute_qry.all()
     log.info("%s attrs retrieved in %s", len(all_resource_attributes), time.time()-x)
 
     logging.info("Attributes retrieved. Processing results...")
