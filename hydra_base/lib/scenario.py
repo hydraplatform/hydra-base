@@ -28,6 +28,7 @@ from ..db.model import Scenario,\
         ResourceAttr,\
         NetworkOwner,\
         Dataset,\
+        Metadata,\
         Network,\
         Attr,\
         Node,\
@@ -192,8 +193,23 @@ def get_scenario(scenario_id,
         if include_attr == True:
             rs.resourceattr.attr
 
-        if include_metadata == True:
-            rs.dataset.metadata
+    ## If metadata is requested, use a dedicated query to extract metadata
+    ## from the scenario's datasets,
+    ## and enter them into a lookup table, keyed by dataset_id so they can
+    ## be extracted later.
+    metadata_lookup = {}
+    if include_metadata == True:
+        dataset_ids = [rs.dataset.id for rs in rscen_rs]
+        metadata = db.DBSession.query(Metadata)\
+                    .join(Dataset)\
+                    .join(ResourceScenario)\
+                    .filter(ResourceScenario.scenario_id == scenario_id).all()
+        for m in metadata:
+            if metadata_lookup.get(m.dataset_id):
+                metadata_lookup[m.dataset_id][m.key] = m.value
+            else:
+                metadata_lookup[m.dataset_id] = {m.key:m.value}
+
 
     rgi_rs = []
     if include_group_items is True:
@@ -209,6 +225,9 @@ def get_scenario(scenario_id,
         if rs.dataset.check_read_permission(user_id, do_raise=False, is_admin=is_admin) is False:
             rs_j.dataset['value'] = None
             rs_j.dataset.metadata = JSONObject({})
+        else:
+            rs_j.dataset.metadata = JSONObject(metadata_lookup.get(rs.dataset_id, {}))
+
         scen_j.resourcescenarios.append(rs_j)
 
     scen_j.resourcegroupitems =[JSONObject(r) for r in rgi_rs]
