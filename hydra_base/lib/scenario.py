@@ -759,8 +759,7 @@ def get_resource_scenario(resource_attr_id, scenario_id, get_parent_data=False, 
 
     scenario_i = _get_scenario(scenario_id, user_id)
 
-    scenario_rs = scenario_i.get_data(get_parent_data=get_parent_data)
-
+    scenario_rs = scenario_i.get_data(get_parent_data=get_parent_data, ra_ids=[resource_attr_id])
 
     for rs_i in scenario_rs:
         if rs_i.resource_attr_id == resource_attr_id:
@@ -778,7 +777,9 @@ def get_resourceattr_data(resource_attr_ids, scenario_id, get_parent_data=False,
 
     scenario_i = _get_scenario(scenario_id, user_id)
 
-    scenario_rs = scenario_i.get_data(get_parent_data=get_parent_data)
+
+    scenario_rs = scenario_i.get_data(get_parent_data=get_parent_data, ra_ids=[resource_attr_ids])
+
 
     resource_scenario_dict = {}
 
