@@ -608,7 +608,7 @@ def update_template(template, auto_delete=False, **kwargs):
         for templatetype in types:
 
             if templatetype.id is not None and templatetype.template_id != tmpl.id:
-                log.info("Type %s is a part of a parent template. Ignoring.", templatetype.id)
+                log.debug("Type %s is a part of a parent template. Ignoring.", templatetype.id)
                 req_templatetype_ids.append(type_i.id)
                 continue
 
