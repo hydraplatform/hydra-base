@@ -651,7 +651,7 @@ class Template(Base, Inspect):
 
             for i, typeattr in enumerate(typeattrs):
                 if typeattr.attr_id in child_typeattrs:
-                    log.info("Found a typeattr for attribute %s on the "
+                    log.debug("Found a typeattr for attribute %s on the "
                              "child type %s (%s). Ignoring",
                              typeattr.attr_id, child_type.name, child_type.id)
                     continue
@@ -691,6 +691,7 @@ class Template(Base, Inspect):
             of its parents)
 
         """
+        log.info("Getting Template Types..")
 
         #This avoids python's mutable keyword arguments causing child_data to keep its values between
         #function calls
@@ -744,7 +745,7 @@ class Template(Base, Inspect):
 
                 for typeattr in typeattrs:
                     if typeattr.attr_id in child_typeattrs:
-                        log.info("Found a typeattr for attribute %s on the "
+                        log.debug("Found a typeattr for attribute %s on the "
                              "child type %s (%s). Ignoring",
                              typeattr.attr_id, child_type.name, child_type.id)
                         continue
