@@ -130,7 +130,9 @@ def _check_ra_duplicates(all_resource_attrs):
         else:
             raise HydraError(f"Duplicate Resource Attr specified: {ra}")
 
-def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
+def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, template_lookup={}):
+
+    log.info("Bulk adding resource attributes")
 
     start_time = datetime.datetime.now()
 
@@ -165,7 +167,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
     ##so call as a user with all permissions
     admin_id = config.get('DEFAULT', 'ALL_PERMISSION_USER', 1)
 
-    template_lookup = {} #a lookup of all the templates used by the resource
+ #   template_lookup = {} #a lookup of all the templates used by the resource
     typeattr_lookup = {} # a lookup from type ID to a list of typeattrs
     network_child_template_id = None
     #Holds all the attributes supposed to be on a resource based on its specified
@@ -212,7 +214,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
                     #it's OK to use user ID 1 here because the calling function has been
                     #validated for the calling user's permission to get the network
                     tt = template.get_templatetype(resource_type.id, user_id=admin_id)
-                    template_j = template.get_template(tt.template_id, user_id=admin_id)
+                    template_j = template.get_template(resource_type.child_template_id, user_id=admin_id)
                     template_lookup[template_j.id] = template_j
                     for tt in template_j.templatetypes:
                         typeattr_lookup[tt.id] = tt.typeattrs
@@ -314,7 +316,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map):
                  (datetime.datetime.now() - start_time))
     logging.debug(" resource_attrs   size: %s",\
                   len(resource_attrs))
-    return resource_attrs, defaults
+    return resource_attrs, defaults, template_lookup
 
 def _add_nodes_to_database(net_i, nodes):
     #First add all the nodes
@@ -335,7 +337,7 @@ def _add_nodes_to_database(net_i, nodes):
     db.DBSession.flush()
     logging.info("Node insert took %s secs"% str(time.time() - t0))
 
-def _add_nodes(net_i, nodes):
+def _add_nodes(net_i, nodes, template_lookup):
 
     #check_perm(user_id, 'edit_topology')
 
@@ -363,7 +365,7 @@ def _add_nodes(net_i, nodes):
         #cast node.name as str here as a node name can sometimes be a number
         node_id_map[node.id] = iface_nodes[str(node.name)]
 
-    node_attrs, defaults = _bulk_add_resource_attrs(net_i.id, 'NODE', nodes, iface_nodes)
+    node_attrs, defaults, template_lookup = _bulk_add_resource_attrs(net_i.id, 'NODE', nodes, iface_nodes, template_lookup)
 
     log.info("Nodes added in %s", get_timing(start_time))
 
@@ -389,7 +391,7 @@ def _add_links_to_database(net_i, links, node_id_map):
     if len(link_dicts) > 0:
         db.DBSession.bulk_insert_mappings(Link, link_dicts)
 
-def _add_links(net_i, links, node_id_map):
+def _add_links(net_i, links, node_id_map, template_lookup):
 
     #check_perm(user_id, 'edit_topology')
 
@@ -426,15 +428,20 @@ def _add_links(net_i, links, node_id_map):
     for l_i in net_i.links:
         iface_links[str(l_i.name)] = l_i
 
+    log.info("Link Map created %s", get_timing(start_time))
+
     for link in links:
         link_id_map[link.id] = iface_links[str(link.name)]
 
-    link_attrs, defaults = _bulk_add_resource_attrs(net_i.id, 'LINK', links, iface_links)
+    log.info("Link ID Map created %s", get_timing(start_time))
+
+    link_attrs, defaults, template_lookup = _bulk_add_resource_attrs(net_i.id, 'LINK', links, iface_links, template_lookup)
+
     log.info("Links added in %s", get_timing(start_time))
 
     return link_id_map, link_attrs, defaults
 
-def _add_resource_groups(net_i, resourcegroups):
+def _add_resource_groups(net_i, resourcegroups, template_lookup):
     start_time = datetime.datetime.now()
     #List of resource attributes
     group_attrs = {}
@@ -480,7 +487,7 @@ def _add_resource_groups(net_i, resourcegroups):
                     })
                 group_id_map[group.id] = group_i
 
-    group_attrs, defaults = _bulk_add_resource_attrs(net_i.id, 'GROUP', resourcegroups, iface_groups)
+    group_attrs, defaults, template_lookup = _bulk_add_resource_attrs(net_i.id, 'GROUP', resourcegroups, iface_groups, template_lookup)
     log.info("Groups added in %s", get_timing(start_time))
 
     return group_id_map, group_attrs, defaults
@@ -546,19 +553,19 @@ def add_network(network,**kwargs):
     all_resource_attrs = {}
 
     name_map = {network.name:net_i}
-    network_attrs, network_defaults = _bulk_add_resource_attrs(net_i.id, 'NETWORK', [network], name_map)
+    network_attrs, network_defaults, template_lookup = _bulk_add_resource_attrs(net_i.id, 'NETWORK', [network], name_map)
     hdb.add_resource_types(net_i, network.types)
 
     all_resource_attrs.update(network_attrs)
 
     log.info("Network attributes added in %s", get_timing(start_time))
-    node_id_map, node_attrs, node_datasets = _add_nodes(net_i, network.nodes)
+    node_id_map, node_attrs, node_datasets = _add_nodes(net_i, network.nodes, template_lookup)
     all_resource_attrs.update(node_attrs)
 
-    link_id_map, link_attrs, link_datasets = _add_links(net_i, network.links, node_id_map)
+    link_id_map, link_attrs, link_datasets = _add_links(net_i, network.links, node_id_map, template_lookup)
     all_resource_attrs.update(link_attrs)
 
-    grp_id_map, grp_attrs, grp_datasets = _add_resource_groups(net_i, network.resourcegroups)
+    grp_id_map, grp_attrs, grp_datasets = _add_resource_groups(net_i, network.resourcegroups, template_lookup)
     all_resource_attrs.update(grp_attrs)
 
     defaults = list(grp_datasets.values()) + list(link_datasets.values()) \
@@ -570,6 +577,8 @@ def add_network(network,**kwargs):
     if network.scenarios is not None:
         log.info("Adding scenarios to network")
         for s in network.scenarios:
+
+            log.info("Adding scenario %s", s.name)
 
             if s.name in scenario_names:
                 raise HydraError("Duplicate scenario name: %s"%(s.name))
@@ -633,6 +642,8 @@ def add_network(network,**kwargs):
                     scen.resourcegroupitems.append(group_item_i)
             log.info("Group items insert took %s", get_timing(item_start_time))
             net_i.scenarios.append(scen)
+
+            log.info("Scenario %s added", s.name)
 
     log.info("Scenarios added in %s", get_timing(start_time))
     net_i.set_owner(user_id)

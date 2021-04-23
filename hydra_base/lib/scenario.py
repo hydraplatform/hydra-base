@@ -331,11 +331,23 @@ def update_scenario(scenario,update_data=True,update_groups=True,flush=True,**kw
     #lazy load resourcescenarios from the DB
     scen.resourcescenarios
 
+    #creat a reverse mapping from the resource_attr_id to the RS to avoid querying
+    #the table again later.
+    #no need to use scenario id in key here cos it's always in the context of one scenario
+    rsmap = {}
+    for rs in scen.resourcescenarios:
+        rsmap[rs.resource_attr_id] = rs
+
     if update_data is True:
         datasets = [rs.dataset for rs in scenario.resourcescenarios]
         updated_datasets = data._bulk_insert_data(datasets, user_id, kwargs.get('app_name'))
         for i, r_scen in enumerate(scenario.resourcescenarios):
-            _update_resourcescenario(scen, r_scen, dataset=updated_datasets[i], user_id=user_id, source=kwargs.get('app_name'))
+            log.info("updating resource scenario...")
+
+            rscen_i = rsmap.get(r_scen.resource_attr_id)
+            _update_resourcescenario(scen, r_scen, r_scen_i=rscen_i, dataset=updated_datasets[i], user_id=user_id, source=kwargs.get('app_name'))
+
+    log.info('Resource Scenarios Updated')
 
     #lazy load resource grou items from the DB
     scen.resourcegroupitems
@@ -347,8 +359,12 @@ def update_scenario(scenario,update_data=True,update_groups=True,flush=True,**kw
         for group_item in scenario.resourcegroupitems:
             _add_resourcegroupitem(group_item, scenario.id)
 
+    log.info('Resource Group Items Updated')
+
     if flush is True:
         db.DBSession.flush()
+
+    log.info('Scenario %s updated', scenario.name)
 
     return scen
 
@@ -955,7 +971,7 @@ def _delete_resourcescenario(scenario_id, resource_attr_id, suppress_error=False
     db.DBSession.delete(sd_i)
     db.DBSession.flush()
 
-def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=False, user_id=None, source=None):
+def _update_resourcescenario(scenario, resource_scenario, r_scen_i=None, dataset=None, new=False, user_id=None, source=None):
     """
         Insert or Update the value of a resource's attribute by first getting the
         resource, then parsing the input data, then assigning the value.
@@ -970,19 +986,20 @@ def _update_resourcescenario(scenario, resource_scenario, dataset=None, new=Fals
     log.debug("Assigning resource attribute: %s",ra_id)
     #count the number of new RS to report it in the logs
     new_rs = 0
-    try:
-        r_scen_i = db.DBSession.query(ResourceScenario).filter(
-                        ResourceScenario.scenario_id==scenario.id,
-                        ResourceScenario.resource_attr_id==ra_id).one()
-    except NoResultFound as e:
-        log.debug("Creating new RS for RS %s in scenario %s", resource_scenario.resource_attr_id, scenario.id)
-        r_scen_i = ResourceScenario()
-        r_scen_i.resource_attr_id = resource_scenario.resource_attr_id
-        r_scen_i.scenario_id      = scenario.id
-        r_scen_i.scenario = scenario
-        new_rs = new_rs + 1
+    if r_scen_i is None:
+        try:
+            r_scen_i = db.DBSession.query(ResourceScenario).filter(
+                            ResourceScenario.scenario_id == scenario.id,
+                            ResourceScenario.resource_attr_id == resource_scenario.resource_attr_id).one()
+        except NoResultFound as e:
+            log.info("Creating new RS for RS %s in scenario %s", resource_scenario.resource_attr_id, scenario.id)
+            r_scen_i = ResourceScenario()
+            r_scen_i.resource_attr_id = resource_scenario.resource_attr_id
+            r_scen_i.scenario_id      = scenario.id
+            r_scen_i.scenario = scenario
+            new_rs = new_rs + 1
 
-        db.DBSession.add(r_scen_i)
+            db.DBSession.add(r_scen_i)
 
     if scenario.locked == 'Y':
         log.info("Scenario %s is locked",scenario.id)
