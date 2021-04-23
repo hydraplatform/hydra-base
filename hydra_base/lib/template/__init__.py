@@ -670,14 +670,15 @@ def get_templates(load_all=True, include_inactive=False, **kwargs):
         Returns:
             List of Template objects
     """
-    templates_i = db.DBSession.query(Template).all()
+    templates_i = db.DBSession.query(Template).options(joinedload('templatetypes')).all()
     if load_all is True:
         full_templates = []
         for template_i in templates_i:
             full_template = get_template(template_i.id, **kwargs)
             full_templates.append(full_template)
     else:
-        full_templates = templates_i
+        full_templates = [JSONObject(template_i) for template_i in templates_i]
+
 
     #Filter out all the inactive templates
     if include_inactive is False:

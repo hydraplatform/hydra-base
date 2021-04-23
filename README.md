@@ -12,6 +12,21 @@ Installation
 
 pip install hydra-base
 
+Initialisation
+--------------
+The first thing you ened to do when working with Hydra, if you are using a local database is to add some default data to the database.
+These include:
+1. The admin user
+2. Default roles and permissions
+3. Default units and dimensions
+4. A default network and scenario (required to perform some admin tasks)
+
+You can do this using the [hydra client](https://github.com/hydraplatform/hydra-client-python).
+
+```
+> pip install hydra-client-python
+> hydra-cli intitalise-db
+```
 
 Usage
 -----
