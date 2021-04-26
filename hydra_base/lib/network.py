@@ -216,8 +216,8 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
                     tt = template.get_templatetype(resource_type.id, user_id=admin_id)
                     template_j = template.get_template(resource_type.child_template_id, user_id=admin_id)
                     template_lookup[template_j.id] = template_j
-                    for tt in template_j.templatetypes:
-                        typeattr_lookup[tt.id] = tt.typeattrs
+                for tt in template_j.templatetypes:
+                    typeattr_lookup[tt.id] = tt.typeattrs
 
                 typeattrs = typeattr_lookup.get(resource_type.id, []) #TODO this should be type_id
                 for ta in typeattrs:
