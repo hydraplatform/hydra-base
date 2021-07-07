@@ -701,7 +701,7 @@ def get_resource_attribute(resource_attr_id, **kwargs):
     resource_attr = resource_attr_qry.first()
 
     if resource_attr is None:
-        raise ResourceNotFoundError("Resource attribute %s does not exist", resource_attr_id)
+        raise ResourceNotFoundError(f"Resource attribute {resource_attr_id} does not exist")
 
     return resource_attr
 
