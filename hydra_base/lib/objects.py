@@ -24,7 +24,7 @@ import enum
 from datetime import datetime
 from ..exceptions import HydraError
 
-from .HydraTypes.Registry import HydraObjectFactory 
+from .HydraTypes.registry import HydraObjectFactory
 
 from ..util import generate_data_hash, get_layout_as_dict, get_layout_as_string
 from ..util.hydra_dateutil import ordinal_to_timestamp, date_to_string

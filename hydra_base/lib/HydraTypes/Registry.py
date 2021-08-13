@@ -10,8 +10,8 @@ import inspect
 import sys
 
 typemap = {}
-from .Types import Array, Scalar, Timeseries, Descriptor, Dataframe
-from .Types import DataType as Datatype_Base
+from .types import Array, Scalar, Timeseries, Descriptor, Dataframe
+from .types import DataType as Datatype_Base
 
 
 class HydraObjectFactory(object):
