@@ -29,7 +29,7 @@ from . import units
 from .objects import JSONObject, Dataset as JSONDataset
 
 from ..util.permissions import required_perms
-from . import template
+from . import template2
 from ..db.model import Project, Network, Scenario, Node, Link, ResourceGroup,\
         ResourceAttr, Attr, ResourceType, ResourceGroupItem, Dataset, Metadata, DatasetOwner,\
         ResourceScenario, TemplateType, TypeAttr, Template, NetworkOwner, User, Rule
@@ -1682,9 +1682,9 @@ def add_node(network_id, node,**kwargs):
         res_attrs = []
         res_scenarios = {}
         for typesummary in node.types:
-            ra, rt, rs = template.set_resource_type(new_node,
-                                            typesummary.id,
-                                            **kwargs)
+            ra, rt, rs = template2.set_resource_type(new_node,
+                                                     typesummary.id,
+                                                     **kwargs)
             if rt is not None:
                 res_types.append(rt)#rt is one object
             res_attrs.extend(ra)#ra is a list of objects
@@ -1934,9 +1934,9 @@ def add_link(network_id, link,**kwargs):
         res_attrs = []
         res_scenarios = {}
         for typesummary in link.types:
-            ra, rt, rs = template.set_resource_type(link_i,
-                                        typesummary.id,
-                                         **kwargs)
+            ra, rt, rs = template2.set_resource_type(link_i,
+                                                     typesummary.id,
+                                                     **kwargs)
             res_types.append(rt)
             res_attrs.extend(ra)
             res_scenarios.update(rs)#rs is a dict
@@ -2063,9 +2063,9 @@ def add_group(network_id, group,**kwargs):
         res_attrs = []
         res_scenarios = {}
         for typesummary in group.types:
-            ra, rt, rs = template.set_resource_type(res_grp_i,
-                                        typesummary.id,
-                                         **kwargs)
+            ra, rt, rs = template2.set_resource_type(res_grp_i,
+                                                     typesummary.id,
+                                                     **kwargs)
             res_types.append(rt)
             res_attrs.extend(ra)
             res_scenarios.update(rs)#rs is a dict
