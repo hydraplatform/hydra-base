@@ -30,7 +30,7 @@ class DataType(object):
         name = cls.name
 
         # Register class with hydra
-        from .registry import typemap
+        from .Registry import typemap
         if tag in typemap:
             raise ValueError('Type with tag "{}" already registered.'.format(tag))
         else:
