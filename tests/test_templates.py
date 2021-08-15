@@ -263,7 +263,7 @@ class TestTemplates:
     def test_update_template(self, session):
 
         #Only applicable for tests.
-        hb.template2.ATTR_CACHE = {}
+        hb.template.ATTR_CACHE = {}
 
         # Defining attributes
         attribute_1 = util.create_attr("link_attr_1", dimension='Pressure')
@@ -394,7 +394,7 @@ class TestTemplates:
     def test_delete_template(self, session, network_with_data, mock_template):
 
         #Only applicable for tests. TODO: make this not rubbish.
-        hb.template2.ATTR_CACHE = {}
+        hb.template.ATTR_CACHE = {}
 
         network = network_with_data
         new_template = mock_template
