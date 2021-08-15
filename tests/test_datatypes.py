@@ -8,7 +8,7 @@ import pandas as pd
 
 from hydra_base.exceptions import HydraError
 from hydra_base.lib.HydraTypes.registry import HydraObjectFactory
-from hydra_base.lib.HydraTypes.Types import Scalar, Array
+from hydra_base.lib.HydraTypes.types import Scalar, Array
 
 import logging
 log = logging.getLogger("objects")
