@@ -793,8 +793,10 @@ def get_resourceattr_data(resource_attr_ids, scenario_id, get_parent_data=False,
 
     scenario_i = _get_scenario(scenario_id, user_id)
 
+    if not isinstance(resource_attr_ids, list):
+        resource_attr_ids = [resource_attr_ids]
 
-    scenario_rs = scenario_i.get_data(get_parent_data=get_parent_data, ra_ids=[resource_attr_ids])
+    scenario_rs = scenario_i.get_data(get_parent_data=get_parent_data, ra_ids=resource_attr_ids)
 
 
     resource_scenario_dict = {}
