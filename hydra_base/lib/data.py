@@ -539,6 +539,10 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
     metadata         = {}
     #This is what gets returned.
     for d in bulk_data:
+
+        #limit the name to 60
+        d.name = d.name[0:60]
+
         dataset_dict = new_data[d.hash]
         current_hash = d.hash
 
@@ -549,6 +553,7 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
             dataset = existing_data.get(current_hash)
 
             #Is this user allowed to use this dataset?
+            #TODO is this too slow?
             if dataset.check_read_permission(user_id, do_raise=False) == False:
                 new_dataset = _make_new_dataset(dataset_dict)
                 new_datasets.append(new_dataset)
@@ -566,7 +571,7 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
             hash_id_map[current_hash] = dataset_dict
             metadata[current_hash] = dataset_dict['metadata']
 
-    log.debug("Isolating new data %s", get_timing(start_time))
+    log.info("Isolating new data %s", get_timing(start_time))
     #Isolate only the new datasets and insert them
     new_data_for_insert = []
     #keep track of the datasets that are to be inserted to avoid duplicate
@@ -574,6 +579,7 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
     new_data_hashes = []
     for d in new_datasets:
         if d['hash'] not in new_data_hashes:
+            d['name'] = d['name'][0:60]
             new_data_for_insert.append(d)
             new_data_hashes.append(d['hash'])
 
@@ -585,9 +591,10 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
         #except OperationalError:
         #    pass
 
-        log.debug("Inserting new data %s", get_timing(start_time))
-        db.DBSession.bulk_insert_mappings(Dataset, new_data_for_insert)
-        log.debug("New data Inserted %s", get_timing(start_time))
+        log.info("Inserting new data %s", get_timing(start_time))
+
+        db.DBSession.execute(Dataset.__table__.insert(), new_data_for_insert)
+        log.info("New data Inserted %s", get_timing(start_time))
 
         #try:
         #    db.DBSession.execute("UNLOCK TABLES")
@@ -596,13 +603,13 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
 
 
         new_data = _get_existing_data(new_data_hashes)
-        log.debug("New data retrieved %s", get_timing(start_time))
+        log.info("New data retrieved %s", get_timing(start_time))
 
         for k, v in new_data.items():
             hash_id_map[k] = v
 
         _insert_metadata(metadata, hash_id_map)
-        log.debug("Metadata inserted %s", get_timing(start_time))
+        log.info("Metadata inserted %s", get_timing(start_time))
 
     returned_ids = []
     for d in bulk_data:
