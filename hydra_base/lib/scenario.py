@@ -712,7 +712,7 @@ def compare_scenarios(scenario_id_1, scenario_id_2, allow_different_networks=Fal
     #in scenario 2.
     for ra_id, s2_rs in r_scen_2_dict.items():
         s1_rs = r_scen_1_dict.get(ra_id)
-        if s1_rs is None:
+        if s1_rs is not None:
             resource_diff = dict(
                 resource_attr_id = s1_rs.resource_attr_id,
                 scenario_1_dataset = None,
