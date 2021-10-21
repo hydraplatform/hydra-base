@@ -290,7 +290,7 @@ def update_scenario(scenario,update_data=True,update_groups=True,flush=True,**kw
         start_time = six.text_type(ordinal_to_timestamp(scenario.start_time))
     elif isinstance(scenario.start_time, int):
         start_time = six.text_type(ordinal_to_timestamp(float(scenario.start_time)))
-    else:
+    elif scenario.start_time is not None:
         start_time = timestamp_to_timestamp(scenario.start_time)
 
     end_time = None
@@ -298,7 +298,7 @@ def update_scenario(scenario,update_data=True,update_groups=True,flush=True,**kw
         end_time = six.text_type(ordinal_to_timestamp(scenario.end_time))
     elif isinstance(scenario.end_time, int):
         end_time = six.text_type(ordinal_to_timestamp(float(scenario.end_time)))
-    else:
+    elif scenario.end_time is not None:
         end_time = timestamp_to_timestamp(scenario.end_time)
 
     scen.name                 = scenario.name
