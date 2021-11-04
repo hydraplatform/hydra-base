@@ -80,7 +80,7 @@ def _update_attributes(resource_i, attributes):
     #ra is for ResourceAttr
     for ra in attributes:
 
-        if ra.id < 0:
+        if ra.id is None or ra.id < 0:
             ra_i = resource_i.add_attribute(ra.attr_id, ra.attr_is_var)
         else:
             ra_i = attr_id_map[ra.id]
