@@ -730,7 +730,10 @@ class Template(Base, Inspect):
                 .options(joinedload('attr'))\
                 .options(joinedload('default_dataset')).all()
 
-            typeattrs = [JSONObject(ta) for ta in typeattrs_i]
+            typeattrs = []
+            for ta in typeattrs_i:
+                ta.properties = ta.properties or '{}'  # add default properties
+                typeattrs.append(JSONObject(ta))
 
             #Is this type the parent of a type. If so, we don't want to add a new type
             #we want to update an existing one with any data that it's missing
