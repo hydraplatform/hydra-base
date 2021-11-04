@@ -39,6 +39,7 @@ log = logging.getLogger(__name__)
 def _get_project(project_id):
     try:
         project = db.DBSession.query(Project).filter(Project.id==project_id).one()
+        project.layout = project.layout or {}
         return project
     except NoResultFound:
         raise ResourceNotFoundError("Project %s not found"%(project_id))
