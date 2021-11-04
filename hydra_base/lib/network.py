@@ -752,7 +752,7 @@ def _get_all_resource_attributes(network_id, template_id=None, include_non_templ
         attr_dict = rt_attribute_dict[resource_attr.ref_key]
         resourceid = _get_resource_id(resource_attr)
         resourceattrlist = attr_dict.get(resourceid, [])
-        resourceattrlist.append(resource_attr)
+        resourceattrlist.append(JSONObject(resource_attr))
         attr_dict[resourceid] = resourceattrlist
 
     logging.info("Attributes processed in %s", time.time()-x)
