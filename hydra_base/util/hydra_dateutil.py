@@ -23,6 +23,7 @@ from dateutil.parser import parse
 from .. import config
 import pandas as pd
 import six
+import pytz
 
 
 
@@ -72,16 +73,12 @@ def get_datetime(timestamp):
     #First try to use date util. Failing that, continue
     try:
         parsed_dt = parse(timestamp, dayfirst=False)
-        if parsed_dt.tzinfo is None:
-            return parsed_dt
-        else:
-
-            return parsed_dt.replace(tzinfo=None)
+        return parsed_dt.astimezone(pytz.utc)
     except:
         pass
 
     if isinstance(timestamp, datetime):
-        return timestamp
+        return timestamp.astimezone(pytz.utc)
 
     fmt = guess_timefmt(timestamp)
     if fmt is None:

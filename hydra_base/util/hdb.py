@@ -25,10 +25,11 @@ from .. import db
 import datetime
 import random
 import bcrypt
-from ..exceptions import HydraError
-import transaction
+from ..exceptions import HydraError, HydraLoginUserNotFound, HydraLoginUserMaxAttemptsExceeded, HydraLoginUserPasswordWrong
 from sqlalchemy.orm import load_only
+from sqlalchemy import func
 from ..lib.objects import JSONObject
+from ..lib.users import get_remaining_login_attempts, inc_failed_login_attempts
 
 import logging
 log = logging.getLogger(__name__)
@@ -59,6 +60,7 @@ def add_resource_types(resource_i, types):
         rt_i = ResourceType()
         rt_i.type_id     = templatetype.id
         rt_i.ref_key     = resource_i.ref_key
+        rt_i.template_id = resource_i.child_template_id
         if resource_i.ref_key == 'NODE':
             rt_i.node_id      = resource_i.id
         elif resource_i.ref_key == 'LINK':
@@ -112,7 +114,7 @@ def make_root_user():
 
     try:
         userrole = db.DBSession.query(RoleUser).filter(RoleUser.role_id==role.id,
-                                                   RoleUser.user_id==user.id).one()
+                                                       RoleUser.user_id==user.id).one()
     except NoResultFound:
         userrole = RoleUser(role_id=role.id,user_id=user.id)
         user.roleusers.append(userrole)
@@ -123,33 +125,51 @@ def make_root_user():
 
     user_id = user.id
 
-    transaction.commit()
+    # Do not remove!
+    db.commit_transaction()
 
     return user_id
 
 
 def login_user(username, password):
+
     try:
-        user_i = db.DBSession.query(User).filter(User.username==username).one()
+        user_i = db.DBSession.query(User).filter(User.username == username).one()
     except NoResultFound:
+        """ The user has not been found in the DB """
+        raise HydraLoginUserNotFound(username)
+    except:
+        """ Generic DB Error """
         raise HydraError(username)
+
+    if get_remaining_login_attempts(username, user_id=user_i.id) <= 0:
+        """  Account is not permitted to login """
+        raise HydraLoginUserMaxAttemptsExceeded("Max login attempts exceeded for user {}".format(username))
 
     userPassword = ""
     try:
         userPassword = user_i.password.encode('utf-8')
-    except AttributeError:
+    except (AttributeError, UnicodeEncodeError):
         userPassword = user_i.password
 
     try:
         password = password.encode('utf-8')
-    except AttributeError:
+    except (AttributeError, UnicodeEncodeError):
         pass
 
-    if bcrypt.hashpw(password, userPassword) == userPassword:
+    if bcrypt.checkpw(password, userPassword):
         user_i.last_login = datetime.datetime.now()
-        return user_i.id
+        user_i.failed_logins = 0
+        user_id = user_i.id
+        db.DBSession.flush()
+        # Do not commit the transaction here because it is managed by HWI/Hydra-Server
+        # db.commit_transaction()
+        return user_id
     else:
-        raise HydraError(username)
+        log.info("User {} now has {} failed logins".format(username, user_i.failed_logins+1))
+        inc_failed_login_attempts(user_i.username, user_id=1)
+        raise HydraLoginUserPasswordWrong(username)
+
 
 def create_default_net():
     try:
@@ -162,7 +182,8 @@ def create_default_net():
         net.scenarios.append(scen)
         db.DBSession.add(net)
     db.DBSession.flush()
-    transaction.commit()
+    # Do not remove!
+    db.commit_transaction()
     return net
 
 
@@ -176,138 +197,161 @@ def create_default_users_and_perms():
     # if len(perms) > 0:
     #     return
 
-    default_perms = ( ("add_user",   "Add User"),
-                    ("edit_user",  "Edit User"),
-                    ("add_role",   "Add Role"),
-                    ("edit_role",  "Edit Role"),
-                    ("add_perm",   "Add Permission"),
-                    ("edit_perm",  "Edit Permission"),
+    default_perms = (
+        ("get_user", "Get User"),
+        ("add_user", "Add User"),
+        ("edit_user", "Edit User"),
+        ("get_role", "Get Role"),
+        ("add_role", "Add Role"),
+        ("edit_role", "Edit Role"),
+        ("get_perm", "Get Permission"),
+        ("add_perm", "Add Permission"),
+        ("edit_perm", "Edit Permission"),
 
-                    ("add_network",    "Add network"),
-                    ("edit_network",   "Edit network"),
-                    ("view_network",   "View network"),
-                    ("delete_network", "Delete network"),
-                    ("share_network",  "Share network"),
-                    ("edit_topology",  "Edit network topology"),
+        ("add_attribute", "Add Attribute"),
+        ("get_attribute", "Get Attribute"),
+        ("edit_attribute", "Edit Attribute"),
+        ("delete_attribute", "Delete Attribute"),
 
-                    ("view_project",   "View Project"),
-                    ("add_project",    "Add Project"),
-                    ("edit_project",   "Edit Project"),
-                    ("delete_project", "Delete Project"),
-                    ("share_project",  "Share Project"),
+        ("add_network", "Add network"),
+        ("edit_network", "Edit network"),
+        ("get_network", "Get network"),
+        ("delete_network", "Delete network"),
+        ("share_network", "Share network"),
+        ("edit_topology", "Edit network topology"),
 
-                    ("edit_data", "Edit network data"),
-                    ("view_data", "View network data"),
+        ("get_project", "Get Project"),
+        ("add_project", "Add Project"),
+        ("edit_project", "Edit Project"),
+        ("delete_project", "Delete Project"),
+        ("share_project", "Share Project"),
 
-                    ("add_template", "Add Template"),
-                    ("edit_template", "Edit Template"),
+        ("edit_data", "Edit network data"),
+        ("get_data", "View network data"),
 
-                    ("add_dimension", "Add Dimension"),
-                    ("update_dimension", "Update Dimension"),
-                    ("delete_dimension", "Delete Dimension"),
+        ("add_template", "Add Template"),
+        ("edit_template", "Edit Template"),
+        ("get_template", "Get Template"),
+        ("delete_template", "Delete Template"),
 
-                    ("add_unit",    "Add Unit"),
-                    ("update_unit", "Update Unit"),
-                    ("delete_unit", "Delete Unit"),
+        ("add_dimension", "Add Dimension"),
+        ("update_dimension", "Update Dimension"),
+        ("delete_dimension", "Delete Dimension"),
 
-                    ('view_rules',  "View Rules"),
-                    ('add_rules',   "Add Rules"),
-                    ('update_rules',  "Edit Rules"),
-                    ('share_rules', "Share Rules"),
-                    ('delete_rules', "Delete Rules")
+        ("add_unit", "Add Unit"),
+        ("update_unit", "Update Unit"),
+        ("delete_unit", "Delete Unit"),
 
+        ('get_rules', "View Rules"),
+        ('add_rules', "Add Rules"),
+        ('update_rules', "Edit Rules"),
+        ('share_rules', "Share Rules"),
+        ('delete_rules', "Delete Rules")
 
-                    )
+    )
 
     default_roles = (
-                    ("admin",    "Administrator"),
-                    ("dev",      "Developer"),
-                    ("modeller", "Modeller / Analyst"),
-                    ("manager",  "Manager"),
-                    ("grad",     "Graduate"),
-                    ("developer", "Developer"),
-                    ("decision", "Decision Maker"),
-                )
+        ("admin", "Administrator"),
+        ("dev", "Developer"),
+        ("modeller", "Modeller / Analyst"),
+        ("manager", "Manager"),
+        ("grad", "Graduate"),
+        ("developer", "Developer"),
+        ("decision", "Decision Maker"),
+    )
 
     roleperms = (
-            # Admin permissions
-            ('admin', "add_user"),
-            ('admin', "edit_user"),
-            ('admin', "add_role"),
-            ('admin', "edit_role"),
-            ('admin', "add_perm"),
-            ('admin', "edit_perm"),
-            ('admin', "view_network"),
-            ('admin', "add_network"),
-            ('admin', "edit_network"),
-            ('admin', "delete_network"),
-            ('admin', "share_network"),
-            ('admin', "view_project"),
-            ('admin', "add_project"),
-            ('admin', "edit_project"),
-            ('admin', "delete_project"),
-            ('admin', "share_project"),
-            ('admin', "edit_topology"),
-            ('admin', "edit_data"),
-            ('admin', "view_data"),
-            ('admin', "add_template"),
-            ('admin', "edit_template"),
+        # Admin permissions
+        ('admin', "get_user"),
+        ('admin', "add_user"),
+        ('admin', "edit_user"),
+        ('admin', "get_role"),
+        ('admin', "add_role"),
+        ('admin', "edit_role"),
+        ('admin', "get_perm"),
+        ('admin', "add_perm"),
+        ('admin', "edit_perm"),
+        ('admin', "add_attribute"),
+        ('admin', "edit_attribute"),
+        ('admin', "get_attribute"),
+        ('admin', "delete_attribute"),
+        ('admin', "add_network"),
+        ('admin', "edit_network"),
+        ('admin', "get_network"),
+        ('admin', "delete_network"),
+        ('admin', "share_network"),
+        ('admin', "get_project"),
+        ('admin', "add_project"),
+        ('admin', "edit_project"),
+        ('admin', "delete_project"),
+        ('admin', "share_project"),
+        ('admin', "edit_topology"),
+        ('admin', "edit_data"),
+        ('admin', "get_data"),
+        ('admin', "add_template"),
+        ('admin', "edit_template"),
+        ('admin', "get_template"),
+        ('admin', "delete_template"),
 
-            ('admin', "add_dimension"),
-            ('admin', "update_dimension"),
-            ('admin', "delete_dimension"),
+        ('admin', "add_dimension"),
+        ('admin', "update_dimension"),
+        ('admin', "delete_dimension"),
 
-            ('admin', "add_unit"),
-            ('admin', "update_unit"),
-            ('admin', "delete_unit"),
-                    
-            ('admin', 'view_rules'),
-            ('admin', 'add_rules'),
-            ('admin', 'update_rules'),
-            ('admin', 'share_rules'),
-            ('admin', 'delete_rules'),
+        ('admin', "add_unit"),
+        ('admin', "update_unit"),
+        ('admin', "delete_unit"),
 
-            # Developer permissions
-            ("developer", "add_network"),
-            ("developer", "edit_network"),
-            ("developer", "delete_network"),
-            ("developer", "share_network"),
-            ('developer', "view_project"),
-            ("developer", "add_project"),
-            ("developer", "edit_project"),
-            ("developer", "delete_project"),
-            ("developer", "share_project"),
-            ("developer", "edit_topology"),
-            ("developer", "edit_data"),
-            ("developer", "view_data"),
-            ("developer", "add_template"),
-            ("developer", "edit_template"),
+        ('admin', 'get_rules'),
+        ('admin', 'add_rules'),
+        ('admin', 'update_rules'),
+        ('admin', 'share_rules'),
+        ('admin', 'delete_rules'),
 
-            ('developer', "add_dimension"),
-            ('developer', "update_dimension"),
-            ('developer', "delete_dimension"),
+        # Developer permissions
+        ('developer', "add_attribute"),
+        ('developer', "edit_attribute"),
+        ('developer', "get_attribute"),
+        ('developer', "delete_attribute"),
+        ("developer", "add_network"),
+        ("developer", "edit_network"),
+        ("developer", "delete_network"),
+        ("developer", "share_network"),
+        ('developer', "get_project"),
+        ("developer", "add_project"),
+        ("developer", "edit_project"),
+        ("developer", "delete_project"),
+        ("developer", "share_project"),
+        ("developer", "edit_topology"),
+        ("developer", "edit_data"),
+        ("developer", "get_data"),
+        ("developer", "add_template"),
+        ("developer", "edit_template"),
 
-            ('developer', "add_unit"),
-            ('developer', "update_unit"),
-            ('developer', "delete_unit"),
+        ('developer', "add_dimension"),
+        ('developer', "update_dimension"),
+        ('developer', "delete_dimension"),
 
-            # modeller permissions
-            ("modeller", "add_network"),
-            ("modeller", "edit_network"),
-            ("modeller", "delete_network"),
-            ("modeller", "share_network"),
-            ("modeller", "edit_topology"),
-            ("modeller", "view_project"),
-            ("modeller", "add_project"),
-            ("modeller", "edit_project"),
-            ("modeller", "delete_project"),
-            ("modeller", "share_project"),
-            ("modeller", "edit_data"),
-            ("modeller", "view_data"),
+        ('developer', "add_unit"),
+        ('developer', "update_unit"),
+        ('developer', "delete_unit"),
 
-            # Manager permissions
-            ("manager", "edit_data"),
-            ("manager", "view_data"),
+        # modeller permissions
+        ("modeller", "add_network"),
+        ("modeller", "edit_network"),
+        ("modeller", "delete_network"),
+        ("modeller", "share_network"),
+        ("modeller", "edit_topology"),
+        ("modeller", "get_project"),
+        ("modeller", "add_project"),
+        ("modeller", "edit_project"),
+        ("modeller", "delete_project"),
+        ("modeller", "share_project"),
+        ("modeller", "edit_data"),
+        ("modeller", "get_data"),
+
+        # Manager permissions
+        ("manager", "edit_data"),
+        ("manager", "get_data"),
     )
 
     # Map for code to ID
@@ -363,16 +407,34 @@ def create_default_users_and_perms():
 
     db.DBSession.flush()
 
-def create_default_units_and_dimensions():
+def create_default_units_and_dimensions(update=True):
     """
         Adds the units and the dimensions reading a json file. It adds only dimensions and units that are not inside the db
         It is possible adding new dimensions and units to the DB just modifiyin the json file
+
+        args:
+            update (bool) default True: If there are existing units / dimensions in the DB, then update
+            them with the defaults by adding any missing units. If False, do nothing if there are existing
+            units.
     """
+
+    log.info("Adding default units and dimensions.")
+    
+    if update is False:
+        #if update is set to false, check if there are dimensions. If there are
+        #any existing dimensions, then log it and return.
+        num_dimensions = db.DBSession.query(func.count(Dimension.id)).scalar()
+        if num_dimensions > 0:
+            log.info("Existing dimensions found. Not creating defaults.")
+            return
+
+
     default_units_file_location = os.path.realpath(\
         os.path.join(os.path.dirname(os.path.realpath(__file__)),
                      '../',
                      'static',
                      'default_units_and_dimensions.json'))
+
 
     d=None
 

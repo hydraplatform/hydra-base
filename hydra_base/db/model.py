@@ -24,11 +24,13 @@ String,\
 LargeBinary,\
 TIMESTAMP,\
 BIGINT,\
+SMALLINT,\
 Numeric,\
 Text, \
 DateTime,\
 Unicode
 
+from hydra_base.lib.objects import JSONObject
 
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -42,11 +44,12 @@ from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
 
 from sqlalchemy.orm import relationship, backref
 
-from ..util.hydra_dateutil import ordinal_to_timestamp, get_datetime
+from sqlalchemy.orm import noload, joinedload
+
 
 from . import DeclarativeBase as Base, get_session
 
-from ..util import generate_data_hash, get_val
+from ..util import generate_data_hash, get_val, get_json_as_string
 
 from sqlalchemy.sql.expression import case
 from sqlalchemy import UniqueConstraint, and_
@@ -69,16 +72,6 @@ try:
     basestring
 except NameError:
     basestring = str
-
-
-def get_timestamp(ordinal):
-    """
-        Turn an ordinal timestamp into a datetime string.
-    """
-    if ordinal is None:
-        return None
-    timestamp = str(ordinal_to_timestamp(ordinal))
-    return timestamp
 
 def get_user_id_from_engine(ctx):
     """
@@ -163,15 +156,19 @@ class PermissionControlled(object):
         """
         pass
 
-    def check_read_permission(self, user_id, do_raise=True):
+    def check_read_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can read this dataset
         """
-        if _is_admin(user_id):
-            return True
-
         if str(user_id) == str(self.created_by):
             return True
+
+        if is_admin is None:
+            is_admin = _is_admin(user_id)
+
+        if is_admin is True:
+            return True
+
 
         #Check if this entity is publicly open, therefore no need to check permissions.
         if self._is_open() == True:
@@ -188,14 +185,28 @@ class PermissionControlled(object):
                              (user_id, self.id))
             else:
                 return False
+        #Check that the user is in a group which can read this network
+        self.check_group_read_permission(user_id)
 
         return True
 
-    def check_write_permission(self, user_id, do_raise=True):
+    def check_group_read_permission(self, user_id):
+        """
+            1: Find which user groups a user is if
+            2: Check if any of these groups has permission to read the object
+        """
+
+    def check_write_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can write this dataset
         """
-        if _is_admin(user_id):
+        if str(user_id) == str(self.created_by):
+            return True
+
+        if is_admin is None:
+            is_admin = _is_admin(user_id)
+
+        if is_admin is True:
             return True
 
         for owner in self.owners:
@@ -212,13 +223,19 @@ class PermissionControlled(object):
 
         return True
 
-    def check_share_permission(self, user_id):
+    def check_share_permission(self, user_id, is_admin=None):
         """
             Check whether this user can write this dataset
         """
 
-        if _is_admin(user_id):
-            return
+        if str(user_id) == str(self.created_by):
+            return True
+
+        if is_admin is None:
+            is_admin = _is_admin(user_id)
+
+        if is_admin is True:
+            return True
 
         for owner in self.owners:
             if owner.user_id == int(user_id):
@@ -275,31 +292,33 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
     _parents  = ['tResourceScenario', 'tUnit']
     _children = ['tMetadata']
 
-    def set_metadata(self, metadata_dict):
+    def set_metadata(self, metadata_tree):
         """
             Set the metadata on a dataset
 
-            **metadata_dict**: A dictionary of metadata key-vals.
+            **metadata_tree**: A dictionary of metadata key-vals.
             Transforms this dict into an array of metadata objects for
             storage in the DB.
         """
-        if metadata_dict is None:
+        if metadata_tree is None:
             return
+        if isinstance(metadata_tree, str):
+            metadata_tree = json.loads(metadata_tree)
 
         existing_metadata = []
         for m in self.metadata:
             existing_metadata.append(m.key)
-            if m.key in metadata_dict:
-                if m.value != metadata_dict[m.key]:
-                    m.value = metadata_dict[m.key]
+            if m.key in metadata_tree:
+                if m.value != metadata_tree[m.key]:
+                    m.value = metadata_tree[m.key]
 
 
-        for k, v in metadata_dict.items():
+        for k, v in metadata_tree.items():
             if k not in existing_metadata:
                 m_i = Metadata(key=str(k),value=str(v))
                 self.metadata.append(m_i)
 
-        metadata_to_delete =  set(existing_metadata).difference(set(metadata_dict.keys()))
+        metadata_to_delete =  set(existing_metadata).difference(set(metadata_tree.keys()))
         for m in self.metadata:
             if m.key in metadata_to_delete:
                 get_session().delete(m)
@@ -490,12 +509,16 @@ class ResourceAttrMap(Base, Inspect):
     """
     """
 
-    __tablename__='tResourceAttrMap'
+    __tablename__ = 'tResourceAttrMap'
 
-    network_a_id       = Column(Integer(), ForeignKey('tNetwork.id'), primary_key=True, nullable=False)
-    network_b_id       = Column(Integer(), ForeignKey('tNetwork.id'), primary_key=True, nullable=False)
-    resource_attr_id_a = Column(Integer(), ForeignKey('tResourceAttr.id'), primary_key=True, nullable=False)
-    resource_attr_id_b = Column(Integer(), ForeignKey('tResourceAttr.id'), primary_key=True, nullable=False)
+    network_a_id = Column(Integer(), ForeignKey('tNetwork.id'),
+                          primary_key=True, nullable=False)
+    network_b_id = Column(Integer(), ForeignKey('tNetwork.id'),
+                          primary_key=True, nullable=False)
+    resource_attr_id_a = Column(Integer(), ForeignKey('tResourceAttr.id'),
+                                primary_key=True, nullable=False)
+    resource_attr_id_b = Column(Integer(), ForeignKey('tResourceAttr.id'),
+                                primary_key=True, nullable=False)
 
     resourceattr_a = relationship("ResourceAttr", foreign_keys=[resource_attr_id_a])
     resourceattr_b = relationship("ResourceAttr", foreign_keys=[resource_attr_id_b])
@@ -505,19 +528,24 @@ class ResourceAttrMap(Base, Inspect):
 
 class Template(Base, Inspect):
     """
+    Template
     """
 
-    __tablename__='tTemplate'
+    __tablename__ = 'tTemplate'
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(200),  nullable=False, unique=True)
+    parent_id = Column(Integer(), ForeignKey('tTemplate.id'))
+    name = Column(String(200), unique=True)
+    status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     description = Column(String(1000))
     created_by = Column(Integer(), ForeignKey('tUser.id'))
     project_id = Column(Integer(), ForeignKey('tProject.id', ondelete='CASCADE'))
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     layout  = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
 
-    _parents  = []
+    parent = relationship('Template', remote_side=[id], backref=backref("children", order_by=id))
+
+    _parents = []
     _children = ['tTemplateType']
 
     def set_owner(self, user_id, read='Y', write='Y', share='Y'):
@@ -610,102 +638,542 @@ class TemplateOwner(Base, Inspect):
     _parents = ['tTemplate', 'tUser']
     _children = []
 
+    def set_inherited_columns(self, parent, child, table):
+        """
+            Set the value on the column of a target child.
+            This checks if the value is null on the child, and sets it from
+            the parent if so
+        """
+        inherited_columns = []
+        for column in table.__table__.columns:
+
+            colname = column.name
+
+            if hasattr(table, '_protected_columns')\
+               and colname in table._protected_columns:
+                # as a child, you can't change stuff like IDs, cr dates etc.
+                continue
+
+            newval = getattr(parent, colname)
+
+            if colname == 'layout':
+                newval = get_json_as_string(newval)
+
+            refval = getattr(child, colname)
+
+            if refval is None:
+                inherited_columns.append(colname)
+                setattr(child, colname, newval)
+
+        if hasattr(child, 'inherited_columns') and child.inherited_columns is not None:
+            for c in inherited_columns:
+                if c not in child.inherited_columns:
+                    child.inherited_columns.append(c)
+        else:
+            child.inherited_columns = inherited_columns
+
+        return child
+
+    def get_typeattr(self, typeattr_id, child_typeattr=None, get_parent_types=True):
+        """
+            Return an individual type attribute.
+            If this type attribute inherits from another, look up the tree to compile
+            the inherited data, with the leaf node taking priority
+        """
+
+        #get all the type attrs for this type, and add any which are missing
+        this_typeattr_i = get_session().query(TypeAttr)\
+            .filter(TypeAttr.id == typeattr_id)\
+            .options(joinedload('attr'))\
+            .options(joinedload('default_dataset')).one()
+
+        this_typeattr = JSONObject(this_typeattr_i)
+
+        if child_typeattr is None:
+            child_typeattr = this_typeattr
+        else:
+            child_typeattr = self.set_inherited_columns(this_typeattr, child_typeattr, this_typeattr_i)
+
+        if this_typeattr.parent_id is not None and get_parent_types is True:
+            return self.parent.get_typeattr(this_typeattr.parent_id,
+                                            child_typeattr=child_typeattr,
+                                            get_parent_types=get_parent_types)
+
+        return child_typeattr
+
+    def get_type(self, type_id, child_type=None, get_parent_types=True):
+        """
+            Return all the templatetypes relevant to this template.
+            If this template inherits from another, look up the tree to compile
+            an exhaustive list of types, removing any duplicates, prioritising
+            the ones closest to this template (my immediate parent's values are used instead
+            of its parents)
+
+        """
+
+        #Add resource attributes which are not defined already
+        this_type_i = get_session().query(TemplateType).filter(
+            TemplateType.id == type_id).options(noload('typeattrs')).one()
+
+        this_type = JSONObject(this_type_i)
+
+        this_type.typeattrs = []
+
+        if not hasattr(this_type, 'ta_tree') or this_type.ta_tree is None:
+            this_type.ta_tree = {}
+
+        #get all the type attrs for this type, and add any which are missing
+        typeattrs_i = get_session().query(TypeAttr)\
+            .filter(TypeAttr.type_id == type_id)\
+            .options(joinedload('attr'))\
+            .options(joinedload('unit'))\
+            .options(joinedload('default_dataset')).all()
+        typeattrs = [JSONObject(ta) for ta in typeattrs_i]
+
+
+        #Is this type the parent of a type. If so, we don't want to add a new type
+        #we want to update an existing one with any data that it's missing
+        if child_type is not None:
+            child_type = self.set_inherited_columns(this_type, child_type, this_type_i)
+            #check the child's typeattrs. If a typeattr exists on the parent, with the
+            #same attr_id, then it should be ignore. THis can happen when adding a typeattr
+            #to the child first, then the parent
+            child_typeattrs = [ta.attr_id for ta in child_type.typeattrs]
+
+            for i, typeattr in enumerate(typeattrs):
+                if typeattr.attr_id in child_typeattrs:
+                    log.debug("Found a typeattr for attribute %s on the "
+                             "child type %s (%s). Ignoring",
+                             typeattr.attr_id, child_type.name, child_type.id)
+                    continue
+                #Does this typeattr have a child?
+                child_typeattr = child_type.ta_tree.get(typeattr.id)
+                if child_typeattr is None:
+                    #there is no child, so check if it is a child
+                    if typeattr.parent_id is not None:
+                        #it has a parent, so add it to the type's tree dict
+                        #for processing farther up the tree
+                        child_type.ta_tree[typeattr.parent_id] = typeattr
+                    child_type.typeattrs.append(typeattr)
+                else:
+                    child_typeattr = self.set_inherited_columns(typeattr, child_typeattr, typeattrs_i[i])
+
+        else:
+            if not hasattr(this_type, 'typeattrs'):
+                setattr(this_type, 'typeattrs', [])
+            for typeattr in typeattrs:
+                this_type.typeattrs.append(typeattr)
+            child_type = this_type
+
+        if this_type.parent_id is not None and get_parent_types is True:
+            return self.parent.get_type(this_type.parent_id,
+                                         child_type=child_type,
+                                         get_parent_types=get_parent_types)
+        child_type.ta_tree = None
+        return child_type
+
+
+    def get_types(self, type_tree={}, child_types=None, get_parent_types=True, child_template_id=None):
+        """
+            Return all the templatetypes relevant to this template.
+            If this template inherits from another, look up the tree to compile
+            an exhaustive list of types, removing any duplicates, prioritising
+            the ones closest to this template (my immediate parent's values are used instead
+            of its parents)
+
+        """
+        log.info("Getting Template Types..")
+
+        #This avoids python's mutable keyword arguments causing child_data to keep its values between
+        #function calls
+        if child_types is None:
+            child_types = []
+            type_tree = {}
+
+        #Add resource attributes which are not defined already
+        types_i = get_session().query(TemplateType).filter(
+            TemplateType.template_id == self.id).options(noload('typeattrs')).all()
+        types = [JSONObject(t) for t in types_i]
+
+        if child_template_id is None:
+            child_template_id = self.id
+
+        #TODO need to check here to see if there is a parent / child type
+        #and then add or not add as approprioate
+        for i, this_type in enumerate(types):
+            this_type.child_template_id = child_template_id
+
+            #This keeps track of which type attributes are currently associated
+            #to this type. We'll use the data in this dict to set the 'typeattrs'
+            #at the end
+            if not hasattr(this_type, 'ta_tree') or this_type.ta_tree is None:
+                this_type.ta_tree = {}
+
+            #get all the type attrs for this type, and add any which are missing
+            typeattrs_i = get_session().query(TypeAttr)\
+                .filter(TypeAttr.type_id == this_type.id)\
+                .options(joinedload('attr'))\
+                .options(joinedload('default_dataset')).all()
+
+            typeattrs = [JSONObject(ta) for ta in typeattrs_i]
+
+            #Is this type the parent of a type. If so, we don't want to add a new type
+            #we want to update an existing one with any data that it's missing
+            if this_type.id in type_tree:
+                #This is a deleted type, so ignore it in the parent
+                if type_tree[this_type.id] is  None:
+                    continue
+
+                #Find the child type and update it.
+                child_type = type_tree[this_type.id]
+
+                child_type = self.set_inherited_columns(this_type, child_type, types_i[i])
+
+                #check the child's typeattrs. If a typeattr exists on the parent, with the
+                #same attr_id, then it should be ignore. THis can happen when adding a typeattr
+                #to the child first, then the parent
+                child_typeattrs = [ta.attr_id for ta in child_type.typeattrs]
+
+                for typeattr in typeattrs:
+                    if typeattr.attr_id in child_typeattrs:
+                        log.debug("Found a typeattr for attribute %s on the "
+                             "child type %s (%s). Ignoring",
+                             typeattr.attr_id, child_type.name, child_type.id)
+                        continue
+
+                    #Does this typeattr have a child?
+                    child_typeattr = type_tree[this_type.id].ta_tree.get(typeattr.id)
+                    if child_typeattr is None:
+
+                        #there is no child, so check if it is a child
+                        if typeattr.parent_id is not None:
+                            #it has a parent, so add it to the type's tree dict
+                            #for processing farther up the tree
+                            type_tree[this_type.id].ta_tree[typeattr.parent_id] = typeattr
+                        child_type.typeattrs.append(typeattr)
+                    else:
+                        child_typeattr = self.set_inherited_columns(typeattr, child_typeattr, types_i[i])
+
+
+                if this_type.parent_id is not None:
+                    type_tree[this_type.parent_id] = child_type
+
+            else:
+                if not hasattr(this_type, 'typeattrs'):
+                    setattr(this_type, 'typeattrs', [])
+                for typeattr in typeattrs:
+                    #is this a child? if so, register it as one
+                    if typeattr.parent_id is not None:
+                        this_type.ta_tree[typeattr.parent_id] = typeattr
+                    this_type.typeattrs.append(typeattr)
+
+                child_types.append(this_type)
+                #set
+                if this_type.parent_id is not None:
+                    type_tree[this_type.parent_id] = this_type
+
+
+        if self.parent is not None and get_parent_types is True:
+            return self.parent.get_types(type_tree=type_tree,
+                                         child_types=child_types,
+                                         get_parent_types=get_parent_types,
+                                        child_template_id=child_template_id)
+
+        #clean up
+        for child_type in child_types:
+            child_type.ta_tree = None
+
+        return child_types
+
 class TemplateType(Base, Inspect):
     """
+    Template Type
     """
 
-    __tablename__='tTemplateType'
+    __tablename__ = 'tTemplateType'
     __table_args__ = (
         UniqueConstraint('template_id', 'name', 'resource_type', name="unique type name"),
     )
 
+    #these are columns which are not allowed to be changed by a child type
+    _protected_columns = ['id', 'template_id', 'parent_id', 'cr_date', 'updated_at']
+    _hierarchy_columns = ['name', 'resource_type']
+
     id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(200),  nullable=False)
-    description = Column(String(1000))
+    parent_id = Column(Integer(), ForeignKey('tTemplateType.id'))
     template_id = Column(Integer(), ForeignKey('tTemplate.id'), nullable=False)
-    resource_type = Column(String(200))
+    name = Column(String(200), nullable=True)
+    description = Column(String(1000))
+    resource_type = Column(String(200), nullable=True)
     alias = Column(String(100))
-    layout  = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    status = Column(String(1),  nullable=True)
+    layout = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'))
+    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
-    template = relationship('Template', backref=backref("templatetypes", order_by=id, cascade="all, delete-orphan"))
+    parent = relationship('TemplateType', remote_side=[id],
+                          backref=backref("children", order_by=id))
 
+    template = relationship('Template',
+                            backref=backref("templatetypes",
+                                            order_by=id,
+                                            cascade="all, delete-orphan"))
 
-    _parents  = ['tTemplate']
+    _parents = ['tTemplate']
     _children = ['tTypeAttr']
+
+    def get_typeattrs(self, ta_tree={}, child_typeattrs=None, get_parent_types=True):
+        """
+            This is unfinished
+        """
+        #This avoids python's mutable keyword arguments causing child_data to keep its values between
+        #function calls
+        if child_typeattrs is None:
+            child_typeattrs = []
+            ta_tree = {}
+
+        #get all the type attrs for this type, and add any which are missing
+        typeattrs_i = get_session().query(TypeAttr)\
+            .filter(TypeAttr.type_id == self.id)\
+            .options(joinedload('default_dataset')).all()
+        typeattrs = [JSONObject(ta) for ta in typeattrs_i]
+
+
+        for i, typeattr in enumerate(typeattrs):
+
+            #Does this typeattr have a child?
+            child_typeattr = ta_tree.get(typeattr.id)
+            if child_typeattr is None:
+                #there is no child, so check if it is a child
+                if typeattr.parent_id is not None:
+                    #it has a parent, so add it to the tree dict
+                    #for processing farther up the tree
+                    ta_tree[typeattr.parent_id] = typeattr
+
+            else:
+                child_typeattr = self.template.set_inherited_columns(typeattr, child_typeattr, typeattrs_i[i])
+                child_typeattrs.append(typeattr)
+
+
+
+        if self.parent is not None and get_parent_types is True:
+            return self.parent.get_typeattrs(ta_tree=ta_tree,
+                                              child_typeattrs=child_typeattrs,
+                                              get_parent_types=get_parent_types)
+        return child_typeattrs
+
+    def get_children(self):
+        """
+            Get the child types of a template type
+        """
+
+        child_types = get_session().query(TemplateType)\
+                .filter(TemplateType.parent_id==self.id).all()
+        return child_types
+
+    def check_can_delete_resourcetypes(self, delete_resourcetypes=False):
+        """
+            Check if the delete operation will allow the deletion
+            of resourcetypes. Default is NO
+        """
+        #Check if there are any resourcetypes associated to this type. If so,
+        #don't delete it.
+        resourcetype_count = get_session().query(ResourceType.id)\
+                .filter(ResourceType.type_id == self.id).count()
+
+        if resourcetype_count > 0 and delete_resourcetypes is False:
+            raise HydraError(f"Unable to delete type. Template Type {self.id} has "
+                             f"{resourcetype_count} resources associated to it. "
+                             "Use the 'delete_resourcetypes' flag to delete these also.")
+
+    def delete_children(self, delete_resourcetypes=False):
+        """
+            Delete the children associated to this type.
+            THIS SHOULD BE DONE WITH EXTREME CAUTION.
+            args:
+                delete_resourcetypes (bool): If any resourcetypes are found to be
+                associated to a child, throw an error to avoid leaving nodes with no types.
+                If this flag is is set to true, then delete the resourcetypes
+
+            This function works its way all the way down the tree to the leaf nodes
+            and then deletes them from the leaf to the source
+        """
+
+        children = self.get_children()
+
+        for child in children:
+            child.delete_children(delete_resourcetypes=delete_resourcetypes)
+
+            child.check_can_delete_resourcetypes(delete_resourcetypes=delete_resourcetypes)
+            #delete all the resource types associated to this type
+            if delete_resourcetypes is True:
+                self.delete_resourcetypes()
+
+            #delete the typeattrs
+            for ta in child.typeattrs:
+                get_session().delete(ta)
+
+            get_session().delete(child)
+
+    def delete_resourcetypes(self):
+        """
+        Delete the resourcetypes associated to a type
+        """
+        type_rs = get_session().query(ResourceType).filter(ResourceType.type_id==self.id).all()
+
+        log.warn("Forcing the deletion of %s resource types from type %s",\
+                 len(type_rs), self.id)
+
+        for resource_type in type_rs:
+            get_session().delete(resource_type)
 
 class TypeAttr(Base, Inspect):
     """
+        Type Attribute
     """
 
-    __tablename__='tTypeAttr'
+    __tablename__ = 'tTypeAttr'
 
-    attr_id = Column(Integer(), ForeignKey('tAttr.id'), primary_key=True, nullable=False)
-    type_id = Column(Integer(), ForeignKey('tTemplateType.id', ondelete='CASCADE'), primary_key=True, nullable=False)
+    __table_args__ = (
+        UniqueConstraint('type_id', 'attr_id', name='type_attr_1'),
+    )
+
+    id = Column(Integer(), primary_key=True, nullable=False)
+    parent_id = Column(Integer(), ForeignKey('tTypeAttr.id'))
+    attr_id = Column(Integer(), ForeignKey('tAttr.id'), nullable=False)
+    type_id = Column(Integer(), ForeignKey('tTemplateType.id', ondelete='CASCADE'),
+                     nullable=False)
     default_dataset_id = Column(Integer(), ForeignKey('tDataset.id'))
-    attr_is_var        = Column(String(1), server_default=text(u"'N'"))
-    data_type          = Column(String(60))
-    data_restriction   = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
-    unit_id            = Column(Integer(), ForeignKey('tUnit.id'), nullable=True)
-    description        = Column(String(2000))
-    properties         = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+
+    attr_is_var = Column(String(1), server_default=text(u"'N'"))
+    data_type = Column(String(60))
+    data_restriction = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'))
+    unit_id = Column(Integer(), ForeignKey('tUnit.id'))
+    description = Column(String(1000))
+    properties = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'))
+    status = Column(String(1),  nullable=True)
+    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+
+
+    parent = relationship('TypeAttr', remote_side=[id], backref=backref("children", order_by=id))
 
     attr = relationship('Attr')
-    templatetype = relationship('TemplateType',  backref=backref("typeattrs", order_by=attr_id, cascade="all, delete-orphan"))
-    unit = relationship('Unit', backref=backref("typeattr_unit", order_by=unit_id))
+    #Don't use a cascade delete all here. Instead force the code to delete the typeattrs
+    #manually, to avoid accidentally deleting them
+    templatetype = relationship('TemplateType',
+                                backref=backref("typeattrs",
+                                                order_by=attr_id))
+    unit = relationship('Unit',
+                        backref=backref("typeattr_unit",
+                                        order_by=unit_id))
     default_dataset = relationship('Dataset')
 
-    _parents  = ['tTemplateType', 'tUnit']
+    _parents = ['tTemplateType', 'tUnit']
     _children = []
 
     def get_attr(self):
+        """
+            Get the attribute object
+        """
+        attr = None
+        try:
+            self.attr
 
-        if self.attr is None:
-            attr = get_session().query(Attr).filter(Attr.id==self.attr_id).first()
-        else:
-            attr = self.attr
+            if self.attr is not None:
+                attr = self.attr
+        except:
+            log.info("Unable to lazy-load attribute on typeattr %s", self.id)
+
+        if attr is None:
+            attr = get_session().query(Attr).filter(Attr.id == self.attr_id).first()
 
         return attr
+
+    def get_unit(self):
+        """
+            Get the unit object
+        """
+        unit = None
+        try:
+            self.unit
+
+            if self.unit is not None:
+                unit = self.unit
+        except:
+            log.info("Unable to lazy-load unitibute on typeunit %s", self.id)
+
+        if unit is None:
+            unit = get_session().query(Unit).filter(unit.id == self.unit_id).first()
+
+        return unit
+
+
+
+    @property
+    def is_var(self):
+        return self.attr_is_var
+
+    def get_properties(self):
+        """
+            This is here to match the JSONObject TypeAttr class which also
+            has a get_properties, and which is required by some functions where
+            both types can be validly passed in (like _set_typeattr)
+        """
+        return self.properties
 
 
 class ResourceAttr(Base, Inspect):
     """
     """
 
-    __tablename__='tResourceAttr'
+    __tablename__ = 'tResourceAttr'
 
     __table_args__ = (
-        UniqueConstraint('network_id', 'attr_id', name = 'net_attr_1'),
-        UniqueConstraint('project_id', 'attr_id', name = 'proj_attr_1'),
-        UniqueConstraint('node_id',    'attr_id', name = 'node_attr_1'),
-        UniqueConstraint('link_id',    'attr_id', name = 'link_attr_1'),
-        UniqueConstraint('group_id',   'attr_id', name = 'group_attr_1'),
+        UniqueConstraint('network_id', 'attr_id', name='net_attr_1'),
+        UniqueConstraint('project_id', 'attr_id', name='proj_attr_1'),
+        UniqueConstraint('node_id', 'attr_id', name='node_attr_1'),
+        UniqueConstraint('link_id', 'attr_id', name='link_attr_1'),
+        UniqueConstraint('group_id', 'attr_id', name='group_attr_1'),
     )
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    attr_id = Column(Integer(), ForeignKey('tAttr.id'),  nullable=False)
-    ref_key = Column(String(60),  nullable=False, index=True)
-    network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), index=True, nullable=True,)
-    project_id  = Column(Integer(),  ForeignKey('tProject.id'), index=True, nullable=True,)
-    node_id     = Column(Integer(),  ForeignKey('tNode.id'), index=True, nullable=True)
-    link_id     = Column(Integer(),  ForeignKey('tLink.id'), index=True, nullable=True)
-    group_id    = Column(Integer(),  ForeignKey('tResourceGroup.id'), index=True, nullable=True)
-    attr_is_var = Column(String(1),  nullable=False, server_default=text(u"'N'"))
-    data_type = Column(String(60),  nullable=True, server_default=text(u"''"))
-    unit = Column(String(60), nullable=True, server_default=text(u"''"))
-    description = Column(String(1000),  nullable=True, server_default=text(u"''"))
-    properties = Column(String(1000),  nullable=True, server_default=text(u"'{}'"))
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    attr_id = Column(Integer(), ForeignKey('tAttr.id'), nullable=False)
+    ref_key = Column(String(60), nullable=False, index=True)
+    network_id = Column(Integer(), ForeignKey('tNetwork.id'), index=True, nullable=True)
+    project_id = Column(Integer(), ForeignKey('tProject.id'), index=True, nullable=True)
+    node_id = Column(Integer(), ForeignKey('tNode.id'), index=True, nullable=True)
+    link_id = Column(Integer(), ForeignKey('tLink.id'), index=True, nullable=True)
+    group_id = Column(Integer(), ForeignKey('tResourceGroup.id'), index=True, nullable=True)
+    attr_is_var = Column(String(1), nullable=False, server_default=text(u"'N'"))
+    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     attr = relationship('Attr')
-    project = relationship('Project', backref=backref('attributes', uselist=True, cascade="all, delete-orphan"), uselist=False)
-    network = relationship('Network', backref=backref('attributes', uselist=True, cascade="all, delete-orphan"), uselist=False)
-    node = relationship('Node', backref=backref('attributes', uselist=True, cascade="all, delete-orphan"), uselist=False)
-    link = relationship('Link', backref=backref('attributes', uselist=True, cascade="all, delete-orphan"), uselist=False)
-    resourcegroup = relationship('ResourceGroup', backref=backref('attributes', uselist=True, cascade="all, delete-orphan"), uselist=False)
+    project = relationship('Project',
+                           backref=backref('attributes',
+                                           uselist=True,
+                                           cascade="all, delete-orphan"),
+                           uselist=False)
+    network = relationship('Network',
+                           backref=backref('attributes',
+                                           uselist=True,
+                                           cascade="all, delete-orphan"),
+                           uselist=False)
+    node = relationship('Node',
+                        backref=backref('attributes',
+                                        uselist=True,
+                                        cascade="all, delete-orphan"),
+                        uselist=False)
+    link = relationship('Link',
+                        backref=backref('attributes',
+                                        uselist=True,
+                                        cascade="all, delete-orphan"),
+                        uselist=False)
+    resourcegroup = relationship('ResourceGroup',
+                                 backref=backref('attributes',
+                                                 uselist=True,
+                                                 cascade="all, delete-orphan"),
+                                 uselist=False)
 
-    _parents  = ['tNode', 'tLink', 'tResourceGroup', 'tNetwork', 'tProject']
+    _parents = ['tNode', 'tLink', 'tResourceGroup', 'tNetwork', 'tProject']
     _children = []
 
     def get_network(self):
@@ -750,17 +1218,17 @@ class ResourceAttr(Base, Inspect):
         elif ref_key == 'PROJECT':
             return self.project_id
 
-    def check_read_permission(self, user_id, do_raise=True):
+    def check_read_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can read this resource attribute
         """
-        return self.get_resource().check_read_permission(user_id, do_raise=do_raise)
+        return self.get_resource().check_read_permission(user_id, do_raise=do_raise, is_admin=is_admin)
 
-    def check_write_permission(self, user_id, do_raise=True):
+    def check_write_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can write this node
         """
-        return self.get_resource().check_write_permission(user_id, do_raise=do_raise)
+        return self.get_resource().check_write_permission(user_id, do_raise=do_raise, is_admin=is_admin)
 
 
 class ResourceType(Base, Inspect):
@@ -777,6 +1245,11 @@ class ResourceType(Base, Inspect):
     )
     id = Column(Integer, primary_key=True, nullable=False)
     type_id = Column(Integer(), ForeignKey('tTemplateType.id'), primary_key=False, nullable=False)
+    #This template id is used when the template and the type are not from the same template
+    #i.e. the resource type is being used in a child template
+    #If null, then the resources has either been created using a non-child template, or with a resource
+    #type in a child template which has been entered to the DB, because the parent type has been altered in the child
+    child_template_id = Column(Integer(), ForeignKey('tTemplate.id'), primary_key=False, nullable=True)
     ref_key = Column(String(60),nullable=False)
     network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), nullable=True,)
     node_id     = Column(Integer(),  ForeignKey('tNode.id'), nullable=True)
@@ -784,8 +1257,10 @@ class ResourceType(Base, Inspect):
     group_id    = Column(Integer(),  ForeignKey('tResourceGroup.id'), nullable=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
-
-    templatetype = relationship('TemplateType', backref=backref('resourcetypes', uselist=True, cascade="all, delete-orphan"))
+    #Don't used a delete cascade here because deleting the type accidentally can delete
+    #this data. INstead the resource types should be deleted manually before the deletion
+    #of the type
+    templatetype = relationship('TemplateType', backref=backref('resourcetypes', uselist=True))
 
     network = relationship('Network', backref=backref('types', uselist=True, cascade="all, delete-orphan"), uselist=False)
     node = relationship('Node', backref=backref('types', uselist=True, cascade="all, delete-orphan"), uselist=False)
@@ -820,6 +1295,31 @@ class ResourceType(Base, Inspect):
             return self.link_id
         elif ref_key == 'GROUP':
             return self.group_id
+
+    def get_templatetype(self):
+        """
+            If this type is that of a child templatetype, then the full type
+            needs to be constructed by the template. So instead of getting the
+            template type directly, we get the template, then request the type.
+        """
+
+        #This resource was created using a child template
+        if self.child_template_id is not None:
+            template_i = get_session().query(Template)\
+                .filter(Template.id == self.child_template_id).one()
+        else:
+            type_i = get_session().query(TemplateType).filter(TemplateType.id == self.type_id).one()
+
+            if type_i.parent_id is None:
+                return type_i
+
+            template_i = get_session().query(Template)\
+                    .filter(Template.id == type_i.template_id).one()
+
+        type_i = template_i.get_type(self.type_id)
+
+        return JSONObject(type_i)
+
 
 #*****************************************************
 # Topology & Scenarios
@@ -857,6 +1357,9 @@ class Project(Base, Inspect):
 
     def get_attribute_data(self):
         attribute_data_rs = get_session().query(ResourceScenario).join(ResourceAttr).filter(ResourceAttr.project_id==self.id).all()
+        #lazy load datasets
+        [rs.dataset.metadata for rs in attribute_data_rs]
+        [rs.resourceattr.attr for rs in attribute_data_rs]
         self.attribute_data = attribute_data_rs
         return attribute_data_rs
 
@@ -899,15 +1402,18 @@ class Project(Base, Inspect):
                 get_session().delete(owner)
                 break
 
-    def check_read_permission(self, user_id, do_raise=True):
+    def check_read_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can read this project
         """
 
-        if _is_admin(user_id):
+        if str(user_id) == str(self.created_by):
             return True
 
-        if str(user_id) == str(self.created_by):
+        if is_admin is None:
+            is_admin = _is_admin(user_id)
+
+        if is_admin is True:
             return True
 
         for owner in self.owners:
@@ -924,15 +1430,18 @@ class Project(Base, Inspect):
 
         return True
 
-    def check_write_permission(self, user_id, do_raise=True):
+    def check_write_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can write this project
         """
 
-        if _is_admin(user_id):
+        if str(user_id) == str(self.created_by):
             return True
 
-        if str(user_id) == str(self.created_by):
+        if is_admin is None:
+            is_admin = _is_admin(user_id)
+
+        if is_admin is True:
             return True
 
         for owner in self.owners:
@@ -942,32 +1451,32 @@ class Project(Base, Inspect):
         else:
             if do_raise is True:
                 raise PermissionError("Permission denied. User %s does not have edit"
-                             " access on project %s" %
-                             (user_id, self.id))
+                                      " access on project %s" % (user_id, self.id))
             else:
                 return False
 
         return True
 
-    def check_share_permission(self, user_id):
+    def check_share_permission(self, user_id, is_admin=None):
         """
             Check whether this user can write this project
         """
 
-        if _is_admin(user_id):
-            return
-
         if str(user_id) == str(self.created_by):
-            return
+            return True
 
+        if is_admin is None:
+            is_admin = _is_admin(user_id)
+
+        if is_admin is True:
+            return True
         for owner in self.owners:
             if owner.user_id == int(user_id):
                 if owner.view == 'Y' and owner.share == 'Y':
                     break
         else:
             raise PermissionError("Permission denied. User %s does not have share"
-                             " access on project %s" %
-                             (user_id, self.id))
+                                  " access on project %s" % (user_id, self.id))
 
 
 
@@ -975,25 +1484,29 @@ class Network(Base, Inspect):
     """
     """
 
-    __tablename__='tNetwork'
+    __tablename__ = 'tNetwork'
     __table_args__ = (
         UniqueConstraint('name', 'project_id', name="unique net name"),
     )
     ref_key = 'NETWORK'
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(200),  nullable=False)
+    name = Column(String(200), nullable=False)
     description = Column(String(1000))
-    layout  = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
-    project_id = Column(Integer(), ForeignKey('tProject.id'),  nullable=False)
-    status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    layout = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'), nullable=True)
+    appdata = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'), nullable=True)
+    project_id = Column(Integer(), ForeignKey('tProject.id'), nullable=False)
+    status = Column(String(1), nullable=False, server_default=text(u"'A'"))
+    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     projection = Column(String(200))
     created_by = Column(Integer(), ForeignKey('tUser.id'), nullable=False)
 
-    project = relationship('Project', backref=backref("networks", order_by="asc(Network.cr_date)", cascade="all, delete-orphan"))
+    project = relationship('Project',
+                           backref=backref("networks",
+                                           order_by="asc(Network.cr_date)",
+                                           cascade="all, delete-orphan"))
 
-    _parents  = ['tNode', 'tLink', 'tResourceGroup']
+    _parents = ['tNode', 'tLink', 'tResourceGroup']
     _children = ['tProject']
 
     def get_name(self):
@@ -1109,14 +1622,18 @@ class Network(Base, Inspect):
                 get_session().delete(owner)
                 break
 
-    def check_read_permission(self, user_id, do_raise=True):
+    def check_read_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can read this network
         """
-        if _is_admin(user_id):
+
+        if str(user_id) == str(self.created_by):
             return True
 
-        if int(self.created_by) == int(user_id):
+        if is_admin is None:
+            is_admin = _is_admin(user_id)
+
+        if is_admin is True:
             return True
 
         for owner in self.owners:
@@ -1133,14 +1650,18 @@ class Network(Base, Inspect):
 
         return True
 
-    def check_write_permission(self, user_id, do_raise=True):
+    def check_write_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can write this project
         """
-        if _is_admin(user_id):
+
+        if str(user_id) == str(self.created_by):
             return True
 
-        if int(self.created_by) == int(user_id):
+        if is_admin is None:
+            is_admin = _is_admin(user_id)
+
+        if is_admin is True:
             return True
 
         for owner in self.owners:
@@ -1157,16 +1678,19 @@ class Network(Base, Inspect):
 
         return True
 
-    def check_share_permission(self, user_id):
+    def check_share_permission(self, user_id, is_admin=None):
         """
             Check whether this user can write this project
         """
 
-        if _is_admin(user_id):
-            return
+        if str(user_id) == str(self.created_by):
+            return True
 
-        if int(self.created_by) == int(user_id):
-            return
+        if is_admin is None:
+            is_admin = _is_admin(user_id)
+
+        if is_admin is True:
+            return True
 
         for owner in self.owners:
             if owner.user_id == int(user_id):
@@ -1239,18 +1763,18 @@ class Link(Base, Inspect):
 
         return res_attr
 
-    def check_read_permission(self, user_id, do_raise=True):
+    def check_read_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can read this link
         """
-        return self.network.check_read_permission(user_id, do_raise=do_raise)
+        return self.network.check_read_permission(user_id, do_raise=do_raise, is_admin=is_admin)
 
-    def check_write_permission(self, user_id, do_raise=True):
+    def check_write_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can write this link
         """
 
-        return self.network.check_write_permission(user_id, do_raise=do_raise)
+        return self.network.check_write_permission(user_id, do_raise=do_raise, is_admin=is_admin)
 
 class Node(Base, Inspect):
     """
@@ -1311,18 +1835,18 @@ class Node(Base, Inspect):
 
         return res_attr
 
-    def check_read_permission(self, user_id, do_raise=True):
+    def check_read_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can read this node
         """
-        return self.network.check_read_permission(user_id, do_raise=do_raise)
+        return self.network.check_read_permission(user_id, do_raise=do_raise, is_admin=is_admin)
 
-    def check_write_permission(self, user_id, do_raise=True):
+    def check_write_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can write this node
         """
 
-        return self.network.check_write_permission(user_id, do_raise=do_raise)
+        return self.network.check_write_permission(user_id, do_raise=do_raise, is_admin=is_admin)
 
 class ResourceGroup(Base, Inspect):
     """
@@ -1390,18 +1914,18 @@ class ResourceGroup(Base, Inspect):
 
         return items
 
-    def check_read_permission(self, user_id, do_raise=True):
+    def check_read_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can read this group
         """
-        return self.network.check_read_permission(user_id, do_raise=do_raise)
+        return self.network.check_read_permission(user_id, do_raise=do_raise, is_admin=is_admin)
 
-    def check_write_permission(self, user_id, do_raise=True):
+    def check_write_permission(self, user_id, do_raise=True, is_admin=None):
         """
             Check whether this user can write this group
         """
 
-        return self.network.check_write_permission(user_id, do_raise=do_raise)
+        return self.network.check_write_permission(user_id, do_raise=do_raise, is_admin=is_admin)
 
 class ResourceGroupItem(Base, Inspect):
     """
@@ -1549,7 +2073,7 @@ class Scenario(Base, Inspect):
             group_item_i.link     = resource
         self.resourcegroupitems.append(group_item_i)
 
-    def get_data(self, child_data=None, get_parent_data=False, ra_ids=None):
+    def get_data(self, child_data=None, get_parent_data=False, ra_ids=None, include_results=True, include_only_results=False):
         """
             Return all the resourcescenarios relevant to this scenario.
             If this scenario inherits from another, look up the tree to compile
@@ -1572,10 +2096,19 @@ class Scenario(Base, Inspect):
             childrens_ras.append(child_rs.resource_attr_id)
 
         #Add resource attributes which are not defined already
-        rs_query = get_session().query(ResourceScenario).filter(ResourceScenario.scenario_id==self.id)
+        rs_query = get_session().query(ResourceScenario).filter(
+            ResourceScenario.scenario_id == self.id).options(joinedload('dataset')).options(joinedload('resourceattr'))
 
         if ra_ids is not None:
             rs_query = rs_query.filter(ResourceScenario.resource_attr_id.in_(ra_ids))
+
+        if include_results is False:
+            rs_query = rs_query.outerjoin(ResourceAttr).filter(
+                ResourceAttr.attr_is_var == 'N')
+
+        if include_only_results is True:
+            rs_query = rs_query.outerjoin(ResourceAttr).filter(
+                ResourceAttr.attr_is_var == 'Y')
 
         resourcescenarios = rs_query.all()
 
@@ -1693,13 +2226,13 @@ class Rule(AuditMixin, Base, Inspect, PermissionControlled):
         to it.
     """
 
-    __tablename__='tRule'
+    __tablename__ = 'tRule'
     __table_args__ = (
         UniqueConstraint('scenario_id', 'name', name="unique rule name"),
     )
 
     __ownerclass__ = RuleOwner
-    __ownerfk__    = 'rule_id'
+    __ownerfk__ = 'rule_id'
 
     id = Column(Integer(), primary_key=True, nullable=False)
 
@@ -1708,21 +2241,49 @@ class Rule(AuditMixin, Base, Inspect, PermissionControlled):
 
     format = Column(String(80), nullable=False, server_default='text')
 
-    ref_key = Column(String(60),  nullable=False, index=True)
+    ref_key = Column(String(60), nullable=False, index=True)
 
-    value = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
+    value = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'), nullable=True)
 
-    status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
-    scenario_id = Column(Integer(), ForeignKey('tScenario.id'),  nullable=True)
+    status = Column(String(1), nullable=False, server_default=text(u"'A'"))
+    scenario_id = Column(Integer(), ForeignKey('tScenario.id'), nullable=True)
 
-    network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), index=True, nullable=True)
-    node_id     = Column(Integer(),  ForeignKey('tNode.id'), index=True, nullable=True)
-    link_id     = Column(Integer(),  ForeignKey('tLink.id'), index=True, nullable=True)
-    group_id    = Column(Integer(),  ForeignKey('tResourceGroup.id'), index=True, nullable=True)
+    network_id = Column(Integer(), ForeignKey('tNetwork.id'), index=True, nullable=True)
+    node_id = Column(Integer(), ForeignKey('tNode.id'), index=True, nullable=True)
+    link_id = Column(Integer(), ForeignKey('tLink.id'), index=True, nullable=True)
+    group_id = Column(Integer(), ForeignKey('tResourceGroup.id'), index=True, nullable=True)
 
-    scenario = relationship('Scenario', backref=backref('rules', uselist=True, cascade="all, delete-orphan"), uselist=True, lazy='joined')
+    scenario = relationship('Scenario',
+                            backref=backref('rules',
+                                            uselist=True,
+                                            cascade="all, delete-orphan"),
+                            lazy='joined')
+    network = relationship('Network',
+                           backref=backref("rules",
+                                           order_by=network_id,
+                                           cascade="all, delete-orphan"),
+                           lazy='joined')
+    node = relationship('Node',
+                        backref=backref("rules",
+                                        order_by=node_id,
+                                        uselist=True,
+                                        cascade="all, delete-orphan"),
 
-    _parents  = ['tScenario', 'tNode', 'tLink', 'tProject', 'tNetwork', 'tResourceGroup']
+                        lazy='joined')
+    link = relationship('Link',
+                        backref=backref("rules",
+                                        order_by=link_id,
+                                        uselist=True,
+                                        cascade="all, delete-orphan"),
+                        lazy='joined')
+    group = relationship('ResourceGroup',
+                         backref=backref("rules",
+                                         order_by=group_id,#
+                                         uselist=True,
+                                         cascade="all, delete-orphan"),
+                         lazy='joined')
+
+    _parents = ['tScenario', 'tNode', 'tLink', 'tProject', 'tNetwork', 'tResourceGroup']
     _children = []
 
 
@@ -1742,10 +2303,10 @@ class Rule(AuditMixin, Base, Inspect, PermissionControlled):
         #Map a type code to a type object
         existing_type_map = dict((t.code, t) for t in self.types)
 
-        newtypes      = set([t.code for t in types])
+        newtypes = set([t.code for t in types])
 
-        types_to_add      = newtypes - existingtypes
-        types_to_delete   = existingtypes - newtypes
+        types_to_add = newtypes - existingtypes
+        types_to_delete = existingtypes - newtypes
 
         for ruletypecode in types_to_add:
 
@@ -1764,10 +2325,27 @@ class Rule(AuditMixin, Base, Inspect, PermissionControlled):
         """
 
         try:
-            get_session().query(RuleTypeDefinition).filter(RuleTypeDefinition.code==code).one()
+            get_session().query(RuleTypeDefinition).filter(RuleTypeDefinition.code == code).one()
         except NoResultFound:
             raise ResourceNotFoundError("Rule type definition with code {} does not exist".format(code))
 
+    def get_network(self):
+        """
+        Rules are associated with a network directly or nodes/links/groups in a network,
+        so rules are always associated to one network.
+        This function returns that network
+        """
+        rule_network = None
+        if self.ref_key.upper() == 'NETWORK':
+            rule_network = self.network
+        elif self.ref_key.upper() == 'NODE':
+            rule_network = self.node.network
+        elif self.ref_key.upper() == 'LINK':
+            rule_network = self.link.network
+        elif self.ref_key.upper() == 'GROUP':
+            rule_network = self.group.network
+
+        return rule_network
 
 class Note(Base, Inspect, PermissionControlled):
     """
@@ -1908,7 +2486,6 @@ class Perm(Base, Inspect):
     code = Column(String(60),  nullable=False)
     name = Column(String(200),  nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    roleperms = relationship('RolePerm', lazy='joined')
 
     _parents  = ['tRole', 'tPerm']
     _children = []
@@ -1926,8 +2503,6 @@ class Role(Base, Inspect):
     code = Column(String(60),  nullable=False)
     name = Column(String(200),  nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    roleperms = relationship('RolePerm', lazy='joined', cascade='all')
-    roleusers = relationship('RoleUser', lazy='joined', cascade='all')
 
     _parents  = []
     _children = ['tRolePerm', 'tRoleUser']
@@ -1949,9 +2524,8 @@ class RolePerm(Base, Inspect):
     perm_id = Column(Integer(), ForeignKey('tPerm.id'), primary_key=True, nullable=False)
     role_id = Column(Integer(), ForeignKey('tRole.id'), primary_key=True, nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-
-    perm = relationship('Perm', lazy='joined')
-    role = relationship('Role', lazy='joined')
+    perm = relationship('Perm', backref=backref('roleperms', uselist=True, lazy='joined'), lazy='joined')
+    role = relationship('Role', backref=backref('roleperms', uselist=True, lazy='joined'), lazy='joined')
 
     _parents  = ['tRole', 'tPerm']
     _children = []
@@ -1968,9 +2542,8 @@ class RoleUser(Base, Inspect):
     user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
     role_id = Column(Integer(), ForeignKey('tRole.id'), primary_key=True, nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-
-    user = relationship('User', lazy='joined')
-    role = relationship('Role', lazy='joined')
+    role = relationship('Role', backref=backref('roleusers', uselist=True))
+    user = relationship('User', backref=backref('roleusers', uselist=True))
 
     _parents  = ['tRole', 'tUser']
     _children = []
@@ -1992,7 +2565,7 @@ class User(Base, Inspect):
     last_login = Column(TIMESTAMP())
     last_edit = Column(TIMESTAMP())
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    roleusers = relationship('RoleUser', lazy='joined')
+    failed_logins = Column(SMALLINT, nullable=True, default=0)
 
     _parents  = []
     _children = ['tRoleUser']
@@ -2098,7 +2671,6 @@ def create_resourcedata_view():
     from sqlalchemy.schema import DDLElement
     from sqlalchemy.sql import table
     from sqlalchemy.ext import compiler
-    from .model import ResourceAttr, ResourceScenario, Attr, Dataset
 
     class CreateView(DDLElement):
         def __init__(self, name, selectable):
@@ -2145,3 +2717,5 @@ def create_resourcedata_view():
         Dataset.value]).where(ResourceScenario.resource_attr_id==ResourceAttr.attr_id).where(ResourceAttr.attr_id==Attr.id).where(ResourceScenario.dataset_id==Dataset.id)
 
     stuff_view = view("vResourceData", Base.metadata, view_qry)
+#TODO: Understand why this view is not being created.
+#create_resourcedata_view()

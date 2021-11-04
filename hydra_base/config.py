@@ -105,6 +105,7 @@ def load_config():
 
     env_value = os.environ.get('HYDRA_CONFIG')
     if env_value is not None:
+
         if os.path.isabs(env_value):
             config_path = env_value
         else:

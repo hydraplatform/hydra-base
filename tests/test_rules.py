@@ -16,13 +16,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from . import server
 import datetime
 import copy
 import json
 import hydra_base
-from .fixtures import *
-from hydra_base.util import testing as util
 from hydra_base.exceptions import ResourceNotFoundError
 import pytest
 from hydra_base.exceptions import HydraError, PermissionError
@@ -34,7 +31,8 @@ log = logging.getLogger(__name__)
 
 class TestRules:
 
-    def add_rule(self, client, network, name='A Test Rule', text='e=mc^2', scenario_id=None, ref_key=None, ref_id=None, types=[]):
+    def add_rule(self, client, network, name='A Test Rule', text='e=mc^2',
+                 scenario_id=None, ref_key=None, ref_id=None, types=[]):
         """
             A utility function which creates a rule and associates it
             with either a resource type, resource instance or resource
@@ -50,18 +48,20 @@ class TestRules:
             'types'       : [{'code':typecode} for typecode in types]
         })
 
-        new_rule_j = JSONObject(client.add_rule(rule))
+        new_rule_j = JSONObject(client.add_rule(scenario_id=None,
+                                                rule=rule,
+                                                include_network_users=True))
 
         return new_rule_j
 
-    def test_add_rule_type_definition(self, session, client):
+    def test_add_rule_type_definition(self, client):
         client.add_rule_type_definition(JSONObject({'name':'A new Rule', 'code':'a_new_rule'}))
 
         rule_type_j = client.get_rule_type_definition('a_new_rule')
 
         assert rule_type_j.code == 'a_new_rule'
 
-    def test_get_rule_type_definitions(self, session, client):
+    def test_get_rule_type_definitions(self, client):
         client.add_rule_type_definition(JSONObject({'name':'A new Rule', 'code':'a_new_rule'}))
         client.add_rule_type_definition(JSONObject({'name':'A new Rule 1', 'code':'a_new_rule_1'}))
 
@@ -69,14 +69,14 @@ class TestRules:
 
         assert len(rule_types_j) == 2
 
-    def test_get_rule_type_definition(self, session, client):
+    def test_get_rule_type_definition(self, client):
         client.add_rule_type_definition(JSONObject({'name':'A new Rule', 'code':'a_new_rule'}))
 
         rule_type_j = client.get_rule_type_definition('a_new_rule')
 
         assert rule_type_j.code == 'a_new_rule'
 
-    def test_get_rule_by_id(self, session, client, network_with_data):
+    def test_get_rule_by_id(self, client, network_with_data):
 
         new_rule_j = self.add_rule(client, network_with_data)
 
@@ -85,34 +85,35 @@ class TestRules:
         assert rule_j.name == 'A Test Rule'
         assert rule_j.value == 'e=mc^2'
 
-        with pytest.raises(ResourceNotFoundError):
+        #2nd error handle is to cover errors coming from the server
+        with pytest.raises((ResourceNotFoundError, HydraError)):
             rule_j = JSONObject(client.get_rule(2))
 
         #temporarily set the client user_id to a different (non-admin) user
         client.user_id = 4 #4 is not an admin
-        with pytest.raises(PermissionError):
+        with pytest.raises((PermissionError, HydraError)):
             client.get_rule(new_rule_j.id)
 
-    def test_clone_network_with_rules(self, session, client, network_with_data):
+    def test_clone_network_with_rules(self, client, network_with_data):
 
         net_rule_j = self.add_rule(client, network_with_data)
 
         #add a rule to a node to ensure cloning of node-level rules are also working
         ##sort the nodes here to ensure we can identify the matching node in the cloned network
         node_rule_no_scenario_j = self.add_rule(client,
-                                        network_with_data,
-                                        ref_key='NODE',
-                                        ref_id=sorted(network_with_data.nodes, key=lambda x: x.name)[0].id,
-                                        text = "Node rule no scenario")
+                                                network_with_data,
+                                                ref_key='NODE',
+                                                ref_id=sorted(network_with_data.nodes, key=lambda x: x.name)[0].id,
+                                                text="Node rule no scenario")
 
         #add a rule to a node AND a scenario to ensure cloning of node-level rules are working with scenarios.
         #The new rule should have the ID of the new scenario
         node_rule_with_scenario_j = self.add_rule(client,
-                                        network_with_data,
-                                        ref_key='NODE',
-                                        ref_id=sorted(network_with_data.nodes, key=lambda x: x.name)[0].id,
-                                        scenario_id=network_with_data.scenarios[0].id,
-                                        text = 'Scenario Node Rule')
+                                                  network_with_data,
+                                                  ref_key='NODE',
+                                                  ref_id=sorted(network_with_data.nodes, key=lambda x: x.name)[0].id,
+                                                  scenario_id=network_with_data.scenarios[0].id,
+                                                  text='Scenario Node Rule')
         #sanity check
         assert node_rule_with_scenario_j.scenario_id == network_with_data.scenarios[0].id
 
@@ -120,28 +121,55 @@ class TestRules:
 
         cloned_network = client.get_network(cloned_network_id)
 
-        assert len(client.get_resource_rules('NETWORK', cloned_network.id)) == 1
-        assert client.get_resource_rules('NETWORK', cloned_network.id)[0].value == net_rule_j.value;
+        network_rules = client.get_resource_rules('NETWORK', cloned_network.id)
+        assert len(network_rules) == 1
+        assert network_rules[0].value == net_rule_j.value;
 
         #sorted the nodes here to ensure we identified the matching node from the original network
-        assert len(client.get_resource_rules('NODE', sorted(cloned_network.nodes, key=lambda x: x.name)[0].id)) == 2
-        assert client.get_resource_rules('NODE', sorted(cloned_network.nodes, key=lambda x: x.name)[0].id)[0].scenario_id == None
-        assert client.get_resource_rules('NODE', sorted(cloned_network.nodes, key=lambda x: x.name)[0].id)[0].value == node_rule_no_scenario_j.value
+        sorted_nodes = sorted(cloned_network.nodes, key=lambda x: x.name)
+        node_rules = sorted(client.get_resource_rules('NODE', sorted_nodes[0].id), key=lambda x:x.value)
+        assert len(node_rules) == 2
+        assert node_rules[0].scenario_id == None
+        assert node_rules[0].value == node_rule_no_scenario_j.value
 
         #sorted the nodes here to ensure we identified the matching node from the original network
-        assert client.get_resource_rules('NODE', sorted(cloned_network.nodes, key=lambda x: x.name)[0].id)[1].scenario_id == cloned_network.scenarios[0].id
-        assert client.get_resource_rules('NODE', sorted(cloned_network.nodes, key=lambda x: x.name)[0].id)[1].value == node_rule_with_scenario_j.value
+        assert node_rules[1].scenario_id == cloned_network.scenarios[0].id
+        assert node_rules[1].value == node_rule_with_scenario_j.value
 
-    def test_get_rules_by_type(self, session, client, network_with_data):
-        ruletype_A_j = client.add_rule_type_definition(JSONObject({'name':'A new Rule', 'code':'a_new_rule'}))
-        ruletype_B_j = client.add_rule_type_definition(JSONObject({'name':'A new Rule 1', 'code':'a_new_rule_1'}))
+    def test_share_network_with_rules(self, client, network_with_data):
+
+        net_rule_j = self.add_rule(client, network_with_data)
+
+        cloned_network_id = client.clone_network(network_with_data.id)
+
+        cloned_network = client.get_network(cloned_network_id)
+        network_rules = client.get_resource_rules('NETWORK', cloned_network.id)
+
+        assert len(network_rules) == 1
+        assert network_rules[0].value == net_rule_j.value
+
+        client.share_network(cloned_network.id, ['UserC'], 'Y', 'Y')
+        client.user_id = pytest.user_c.id
+        client.get_network(cloned_network_id)
+
+        #User c should see the same rules
+        user_c_rules = client.get_resource_rules('NETWORK', cloned_network.id)
+        assert len(user_c_rules) == 1
+        assert user_c_rules[0].value == net_rule_j.value
+
+    def test_get_rules_by_type(self, client, network_with_data):
+        ruletype_A_j = client.add_rule_type_definition(JSONObject({'name':'A new Rule',
+                                                                   'code':'a_new_rule'}))
+        ruletype_B_j = client.add_rule_type_definition(JSONObject({'name':'A new Rule 1',
+                                                                   'code':'a_new_rule_1'}))
 
         scenario_id = network_with_data.scenarios[0].id
 
         #Create 3 rules, 2 of type A and 1 of type B
         self.add_rule(client, network_with_data, name="Test1", types=[ruletype_A_j.code])
         self.add_rule(client, network_with_data, name="Test2", types=[ruletype_A_j.code])
-        self.add_rule(client, network_with_data, name="Test3", types=[ruletype_A_j.code, ruletype_B_j.code], scenario_id=scenario_id)
+        self.add_rule(client, network_with_data, name="Test3", types=[ruletype_A_j.code, ruletype_B_j.code],
+                      scenario_id=scenario_id)
         self.add_rule(client, network_with_data, name="Rule Type B", types=[ruletype_B_j.code])
 
         #Get all the rules of type A, of which there should be 2
@@ -151,7 +179,7 @@ class TestRules:
         assert len(rules_of_type) == 3
         assert len(rules_of_type_in_scenario) == 1
 
-    def test_add_rule_type(self, session, client, network_with_data):
+    def test_add_rule_type(self, client, network_with_data):
         ruletype_A_j = client.add_rule_type_definition(JSONObject({'name':'A new Rule', 'code':'a_new_rule'}))
         ruletype_B_j = client.add_rule_type_definition(JSONObject({'name':'A new Rule 1', 'code':'a_new_rule_1'}))
 
@@ -166,16 +194,23 @@ class TestRules:
         rules_of_type = client.get_rules_of_type(ruletype_A_j.code)
         rules_of_type_in_scenario = client.get_rules_of_type(ruletype_A_j.code, scenario_id=scenario_id)
 
-        assert len(rules_of_type) == 3
+        assert len(rules_of_type) >= 3
+        #CHeck that the added nodes are indeed present
+        assert {'Test1', 'Test2', 'Test3'}.issubset({r.name for r in rules_of_type})
         assert len(rules_of_type_in_scenario) == 1
-
 
         client.set_rule_type(rule3.id, ruletype_B_j.code)
 
         rules_of_type_b = client.get_rules_of_type(ruletype_B_j.code)
-        assert len(rules_of_type_b) == 1
+        assert len(rules_of_type_b) >= 1
+        assert 'Test3' in [r.name for r in rules_of_type_b]
 
-    def test_add_rule(self, session, client, network_with_data):
+    def test_add_rule1(self, client, network_with_data):
+        rule_network = client.get_network(network_with_data.id)
+
+        #Sharae the network with user A to thest the sharing feature.
+        client.share_network(network_with_data.id, ['UserA'], 'Y', 'Y')
+
         rulename = 'Added Rule'
         ruletext = 'e=mc^3'#yes this is delibrate, so it's different to the default
         new_rule_j = self.add_rule(client, network_with_data, name=rulename, text=ruletext)
@@ -184,14 +219,25 @@ class TestRules:
         assert new_rule_j.name == rulename
         assert new_rule_j.value == ruletext
 
-    def test_clone_rule(self, session, client, network_with_data):
+        #sanity check to ensure we're actually testing that the ownership functionality
+        #is testing correctly
+        rule_network = client.get_network(network_with_data.id)
+        assert len(rule_network.owners) == 2
+
+        assert len(new_rule_j.owners) == 2
+
+    def test_clone_rule(self, client, network_with_data):
 
         ruletype_A_j = client.add_rule_type_definition(JSONObject({'name':'A new Rule', 'code':'a_new_rule'}))
         ruletype_B_j = client.add_rule_type_definition(JSONObject({'name':'A new Rule 1', 'code':'a_new_rule_1'}))
 
         rulename = 'Added Rule'
         ruletext = 'e=mc^3'#yes this is delibrate, so it's different to the default
-        new_rule_j = self.add_rule(client, network_with_data, name=rulename, text=ruletext, types=[ruletype_A_j.code, ruletype_B_j.code])
+        new_rule_j = self.add_rule(client,
+                                   network_with_data,
+                                   name=rulename,
+                                   text=ruletext,
+                                   types=[ruletype_A_j.code, ruletype_B_j.code])
 
         assert new_rule_j.id is not None
         assert new_rule_j.name == rulename
@@ -207,7 +253,7 @@ class TestRules:
         assert [t.code for t in new_rule_j.types] == [t.code for t in cloned_rule.types]
 
 
-    def test_update_rule(self, session, client, network_with_data):
+    def test_update_rule(self, client, network_with_data):
 
         typecode = 'a_new_rule_type'
         typecode1 = 'a_new_rule_type_1'
@@ -225,6 +271,7 @@ class TestRules:
         assert len(new_rule_j.types) == 1
 
         new_rule_j.name = 'Updated Rule'
+        new_rule_j.format = 'text'
         new_rule_j.value    = 'e=mc2' #fix the error
         new_rule_j.types.append(JSONObject({'code':typecode1}))
 
@@ -234,6 +281,7 @@ class TestRules:
 
         assert updated_rule_j.name == 'Updated Rule'
         assert updated_rule_j.value == 'e=mc2'
+        assert updated_rule_j.format == 'text'
         assert updated_rule_j.scenario_id is None
         assert len(updated_rule_j.types) == 2
 
@@ -246,7 +294,7 @@ class TestRules:
 
         assert updated_rule_j_2.scenario_id == network_with_data.scenarios[0].id
 
-    def test_add_rule_with_type(self, session, client, network_with_data):
+    def test_add_rule_with_type(self, client, network_with_data):
 
         typecode = 'a_new_rule_type'
         typecode1 = 'a_new_rule_type_1'
@@ -267,7 +315,7 @@ class TestRules:
         assert new_rule_j.id in [r.id for r in client.get_rules_of_type(typecode)]
 
 
-    def test_add_rule_to_scenario(self, session, client, network_with_data):
+    def test_add_rule_to_scenario(self, client, network_with_data):
 
         client.add_rule_type_definition(JSONObject({'name':'A new Rule', 'code':'a_new_rule'}))
 
@@ -284,12 +332,12 @@ class TestRules:
 
         assert len(scenario_rules) == 1
         assert scenario_rules[0].name == new_rule_c_j.name
-        assert len(resource_rules) == 3
-        assert sorted([r.name for r in resource_rules]) == sorted([r.name for r in (new_rule_a_j, new_rule_b_j, new_rule_c_j)])
+        assert len(resource_rules) >= 3
+        assert {r.name for r in (new_rule_a_j, new_rule_b_j, new_rule_c_j)}.issubset({r.name for r in resource_rules})
         assert len(resource_rules_with_scenario) == 1
         assert resource_rules_with_scenario[0].name == new_rule_c_j.name
 
-    def test_add_rule_to_node(self, session, client, network_with_data):
+    def test_add_rule_to_node(self, client, network_with_data):
         scenario_id = network_with_data.scenarios[0].id
         node_id = network_with_data.nodes[0].id
 
@@ -303,13 +351,13 @@ class TestRules:
 
         assert len(scenario_rules) == 1
         assert scenario_rules[0].name == new_rule_c_j.name
-        assert len(all_resource_rules) == 3
+        assert len(all_resource_rules) >= 3
         assert sorted([r.name for r in all_resource_rules]) == sorted([r.name for r in (new_rule_a_j, new_rule_b_j, new_rule_c_j)])
         assert len(resource_rules_with_scenario) == 1
         assert resource_rules_with_scenario[0].name == new_rule_c_j.name
 
 
-    def test_delete_rule(self, session, client, network_with_data):
+    def test_delete_rule(self, client, network_with_data):
 
         new_rule_j = self.add_rule(client, network_with_data)
 
@@ -322,7 +370,7 @@ class TestRules:
 
         assert new_rule_j.id not in [r.id for r in client.get_resource_rules('NETWORK', network_with_data.id)]
 
-    def test_activate_rule(self, session, client, network_with_data):
+    def test_activate_rule(self, client, network_with_data):
 
         new_rule_j = self.add_rule(client, network_with_data)
 
@@ -343,8 +391,7 @@ class TestRules:
         assert new_rule_j.id in [r.id for r in client.get_resource_rules('NETWORK', network_with_data.id)]
 
 
-    def test_purge_rule(self, session, client, network_with_data):
-
+    def test_purge_rule(self, client, network_with_data):
         new_rule_j = self.add_rule(client, network_with_data)
 
         #prove it exists. If not, it would throw an exception
@@ -357,7 +404,7 @@ class TestRules:
         with pytest.raises(HydraError):
             client.get_rule(new_rule_j.id)
 
-    def test_delete_rule_type(self, session, client, network_with_data):
+    def test_delete_rule_type(self, client, network_with_data):
         ruletype_A_j = client.add_rule_type_definition(JSONObject({'name':'A new Rule', 'code':'a_new_rule'}))
         ruletype_B_j = client.add_rule_type_definition(JSONObject({'name':'A new Rule 1', 'code':'a_new_rule_1'}))
 
@@ -373,7 +420,9 @@ class TestRules:
         rules_of_type = client.get_rules_of_type(ruletype_A_j.code)
         rules_of_type_in_scenario = client.get_rules_of_type(ruletype_A_j.code, scenario_id=scenario_id)
 
-        assert len(rules_of_type) == 3
+        assert len(rules_of_type) >= 3
+        #Check that the added nodes are indeed present
+        assert {'Test1', 'Test2', 'Test3'}.issubset({r.name for r in rules_of_type})
         assert len(rules_of_type_in_scenario) == 1
 
         client.purge_rule_type_definition('a_new_rule')

@@ -22,16 +22,16 @@ from ast import literal_eval
 from ..exceptions import ResourceNotFoundError
 from . import scenario
 import logging
+from collections import defaultdict
 from ..exceptions import PermissionError, HydraError
 from ..db.model import Project, ProjectOwner, Network, NetworkOwner, Template, User
 from .. import db
 from . import network
 from .objects import JSONObject
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.orm import class_mapper, noload
+from sqlalchemy.orm import class_mapper, noload, joinedload
 from sqlalchemy import and_, or_
 from ..util import hdb
-from sqlalchemy.util import KeyedTuple
 from ..util.permissions import required_perms
 
 log = logging.getLogger(__name__)
@@ -95,7 +95,7 @@ def add_project(project,**kwargs):
 
     return proj_i
 
-@required_perms('edit_project')
+@required_perms('get_project')
 def update_project(project,**kwargs):
     """
         Update a project
@@ -118,21 +118,26 @@ def update_project(project,**kwargs):
 
     return proj_i
 
+@required_perms('get_project')
 def get_project(project_id, include_deleted_networks=False, **kwargs):
     """
         get a project complexmodel
     """
     user_id = kwargs.get('user_id')
-
+    log.info("Getting project %s", project_id)
     proj_i = _get_project(project_id)
 
     #lazy load owners
     proj_i.owners
+    proj_i.attributes
 
     proj_i.check_read_permission(user_id)
 
     proj_j = JSONObject(proj_i)
+    attr_data = get_project_attribute_data(proj_i.id, user_id=user_id)
+    proj_j.attribute_data = [JSONObject(rs) for rs in attr_data]
 
+    log.info("Getting networks for project %s", project_id)
     proj_j.networks = []
     for net_i in proj_i.networks:
         #lazy load owners
@@ -148,9 +153,11 @@ def get_project(project_id, include_deleted_networks=False, **kwargs):
 
         net_j = JSONObject(net_i)
         proj_j.networks.append(net_j)
+    log.info("Project %s retrieved", project_id)
 
     return proj_j
 
+@required_perms('get_project')
 def get_project_by_network_id(network_id,**kwargs):
     """
         get a project complexmodel by a network_id
@@ -171,6 +178,7 @@ def get_project_by_network_id(network_id,**kwargs):
     return ret_project
 
 
+@required_perms('get_project')
 def get_project_by_name(project_name,**kwargs):
     """
         get a project complexmodel
@@ -191,72 +199,7 @@ def get_project_by_name(project_name,**kwargs):
 
     return ret_projects
 
-def to_named_tuple(obj, visited_children=None, back_relationships=None, levels=None, ignore=[], extras={}):
-    """
-        Altered from an example found on stackoverflow
-        http://stackoverflow.com/questions/23554119/convert-sqlalchemy-orm-result-to-dict
-    """
-
-    if visited_children is None:
-        visited_children = []
-
-    if back_relationships is None:
-        back_relationships = []
-
-    serialized_data = {c.key: getattr(obj, c.key) for c in obj.__table__.columns}
-
-
-    #Any other non-column data to include in the keyed tuple
-    for k, v in extras.items():
-        serialized_data[k] = v
-
-    relationships = class_mapper(obj.__class__).relationships
-
-    #Set the attributes to 'None' first, so the attributes are there, even if they don't
-    #get filled in:
-    for name, relation in relationships.items():
-        if relation.uselist:
-            serialized_data[name] = tuple([])
-        else:
-            serialized_data[name] = None
-
-
-    visitable_relationships = [(name, rel) for name, rel in relationships.items() if name not in back_relationships]
-
-    if levels is not None and levels > 0:
-        for name, relation in visitable_relationships:
-
-            levels = levels - 1
-
-            if name in ignore:
-                continue
-
-            if relation.backref:
-                back_relationships.append(relation.backref)
-
-            relationship_children = getattr(obj, name)
-
-            if relationship_children is not None:
-                if relation.uselist:
-                    children = []
-                    for child in [c for c in relationship_children if c not in visited_children]:
-                        visited_children.append(child)
-                        children.append(to_named_tuple(child, visited_children, back_relationships, ignore=ignore, levels=levels))
-                    serialized_data[name] = tuple(children)
-                else:
-                    serialized_data[name] = to_named_tuple(relationship_children, visited_children, back_relationships, ignore=ignore, levels=levels)
-
-    vals = []
-    cols = []
-    for k, v in serialized_data.items():
-        vals.append(k)
-        cols.append(v)
-
-    result = KeyedTuple(cols, vals)
-
-    return result
-
-
+@required_perms('get_project')
 def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=None, **kwargs):
     """
         Get all the projects owned by the specified user.
@@ -270,9 +213,9 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
 
     ##Don't load the project's networks. Load them separately, as the networks
     #must be checked individually for ownership
-    projects_qry = db.DBSession.query(Project)
+    projects_qry = db.DBSession.query(Project).options(joinedload('owners'))
 
-    log.info("Getting projects for %s", uid)
+    log.info("Getting projects for user %s", uid)
 
     if include_shared_projects is True:
         projects_qry = projects_qry.join(ProjectOwner).filter(Project.status=='A',
@@ -307,51 +250,83 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
     user = db.DBSession.query(User).filter(User.id==req_user_id).one()
     isadmin = user.is_admin()
 
+    project_network_lookup = get_projects_networks([p.id for p in projects_i], uid, isadmin=isadmin, **kwargs)
+
     #Load each
     projects_j = []
     for project_i in projects_i:
-        #Ensure the requesting user is allowed to see the project
-        project_i.check_read_permission(req_user_id)
-        #lazy load owners
-        project_i.owners
+        if not isadmin:
+            #Ensure the requesting user is allowed to see the project
+            project_i.check_read_permission(req_user_id)
 
         project_i.attributes
         project_i.get_attribute_data()
-
-        network_qry = db.DBSession.query(Network)\
-                                .filter(Network.project_id==project_i.id,\
-                                        Network.status=='A')
-        if not isadmin:
-            network_qry.outerjoin(NetworkOwner)\
-            .filter(or_(
-                and_(NetworkOwner.user_id != None,
-                     NetworkOwner.view == 'Y'),
-                Network.created_by == uid
-            ))
-
-        networks_i = network_qry.all()
-
-        networks_j = []
-        for network_i in networks_i:
-            network_i.owners
-            net_j = JSONObject(network_i)
-            if net_j.layout is not None:
-                try:
-                    net_j.layout = JSONObject(net_j.layout)
-                except ValueError:
-                    net_j.layout = literal_eval(net_j.layout)
-            else:
-                net_j.layout = JSONObject({})
-            networks_j.append(net_j)
-
         project_j = JSONObject(project_i)
-        project_j.networks = networks_j
+        project_j.networks = project_network_lookup[project_i.id]
         projects_j.append(project_j)
 
     log.info("Networks loaded projects for user %s", uid)
 
     return projects_j
 
+def get_projects_networks(project_ids, uid, isadmin=None, **kwargs):
+    """
+        Get all the networks in all the projects specified, checking for ownership
+        with the user ID
+        args:
+            project_ids (list): a list of integer project IDs
+            uid: the user ID for whom the request is being made so we can check for ownershiop
+            isadmin: A flag to indicate if the requesting user is an admin. If null, does a query to find out
+        returns:
+            dict: A lookup keyed on project ID, with values being a list of networks
+    """
+    #Do a single query for all the networks in all the user's projects,
+    #then make a lookup dictionary so that each projec's networks can be grouped
+    #together, and accessed later.
+
+    user_id = kwargs.get('user_id')
+    if isadmin is None:
+        req_user_id = kwargs.get('user_id')
+        user = db.DBSession.query(User).filter(User.id==req_user_id).one()
+        isadmin = user.is_admin()
+
+    log.info("Getting for all the networks for in the specified projects...")
+    network_qry = db.DBSession.query(Network)\
+                                .options(joinedload('owners'))\
+                                .filter(Network.project_id.in_(project_ids),\
+                                        Network.status=='A')
+    if not isadmin:
+        network_qry.outerjoin(NetworkOwner)\
+        .filter(or_(
+            and_(NetworkOwner.user_id != None,
+                    NetworkOwner.view == 'Y'),
+            Network.created_by == uid
+        ))
+
+    networks = network_qry.all()
+    project_network_lookup = defaultdict(list)
+    for network_i in networks:
+        net_j = JSONObject(network_i)
+        if net_j.layout is not None:
+            net_j.layout = JSONObject(net_j.layout)
+        else:
+            net_j.layout = JSONObject({})
+        project_network_lookup[net_j.project_id].append(net_j)
+
+    log.debug("Network query done")
+
+    return project_network_lookup
+
+
+@required_perms('get_project')
+def get_project_attribute_data(project_id, **kwargs):
+    req_user_id = kwargs.get('user_id')
+
+    project_i = _get_project(project_id)
+
+    project_i.check_read_permission(req_user_id)
+
+    return project_i.get_attribute_data()
 
 @required_perms('delete_project')
 def set_project_status(project_id, status, **kwargs):
@@ -383,7 +358,7 @@ def delete_project(project_id,**kwargs):
 
     return 'OK'
 
-@required_perms("view_project")
+@required_perms("get_project")
 def get_networks(project_id, include_data='N', **kwargs):
     """
         Get all networks in a project
@@ -409,12 +384,15 @@ def get_networks(project_id, include_data='N', **kwargs):
 
     return networks
 
+@required_perms('get_project')
 def get_network_project(network_id, **kwargs):
     """
         get the project that a network is in
     """
 
-    net_proj = db.DBSession.query(Project).join(Network, and_(Project.id==Network.id, Network.id==network_id)).first()
+    net_proj = db.DBSession.query(Project)\
+        .join(Network, Project.id == Network.project_id)\
+        .filter(Network.id == network_id).first()
 
     if net_proj is None:
         raise HydraError("Network %s not found"% network_id)
@@ -422,6 +400,7 @@ def get_network_project(network_id, **kwargs):
     return net_proj
 
 
+@required_perms('get_project', 'add_project')
 def clone_project(project_id, recipient_user_id=None, new_project_name=None, new_project_description=None, **kwargs):
     """
         Create an exact clone of the specified project for the specified user.
@@ -443,7 +422,7 @@ def clone_project(project_id, recipient_user_id=None, new_project_name=None, new
                                                      Project.created_by==user_id).all()
     if len(project_with_name) > 0:
         raise HydraError("A project with the name {0} already exists".format(new_project_name))
-    
+
     new_project = Project()
     new_project.name = new_project_name
     if new_project_description:
@@ -451,8 +430,8 @@ def clone_project(project_id, recipient_user_id=None, new_project_name=None, new
     else:
         new_project.description = project.description
 
-    new_project.created_by = user_id 
-    
+    new_project.created_by = user_id
+
     if recipient_user_id is not None:
         project.check_share_permission(user_id)
         new_project.set_owner(recipient_user_id)
@@ -473,5 +452,4 @@ def clone_project(project_id, recipient_user_id=None, new_project_name=None, new
 
     db.DBSession.flush()
 
-    return new_project.id 
-
+    return new_project.id

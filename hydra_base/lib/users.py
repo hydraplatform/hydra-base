@@ -20,12 +20,14 @@
 from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm.exc import NoResultFound
 
+from .objects import JSONObject
 from ..db.model import User, Role, Perm, RoleUser, RolePerm
+from ..exceptions import ResourceNotFoundError, HydraError, HydraLoginUserNotFound, HydraLoginUserMaxAttemptsExceeded, HydraLoginUserPasswordWrong
 from .. import db
+from .. import config
+from ..util.permissions import required_perms
 
 import bcrypt
-
-from ..exceptions import ResourceNotFoundError, HydraError
 import logging
 
 log = logging.getLogger(__name__)
@@ -61,6 +63,7 @@ def _get_perm(perm_id,**kwargs):
 
     return perm_i
 
+@required_perms("get_user")
 def get_username(uid,**kwargs):
     """
         Return the username of a given user_id
@@ -72,6 +75,7 @@ def get_username(uid,**kwargs):
 
     return rs.username
 
+@required_perms("get_user")
 def get_usernames_like(username,**kwargs):
     """
         Return a list of usernames like the given string.
@@ -81,11 +85,11 @@ def get_usernames_like(username,**kwargs):
     return [r.username for r in rs]
 
 
+@required_perms("add_user")
 def add_user(user, **kwargs):
     """
         Add a user
     """
-    #check_perm(kwargs.get('user_id'), 'add_user')
     u = User()
 
     u.username     = user.username
@@ -105,30 +109,33 @@ def add_user(user, **kwargs):
 
     return u
 
-def update_user_display_name(user,**kwargs):
+@required_perms("edit_user")
+def update_user_display_name(user, **kwargs):
     """
         Update a user's display name
     """
-    #check_perm(kwargs.get('user_id'), 'edit_user')
     try:
-        user_i = db.DBSession.query(User).filter(User.id==user.id).one()
+        user_i = db.DBSession.query(User).filter(User.id == user.id).one()
         user_i.display_name = user.display_name
         return user_i
     except NoResultFound:
         raise ResourceNotFoundError("User (id=%s) not found"%(user.id))
 
-def update_user_password(new_pwd_user_id, new_password,**kwargs):
+@required_perms("edit_user")
+def update_user_password(new_pwd_user_id, new_password, **kwargs):
     """
         Update a user's password
     """
-    #check_perm(kwargs.get('user_id'), 'edit_user')
     try:
-        user_i = db.DBSession.query(User).filter(User.id==new_pwd_user_id).one()
+        user_i = db.DBSession.query(User).filter(User.id == new_pwd_user_id).one()
         user_i.password = bcrypt.hashpw(str(new_password).encode('utf-8'), bcrypt.gensalt())
+        reset_failed_logins(user_i.username, flush=False, **kwargs)
+        db.DBSession.flush()
         return user_i
     except NoResultFound:
         raise ResourceNotFoundError("User (id=%s) not found"%(new_pwd_user_id))
 
+@required_perms("get_user")
 def get_user(uid, **kwargs):
     """
         Get a user by ID
@@ -139,16 +146,18 @@ def get_user(uid, **kwargs):
     user_i = _get_user(uid)
     return user_i
 
-def get_user_by_name(uname,**kwargs):
+@required_perms("get_user")
+def get_user_by_name(uname, **kwargs):
     """
         Get a user by username
     """
     try:
-        user_i = db.DBSession.query(User).filter(User.username==uname).one()
+        user_i = db.DBSession.query(User).filter(User.username == uname).one()
         return user_i
     except NoResultFound:
         return None
 
+@required_perms("get_user")
 def get_user_by_id(uid,**kwargs):
     """
         Get a user by username
@@ -160,11 +169,11 @@ def get_user_by_id(uid,**kwargs):
     except NoResultFound:
         return None
 
+@required_perms("edit_user")
 def delete_user(deleted_user_id,**kwargs):
     """
         Delete a user
     """
-    #check_perm(kwargs.get('user_id'), 'edit_user')
     try:
         user_i = db.DBSession.query(User).filter(User.id==deleted_user_id).one()
         db.DBSession.delete(user_i)
@@ -174,23 +183,129 @@ def delete_user(deleted_user_id,**kwargs):
 
     return 'OK'
 
+@required_perms("get_user")
+def get_failed_login_count(username, **kwargs):
+    try:
+        user_i = db.DBSession.query(User).filter(User.username == username).one()
+    except NoResultFound:
+        """ Non-existent user should not raise """
+        return -1
 
+    if user_i.failed_logins is None:
+        log.info("User failed login count is None. Defaulting to 0")
+        return 0
+
+    return user_i.failed_logins
+
+
+@required_perms("get_user")
+def get_max_login_attempts(*args, **kwargs):
+    """
+        Get the max number of login attempts a user can have. This usually
+        comes from config.
+        NOTE:
+         In the absence of max_login_attempts defined in config,
+         a value of 0 will be returned and users will be unable to log
+         in.
+    """
+    max_login_attempts = int(config.get("security", "max_login_attempts", 0))
+
+    return max_login_attempts
+
+
+@required_perms("get_user")
+def get_remaining_login_attempts(username, **kwargs):
+    """
+        Get a user's remaininig login attempts by subtracting the number
+        of failed login attempts from the number of allowed login attempts
+        args:
+            username(str): The username to lookup the user
+        returns:
+            The remaining number of login attempots
+        raises:
+            HydraError if the username does not exist
+    """
+    max_login_attempts = get_max_login_attempts(**kwargs)
+    failed_attempts = get_failed_login_count(username, **kwargs)
+
+    log.info("Max login attempts: %s, Failed logins: %s", max_login_attempts, failed_attempts)
+
+    return max_login_attempts - failed_attempts
+
+
+@required_perms("edit_user")
+def inc_failed_login_attempts(username, flush=True, **kwargs):
+    """
+        Increment a user's failed login count
+        args:
+            username(str): The username to lookup the user
+            flush (bool, default=True):
+                   A flag to indicate whether this should flush to the DB. This
+                   exists as this function may be called as part of another function
+                   which will do the flush later.
+        returns:
+            void
+        raises:
+            HydraError if the username does not exist
+    """
+    try:
+        user_i = db.DBSession.query(User).filter(User.username == username).one()
+    except NoResultFound:
+        raise HydraLoginUserNotFound("User '{}' does not exist".format(username))
+
+    if user_i.failed_logins is not None:
+        user_i.failed_logins = user_i.failed_logins + 1
+    else:
+        user_i.failed_logins = 1
+
+    log.info("[ inc_failed_login_attempts ] User {} has currently {} failed logins".format(username, user_i.failed_logins))
+    if flush is True:
+        db.DBSession.flush()
+
+
+@required_perms("edit_user")
+def reset_failed_logins(username, flush=True, **kwargs):
+    """
+        Reset a user's failed login count to 0
+        args:
+            username (str): The username to lookup the user
+            flush (bool, default=True):
+                   A flag to indicate whether this should flush to the DB. This
+                   exists as this function may be called as part of another function
+                   which will do the flush later.
+        returns:
+            void
+        raises:
+            HydraError if the username does not exist
+    """
+    try:
+        user_i = db.DBSession.query(User).filter(User.username == username).one()
+    except NoResultFound:
+        # raise HydraError(username)
+        raise HydraLoginUserNotFound("User '{}' does not exist".format(username))
+
+    user_i.failed_logins = 0
+
+    if flush is True:
+        db.DBSession.flush()
+
+
+@required_perms("add_role")
 def add_role(role,**kwargs):
     """
         Add a new role
     """
-    #check_perm(kwargs.get('user_id'), 'add_role')
     role_i = Role(name=role.name, code=role.code)
     db.DBSession.add(role_i)
     db.DBSession.flush()
 
     return role_i
 
+@required_perms("edit_role")
 def delete_role(role_id,**kwargs):
     """
         Delete a role
     """
-    #check_perm(kwargs.get('user_id'), 'edit_role')
     try:
         role_i = db.DBSession.query(Role).filter(Role.id==role_id).one()
         db.DBSession.delete(role_i)
@@ -199,23 +314,23 @@ def delete_role(role_id,**kwargs):
 
     return 'OK'
 
+@required_perms("add_perm")
 def add_perm(perm,**kwargs):
     """
         Add a permission
     """
-    #check_perm(kwargs.get('user_id'), 'add_perm')
     perm_i = Perm(name=perm.name, code=perm.code)
     db.DBSession.add(perm_i)
     db.DBSession.flush()
 
     return perm_i
 
+@required_perms("edit_perm")
 def delete_perm(perm_id,**kwargs):
     """
         Delete a permission
     """
 
-    #check_perm(kwargs.get('user_id'), 'edit_perm')
     try:
         perm_i = db.DBSession.query(Perm).filter(Perm.id==perm_id).one()
         db.DBSession.delete(perm_i)
@@ -225,13 +340,13 @@ def delete_perm(perm_id,**kwargs):
     return 'OK'
 
 
+@required_perms("edit_user")
 def set_user_role(new_user_id, role_id, **kwargs):
     """
         Apply `role_id` to `new_user_id`
 
         Note this function returns the `Role` instance associated with `role_id`
     """
-    #check_perm(kwargs.get('user_id'), 'edit_role')
     try:
         _get_user(new_user_id)
         role_i = _get_role(role_id)
@@ -244,11 +359,11 @@ def set_user_role(new_user_id, role_id, **kwargs):
 
     return role_i
 
+@required_perms("edit_user")
 def delete_user_role(deleted_user_id, role_id,**kwargs):
     """
         Remove a user from a role
     """
-    #check_perm(kwargs.get('user_id'), 'edit_role')
     try:
         _get_user(deleted_user_id)
         _get_role(role_id)
@@ -259,11 +374,11 @@ def delete_user_role(deleted_user_id, role_id,**kwargs):
 
     return 'OK'
 
+@required_perms("edit_role")
 def set_role_perm(role_id, perm_id,**kwargs):
     """
         Insert a permission into a role
     """
-    #check_perm(kwargs.get('user_id'), 'edit_perm')
 
     _get_perm(perm_id)
     role_i = _get_role(role_id)
@@ -275,11 +390,12 @@ def set_role_perm(role_id, perm_id,**kwargs):
 
     return role_i
 
+
+@required_perms("edit_role")
 def delete_role_perm(role_id, perm_id,**kwargs):
     """
         Remove a permission from a role
     """
-    #check_perm(kwargs.get('user_id'), 'edit_perm')
     _get_perm(perm_id)
     _get_role(role_id)
 
@@ -291,12 +407,12 @@ def delete_role_perm(role_id, perm_id,**kwargs):
 
     return 'OK'
 
+@required_perms("edit_role")
 def update_role(role,**kwargs):
     """
         Update the role.
         Used to add permissions and users to a role.
     """
-    #check_perm(kwargs.get('user_id'), 'edit_role')
     try:
         role_i = db.DBSession.query(Role).filter(Role.id==role.id).one()
         role_i.name = role.name
@@ -343,7 +459,7 @@ def get_all_users(**kwargs):
                 log.info("[HB.users] Getting user by Filter ID : %s", filter_value)
                 filter_value = eval(filter_value)
                 if type(filter_value) is int:
-                    users_qry = users_qry.filter(User.id==filter_value)
+                    users_qry = users_qry.filter(User.id == filter_value)
                 else:
                     users_qry = users_qry.filter(User.id.in_(filter_value))
         elif filter_type == "username":
@@ -355,7 +471,7 @@ def get_all_users(**kwargs):
                     log.info("[HB.users] >>> Getting user by single Username : %s", em)
                     filter_value[i] = em.strip()
                 if isinstance(filter_value, str):
-                    users_qry = users_qry.filter(User.username==filter_value)
+                    users_qry = users_qry.filter(User.username == filter_value)
                 else:
                     users_qry = users_qry.filter(User.username.in_(filter_value))
         else:
@@ -366,7 +482,18 @@ def get_all_users(**kwargs):
 
     rs = users_qry.all()
 
-    return rs
+    #In a 'get all' function, we only want to return basic info, not passwords,
+    #login counts etc.
+    basic_user_data = []
+
+    for user in rs:
+        basic_user_data.append(JSONObject({
+            'id': user.id,
+            'username': user.username,
+            'display_name': user.display_name
+        }))
+
+    return basic_user_data
 
 def get_all_perms(**kwargs):
     """
@@ -392,6 +519,7 @@ def get_role(role_id,**kwargs):
     except NoResultFound:
         raise HydraError("Role not found (role_id={})".format(role_id))
 
+@required_perms("get_user")
 def get_user_roles(uid,**kwargs):
     """
         Get the roles for a user.
@@ -404,7 +532,7 @@ def get_user_roles(uid,**kwargs):
     except NoResultFound:
         raise HydraError("Roles not found for user (user_id={})".format(uid))
 
-
+@required_perms("get_user")
 def get_user_permissions(uid, **kwargs):
     """
         Get the roles for a user.
@@ -421,7 +549,7 @@ def get_user_permissions(uid, **kwargs):
     except:
         raise HydraError("Permissions not found for user (user_id={})".format(uid))
 
-
+@required_perms("get_role")
 def get_role_by_code(role_code,**kwargs):
     """
         Get a role by its code
@@ -433,6 +561,7 @@ def get_role_by_code(role_code,**kwargs):
         raise ResourceNotFoundError("Role not found (role_code={})".format(role_code))
 
 
+@required_perms("get_perm")
 def get_perm(perm_id,**kwargs):
     """
         Get all permissions
@@ -444,6 +573,7 @@ def get_perm(perm_id,**kwargs):
     except NoResultFound:
         raise ResourceNotFoundError("Permission not found (perm_id={})".format(perm_id))
 
+@required_perms("get_perm")
 def get_perm_by_code(perm_code,**kwargs):
     """
         Get a permission by its code

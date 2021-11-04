@@ -25,7 +25,7 @@ from ..db.model import Dataset, Metadata, DatasetOwner, DatasetCollection,\
         DatasetCollectionItem, ResourceScenario, ResourceAttr, TypeAttr
 from ..util import generate_data_hash
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.orm import aliased, make_transient, joinedload_all
+from sqlalchemy.orm import aliased, make_transient, joinedload
 from sqlalchemy.sql.expression import case
 from sqlalchemy import func
 from sqlalchemy import null
@@ -116,7 +116,7 @@ def clone_dataset(dataset_id,**kwargs):
         return None
 
     dataset = db.DBSession.query(Dataset).filter(
-            Dataset.id==dataset_id).options(joinedload_all('metadata')).first()
+            Dataset.id==dataset_id).options(joinedload('metadata')).first()
 
     if dataset is None:
         raise HydraError("Dataset %s does not exist."%(dataset_id))
@@ -526,7 +526,6 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
     """
     get_timing = lambda x: datetime.datetime.now() - x
     start_time=datetime.datetime.now()
-
     new_data = _process_incoming_data(bulk_data, user_id, source)
     log.info("Incoming data processed in %s", (get_timing(start_time)))
 
@@ -540,6 +539,10 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
     metadata         = {}
     #This is what gets returned.
     for d in bulk_data:
+
+        #limit the name to 60
+        d.name = d.name[0:60]
+
         dataset_dict = new_data[d.hash]
         current_hash = d.hash
 
@@ -548,8 +551,9 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
         if  existing_data.get(current_hash) is not None:
 
             dataset = existing_data.get(current_hash)
-            
+
             #Is this user allowed to use this dataset?
+            #TODO is this too slow?
             if dataset.check_read_permission(user_id, do_raise=False) == False:
                 new_dataset = _make_new_dataset(dataset_dict)
                 new_datasets.append(new_dataset)
@@ -567,7 +571,7 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
             hash_id_map[current_hash] = dataset_dict
             metadata[current_hash] = dataset_dict['metadata']
 
-    log.debug("Isolating new data %s", get_timing(start_time))
+    log.info("Isolating new data %s", get_timing(start_time))
     #Isolate only the new datasets and insert them
     new_data_for_insert = []
     #keep track of the datasets that are to be inserted to avoid duplicate
@@ -575,6 +579,7 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
     new_data_hashes = []
     for d in new_datasets:
         if d['hash'] not in new_data_hashes:
+            d['name'] = d['name'][0:60]
             new_data_for_insert.append(d)
             new_data_hashes.append(d['hash'])
 
@@ -586,9 +591,10 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
         #except OperationalError:
         #    pass
 
-        log.debug("Inserting new data %s", get_timing(start_time))
-        db.DBSession.bulk_insert_mappings(Dataset, new_data_for_insert)
-        log.debug("New data Inserted %s", get_timing(start_time))
+        log.info("Inserting new data %s", get_timing(start_time))
+
+        db.DBSession.execute(Dataset.__table__.insert(), new_data_for_insert)
+        log.info("New data Inserted %s", get_timing(start_time))
 
         #try:
         #    db.DBSession.execute("UNLOCK TABLES")
@@ -597,13 +603,13 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
 
 
         new_data = _get_existing_data(new_data_hashes)
-        log.debug("New data retrieved %s", get_timing(start_time))
+        log.info("New data retrieved %s", get_timing(start_time))
 
         for k, v in new_data.items():
             hash_id_map[k] = v
 
         _insert_metadata(metadata, hash_id_map)
-        log.debug("Metadata inserted %s", get_timing(start_time))
+        log.info("Metadata inserted %s", get_timing(start_time))
 
     returned_ids = []
     for d in bulk_data:
@@ -874,7 +880,8 @@ def get_dataset_collection(collection_id,**kwargs):
         collection = db.DBSession.query(DatasetCollection).filter(DatasetCollection.id==collection_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("No dataset collection found with id %s"%collection_id)
-
+    #lazy load items
+    collection.items
     return collection
 
 def get_dataset_collection_by_name(collection_name,**kwargs):
@@ -882,7 +889,8 @@ def get_dataset_collection_by_name(collection_name,**kwargs):
         collection = db.DBSession.query(DatasetCollection).filter(DatasetCollection.name==collection_name).one()
     except NoResultFound:
         raise ResourceNotFoundError("No dataset collection found with name %s"%collection_name)
-
+    #lazy load items
+    collection.items
     return collection
 
 def add_dataset_collection(collection,**kwargs):
@@ -911,10 +919,12 @@ def get_collections_like_name(collection_name,**kwargs):
         Get all the datasets from the collection with the specified name
     """
     try:
-        collections = db.DBSession.query(DatasetCollection).filter(DatasetCollection.name.like("%%%s%%"%collection_name.lower())).all()
+        collections = db.DBSession.query(DatasetCollection).filter(
+            DatasetCollection.name.like("%%%s%%"%collection_name.lower())).all()
     except NoResultFound:
         raise ResourceNotFoundError("No dataset collection found with name %s"%collection_name)
-
+    #lazy load items
+    [collection.items for collection in collections]
     return collections
 
 def get_collection_datasets(collection_id,**kwargs):
@@ -934,6 +944,7 @@ def get_val_at_time(dataset_id, timestamps,**kwargs):
     If the timestamp is before the start of the timeseries data, return
     None If the timestamp is after the end of the timeseries data, return
     the last value.  """
+
     t = []
     for time in timestamps:
         t.append(get_datetime(time))
@@ -973,7 +984,7 @@ def get_multiple_vals_at_time(dataset_ids, timestamps,**kwargs):
 
     return return_vals
 
-def get_vals_between_times(dataset_id, start_time, end_time, timestep,increment,**kwargs):
+def get_vals_between_times(dataset_id, start_time, end_time, timestep, increment, **kwargs):
     """
         Retrive data between two specified times within a timeseries. The times
         need not be specified in the timeseries. This function will 'fill in the blanks'.
@@ -990,6 +1001,7 @@ def get_vals_between_times(dataset_id, start_time, end_time, timestep,increment,
         to be used between the start and end.
         Ex: start_time = 1, end_time = 5, increment = 1 will get times at 1, 2, 3, 4, 5
     """
+
     try:
         server_start_time = get_datetime(start_time)
         server_end_time   = get_datetime(end_time)

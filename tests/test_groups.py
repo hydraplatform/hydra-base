@@ -17,7 +17,6 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
-from .fixtures import *
 import pytest
 import hydra_base as hb
 from hydra_base.lib.objects import JSONObject
@@ -29,17 +28,17 @@ class TestGroup:
     """
         Test for network-based functionality
     """
-    def test_get_resourcegroup(self, session, network_with_data):
+    def test_get_resourcegroup(self, client, network_with_data):
         network = network_with_data
         group = network.resourcegroups[0]
         s = network.scenarios[0]
 
-        resourcegroup_without_data = hb.get_resourcegroup(group.id)
+        resourcegroup_without_data = client.get_resourcegroup(group.id)
 
         for ra in resourcegroup_without_data.attributes:
             assert not hasattr(ra, 'resourcescenario') or ra.resourcescenario is None
 
-        resourcegroup_with_data = hb.get_resourcegroup(group.id, s.id, user_id=pytest.root_user_id)
+        resourcegroup_with_data = client.get_resourcegroup(group.id, s.id)
 
         attrs_with_data = []
         for ra in resourcegroup_with_data.attributes:
@@ -48,10 +47,10 @@ class TestGroup:
                     attrs_with_data.append(ra.id)
         assert len(attrs_with_data) > 0
 
-        group_items = hb.get_resourcegroupitems(group.id, s.id, user_id=pytest.root_user_id)
+        group_items = client.get_resourcegroupitems(group.id, s.id)
         assert len(group_items) > 0
 
-    def test_add_resourcegroup(self, session, network_with_data):
+    def test_add_resourcegroup(self, client, network_with_data):
 
         network = network_with_data
 
@@ -62,7 +61,7 @@ class TestGroup:
         group.description = 'test new group'
 
         template_id = network.types[0].template_id
-        template = JSONObject(hb.get_template(template_id, user_id=pytest.root_user_id))
+        template = JSONObject(client.get_template(template_id))
 
         type_summary_arr = []
 
@@ -76,7 +75,7 @@ class TestGroup:
 
         group.types = type_summary_arr
 
-        new_group = hb.add_group(network.id, group, user_id=pytest.root_user_id)
+        new_group = client.add_group(network.id, group)
 
         group_attr_ids = []
         for resource_attr in new_group.attributes:
@@ -85,11 +84,11 @@ class TestGroup:
         for typeattr in template.templatetypes[2].typeattrs:
             assert typeattr.attr_id in group_attr_ids
 
-        new_network = hb.get_network(network.id, user_id=pytest.root_user_id)
+        new_network = client.get_network(network.id)
 
         assert len(new_network.resourcegroups) == len(network.resourcegroups)+1; "new resource group was not added correctly"
 
-    def test_add_resourcegroupitem(self, session, network_with_extra_group):
+    def test_add_resourcegroupitem(self, client, network_with_extra_group):
 
         network = network_with_extra_group
 
@@ -103,19 +102,19 @@ class TestGroup:
         item.ref_id  = node_id
         item.group_id = group.id
 
-        new_item = hb.add_resourcegroupitem(item, scenario.id, user_id=pytest.root_user_id)
+        new_item = client.add_resourcegroupitem(item, scenario.id)
 
         assert new_item.node_id == node_id
 
 
-    def test_set_group_status(self, session, network_with_extra_group):
+    def test_set_group_status(self, client, network_with_extra_group):
         net = network_with_extra_group
 
         group_to_delete = net.resourcegroups[0]
 
-        hb.set_group_status(group_to_delete.id, 'X', user_id=pytest.root_user_id)
+        client.set_group_status(group_to_delete.id, 'X')
 
-        updated_net = hb.get_network(net.id, user_id=pytest.root_user_id)
+        updated_net = client.get_network(net.id)
 
         group_ids = []
         for g in updated_net.resourcegroups:
@@ -123,9 +122,9 @@ class TestGroup:
 
         assert group_to_delete.id not in group_ids
 
-        hb.set_group_status(group_to_delete.id, 'A', user_id=pytest.root_user_id)
+        client.set_group_status(group_to_delete.id, 'A')
 
-        updated_net = hb.get_network(net.id, user_id=pytest.root_user_id)
+        updated_net = client.get_network(net.id)
 
         group_ids = []
         for g in updated_net.resourcegroups:
@@ -134,18 +133,18 @@ class TestGroup:
         assert group_to_delete.id in group_ids
 
 
-    def test_purge_group(self, session, network_with_extra_group):
+    def test_purge_group(self, client, network_with_extra_group):
         net = network_with_extra_group
         scenario_id = net.scenarios[0].id
         group_id_to_delete = net.resourcegroups[-1].id
         group_id_to_keep = net.resourcegroups[0].id
 
-        group_datasets = hb.get_resource_data('GROUP', group_id_to_delete, scenario_id)
+        group_datasets = client.get_resource_data('GROUP', group_id_to_delete, scenario_id)
         log.info("Deleting group %s", group_id_to_delete)
 
-        hb.delete_resourcegroup(group_id_to_delete, 'Y', user_id=pytest.root_user_id)
+        client.delete_resourcegroup(group_id_to_delete, 'Y')
 
-        updated_net = JSONObject(hb.get_network(net.id, 'Y', user_id=pytest.root_user_id))
+        updated_net = JSONObject(client.get_network(net.id, 'Y'))
         assert len(updated_net.resourcegroups) == 1
         assert updated_net.resourcegroups[0].id == group_id_to_keep
 
@@ -155,6 +154,5 @@ class TestGroup:
             #should still exist.
             d = rs.value
             if d.type == 'timeseries':
-                with pytest.raises(hb.HydraError):
-                    hb.get_dataset(d.id, user_id=pytest.root_user_id)
-
+                with pytest.raises(hydra_base.HydraError):
+                    client.get_dataset(d.id)

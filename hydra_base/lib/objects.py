@@ -26,9 +26,7 @@ from ..exceptions import HydraError
 
 from .HydraTypes.Registry import HydraObjectFactory
 
-from ..util import generate_data_hash, get_layout_as_dict, get_layout_as_string
-from ..util.hydra_dateutil import ordinal_to_timestamp, date_to_string
-
+from ..util import generate_data_hash, get_json_as_dict, get_json_as_string
 from .. import config
 import pandas as pd
 
@@ -78,7 +76,7 @@ class JSONObject(dict):
                 setattr(self, k, v)
             elif k in ['layout', 'properties']:
                 #Layout is often valid JSON, but we dont want to treat it as a JSON object necessarily
-                dict_layout = get_layout_as_dict(v)
+                dict_layout = get_json_as_dict(v)
                 setattr(self, k, dict_layout)
             elif k == 'owners':
                 owners_objs = []
@@ -108,18 +106,15 @@ class JSONObject(dict):
                         setattr(self, k, JSONObject(obj_dict.get_metadata_as_dict()))
                     else:
                         metadata_dict = JSONObject()
-                        if hasattr(obj_dict, 'metadata'):
-                            metadata = obj_dict.metadata
-                        else:
-                            metadata = obj_dict.get('metadata', [])
-                        for m in metadata:
-                            metadata_dict[m.key] = m.value
+                        if hasattr(obj_dict, 'get'):#special case for resource data and row proxies
+                            for m in obj_dict.get('metadata', []):
+                                metadata_dict[m.key] = m.value
                         setattr(self, k, metadata_dict)
 
                 else:
                     is_list_of_objects = True
                     if len(v) > 0:
-                        if isinstance(v[0], float):
+                        if isinstance(v[0], (float, int)):
                             is_list_of_objects = False
                         elif isinstance(v[0], int):
                             is_list_of_objects = False
@@ -193,7 +188,9 @@ class JSONObject(dict):
         # Make sure that "special" methods are returned as before.
 
         # Keys that start and end with "__" won't be retrievable via attributes
-        if name.startswith('__') and name.endswith('__'):
+        if name == '__table__':#special case for SQLAlchemy objects
+            return self.get('__table__')
+        elif name.startswith('__') and name.endswith('__'):
             return super(JSONObject, self).__getattr__(name)
         else:
             return self.get(name, None)
@@ -206,8 +203,23 @@ class JSONObject(dict):
         return json.dumps(self)
 
     def get_layout(self):
-        if self.get('layout') is not None:
-            return get_layout_as_string(self.layout)
+        """
+            Return the 'layout' attribute as a json string
+            this is a shorcut for backward compatibility.
+            calls the `get_json("layout")` function internally
+
+        """
+        return self.get_json('layout')
+
+    def get_json(self, key):
+        """
+            General function to take an attribute of the object, such as
+            layout or app data, which is expected to be in JSON format, and
+            return it as a JSON blob,
+
+        """
+        if self.get(key) is not None:
+            return get_json_as_string(self[key])
         else:
             return None
 

@@ -17,8 +17,14 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
+import sqlalchemy
 from sqlalchemy.orm import scoped_session
 from sqlalchemy import create_engine
+
+#Import these as a test for foreign key checking in
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+
 from .. import config
 from zope.sqlalchemy import register
 
@@ -40,6 +46,15 @@ DBSession = None
 global engine
 engine = None
 
+#logger_sqlalchemy = logging.getLogger('sqlalchemy')
+#logger_sqlalchemy.setLevel(logging.DEBUG)
+
+# @event.listens_for(Engine, "connect")
+# def set_sqlite_pragma(dbapi_connection, connection_record):
+#     cursor = dbapi_connection.cursor()
+#     cursor.execute("PRAGMA foreign_keys=ON")
+#     cursor.close()
+
 def create_mysql_db(db_url):
     """
         To simplify deployment, create the mysql DB if it's not there.
@@ -53,6 +68,10 @@ def create_mysql_db(db_url):
 
         if no DB name is specified, it is retrieved from config
     """
+
+    #add a special case for a memory-based sqlite session
+    if db_url == 'sqlite://':
+        return db_url
 
     #Remove trailing whitespace and forwardslashes
     db_url = db_url.strip().strip('/')
@@ -92,23 +111,33 @@ def connect(db_url=None):
         db_url = config.get('mysqld', 'url')
 
     log.info("Connecting to database")
-    log.debug("DB URL: %s", db_url)
+    if db_url.find('@') >= 0:
+        log.info("DB URL: %s", db_url.split('@')[1])
+    else:
+        log.info("DB URL: %s", db_url)
 
     db_url = create_mysql_db(db_url)
 
     global engine
 
-    db_pool_size = config.get('mysqld', 'pool_size', 5)
-    db_max_overflow = config.get('mysqld', 'max_overflow', 10)
-    ssl_ca = config.get('mysqld', 'ssl_ca', False)
-    connect_args = {}
-    if ssl_ca:
-        connect_args['ssl'] = {'ssl_ca': ssl_ca}
-    engine = create_engine(db_url,
-                           encoding='utf8',
-                           connect_args=connect_args,
-                           pool_size=int(db_pool_size),
-                           max_overflow=int(db_max_overflow))
+    if db_url.startswith('sqlite'):
+        engine = create_engine(db_url, encoding='utf8')
+    else:
+
+        db_pool_size = config.get('mysqld', 'pool_size', 5)
+        db_pool_recycle = config.get('mysqld', 'pool_recycle', 300)
+        db_max_overflow = config.get('mysqld', 'max_overflow', 10)
+        ssl_ca = config.get('mysqld', 'ssl_ca', False)
+        connect_args = {}
+        if ssl_ca:
+            connect_args['ssl'] = {'ssl_ca': ssl_ca}
+
+        engine = create_engine(db_url,
+                               encoding='utf8',
+                               connect_args=connect_args,
+                               pool_recycle=db_pool_recycle,
+                               pool_size=db_pool_size,
+                               max_overflow=db_max_overflow)
 
     global DBSession
 
@@ -118,7 +147,12 @@ def connect(db_url=None):
 
 
     global DeclarativeBase
-    DeclarativeBase.metadata.create_all(engine)
+    try:
+        DeclarativeBase.metadata.create_all(engine, checkfirst=True)
+    except sqlalchemy.exc.OperationalError as err:
+        log.warning("Error creating database: %s", err)
+
+    return db_url
 
 def get_session():
     global DBSession

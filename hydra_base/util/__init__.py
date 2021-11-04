@@ -95,21 +95,6 @@ def flatten_dict(value, target_depth=1, depth=None):
         else:
             return value
 
-def to_named_tuple(keys, values):
-    """
-        Convert a sqlalchemy object into a named tuple
-    """
-
-    values = [dbobject.__dict__[key] for key in dbobject.keys()]
-
-    tuple_object = namedtuple('DBObject', dbobject.keys())
-
-    tuple_instance = tuple_object._make(values)
-
-    return tuple_instance
-
-
-
 def generate_data_hash(dataset_dict):
 
     d = dataset_dict
@@ -166,6 +151,13 @@ def get_val(dataset, timestamp=None):
 
         timeseries = pd.read_json(val, convert_axes=True)
 
+        if isinstance(timeseries.index, pd.DatetimeIndex):
+            if timeseries.index.tz is None:
+                timeseries = timeseries.tz_localize('UTC')
+            else:
+                timeseries = timeseries.tz_convert('UTC')
+
+
         if timestamp is None:
             return timeseries
         else:
@@ -219,7 +211,7 @@ def get_val(dataset, timestamp=None):
                 log.critical("Unable to retrive data. Check timestamps.")
                 log.critical(e)
 
-def get_layout_as_string(layout):
+def get_json_as_string(json_string_or_dict):
     """
         Take a dict or string and return a string.
         The dict will be json dumped.
@@ -228,16 +220,16 @@ def get_layout_as_string(layout):
         until a dict is retrieved or until a non-json structure is identified.
     """
 
-    if isinstance(layout, dict):
-        return json.dumps(layout)
+    if isinstance(json_string_or_dict, dict):
+        return json.dumps(json_string_or_dict)
 
-    if(isinstance(layout, six.string_types)):
+    if(isinstance(json_string_or_dict, six.string_types)):
         try:
-            return get_layout_as_string(json.loads(layout))
+            return get_json_as_string(json.loads(json_string_or_dict))
         except:
-            return layout
+            return json_string_or_dict
 
-def get_layout_as_dict(layout):
+def get_json_as_dict(json_string_or_dict):
     """
         Take a dict or string and return a dict if the data is json-encoded.
         The string will json parsed to check for json validity. In order to deal
@@ -245,21 +237,11 @@ def get_layout_as_dict(layout):
         until a dict is retrieved or until a non-json structure is identified.
     """
 
-    if not layout:
-        return {}
+    if isinstance(json_string_or_dict, dict):
+        return json_string_or_dict
 
-    if isinstance(layout, dict):
-        return layout
-
-    if(isinstance(layout, six.string_types)):
+    if(isinstance(json_string_or_dict, six.string_types)):
         try:
-            return get_layout_as_dict(json.loads(layout))
+            return get_json_as_dict(json.loads(json_string_or_dict))
         except:
-            try:
-                layout_dict = literal_eval(layout)
-                if isinstance(layout_dict, dict):
-                    return layout_dict
-                else:
-                    return layout
-            except:
-                return layout
+            return json_string_or_dict
