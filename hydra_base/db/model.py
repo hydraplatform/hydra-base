@@ -548,6 +548,253 @@ class Template(Base, Inspect):
     _parents = []
     _children = ['tTemplateType']
 
+    def set_inherited_columns(self, parent, child, table):
+        """
+            Set the value on the column of a target child.
+            This checks if the value is null on the child, and sets it from
+            the parent if so
+        """
+        inherited_columns = []
+        for column in table.__table__.columns:
+
+            colname = column.name
+
+            if hasattr(table, '_protected_columns')\
+               and colname in table._protected_columns:
+                # as a child, you can't change stuff like IDs, cr dates etc.
+                continue
+
+            newval = getattr(parent, colname)
+
+            if colname == 'layout':
+                newval = get_json_as_string(newval)
+
+            refval = getattr(child, colname)
+
+            if refval is None:
+                inherited_columns.append(colname)
+                setattr(child, colname, newval)
+
+        if hasattr(child, 'inherited_columns') and child.inherited_columns is not None:
+            for c in inherited_columns:
+                if c not in child.inherited_columns:
+                    child.inherited_columns.append(c)
+        else:
+            child.inherited_columns = inherited_columns
+
+        return child
+
+    def get_typeattr(self, typeattr_id, child_typeattr=None, get_parent_types=True):
+        """
+            Return an individual type attribute.
+            If this type attribute inherits from another, look up the tree to compile
+            the inherited data, with the leaf node taking priority
+        """
+
+        #get all the type attrs for this type, and add any which are missing
+        this_typeattr_i = get_session().query(TypeAttr)\
+            .filter(TypeAttr.id == typeattr_id)\
+            .options(joinedload('attr'))\
+            .options(joinedload('default_dataset')).one()
+
+        this_typeattr = JSONObject(this_typeattr_i)
+
+        if child_typeattr is None:
+            child_typeattr = this_typeattr
+        else:
+            child_typeattr = self.set_inherited_columns(this_typeattr, child_typeattr, this_typeattr_i)
+
+        if this_typeattr.parent_id is not None and get_parent_types is True:
+            return self.parent.get_typeattr(this_typeattr.parent_id,
+                                            child_typeattr=child_typeattr,
+                                            get_parent_types=get_parent_types)
+
+        return child_typeattr
+
+    def get_type(self, type_id, child_type=None, get_parent_types=True):
+        """
+            Return all the templatetypes relevant to this template.
+            If this template inherits from another, look up the tree to compile
+            an exhaustive list of types, removing any duplicates, prioritising
+            the ones closest to this template (my immediate parent's values are used instead
+            of its parents)
+
+        """
+
+        #Add resource attributes which are not defined already
+        this_type_i = get_session().query(TemplateType).filter(
+            TemplateType.id == type_id).options(noload('typeattrs')).one()
+
+        this_type = JSONObject(this_type_i)
+
+        this_type.typeattrs = []
+
+        if not hasattr(this_type, 'ta_tree') or this_type.ta_tree is None:
+            this_type.ta_tree = {}
+
+        #get all the type attrs for this type, and add any which are missing
+        typeattrs_i = get_session().query(TypeAttr)\
+            .filter(TypeAttr.type_id == type_id)\
+            .options(joinedload('attr'))\
+            .options(joinedload('unit'))\
+            .options(joinedload('default_dataset')).all()
+        typeattrs = [JSONObject(ta) for ta in typeattrs_i]
+
+
+        #Is this type the parent of a type. If so, we don't want to add a new type
+        #we want to update an existing one with any data that it's missing
+        if child_type is not None:
+            child_type = self.set_inherited_columns(this_type, child_type, this_type_i)
+            #check the child's typeattrs. If a typeattr exists on the parent, with the
+            #same attr_id, then it should be ignore. THis can happen when adding a typeattr
+            #to the child first, then the parent
+            child_typeattrs = [ta.attr_id for ta in child_type.typeattrs]
+
+            for i, typeattr in enumerate(typeattrs):
+                if typeattr.attr_id in child_typeattrs:
+                    log.debug("Found a typeattr for attribute %s on the "
+                             "child type %s (%s). Ignoring",
+                             typeattr.attr_id, child_type.name, child_type.id)
+                    continue
+                #Does this typeattr have a child?
+                child_typeattr = child_type.ta_tree.get(typeattr.id)
+                if child_typeattr is None:
+                    #there is no child, so check if it is a child
+                    if typeattr.parent_id is not None:
+                        #it has a parent, so add it to the type's tree dict
+                        #for processing farther up the tree
+                        child_type.ta_tree[typeattr.parent_id] = typeattr
+                    child_type.typeattrs.append(typeattr)
+                else:
+                    child_typeattr = self.set_inherited_columns(typeattr, child_typeattr, typeattrs_i[i])
+
+        else:
+            if not hasattr(this_type, 'typeattrs'):
+                setattr(this_type, 'typeattrs', [])
+            for typeattr in typeattrs:
+                this_type.typeattrs.append(typeattr)
+            child_type = this_type
+
+        if this_type.parent_id is not None and get_parent_types is True:
+            return self.parent.get_type(this_type.parent_id,
+                                         child_type=child_type,
+                                         get_parent_types=get_parent_types)
+        child_type.ta_tree = None
+        return child_type
+
+
+    def get_types(self, type_tree={}, child_types=None, get_parent_types=True, child_template_id=None):
+        """
+            Return all the templatetypes relevant to this template.
+            If this template inherits from another, look up the tree to compile
+            an exhaustive list of types, removing any duplicates, prioritising
+            the ones closest to this template (my immediate parent's values are used instead
+            of its parents)
+
+        """
+        log.info("Getting Template Types..")
+
+        #This avoids python's mutable keyword arguments causing child_data to keep its values between
+        #function calls
+        if child_types is None:
+            child_types = []
+            type_tree = {}
+
+        #Add resource attributes which are not defined already
+        types_i = get_session().query(TemplateType).filter(
+            TemplateType.template_id == self.id).options(noload('typeattrs')).all()
+        types = [JSONObject(t) for t in types_i]
+
+        if child_template_id is None:
+            child_template_id = self.id
+
+        #TODO need to check here to see if there is a parent / child type
+        #and then add or not add as approprioate
+        for i, this_type in enumerate(types):
+            this_type.child_template_id = child_template_id
+
+            #This keeps track of which type attributes are currently associated
+            #to this type. We'll use the data in this dict to set the 'typeattrs'
+            #at the end
+            if not hasattr(this_type, 'ta_tree') or this_type.ta_tree is None:
+                this_type.ta_tree = {}
+
+            #get all the type attrs for this type, and add any which are missing
+            typeattrs_i = get_session().query(TypeAttr)\
+                .filter(TypeAttr.type_id == this_type.id)\
+                .options(joinedload('attr'))\
+                .options(joinedload('default_dataset')).all()
+
+            typeattrs = [JSONObject(ta) for ta in typeattrs_i]
+
+            #Is this type the parent of a type. If so, we don't want to add a new type
+            #we want to update an existing one with any data that it's missing
+            if this_type.id in type_tree:
+                #This is a deleted type, so ignore it in the parent
+                if type_tree[this_type.id] is  None:
+                    continue
+
+                #Find the child type and update it.
+                child_type = type_tree[this_type.id]
+
+                child_type = self.set_inherited_columns(this_type, child_type, types_i[i])
+
+                #check the child's typeattrs. If a typeattr exists on the parent, with the
+                #same attr_id, then it should be ignore. THis can happen when adding a typeattr
+                #to the child first, then the parent
+                child_typeattrs = [ta.attr_id for ta in child_type.typeattrs]
+
+                for typeattr in typeattrs:
+                    if typeattr.attr_id in child_typeattrs:
+                        log.debug("Found a typeattr for attribute %s on the "
+                             "child type %s (%s). Ignoring",
+                             typeattr.attr_id, child_type.name, child_type.id)
+                        continue
+
+                    #Does this typeattr have a child?
+                    child_typeattr = type_tree[this_type.id].ta_tree.get(typeattr.id)
+                    if child_typeattr is None:
+
+                        #there is no child, so check if it is a child
+                        if typeattr.parent_id is not None:
+                            #it has a parent, so add it to the type's tree dict
+                            #for processing farther up the tree
+                            type_tree[this_type.id].ta_tree[typeattr.parent_id] = typeattr
+                        child_type.typeattrs.append(typeattr)
+                    else:
+                        child_typeattr = self.set_inherited_columns(typeattr, child_typeattr, types_i[i])
+
+
+                if this_type.parent_id is not None:
+                    type_tree[this_type.parent_id] = child_type
+
+            else:
+                if not hasattr(this_type, 'typeattrs'):
+                    setattr(this_type, 'typeattrs', [])
+                for typeattr in typeattrs:
+                    #is this a child? if so, register it as one
+                    if typeattr.parent_id is not None:
+                        this_type.ta_tree[typeattr.parent_id] = typeattr
+                    this_type.typeattrs.append(typeattr)
+
+                child_types.append(this_type)
+                #set
+                if this_type.parent_id is not None:
+                    type_tree[this_type.parent_id] = this_type
+
+
+        if self.parent is not None and get_parent_types is True:
+            return self.parent.get_types(type_tree=type_tree,
+                                         child_types=child_types,
+                                         get_parent_types=get_parent_types,
+                                        child_template_id=child_template_id)
+
+        #clean up
+        for child_type in child_types:
+            child_type.ta_tree = None
+
+        return child_types
+
     def set_owner(self, user_id, read='Y', write='Y', share='Y'):
         owner = None
         for o in self.owners:
