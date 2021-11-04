@@ -23,11 +23,10 @@ from decimal import Decimal
 
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import noload, joinedload
+from sqlalchemy import or_, and_
 
 from hydra_base import db
-from hydra_base.db.model import (Template, TemplateType, TypeAttr, Attr,
-                                Network, Node, Link, ResourceGroup,
-                                ResourceType, ResourceAttr, ResourceScenario, Scenario)
+from hydra_base.db.model import (Template, TemplateOwner, TemplateType, TypeAttr, Attr)
 from hydra_base.lib.objects import JSONObject, Dataset
 from hydra_base.lib.data import add_dataset
 from hydra_base.exceptions import HydraError, ResourceNotFoundError
@@ -658,8 +657,33 @@ def delete_template(template_id, delete_resourcetypes=False, **kwargs):
     db.DBSession.flush()
     return 'OK'
 
+
+def _set_template_owners(templates_i):
+    flush = False
+    for tmpl_i in templates_i:
+        if not tmpl_i.owners:
+            owner = tmpl_i.set_owner(tmpl_i.created_by)
+            db.DBSession.add(owner)
+            flush = True
+    if flush:
+        db.DBSession.flush()
+
+
+def _get_template_owners(template_id):
+    """
+        Get all the owners of a template
+    """
+    owners_i = db.DBSession.query(TemplateOwner).filter(
+        TemplateOwner.template_id == template_id).options(noload('template')).options(joinedload('user')).all()
+
+    owners = [JSONObject(owner_i) for owner_i in owners_i]
+
+    return owners
+
+
 @required_perms("get_template")
-def get_templates(load_all=True, include_inactive=False, **kwargs):
+def get_templates(load_all=True, include_inactive=False, include_shared_templates=True, uid=None, template_ids=None,
+                  project_id=None, **kwargs):
     """
         Get all templates.
         Args:
@@ -670,7 +694,22 @@ def get_templates(load_all=True, include_inactive=False, **kwargs):
         Returns:
             List of Template objects
     """
-    templates_i = db.DBSession.query(Template).options(joinedload('templatetypes')).all()
+
+    tpl_query = db.DBSession.query(Template)
+    if uid:
+        if include_shared_templates:
+            tpl_query = tpl_query.join(TemplateOwner).filter(or_(TemplateOwner.user_id==uid, Template.created_by==uid))
+        else:
+            tpl_query = tpl_query.join(TemplateOwner).filter(Template.created_by == uid)
+    if project_id:
+        tpl_query = tpl_query.filter(Template.project_id == project_id)
+
+    if template_ids is not None:
+        tpl_query = tpl_query.filter(Template.id.in_(template_ids))
+
+    templates_i = tpl_query.options(joinedload('templatetypes')).all()
+    _set_template_owners(templates_i)
+
     if load_all is True:
         full_templates = []
         for template_i in templates_i:
