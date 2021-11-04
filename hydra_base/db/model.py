@@ -1062,7 +1062,10 @@ class TemplateOwner(Base, Inspect):
                 .options(joinedload('attr'))\
                 .options(joinedload('default_dataset')).all()
 
-            typeattrs = [JSONObject(ta) for ta in typeattrs_i]
+            typeattrs = []
+            for ta in typeattrs_i:
+                ta.properties = ta.properties or '{}' # add default properties
+                typeattrs.append(JSONObject(ta))
 
             #Is this type the parent of a type. If so, we don't want to add a new type
             #we want to update an existing one with any data that it's missing
@@ -1296,7 +1299,7 @@ class TypeAttr(Base, Inspect):
     data_restriction = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'))
     unit_id = Column(Integer(), ForeignKey('tUnit.id'))
     description = Column(String(1000))
-    properties = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'))
+    properties = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'), server_default='{}')
     status = Column(String(1),  nullable=True)
     cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
