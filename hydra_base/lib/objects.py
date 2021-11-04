@@ -22,6 +22,8 @@ import six
 import enum
 
 from datetime import datetime
+from ast import literal_eval
+from json.decoder import JSONDecodeError
 from ..exceptions import HydraError
 
 from .HydraTypes.Registry import HydraObjectFactory
@@ -47,6 +49,9 @@ class JSONObject(dict):
             try:
                 obj = json.loads(obj_dict)
                 assert isinstance(obj, dict), "JSON string does not evaluate to a dict"
+            except JSONDecodeError:
+                obj = literal_eval(obj_dict)
+                assert isinstance(obj, dict), "JSON string still does not evaluate to a dict"
             except Exception:
                 log.critical(obj_dict)
                 log.critical(parent)
