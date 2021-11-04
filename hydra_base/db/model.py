@@ -597,6 +597,8 @@ class Template(Base, Inspect):
             .options(joinedload('attr'))\
             .options(joinedload('default_dataset')).one()
 
+        this_typeattr_i.properties = this_typeattr_i.properties or '{}'
+
         this_typeattr = JSONObject(this_typeattr_i)
 
         if child_typeattr is None:
