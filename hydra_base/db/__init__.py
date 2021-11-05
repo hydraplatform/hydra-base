@@ -124,9 +124,9 @@ def connect(db_url=None):
         engine = create_engine(db_url, encoding='utf8')
     else:
 
-        db_pool_size = config.get('mysqld', 'pool_size', 5)
-        db_pool_recycle = config.get('mysqld', 'pool_recycle', 300)
-        db_max_overflow = config.get('mysqld', 'max_overflow', 10)
+        db_pool_size = int(config.get('mysqld', 'pool_size', 5))
+        db_pool_recycle = int(config.get('mysqld', 'pool_recycle', 300))
+        db_max_overflow = int(config.get('mysqld', 'max_overflow', 10))
         ssl_ca = config.get('mysqld', 'ssl_ca', False)
         connect_args = {}
         if ssl_ca:
