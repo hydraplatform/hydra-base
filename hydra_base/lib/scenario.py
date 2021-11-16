@@ -925,6 +925,23 @@ def update_resourcedata(scenario_id, resource_scenarios,**kwargs):
 
     return res
 
+def delete_scenario_results(scenario_id, **kwargs):
+    """
+        Delete all the resource scenarios in a scenario which are linked to
+        resource attributes that have 'attr_is_var' set to 'Y'
+    """
+    _check_can_edit_scenario(scenario_id, kwargs['user_id'])
+    results_rs = db.DBSession.query(ResourceScenario)\
+        .join(ResourceAttr)\
+        .filter(ResourceScenario.scenario_id == scenario_id)\
+        .filter(ResourceAttr.attr_is_var == 'Y').all()
+    for rs in results_rs:
+        db.DBSession.delete(rs)
+
+    db.DBSession.flush()
+
+    log.info("%s resource scenarios deleted", len(results_rs))
+
 def delete_resource_scenario(scenario_id, resource_attr_id, quiet=False, **kwargs):
     """
         Remove the data associated with a resource in a scenario.
