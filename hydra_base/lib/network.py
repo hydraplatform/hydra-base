@@ -153,7 +153,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
 
     #Default ra / dataset pairings.
     defaults = {}
-    
+
     attr_lookup = {}
     #First get all the attributes assigned from the csv files.
     t0 = time.time()
@@ -215,6 +215,9 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
                     resource_type.child_template_id = network_child_template_id
 
                 ref_id = resource_i.id
+
+                if resource_type.id is None:
+                    raise HydraError(f"Resource type on resource {resource_i.name} has no ID")
 
                 resource_resource_types.append(
                     {
