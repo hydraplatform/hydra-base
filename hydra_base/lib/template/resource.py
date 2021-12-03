@@ -113,6 +113,7 @@ def _get_type(type_id):
             .filter(Template.id == type_i.template_id).one()
 
     type_i = template_i.get_type(type_id)
+    type_i.template = JSONObject(template_i)
 
     return type_i
 
