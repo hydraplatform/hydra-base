@@ -541,7 +541,7 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
     for d in bulk_data:
 
         #limit the name to 60
-        d.name = d.name[0:60]
+        d.name = d.name[0:200]
 
         dataset_dict = new_data[d.hash]
         current_hash = d.hash
