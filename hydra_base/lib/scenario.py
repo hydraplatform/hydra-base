@@ -712,7 +712,7 @@ def compare_scenarios(scenario_id_1, scenario_id_2, allow_different_networks=Fal
     #in scenario 2.
     for ra_id, s2_rs in r_scen_2_dict.items():
         s1_rs = r_scen_1_dict.get(ra_id)
-        if s1_rs is None:
+        if s1_rs is not None:
             resource_diff = dict(
                 resource_attr_id = s1_rs.resource_attr_id,
                 scenario_1_dataset = None,
@@ -924,6 +924,23 @@ def update_resourcedata(scenario_id, resource_scenarios,**kwargs):
     db.DBSession.flush()
 
     return res
+
+def delete_scenario_results(scenario_id, **kwargs):
+    """
+        Delete all the resource scenarios in a scenario which are linked to
+        resource attributes that have 'attr_is_var' set to 'Y'
+    """
+    _check_can_edit_scenario(scenario_id, kwargs['user_id'])
+    results_rs = db.DBSession.query(ResourceScenario)\
+        .join(ResourceAttr)\
+        .filter(ResourceScenario.scenario_id == scenario_id)\
+        .filter(ResourceAttr.attr_is_var == 'Y').all()
+    for rs in results_rs:
+        db.DBSession.delete(rs)
+
+    db.DBSession.flush()
+
+    log.info("%s resource scenarios deleted", len(results_rs))
 
 def delete_resource_scenario(scenario_id, resource_attr_id, quiet=False, **kwargs):
     """

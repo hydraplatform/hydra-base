@@ -117,7 +117,7 @@ def _get_all_attributes(network):
 
     return attrs
 
-def _check_ra_duplicates(all_resource_attrs):
+def _check_ra_duplicates(all_resource_attrs, resource_id_name_map):
     """
         Check for any duplicate resource attributes before inserting
         into the DB. This just helps to prevent an ugly DB contraint error
@@ -128,7 +128,19 @@ def _check_ra_duplicates(all_resource_attrs):
         if unique_ra_check.get(k) is None:
             unique_ra_check[k] = ra
         else:
-            raise HydraError(f"Duplicate Resource Attr specified: {ra}")
+            ref_key = ra['ref_key']
+            if ref_key == 'NODE':
+                ref_id = ra['node_id']
+            elif ref_key == 'LINK':
+                ref_id = ra['link_id']
+            elif ref_key == 'GROUP':
+                ref_id == ra['group_id']
+            elif ref_key == 'NETWORK':
+                ref_id == ra['network_id']
+
+            resource_name = resource_id_name_map[ref_id]
+            attr_id = ra['attr_id']
+            raise HydraError(f"Duplicate Resource Attr specified: {resource_name}  {attr_id}")
 
 def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, template_lookup=None):
 
@@ -145,6 +157,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
     #Default ra / dataset pairings.
     defaults = {}
 
+    attr_lookup = {}
     #First get all the attributes assigned from the csv files.
     t0 = time.time()
     for resource in resources:
@@ -153,6 +166,11 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
         resource_attrs[resource.id] = []
         if resource.attributes is not None:
             for ra in resource.attributes:
+                if attr_lookup.get(ra.attr_id) is None:
+                    attr = db.DBSession.query(Attr).filter(Attr.id == ra.attr_id).first()
+                    if attr is None:
+                        raise Exception("Unable to process attribute %s on resource %s as it does not exist", ra.attr_id, resource.name)
+                    attr_lookup[ra.attr_id] = attr
                 resource_attrs[resource.id].append({
                     'ref_key'     : ref_key,
                     'node_id'     : resource_i.id if ref_key == 'NODE' else None,
@@ -180,9 +198,11 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
     #Holds all the attributes supposed to be on a resource based on its specified
     #type
     resource_resource_types = []
+    resource_id_name_map = {}
     for resource in resources:
         #cast name as string here in case the name is a number
         resource_i = resource_name_map[str(resource.name)]
+        resource_id_name_map[resource_i.id] = str(resource.name)
         existing_attrs = [ra['attr_id'] for ra in resource_attrs[resource.id]]
         if resource.types is not None:
             for resource_type in resource.types:
@@ -205,6 +225,9 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
                     resource_type.child_template_id = type_child_template_id_lookup[resource_type_id]
 
                 ref_id = resource_i.id
+
+                if resource_type.id is None:
+                    raise HydraError(f"Resource type on resource {resource_i.name} has no ID")
 
                 resource_resource_types.append(
                     {
@@ -258,7 +281,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
         for na in resource_attrs.values():
             all_resource_attrs.extend(na)
 
-        _check_ra_duplicates(all_resource_attrs)
+        _check_ra_duplicates(all_resource_attrs, resource_id_name_map)
 
 
         if len(all_resource_attrs) > 0:

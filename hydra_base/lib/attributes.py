@@ -540,42 +540,63 @@ def get_all_network_attributes(network_id, template_id=None, **kwargs):
                 dimension_id: 124,
                 attr_is_var: 'Y' #comes from the ResourceAttr
                 }
+        NOTE: This was originally done with a single query, but was split up for
+              performamce reasons
     """
 
-    resource_attr_qry = db.DBSession.query(Attr, ResourceAttr.attr_is_var).\
-            join(ResourceAttr, ResourceAttr.attr_id==Attr.id).\
-            outerjoin(Network, Network.id==ResourceAttr.network_id).\
-            outerjoin(Node, Node.id==ResourceAttr.node_id).\
-            outerjoin(Link, Link.id==ResourceAttr.link_id).\
-            outerjoin(ResourceGroup, ResourceGroup.id==ResourceAttr.group_id).filter(
-        or_(
+    network_attr_qry = db.DBSession.query(Attr, ResourceAttr.attr_is_var).\
+            join(ResourceAttr, ResourceAttr.attr_id == Attr.id).\
+            join(Network, Network.id == ResourceAttr.network_id).filter(
             and_(ResourceAttr.network_id != None,
-                    ResourceAttr.network_id == network_id),
+                 ResourceAttr.network_id == network_id))
+    network_attrs = network_attr_qry.all()
 
-            and_(ResourceAttr.node_id != None,
-                    ResourceAttr.node_id == Node.id,
-                                        Node.network_id==network_id),
+    node_attr_qry = db.DBSession.query(Attr, ResourceAttr.attr_is_var).\
+            join(ResourceAttr, ResourceAttr.attr_id == Attr.id).\
+            join(Node, Node.id == ResourceAttr.node_id).filter(
+                and_(ResourceAttr.node_id is not None,
+                 ResourceAttr.node_id == Node.id,
+                 Node.network_id == network_id))
+    node_attrs = node_attr_qry.all()
 
-            and_(ResourceAttr.link_id != None,
-                    ResourceAttr.link_id == Link.id,
-                                        Link.network_id==network_id),
+    link_attr_qry = db.DBSession.query(Attr, ResourceAttr.attr_is_var).\
+            join(ResourceAttr, ResourceAttr.attr_id==Attr.id).\
+            join(Link, Link.id == ResourceAttr.link_id).filter(
+                and_(ResourceAttr.link_id is not None,
+                 ResourceAttr.link_id == Link.id,
+                 Link.network_id==network_id))
+    link_attrs = link_attr_qry.all()
 
-            and_(ResourceAttr.group_id != None,
-                    ResourceAttr.group_id == ResourceGroup.id,
-                                        ResourceGroup.network_id==network_id)
-        ))
+    group_attr_qry = db.DBSession.query(Attr, ResourceAttr.attr_is_var).\
+            join(ResourceAttr, ResourceAttr.attr_id == Attr.id).\
+            join(ResourceGroup, ResourceGroup.id == ResourceAttr.group_id).filter(
+                and_(ResourceAttr.group_id is not None,
+                 ResourceAttr.group_id == ResourceGroup.id,
+                 ResourceGroup.network_id == network_id))
+
+    group_attrs = group_attr_qry.all()
+
+    resource_attrs = network_attrs + node_attrs + link_attrs + group_attrs
 
     if template_id is not None:
+        log.info("Filtering out only attributes which appear in template %s", template_id)
         attr_ids = []
-        rs = db.DBSession.query(TypeAttr).join(TemplateType,
-                                            TemplateType.id==TypeAttr.type_id).filter(
-                                                TemplateType.template_id==template_id).all()
+        rs = db.DBSession.query(TypeAttr).join(
+            TemplateType,
+            TemplateType.id == TypeAttr.type_id).filter(
+            TemplateType.template_id == template_id).all()
+
         for r in rs:
             attr_ids.append(r.attr_id)
+        filtered_results = []
+        for ra in resource_attrs:
+            if ra[0].id in attr_ids:
+                filtered_results.append(ra)
 
-        resource_attr_qry = resource_attr_qry.filter(ResourceAttr.attr_id.in_(attr_ids))
+        log.info("Filtered out %s attributes", len(resource_attrs)-len(filtered_results))
 
-    resource_attrs = resource_attr_qry.all()
+        resource_attrs = filtered_results
+
 
     network_attributes = []
     for ra in resource_attrs:
