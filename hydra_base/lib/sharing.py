@@ -69,11 +69,17 @@ def share_network(network_id, usernames, read_only, share, **kwargs):
     net_i = _get_network(network_id)
     net_i.check_share_permission(user_id)
 
-    if read_only == 'Y':
+    #Support wither boolean or character based flags for read_only and share
+    if read_only in ('Y', True):
         write = 'N'
         share = 'N'
     else:
         write = 'Y'
+
+    if share == True:
+        share = 'Y'
+    elif share == False:
+        share = 'N'
 
     if net_i.created_by != int(user_id) and share == 'Y':
         raise HydraError("Cannot share the 'sharing' ability as user %s is not"
