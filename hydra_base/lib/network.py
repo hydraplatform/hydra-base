@@ -130,9 +130,12 @@ def _check_ra_duplicates(all_resource_attrs):
         else:
             raise HydraError(f"Duplicate Resource Attr specified: {ra}")
 
-def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, template_lookup={}):
+def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, template_lookup=None):
 
     log.info("Bulk adding resource attributes")
+
+    if template_lookup is None:
+        template_lookup = {}
 
     start_time = datetime.datetime.now()
 
@@ -169,7 +172,11 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
 
  #   template_lookup = {} #a lookup of all the templates used by the resource
     typeattr_lookup = {} # a lookup from type ID to a list of typeattrs
-    network_child_template_id = None
+
+    #A lookup from type ID to the child template that it should be using.
+    #We assume that a resource can't have 2 type IDS from the same network.
+    type_child_template_id_lookup = {}
+
     #Holds all the attributes supposed to be on a resource based on its specified
     #type
     resource_resource_types = []
@@ -181,18 +188,21 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
             for resource_type in resource.types:
                 #Go through all the resource types and add the appropriate resource
                 #type entries
-
+                resource_type_id = resource_type.id
                 if resource_type.child_template_id is None:
-                    if network_child_template_id is None:
+                    if type_child_template_id_lookup.get(resource_type_id) is None:
                         network_child_template_id = template.get_network_template(network_id, resource_type.id)#TODO this should be type_id
 
                         #ok, so no child ID found. We need to just use the template
                         #ID of the type which was given
                         if network_child_template_id is None:
-                            t = template.get_templatetype(resource_type.id, user_id=admin_id)
-                            network_child_template_id = t.template_id
+                            tt = template.get_templatetype(resource_type.id, user_id=admin_id)
 
-                    resource_type.child_template_id = network_child_template_id
+                            network_child_template_id = tt.template_id
+
+                        type_child_template_id_lookup[resource_type_id] = network_child_template_id
+
+                    resource_type.child_template_id = type_child_template_id_lookup[resource_type_id]
 
                 ref_id = resource_i.id
 
@@ -494,7 +504,7 @@ def _add_resource_groups(net_i, resourcegroups, template_lookup):
 
 
 @required_perms("add_network")
-def add_network(network,**kwargs):
+def add_network(network, **kwargs):
     """
     Takes an entire network complex model and saves it to the DB.  This
     complex model includes links & scenarios (with resource data).  Returns
@@ -636,8 +646,7 @@ def add_network(network,**kwargs):
                         group_item_i.subgroup = grp_id_map[group_item.ref_id]
                     else:
                         raise HydraError("A ref key of %s is not valid for a "
-                                         "resource group item.",\
-                                         group_item.ref_key)
+                                         "resource group item."%group_item.ref_key)
 
                     scen.resourcegroupitems.append(group_item_i)
             log.info("Group items insert took %s", get_timing(item_start_time))
