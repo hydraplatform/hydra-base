@@ -470,7 +470,6 @@ class TestResourceAttribute:
         dupe_attr_1 = client.add_attribute(duplicate_attribute, check_existing=False)
         dupe_attr_2 = client.add_attribute(duplicate_attribute, check_existing=False)
 
-
         all_attrs = client.get_attributes()
 
         assert dupe_attr_1.id in [a.id for a in all_attrs]

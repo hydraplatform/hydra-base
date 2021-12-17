@@ -300,3 +300,176 @@ class TestScopedAttribute:
         client.user_id = user.id
         client.add_attribute(project_scoped_attr)
         client.user_id = 1 ## reset the user ID
+
+
+    def test_re_scope_network_attribute_to_global(self, client, network_with_data):
+        """
+            Test adding a global attribute when a scoped attribute already exist.
+            In this case, the scoped attribute needs to be removed and all resource
+            attributes need to be re-assigned to the higher-scoped attribute.
+        """
+        attr_name = f"Network Attribute {datetime.datetime.now()}"
+
+        global_attr = JSONObject({
+            "name": attr_name,
+            "dimension_id": None
+        })
+
+        network_scoped_attr = JSONObject({
+            "name": attr_name,
+            "dimension_id": None,
+            "network_id": network_with_data.id
+        })
+
+        #First add the network attribute
+        network_attr = client.add_attribute(network_scoped_attr)
+
+
+        test_link = network_with_data.links[0]
+        client.add_resource_attribute('LINK', test_link.id, network_attr.id, False)
+
+        test_link_updated = client.get_link(test_link.id)
+
+        #Check that the attribute has been added to the link
+        assert network_attr.id in [linkattr.attr_id for linkattr in test_link_updated.attributes]
+
+        #The attribute is not global
+        global_attributes_no_network = client.get_attributes()
+        assert attr_name not in [a.name for a in global_attributes_no_network]
+
+        #Then add the global attribute
+        new_global_attr = client.add_attribute(global_attr)
+
+        #The network attribute is no longer there
+        with pytest.raises(HydraError):
+            client.get_attribute_by_id(network_attr.id)
+
+        global_attributes_no_network = client.get_attributes()
+
+        network_scoped_attributes = client.get_attributes(network_id=network_with_data.id)
+
+
+        #The attribute is now global, and not scoped to the network
+        assert attr_name in [a.name for a in global_attributes_no_network]
+        assert attr_name not in [a.name for a in network_scoped_attributes]
+
+        #Now get the link again. Its attribute should have been updated
+        test_link_updated = client.get_link(test_link.id)
+        #Check that the resource attribute is using the global attribute and not the network scoped attribute
+        assert network_attr.id not in [linkattr.attr_id for linkattr in test_link_updated.attributes]
+        assert new_global_attr.id in [linkattr.attr_id for linkattr in test_link_updated.attributes]
+
+    def test_re_scope_project_attribute_to_global(self, client, network_with_data):
+        """
+            Test adding a global attribute when a scoped attribute already exist.
+            In this case, the scoped attribute needs to be removed and all resource
+            attributes need to be re-assigned to the higher-scoped attribute.
+        """
+        attr_name = f"Project Attribute {datetime.datetime.now()}"
+
+        global_attr = JSONObject({
+            "name": attr_name,
+            "dimension_id": None
+        })
+
+        project_scoped_attr = JSONObject({
+            "name": attr_name,
+            "dimension_id": None,
+            "project_id": network_with_data.project_id
+        })
+
+        #First add the network attribute
+        project_attr = client.add_attribute(project_scoped_attr)
+
+
+        test_link = network_with_data.links[0]
+        client.add_resource_attribute('LINK', test_link.id, project_attr.id, False)
+
+        test_link_updated = client.get_link(test_link.id)
+
+        #Check that the attribute has been added to the link
+        assert project_attr.id in [linkattr.attr_id for linkattr in test_link_updated.attributes]
+
+        #The attribute is not global
+        global_attributes_no_project = client.get_attributes()
+        assert attr_name not in [a.name for a in global_attributes_no_project]
+
+        #Then add the global attribute
+        new_global_attr = client.add_attribute(global_attr)
+
+        #The network attribute is no longer there
+        with pytest.raises(HydraError):
+            client.get_attribute_by_id(project_attr.id)
+
+        global_attributes_no_project = client.get_attributes()
+
+        project_scoped_attributes = client.get_attributes(project_id=network_with_data.project_id)
+
+
+        #The attribute is now global, and not scoped to the network
+        assert attr_name in [a.name for a in global_attributes_no_project]
+        assert attr_name not in [a.name for a in project_scoped_attributes]
+
+        #Now get the link again. Its attribute should have been updated
+        test_link_updated = client.get_link(test_link.id)
+        #Check that the resource attribute is using the global attribute and not the network scoped attribute
+        assert project_attr.id not in [linkattr.attr_id for linkattr in test_link_updated.attributes]
+        assert new_global_attr.id in [linkattr.attr_id for linkattr in test_link_updated.attributes]
+
+
+    def test_re_scope_network_attribute_to_project(self, client, network_with_data):
+        """
+            Test adding a project-level attribute when a scoped attribute already exist.
+            In this case, the scoped attribute needs to be removed and all resource
+            attributes need to be re-assigned to the higher-scoped attribute.
+        """
+        attr_name = f"Network Attribute {datetime.datetime.now()}"
+
+        project_attr = JSONObject({
+            "name": attr_name,
+            "dimension_id": None,
+            "project_id": network_with_data.project_id
+        })
+
+        network_scoped_attr = JSONObject({
+            "name": attr_name,
+            "dimension_id": None,
+            "network_id": network_with_data.id
+        })
+
+        #First add the network attribute
+        network_attr = client.add_attribute(network_scoped_attr)
+
+
+        test_link = network_with_data.links[0]
+        client.add_resource_attribute('LINK', test_link.id, network_attr.id, False)
+
+        test_link_updated = client.get_link(test_link.id)
+
+        #Check that the attribute has been added to the link
+        assert network_attr.id in [linkattr.attr_id for linkattr in test_link_updated.attributes]
+
+        #The attribute is not project
+        project_attributes_no_network = client.get_attributes(project_id=network_with_data.project_id)
+        assert attr_name not in [a.name for a in project_attributes_no_network]
+
+        #Then add the project attribute
+        new_project_attr = client.add_attribute(project_attr)
+
+        #The network attribute is no longer there
+        with pytest.raises(HydraError):
+            client.get_attribute_by_id(network_attr.id)
+
+        project_attributes_no_network = client.get_attributes(project_id=network_with_data.project_id)
+
+        network_scoped_attributes = client.get_attributes(network_id=network_with_data.id)
+
+        #The attribute is now project, and not scoped to the network
+        assert attr_name in [a.name for a in project_attributes_no_network]
+        assert attr_name not in [a.name for a in network_scoped_attributes]
+
+        #Now get the link again. Its attribute should have been updated
+        test_link_updated = client.get_link(test_link.id)
+        #Check that the resource attribute is using the project attribute and not the network scoped attribute
+        assert network_attr.id not in [linkattr.attr_id for linkattr in test_link_updated.attributes]
+        assert new_project_attr.id in [linkattr.attr_id for linkattr in test_link_updated.attributes]

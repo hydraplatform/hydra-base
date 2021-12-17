@@ -112,7 +112,7 @@ def get_attribute_by_id(attr_id, **kwargs):
         Get a specific attribute by its ID.
     """
     try:
-        attr_i = db.DBSession.query(Attr).filter(Attr.id==attr_id).one()
+        attr_i = db.DBSession.query(Attr).filter(Attr.id == attr_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Attribute (attribute id=%s) does not exist"%(attr_id))
 
@@ -143,15 +143,12 @@ def get_attribute_by_name_and_dimension(name, dimension_id=None, network_id=None
     try:
         attr_qry = db.DBSession.query(Attr).filter(
             and_(
-                Attr.name == name,
-                Attr.dimension_id == dimension_id
+                func.lower(Attr.name) == name.strip().lower(),
+                Attr.dimension_id == dimension_id,
+                Attr.network_id == network_id,
+                Attr.project_id == project_id
             )
         )
-
-        if network_id is not None:
-            attr_qry = attr_qry.filter(Attr.network_id == network_id)
-        if project_id is not None:
-            attr_qry = attr_qry.filter(Attr.project_id == project_id)
 
         attr_i = attr_qry.one()
 
@@ -160,10 +157,44 @@ def get_attribute_by_name_and_dimension(name, dimension_id=None, network_id=None
     except NoResultFound:
         return None
 
-def _add_attribute(attr, user_id, flush=True):
+def get_attributes_by_name_and_dimension(name, dimension_id=None, **kwargs):
     """
-    ***WARNING*** This is used for test purposes only, and can allow
-    duplicate attributes to be created
+        Get all attributes with the specified name and dimension, irrespective of
+        scoping.
+        dimension_id can be None, because in attribute the dimension_id is not anymore mandatory
+        args:
+            name (str): The name of the attribute. Lower() is called on this for comparison, so this
+                        is case-insensitive
+            dimension_id (int): the ID of the dimension of the attribute
+        returns:
+            list: JSONObjects derived from the Sqlalchemy rows.
+    """
+    log.info("Retrieving all attributes with name %s and dimension %s", name, dimension_id)
+    attr_qry = db.DBSession.query(Attr).filter(
+        and_(
+            func.lower(Attr.name) == name.strip().lower(),
+            Attr.dimension_id == dimension_id
+        )
+    )
+
+    attrs_i = attr_qry.all()
+
+    log.info("Found %s attributes", len(attrs_i))
+
+    return attrs_i
+
+def _add_attribute(attr, user_id, flush=True, do_reassign=True):
+    """
+    Add an attribute to the DB
+    args:
+        attr: A JSONObject representing the attr
+        user_id: THe ID of the user adding the attribute
+        flush: Flag do indicate whether this shoudl call the DB flush.
+        do_reassign: Flag to indicate whether any attributes scoped lower than the
+                     incomeing attribute should be removed. **WARNINGG*** this is
+                     just here for testing purposes
+     returns:
+        JSONObject of new attr
     """
     log.debug("Adding attribute: %s", attr.name)
 
@@ -195,13 +226,77 @@ def _add_attribute(attr, user_id, flush=True):
         user = db.DBSession.query(User).filter(User.id == user_id).one()
         if not user.is_admin():
             raise PermissionError(f"User {user.username} does not have permission to add a global attribute."+
-                                   "Please specify a network_id or project_id to the attribute.")
+                                  "Please specify a network_id or project_id to the attribute.")
+
 
     db.DBSession.add(attr_i)
     if flush is True:
         db.DBSession.flush()
     log.info("New attr added")
+
+    #Now that we have an ID, check for inconsistencies in the attribute scoping
+    #hierarchy, and fix them buy removing any conflicting entries and reassigning
+    #any resource attributes to the non-conflicting attribute.
+    # only do this for attributes not scoped to a network as a network is the lowest scope.
+    if do_reassign is True and attr_i.network_id is None:
+        _reassign_scoped_attributes(attr_i.id)
+        if flush is True:
+            db.DBSession.flush()
+
     return JSONObject(attr_i)
+
+def _reassign_scoped_attributes(attr_id):
+    """
+    If a matching attribute exists (same name & dimension) but scoped at a lower
+    level, then we need to delete those attributes and then
+    re-assign all resource attributes to use the new, higher-level attribute
+    """
+    attr_i = db.DBSession.query(Attr).filter(Attr.id == attr_id).one()
+
+    #If a matching attribute exists (same name & dimension) but scoped at a lower
+    #level, then we need to delete those attributes, add the new attribute and then
+    #re-assign all resource attributes to use the new, global attribute
+    matching_attrs = get_attributes_by_name_and_dimension(
+        attr_i.name,
+        attr_i.dimension_id
+    )
+    if len(matching_attrs) == 1:
+        #Only 1 returned value means this attr. More than 1 means there's a scoped
+        #attribute with the same name and dimension
+        assert matching_attrs[0].id == attr_id
+        return
+
+
+    #Reassign all resource attributes which point to scoped attirbutes, and then delete
+    #the scoped attributes.
+    scoped_resource_attrs_qry = db.DBSession.query(ResourceAttr).join(Attr).filter(
+        ResourceAttr.attr_id == Attr.id,
+        func.lower(Attr.name) == attr_i.name.lower(),
+        Attr.dimension_id == attr_i.dimension_id,
+        Attr.id != attr_id
+    )
+
+    log.info("%s scoped attribuytes found with same name & dimension. Reassigning.")
+    #If this is a project scoped attribute then we only want to change the scope
+    #of attributes scoped to networks contained within this project,and leave
+    #other projects alone.
+    #If it's global, we want to stipulate that we want all attribute which
+    #are project-scoped also.
+    if attr_i.project_id is not None:
+        scoped_resource_attrs_qry.join(Network).filter(
+            Attr.network_id == Network.id,
+            Network.project_id == Attr.project_id
+        )
+
+    scoped_resource_attrs = scoped_resource_attrs_qry.all()
+
+    #reassign the attributes
+    for scoped_ra in scoped_resource_attrs:
+        scoped_ra.attr_id = attr_i.id
+
+    for matching_attr in matching_attrs:
+        if matching_attr.id != attr_id:
+            db.DBSession.delete(matching_attr)
 
 def _check_can_add_attribute(name, dimension, project_id, network_id, do_raise=True):
     """
@@ -275,28 +370,16 @@ def add_attribute(attr, check_existing=True, **kwargs):
     user_id = kwargs.get('user_id')
 
     if check_existing is False:
-        attr_i = _add_attribute(attr, user_id=user_id)
+        attr_i = _add_attribute(attr, user_id=user_id, do_reassign=False)
         return attr_i
 
-    try:
-        attr_qry = db.DBSession.query(Attr).filter(func.lower(Attr.name) == attr.name.lower(),
-                                                   Attr.dimension_id == attr.dimension_id)
+    attr_i = get_attribute_by_name_and_dimension(
+        attr.name, attr.dimension_id, attr.network_id, attr.project_id, **kwargs
+    )
 
-        if attr.network_id is not None:
-            attr_qry = attr_qry.filter(Attr.network_id == attr.network_id)
-        if attr.project_id is not None:
-            attr_qry = attr_qry.filter(Attr.project_id == attr.project_id)
-
-        attr_i = attr_qry.one()
-
-        attr_i = JSONObject(attr_i)
-
+    if attr_i is not None:
         log.info("Attr already exists")
-
-    except NoResultFound:
-        #set the user ID to 2 here, as this requires admin priviliges. THis is
-        #safe to do because this function has already been checked for add_attribute
-        #permission from the caller
+    else:
         attr_i = _add_attribute(attr, user_id=user_id)
 
     return JSONObject(attr_i)
@@ -541,7 +624,7 @@ def add_resource_attribute(resource_type, resource_id, attr_id, is_var, error_on
             raise HydraError("Duplicate attribute. %s %s already has attribute %s"
                              %(resource_type, resource_i.get_name(), attr.name))
 
-    attr_is_var = 'Y' if is_var == 'Y' else 'N'
+    attr_is_var = 'Y' if is_var in (True, 'Y') else 'N'
 
     new_ra = resource_i.add_attribute(attr_id, attr_is_var)
     db.DBSession.flush()
