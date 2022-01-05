@@ -9,3 +9,4 @@ mysql-client
 python-dateutil
 cheroot
 beaker
+click
