@@ -108,7 +108,7 @@ class Inspect(object):
 
 class AuditMixin(object):
 
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     @declared_attr
     def created_by(cls):
@@ -118,7 +118,7 @@ class AuditMixin(object):
     def updated_by(cls):
         return Column(Integer, ForeignKey('tUser.id'), onupdate=get_user_id_from_engine)
 
-    updated_at = Column(DateTime,  nullable=False, default=datetime.datetime.utcnow(), onupdate=datetime.datetime.utcnow())
+    updated_at = Column(DateTime, nullable=False, default=datetime.datetime.utcnow(), onupdate=datetime.datetime.utcnow())
 
 class PermissionControlled(object):
     def set_owner(self, user_id, read='Y', write='Y', share='Y'):
@@ -133,9 +133,13 @@ class PermissionControlled(object):
             owner.user_id = int(user_id)
             self.owners.append(owner)
 
-        owner.view  = read
-        owner.edit  = write
-        owner.share = share
+        if read is not None:
+            owner.view = read
+        if edit is not None:
+            owner.edit = write
+        if share is not None:
+            owner.share = share
+
         return owner
 
     def unset_owner(self, user_id):
@@ -260,9 +264,9 @@ class DatasetOwner(Base, Inspect):
     user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
     dataset_id = Column(Integer(), ForeignKey('tDataset.id'), primary_key=True, nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    view = Column(String(1),  nullable=False)
-    edit = Column(String(1),  nullable=False)
-    share = Column(String(1),  nullable=False)
+    view = Column(String(1),  nullable=False, default='Y')
+    edit = Column(String(1),  nullable=False, default='N')
+    share = Column(String(1),  nullable=False, default='N')
 
     user = relationship('User')
     dataset = relationship('Dataset', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
@@ -1256,6 +1260,10 @@ class Project(Base, Inspect):
 
     user = relationship('User', backref=backref("projects", order_by=id))
 
+    parent_id = Column(Integer(), ForeignKey('tProject.id'), nullable=True)
+    parent = relationship('Project', remote_side=[id],
+        backref=backref("children", order_by=id))
+
     _parents  = []
     _children = ['tNetwork']
 
@@ -1949,7 +1957,8 @@ class Scenario(Base, Inspect):
     parent_id = Column(Integer(), ForeignKey('tScenario.id'), nullable=True)
 
     network = relationship('Network', backref=backref("scenarios", order_by=id))
-    parent = relationship('Scenario', remote_side=[id], backref=backref("children", order_by=id))
+    parent = relationship('Scenario', remote_side=[id],
+        backref=backref("children", order_by=id))
 
     _parents  = ['tNetwork']
     _children = ['tResourceScenario']
@@ -2116,9 +2125,9 @@ class RuleOwner(AuditMixin, Base, Inspect):
     user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
     rule_id = Column(Integer(), ForeignKey('tRule.id'), primary_key=True, nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    view = Column(String(1),  nullable=False)
-    edit = Column(String(1),  nullable=False)
-    share = Column(String(1),  nullable=False)
+    view = Column(String(1),  nullable=False, default='Y')
+    edit = Column(String(1),  nullable=False, default='N')
+    share = Column(String(1),  nullable=False, default='N')
 
     user = relationship('User', foreign_keys=[user_id])
     rule = relationship('Rule', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
@@ -2354,15 +2363,19 @@ class ProjectOwner(Base, Inspect):
     user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
     project_id = Column(Integer(), ForeignKey('tProject.id'), primary_key=True, nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    view = Column(String(1),  nullable=False)
-    edit = Column(String(1),  nullable=False)
-    share = Column(String(1),  nullable=False)
+    view = Column(String(1),  nullable=False, default='Y')
+    edit = Column(String(1),  nullable=False, default='N')
+    share = Column(String(1),  nullable=False, default='N')
 
     user = relationship('User')
     project = relationship('Project', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
 
     _parents  = ['tProject', 'tUser']
     _children = []
+
+    @property
+    def read(self):
+        return self.view
 
 class NetworkOwner(Base, Inspect):
     """
@@ -2373,9 +2386,9 @@ class NetworkOwner(Base, Inspect):
     user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
     network_id = Column(Integer(), ForeignKey('tNetwork.id'), primary_key=True, nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    view = Column(String(1),  nullable=False)
-    edit = Column(String(1),  nullable=False)
-    share = Column(String(1),  nullable=False)
+    view = Column(String(1),  nullable=False, default='Y')
+    edit = Column(String(1),  nullable=False, default='N')
+    share = Column(String(1),  nullable=False, default='N')
 
     user = relationship('User')
     network = relationship('Network', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))

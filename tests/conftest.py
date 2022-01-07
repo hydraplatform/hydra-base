@@ -164,10 +164,10 @@ def attribute(client):
 @pytest.fixture()
 def projectmaker(client):
     class ProjectMaker:
-        def create(self, name=None, share=True):
+        def create(self, name=None, share=True, parent_id=None):
             if name is None:
                 name = 'Project %s' % (datetime.datetime.now())
-            return client.testutils.create_project(name=name, share=share)
+            return client.testutils.create_project(name=name, share=share, parent_id=parent_id)
 
     return ProjectMaker()
 

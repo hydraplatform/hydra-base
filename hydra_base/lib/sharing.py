@@ -76,15 +76,14 @@ def share_network(network_id, usernames, read_only, share, **kwargs):
     else:
         write = 'Y'
 
-    if share == True:
+    if share is True:
         share = 'Y'
-    elif share == False:
+    elif share is False:
         share = 'N'
 
     if net_i.created_by != int(user_id) and share == 'Y':
-        raise HydraError("Cannot share the 'sharing' ability as user %s is not"
-                     " the owner of network %s"%
-                     (user_id, network_id))
+        raise HydraError(f"Cannot share the 'sharing' ability as user {user_id} is not"
+                         f" the owner of network {network_id}")
 
     for username in usernames:
         user_i = _get_user(username)
@@ -100,9 +99,11 @@ def share_network(network_id, usernames, read_only, share, **kwargs):
         for rule_i in net_i.rules:
             rule_i.set_owner(user_i.id, write=write, share=share)
 
+    share_project(net_i.project_id, usernames, None, None, flush=False, **kwargs)
+
     db.DBSession.flush()
 
-def unshare_network(network_id, usernames,**kwargs):
+def unshare_network(network_id, usernames, **kwargs):
     """
         Un-Share a network with a list of users, identified by their usernames.
     """
@@ -115,10 +116,10 @@ def unshare_network(network_id, usernames,**kwargs):
         user_i = _get_user(username)
         #Set the owner ship on the network itself
 
-    net_i.unset_owner(user_i.id, write=write, share=share)
+    net_i.unset_owner(user_i.id)
     db.DBSession.flush()
 
-def share_project(project_id, usernames, read_only, share,**kwargs):
+def share_project(project_id, usernames, read_only=False, share=False, flush=True, **kwargs):
     """
         Share an entire project with a list of users, identifed by
         their usernames.
@@ -142,13 +143,20 @@ def share_project(project_id, usernames, read_only, share,**kwargs):
         if user_id == owner.user_id:
             break
     else:
-       raise HydraError("Permission Denied. Cannot share project.")
+        raise HydraError("Permission Denied. Cannot share project.")
 
-    if read_only == 'Y':
+    if read_only in ('Y', True):
         write = 'N'
         share = 'N'
-    else:
+    if read_only in ('N', False):
         write = 'Y'
+    if read_only is None:
+        write = None
+
+    if share in ('Y', True):
+        share = 'Y'
+    if share in ('N', False):
+        share = 'N'
 
     if proj_i.created_by != user_id and share == 'Y':
         raise HydraError("Cannot share the 'sharing' ability as user %s is not"
@@ -162,9 +170,14 @@ def share_project(project_id, usernames, read_only, share,**kwargs):
 
         for net_i in proj_i.networks:
             net_i.set_owner(user_i.id, write=write, share=share)
-    db.DBSession.flush()
 
-def unshare_project(project_id, usernames,**kwargs):
+    if proj_i.parent_id is not None:
+        share_project(proj_i.parent_id, usernames, read_only=read_only, share=share, **kwargs)
+
+    if flush is True:
+        db.DBSession.flush()
+
+def unshare_project(project_id, usernames, **kwargs):
     """
         Un-share a project with a list of users, identified by their usernames.
     """
@@ -176,7 +189,7 @@ def unshare_project(project_id, usernames,**kwargs):
     for username in usernames:
         user_i = _get_user(username)
         #Set the owner ship on the network itself
-        proj_i.unset_owner(user_i.id, write=write, share=share)
+        proj_i.unset_owner(user_i.id)
     db.DBSession.flush()
 
 def set_project_permission(project_id, usernames, read, write, share,**kwargs):

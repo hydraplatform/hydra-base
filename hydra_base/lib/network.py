@@ -1690,6 +1690,27 @@ def update_network(network,
     updated_net = get_network(network.id, summary=True, **kwargs)
     return updated_net
 
+@required_perms("edit_network")
+def move_network(network_id, target_project_id, **kwargs):
+    """
+        Update an entire network
+    """
+    log.info("Updating Network %s", network.name)
+    user_id = kwargs.get('user_id')
+
+    try:
+        net_i = db.DBSession.query(Network).filter(Network.id == network_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError("Network with id %s not found"%(network_id))
+
+    net_i.check_write_permission(user_id)
+
+    net_i.project_id = target_project_id
+
+    db.DBSession.flush()
+
+    return JSONObject(net_i)
+
 def update_resource_layout(resource_type, resource_id, key, value, **kwargs):
     log.info("Updating %s %s's layout with {%s:%s}", resource_type, resource_id, key, value)
     resource = get_resource(resource_type, resource_id, **kwargs)
