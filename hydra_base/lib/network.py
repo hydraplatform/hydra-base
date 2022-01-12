@@ -2168,7 +2168,14 @@ def add_link(network_id, link,**kwargs):
 
     return link_i
 
-def update_link(link,**kwargs):
+@required_perms("edit_network")
+def update_links(links, **kwargs):
+    log.info("Updating %s links", len(links))
+    for l in links:
+        update_link(l, flush=False, **kwargs)
+    db.DBSession.flush()
+
+def update_link(link, flush=False, **kwargs):
     """
         Update a link.
     """
@@ -2195,8 +2202,8 @@ def update_link(link,**kwargs):
         hdb.add_resource_attributes(link_i, link.attributes)
     if link.types is not None:
         hdb.add_resource_types(link_i, link.types)
-
-    db.DBSession.flush()
+    if flush is True:
+        db.DBSession.flush()
     return link_i
 
 def set_link_status(link_id, status, **kwargs):
