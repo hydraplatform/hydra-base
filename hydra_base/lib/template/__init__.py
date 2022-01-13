@@ -20,6 +20,7 @@ import json
 import logging
 import re
 from decimal import Decimal
+import datetime
 
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import noload, joinedload
@@ -59,6 +60,67 @@ from hydra_base.lib.template.resource import (get_types_by_attr,
     validate_network)
 
 log = logging.getLogger(__name__)
+
+#A mapping from template ID to a template object
+#The cache is a dict of lists of length 2.
+#list[0] = the last update time of the template
+#list[1] = the template JSONObect
+global TEMPLATE_CACHE
+TEMPLATE_CACHE = {}
+
+def _get_template_from_cache(template_id):
+    """
+        Get the template JSONObect from the cache, if it's not expired.
+        If an expired template is found, it id deleted.
+    """
+
+    global TEMPLATE_CACHE
+
+    now = datetime.datetime.now()
+
+    #default the template timeout to a day -- they don't change often
+    timeout = datetime.timedelta(seconds=config.get('CACHE', 'CACHE_TIMEOUT', 86400))
+
+    cached_template = TEMPLATE_CACHE.get(template_id)
+    if cached_template is None:
+        return None
+
+    if cached_template[0] + timeout > now:
+        log.info("Returning cached template %s", template_id)
+        return cached_template[1]
+    else:
+        _remove_template_from_cache(template_id)
+        log.info("Found an expired template. Deleting.")
+
+    return None
+
+def _save_template_to_cache(template):
+    """
+        Save a template to the memory cache. save as a list:
+        [0] = the current time
+        [1] = the template
+    """
+    global TEMPLATE_CACHE
+
+    now = datetime.datetime.now()
+
+    TEMPLATE_CACHE[template.id] = [now, template]
+
+    return TEMPLATE_CACHE
+
+def _remove_template_from_cache(template_id):
+    """
+        If a template is in the cache, remove it.
+    """
+    global TEMPLATE_CACHE
+    if TEMPLATE_CACHE.get(template_id):
+        del TEMPLATE_CACHE[template_id]
+
+    log.info("Template %s removed from cache.", template_id)
+
+def clear_cache():
+    global TEMPLATE_CACHE
+    TEMPLATE_CACHE = {}
 
 def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j, user_id=None):
     dimension_i = None
@@ -233,6 +295,8 @@ def get_template_as_dict(template_id, **kwargs):
                 del(typeattr_j['attr'])
 
     output_data = {'attributes': attr_dict, 'datasets':dataset_dict, 'template': template_j}
+
+    _save_template_to_cache(template_j)
 
     return output_data
 
@@ -437,6 +501,10 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
 
     db.DBSession.flush()
 
+    template_j = JSONObject(template_i)
+    _save_template_to_cache(template_j)
+
+
     return template_i
 
 def _parse_data_restriction(restriction_dict):
@@ -495,6 +563,9 @@ def add_template(template, **kwargs):
 
     log.info("[Added template]\n{}".format(template))
 
+    template_j = JSONObject(tmpl)
+    _save_template_to_cache(template_j)
+
     return tmpl
 
 
@@ -545,6 +616,11 @@ def add_child_template(parent_id, name, description=None, **kwargs):
 
     db.DBSession.flush()
 
+    template_j = JSONObject(tmpl)
+
+    #dont save this to the cache as it does not contain the full template information
+    #wait for a get_template call to do this, to speed up user experience.
+
     return tmpl
 
 def _set_template_status(template_id, status, **kwargs):
@@ -555,6 +631,8 @@ def _set_template_status(template_id, status, **kwargs):
     tmpl = db.DBSession.query(Template).filter(Template.id == template_id).one()
 
     tmpl.status = status
+
+    _remove_template_from_cache(tmpl.id)
 
     db.DBSession.flush()
 
@@ -635,7 +713,7 @@ def update_template(template, auto_delete=False, **kwargs):
 
     tmpl_j.templatetypes = updated_templatetypes
 
-    #db.DBSession.expunge(tmpl)
+    _save_template_to_cache(tmpl_j)
 
     return tmpl_j
 
@@ -656,6 +734,9 @@ def delete_template(template_id, delete_resourcetypes=False, **kwargs):
 
     db.DBSession.delete(tmpl)
     db.DBSession.flush()
+
+    _remove_template_from_cache(tmpl.id)
+
     return 'OK'
 
 @required_perms("get_template")
@@ -693,6 +774,9 @@ def remove_attr_from_type(type_id, attr_id, **kwargs):
     """
     typeattr_i = db.DBSession.query(TypeAttr).filter(TypeAttr.type_id == type_id,
                                                      TypeAttr.attr_id == attr_id).one()
+
+    _remove_template_from_cache(typeattr_i.templatetype.template_id)
+
     db.DBSession.delete(typeattr_i)
 
 @required_perms("get_template")
@@ -700,6 +784,12 @@ def get_template(template_id, **kwargs):
     """
         Get a specific resource template, by ID.
     """
+
+    tmpl_j = _get_template_from_cache(template_id)
+
+    if tmpl_j is not None:
+        return tmpl_j
+
     try:
         tmpl_i = db.DBSession.query(Template).filter(
             Template.id == template_id).one()
@@ -725,11 +815,10 @@ def get_template_by_name(name, **kwargs):
         tmpl_i = db.DBSession.query(Template).filter(
             Template.name == name).one()
 
-        tmpl_j = JSONObject(tmpl_i)
-
-        tmpl_j.templatetypes = tmpl_i.get_types()
+        tmpl_j = get_template(tmpl_i.id, **kwargs)
 
         return tmpl_j
+
     except NoResultFound:
         log.info("%s is not a valid identifier for a template", name)
         raise HydraError('Template "%s" not found'%name)
@@ -741,6 +830,8 @@ def add_templatetype(templatetype, **kwargs):
     """
 
     type_i = _update_templatetype(templatetype, **kwargs)
+
+    _remove_template_from_cache(type_i.template_id)
 
     db.DBSession.flush()
 
@@ -777,6 +868,8 @@ def add_child_templatetype(parent_id, child_template_id, **kwargs):
 
     db.DBSession.flush()
 
+    _remove_template_from_cache(child_template_id)
+
     return child_type_i
 
 def add_child_typeattr(parent_id, child_template_id, **kwargs):
@@ -806,6 +899,8 @@ def add_child_typeattr(parent_id, child_template_id, **kwargs):
 
     db.DBSession.flush()
 
+    _remove_template_from_cache(child_template_id)
+
     return child_typeattr_i
 
 
@@ -833,6 +928,8 @@ def update_templatetype(templatetype, auto_delete=False, **kwargs):
     updated_type = tmpltype_i.template.get_type(tmpltype_i.id)
 
 #    db.DBSession.expunge(updated_type)
+
+    _remove_template_from_cache(tmpltype_i.template_id)
 
     return updated_type
 
@@ -1084,6 +1181,8 @@ def delete_templatetype(type_id, template_i=None, delete_resourcetypes=False, fl
 
     db.DBSession.delete(tmpltype_i)
 
+    _remove_template_from_cache(tmpltype_i.template_id)
+
     if flush:
         db.DBSession.flush()
 
@@ -1165,6 +1264,8 @@ def add_typeattr(typeattr, **kwargs):
 
     ta = _set_typeattr(typeattr)
 
+    _remove_template_from_cache(tmpltype.template_id)
+
     db.DBSession.flush()
 
     return ta
@@ -1188,6 +1289,8 @@ def update_typeattr(typeattr, **kwargs):
 
     db.DBSession.flush()
 
+    _remove_template_from_cache(existing_ta.templatetype.template_id)
+
     return typeattr_updated
 
 @required_perms("edit_template")
@@ -1201,5 +1304,7 @@ def delete_typeattr(typeattr_id, **kwargs):
     db.DBSession.delete(ta)
 
     db.DBSession.flush()
+
+    _remove_template_from_cache(ta.templatetype.template_id)
 
     return 'OK'

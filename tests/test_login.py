@@ -16,12 +16,10 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
+import pytest
 
 import hydra_base
 import hydra_base.exceptions
-import datetime
-import bcrypt
-import pytest
 
 class TestLogin:
     """ A collection of tests of the User part of the DB.
@@ -81,7 +79,10 @@ class TestLogin:
 
 
     def test_login_too_many_attempts(self, client):
-        exception_raised=""
-        for i in range(1,10):
-            with pytest.raises(hydra_base.exceptions.HydraError):
-                user_id, session_id = client.login('root', 'wrong-password!')
+        for i in range(8):
+            if i < 7:
+                with pytest.raises(hydra_base.exceptions.HydraError):
+                    user_id, session_id = client.login('root', 'wrong-password!')
+            if i == 7:
+                with pytest.raises(hydra_base.exceptions.HydraLoginUserMaxAttemptsExceeded):
+                    user_id, session_id = client.login('root', 'wrong-password!')
