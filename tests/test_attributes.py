@@ -287,6 +287,7 @@ class TestResourceAttribute:
                     manual_all_network_attributes.append(a.attr_id)
         for n in network_with_data.links:
             for a in n.attributes:
+                print(a.attr_id)
                 if a.attr_id not in manual_all_network_attributes:
                     manual_all_network_attributes.append(a.attr_id)
         for n in network_with_data.resourcegroups:
@@ -294,7 +295,7 @@ class TestResourceAttribute:
                 if a.attr_id not in manual_all_network_attributes:
                     manual_all_network_attributes.append(a.attr_id)
 
-        assert len(all_network_attributes) == len(manual_all_network_attributes)
+        assert len(set([a.id for a in all_network_attributes])) == len(manual_all_network_attributes)
 
 
     def test_add_group_attribute(self, client, network_with_data, attribute):
