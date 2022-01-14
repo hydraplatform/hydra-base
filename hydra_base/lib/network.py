@@ -3167,9 +3167,9 @@ def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, gro
 def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, group_id_map):
 
     log.info("Cloning Network Types")
-    network_ras = db.DBSession.query(ResourceType).filter(ResourceType.network_id==network_id)
+    network_rts = db.DBSession.query(ResourceType).filter(ResourceType.network_id==network_id)
     new_ras = []
-    for rt in network_ras:
+    for rt in network_rts:
         new_ras.append(dict(
             ref_key=rt.ref_key,
             network_id=newnetworkid,
@@ -3177,6 +3177,7 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
             link_id=rt.link_id,
             group_id=rt.group_id,
             type_id=rt.type_id,
+            child_template_id=rt.child_template_id,
         ))
     log.info("Cloning Node Types")
     node_rts = db.DBSession.query(ResourceType).filter(and_(ResourceType.node_id==Node.id, Node.network_id==network_id))
@@ -3188,6 +3189,7 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
             link_id=rt.link_id,
             group_id=rt.group_id,
             type_id=rt.type_id,
+            child_template_id=rt.child_template_id,
         ))
     log.info("Cloning Link Types")
     link_rts = db.DBSession.query(ResourceType).filter(and_(ResourceType.link_id==Link.id, Link.network_id==network_id))
@@ -3199,6 +3201,7 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
             link_id=link_id_map[rt.link_id],
             group_id=rt.group_id,
             type_id=rt.type_id,
+            child_template_id=rt.child_template_id,
         ))
 
     log.info("Cloning Group Types")
@@ -3211,6 +3214,7 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
             link_id=rt.link_id,
             group_id=group_id_map[rt.group_id],
             type_id=rt.type_id,
+            child_template_id=rt.child_template_id,
         ))
 
     log.info("Inserting new resource types")
