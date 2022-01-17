@@ -43,7 +43,6 @@ def check_perm(user_id, permission_code):
         except NoResultFound:
             raise PermissionError("Nonexistent permission type: %s"%(permission_code))
         except TimeoutError:
-            # log.error("TIMEOUT!!!!!")
             restart_session()
 
 
