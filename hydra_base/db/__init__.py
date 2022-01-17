@@ -113,6 +113,7 @@ def restart_session():
     """
         WILL RESTART THE SESSION
     """
+    log.warning("Restarting the DB Session!")
     global DBSession
     DBSession.close()
     global hydra_db_url
