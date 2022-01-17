@@ -197,6 +197,8 @@ def create_default_users_and_perms():
     # if len(perms) > 0:
     #     return
 
+    log.info("Adding default users and permissions")
+
     default_perms = (
         ("get_user", "Get User"),
         ("add_user", "Add User"),
@@ -394,7 +396,7 @@ def create_default_users_and_perms():
         #log.info("Link Role:{}({}) <---> Perm:{}({})".format(role_code, id_maps_dict["role"][role_code], perm_code, id_maps_dict["perm"][perm_code]))
 
         links_found = db.DBSession.query(RolePerm).filter(RolePerm.role_id==id_maps_dict["role"][role_code]).filter(RolePerm.perm_id==id_maps_dict["perm"][perm_code]).all()
-        if len(links_found)==0:
+        if len(links_found) == 0:
             # Adding link
             log.debug("# Adding link")
             roleperm = RolePerm()
@@ -419,7 +421,7 @@ def create_default_units_and_dimensions(update=True):
     """
 
     log.info("Adding default units and dimensions.")
-    
+
     if update is False:
         #if update is set to false, check if there are dimensions. If there are
         #any existing dimensions, then log it and return.
@@ -436,7 +438,7 @@ def create_default_units_and_dimensions(update=True):
                      'default_units_and_dimensions.json'))
 
 
-    d=None
+    d = None
 
     with open(default_units_file_location) as json_data:
         d = json.load(json_data)

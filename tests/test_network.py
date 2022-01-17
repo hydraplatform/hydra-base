@@ -33,6 +33,65 @@ class TestNetwork:
         Test for network-based functionality
     """
 
+    def test_get_network_with_template(self, client, network_with_data):
+        """
+
+        """
+        net = network_with_data
+        logging.info("%s nodes before", len(net.nodes))
+        #All the nodes are in this template, so return them all
+        assert len(net.nodes) == 10
+        #The type has only 2 attributes, so these are the only
+        #ones which should be returned.
+        for n in net.nodes:
+            assert len(n.attributes) == 4
+
+        #only 4 of the links in the network have a type, so only these
+        #4 should be returned.
+        logging.info("%s links before", len(net.links))
+        assert len(net.links) == 9
+        #of the 4 links returned, ensure the two attributes are on each one.
+        for l in net.links:
+            if l.types is not None:
+                assert len(l.attributes) == 3
+            else:
+                assert len(l.attributes) == 3
+        assert len(net.resourcegroups) == 1
+
+        template_id = net.nodes[0].types[0].template_id
+
+        filtered_net = client.get_network(net.id, template_id=template_id)
+        logging.info("%s nodes after",len(filtered_net.nodes))
+        #All the nodes are in this template, so return them all
+        assert len(filtered_net.nodes) == 10
+
+        assert len(filtered_net.attributes) == 2
+
+        #The type has only 2 attributes, so these are the only
+        #ones which should be returned.
+        for n in filtered_net.nodes:
+            assert len(n.attributes) == 4
+        #only 4 of the links in the network have a type, so only these
+        #4 should be returned.
+        logging.info("%s links after", len(filtered_net.links))
+        assert len(filtered_net.links) == 4
+        #of the 4 links returned, ensure the two attributes are on each one.
+        for l in filtered_net.links:
+            assert len(l.attributes) == 3
+
+        assert len(filtered_net.resourcegroups) == 0
+
+        unfiltered_net = client.get_network(net.id)
+
+        assert len(unfiltered_net.attributes) == 3
+
+        filtered_net_with_extra_attributes = client.get_network(
+            net.id,
+            template_id=template_id,
+            include_non_template_attributes=True)
+
+        assert len(filtered_net.attributes) == len(filtered_net_with_extra_attributes.attributes) - 1
+
     def test_get_resources_of_type(self, client, network_with_data):
         """
             Test for the retrieval of all the resources of a specified
@@ -69,75 +128,13 @@ class TestNetwork:
             break
 
 
-        all_network_resource_attrs = client.get_all_resource_attributes_in_network(test_attr_id,
-                                                                network_with_data.id)
+        all_network_resource_attrs = client.get_all_resource_attributes_in_network(
+            test_attr_id,
+            network_with_data.id
+        )
 
         #Find the attribute that ALL nodes have.
         assert len(all_network_resource_attrs) == len(network_with_data.nodes)
-
-
-
-
-    def test_get_network_with_template(self, client, network_with_data, attribute):
-        """
-            Test for the potentially likely case of creating a network with two
-            scenarios, then querying for the network without data to identify
-            the scenarios, then querying for the network with data but in only
-            a select few scenarios.
-        """
-        net = network_with_data
-        logging.info("%s nodes before",(len(net.nodes)))
-        #All the nodes are in this template, so return them all
-        assert len(net.nodes) == 10
-        #The type has only 2 attributes, so these are the only
-        #ones which should be returned.
-        for n in net.nodes:
-            assert len(n.attributes) == 4
-
-        #only 4 of the links in the network have a type, so only these
-        #4 should be returned.
-        logging.info("%s links before"%(len(net.links)))
-        assert len(net.links) == 9
-        #of the 4 links returned, ensure the two attributes are on each one.
-        for l in net.links:
-            if l.types is not None:
-                assert len(l.attributes) == 3
-            else:
-                assert len(l.attributes) == 3
-        assert len(net.resourcegroups) == 1
-
-        template_id = net.nodes[0].types[0].template_id
-
-        filtered_net = client.get_network(net.id, template_id=template_id)
-        logging.info("%s nodes after",(len(filtered_net.nodes)))
-        #All the nodes are in this template, so return them all
-        assert len(filtered_net.nodes) == 10
-
-        assert len(filtered_net.attributes) == 2
-
-        #The type has only 2 attributes, so these are the only
-        #ones which should be returned.
-        for n in filtered_net.nodes:
-            assert len(n.attributes) == 4
-        #only 4 of the links in the network have a type, so only these
-        #4 should be returned.
-        logging.info("%s links after"%(len(filtered_net.links)))
-        assert len(filtered_net.links) == 4
-        #of the 4 links returned, ensure the two attributes are on each one.
-        for l in filtered_net.links:
-            assert len(l.attributes) == 3
-
-        assert len(filtered_net.resourcegroups) == 0
-
-        unfiltered_net = client.get_network(net.id)
-
-        assert len(unfiltered_net.attributes) == 3
-
-        filtered_net_with_extra_attributes = client.get_network(net.id,
-                                                            template_id = template_id,
-                                                            include_non_template_attributes = True)
-
-        assert len(filtered_net.attributes) == len(filtered_net_with_extra_attributes.attributes) - 1
 
 
     def test_get_network_1(self, client, networkmaker):

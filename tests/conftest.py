@@ -95,6 +95,7 @@ def client(connection_type, testdb_uri):
     pytest.user_c = client.testutils.create_user("UserC", role='developer')
     yield client
     #???
+    hydra_base.lib.template.clear_cache()
     hydra_base.db.close_session()
     try:
         drop_tables(testdb_uri)

@@ -145,9 +145,12 @@ def _check_ra_duplicates(all_resource_attrs, resource_id_name_map):
             attr_id = ra['attr_id']
             raise HydraError(f"Duplicate Resource Attr specified: {resource_name}  {attr_id}")
 
-def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, template_lookup={}):
+def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, template_lookup=None):
 
     log.info("Bulk adding resource attributes")
+
+    if template_lookup is None:
+        template_lookup = {}
 
     start_time = datetime.datetime.now()
 
@@ -190,7 +193,11 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
 
  #   template_lookup = {} #a lookup of all the templates used by the resource
     typeattr_lookup = {} # a lookup from type ID to a list of typeattrs
-    network_child_template_id = None
+
+    #A lookup from type ID to the child template that it should be using.
+    #We assume that a resource can't have 2 type IDS from the same network.
+    type_child_template_id_lookup = {}
+
     #Holds all the attributes supposed to be on a resource based on its specified
     #type
     resource_resource_types = []
@@ -204,18 +211,21 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
             for resource_type in resource.types:
                 #Go through all the resource types and add the appropriate resource
                 #type entries
-
+                resource_type_id = resource_type.id
                 if resource_type.child_template_id is None:
-                    if network_child_template_id is None:
+                    if type_child_template_id_lookup.get(resource_type_id) is None:
                         network_child_template_id = template.get_network_template(network_id, resource_type.id)#TODO this should be type_id
 
                         #ok, so no child ID found. We need to just use the template
                         #ID of the type which was given
                         if network_child_template_id is None:
-                            t = template.get_templatetype(resource_type.id, user_id=admin_id)
-                            network_child_template_id = t.template_id
+                            tt = template.get_templatetype(resource_type.id, user_id=admin_id)
 
-                    resource_type.child_template_id = network_child_template_id
+                            network_child_template_id = tt.template_id
+
+                        type_child_template_id_lookup[resource_type_id] = network_child_template_id
+
+                    resource_type.child_template_id = type_child_template_id_lookup[resource_type_id]
 
                 ref_id = resource_i.id
 
@@ -520,7 +530,7 @@ def _add_resource_groups(net_i, resourcegroups, template_lookup):
 
 
 @required_perms("add_network")
-def add_network(network,**kwargs):
+def add_network(network, **kwargs):
     """
     Takes an entire network complex model and saves it to the DB.  This
     complex model includes links & scenarios (with resource data).  Returns
@@ -662,8 +672,7 @@ def add_network(network,**kwargs):
                         group_item_i.subgroup = grp_id_map[group_item.ref_id]
                     else:
                         raise HydraError("A ref key of %s is not valid for a "
-                                         "resource group item.",\
-                                         group_item.ref_key)
+                                         "resource group item."%group_item.ref_key)
 
                     scen.resourcegroupitems.append(group_item_i)
             log.info("Group items insert took %s", get_timing(item_start_time))
@@ -3168,9 +3177,9 @@ def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, gro
 def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, group_id_map):
 
     log.info("Cloning Network Types")
-    network_ras = db.DBSession.query(ResourceType).filter(ResourceType.network_id==network_id)
+    network_rts = db.DBSession.query(ResourceType).filter(ResourceType.network_id==network_id)
     new_ras = []
-    for rt in network_ras:
+    for rt in network_rts:
         new_ras.append(dict(
             ref_key=rt.ref_key,
             network_id=newnetworkid,
@@ -3178,6 +3187,7 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
             link_id=rt.link_id,
             group_id=rt.group_id,
             type_id=rt.type_id,
+            child_template_id=rt.child_template_id,
         ))
     log.info("Cloning Node Types")
     node_rts = db.DBSession.query(ResourceType).filter(and_(ResourceType.node_id==Node.id, Node.network_id==network_id))
@@ -3189,6 +3199,7 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
             link_id=rt.link_id,
             group_id=rt.group_id,
             type_id=rt.type_id,
+            child_template_id=rt.child_template_id,
         ))
     log.info("Cloning Link Types")
     link_rts = db.DBSession.query(ResourceType).filter(and_(ResourceType.link_id==Link.id, Link.network_id==network_id))
@@ -3200,6 +3211,7 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
             link_id=link_id_map[rt.link_id],
             group_id=rt.group_id,
             type_id=rt.type_id,
+            child_template_id=rt.child_template_id,
         ))
 
     log.info("Cloning Group Types")
@@ -3212,6 +3224,7 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
             link_id=rt.link_id,
             group_id=group_id_map[rt.group_id],
             type_id=rt.type_id,
+            child_template_id=rt.child_template_id,
         ))
 
     log.info("Inserting new resource types")
