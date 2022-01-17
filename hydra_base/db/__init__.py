@@ -46,6 +46,9 @@ DBSession = None
 global engine
 engine = None
 
+global hydra_db_url
+hydra_db_url=None
+
 #logger_sqlalchemy = logging.getLogger('sqlalchemy')
 #logger_sqlalchemy.setLevel(logging.DEBUG)
 
@@ -106,11 +109,21 @@ def create_mysql_db(db_url):
 
     return db_url
 
+def restart_session():
+    """
+        WILL RESTART THE SESSION
+    """
+    global DBSession
+    DBSession.close()
+    global hydra_db_url
+    connect(hydra_db_url)
+
+
 def connect(db_url=None):
     if db_url is None:
         db_url = config.get('mysqld', 'url')
 
-    log.info("Connecting to database")
+    log.info("Connecting to database 1.0")
     if db_url.find('@') >= 0:
         log.info("DB URL: %s", db_url.split('@')[1])
     else:
@@ -120,9 +133,11 @@ def connect(db_url=None):
 
     global engine
 
-    db_pool_size = config.get('mysqld', 'pool_size', 10)
-    db_pool_recycle = config.get('mysqld', 'pool_recycle', 300)
-    db_max_overflow = config.get('mysqld', 'max_overflow', 10)
+    db_pool_size = config.get('mysqld', 'pool_size',1) # 10
+    db_pool_recycle = config.get('mysqld', 'pool_recycle', 1) # 300
+    db_max_overflow = config.get('mysqld', 'max_overflow', 0) # 10
+    db_pool_timeout = config.get('mysqld', 'pool_timeout', 10)
+
     if db_url.startswith('sqlite'):
         engine = create_engine(db_url, encoding='utf8')
     else:
@@ -130,7 +145,12 @@ def connect(db_url=None):
                                encoding='utf8',
                                pool_recycle=db_pool_recycle,
                                pool_size=db_pool_size,
+                               pool_timeout=db_pool_timeout,
                                max_overflow=db_max_overflow)
+
+    global hydra_db_url
+    hydra_db_url=db_url
+
 
     global DBSession
 
