@@ -797,6 +797,7 @@ def compare_scenarios(scenario_id_1, scenario_id_2, allow_different_networks=Fal
 
             continue
         else:
+            #this is unique in scenario 1
             resource_diff = dict(
                 resource_attr_id = s1_rs.resource_attr_id,
                 scenario_1_dataset = s1_rs.dataset,
@@ -810,7 +811,7 @@ def compare_scenarios(scenario_id_1, scenario_id_2, allow_different_networks=Fal
     #in scenario 2.
     for ra_id, s2_rs in r_scen_2_dict.items():
         s1_rs = r_scen_1_dict.get(ra_id)
-        if s1_rs is not None:
+        if s1_rs is None:
             resource_diff = dict(
                 resource_attr_id = s1_rs.resource_attr_id,
                 scenario_1_dataset = None,
@@ -1356,7 +1357,6 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id=None, expunge_sessio
 
     resource_i = get_resource(ref_key, ref_id)
     ra_ids = [ra.id for ra in resource_i.attributes]
-
     scenario_i = _get_scenario(scenario_id, user_id)
     requested_rs = scenario_i.get_data(get_parent_data=get_parent_data, ra_ids=ra_ids)
 

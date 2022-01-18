@@ -567,6 +567,9 @@ class TestScenario:
         clone1 = client.clone_scenario(scenario_id, scenario_name="My Cloned Scenario")
         clone2 = client.clone_scenario(scenario_id, retain_results=True)
 
+        scenario_diff = JSONObject(client.compare_scenarios(scenario.id, clone.id))
+        assert len(scenario_diff.resourcescenarios) == 0, "Scenarios should be the same but are not"
+
         #This should fail because there's already another scenario with this name
         with pytest.raises(HydraError):
             client.clone_scenario(scenario_id, scenario_name="My Cloned Scenario")
@@ -917,6 +920,10 @@ class TestScenario:
 
         clone = client.clone_scenario(scenario_id, retain_results=True)
         new_scenario = client.get_scenario(clone.id)
+
+        scenario_diff = JSONObject(client.compare_scenarios(scenario.id, new_scenario.id))
+
+        assert len(scenario_diff.resourcescenarios) == 0, "Scenarios should be the same but are not"
 
         resource_scenario = new_scenario.resourcescenarios[0]
         resource_attr_id = resource_scenario.resource_attr_id
