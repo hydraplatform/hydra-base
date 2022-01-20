@@ -134,10 +134,10 @@ def connect(db_url=None):
     db_max_overflow = int(config.get('mysqld', 'max_overflow', 2)) # 10 -> 30
     db_pool_timeout = int(config.get('mysqld', 'pool_timeout', 10))
 
-    print(f"db_pool_size: {db_pool_size}")
-    print(f"pool_recycle: {db_pool_recycle}")
-    print(f"max_overflow: {db_max_overflow}")
-    print(f"pool_timeout: {db_pool_timeout}")
+    log.warning(f"db_pool_size: {db_pool_size}")
+    log.warning(f"pool_recycle: {db_pool_recycle}")
+    log.warning(f"max_overflow: {db_max_overflow}")
+    log.warning(f"pool_timeout: {db_pool_timeout}")
 
     if db_url.startswith('sqlite'):
         engine = create_engine(db_url, encoding='utf8')
