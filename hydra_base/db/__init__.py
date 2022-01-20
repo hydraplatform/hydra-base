@@ -128,6 +128,7 @@ def connect(db_url=None):
     global engine
 
     # Lets use at least 10 for size and 20 for overflow (hydra.ini file)
+    # To test the timeout: pool_size:1, max_overflow: 0, pool_timeout: 5 or any low value
     db_pool_size = int(config.get('mysqld', 'pool_size',1)) # 10
     db_pool_recycle = int(config.get('mysqld', 'pool_recycle', 1)) # 300
     db_max_overflow = int(config.get('mysqld', 'max_overflow', 2)) # 10 -> 30
