@@ -204,7 +204,6 @@ def get_dimensions(**kwargs):
     for dimension in dimensions_list:
         return_list.append(get_dimension(dimension.id))
 
-
     return return_list
 
 

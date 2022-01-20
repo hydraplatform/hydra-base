@@ -47,7 +47,6 @@ from collections import namedtuple
 
 from hydra_base import config
 
-
 import logging
 log = logging.getLogger(__name__)
 
@@ -1191,7 +1190,6 @@ def _get_scenarios(network_id, include_data, include_results, user_id,
 
     return scens
 
-
 def get_network(network_id,
                 include_attributes=True,
                 include_data=False,
@@ -1383,7 +1381,6 @@ def get_groups(network_id, template_id=None, **kwargs):
 
     return groups
 
-
 def get_network_simple(network_id,**kwargs):
 
     try:
@@ -1394,7 +1391,6 @@ def get_network_simple(network_id,**kwargs):
         return n
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id,))
-
 
 def get_node(node_id, scenario_id=None, **kwargs):
     try:

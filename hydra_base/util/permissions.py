@@ -23,6 +23,8 @@ from ..db.model import Perm, User, Role, RolePerm, RoleUser
 from sqlalchemy.orm.exc import NoResultFound
 from ..exceptions import PermissionError
 
+
+
 def check_perm(user_id, permission_code):
     """
         Checks whether a user has permission to perform an action.
@@ -35,6 +37,7 @@ def check_perm(user_id, permission_code):
         perm = db.DBSession.query(Perm).filter(Perm.code==permission_code).one()
     except NoResultFound:
         raise PermissionError("Nonexistent permission type: %s"%(permission_code))
+
 
     try:
         #get all the roles where the specified user has the specified permission
