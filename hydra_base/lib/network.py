@@ -47,8 +47,6 @@ from collections import namedtuple
 
 from hydra_base import config
 
-from sqlalchemy.exc import TimeoutError
-from hydra_base.db import restart_session
 
 import logging
 log = logging.getLogger(__name__)
@@ -1193,6 +1191,7 @@ def _get_scenarios(network_id, include_data, include_results, user_id,
 
     return scens
 
+
 def get_network(network_id,
                 include_attributes=True,
                 include_data=False,
@@ -1226,71 +1225,65 @@ def get_network(network_id,
 
     network_id = int(network_id)
 
-    while True:
-        try:
-            log.debug("Querying Network %s", network_id)
-            net_i = db.DBSession.query(Network).filter(
-                Network.id == network_id).options(
-                noload('scenarios')).options(
-                noload('nodes')).options(
-                noload('links')).options(
-                noload('types')).options(
-                noload('attributes')).options(
-                noload('resourcegroups')).one()
+    try:
+        log.debug("Querying Network %s", network_id)
+        net_i = db.DBSession.query(Network).filter(
+            Network.id == network_id).options(
+            noload('scenarios')).options(
+            noload('nodes')).options(
+            noload('links')).options(
+            noload('types')).options(
+            noload('attributes')).options(
+            noload('resourcegroups')).one()
 
-            net_i.check_read_permission(user_id)
+        net_i.check_read_permission(user_id)
 
-            net = JSONObject(net_i)
+        net = JSONObject(net_i)
 
-            net.nodes = _get_nodes(network_id, template_id=template_id)
-            net.links = _get_links(network_id, template_id=template_id)
-            net.resourcegroups = _get_groups(network_id, template_id=template_id)
-            net.owners = _get_network_owners(network_id)
+        net.nodes = _get_nodes(network_id, template_id=template_id)
+        net.links = _get_links(network_id, template_id=template_id)
+        net.resourcegroups = _get_groups(network_id, template_id=template_id)
+        net.owners = _get_network_owners(network_id)
 
-            if include_attributes in ('Y', True):
-                all_attributes = _get_all_resource_attributes(network_id,
-                                                              template_id,
-                                                              include_non_template_attributes)
-                log.info("Setting attributes")
-                net.attributes = all_attributes['NETWORK'].get(network_id, [])
-                for node_i in net.nodes:
-                    node_i.attributes = all_attributes['NODE'].get(node_i.id, [])
-                log.info("Node attributes set")
-                for link_i in net.links:
-                    link_i.attributes = all_attributes['LINK'].get(link_i.id, [])
-                log.info("Link attributes set")
-                for group_i in net.resourcegroups:
-                    group_i.attributes = all_attributes['GROUP'].get(group_i.id, [])
-                log.info("Group attributes set")
-
-
-            log.info("Setting types")
-            all_types = _get_all_templates(network_id, template_id)
-            net.types = all_types['NETWORK'].get(network_id, [])
+        if include_attributes in ('Y', True):
+            all_attributes = _get_all_resource_attributes(network_id,
+                                                          template_id,
+                                                          include_non_template_attributes)
+            log.info("Setting attributes")
+            net.attributes = all_attributes['NETWORK'].get(network_id, [])
             for node_i in net.nodes:
-                node_i.types = all_types['NODE'].get(node_i.id, [])
+                node_i.attributes = all_attributes['NODE'].get(node_i.id, [])
+            log.info("Node attributes set")
             for link_i in net.links:
-                link_i.types = all_types['LINK'].get(link_i.id, [])
+                link_i.attributes = all_attributes['LINK'].get(link_i.id, [])
+            log.info("Link attributes set")
             for group_i in net.resourcegroups:
-                group_i.types = all_types['GROUP'].get(group_i.id, [])
+                group_i.attributes = all_attributes['GROUP'].get(group_i.id, [])
+            log.info("Group attributes set")
 
-            log.info("Getting scenarios")
 
-            net.scenarios = _get_scenarios(network_id,
-                                           include_data,
-                                           include_results,
-                                           user_id,
-                                           scenario_ids,
-                                           include_metadata=include_metadata)
+        log.info("Setting types")
+        all_types = _get_all_templates(network_id, template_id)
+        net.types = all_types['NETWORK'].get(network_id, [])
+        for node_i in net.nodes:
+            node_i.types = all_types['NODE'].get(node_i.id, [])
+        for link_i in net.links:
+            link_i.types = all_types['LINK'].get(link_i.id, [])
+        for group_i in net.resourcegroups:
+            group_i.types = all_types['GROUP'].get(group_i.id, [])
 
-            break
+        log.info("Getting scenarios")
 
-        except NoResultFound:
-            raise ResourceNotFoundError("Network (network_id=%s) not found." % network_id)
-        except TimeoutError:
-            log.error("TIMEOUT!!!!!")
-            restart_session()
-            # db.DBSession.refresh()
+        net.scenarios = _get_scenarios(network_id,
+                                       include_data,
+                                       include_results,
+                                       user_id,
+                                       scenario_ids,
+                                       include_metadata=include_metadata)
+
+
+    except NoResultFound:
+        raise ResourceNotFoundError("Network (network_id=%s) not found." % network_id)
 
     return net
 
@@ -1390,7 +1383,9 @@ def get_groups(network_id, template_id=None, **kwargs):
 
     return groups
 
+
 def get_network_simple(network_id,**kwargs):
+
     try:
         n = db.DBSession.query(Network).filter(Network.id==network_id).options(joinedload('attributes').joinedload('attr')).one()
         n.types
@@ -1399,6 +1394,7 @@ def get_network_simple(network_id,**kwargs):
         return n
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id,))
+
 
 def get_node(node_id, scenario_id=None, **kwargs):
     try:

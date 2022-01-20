@@ -34,10 +34,6 @@ from ..exceptions import HydraError, ResourceNotFoundError, ValidationError
 
 from ..util.permissions import required_perms
 
-from sqlalchemy.exc import TimeoutError
-from hydra_base.db import restart_session
-
-
 import numpy
 import logging
 log = logging.getLogger(__name__)
@@ -202,14 +198,8 @@ def get_dimensions(**kwargs):
     """
         Returns a list of objects describing all the dimensions with all the units.
     """
-    while True:
-        try:
-            dimensions_list = db.DBSession.query(Dimension).options(load_only("id")).all()
-            break
-        except TimeoutError:
-            log.error("TIMEOUT!!!!!")
-            restart_session()
-        
+    dimensions_list = db.DBSession.query(Dimension).options(load_only("id")).all()
+
     return_list = []
     for dimension in dimensions_list:
         return_list.append(get_dimension(dimension.id))

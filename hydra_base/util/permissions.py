@@ -23,11 +23,6 @@ from ..db.model import Perm, User, Role, RolePerm, RoleUser
 from sqlalchemy.orm.exc import NoResultFound
 from ..exceptions import PermissionError
 
-from sqlalchemy.exc import TimeoutError
-from hydra_base.db import restart_session
-
-
-
 def check_perm(user_id, permission_code):
     """
         Checks whether a user has permission to perform an action.
@@ -36,15 +31,10 @@ def check_perm(user_id, permission_code):
         If the user does not have permission to perfom an action, a permission
         error is thrown.
     """
-    while True:
-        try:
-            perm = db.DBSession.query(Perm).filter(Perm.code==permission_code).one()
-            break
-        except NoResultFound:
-            raise PermissionError("Nonexistent permission type: %s"%(permission_code))
-        except TimeoutError:
-            restart_session()
-
+    try:
+        perm = db.DBSession.query(Perm).filter(Perm.code==permission_code).one()
+    except NoResultFound:
+        raise PermissionError("Nonexistent permission type: %s"%(permission_code))
 
     try:
         #get all the roles where the specified user has the specified permission
