@@ -1279,7 +1279,6 @@ def get_network(network_id,
                                        scenario_ids,
                                        include_metadata=include_metadata)
 
-
     except NoResultFound:
         raise ResourceNotFoundError("Network (network_id=%s) not found." % network_id)
 
@@ -1382,7 +1381,6 @@ def get_groups(network_id, template_id=None, **kwargs):
     return groups
 
 def get_network_simple(network_id,**kwargs):
-
     try:
         n = db.DBSession.query(Network).filter(Network.id==network_id).options(joinedload('attributes').joinedload('attr')).one()
         n.types
