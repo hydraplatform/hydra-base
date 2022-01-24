@@ -117,7 +117,7 @@ def connect(db_url=None):
     if db_url is None:
         db_url = config.get('mysqld', 'url')
 
-    log.info("Connecting to database 1.0")
+    log.info("Connecting to database")
     if db_url.find('@') >= 0:
         log.info("DB URL: %s", db_url.split('@')[1])
     else:
@@ -127,17 +127,14 @@ def connect(db_url=None):
 
     global engine
 
-    # Lets use at least 10 for size and 20 for overflow (hydra.ini file)
+    # Let's use at least 10 for size and 20 for overflow (hydra.ini file)
     # To test the timeout: pool_size:1, max_overflow: 0, pool_timeout: 5 or any low value
-    db_pool_size = int(config.get('mysqld', 'pool_size',1)) # 10
-    db_pool_recycle = int(config.get('mysqld', 'pool_recycle', 1)) # 300
-    db_max_overflow = int(config.get('mysqld', 'max_overflow', 2)) # 10 -> 30
+    db_pool_size = int(config.get('mysqld', 'pool_size',10)) # 10
+    db_pool_recycle = int(config.get('mysqld', 'pool_recycle', 300)) # 300
+    db_max_overflow = int(config.get('mysqld', 'max_overflow', 20)) # 10 -> 30
     db_pool_timeout = int(config.get('mysqld', 'pool_timeout', 10))
 
-    log.warning(f"db_pool_size: {db_pool_size}")
-    log.warning(f"pool_recycle: {db_pool_recycle}")
-    log.warning(f"max_overflow: {db_max_overflow}")
-    log.warning(f"pool_timeout: {db_pool_timeout}")
+    log.warning(f"db_pool_size: {db_pool_size} - pool_recycle: {db_pool_recycle} - max_overflow: {db_max_overflow} - pool_timeout: {db_pool_timeout}")
 
     if db_url.startswith('sqlite'):
         engine = create_engine(db_url, encoding='utf8')
@@ -181,7 +178,6 @@ def commit_transaction():
         transaction.abort()
 
 def close_session():
-    #import pudb; pudb.set_trace()
     DBSession.remove()
 
 def rollback_transaction():
@@ -196,7 +192,6 @@ def restart_session(caller='-- not specified --'):
     global restart_counter
     restart_counter = restart_counter + 1
     log.warning(f"[# Restarts: {restart_counter}] [{caller}] Restarting the DB Session!")
-    # DBSession.close()
     close_session()
     global hydra_db_url
     connect(hydra_db_url)
