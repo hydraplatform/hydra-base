@@ -1412,7 +1412,7 @@ def get_node(node_id, scenario_id=None, **kwargs):
     n = JSONObject(n)
 
     if scenario_id is not None:
-        res_scens = scenario.get_resource_data('NODE', node_id, scenario_id, None)
+        res_scens = scenario.get_resource_data('NODE', node_id, scenario_id, None, **kwargs)
         rs_dict = {}
         for rs in res_scens:
             rs_dict[rs.resource_attr_id] = JSONObject(rs)
@@ -1445,7 +1445,7 @@ def get_link(link_id, scenario_id=None, **kwargs):
     l = JSONObject(l)
 
     if scenario_id is not None:
-        res_scens = scenario.get_resource_data('LINK', link_id, scenario_id, None)
+        res_scens = scenario.get_resource_data('LINK', link_id, scenario_id, None, **kwargs)
         rs_dict = {}
         for rs in res_scens:
             rs_dict[rs.resource_attr_id] = JSONObject(rs)
@@ -1477,7 +1477,7 @@ def get_resourcegroup(group_id, scenario_id=None, **kwargs):
     rg = JSONObject(rg)
 
     if scenario_id is not None:
-        res_scens = scenario.get_resource_data('GROUP', group_id, scenario_id, None)
+        res_scens = scenario.get_resource_data('GROUP', group_id, scenario_id, None, **kwargs)
         rs_dict = {}
         for rs in res_scens:
             rs_dict[rs.resource_attr_id] = JSONObject(rs)
@@ -2177,7 +2177,14 @@ def add_link(network_id, link,**kwargs):
 
     return link_i
 
-def update_link(link,**kwargs):
+@required_perms("edit_network")
+def update_links(links, **kwargs):
+    log.info("Updating %s links", len(links))
+    for l in links:
+        update_link(l, flush=False, **kwargs)
+    db.DBSession.flush()
+
+def update_link(link, flush=False, **kwargs):
     """
         Update a link.
     """
@@ -2204,8 +2211,8 @@ def update_link(link,**kwargs):
         hdb.add_resource_attributes(link_i, link.attributes)
     if link.types is not None:
         hdb.add_resource_types(link_i, link.types)
-
-    db.DBSession.flush()
+    if flush is True:
+        db.DBSession.flush()
     return link_i
 
 def set_link_status(link_id, status, **kwargs):
