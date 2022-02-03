@@ -46,6 +46,12 @@ DBSession = None
 global engine
 engine = None
 
+global hydra_db_url
+hydra_db_url=None
+
+global restart_counter
+restart_counter = 0
+
 #logger_sqlalchemy = logging.getLogger('sqlalchemy')
 #logger_sqlalchemy.setLevel(logging.DEBUG)
 
@@ -97,7 +103,8 @@ def create_mysql_db(db_url):
                 no_db_url = db_url
                 db_url = no_db_url + "/" + db_name
 
-        db_url = "{}?charset=utf8&use_unicode=1".format(db_url)
+        if db_url.find('charset=utf8&use_unicode=1') == -1:
+            db_url = "{}?charset=utf8&use_unicode=1".format(db_url)
 
         if config.get('mysqld', 'auto_create', 'Y') == 'Y':
             tmp_engine = create_engine(no_db_url)
@@ -120,9 +127,15 @@ def connect(db_url=None):
 
     global engine
 
-    db_pool_size = config.get('mysqld', 'pool_size', 10)
-    db_pool_recycle = config.get('mysqld', 'pool_recycle', 300)
-    db_max_overflow = config.get('mysqld', 'max_overflow', 10)
+    # Let's use at least 10 for size and 20 for overflow (hydra.ini file)
+    # To test the timeout: pool_size:1, max_overflow: 0, pool_timeout: 5 or any low value
+    db_pool_size = int(config.get('mysqld', 'pool_size',10)) # 10
+    db_pool_recycle = int(config.get('mysqld', 'pool_recycle', 300)) # 300
+    db_max_overflow = int(config.get('mysqld', 'max_overflow', 20)) # 10 -> 30
+    db_pool_timeout = int(config.get('mysqld', 'pool_timeout', 10))
+
+    log.warning(f"db_pool_size: {db_pool_size} - pool_recycle: {db_pool_recycle} - max_overflow: {db_max_overflow} - pool_timeout: {db_pool_timeout}")
+
     if db_url.startswith('sqlite'):
         engine = create_engine(db_url, encoding='utf8')
     else:
@@ -130,7 +143,12 @@ def connect(db_url=None):
                                encoding='utf8',
                                pool_recycle=db_pool_recycle,
                                pool_size=db_pool_size,
+                               pool_timeout=db_pool_timeout,
                                max_overflow=db_max_overflow)
+
+    global hydra_db_url
+    hydra_db_url=db_url
+
 
     global DBSession
 
@@ -160,9 +178,20 @@ def commit_transaction():
         transaction.abort()
 
 def close_session():
-    #import pudb; pudb.set_trace()
     DBSession.remove()
 
 def rollback_transaction():
     #import pudb; pudb.set_trace()
     transaction.abort()
+
+def restart_session(caller='-- not specified --'):
+    """
+        WILL RESTART THE SESSION
+    """
+    global DBSession
+    global restart_counter
+    restart_counter = restart_counter + 1
+    log.warning(f"[# Restarts: {restart_counter}] [{caller}] Restarting the DB Session!")
+    close_session()
+    global hydra_db_url
+    connect(hydra_db_url)
