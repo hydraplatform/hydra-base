@@ -2823,6 +2823,7 @@ def get_all_resource_data(scenario_id, include_metadata=False, page_start=None, 
 def clone_network(network_id,
                   recipient_user_id=None,
                   new_network_name=None,
+                  new_network_description=None,
                   project_id=None,
                   project_name=None,
                   new_project=True,
@@ -2897,7 +2898,7 @@ def clone_network(network_id,
 
     newnet.project_id = project_id
     newnet.name = new_network_name
-    newnet.description = ex_net.description
+    newnet.description = ex_net.description if new_network_description is None else new_network_description
     newnet.layout = ex_net.layout
     newnet.status = ex_net.status
     newnet.projection = ex_net.projection
@@ -3337,6 +3338,7 @@ def _clone_scenario(old_scenario,
             ref_key=old_rgi.ref_key,
             node_id=node_id_map.get(old_rgi.node_id),
             link_id=link_id_map.get(old_rgi.link_id),
+            subgroup_id=group_id_map.get(old_rgi.subgroup_id),
             group_id=group_id_map.get(old_rgi.group_id),
             scenario_id=scenario_id,
         ))
