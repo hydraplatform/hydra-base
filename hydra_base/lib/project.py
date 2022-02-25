@@ -175,10 +175,13 @@ def get_project(project_id, include_deleted_networks=False, **kwargs):
     proj_j.attribute_data = [JSONObject(rs) for rs in attr_data]
 
     proj_j.networks = _get_project_networks(
-        project_id, user_id, include_deleted_networks=include_deleted_networks)
+        project_id,
+        user_id,
+        include_deleted_networks=include_deleted_networks)
 
     proj_j.projects = _get_child_projects(
         project_id, user_id, include_deleted_networks=include_deleted_networks)
+
 
     log.info("Project %s retrieved", project_id)
 
@@ -190,15 +193,33 @@ def _get_child_projects(project_id, user_id, include_deleted_networks=False):
     i.e. all projects which have this project specified in the 'parent_id' column
     """
     log.info("Getting child projects of project %s", project_id)
-    child_projects_i = db.DBSession.query(Project).join(ProjectOwner)\
+
+    child_projects_i = db.DBSession.query(Project).outerjoin(ProjectOwner)\
         .filter(Project.parent_id == project_id)\
-        .filter(ProjectOwner.user_id == user_id)\
-        .filter(ProjectOwner.view == 'Y').all()
+        .filter(or_(
+            and_(
+                ProjectOwner.user_id == user_id,
+                ProjectOwner.view == 'Y'),
+            Project.created_by == user_id)).all()
+
+
 
     projects = [JSONObject(child_proj) for child_proj in child_projects_i]
 
+    owners = db.DBSession.query(ProjectOwner).filter(ProjectOwner.project_id.in_([p.id for p in projects]))
+    creators = db.DBSession.query(User.id, User.username, User.display_name).filter(User.id.in_([p.created_by for p in projects]))
+    creator_lookup = {u.id:JSONObject(u)  for u in creators}
+    owner_lookup = defaultdict(list)
+    for p in projects:
+        owner_lookup[p.id] = [creator_lookup[p.created_by]]
+    for o in owners:
+        if o.user_id == p.created_by:
+            continue
+        owner_lookup[o.project_id].append(o)
+
     child_projects = []
     for project in projects:
+        project.owners = owner_lookup.get(project.id, [])
         project.networks = _get_project_networks(
             project.id,
             user_id,
@@ -323,6 +344,9 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
     if project_id is not None:
         log.info("Getting projects in project %s", project_id)
         projects_qry = projects_qry.filter(Project.parent_id == project_id)
+    else:
+        log.info("Getting top-level projects")
+        projects_qry = projects_qry.filter(Project.parent_id == None)
 
     if include_shared_projects is True:
         projects_qry = projects_qry.outerjoin(ProjectOwner).filter(
