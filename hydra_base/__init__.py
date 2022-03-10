@@ -29,9 +29,11 @@ if config.CONFIG is None:
 
 from . import hydra_logging
 hydra_logging.init()
-
-from .db import connect, commit_transaction, rollback_transaction
-
+import time
+#from .db import connect, commit_transaction, rollback_transaction
+x = time.time()
+from . import db
+y = time.time()
 log = logging.getLogger(__name__)
 
 log.debug(" \n ")
@@ -71,3 +73,5 @@ from .lib.template import *
 from .lib.units import *
 from .lib.users import *
 from .lib.service import *
+
+print(f"IMPORTS DONE IN {y-x}")

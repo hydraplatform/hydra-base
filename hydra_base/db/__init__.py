@@ -17,22 +17,19 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
-import sqlalchemy
-from sqlalchemy.orm import scoped_session
-from sqlalchemy import create_engine
+import sqlalchemy as sqla
 
 #Import these as a test for foreign key checking in
-from sqlalchemy import event
-from sqlalchemy.engine import Engine
+# from sqlalchemy import event
+# from sqlalchemy.engine import Engine
 
 from .. import config
-from zope.sqlalchemy import register
+# from zope.sqlalchemy import register
 
 from hydra_base.exceptions import HydraError
 
-import transaction
+#import transaction
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
 
 import logging
 log = logging.getLogger(__name__)
@@ -82,7 +79,6 @@ def create_mysql_db(db_url):
     #Remove trailing whitespace and forwardslashes
     db_url = db_url.strip().strip('/')
 
-
     #Check this is a mysql URL
     if db_url.find('mysql') >= 0:
 
@@ -107,7 +103,7 @@ def create_mysql_db(db_url):
             db_url = "{}?charset=utf8&use_unicode=1".format(db_url)
 
         if config.get('mysqld', 'auto_create', 'Y') == 'Y':
-            tmp_engine = create_engine(no_db_url)
+            tmp_engine = sqla.create_engine(no_db_url)
             log.debug("Creating database {0} as it does not exist.".format(db_name))
             tmp_engine.execute("CREATE DATABASE IF NOT EXISTS {0}".format(db_name))
 
@@ -137,9 +133,9 @@ def connect(db_url=None):
     log.warning(f"db_pool_size: {db_pool_size} - pool_recycle: {db_pool_recycle} - max_overflow: {db_max_overflow} - pool_timeout: {db_pool_timeout}")
 
     if db_url.startswith('sqlite'):
-        engine = create_engine(db_url, encoding='utf8')
+        engine = sqla.create_engine(db_url, encoding='utf8')
     else:
-        engine = create_engine(db_url,
+        engine = sqla.create_engine(db_url,
                                encoding='utf8',
                                pool_recycle=db_pool_recycle,
                                pool_size=db_pool_size,
@@ -152,15 +148,15 @@ def connect(db_url=None):
 
     global DBSession
 
-    maker = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-    DBSession = scoped_session(maker)
+    maker = sqla.orm.sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    DBSession = sqla.scoped_session(maker)
     register(DBSession)
 
 
     global DeclarativeBase
     try:
         DeclarativeBase.metadata.create_all(engine, checkfirst=True)
-    except sqlalchemy.exc.OperationalError as err:
+    except sqla.exc.OperationalError as err:
         log.warning("Error creating database: %s", err)
 
     return db_url
@@ -171,11 +167,11 @@ def get_session():
 
 def commit_transaction():
     try:
-        transaction.commit()
+        DBSession.commit()
     except Exception as e:
         #import pudb; pudb.set_trace()
         log.critical(e)
-        transaction.abort()
+        DBSession.rollback()
 
 def close_session():
     DBSession.remove()
