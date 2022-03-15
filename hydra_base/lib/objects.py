@@ -225,17 +225,39 @@ class ResourceScenario(JSONObject):
 
 class Dataset(JSONObject):
 
+    def __init__(self, dataset={}, parent=None, extras={}):
+
+        super(Dataset, self).__init__(dataset, parent=parent, extras=extras)
+        uncompressed_value = None
+        if hasattr(dataset, 'value_uncompressed'):
+            uncompressed_value = dataset.value_uncompressed
+        elif dataset.get('value_uncompressed') is not None:
+            uncompressed_value = dataset['value_uncompressed']
+
+        if uncompressed_value is not None:
+            try:
+                self.value = str(uncompressed_value.decode('utf-8'))
+            except AttributeError:
+                self.value = uncompressed_value
+
+        if self.get('value_uncompressed') is not None:
+            del(self['value_uncompressed'])
+
     def __getattr__(self, name):
 
         # Keys that start and end with "__" won't be retrievable via attributes
         if name.startswith('__') and name.endswith('__'):
             return super(JSONObject, self).__getattr__(name)
-
         else:
             return self.get(name, None)
 
     def __setattr__(self, name, value):
         if name == 'value' and value is not None:
+            if isinstance(value, bytes):
+                try:
+                    value = value.decode('utf-8')
+                except:
+                    pass
             value = six.text_type(value)
         super(Dataset, self).__setattr__(name, value)
 
@@ -262,7 +284,6 @@ class Dataset(JSONObject):
         except Exception as e:
             log.exception(e)
             raise HydraError("Error parsing value %s: %s"%(self.value, e))
-
 
     def get_metadata_as_dict(self, user_id=None, source=None):
         """

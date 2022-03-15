@@ -28,7 +28,9 @@ SMALLINT,\
 Float,\
 Text, \
 DateTime,\
-Unicode
+Unicode,\
+DDL,\
+event
 
 from hydra_base.lib.objects import JSONObject
 
@@ -42,10 +44,7 @@ from sqlalchemy import inspect, func
 
 from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
 
-from sqlalchemy.orm import relationship, backref
-
-from sqlalchemy.orm import noload, joinedload
-
+from sqlalchemy.orm import relationship, backref, column_property, noload, joinedload
 
 from . import DeclarativeBase as Base, get_session
 
@@ -286,12 +285,19 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
     hash       = Column(BIGINT(),  nullable=False, unique=True)
     cr_date    = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     hidden     = Column(String(1),  nullable=False, server_default=text(u"'N'"))
-    value      = Column('value', Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
+    value      = Column('value', LargeBinary(),  nullable=True)
+    value_uncompressed = column_property(func.uncompress(value))
 
     unit = relationship('Unit', backref=backref("dataset_unit", order_by=unit_id))
 
     _parents  = ['tResourceScenario', 'tUnit']
     _children = ['tMetadata']
+
+    def get_value(self):
+        """
+            Get the uncompressed value
+        """
+        return str(self.value_uncompressed)
 
     def set_metadata(self, metadata_tree):
         """
@@ -377,6 +383,28 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
             return True
 
         return False
+
+# custom trigger DDL
+trigger1 = DDL('''\
+        CREATE TRIGGER
+            compress_dataset_ins
+        BEFORE INSERT
+        ON tDataset
+        FOR EACH ROW SET
+            NEW.value = compress(NEW.value);
+    ''')
+# custom trigger DDL
+trigger2 = DDL('''\
+        CREATE TRIGGER
+            compress_dataset_upd
+        BEFORE UPDATE
+        ON tDataset
+        FOR EACH ROW SET
+            NEW.value = compress(NEW.value);
+    ''')
+# event listener to trigger on data insert to MyTable
+event.listen(Dataset.__table__, 'after_create', trigger1.execute_if(dialect='mysql'))
+event.listen(Dataset.__table__, 'after_create', trigger2.execute_if(dialect='mysql'))
 
 class DatasetCollection(Base, Inspect):
     """

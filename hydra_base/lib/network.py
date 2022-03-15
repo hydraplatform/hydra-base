@@ -975,6 +975,7 @@ def _get_all_resourcescenarios(network_id, scenario_ids, include_results, user_i
                 Dataset.created_by,
                 Dataset.hidden,
                 Dataset.value,
+                Dataset.value_uncompressed,
                 ResourceScenario.dataset_id,
                 ResourceScenario.scenario_id,
                 ResourceScenario.resource_attr_id,
@@ -1005,9 +1006,6 @@ def _get_all_resourcescenarios(network_id, scenario_ids, include_results, user_i
     for rs in all_rs:
         rs_obj = JSONObject(rs)
         rs_attr = JSONObject({'attr_id':rs.attr_id})
-
-        value = rs.value
-
         rs_dataset = JSONDataset({
             'id':rs.dataset_id,
             'type' : rs.type,
@@ -1017,7 +1015,8 @@ def _get_all_resourcescenarios(network_id, scenario_ids, include_results, user_i
             'cr_date':rs.cr_date,
             'created_by':rs.created_by,
             'hidden':rs.hidden,
-            'value':value,
+            'value':rs.value,
+            'value_uncompressed':rs.value_uncompressed,
             'metadata':{},
         })
         rs_obj.resourceattr = rs_attr

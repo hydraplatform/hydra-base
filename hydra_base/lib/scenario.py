@@ -813,11 +813,11 @@ def compare_scenarios(scenario_id_1, scenario_id_2, allow_different_networks=Fal
         s1_rs = r_scen_1_dict.get(ra_id)
         if s1_rs is None:
             resource_diff = dict(
-                resource_attr_id = s1_rs.resource_attr_id,
+                resource_attr_id = ra_id,
                 scenario_1_dataset = None,
                 scenario_2_dataset = s2_rs.dataset,
                 attr_name = s2_rs.resourceattr.attr.name,
-                resource_name = s1_resource_mapping[s1_rs.resourceattr.ref_key][_get_resource_id(s1_rs.resourceattr)],
+                resource_name = s2_resource_mapping[s2_rs.resourceattr.ref_key][_get_resource_id(s2_rs.resourceattr)],
             )
             resource_diffs.append(resource_diff)
 
@@ -1154,7 +1154,7 @@ def _update_resourcescenario(scenario, resource_scenario, r_scen_i=None, dataset
 
     dataset_j = JSONDataset(dataset)
 
-    value = dataset_j.parse_value()
+    value = dataset_j.parse_value().encode('utf-8')
 
     log.debug("Assigning %s to resource attribute: %s", value, ra_id)
 
@@ -1167,7 +1167,7 @@ def _update_resourcescenario(scenario, resource_scenario, r_scen_i=None, dataset
 
     data_hash = dataset_j.get_hash(value, metadata)
 
-    assign_value(r_scen_i,
+    new_rscen_i = assign_value(r_scen_i,
                  dataset_j.type.lower(),
                  value,
                  data_unit_id,
@@ -1176,7 +1176,8 @@ def _update_resourcescenario(scenario, resource_scenario, r_scen_i=None, dataset
                  data_hash=data_hash,
                  user_id=user_id,
                  source=source)
-    return r_scen_i
+
+    return new_rscen_i
 
 @required_perms("edit_data", "edit_network")
 def assign_value(rs, data_type, val,
@@ -1220,6 +1221,9 @@ def assign_value(rs, data_type, val,
         else:
             update_dataset = False
 
+    if type(val) == str:
+        val = val.encode('utf-8')
+
     if update_dataset is True:
         log.info("Updating dataset '%s'", name)
         dataset = data.update_dataset(rs.dataset.id, name, data_type, val, unit_id, metadata, flush=False, **dict(user_id=user_id))
@@ -1239,7 +1243,15 @@ def assign_value(rs, data_type, val,
         rs.dataset = dataset
         rs.source = source
 
+
     db.DBSession.flush()
+
+    newrs = db.DBSession.query(ResourceScenario).filter(
+        ResourceScenario.scenario_id==rs.scenario_id,
+        ResourceScenario.resource_attr_id==rs.resource_attr_id,
+        ResourceScenario.dataset_id==rs.dataset_id).one()
+
+    return newrs
 
 @required_perms("edit_data", "edit_network")
 def add_data_to_attribute(scenario_id, resource_attr_id, dataset,**kwargs):
@@ -1274,11 +1286,12 @@ def add_data_to_attribute(scenario_id, resource_attr_id, dataset,**kwargs):
 
     data_hash = dataset_j.get_hash(value, dataset_metadata)
 
-    assign_value(r_scen_i, data_type, value, dataset_j.unit_id, dataset_j.name,
-                 metadata=dataset_metadata, data_hash=data_hash, user_id=user_id)
+    new_rscen_i = assign_value(r_scen_i, data_type, value, dataset_j.unit_id, dataset_j.name,
+                          metadata=dataset_metadata, data_hash=data_hash, user_id=user_id)
 
     db.DBSession.flush()
-    return r_scen_i
+
+    return new_rscen_i
 
 @required_perms("get_data", "get_network")
 def get_scenario_data(scenario_id, get_parent_data=False, **kwargs):
