@@ -132,6 +132,7 @@ def _get_val(val, full=False):
         values. In the special case of timeseries, when a check is for time-based
         criteria, you can return the entire timeseries.
     """
+
     try:
         val = val.strip()
     except:

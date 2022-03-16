@@ -297,7 +297,7 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
         """
             Get the uncompressed value
         """
-        return str(self.value_uncompressed)
+        return self.value_uncompressed.decode('utf-8')
 
     def set_metadata(self, metadata_tree):
         """
@@ -1942,7 +1942,9 @@ class ResourceScenario(Base, Inspect):
                 Dataset.name,
                 Dataset.hidden,
                 case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
-                        else_=Dataset.value).label('value')).filter(
+                        else_=Dataset.value).label('value'),
+                case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
+                        else_=Dataset.value_uncompressed).label('value_uncompressed')).filter(
                 Dataset.id==self.id).outerjoin(DatasetOwner,
                                     and_(Dataset.id==DatasetOwner.dataset_id,
                                     DatasetOwner.user_id==user_id)).one()

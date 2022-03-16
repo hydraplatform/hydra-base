@@ -228,17 +228,17 @@ class Dataset(JSONObject):
     def __init__(self, dataset={}, parent=None, extras={}):
 
         super(Dataset, self).__init__(dataset, parent=parent, extras=extras)
-        uncompressed_value = None
+        value_uncompressed = None
         if hasattr(dataset, 'value_uncompressed'):
-            uncompressed_value = dataset.value_uncompressed
+            value_uncompressed = dataset.value_uncompressed
         elif dataset.get('value_uncompressed') is not None:
-            uncompressed_value = dataset['value_uncompressed']
+            value_uncompressed = dataset['value_uncompressed']
 
-        if uncompressed_value is not None:
+        if value_uncompressed is not None:
             try:
-                self.value = str(uncompressed_value.decode('utf-8'))
+                self.value = value_uncompressed.decode('utf-8')
             except AttributeError:
-                self.value = uncompressed_value
+                self.value = value_uncompressed
 
         if self.get('value_uncompressed') is not None:
             del(self['value_uncompressed'])
@@ -260,6 +260,16 @@ class Dataset(JSONObject):
                     pass
             value = six.text_type(value)
         super(Dataset, self).__setattr__(name, value)
+
+    def get_value(self):
+        """
+            This function is here to match the equivalent one on the tDataset class in model.py
+            so that the get_value function can be used throughout to replace the '.value' property
+            which now may contain compressed data.
+            This should return a string value for the dataset's value rather than the compressed
+            value
+        """
+        return self.value
 
     def parse_value(self):
         """

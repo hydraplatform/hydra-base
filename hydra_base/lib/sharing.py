@@ -262,6 +262,12 @@ def hide_dataset(dataset_id, exceptions, read, write, share,**kwargs):
 
     user_id = kwargs.get('user_id')
     dataset_i = _get_dataset(dataset_id)
+
+    #this is important as otherwise the DB trigger will attempt to re-compress the
+    #compressed value on saving to the DB
+    if hasattr(dataset_i, 'value_uncompressed'):
+        dataset_i.value = dataset_i.value_uncompressed
+
     #check that I can hide the dataset
     if dataset_i.created_by != int(user_id):
         raise HydraError('Permission denied. '
