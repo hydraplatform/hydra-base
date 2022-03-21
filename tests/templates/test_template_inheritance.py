@@ -517,6 +517,72 @@ class TestTemplateInheritance:
         attr_ids_b = set(ta.attr_id for ta in parent_network_type.typeattrs)
         assert len(attr_ids_a.difference(attr_ids_b)) == 0
 
+    def test_update_resource_types_when_child_type_added(self, client):
+        """
+            When a new child template type is added to the DB, it receives a new ID, and all
+            subsequent resource types for that type will point to this ID. This creates an
+            inconsistency, as all resources which were created before the child was created will
+            point to the parent type ID. To solve this, all resource types must be updated to point
+            to the new child template type directly.
+        """
+
+        #first create a template
+        parent_template_j = client.testutils.create_template()
+        parent_network_type = list(filter(lambda x: x.resource_type=='NETWORK', parent_template_j.templatetypes))[0]
+
+        #and a child
+        child_template_j = client.testutils.create_child_template(parent_template_j.id)
+        child_template_j = client.get_template(child_template_j.id)
+
+        child_network_type = list(filter(lambda x: x.resource_type=='NETWORK', child_template_j.templatetypes))[0]
+
+        #check that the child has a network type of its own
+        assert child_network_type.id != parent_network_type.id
+        assert child_network_type.parent_id == parent_network_type.id
+
+
+        node_type = list(filter(lambda x: x.resource_type=='NODE', child_template_j.templatetypes))[0]
+        #now create a network using the child's network type
+        #The network type needs to be linked to the template ID of the
+        #child so we can find the correct template
+
+        project_j = client.add_project(JSONObject({'name': 'Template Inheritance Project 2'}))
+
+        network = JSONObject({
+            'project_id': project_j.id,
+            'name': 'Test Network with Child Template',
+            'types' : [{'id': child_network_type.id,
+                        'child_template_id': child_template_j.id}],
+            'nodes' : [{'name': 'Node1', 'x':0, 'y':0, 'types':[{'id':node_type.id}]}]
+        })
+
+        new_network = client.add_network(network)
+        #Now do a get network to verify the network's there
+        requested_network = client.get_network(new_network.id)
+
+        assert requested_network.nodes[0].types[0].id == node_type.id
+
+        #Now update the template by changing the node type used in the network.
+        #this will result in a new child template type entry in the DB, requiring that
+        #the type of the node in this network must now be updated to point to the new
+        #child template type ID.
+        node_type['layout'] = {'color': 'red'}
+        node_type['template_id'] = child_template_j.id
+        client.update_templatetype(node_type)
+        child_node_type = client.add_child_templatetype(node_type['id'], child_template_j.id)
+        child_node_type['layout'] = {'color': 'red'}
+        child_node_type['template_id'] = child_template_j.id
+        client.update_templatetype(child_node_type)
+        updated_child_template_j = client.get_template(child_template_j.id)
+        updated_node_type = list(filter(lambda x: x.resource_type=='NODE', updated_child_template_j.templatetypes))[0]
+
+        #check that the child type has been created correctly
+        assert updated_node_type.id != node_type.id and updated_node_type.parent_id == node_type.id
+
+        #now check that the resource type reference has been updated correctly
+        requested_network = client.get_network(new_network.id)
+
+        assert requested_network.nodes[0].types[0].id == updated_node_type.id
 
     def test_delete_parent_type(self, client):
         """
@@ -575,5 +641,3 @@ class TestTemplateInheritance:
         child_template_2_j = client.get_template_by_name(child_template_j.name)
 
         assert len(parent_template_j.templatetypes) == len(child_template_j.templatetypes) == len(child_template_2_j.templatetypes)
-
-

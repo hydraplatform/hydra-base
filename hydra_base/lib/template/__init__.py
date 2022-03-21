@@ -868,6 +868,8 @@ def add_child_templatetype(parent_id, child_template_id, **kwargs):
 
     db.DBSession.flush()
 
+    update_resourcetype_references(child_type_i.template_id, child_type_i.parent_id, child_type_i.id, **kwargs)
+
     _remove_template_from_cache(child_template_id)
 
     return child_type_i
@@ -1146,6 +1148,29 @@ def _update_templatetype(templatetype, existing_tt=None, auto_delete=False, **kw
         db.DBSession.add(tmpltype_i)
 
     return tmpltype_i
+
+@required_perms("edit_template")
+def update_resourcetype_references(template_id, old_type_id, new_type_id, **kwargs):
+    """
+    if a new template type is added as a child to a parent template type, then all
+    resource types which point to the old type_id now need to point to the new type ID.
+    """
+
+    user_id = kwargs.get('user_id')
+
+    log.info("New type added, updating resource type references")
+
+    resource_types_to_change = db.DBSession.query(ResourceType).filter(
+        ResourceType.type_id==old_type_id,
+        ResourceType.child_template_id==template_id).all()
+
+    for rt in resource_types_to_change:
+        rt.type_id = new_type_id
+
+    db.DBSession.flush()
+
+    log.info("%s resource types changed from type ID %s to type ID %s", len(resource_types_to_change), old_type_id, new_type_id)
+
 
 @required_perms("edit_template")
 def delete_templatetype(type_id, template_i=None, delete_resourcetypes=False, flush=True, delete_children=False, **kwargs):
