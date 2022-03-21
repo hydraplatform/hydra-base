@@ -929,7 +929,7 @@ class TemplateType(Base, Inspect):
         """
         type_rs = get_session().query(ResourceType).filter(ResourceType.type_id==self.id).all()
 
-        log.warn("Forcing the deletion of %s resource types from type %s",\
+        log.warning("Forcing the deletion of %s resource types from type %s",\
                  len(type_rs), self.id)
 
         for resource_type in type_rs:
