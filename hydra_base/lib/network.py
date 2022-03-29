@@ -134,9 +134,9 @@ def _check_ra_duplicates(all_resource_attrs, resource_id_name_map):
             elif ref_key == 'LINK':
                 ref_id = ra['link_id']
             elif ref_key == 'GROUP':
-                ref_id == ra['group_id']
+                ref_id = ra['group_id']
             elif ref_key == 'NETWORK':
-                ref_id == ra['network_id']
+                ref_id = ra['network_id']
 
             resource_name = resource_id_name_map[ref_id]
             attr_id = ra['attr_id']
@@ -264,6 +264,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
                             'attr_id' : ta.attr_id,
                             'attr_is_var' : ta.attr_is_var,
                         })
+                        existing_attrs.append(ta.attr_id)
 
                         if ta.default_dataset_id is not None:
                             defaults[(ref_id, ta.attr_id)] = {'dataset_id':ta.default_dataset_id}
