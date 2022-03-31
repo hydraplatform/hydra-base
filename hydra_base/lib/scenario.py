@@ -281,32 +281,10 @@ def get_scenario(scenario_id,
     scen_j = JSONObject(scen_i)
     rscen_rs = []
     if include_data is True:
-        rscen_rs = scen_i.get_data(get_parent_data=get_parent_data,
+        rscen_rs = scen_i.get_data(user_id, get_parent_data=get_parent_data,
                                    include_results=include_results,
-                                   include_only_results=include_only_results)
-
-    #lazy load resource attributes and attributes
-    for rs in rscen_rs:
-        if include_attr == True:
-            rs.resourceattr.attr
-
-    ## If metadata is requested, use a dedicated query to extract metadata
-    ## from the scenario's datasets,
-    ## and enter them into a lookup table, keyed by dataset_id so they can
-    ## be extracted later.
-    metadata_lookup = {}
-    if include_metadata == True:
-        dataset_ids = [rs.dataset.id for rs in rscen_rs]
-        metadata = db.DBSession.query(Metadata)\
-                    .join(Dataset)\
-                    .join(ResourceScenario)\
-                    .filter(ResourceScenario.scenario_id == scenario_id).all()
-        for m in metadata:
-            if metadata_lookup.get(m.dataset_id):
-                metadata_lookup[m.dataset_id][m.key] = m.value
-            else:
-                metadata_lookup[m.dataset_id] = {m.key:m.value}
-
+                                   include_only_results=include_only_results,
+                                   include_metadata=include_metadata)
 
     rgi_rs = []
     if include_group_items is True:
@@ -319,12 +297,6 @@ def get_scenario(scenario_id,
 
     for rs in rscen_rs:
         rs_j = JSONObject(rs, extras={'resourceattr':JSONObject(rs.resourceattr)})
-        if rs.dataset.check_read_permission(user_id, do_raise=False, is_admin=is_admin) is False:
-            rs_j.dataset['value'] = None
-            rs_j.dataset.metadata = JSONObject({})
-        else:
-            rs_j.dataset.metadata = JSONObject(metadata_lookup.get(rs.dataset_id, {}))
-
         scen_j.resourcescenarios.append(rs_j)
 
     scen_j.resourcegroupitems =[JSONObject(r) for r in rgi_rs]
@@ -875,12 +847,10 @@ def get_resource_scenario(resource_attr_id, scenario_id, get_parent_data=False, 
 
     scenario_i = _get_scenario(scenario_id, user_id)
 
-    scenario_rs = scenario_i.get_data(get_parent_data=get_parent_data, ra_ids=[resource_attr_id])
+    scenario_rs = scenario_i.get_data(user_id, get_parent_data=get_parent_data, ra_ids=[resource_attr_id])
 
     for rs_i in scenario_rs:
         if rs_i.resource_attr_id == resource_attr_id:
-            rs_i.dataset
-            rs_i.dataset.metadata
             return rs_i
     else:
         raise ResourceNotFoundError("resource scenario for %s not found in scenario %s"%(resource_attr_id, scenario_id))
@@ -897,7 +867,7 @@ def get_resourceattr_data(resource_attr_ids, scenario_id, get_parent_data=False,
     if not isinstance(resource_attr_ids, list):
         resource_attr_ids = [resource_attr_ids]
 
-    scenario_rs = scenario_i.get_data(get_parent_data=get_parent_data, ra_ids=resource_attr_ids)
+    scenario_rs = scenario_i.get_data(user_id, get_parent_data=get_parent_data, ra_ids=resource_attr_ids)
 
 
     resource_scenario_dict = {}
@@ -1205,7 +1175,7 @@ def assign_value(rs, data_type, val,
         #Has this dataset changed?
         if rs.dataset.hash == data_hash:
             log.debug("Dataset has not changed. Returning.")
-            return
+            return rs
 
         connected_rs = db.DBSession.query(ResourceScenario).filter(ResourceScenario.dataset_id == rs.dataset.id).all()
         #If there's no RS found, then the incoming rs is new, so the dataset can be altered
@@ -1249,7 +1219,7 @@ def assign_value(rs, data_type, val,
     newrs = db.DBSession.query(ResourceScenario).filter(
         ResourceScenario.scenario_id==rs.scenario_id,
         ResourceScenario.resource_attr_id==rs.resource_attr_id,
-        ResourceScenario.dataset_id==rs.dataset_id).one()
+        ResourceScenario.dataset_id==rs.dataset_id).options(joinedload('dataset')).one()
 
     return newrs
 
@@ -1303,7 +1273,7 @@ def get_scenario_data(scenario_id, get_parent_data=False, **kwargs):
 
     scenario_i = _get_scenario(scenario_id, user_id)
 
-    scenario_rs = scenario_i.get_data(get_parent_data=get_parent_data)
+    scenario_rs = scenario_i.get_data(user_id, get_parent_data=get_parent_data)
 
     dataset_ids = []
     datasets = []
@@ -1371,7 +1341,7 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id=None, expunge_sessio
     resource_i = get_resource(ref_key, ref_id)
     ra_ids = [ra.id for ra in resource_i.attributes]
     scenario_i = _get_scenario(scenario_id, user_id)
-    requested_rs = scenario_i.get_data(get_parent_data=get_parent_data, ra_ids=ra_ids)
+    requested_rs = scenario_i.get_data(user_id, get_parent_data=get_parent_data, ra_ids=ra_ids)
 
     #map an raID to an rs for uses later
     ra_rs_map = {}
@@ -1433,7 +1403,7 @@ def get_attribute_datasets(attr_id, scenario_id, get_parent_data=False, **kwargs
     except NoResultFound:
         raise HydraError("Attribute %s not found"%(attr_id,))
 
-    scenario_rs_i = scenario_i.get_data(get_parent_data=get_parent_data)
+    scenario_rs_i = scenario_i.get_data(user_id, get_parent_data=get_parent_data)
 
     #just in case the calling funciton hasn't cast this as as int
     attr_id = int(attr_id)
@@ -1441,10 +1411,6 @@ def get_attribute_datasets(attr_id, scenario_id, get_parent_data=False, **kwargs
     requested_rs = []
     for rs_i in scenario_rs_i:
         if rs_i.resourceattr.attr_id == attr_id:
-            #Make the ORM load the resource linked to the resourceattr, and its data
-            rs_i.dataset
-            rs_i.dataset.metadata
-            rs_i.resourceattr.get_resource()
             #Finally add it to the list of RS to return
             requested_rs.append(rs_i)
 
@@ -1453,14 +1419,15 @@ def get_attribute_datasets(attr_id, scenario_id, get_parent_data=False, **kwargs
     for rs in requested_rs:
         tmp_rs = JSONObject(rs)
         tmp_rs.resourceattr = JSONObject(rs.resourceattr)
+        ra = tmp_rs.resourceattr
         if rs.resourceattr.node_id is not None:
-            tmp_rs.resourceattr.node = JSONObject(rs.resourceattr.node)
+            tmp_rs.resourceattr.node = get_resource(ra.ref_key, ra.node_id)
         elif rs.resourceattr.link_id is not None:
-            tmp_rs.resourceattr.link = JSONObject(rs.resourceattr.link)
+            tmp_rs.resourceattr.link = get_resource(ra.ref_key, ra.link_id)
         elif rs.resourceattr.group_id is not None:
-            tmp_rs.resourceattr.resourcegroup = JSONObject(rs.resourceattr.resourcegroup)
+            tmp_rs.resourceattr.resourcegroup = get_resource(ra.ref_key, ra.group_id)
         elif rs.resourceattr.network_id is not None:
-            tmp_rs.resourceattr.network = JSONObject(rs.resourceattr.network)
+            tmp_rs.resourceattr.network = get_resource(ra.ref_key, ra.network_id)
 
         json_rs.append(tmp_rs)
 

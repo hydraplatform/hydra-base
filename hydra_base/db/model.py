@@ -32,19 +32,21 @@ Unicode,\
 DDL,\
 event
 
-from hydra_base.lib.objects import JSONObject
+from hydra_base.lib.objects import JSONObject, Dataset as JSONDataset
 
 from sqlalchemy.orm.exc import NoResultFound
 
 from sqlalchemy.ext.declarative import declared_attr
+from sqlalchemy.sql.functions import _FunctionGenerator
 
 import datetime
 
-from sqlalchemy import inspect, func
+from sqlalchemy import inspect, func, and_, or_
 
 from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
 
 from sqlalchemy.orm import relationship, backref, column_property, noload, joinedload
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from . import DeclarativeBase as Base, get_session
 
@@ -53,6 +55,7 @@ from ..util import generate_data_hash, get_val, get_json_as_string
 from sqlalchemy.sql.expression import case
 from sqlalchemy import UniqueConstraint, and_
 from sqlalchemy.dialects import mysql
+from sqlalchemy.exc import OperationalError
 
 import pandas as pd
 
@@ -286,18 +289,31 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
     cr_date    = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     hidden     = Column(String(1),  nullable=False, server_default=text(u"'N'"))
     value      = Column('value', LargeBinary(),  nullable=True)
-    value_uncompressed = column_property(func.uncompress(value))
 
+    value_uncompressed_col = column_property(func.uncompress(value), raiseload=False, deferred=True)
     unit = relationship('Unit', backref=backref("dataset_unit", order_by=unit_id))
 
     _parents  = ['tResourceScenario', 'tUnit']
     _children = ['tMetadata']
+
+    @hybrid_property
+    def value_uncompressed(self):
+        if get_session().bind.dialect.name == 'mysql':
+            return self.value_uncompressed_col
+        else:
+            return self.value
 
     def get_value(self):
         """
             Get the uncompressed value
         """
         return self.value_uncompressed.decode('utf-8')
+
+    def get_value_uncompressed(self):
+        try:
+            return self.value_uncompressed.decode('utf-8')
+        except OperationalError:
+            return self.value
 
     def set_metadata(self, metadata_tree):
         """
@@ -2010,7 +2026,13 @@ class Scenario(Base, Inspect):
             group_item_i.link     = resource
         self.resourcegroupitems.append(group_item_i)
 
-    def get_data(self, child_data=None, get_parent_data=False, ra_ids=None, include_results=True, include_only_results=False):
+    def get_data(self, user_id,
+        child_data=None,
+        get_parent_data=False,
+        ra_ids=None,
+        include_results=True,
+        include_only_results=False,
+        include_metadata=True):
         """
             Return all the resourcescenarios relevant to this scenario.
             If this scenario inherits from another, look up the tree to compile
@@ -2032,34 +2054,134 @@ class Scenario(Base, Inspect):
         for child_rs in child_data:
             childrens_ras.append(child_rs.resource_attr_id)
 
-        #Add resource attributes which are not defined already
-        rs_query = get_session().query(ResourceScenario).filter(
-            ResourceScenario.scenario_id == self.id).options(joinedload('dataset')).options(joinedload('resourceattr'))
-
-        if ra_ids is not None:
-            rs_query = rs_query.filter(ResourceScenario.resource_attr_id.in_(ra_ids))
-
-        if include_results is False:
-            rs_query = rs_query.outerjoin(ResourceAttr).filter(
-                ResourceAttr.attr_is_var == 'N')
-
-        if include_only_results is True:
-            rs_query = rs_query.outerjoin(ResourceAttr).filter(
-                ResourceAttr.attr_is_var == 'Y')
-
-        resourcescenarios = rs_query.all()
+        resourcescenarios = self.get_all_resourcescenarios(
+            user_id,
+            ra_ids=ra_ids,
+            include_results=include_results,
+            include_only_results=include_only_results,
+            include_metadata=include_metadata)
 
         for this_rs in resourcescenarios:
             if this_rs.resource_attr_id not in childrens_ras:
                 child_data.append(this_rs)
 
         if self.parent is not None and get_parent_data is True:
-            return self.parent.get_data(child_data=child_data,
+            return self.parent.get_data(user_id, child_data=child_data,
                                         get_parent_data=get_parent_data,
                                        ra_ids=ra_ids)
 
         return child_data
 
+    def get_all_resourcescenarios(self, user_id,
+        ra_ids=None,
+        include_results=True,
+        include_only_results=False,
+        include_metadata=True):
+        """
+            Get all the resource scenarios in a network, across all scenarios
+            returns a dictionary of dict objects, keyed on scenario_id
+        """
+
+        rs_qry = get_session().query(
+                    Dataset.type,
+                    Dataset.unit_id,
+                    Dataset.name,
+                    Dataset.hash,
+                    Dataset.cr_date,
+                    Dataset.created_by,
+                    Dataset.hidden,
+                    Dataset.value,
+                    Dataset.value_uncompressed,
+                    ResourceScenario.dataset_id,
+                    ResourceScenario.scenario_id,
+                    ResourceScenario.resource_attr_id,
+                    ResourceScenario.source,
+                    ResourceAttr.attr_id,
+                    ResourceAttr.ref_key,
+                    ResourceAttr.node_id,
+                    ResourceAttr.network_id,
+                    ResourceAttr.link_id,
+                    ResourceAttr.group_id,
+                    Attr.name.label('attr_name'),
+                    Attr.description.label('attr_description')
+        ).outerjoin(DatasetOwner, and_(DatasetOwner.dataset_id==Dataset.id, DatasetOwner.user_id==user_id)).filter(
+                    or_(Dataset.hidden=='N', Dataset.created_by==user_id, DatasetOwner.user_id != None),
+                    ResourceAttr.id == ResourceScenario.resource_attr_id,
+                    Scenario.id==ResourceScenario.scenario_id,
+                    Scenario.id==self.id,
+                    Dataset.id==ResourceScenario.dataset_id,
+                    Attr.id==ResourceAttr.attr_id)
+
+        if include_results is False:
+            rs_qry = rs_qry.filter(ResourceAttr.attr_is_var=='N')
+
+        if include_only_results is True:
+            rs_qry = rs_qry.filter(ResourceAttr.attr_is_var=='Y')
+
+        if ra_ids is not None:
+            rs_query = rs_qry.filter(ResourceScenario.resource_attr_id.in_(ra_ids))
+
+        all_rs = rs_qry.all()
+
+        processed_rs = []
+        for rs in all_rs:
+            rs_obj = JSONObject({
+                'resource_attr_id': rs.resource_attr_id,
+                'scenario_id':rs.scenario_id,
+                'dataset_id':rs.dataset_id
+            })
+            rs_attr = JSONObject({
+                'attr_id':rs.attr_id,
+                'ref_key': rs.ref_key,
+                'node_id': rs.node_id,
+                'link_id': rs.link_id,
+                'network_id': rs.network_id,
+                'group_id': rs.group_id,
+                'attr':{
+                    'name': rs.attr_name,
+                    'description':rs.attr_description,
+                    'id': rs.attr_id
+                }
+            })
+
+            rs_dataset = JSONDataset({
+                'id':rs.dataset_id,
+                'type' : rs.type,
+                'unit_id' : rs.unit_id,
+                'name' : rs.name,
+                'hash' : rs.hash,
+                'cr_date':rs.cr_date,
+                'created_by':rs.created_by,
+                'hidden':rs.hidden,
+                'value':rs.value,
+                'value_uncompressed':rs.value_uncompressed,
+                'metadata':{},
+            })
+            rs_obj.resourceattr = rs_attr
+            rs_obj.dataset = rs_dataset
+
+            processed_rs.append(rs_obj)
+
+        ## If metadata is requested, use a dedicated query to extract metadata
+        ## from the scenario's datasets,
+        ## and enter them into a lookup table, keyed by dataset_id so they can
+        ## be extracted later.
+        metadata_lookup = {}
+        if include_metadata is True:
+            dataset_ids = [rs.dataset.id for rs in processed_rs]
+            metadata = get_session().query(Metadata)\
+                        .join(Dataset)\
+                        .join(ResourceScenario)\
+                        .filter(ResourceScenario.scenario_id == self.id).all()
+            for m in metadata:
+                if metadata_lookup.get(m.dataset_id):
+                    metadata_lookup[m.dataset_id][m.key] = m.value
+                else:
+                    metadata_lookup[m.dataset_id] = {m.key:m.value}
+            for rs in processed_rs:
+                if rs.dataset.value is not None:
+                    rs.dataset.metadata = metadata_lookup.get(rs.dataset.id, {})
+        return processed_rs
 
     def get_group_items(self, child_items=None, get_parent_items=False):
         """

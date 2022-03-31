@@ -139,6 +139,17 @@ class JSONObject(dict):
             elif isinstance(v, enum.Enum):
                 setattr(self, k, v.value)
             else:
+                if isinstance(v, bytes):
+                    #if it is bytes, then it could be compressed.
+                    #(for example the dataset value column)
+                    #Try to decode it. If compressed, then will throw a
+                    #UnicodeDecodeError, so we can ignore it.
+                    #"If it doesn't decode, it's probably because it's compressed"
+                    try:
+                        v = v.decode('utf-8')
+                    except UnicodeDecodeError:
+                        pass
+
                 if k == '_sa_instance_state':
                     continue
 
@@ -231,7 +242,7 @@ class Dataset(JSONObject):
         value_uncompressed = None
         if hasattr(dataset, 'value_uncompressed'):
             value_uncompressed = dataset.value_uncompressed
-        elif dataset.get('value_uncompressed') is not None:
+        elif isinstance(dataset, dict) and dataset.get('value_uncompressed') is not None:
             value_uncompressed = dataset['value_uncompressed']
 
         if value_uncompressed is not None:
@@ -256,7 +267,7 @@ class Dataset(JSONObject):
             if isinstance(value, bytes):
                 try:
                     value = value.decode('utf-8')
-                except:
+                except UnicodeDecodeError:
                     pass
             value = six.text_type(value)
         super(Dataset, self).__setattr__(name, value)

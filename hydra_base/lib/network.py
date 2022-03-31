@@ -134,9 +134,9 @@ def _check_ra_duplicates(all_resource_attrs, resource_id_name_map):
             elif ref_key == 'LINK':
                 ref_id = ra['link_id']
             elif ref_key == 'GROUP':
-                ref_id == ra['group_id']
+                ref_id = ra['group_id']
             elif ref_key == 'NETWORK':
-                ref_id == ra['network_id']
+                ref_id = ra['network_id']
 
             resource_name = resource_id_name_map[ref_id]
             attr_id = ra['attr_id']
@@ -960,115 +960,6 @@ def _get_all_group_items(network_id):
 
     return item_dict
 
-def _get_all_resourcescenarios(network_id, scenario_ids, include_results, user_id):
-    """
-        Get all the resource scenarios in a network, across all scenarios
-        returns a dictionary of dict objects, keyed on scenario_id
-    """
-
-    rs_qry = db.DBSession.query(
-                Dataset.type,
-                Dataset.unit_id,
-                Dataset.name,
-                Dataset.hash,
-                Dataset.cr_date,
-                Dataset.created_by,
-                Dataset.hidden,
-                Dataset.value,
-                Dataset.value_uncompressed,
-                ResourceScenario.dataset_id,
-                ResourceScenario.scenario_id,
-                ResourceScenario.resource_attr_id,
-                ResourceScenario.source,
-                ResourceAttr.attr_id,
-    ).outerjoin(DatasetOwner, and_(DatasetOwner.dataset_id==Dataset.id, DatasetOwner.user_id==user_id)).filter(
-                or_(Dataset.hidden=='N', Dataset.created_by==user_id, DatasetOwner.user_id != None),
-                ResourceAttr.id == ResourceScenario.resource_attr_id,
-                Scenario.id==ResourceScenario.scenario_id,
-                Scenario.network_id==network_id,
-                Dataset.id==ResourceScenario.dataset_id)
-
-    if include_results == False:
-        rs_qry = rs_qry.filter(ResourceAttr.attr_is_var=='N')
-
-    if scenario_ids is not None and len(scenario_ids) > 0:
-        rs_qry = rs_qry.filter(ResourceScenario.scenario_id.in_(scenario_ids))
-
-    x = time.time()
-    logging.info("Getting all resource scenarios")
-    all_rs = rs_qry.all()
-    log.info("%s resource scenarios retrieved in %s", len(all_rs), time.time()-x)
-
-
-    logging.info("resource scenarios retrieved. Processing results...")
-    x = time.time()
-    rs_dict = dict()
-    for rs in all_rs:
-        rs_obj = JSONObject(rs)
-        rs_attr = JSONObject({'attr_id':rs.attr_id})
-        rs_dataset = JSONDataset({
-            'id':rs.dataset_id,
-            'type' : rs.type,
-            'unit_id' : rs.unit_id,
-            'name' : rs.name,
-            'hash' : rs.hash,
-            'cr_date':rs.cr_date,
-            'created_by':rs.created_by,
-            'hidden':rs.hidden,
-            'value':rs.value,
-            'value_uncompressed':rs.value_uncompressed,
-            'metadata':{},
-        })
-        rs_obj.resourceattr = rs_attr
-        rs_obj.value = rs_dataset
-        rs_obj.dataset = rs_dataset
-
-        scenario_rs = rs_dict.get(rs.scenario_id, [])
-        scenario_rs.append(rs_obj)
-        rs_dict[rs.scenario_id] = scenario_rs
-
-    logging.info("resource scenarios processed in %s", time.time()-x)
-
-    return rs_dict
-
-
-def _get_metadata(network_id, scenario_ids, user_id):
-    """
-        Get all the metadata in a network, across all scenarios
-        returns a dictionary of dict objects, keyed on dataset ID
-    """
-    log.info("Getting Metadata")
-    metadata_qry = db.DBSession.query(Metadata)\
-        .join(Dataset)\
-        .outerjoin(DatasetOwner)\
-        .join(ResourceScenario)\
-        .join(Scenario)\
-        .filter(or_(Dataset.hidden=='N', DatasetOwner.user_id != None),
-                Scenario.id==ResourceScenario.scenario_id,
-                Scenario.network_id==network_id,
-                Dataset.id==ResourceScenario.dataset_id).distinct()
-
-    if scenario_ids is not None and len(scenario_ids) > 0:
-        metadata_qry = metadata_qry.filter(ResourceScenario.scenario_id.in_(scenario_ids))
-
-    x = time.time()
-    logging.info("Getting all matadata")
-    all_metadata = metadata_qry.all()
-    log.info("%s metadata jointly retrieved in %s",len(all_metadata), time.time()-x)
-
-    logging.info("metadata retrieved. Processing results...")
-    x = time.time()
-    metadata_dict = dict()
-    for m in all_metadata:
-        if metadata_dict.get(m.dataset_id):
-            metadata_dict[m.dataset_id][m.key] = six.text_type(m.value)
-        else:
-            metadata_dict[m.dataset_id] = {m.key : six.text_type(m.value)}
-
-    logging.info("metadata processed in %s", time.time()-x)
-
-    return metadata_dict
-
 def _get_network_owners(network_id):
     """
         Get all the nodes in a network
@@ -1165,27 +1056,23 @@ def _get_scenarios(network_id, include_data, include_results, user_id,
         logging.info("Filtering by scenario_ids %s",scenario_ids)
         scen_qry = scen_qry.filter(Scenario.id.in_(scenario_ids))
     extras = {'resourcescenarios': [], 'resourcegroupitems': []}
-    scens = [JSONObject(s,extras=extras) for s in scen_qry.all()]
+    scens_i = scen_qry.all()
+    scens = [JSONObject(s,extras=extras) for s in scens_i]
 
     all_resource_group_items = _get_all_group_items(network_id)
 
     #default to empty metadata
     metadata = {}
 
-    if include_data == True:
-        all_rs = _get_all_resourcescenarios(network_id, scenario_ids, include_results, user_id)
-
-        if include_metadata is True:
-            metadata = _get_metadata(network_id, scenario_ids, user_id)
-
-    for s in scens:
+    for i, s in enumerate(scens):
+        s_i = scens_i[i]
         s.resourcegroupitems = all_resource_group_items.get(s.id, [])
 
         if include_data == True:
-            s.resourcescenarios  = all_rs.get(s.id, [])
-
-            for rs in s.resourcescenarios:
-                rs.dataset.metadata = metadata.get(rs.dataset_id, {})
+            s.resourcescenarios  = s_i.get_all_resourcescenarios(
+                user_id=user_id,
+                include_results=include_results,
+                include_metadata=include_metadata)
 
     return scens
 
@@ -3370,4 +3257,6 @@ def apply_unit_to_network_rs(network_id, unit_id, attr_id, scenario_id=None, **k
 
     #set the unit ID for each of the resource scenarios
     for network_rs in network_rs_list:
+        #need to set this to avoid the compressed value being re-compressed
+        network_rs.dataset.value = network_rs.dataset.value_uncompressed
         network_rs.dataset.unit_id = unit_id
