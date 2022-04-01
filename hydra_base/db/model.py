@@ -2097,6 +2097,7 @@ class Scenario(Base, Inspect):
                     ResourceScenario.resource_attr_id,
                     ResourceScenario.source,
                     ResourceAttr.attr_id,
+                    ResourceAttr.attr_is_var,
                     ResourceAttr.ref_key,
                     ResourceAttr.node_id,
                     ResourceAttr.network_id,
@@ -2119,7 +2120,7 @@ class Scenario(Base, Inspect):
             rs_qry = rs_qry.filter(ResourceAttr.attr_is_var=='Y')
 
         if ra_ids is not None:
-            rs_query = rs_qry.filter(ResourceScenario.resource_attr_id.in_(ra_ids))
+            rs_qry = rs_qry.filter(ResourceScenario.resource_attr_id.in_(ra_ids))
 
         all_rs = rs_qry.all()
 
@@ -2131,7 +2132,9 @@ class Scenario(Base, Inspect):
                 'dataset_id':rs.dataset_id
             })
             rs_attr = JSONObject({
+                'id': rs.resource_attr_id,
                 'attr_id':rs.attr_id,
+                'attr_is_var': rs.attr_is_var,
                 'ref_key': rs.ref_key,
                 'node_id': rs.node_id,
                 'link_id': rs.link_id,
