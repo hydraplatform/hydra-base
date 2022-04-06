@@ -46,6 +46,12 @@ DBSession = None
 global engine
 engine = None
 
+global hydra_db_url
+hydra_db_url=None
+
+global restart_counter
+restart_counter = 0
+
 #logger_sqlalchemy = logging.getLogger('sqlalchemy')
 #logger_sqlalchemy.setLevel(logging.DEBUG)
 
@@ -96,14 +102,13 @@ def create_mysql_db(db_url):
             else:
                 no_db_url = db_url
                 db_url = no_db_url + "/" + db_name
-
-        db_url = "{}?charset=utf8&use_unicode=1".format(db_url)
+        if db_url.find('charset') == -1:
+            db_url = "{}?charset=utf8&use_unicode=1".format(db_url)
 
         if config.get('mysqld', 'auto_create', 'Y') == 'Y':
             tmp_engine = create_engine(no_db_url)
             log.debug("Creating database {0} as it does not exist.".format(db_name))
             tmp_engine.execute("CREATE DATABASE IF NOT EXISTS {0}".format(db_name))
-
     return db_url
 
 def connect(db_url=None):
@@ -120,9 +125,15 @@ def connect(db_url=None):
 
     global engine
 
-    db_pool_size = config.get('mysqld', 'pool_size', 10)
-    db_pool_recycle = config.get('mysqld', 'pool_recycle', 300)
-    db_max_overflow = config.get('mysqld', 'max_overflow', 10)
+    # Let's use at least 10 for size and 20 for overflow (hydra.ini file)
+    # To test the timeout: pool_size:1, max_overflow: 0, pool_timeout: 5 or any low value
+    db_pool_size = int(config.get('mysqld', 'pool_size',10)) # 10
+    db_pool_recycle = int(config.get('mysqld', 'pool_recycle', 300)) # 300
+    db_max_overflow = int(config.get('mysqld', 'max_overflow', 20)) # 10 -> 30
+    db_pool_timeout = int(config.get('mysqld', 'pool_timeout', 10))
+
+    log.warning(f"db_pool_size: {db_pool_size} - pool_recycle: {db_pool_recycle} - max_overflow: {db_max_overflow} - pool_timeout: {db_pool_timeout}")
+
     if db_url.startswith('sqlite'):
         engine = create_engine(db_url, encoding='utf8')
     else:
@@ -130,14 +141,18 @@ def connect(db_url=None):
                                encoding='utf8',
                                pool_recycle=db_pool_recycle,
                                pool_size=db_pool_size,
+                               pool_timeout=db_pool_timeout,
                                max_overflow=db_max_overflow)
+
+    global hydra_db_url
+    hydra_db_url=db_url
+
 
     global DBSession
 
     maker = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     DBSession = scoped_session(maker)
     register(DBSession)
-
 
     global DeclarativeBase
     try:
@@ -155,14 +170,40 @@ def commit_transaction():
     try:
         transaction.commit()
     except Exception as e:
-        #import pudb; pudb.set_trace()
         log.critical(e)
         transaction.abort()
 
+def open_session():
+    log.debug("OPENING SESSION")
+
+    global DBSession
+
+    from .model import User
+    session = DBSession()
+    session.query(User).all()
+
+    session2 = DBSession()
+    session2.query(User).all()
+
+    DBSession()
+
 def close_session():
-    #import pudb; pudb.set_trace()
+    log.debug("CLOSING SESSION")
     DBSession.remove()
+
 
 def rollback_transaction():
     #import pudb; pudb.set_trace()
     transaction.abort()
+
+def restart_session(caller='-- not specified --'):
+    """
+        WILL RESTART THE SESSION
+    """
+    global DBSession
+    global restart_counter
+    restart_counter = restart_counter + 1
+    log.warning(f"[# Restarts: {restart_counter}] [{caller}] Restarting the DB Session!")
+    close_session()
+    global hydra_db_url
+    connect(hydra_db_url)

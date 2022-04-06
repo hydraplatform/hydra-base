@@ -139,6 +139,17 @@ class JSONObject(dict):
             elif isinstance(v, enum.Enum):
                 setattr(self, k, v.value)
             else:
+                if isinstance(v, bytes):
+                    #if it is bytes, then it could be compressed.
+                    #(for example the dataset value column)
+                    #Try to decode it. If compressed, then will throw a
+                    #UnicodeDecodeError, so we can ignore it.
+                    #"If it doesn't decode, it's probably because it's compressed"
+                    try:
+                        v = v.decode('utf-8')
+                    except UnicodeDecodeError:
+                        pass
+
                 if k == '_sa_instance_state':
                     continue
 
@@ -225,19 +236,51 @@ class ResourceScenario(JSONObject):
 
 class Dataset(JSONObject):
 
+    def __init__(self, dataset={}, parent=None, extras={}):
+
+        super(Dataset, self).__init__(dataset, parent=parent, extras=extras)
+        value_uncompressed = None
+        if hasattr(dataset, 'value_uncompressed'):
+            value_uncompressed = dataset.value_uncompressed
+        elif isinstance(dataset, dict) and dataset.get('value_uncompressed') is not None:
+            value_uncompressed = dataset['value_uncompressed']
+
+        if value_uncompressed is not None:
+            try:
+                self.value = value_uncompressed.decode('utf-8')
+            except AttributeError:
+                self.value = value_uncompressed
+
+        if self.get('value_uncompressed') is not None:
+            del(self['value_uncompressed'])
+
     def __getattr__(self, name):
 
         # Keys that start and end with "__" won't be retrievable via attributes
         if name.startswith('__') and name.endswith('__'):
             return super(JSONObject, self).__getattr__(name)
-
         else:
             return self.get(name, None)
 
     def __setattr__(self, name, value):
         if name == 'value' and value is not None:
+            if isinstance(value, bytes):
+                try:
+                    value = value.decode('utf-8')
+                except UnicodeDecodeError:
+                    pass
             value = six.text_type(value)
         super(Dataset, self).__setattr__(name, value)
+
+    def get_value(self):
+        """
+            This function is here to match the equivalent one on the tDataset class in model.py
+            so that the get_value function can be used throughout to replace the '.value' property
+            which now may contain compressed data.
+            This should return a string value for the dataset's value rather than the compressed
+            value
+        """
+        return self.value
 
     def parse_value(self):
         """
@@ -262,7 +305,6 @@ class Dataset(JSONObject):
         except Exception as e:
             log.exception(e)
             raise HydraError("Error parsing value %s: %s"%(self.value, e))
-
 
     def get_metadata_as_dict(self, user_id=None, source=None):
         """

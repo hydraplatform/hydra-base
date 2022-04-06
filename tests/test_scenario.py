@@ -257,6 +257,7 @@ class TestScenario:
 
         rs_to_update = []
         updated_dataset_id = None
+        scenario = client.get_scenario(scenario.id, include_data=True)
         for resourcescenario in scenario.resourcescenarios:
             ra_id = resourcescenario.resource_attr_id
             if ra_id == descriptor.resource_attr_id:
@@ -380,7 +381,7 @@ class TestScenario:
         rs_to_update = self._get_rs_to_update(scenario_2, scalar)
 
         new_resourcescenarios = client.update_resourcedata(scenario_2.id,
-                                                                        rs_to_update)
+                                                           rs_to_update)
         rs_2_id = None
         #Check that scenario 2 has been updated correctly.
         updated_scenario_2 = client.get_scenario(scenario_2.id)
@@ -566,6 +567,9 @@ class TestScenario:
         clone = client.clone_scenario(scenario_id)
         clone1 = client.clone_scenario(scenario_id, scenario_name="My Cloned Scenario")
         clone2 = client.clone_scenario(scenario_id, retain_results=True)
+
+        scenario_diff = JSONObject(client.compare_scenarios(scenario.id, clone.id))
+        assert len(scenario_diff.resourcescenarios) == 0, "Scenarios should be the same but are not"
 
         #This should fail because there's already another scenario with this name
         with pytest.raises(HydraError):
@@ -918,6 +922,10 @@ class TestScenario:
         clone = client.clone_scenario(scenario_id, retain_results=True)
         new_scenario = client.get_scenario(clone.id)
 
+        scenario_diff = JSONObject(client.compare_scenarios(scenario.id, new_scenario.id))
+
+        assert len(scenario_diff.resourcescenarios) == 0, "Scenarios should be the same but are not"
+
         resource_scenario = new_scenario.resourcescenarios[0]
         resource_attr_id = resource_scenario.resource_attr_id
 
@@ -1194,7 +1202,7 @@ class TestScenario:
 
         retrieved_resource_scenarios = client.get_attribute_datasets(attr_id, s.id)
 
-        rs_dict  = {}
+        rs_dict = {}
         for rs in retrieved_resource_scenarios:
             rs_dict[rs.resource_attr_id] = rs
 
@@ -1213,7 +1221,7 @@ class TestScenario:
             resource attrs.
         """
 
-        network =  network_with_data
+        network = network_with_data
 
 
         network = client.get_network(network.id)
@@ -1246,13 +1254,65 @@ class TestScenario:
 
         assert len(scenario_diff.resourcescenarios) == 0, "Scenario update was not successful!"
 
+    def test_merge_scenario(self, client, networkmaker):
+
+        """
+            Test merge_scenario : test that one scenario
+            can be updated to contain the data of another with the same
+            resource attrs.
+        """
+
+        sourcenetwork = networkmaker.create()
+        targetnetwork = networkmaker.create()
+
+        source_scenario = sourcenetwork.scenarios[0]
+        target_scenario = targetnetwork.scenarios[0]
+        source_scenario_id = source_scenario.id
+
+        resource_scenario = source_scenario.resourcescenarios[0]
+        resource_attr_id = resource_scenario.resource_attr_id
+
+        dataset = Dataset()
+        dataset.type = 'descriptor'
+        dataset.name = 'Max Capacity'
+        dataset.unit_id = client.get_unit_by_abbreviation("m s^-1").id
+        dataset.value = 'I am an updated test!'
+
+        client.add_data_to_attribute(source_scenario_id, resource_attr_id, dataset)
+
+        source_scenario = client.get_scenario(source_scenario.id)
+        target_scenario = client.get_scenario(target_scenario.id)
+        source_rs = sorted(source_scenario.resourcescenarios, key=lambda x: x.resource_attr_id)
+        target_rs = sorted(target_scenario.resourcescenarios, key=lambda x: x.resource_attr_id)
+        differences = []
+        for i, rs in enumerate(source_rs):
+            if rs.dataset.value != target_rs[i].dataset.value:
+                differences.append(rs.id)
+        assert len(differences) > 0
+
+        client.merge_scenarios(source_scenario.id, target_scenario.id)
+
+        #Now check that the scenarios are the same by making sure all the datasets
+        #are the same
+        updated_target_network = client.get_network(targetnetwork.id)
+        merged_scenario = client.get_scenario(sorted(updated_target_network.scenarios, key=lambda x: x.cr_date)[-1].id)
+        source_scenario = client.get_scenario(source_scenario.id)
+        source_rs = sorted(source_scenario.resourcescenarios, key=lambda x: x.resource_attr_id)
+        merged_rs = sorted(merged_scenario.resourcescenarios, key=lambda x: x.resource_attr_id)
+        differences = []
+        for i, rs in enumerate(source_rs):
+            if rs.dataset.value != merged_rs[i].dataset.value:
+                differences.append(rs.id)
+        assert len(differences) == 0
+
+
     def test_set_resourcescenario_dataset(self, client, network_with_data):
 
         """
             Test the direct setting of a dataset id on a resource scenario
         """
 
-        network =  network_with_data
+        network = network_with_data
 
 
         network = client.get_network(network.id)
@@ -1287,7 +1347,7 @@ class TestScenario:
 
     def test_add_data_to_attribute(self, client, network_with_data):
 
-        network =  network_with_data
+        network = network_with_data
 
         empty_ra = network.links[0].attributes[-1]
 

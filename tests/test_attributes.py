@@ -72,6 +72,13 @@ class TestAttribute:
 
         assert len(all_attributes) == len(all_attributes_insert_2)
 
+        upper_case_attr = test_attr
+        upper_case_attr['name'] = upper_case_attr['name'].upper()
+
+        new_upper_attr = client.add_attribute(upper_case_attr)
+
+        assert new_upper_attr['id'] == new_attr['id']
+
 
     def test_update_attribute(self, client):
         test_attr = JSONObject({
@@ -139,8 +146,13 @@ class TestAttribute:
 
         all_attributes_after_add_1 = client.get_attributes()
 
+        #test to make sure that the insert is not case-sensitive.
+        upper_test_attrs = test_attrs
+        for a in upper_test_attrs:
+            a['name'] = a['name'].upper()
+
         #Try adding the attributes again. It should ignore them as theyr'e already there.
-        new_attrs_list_2 = client.add_attributes(test_attrs)
+        new_attrs_list_2 = client.add_attributes(upper_test_attrs)
 
         all_attributes_after_add_2 = client.get_attributes()
 
@@ -287,6 +299,7 @@ class TestResourceAttribute:
                     manual_all_network_attributes.append(a.attr_id)
         for n in network_with_data.links:
             for a in n.attributes:
+                print(a.attr_id)
                 if a.attr_id not in manual_all_network_attributes:
                     manual_all_network_attributes.append(a.attr_id)
         for n in network_with_data.resourcegroups:
@@ -294,7 +307,7 @@ class TestResourceAttribute:
                 if a.attr_id not in manual_all_network_attributes:
                     manual_all_network_attributes.append(a.attr_id)
 
-        assert len(all_network_attributes) == len(manual_all_network_attributes)
+        assert len(set([a.id for a in all_network_attributes])) == len(manual_all_network_attributes)
 
 
     def test_add_group_attribute(self, client, network_with_data, attribute):
