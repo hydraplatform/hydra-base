@@ -171,8 +171,8 @@ def share_project(project_id, usernames, read_only=False, share=False, flush=Tru
         for net_i in proj_i.networks:
             net_i.set_owner(user_i.id, write=write, share=share)
 
-    if proj_i.parent_id is not None:
-        share_project(proj_i.parent_id, usernames, read_only=read_only, share=share, **kwargs)
+    # if proj_i.parent_id is not None:
+    #     share_project(proj_i.parent_id, usernames, read_only=read_only, share=share, **kwargs)
 
     if flush is True:
         db.DBSession.flush()
