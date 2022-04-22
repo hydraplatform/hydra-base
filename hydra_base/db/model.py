@@ -1375,19 +1375,29 @@ class Project(Base, Inspect):
         if is_admin is True:
             return True
 
+        has_permission = False
+
         for owner in self.owners:
             if owner.user_id == user_id:
                 if owner.view == 'Y':
+                    has_permission = True
                     break
-        else:
-            if do_raise is True:
-                raise PermissionError("Permission denied. User %s does not have read"
-                             " access on project %s" %
-                             (user_id, self.id))
-            else:
-                return False
 
-        return True
+        #If a user has access to a child, then they must be able to navigate to
+        #the project, so must have read permission on the parent projects despite
+        #not having direct ownership on it.
+        children = get_session().query(Project).filter(Project.parent_id==self.id).all()
+        for p in children:
+            child_has_permission = p.check_read_permission(user_id, do_raise=False)
+            if child_has_permission is True:
+                has_permission = True
+                break
+
+        if has_permission is False and do_raise is True:
+            raise PermissionError("Permission denied. User %s does not have read"
+                                  " access on project '%s'" % (user_id, self.name))
+
+        return has_permission
 
     def check_write_permission(self, user_id, do_raise=True, is_admin=None):
         """
