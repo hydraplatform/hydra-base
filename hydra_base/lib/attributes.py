@@ -253,9 +253,11 @@ def _reassign_scoped_attributes(attr_id):
     """
     attr_i = db.DBSession.query(Attr).filter(Attr.id == attr_id).one()
 
-    #If a matching attribute exists (same name & dimension) but scoped at a lower
-    #level, then we need to delete those attributes, add the new attribute and then
-    #re-assign all resource attributes to use the new, global attribute
+    """
+      If a matching attribute exists (same name & dimension) but scoped at a lower
+      level, then we need to delete those attributes, add the new attribute and then
+      re-assign all resource attributes to use the new, global attribute
+    """
     matching_attrs = get_attributes_by_name_and_dimension(
         attr_i.name,
         attr_i.dimension_id
