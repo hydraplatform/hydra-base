@@ -115,6 +115,7 @@ class TestProjectInheritance:
         assert len(targetproject_j.projects) == 1
         assert targetproject_j.projects[0].id == child_project_j.id
 
+
     def test_share_project(self, client, projectmaker):
         """
             Test sharing a sub-project. This should result in the sharee having
@@ -166,6 +167,7 @@ class TestProjectInheritance:
         client.user_id = pytest.user_c.id
         with pytest.raises(HydraError):
             client.get_project(proj4.id)
+        client.user_id = proj_user
 
     def test_share_network(self, client, projectmaker, networkmaker):
         """
@@ -229,7 +231,7 @@ class TestProjectInheritance:
 
         userc_p4 = client.get_project(proj4.id)
         assert len(userc_p4.networks) == 0
-
+        client.user_id = proj_user
 
     def test_access_to_shared_sub_project(self, client, projectmaker):
         """
@@ -262,9 +264,7 @@ class TestProjectInheritance:
 
         #Now as the sharee, try to get project c
         client.user_id = pytest.user_c.id
-
         userc_projects = client.get_projects(pytest.user_c.id)
-
         assert proj1.id in [p.id for p in userc_projects]
 
         #User C doesn't have explicit read access on proj1 or proj2, but should

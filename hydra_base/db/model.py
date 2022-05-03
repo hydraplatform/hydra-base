@@ -30,9 +30,12 @@ Text, \
 DateTime,\
 Unicode
 
-from hydra_base.lib.objects import JSONObject
+from collections import defaultdict
 
+from hydra_base.lib.objects import JSONObject, Dataset as JSONDataset
+from hydra_base.lib.cache import cache
 from sqlalchemy.orm.exc import NoResultFound
+
 
 from sqlalchemy.ext.declarative import declared_attr
 
@@ -1267,8 +1270,85 @@ class Project(Base, Inspect):
     _parents  = []
     _children = ['tNetwork']
 
+
+    #This map should look like:
+    # {'UID' :
+    #     {
+    #         None: [P1, P2],
+    #         'P1': [P3, P4]
+    #     }
+    # }
+    #Where UID is the user ID and the inner keys are project IDS, and the lists are
+    #projects the user can see within those projects. The 'None' key at the top is for
+    #top-level projects.
+    @classmethod
+    def get_cache(cls):
+        return cache.get('userprojects', {})
+
+    @classmethod
+    def set_cache(cls, data):
+        cache.set('userprojects', dict(data))
+
+    @classmethod
+    def clear_cache(cls, uid):
+        projectcache = cache.get('userprojects', {})
+        if projectcache.get(uid) is not None:
+            del projectcache[uid]
+        cls.set_cache(projectcache)
+
     def get_name(self):
         return self.project_name
+
+    @classmethod
+    def build_user_cache(cls, uid):
+        """
+            Build the cache of projects a user has access to either by direct Ownership
+            or by indirect access required for navigating to a projct to which they own
+        """
+        if cls.get_cache().get(uid) is not None:
+            return
+
+        project_user_cache = defaultdict(lambda: defaultdict(list))
+        ##Don't load the project's networks. Load them separately, as the networks
+        #must be checked individually for ownership
+        projects_qry = get_session().query(Project).options(joinedload('owners'))
+
+        log.info("Getting projects for user %s", uid)
+
+        projects_qry = projects_qry.outerjoin(ProjectOwner).filter(
+            Project.status == 'A', or_(
+                and_(ProjectOwner.user_id == uid, ProjectOwner.view == 'Y'),
+                Project.created_by == uid))
+
+        projects_qry = projects_qry.options(noload('networks')).order_by('id')
+
+        projects_i = projects_qry.all()
+
+        parent_project_ids = []
+
+        for p in projects_i:
+            project_user_cache[uid][p.parent_id].append(p.id)
+            if p.parent_id is not None:
+                parent_project_ids.append(p.parent_id)
+
+        cls._build_user_cache(uid, parent_project_ids, project_user_cache)
+
+        cls.set_cache(project_user_cache)
+
+    @classmethod
+    def _build_user_cache(cls, uid, project_ids, project_user_cache):
+
+        if len(project_ids) == 0:
+            return
+
+        projects = get_session().query(Project).filter(Project.id.in_(project_ids)).all()
+
+        parent_project_ids = []
+        for p in projects:
+            project_user_cache[uid][p.parent_id].append(p.id)
+            if p.parent_id is not None:
+                parent_project_ids.append(p.parent_id)
+        cls._build_user_cache(uid, parent_project_ids, project_user_cache)
 
     def get_attribute_data(self):
         attribute_data_rs = get_session().query(ResourceScenario).join(ResourceAttr).filter(ResourceAttr.project_id==self.id).all()
@@ -1304,6 +1384,8 @@ class Project(Base, Inspect):
         owner.edit = write
         owner.share = share
 
+        Project.clear_cache(user_id)
+
         return owner
 
     def unset_owner(self, user_id):
@@ -1316,6 +1398,7 @@ class Project(Base, Inspect):
                 owner = o
                 get_session().delete(owner)
                 break
+        Project.clear_cache(user_id)
 
     def check_read_permission(self, user_id, do_raise=True, is_admin=None):
         """

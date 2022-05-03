@@ -331,6 +331,8 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
     """
     req_user_id = kwargs.get('user_id')
 
+    Project.build_user_cache(uid)
+
     ##Don't load the project's networks. Load them separately, as the networks
     #must be checked individually for ownership
     projects_qry = db.DBSession.query(Project).options(joinedload('owners'))
@@ -373,14 +375,18 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
     #which allow the user access to the projects that they have prermissions on
 
     scoped_projects = [p for p in projects_i if p.parent_id == project_id]
+    scoped_project_ids = {p.id for p in scoped_projects}
 
-    projects_not_in_scope = set(projects_i) - set(scoped_projects)
-
-    #only do this when requesting all the projects in a given scope.
+    #Now get projects which the user must have access to in order to navigate
+    #to projects further down the tree which they are owners of.
+    nav_project_ids = set(Project.get_cache()[uid][project_id]) - scoped_project_ids
+    nav_projects_i = db.DBSession.query(Project).filter(Project.id.in_(nav_project_ids)).all()
     nav_projects = []
+    for nav_project_i in nav_projects_i:
+        nav_project_j = JSONObject(nav_project_i)
+        nav_project_j.owners = []
+        nav_projects.append(nav_project_j)
 
-    if projects_ids_list_filter is None:
-        nav_projects = get_projects_with_shared_subprojects(uid, project_id, projects_not_in_scope)
 
     user = db.DBSession.query(User).filter(User.id == req_user_id).one()
     isadmin = user.is_admin()
@@ -400,45 +406,7 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
 
     return projects_j + nav_projects
 
-def get_projects_with_shared_subprojects(uid, project_id, projects):
-    """
-        Get all the projects which are the parent of a project to which the user has access
-        If a user has been granted access to a network / project lower down the tree, then
-        they need to navigate to it, so return any project required to allow the user to navigate
-        to the thing to which they have access, but don't necessarily have access to
-    """
 
-    project_ids = [p.id for p in projects]
-
-    parent_project_ids = []
-    for p in projects:
-        if p.parent_id is not None and p.parent_id not in project_ids:
-            parent_project_ids.append(p.parent_id)
-
-    if len(parent_project_ids) > 0:
-        projects_qry = db.DBSession.query(Project).filter(Project.id.in_(parent_project_ids))
-        parent_projects = projects_qry.all()
-    else:
-        return []
-
-    #these projects are all parents of the parent projects, which include projects in the
-    #requested scope, and ones which are intermediate, which we don't want and must filter out
-    additional_projects = get_projects_with_shared_subprojects(uid, project_id, parent_projects)
-
-    projects_j = []
-    for project_i in parent_projects + additional_projects:
-
-        #now only show projects which are relevant to the project being requested
-        if project_i.parent_id != project_id:
-            continue
-
-        project_j = JSONObject(project_i)
-        project_j.networks = []
-        projects_j.append(project_j)
-
-    log.info("Networks loaded projects for user %s", uid)
-
-    return projects_j
 
 def get_projects_networks(project_ids, uid, isadmin=None, **kwargs):
     """
