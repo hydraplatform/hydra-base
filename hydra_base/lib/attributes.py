@@ -276,7 +276,7 @@ def _reassign_scoped_attributes(attr_id):
         Attr.id != attr_id
     )
 
-    log.info("%s scoped attribuytes found with same name & dimension. Reassigning.")
+    log.info("%s scoped attributes found with same name & dimension. Reassigning.")
     #If this is a project scoped attribute then we only want to change the scope
     #of attributes scoped to networks contained within this project,and leave
     #other projects alone.
