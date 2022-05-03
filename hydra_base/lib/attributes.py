@@ -188,10 +188,10 @@ def _add_attribute(attr, user_id, flush=True, do_reassign=True):
     Add an attribute to the DB
     args:
         attr: A JSONObject representing the attr
-        user_id: THe ID of the user adding the attribute
-        flush: Flag do indicate whether this shoudl call the DB flush.
+        user_id: The ID of the user adding the attribute
+        flush: Flag to indicate whether this should call the DB flush
         do_reassign: Flag to indicate whether any attributes scoped lower than the
-                     incomeing attribute should be removed. **WARNINGG*** this is
+                     incoming attribute should be removed. **WARNING*** this is
                      just here for testing purposes
      returns:
         JSONObject of new attr
