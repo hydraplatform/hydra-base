@@ -10,3 +10,5 @@ python-dateutil
 cheroot
 beaker
 click
+diskcache
+pylibmc
