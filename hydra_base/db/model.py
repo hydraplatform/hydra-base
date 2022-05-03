@@ -288,7 +288,7 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
     hash       = Column(BIGINT(),  nullable=False, unique=True)
     cr_date    = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     hidden     = Column(String(1),  nullable=False, server_default=text(u"'N'"))
-    value      = Column('value', LargeBinary(),  nullable=True)
+    value      = Column('value', LargeBinary(length=(2**32)-1),  nullable=True)
 
     value_uncompressed_col = column_property(func.uncompress(value), raiseload=False, deferred=True)
     unit = relationship('Unit', backref=backref("dataset_unit", order_by=unit_id))
