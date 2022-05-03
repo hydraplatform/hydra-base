@@ -277,11 +277,13 @@ def _reassign_scoped_attributes(attr_id):
     )
 
     log.info("%s scoped attributes found with same name & dimension. Reassigning.")
-    #If this is a project scoped attribute then we only want to change the scope
-    #of attributes scoped to networks contained within this project,and leave
-    #other projects alone.
-    #If it's global, we want to stipulate that we want all attribute which
-    #are project-scoped also.
+    """
+      If this is a project scoped attribute then we only want to change the scope
+      of attributes scoped to networks contained within this project, and leave
+      other projects alone.
+      If it's global, we want to stipulate that we want all attributes which
+      are project-scoped also.
+    """
     if attr_i.project_id is not None:
         scoped_resource_attrs_qry.join(Network).filter(
             Attr.network_id == Network.id,
