@@ -234,10 +234,12 @@ def _add_attribute(attr, user_id, flush=True, do_reassign=True):
         db.DBSession.flush()
     log.info("New attr added")
 
-    #Now that we have an ID, check for inconsistencies in the attribute scoping
-    #hierarchy, and fix them buy removing any conflicting entries and reassigning
-    #any resource attributes to the non-conflicting attribute.
-    # only do this for attributes not scoped to a network as a network is the lowest scope.
+    """
+      Now that we have an ID, check for inconsistencies in the attribute scoping
+      hierarchy, and fix them buy removing any conflicting entries and reassigning
+      any resource attributes to the non-conflicting attribute.
+      Only do this for attributes not scoped to a network as a network is the lowest scope.
+    """
     if do_reassign is True and attr_i.network_id is None:
         _reassign_scoped_attributes(attr_i.id)
         if flush is True:
