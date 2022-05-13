@@ -35,6 +35,7 @@ from collections import defaultdict
 from hydra_base.lib.objects import JSONObject, Dataset as JSONDataset
 from hydra_base.lib.cache import cache
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy import and_, or_
 
 
 from sqlalchemy.ext.declarative import declared_attr
@@ -121,7 +122,7 @@ class AuditMixin(object):
     def updated_by(cls):
         return Column(Integer, ForeignKey('tUser.id'), onupdate=get_user_id_from_engine)
 
-    updated_at = Column(DateTime, nullable=False, default=datetime.datetime.utcnow(), onupdate=datetime.datetime.utcnow())
+    updated_at = Column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))
 
 class PermissionControlled(object):
     def set_owner(self, user_id, read='Y', write='Y', share='Y'):
