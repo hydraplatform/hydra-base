@@ -122,7 +122,7 @@ class AuditMixin(object):
     def updated_by(cls):
         return Column(Integer, ForeignKey('tUser.id'), onupdate=get_user_id_from_engine)
 
-    updated_at = Column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'))
+    updated_at = Column(DateTime, nullable=False, server_default=text(u'CURRENT_TIMESTAMP'), onupdate=func.utc_timestamp())
 
 class PermissionControlled(object):
     def set_owner(self, user_id, read='Y', write='Y', share='Y'):
@@ -133,7 +133,7 @@ class PermissionControlled(object):
                 break
         else:
             owner = self.__ownerclass__()
-            setattr(owner, self.__ownerfk__,  self.id)
+            setattr(owner, self.__ownerfk__, self.id)
             owner.user_id = int(user_id)
             self.owners.append(owner)
 
@@ -2533,15 +2533,15 @@ class RolePerm(Base, Inspect):
     """
     """
 
-    __tablename__='tRolePerm'
+    __tablename__ = 'tRolePerm'
 
     perm_id = Column(Integer(), ForeignKey('tPerm.id'), primary_key=True, nullable=False)
     role_id = Column(Integer(), ForeignKey('tRole.id'), primary_key=True, nullable=False)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     perm = relationship('Perm', backref=backref('roleperms', uselist=True, lazy='joined'), lazy='joined')
     role = relationship('Role', backref=backref('roleperms', uselist=True, lazy='joined'), lazy='joined')
 
-    _parents  = ['tRole', 'tPerm']
+    _parents = ['tRole', 'tPerm']
     _children = []
 
     def __repr__(self):
