@@ -38,7 +38,7 @@ log = logging.getLogger(__name__)
 
 def _get_project(project_id, user_id, check_write=False):
     try:
-        project = db.DBSession.query(Project).filter(Project.id == project_id).one()
+        project = db.DBSession.query(Project).filter(Project.id == project_id).options(noload('children')).one()
 
         if check_write is True:
             project.check_write_permission(user_id)
@@ -195,19 +195,15 @@ def _get_child_projects(project_id, user_id, include_deleted_networks=False):
     log.info("Getting child projects of project %s", project_id)
 
     child_projects_i = db.DBSession.query(Project).outerjoin(ProjectOwner)\
-        .filter(Project.parent_id == project_id)\
-        .filter(or_(
-            and_(
-                ProjectOwner.user_id == user_id,
-                ProjectOwner.view == 'Y'),
-            Project.created_by == user_id)).all()
+        .filter(Project.parent_id == project_id).all()
 
+    projects = []
+    for child_proj_i in child_projects_i:
+        if child_proj_i.check_read_permission(user_id, do_raise=False) is True:
+            projects.append(JSONObject(child_proj_i))
 
-
-    projects = [JSONObject(child_proj) for child_proj in child_projects_i]
-
-    owners = db.DBSession.query(ProjectOwner).filter(ProjectOwner.project_id.in_([p.id for p in projects]))
-    creators = db.DBSession.query(User.id, User.username, User.display_name).filter(User.id.in_([p.created_by for p in projects]))
+    owners = db.DBSession.query(ProjectOwner).filter(ProjectOwner.project_id.in_([p.id for p in projects])).all()
+    creators = db.DBSession.query(User.id, User.username, User.display_name).filter(User.id.in_([p.created_by for p in projects])).all()
     creator_lookup = {u.id:JSONObject(u)  for u in creators}
     owner_lookup = defaultdict(list)
     for p in projects:
@@ -335,6 +331,8 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
     """
     req_user_id = kwargs.get('user_id')
 
+    Project.build_user_cache(uid)
+
     ##Don't load the project's networks. Load them separately, as the networks
     #must be checked individually for ownership
     projects_qry = db.DBSession.query(Project).options(joinedload('owners'))
@@ -343,18 +341,17 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
 
     if project_id is not None:
         log.info("Getting projects in project %s", project_id)
-        projects_qry = projects_qry.filter(Project.parent_id == project_id)
     else:
         log.info("Getting top-level projects")
-        projects_qry = projects_qry.filter(Project.parent_id == None)
 
     if include_shared_projects is True:
         projects_qry = projects_qry.outerjoin(ProjectOwner).filter(
             Project.status == 'A', or_(
                 and_(ProjectOwner.user_id == uid, ProjectOwner.view == 'Y'),
                 Project.created_by == uid))
+
     else:
-        projects_qry = projects_qry.join(ProjectOwner).filter(Project.created_by == uid)
+        projects_qry = projects_qry.filter(Project.created_by == uid)
 
     if projects_ids_list_filter is not None:
         # Filtering the search of project id
@@ -373,6 +370,24 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
 
     log.info("Project query done for user %s. %s projects found", uid, len(projects_i))
 
+    #now separate all the projects in the current scope (in the requested project ID)
+    #from the ones that are not. Using the ones that are not, we need to find the projects
+    #which allow the user access to the projects that they have prermissions on
+
+    scoped_projects = [p for p in projects_i if p.parent_id == project_id]
+    scoped_project_ids = {p.id for p in scoped_projects}
+
+    #Now get projects which the user must have access to in order to navigate
+    #to projects further down the tree which they are owners of.
+    nav_project_ids = set(Project.get_cache()[uid][project_id]) - scoped_project_ids
+    nav_projects_i = db.DBSession.query(Project).filter(Project.id.in_(nav_project_ids)).all()
+    nav_projects = []
+    for nav_project_i in nav_projects_i:
+        nav_project_j = JSONObject(nav_project_i)
+        nav_project_j.owners = []
+        nav_projects.append(nav_project_j)
+
+
     user = db.DBSession.query(User).filter(User.id == req_user_id).one()
     isadmin = user.is_admin()
 
@@ -380,7 +395,7 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
 
     #Load each
     projects_j = []
-    for project_i in projects_i:
+    for project_i in scoped_projects:
         project_i.attributes#pylint: disable=W0104
         project_i.get_attribute_data()
         project_j = JSONObject(project_i)
@@ -389,7 +404,9 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
 
     log.info("Networks loaded projects for user %s", uid)
 
-    return projects_j
+    return projects_j + nav_projects
+
+
 
 def get_projects_networks(project_ids, uid, isadmin=None, **kwargs):
     """

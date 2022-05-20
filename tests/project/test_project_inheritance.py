@@ -115,6 +115,7 @@ class TestProjectInheritance:
         assert len(targetproject_j.projects) == 1
         assert targetproject_j.projects[0].id == child_project_j.id
 
+
     def test_share_project(self, client, projectmaker):
         """
             Test sharing a sub-project. This should result in the sharee having
@@ -131,7 +132,7 @@ class TestProjectInheritance:
         proj_user = client.user_id
         proj1 = projectmaker.create(share=False)
         proj2 = projectmaker.create(share=False, parent_id=proj1.id)
-        proj3 = projectmaker.create(share=False, parent_id=proj2.id)
+        proj3 = projectmaker.create(share=False, parent_id=proj1.id)
         proj4 = projectmaker.create(share=False, parent_id=proj2.id)
 
         client.user_id = pytest.user_c.id
@@ -166,6 +167,7 @@ class TestProjectInheritance:
         client.user_id = pytest.user_c.id
         with pytest.raises(HydraError):
             client.get_project(proj4.id)
+        client.user_id = proj_user
 
     def test_share_network(self, client, projectmaker, networkmaker):
         """
@@ -185,7 +187,7 @@ class TestProjectInheritance:
         proj_user = client.user_id
         proj1 = projectmaker.create(share=False)
         proj2 = projectmaker.create(share=False, parent_id=proj1.id)
-        proj3 = projectmaker.create(share=False, parent_id=proj2.id)
+        proj3 = projectmaker.create(share=False, parent_id=proj1.id)
         proj4 = projectmaker.create(share=False, parent_id=proj2.id)
 
         net1 = networkmaker.create(project_id=proj4.id)
@@ -229,3 +231,102 @@ class TestProjectInheritance:
 
         userc_p4 = client.get_project(proj4.id)
         assert len(userc_p4.networks) == 0
+        client.user_id = proj_user
+
+    def test_access_to_shared_sub_project(self, client, projectmaker):
+        """
+            Test sharing a sub-project. This should result in the sharee having
+            access to the full tree of projects until the shared projects, but not
+            the projects which are siblings of any projects in that path through the tree
+            For example, upon sharing p4, the sharee should not have access to p3
+                                 p1
+                                /  \
+                               p2   p3
+                              /
+                             p4
+            If userC wants to navigate to p4, they will also need read access on P1 and P2
+            while not being able to see p3 in the list of sub-projects of P1
+        """
+
+        proj_user = client.user_id
+        proj1 = projectmaker.create(share=False, name='Project1')
+        proj2 = projectmaker.create(share=False, name='Project2', parent_id=proj1.id)
+        proj3 = projectmaker.create(share=False, name='Project3', parent_id=proj1.id)
+        proj4 = projectmaker.create(share=False, name='Project4', parent_id=proj2.id)
+
+        client.user_id = pytest.user_c.id
+        with pytest.raises(HydraError):
+            client.get_project(proj4.id)
+
+        #Now, as the main user, share P4 with user C
+        client.user_id = proj_user
+        client.share_project(proj4.id, ['UserC'], False, False)
+
+        #Now as the sharee, try to get project c
+        client.user_id = pytest.user_c.id
+        userc_projects = client.get_projects(pytest.user_c.id)
+        assert proj1.id in [p.id for p in userc_projects]
+
+        #User C doesn't have explicit read access on proj1 or proj2, but should
+        #be abe to navigate to proj1 and 2 so they cna access proj4
+        userc_proj1 = client.get_project(project_id=proj1.id)
+
+        #User C should only see project 2, not project 3, as they don't hace access
+        #to that branch
+        assert len(userc_proj1.projects) == 1
+
+        assert proj2.id in [p.id for p in userc_proj1.projects]
+
+        #User C can't see project 3
+        with pytest.raises(HydraError):
+            client.get_project(proj3.id)
+        client.user_id = proj_user
+
+    def test_access_to_shared_network_in_sub_projec(self, client, projectmaker, networkmaker):
+        """
+            Test sharing a network contained in sub-project. This should result in the sharee having
+            access to the full tree of projects until the shared projects, but not
+            the projects which are siblings of any projects in that path through the tree
+            For example, upon sharing p4, the sharee should not have access to p3
+                                 p1
+                                /  \
+                               p2   p3
+                              /
+                             N1
+            If userC wants to navigate to N1, they will also need read access on P1 and P2
+            while not being able to see p3 in the list of sub-projects of P1
+        """
+
+        proj_user = client.user_id
+        proj1 = projectmaker.create(share=False, name='Project1')
+        proj2 = projectmaker.create(share=False, name='Project2', parent_id=proj1.id)
+        proj3 = projectmaker.create(share=False, name='Project3', parent_id=proj1.id)
+
+        net1 = networkmaker.create(project_id=proj2.id)
+
+        client.user_id = pytest.user_c.id
+        with pytest.raises(HydraError):
+            client.get_network(net1.id)
+
+        #Now, as the main user, share P4 with user C
+        client.user_id = proj_user
+        client.share_network(net1.id, ['UserC'], False, False)
+
+        #Now as the sharee, try to get project c
+        client.user_id = pytest.user_c.id
+        userc_projects = client.get_projects(pytest.user_c.id)
+        assert proj1.id in [p.id for p in userc_projects]
+
+        #User C doesn't have explicit read access on proj1 or proj2, but should
+        #be abe to navigate to proj1 and 2 so they cna access proj4
+        userc_proj1 = client.get_project(project_id=proj1.id)
+
+        #User C should only see project 2, not project 3, as they don't hace access
+        #to that branch
+        assert len(userc_proj1.projects) == 1
+
+        assert proj2.id in [p.id for p in userc_proj1.projects]
+
+        #User C can't see project 3
+        with pytest.raises(HydraError):
+            client.get_project(proj3.id)

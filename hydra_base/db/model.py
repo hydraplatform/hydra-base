@@ -32,9 +32,13 @@ Unicode,\
 DDL,\
 event
 
-from hydra_base.lib.objects import JSONObject, Dataset as JSONDataset
+from collections import defaultdict
 
+from hydra_base.lib.objects import JSONObject, Dataset as JSONDataset
+from hydra_base.lib.cache import cache
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy import and_, or_
+
 
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.sql.functions import _FunctionGenerator
@@ -120,7 +124,7 @@ class AuditMixin(object):
     def updated_by(cls):
         return Column(Integer, ForeignKey('tUser.id'), onupdate=get_user_id_from_engine)
 
-    updated_at = Column(DateTime, nullable=False, default=datetime.datetime.utcnow(), onupdate=datetime.datetime.utcnow())
+    updated_at = Column(DateTime, nullable=False, server_default=text(u'CURRENT_TIMESTAMP'), onupdate=func.utc_timestamp())
 
 class PermissionControlled(object):
     def set_owner(self, user_id, read='Y', write='Y', share='Y'):
@@ -131,7 +135,7 @@ class PermissionControlled(object):
                 break
         else:
             owner = self.__ownerclass__()
-            setattr(owner, self.__ownerfk__,  self.id)
+            setattr(owner, self.__ownerfk__, self.id)
             owner.user_id = int(user_id)
             self.owners.append(owner)
 
@@ -1311,8 +1315,85 @@ class Project(Base, Inspect):
     _parents  = []
     _children = ['tNetwork']
 
+
+    #This map should look like:
+    # {'UID' :
+    #     {
+    #         None: [P1, P2],
+    #         'P1': [P3, P4]
+    #     }
+    # }
+    #Where UID is the user ID and the inner keys are project IDS, and the lists are
+    #projects the user can see within those projects. The 'None' key at the top is for
+    #top-level projects.
+    @classmethod
+    def get_cache(cls):
+        return cache.get('userprojects', {})
+
+    @classmethod
+    def set_cache(cls, data):
+        cache.set('userprojects', dict(data))
+
+    @classmethod
+    def clear_cache(cls, uid):
+        projectcache = cache.get('userprojects', {})
+        if projectcache.get(uid) is not None:
+            del projectcache[uid]
+        cls.set_cache(projectcache)
+
     def get_name(self):
         return self.project_name
+
+    @classmethod
+    def build_user_cache(cls, uid):
+        """
+            Build the cache of projects a user has access to either by direct Ownership
+            or by indirect access required for navigating to a projct to which they own
+        """
+        if cls.get_cache().get(uid) is not None:
+            return
+
+        project_user_cache = defaultdict(lambda: defaultdict(list))
+        ##Don't load the project's networks. Load them separately, as the networks
+        #must be checked individually for ownership
+        projects_qry = get_session().query(Project).options(joinedload('owners'))
+
+        log.info("Getting projects for user %s", uid)
+
+        projects_qry = projects_qry.outerjoin(ProjectOwner).filter(
+            Project.status == 'A', or_(
+                and_(ProjectOwner.user_id == uid, ProjectOwner.view == 'Y'),
+                Project.created_by == uid))
+
+        projects_qry = projects_qry.options(noload('networks')).order_by('id')
+
+        projects_i = projects_qry.all()
+
+        parent_project_ids = []
+
+        for p in projects_i:
+            project_user_cache[uid][p.parent_id].append(p.id)
+            if p.parent_id is not None:
+                parent_project_ids.append(p.parent_id)
+
+        cls._build_user_cache(uid, parent_project_ids, project_user_cache)
+
+        cls.set_cache(project_user_cache)
+
+    @classmethod
+    def _build_user_cache(cls, uid, project_ids, project_user_cache):
+
+        if len(project_ids) == 0:
+            return
+
+        projects = get_session().query(Project).filter(Project.id.in_(project_ids)).all()
+
+        parent_project_ids = []
+        for p in projects:
+            project_user_cache[uid][p.parent_id].append(p.id)
+            if p.parent_id is not None:
+                parent_project_ids.append(p.parent_id)
+        cls._build_user_cache(uid, parent_project_ids, project_user_cache)
 
     def get_attribute_data(self):
         attribute_data_rs = get_session().query(ResourceScenario).join(ResourceAttr).filter(ResourceAttr.project_id==self.id).all()
@@ -1348,6 +1429,8 @@ class Project(Base, Inspect):
         owner.edit = write
         owner.share = share
 
+        Project.clear_cache(user_id)
+
         return owner
 
     def unset_owner(self, user_id):
@@ -1360,6 +1443,7 @@ class Project(Base, Inspect):
                 owner = o
                 get_session().delete(owner)
                 break
+        Project.clear_cache(user_id)
 
     def check_read_permission(self, user_id, do_raise=True, is_admin=None):
         """
@@ -1375,19 +1459,29 @@ class Project(Base, Inspect):
         if is_admin is True:
             return True
 
+        has_permission = False
+
         for owner in self.owners:
             if owner.user_id == user_id:
                 if owner.view == 'Y':
+                    has_permission = True
                     break
-        else:
-            if do_raise is True:
-                raise PermissionError("Permission denied. User %s does not have read"
-                             " access on project %s" %
-                             (user_id, self.id))
-            else:
-                return False
 
-        return True
+        #If a user has access to a child, then they must be able to navigate to
+        #the project, so must have read permission on the parent projects despite
+        #not having direct ownership on it.
+        children = get_session().query(Project).filter(Project.parent_id==self.id).all()
+        for p in children:
+            child_has_permission = p.check_read_permission(user_id, do_raise=False)
+            if child_has_permission is True:
+                has_permission = True
+                break
+
+        if has_permission is False and do_raise is True:
+            raise PermissionError("Permission denied. User %s does not have read"
+                                  " access on project '%s'" % (user_id, self.name))
+
+        return has_permission
 
     def check_write_permission(self, user_id, do_raise=True, is_admin=None):
         """
@@ -2594,15 +2688,15 @@ class RolePerm(Base, Inspect):
     """
     """
 
-    __tablename__='tRolePerm'
+    __tablename__ = 'tRolePerm'
 
     perm_id = Column(Integer(), ForeignKey('tPerm.id'), primary_key=True, nullable=False)
     role_id = Column(Integer(), ForeignKey('tRole.id'), primary_key=True, nullable=False)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     perm = relationship('Perm', backref=backref('roleperms', uselist=True, lazy='joined'), lazy='joined')
     role = relationship('Role', backref=backref('roleperms', uselist=True, lazy='joined'), lazy='joined')
 
-    _parents  = ['tRole', 'tPerm']
+    _parents = ['tRole', 'tPerm']
     _children = []
 
     def __repr__(self):

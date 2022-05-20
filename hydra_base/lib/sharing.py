@@ -171,8 +171,11 @@ def share_project(project_id, usernames, read_only=False, share=False, flush=Tru
         for net_i in proj_i.networks:
             net_i.set_owner(user_i.id, write=write, share=share)
 
-    if proj_i.parent_id is not None:
-        share_project(proj_i.parent_id, usernames, read_only=read_only, share=share, **kwargs)
+        Project.clear_cache(user_i.id)
+    # if proj_i.parent_id is not None:
+    #     share_project(proj_i.parent_id, usernames, read_only=read_only, share=share, **kwargs)
+
+
 
     if flush is True:
         db.DBSession.flush()
@@ -190,6 +193,7 @@ def unshare_project(project_id, usernames, **kwargs):
         user_i = _get_user(username)
         #Set the owner ship on the network itself
         proj_i.unset_owner(user_i.id)
+        Project.clear_cache(user_i.id)
     db.DBSession.flush()
 
 def set_project_permission(project_id, usernames, read, write, share,**kwargs):
