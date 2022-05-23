@@ -1364,7 +1364,7 @@ class Project(Base, Inspect):
         network_projects_i = network_project_qry.outerjoin(Network).outerjoin(NetworkOwner).filter(
             Network.status == 'A', or_(
                 and_(NetworkOwner.user_id == uid, NetworkOwner.view == 'Y'),
-                Network.created_by == uid)).order_by('id').distinct().all()
+                Network.created_by == uid)).distinct().all()
 
         #for some reason this outputs a list of tuples.
         projects_with_network_owner = [p[0] for p in network_projects_i]
