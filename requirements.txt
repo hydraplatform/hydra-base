@@ -9,3 +9,6 @@ mysql-client
 python-dateutil
 cheroot
 beaker
+mysqlclient
+packaging
+requests
