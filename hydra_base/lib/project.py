@@ -379,7 +379,7 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
 
     #Now get projects which the user must have access to in order to navigate
     #to projects further down the tree which they are owners of.
-    nav_project_ids = set(Project.get_cache()[uid][project_id]) - scoped_project_ids
+    nav_project_ids = set(Project.get_cache().get(uid, {}).get(project_id, [])) - scoped_project_ids
     nav_projects_i = db.DBSession.query(Project).filter(Project.id.in_(nav_project_ids)).all()
     nav_projects = []
     for nav_project_i in nav_projects_i:

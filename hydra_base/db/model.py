@@ -1357,20 +1357,31 @@ class Project(Base, Inspect):
         ##Don't load the project's networks. Load them separately, as the networks
         #must be checked individually for ownership
         projects_qry = get_session().query(Project).options(joinedload('owners'))
+        network_project_qry = get_session().query(Project.id)
 
         log.info("Getting projects for user %s", uid)
+
+        network_projects_i = network_project_qry.outerjoin(Network).outerjoin(NetworkOwner).filter(
+            Network.status == 'A', or_(
+                and_(NetworkOwner.user_id == uid, NetworkOwner.view == 'Y'),
+                Network.created_by == uid)).order_by('id').distinct().all()
+
+        #for some reason this outputs a list of tuples.
+        projects_with_network_owner = [p[0] for p in network_projects_i]
 
         projects_qry = projects_qry.outerjoin(ProjectOwner).filter(
             Project.status == 'A', or_(
                 and_(ProjectOwner.user_id == uid, ProjectOwner.view == 'Y'),
-                Project.created_by == uid))
+                Project.created_by == uid,
+                Project.id.in_(projects_with_network_owner)
+            )
+        )
 
         projects_qry = projects_qry.options(noload('networks')).order_by('id')
 
         projects_i = projects_qry.all()
 
         parent_project_ids = []
-
         for p in projects_i:
             project_user_cache[uid][p.parent_id].append(p.id)
             if p.parent_id is not None:
@@ -1464,18 +1475,12 @@ class Project(Base, Inspect):
         for owner in self.owners:
             if owner.user_id == user_id:
                 if owner.view == 'Y':
-                    has_permission = True
-                    break
+                    return True
 
-        #If a user has access to a child, then they must be able to navigate to
-        #the project, so must have read permission on the parent projects despite
-        #not having direct ownership on it.
-        children = get_session().query(Project).filter(Project.parent_id==self.id).all()
-        for p in children:
-            child_has_permission = p.check_read_permission(user_id, do_raise=False)
-            if child_has_permission is True:
-                has_permission = True
-                break
+        Project.build_user_cache(user_id)
+        for k, v in Project.get_cache().get(user_id, {}).items():
+            if self.id in v:
+                return True
 
         if has_permission is False and do_raise is True:
             raise PermissionError("Permission denied. User %s does not have read"

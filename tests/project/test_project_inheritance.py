@@ -171,7 +171,7 @@ class TestProjectInheritance:
 
     def test_share_network(self, client, projectmaker, networkmaker):
         """
-            Test sharing a network containe in a sub-project. This should result in the sharee having
+            Test sharing a network contained in a sub-project. This should result in the sharee having
             access to the full tree of projects until the shared projects, but not
             the projects which are siblings of any projects in that path through the tree
             For example, upon sharing p4, the sharee should not have access to p3
@@ -229,8 +229,9 @@ class TestProjectInheritance:
         with pytest.raises(HydraError):
             client.get_network(net1.id)
 
-        userc_p4 = client.get_project(proj4.id)
-        assert len(userc_p4.networks) == 0
+        #user no longer has access to P4 because there's no shared network in there
+        with pytest.raises(HydraError):
+            client.get_project(proj4.id)
         client.user_id = proj_user
 
     def test_access_to_shared_sub_project(self, client, projectmaker):
@@ -298,9 +299,9 @@ class TestProjectInheritance:
         """
 
         proj_user = client.user_id
-        proj1 = projectmaker.create(share=False, name='Project1')
-        proj2 = projectmaker.create(share=False, name='Project2', parent_id=proj1.id)
-        proj3 = projectmaker.create(share=False, name='Project3', parent_id=proj1.id)
+        proj1 = projectmaker.create(share=False, name='Project11')
+        proj2 = projectmaker.create(share=False, name='Project22', parent_id=proj1.id)
+        proj3 = projectmaker.create(share=False, name='Project33', parent_id=proj1.id)
 
         net1 = networkmaker.create(project_id=proj2.id)
 
@@ -330,3 +331,20 @@ class TestProjectInheritance:
         #User C can't see project 3
         with pytest.raises(HydraError):
             client.get_project(proj3.id)
+
+        client.user_id = proj_user
+        #Now unshare the network and check to make sure user C can no longer access the project tree.
+        client.unshare_network(net1.id, ['UserC'])
+
+        #Now as the sharee, try to get project c
+        client.user_id = pytest.user_c.id
+        userc_projects = client.get_projects(pytest.user_c.id)
+        assert proj1.id not in [p.id for p in userc_projects]
+
+        #User C no longer has access to project 1 as the network is no longer visible
+        with pytest.raises(HydraError):
+            client.get_project(project_id=proj1.id)
+
+        #User C can't see project 3
+        with pytest.raises(HydraError):
+            client.get_project(project_id=proj3.id)
