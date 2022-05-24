@@ -170,7 +170,17 @@ def get_project(project_id, include_deleted_networks=False, **kwargs):
     proj_i.owners#pylint: disable=W0104
     proj_i.attributes#pylint: disable=W0104
 
+    nav_only = False
+    if user_id not in [o.user_id for o in proj_i.owners]:
+        proj_i.owners = []
+        proj_i.attributes = []
+        nav_only = True
+
+
     proj_j = JSONObject(proj_i)
+
+    proj_j.nav_only = nav_only
+
     attr_data = get_project_attribute_data(proj_i.id, user_id=user_id)
     proj_j.attribute_data = [JSONObject(rs) for rs in attr_data]
 
@@ -385,6 +395,7 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
     for nav_project_i in nav_projects_i:
         nav_project_j = JSONObject(nav_project_i)
         nav_project_j.owners = []
+        nav_project_j.networks = []
         nav_projects.append(nav_project_j)
 
 
@@ -399,7 +410,7 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
         project_i.attributes#pylint: disable=W0104
         project_i.get_attribute_data()
         project_j = JSONObject(project_i)
-        project_j.networks = project_network_lookup[project_i.id]
+        project_j.networks = project_network_lookup.get(project_i.id, [])
         projects_j.append(project_j)
 
     log.info("Networks loaded projects for user %s", uid)
