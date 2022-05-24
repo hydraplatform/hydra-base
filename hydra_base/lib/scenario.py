@@ -1124,7 +1124,7 @@ def _update_resourcescenario(scenario, resource_scenario, r_scen_i=None, dataset
 
     dataset_j = JSONDataset(dataset)
 
-    value = dataset_j.parse_value().encode('utf-8')
+    value = dataset_j.parse_value()
 
     log.debug("Assigning %s to resource attribute: %s", value, ra_id)
 
@@ -1190,9 +1190,6 @@ def assign_value(rs, data_type, val,
                 update_dataset = True
         else:
             update_dataset = False
-
-    if type(val) == str:
-        val = val.encode('utf-8')
 
     if update_dataset is True:
         log.info("Updating dataset '%s'", name)

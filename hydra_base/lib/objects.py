@@ -239,20 +239,7 @@ class Dataset(JSONObject):
     def __init__(self, dataset={}, parent=None, extras={}):
 
         super(Dataset, self).__init__(dataset, parent=parent, extras=extras)
-        value_uncompressed = None
-        if hasattr(dataset, 'value_uncompressed'):
-            value_uncompressed = dataset.value_uncompressed
-        elif isinstance(dataset, dict) and dataset.get('value_uncompressed') is not None:
-            value_uncompressed = dataset['value_uncompressed']
 
-        if value_uncompressed is not None:
-            try:
-                self.value = value_uncompressed.decode('utf-8')
-            except AttributeError:
-                self.value = value_uncompressed
-
-        if self.get('value_uncompressed') is not None:
-            del(self['value_uncompressed'])
 
     def __getattr__(self, name):
 

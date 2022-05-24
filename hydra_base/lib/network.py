@@ -26,7 +26,7 @@ from ..exceptions import HydraError, ResourceNotFoundError
 from . import scenario, rules
 from . import data
 from . import units
-from .objects import JSONObject, Dataset as JSONDataset
+from .objects import JSONObject
 
 from ..util.permissions import required_perms
 from hydra_base.lib import template
@@ -2785,7 +2785,7 @@ def clone_network(network_id,
                                                         f"{new_network_name}%")).all()
 
     if len(ex_network) > 0:
-        new_network_name = new_network_name + " " + str(len(ex_network))
+        new_network_name = f"{new_network_name}  ({str(len(ex_network))})"
 
     newnet = Network()
 
@@ -3281,5 +3281,4 @@ def apply_unit_to_network_rs(network_id, unit_id, attr_id, scenario_id=None, **k
     #set the unit ID for each of the resource scenarios
     for network_rs in network_rs_list:
         #need to set this to avoid the compressed value being re-compressed
-        network_rs.dataset.value = network_rs.dataset.value_uncompressed
         network_rs.dataset.unit_id = unit_id

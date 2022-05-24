@@ -296,32 +296,18 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
     hash       = Column(BIGINT(),  nullable=False, unique=True)
     cr_date    = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     hidden     = Column(String(1),  nullable=False, server_default=text(u"'N'"))
-    value      = Column('value', LargeBinary(),  nullable=True)
+    value      = Column('value', Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
 
-    value_uncompressed_col = column_property(func.uncompress(value), raiseload=False, deferred=True)
     unit = relationship('Unit', backref=backref("dataset_unit", order_by=unit_id))
 
     _parents  = ['tResourceScenario', 'tUnit']
     _children = ['tMetadata']
 
-    @hybrid_property
-    def value_uncompressed(self):
-        if get_session().bind.dialect.name == 'mysql':
-            return self.value_uncompressed_col
-        else:
-            return self.value
-
     def get_value(self):
         """
-            Get the uncompressed value
+            Get the value
         """
-        return self.value_uncompressed.decode('utf-8')
-
-    def get_value_uncompressed(self):
-        try:
-            return self.value_uncompressed.decode('utf-8')
-        except OperationalError:
-            return self.value
+        return self.value
 
     def set_metadata(self, metadata_tree):
         """
@@ -407,28 +393,6 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
             return True
 
         return False
-
-# custom trigger DDL
-trigger1 = DDL('''\
-        CREATE TRIGGER
-            compress_dataset_ins
-        BEFORE INSERT
-        ON tDataset
-        FOR EACH ROW SET
-            NEW.value = compress(NEW.value);
-    ''')
-# custom trigger DDL
-trigger2 = DDL('''\
-        CREATE TRIGGER
-            compress_dataset_upd
-        BEFORE UPDATE
-        ON tDataset
-        FOR EACH ROW SET
-            NEW.value = compress(NEW.value);
-    ''')
-# event listener to trigger on data insert to MyTable
-event.listen(Dataset.__table__, 'after_create', trigger1.execute_if(dialect='mysql'))
-event.listen(Dataset.__table__, 'after_create', trigger2.execute_if(dialect='mysql'))
 
 class DatasetCollection(Base, Inspect):
     """
@@ -2067,7 +2031,7 @@ class ResourceScenario(Base, Inspect):
                 case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
                         else_=Dataset.value).label('value'),
                 case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
-                        else_=Dataset.value_uncompressed).label('value_uncompressed')).filter(
+                        else_=Dataset.value).label('value')).filter(
                 Dataset.id==self.id).outerjoin(DatasetOwner,
                                     and_(Dataset.id==DatasetOwner.dataset_id,
                                     DatasetOwner.user_id==user_id)).one()
@@ -2199,7 +2163,6 @@ class Scenario(Base, Inspect):
                     Dataset.created_by,
                     Dataset.hidden,
                     Dataset.value,
-                    Dataset.value_uncompressed,
                     ResourceScenario.dataset_id,
                     ResourceScenario.scenario_id,
                     ResourceScenario.resource_attr_id,
@@ -2265,7 +2228,6 @@ class Scenario(Base, Inspect):
                 'created_by':rs.created_by,
                 'hidden':rs.hidden,
                 'value':rs.value,
-                'value_uncompressed':rs.value_uncompressed,
                 'metadata':{},
             })
             rs_obj.resourceattr = rs_attr

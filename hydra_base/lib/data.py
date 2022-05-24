@@ -426,8 +426,7 @@ def update_dataset(dataset_id, name, data_type, val, unit_id, metadata={}, flush
             locked_scenarios.append(dataset_rs)
         else:
             unlocked_scenarios.append(dataset_rs)
-    if isinstance(val, str):
-        val = val.encode('utf-8')
+
     #Are any of these scenarios locked?
     if len(locked_scenarios) > 0:
         #If so, create a new dataset and assign to all unlocked datasets.
@@ -474,9 +473,6 @@ def add_dataset(data_type, val, unit_id=None, metadata={}, name="", user_id=None
     """
 
     d = Dataset()
-
-    if isinstance(val, str):
-        val = val.encode('utf-8')
 
     d.type  = data_type
     d.value = val
@@ -644,7 +640,7 @@ def _process_incoming_data(data, user_id=None, source=None):
 
     datasets = {}
     for d in data:
-        val = d.parse_value().encode('utf-8')
+        val = d.parse_value()
 
         if val is None:
             log.info("Cannot parse data (dataset_id=%s). "
