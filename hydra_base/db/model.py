@@ -31,6 +31,7 @@ DateTime,\
 Unicode
 
 from hydra_base.lib.objects import JSONObject
+from hydra_base.lib.datasetmanager import DatasetManager
 
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -286,12 +287,15 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
     hash       = Column(BIGINT(),  nullable=False, unique=True)
     cr_date    = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     hidden     = Column(String(1),  nullable=False, server_default=text(u"'N'"))
-    value      = Column('value', Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
+    value_ref  = Column('value', Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
+
+    value = DatasetManager()
 
     unit = relationship('Unit', backref=backref("dataset_unit", order_by=unit_id))
 
     _parents  = ['tResourceScenario', 'tUnit']
     _children = ['tMetadata']
+
 
     def set_metadata(self, metadata_tree):
         """

@@ -67,7 +67,20 @@ class JSONObject(dict):
                 log.critical("Error with value: %s" , obj_dict)
                 raise ValueError("Unrecognised value. It must be a valid JSON dict, a SQLAlchemy result or a dictionary.")
 
+        """
+        Handle indirect references.
+        The sqlalchemy attr "value_ref" is in the instance __dict__
+        but the "value" descriptor class attr is not.
+        The "value_ref" must remain present in the __dict__ for
+        later external db lookup, but should not be present in the
+        returned object whereas the "value" should.
+        """
+        if "value_ref" in obj:
+            obj["value"] = obj_dict.value
+
         for k, v in obj.items():
+            if k == "value_ref":
+                continue
 
             #This occurs regularly enough to warrant its own if statement.
             #if isinstance(k, int):
@@ -230,7 +243,6 @@ class Dataset(JSONObject):
         # Keys that start and end with "__" won't be retrievable via attributes
         if name.startswith('__') and name.endswith('__'):
             return super(JSONObject, self).__getattr__(name)
-
         else:
             return self.get(name, None)
 
