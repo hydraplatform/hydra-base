@@ -1,15 +1,33 @@
+from abc import (
+    ABC,
+    abstractmethod
+)
+
 from bson.objectid import ObjectId
 from pymongo import MongoClient
 
 from hydra_base import config
 
 
-class HydraMongoDatasetAdaptor():
+class DatasetAdaptor(ABC):
+
+    @abstractmethod
+    def get_value(self, *args, **kwargs):
+        pass
+
+    @abstractmethod
+    def set_value(self, *args, **kwargs):
+        pass
+
+
+class HydraMongoDatasetAdaptor(DatasetAdaptor):
     def __init__(self, config_key="mongodb"):
         self.host = config.get(config_key, "host")
         self.port = config.get(config_key, "port")
         self.db_name = config.get(config_key, "db_name")
         self.datasets = config.get(config_key, "datasets")
+        # !!! NB BULK INSERTION TEST COLLECTION HERE
+        #self.datasets = "bitest"
         # Todo: Add user and passwd
 
         self.client = MongoClient(f"mongodb://{self.host}:{self.port}")
@@ -30,6 +48,28 @@ class HydraMongoDatasetAdaptor():
         path.update_one(doc, {"$set": {"value": value}})
 
 
+    def get_value(self, *args, **kwargs):
+        object_id = args[0]
+        collection = kwargs.get("collection")
+        doc = self.get_document_by_object_id(object_id, collection)
+        return doc["value"]
+
+
+    def set_value(self, *args, **kwargs):
+        object_id = args[0]
+        value = args[1]
+        collection = kwargs.get("collection")
+        self.set_document_value(object_id, value, collection)
+
+
+    def bulk_insert_values(self, values, collection=None):
+        collection = collection if collection else self.datasets
+        path = self.db[collection]
+        data = [{"value": value} for value in values]
+        inserted = path.insert_many(data)
+        return inserted # InsertManyResults, has .inserted_ids list
+
+
     @property
     def default_collection(self):
         return self.datasets
@@ -38,4 +78,6 @@ class HydraMongoDatasetAdaptor():
 if __name__ == "__main__":
     adaptor = HydraMongoDatasetAdaptor()
     doc = adaptor.get_document_by_object_id("628cee2fe5e9c1f01dccb14f")
+    print(doc)
+    doc = adaptor.get_value("628cee2fe5e9c1f01dccb14f")
     print(doc)

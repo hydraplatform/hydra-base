@@ -17,36 +17,33 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
+import copy
 import datetime
-import sys
-from ..util.hydra_dateutil import get_datetime
+import json
 import logging
-from ..db.model import Dataset, Metadata, DatasetOwner, DatasetCollection,\
-        DatasetCollectionItem, ResourceScenario, ResourceAttr, TypeAttr
-from ..util import generate_data_hash
-from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.orm import aliased, make_transient, joinedload
-from sqlalchemy.sql.expression import case
-from sqlalchemy import func
-from sqlalchemy import null
-from .. import db
-from ..import config
-
-from .objects import JSONObject, Dataset as JSONDataset
+import sys
 
 import pandas as pd
-from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
-from sqlalchemy import and_, or_
-from sqlalchemy.exc import OperationalError
-from sqlalchemy.sql.expression import literal_column
-from sqlalchemy import distinct
-
 from collections import namedtuple
-
 from decimal import Decimal
-import copy
 
-import json
+from sqlalchemy import func, null, and_, or_, distinct
+from sqlalchemy.orm import aliased, make_transient, joinedload
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.sql.expression import literal_column, case
+
+from .objects import JSONObject, Dataset as JSONDataset
+from .. import db
+from .. import config
+from ..db.model import Dataset, Metadata, DatasetOwner, DatasetCollection,\
+        DatasetCollectionItem, ResourceScenario, ResourceAttr, TypeAttr
+from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
+from ..util import generate_data_hash
+from ..util.hydra_dateutil import get_datetime
+
+from hydra_base.lib.adaptors import HydraMongoDatasetAdaptor
+mongo = HydraMongoDatasetAdaptor()
 
 
 global FORMAT
@@ -540,7 +537,7 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
     #This is what gets returned.
     for d in bulk_data:
 
-        #limit the name to 60
+        #limit the name to 200
         d.name = d.name[0:200]
 
         dataset_dict = new_data[d.hash]
@@ -548,7 +545,7 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
 
         #if this piece of data is already in the DB, then
         #there is no need to insert it!
-        if  existing_data.get(current_hash) is not None:
+        if existing_data.get(current_hash) is not None:
 
             dataset = existing_data.get(current_hash)
 
@@ -582,6 +579,31 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
             d['name'] = d['name'][0:200]
             new_data_for_insert.append(d)
             new_data_hashes.append(d['hash'])
+
+    """
+    Identify datasets whose size exceeds the external storage threshold,
+    add these to external storage rather than the main db, and replace
+    the dataset.value of these with a reference to the external ObjectId.
+    Update the metadata to indicate the storage location and current hash.
+    """
+    threshold_sz = int(config.get("mongodb", "threshold"))
+    mongo_location_token = config.get("mongodb", "direct_location_token")
+    loc_key = config.get("mongodb", "value_location_key")
+    mongo_data = {}
+
+    for idx, ds in enumerate(new_data_for_insert):
+        ds_size = len(ds["value"])
+        if ds_size > threshold_sz:
+            mongo_data[idx] = ds["value"]
+            ds_metadata = metadata[ds["hash"]]
+            ds_metadata[loc_key] = mongo_location_token
+
+    # !!! NB TEST COLLECTION HERE
+    inserted = mongo.bulk_insert_values(list(mongo_data.values()), collection="bitest")
+    for idx, key in enumerate(mongo_data):
+        prev_hash = new_data_for_insert[key]["hash"]
+        new_data_for_insert[key]["value"] = str(inserted.inserted_ids[idx])  # Replace ds.values with _id ref
+        new_data_hashes[key] = new_data_for_insert[key]["hash"]  # Replace hash
 
     if len(new_data_for_insert) > 0:
     	#If we're working with mysql, we have to lock the table..
