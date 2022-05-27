@@ -66,6 +66,7 @@ import logging
 import bcrypt
 log = logging.getLogger(__name__)
 
+mongo_storage_location_key = config.get("mongodb", "value_location_key")
 
 # Python 2 and 3 compatible string checking
 # TODO remove this when Python2 support is dropped.
@@ -324,6 +325,7 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
                 self.metadata.append(m_i)
 
         metadata_to_delete =  set(existing_metadata).difference(set(metadata_tree.keys()))
+        metadata_to_delete.discard(mongo_storage_location_key)
         for m in self.metadata:
             if m.key in metadata_to_delete:
                 get_session().delete(m)
@@ -346,14 +348,13 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
 
     def set_hash(self,metadata=None):
 
-
         if metadata is None:
             metadata = self.get_metadata_as_dict()
 
         dataset_dict = dict(name      = self.name,
-                           unit_id       = self.unit_id,
+                           unit_id    = self.unit_id,
                            type       = self.type,
-                           value      = self.value,
+                           value      = self.value_ref,
                            metadata   = metadata)
 
         data_hash = generate_data_hash(dataset_dict)

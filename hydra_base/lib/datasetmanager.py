@@ -16,8 +16,8 @@ class DatasetManager():
     def __init__(self, ref_key="value_ref", loc_key=None):
         self.ref_key = ref_key
         self.loc_key = loc_key if loc_key else config.get("mongodb", "value_location_key")
+        self.threshold = int(config.get("mongodb", "threshold"))
         self.loc_mongo_direct = config.get("mongodb", "direct_location_token")
-        log.info(f"{self.loc_key=} {self.loc_mongo_direct=}")
         self.mongo = HydraMongoDatasetAdaptor() # Default config from hydra.ini
 
 
@@ -29,7 +29,6 @@ class DatasetManager():
     def __get__(self, dataset, dtype=None):
         log.info(f"* Dataset read: on {dataset=}")
         value = getattr(dataset, self.ref_key)
-        #key = self.get_metadata_key(dataset, self.loc_key)
         if loc := self.get_storage_location(dataset):
             log.info(f"* External storage {loc=} with id='{value}'")
             if loc == self.loc_mongo_direct:
@@ -45,12 +44,33 @@ class DatasetManager():
             raise HydraError(f"{value=} written to dataset has invalid type {type(value)=}") from err
 
         log.info(f"* Dataset write: {size=} {value=} on {dataset=}")
-        if loc := self.get_storage_location(dataset):
-            log.info(f"* External write to {loc=}")
-            if loc == self.loc_mongo_direct:
+
+        loc = self.get_storage_location(dataset)
+        is_mongo_direct = loc == self.loc_mongo_direct
+
+        if is_mongo_direct:
+            """ Already in external storage """
+            if size <= self.threshold:
+                """ Value has shrunk so restore to SQL DB """
+                self.delete_storage_location(dataset)
+                oid = getattr(dataset, self.ref_key)
+                self.mongo.delete_value(oid)
+                setattr(dataset, self.ref_key, value)
+                log.info(f"Deleted {oid=} on {dataset.id=} and restored {value=} to DB")
+                newloc = self.get_storage_location(dataset)
+                log.info(f"new loc is now {newloc=}")
+            else:
+                """ Update in external storage """
                 oid = getattr(dataset, self.ref_key)
                 self.mongo.set_document_value(oid, value)
+        elif size > self.threshold:
+            """ Create in external storage """
+            _id = self.mongo.create_value(value)
+            self.set_storage_location(dataset, self.loc_mongo_direct)
+            setattr(dataset, self.ref_key, str(_id))
+            log.info(f"* External create in {self.loc_mongo_direct=} as {_id=}")
         else:
+            """ In SQL DB: set value directly """
             setattr(dataset, self.ref_key, value)
 
 
@@ -61,6 +81,8 @@ class DatasetManager():
 
 
     def _get_storage_location_query(self, dataset):
+        if not dataset.id:
+            return
         qry_txt = f"select `value` from tMetadata where dataset_id = {dataset.id} and `key` = '{self.loc_key}'"
         try:
             cols = get_session().execute(qry_txt).one()
@@ -69,7 +91,27 @@ class DatasetManager():
             return
         return cols[0]
 
-    get_storage_location = _get_storage_location_query
 
-    def set_storage_location(self, dataset):
-        pass
+    def _delete_storage_location_query(self, dataset):
+        dataset_id = getattr(dataset, "id")
+        qry_txt = f"delete from tMetadata where dataset_id = {dataset_id} and `key` = '{self.loc_key}'"
+        get_session().execute(qry_txt)
+
+
+    def _delete_storage_location_lookup(self, dataset):
+        for idx, datum in enumerate(dataset.metadata):
+            if datum.key == self.loc_key:
+                break
+        dataset.metadata.pop(idx)
+        get_session().delete(datum)
+        get_session().flush()
+
+
+    def set_storage_location(self, dataset, location):
+        from hydra_base.db.model import Metadata
+        m = Metadata(key=self.loc_key, value=location)
+        dataset.metadata.append(m)
+
+
+    get_storage_location = _get_storage_location_lookup
+    delete_storage_location = _delete_storage_location_query

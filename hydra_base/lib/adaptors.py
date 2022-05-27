@@ -19,6 +19,14 @@ class DatasetAdaptor(ABC):
     def set_value(self, *args, **kwargs):
         pass
 
+    @abstractmethod
+    def create_value(self, *args, **kwargs):
+        pass
+
+    @abstractmethod
+    def delete_value(self, *args, **kwargs):
+        pass
+
 
 class HydraMongoDatasetAdaptor(DatasetAdaptor):
     def __init__(self, config_key="mongodb"):
@@ -40,6 +48,11 @@ class HydraMongoDatasetAdaptor(DatasetAdaptor):
         doc = path.find_one({"_id": ObjectId(object_id)})
         return doc
 
+    def delete_document_by_object_id(self, object_id, collection=None):
+        collection = collection if collection else self.datasets
+        path = self.db[collection]
+        doc = {"_id": ObjectId(object_id)}
+        path.delete_one(doc)
 
     def set_document_value(self, object_id, value, collection=None):
         collection = collection if collection else self.datasets
@@ -47,6 +60,11 @@ class HydraMongoDatasetAdaptor(DatasetAdaptor):
         doc = {"_id": ObjectId(object_id)}
         path.update_one(doc, {"$set": {"value": value}})
 
+    def insert_document(self, value, collection=None):
+        collection = collection if collection else self.datasets
+        path = self.db[collection]
+        result = path.insert_one({"value": value})
+        return result.inserted_id
 
     def get_value(self, *args, **kwargs):
         object_id = args[0]
@@ -54,12 +72,22 @@ class HydraMongoDatasetAdaptor(DatasetAdaptor):
         doc = self.get_document_by_object_id(object_id, collection)
         return doc["value"]
 
-
     def set_value(self, *args, **kwargs):
         object_id = args[0]
         value = args[1]
         collection = kwargs.get("collection")
         self.set_document_value(object_id, value, collection)
+
+    def create_value(self, *args, **kwargs):
+        value = args[0]
+        collection = kwargs.get("collection")
+        _id = self.insert_document(value, collection)
+        return _id
+
+    def delete_value(self, *args, **kwargs):
+        object_id = args[0]
+        collection = kwargs.get("collection")
+        self.delete_document_by_object_id(object_id, collection)
 
 
     def bulk_insert_values(self, values, collection=None):
