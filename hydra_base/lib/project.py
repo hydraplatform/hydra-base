@@ -167,129 +167,36 @@ def get_project(project_id, include_deleted_networks=False, **kwargs):
     proj_i = _get_project(project_id, user_id)
 
     #lazy load owners
-    proj_i.owners#pylint: disable=W0104
     proj_i.attributes#pylint: disable=W0104
 
     nav_only = False
-    if user_id not in [o.user_id for o in proj_i.owners]:
-        proj_i.owners = []
-        proj_i.attributes = []
-        nav_only = True
+    if not proj_i.is_owner(user_id):
+        if user_id not in [o.user_id for o in proj_i.owners]:
+            proj_i.owners = []
+            proj_i.attributes = []
+            nav_only = True
 
 
     proj_j = JSONObject(proj_i)
 
+    proj_j.owners = proj_i.get_owners()
+
     proj_j.nav_only = nav_only
 
-    attr_data = get_project_attribute_data(proj_i.id, user_id=user_id)
-    proj_j.attribute_data = [JSONObject(rs) for rs in attr_data]
+    proj_j.attribute_data = [JSONObject(rs) for rs in proj_i.get_attribute_data()]
 
-    proj_j.networks = _get_project_networks(
-        project_id,
+    proj_j.networks = proj_i.get_networks(
         user_id,
         include_deleted_networks=include_deleted_networks)
 
-    proj_j.projects = _get_child_projects(
-        project_id, user_id, include_deleted_networks=include_deleted_networks)
+    proj_j.projects = proj_i.get_child_projects(
+        user_id,
+        include_deleted_networks=include_deleted_networks)
 
 
     log.info("Project %s retrieved", project_id)
 
     return proj_j
-
-def _get_child_projects(project_id, user_id, include_deleted_networks=False):
-    """
-    Get all the direct child projects of a given project
-    i.e. all projects which have this project specified in the 'parent_id' column
-    """
-    log.info("Getting child projects of project %s", project_id)
-
-    child_projects_i = db.DBSession.query(Project).outerjoin(ProjectOwner)\
-        .filter(Project.parent_id == project_id).all()
-
-    projects = []
-    for child_proj_i in child_projects_i:
-        if child_proj_i.check_read_permission(user_id, do_raise=False) is True:
-            projects.append(JSONObject(child_proj_i))
-
-    owners = db.DBSession.query(ProjectOwner).filter(ProjectOwner.project_id.in_([p.id for p in projects])).all()
-    creators = db.DBSession.query(User.id, User.username, User.display_name).filter(User.id.in_([p.created_by for p in projects])).all()
-    creator_lookup = {u.id:JSONObject(u)  for u in creators}
-    owner_lookup = defaultdict(list)
-    for p in projects:
-        owner_lookup[p.id] = [creator_lookup[p.created_by]]
-    for o in owners:
-        if o.user_id == p.created_by:
-            continue
-        owner_lookup[o.project_id].append(o)
-
-    child_projects = []
-    for project in projects:
-        project.owners = owner_lookup.get(project.id, [])
-        project.networks = _get_project_networks(
-            project.id,
-            user_id,
-            include_deleted_networks=include_deleted_networks)
-
-        child_projects.append(project)
-
-    log.info("%s child projects retrieved", len(child_projects))
-
-    return child_projects
-
-def _get_project_networks(project_id, user_id, include_deleted_networks=False):
-    """
-    get all the networks, scenarios and owners of all the networks in the specified
-    project
-    """
-
-    log.info("Getting networks for project %s", project_id)
-
-    networks = []
-    #all networks created by this user
-    networks_is_creator = db.DBSession.query(Network)\
-        .filter(Network.project_id == project_id)\
-        .filter(Network.created_by == user_id).all()
-
-    #all networks created by someone else, but which this user is an owner,
-    #and this user can read this network
-    networks_not_creator = db.DBSession.query(Network).join(NetworkOwner)\
-        .filter(Network.project_id == project_id)\
-        .filter(Network.created_by != user_id)\
-        .filter(NetworkOwner.user_id == user_id)\
-        .filter(NetworkOwner.view == 'Y').all()
-
-    all_network_ids = [n.id for n in networks_is_creator] + [n.id for n in networks_not_creator]
-
-    #for efficiency, get all the owners in 1 query and sort them by network
-    all_owners = db.DBSession.query(NetworkOwner)\
-        .filter(NetworkOwner.network_id.in_(all_network_ids)).all()
-
-    owners_by_network = defaultdict(list)
-    for owner in all_owners:
-        owners_by_network[owner.network_id].append(owner)
-
-    #for efficiency, get all the scenarios in 1 query and sort them by network
-    all_scenarios = db.DBSession.query(Scenario)\
-        .filter(Scenario.network_id.in_(all_network_ids)).all()
-
-    scenarios_by_network = defaultdict(list)
-    for netscenario in all_scenarios:
-        scenarios_by_network[netscenario.network_id].append(netscenario)
-
-    for net_i in networks_is_creator + networks_not_creator:
-
-        if include_deleted_networks is False and net_i.status.lower() == 'x':
-            continue
-
-        net_j = JSONObject(net_i)
-        net_j.owners = owners_by_network[net_j.id]
-        net_j.scenarios = scenarios_by_network[net_j.id]
-        networks.append(net_j)
-
-    log.debug("%s networks retrieved", len(networks))
-
-    return networks
 
 @required_perms('get_project')
 def get_project_by_network_id(network_id, **kwargs):
@@ -383,7 +290,7 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
 
     #Now get projects which the user must have access to in order to navigate
     #to projects further down the tree which they are owners of.
-    nav_project_ids = set(Project.get_cache().get(uid, {}).get(project_id, [])) - scoped_project_ids
+    nav_project_ids = set(Project.get_cache(uid).get(project_id, [])) - scoped_project_ids
     nav_projects_i = db.DBSession.query(Project).filter(Project.id.in_(nav_project_ids)).all()
     nav_projects = []
     for nav_project_i in nav_projects_i:

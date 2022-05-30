@@ -161,9 +161,6 @@ def share_project(project_id, usernames, read_only=False, share=False, flush=Tru
 
         proj_i.set_owner(user_i.id, write=write, share=share)
 
-        for net_i in proj_i.networks:
-            net_i.set_owner(user_i.id, write=write, share=share)
-
         Project.clear_cache(user_i.id)
 
 

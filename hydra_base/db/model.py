@@ -1279,6 +1279,144 @@ class Project(Base, Inspect):
     _parents  = []
     _children = ['tNetwork']
 
+    def get_networks(self, user_id, include_deleted_networks=False):
+        """
+        get all the networks, scenarios and owners of all the networks in the project.
+        These are in 3 different sets:
+        1: Networks of which user_id is the creator
+        2: Networks of which user_id has read access but is not the creator
+        3: Networks which user_id can see by virtue of being an owner of the project
+           In this case, user_id can see all the networks. Ownership can be directly set
+           on this project, or can be set at a higher level project
+        """
+
+        log.info("Getting networks for project %s", self.id)
+
+        networks = []
+        networks_is_creator = []
+        networks_not_creator = []
+
+        if self.is_owner(user_id):
+            #all networks in the project, as the user owns the project
+            networks_not_creator = get_session().query(Network)\
+                .filter(Network.project_id == self.id).all()
+        else:
+            #all networks created by this user
+            networks_is_creator = get_session().query(Network)\
+                .filter(Network.project_id == self.id)\
+                .filter(Network.created_by == user_id).all()
+
+            #all networks created by someone else, but which this user is an owner,
+            #and this user can read this network
+            networks_not_creator = get_session().query(Network).join(NetworkOwner)\
+                .filter(Network.project_id == self.id)\
+                .filter(Network.created_by != user_id)\
+                .filter(NetworkOwner.user_id == user_id)\
+                .filter(NetworkOwner.view == 'Y').all()
+
+        all_network_ids = [n.id for n in networks_is_creator] + [n.id for n in networks_not_creator]
+
+        #for efficiency, get all the owners in 1 query and sort them by network
+        all_owners = get_session().query(NetworkOwner)\
+            .filter(NetworkOwner.network_id.in_(all_network_ids)).all()
+
+        owners_by_network = defaultdict(list)
+        for owner in all_owners:
+            owners_by_network[owner.network_id].append(owner)
+
+        #for efficiency, get all the scenarios in 1 query and sort them by network
+        all_scenarios = get_session().query(Scenario)\
+            .filter(Scenario.network_id.in_(all_network_ids)).all()
+
+        scenarios_by_network = defaultdict(list)
+        for netscenario in all_scenarios:
+            scenarios_by_network[netscenario.network_id].append(netscenario)
+
+        for net_i in networks_is_creator + networks_not_creator:
+
+            if include_deleted_networks is False and net_i.status.lower() == 'x':
+                continue
+
+            net_j = JSONObject(net_i)
+            net_j.owners = owners_by_network[net_j.id]
+            net_j.scenarios = scenarios_by_network[net_j.id]
+            networks.append(net_j)
+
+        log.debug("%s networks retrieved", len(networks))
+
+        return networks
+
+    def get_child_projects(self, user_id, include_deleted_networks=False):
+        """
+        Get all the direct child projects of a given project
+        i.e. all projects which have this project specified in the 'parent_id' column
+        """
+        log.info("Getting child projects of project %s", self.id)
+
+        child_projects_i = get_session().query(Project).outerjoin(ProjectOwner)\
+            .filter(Project.parent_id == self.id).all()
+
+        projects = []
+        for child_proj_i in child_projects_i:
+            if child_proj_i.check_read_permission(user_id, do_raise=False) is True:
+                projects.append(JSONObject(child_proj_i))
+
+        owners = get_session().query(ProjectOwner).filter(ProjectOwner.project_id.in_([p.id for p in projects])).all()
+        creators = get_session().query(User.id, User.username, User.display_name).filter(User.id.in_([p.created_by for p in projects])).all()
+        creator_lookup = {u.id:JSONObject(u)  for u in creators}
+        owner_lookup = defaultdict(list)
+        for p in projects:
+            owner_lookup[p.id] = [creator_lookup[p.created_by]]
+        for o in owners:
+            if o.user_id == p.created_by:
+                continue
+            owner_lookup[o.project_id].append(o)
+
+        child_projects = []
+        for project in projects:
+            project.owners = owner_lookup.get(project.id, [])
+            project.networks = self.get_networks(
+                user_id,
+                include_deleted_networks=include_deleted_networks)
+
+            child_projects.append(project)
+
+        log.info("%s child projects retrieved", len(child_projects))
+
+        return child_projects
+
+    def is_owner(self, user_id):
+        """Check whether this user is an owner of this project, either directly
+        #or by virtue of being an owner of a higher-up project"""
+
+        if self.check_read_permission(user_id, nav=False, do_raise=False) is True:
+            return True
+        p = self.parent
+        if p is not None:
+            return p.is_owner(user_id)
+
+        return False
+
+    def get_owners(self):
+        """
+            Get all the owners of a project, both those which are applied directly
+            to this project, but also who have been granted access via a parent project
+        """
+
+        owners = [JSONObject(o) for o in self.owners]
+        owner_ids = [o.user_id for o in owners]
+
+        for o in owners:
+            o.project_name = self.name
+            o.type = 'PROJECT'
+
+        parent_owners = []
+        if self.parent_id is not None:
+            parent_owners = list(filter(lambda x:x.user_id not in owner_ids, self.parent.get_owners()))
+            for po in parent_owners:
+                po.source = f'Inherited ({po.project_name} == {po.project_id})'
+
+        return owners + parent_owners
 
     #This map should look like:
     # {'UID' :
@@ -1291,8 +1429,11 @@ class Project(Base, Inspect):
     #projects the user can see within those projects. The 'None' key at the top is for
     #top-level projects.
     @classmethod
-    def get_cache(cls):
-        return cache.get('userprojects', {})
+    def get_cache(cls, user_id=None):
+        if user_id is None:
+            return cache.get('userprojects', {})
+        else:
+            return cache.get('userprojects', {}).get(user_id, {})
 
     @classmethod
     def set_cache(cls, data):
@@ -1320,7 +1461,7 @@ class Project(Base, Inspect):
         project_user_cache = defaultdict(lambda: defaultdict(list))
         ##Don't load the project's networks. Load them separately, as the networks
         #must be checked individually for ownership
-        projects_qry = get_session().query(Project).options(joinedload('owners'))
+        projects_qry = get_session().query(Project)
         network_project_qry = get_session().query(Project.id)
 
         log.info("Getting projects for user %s", uid)
@@ -1351,12 +1492,29 @@ class Project(Base, Inspect):
             if p.parent_id is not None:
                 parent_project_ids.append(p.parent_id)
 
-        cls._build_user_cache(uid, parent_project_ids, project_user_cache)
+        cls._build_user_cache_up_tree(uid, parent_project_ids, project_user_cache)
+
+        cls._build_user_cache_down_tree(uid, [p.id for p in projects_i], project_user_cache)
 
         cls.set_cache(project_user_cache)
 
     @classmethod
-    def _build_user_cache(cls, uid, project_ids, project_user_cache):
+    def _build_user_cache_down_tree(cls, uid, project_ids, project_user_cache):
+
+        if len(project_ids) == 0:
+            return
+
+        projects = get_session().query(Project).filter(Project.parent_id.in_(project_ids)).all()
+
+        child_project_ids = []
+        for p in projects:
+            project_user_cache[uid][p.parent_id].append(p.id)
+            child_project_ids.append(p.id)
+
+        cls._build_user_cache_down_tree(uid, child_project_ids, project_user_cache)
+
+    @classmethod
+    def _build_user_cache_up_tree(cls, uid, project_ids, project_user_cache):
 
         if len(project_ids) == 0:
             return
@@ -1368,10 +1526,12 @@ class Project(Base, Inspect):
             project_user_cache[uid][p.parent_id].append(p.id)
             if p.parent_id is not None:
                 parent_project_ids.append(p.parent_id)
-        cls._build_user_cache(uid, parent_project_ids, project_user_cache)
+
+        cls._build_user_cache_up_tree(uid, parent_project_ids, project_user_cache)
 
     def get_attribute_data(self):
-        attribute_data_rs = get_session().query(ResourceScenario).join(ResourceAttr).filter(ResourceAttr.project_id==self.id).all()
+        attribute_data_rs = get_session().query(ResourceScenario).join(ResourceAttr).filter(
+            ResourceAttr.project_id==self.id).all()
         #lazy load datasets
         [rs.dataset.metadata for rs in attribute_data_rs]
         [rs.resourceattr.attr for rs in attribute_data_rs]
@@ -1420,9 +1580,11 @@ class Project(Base, Inspect):
                 break
         Project.clear_cache(user_id)
 
-    def check_read_permission(self, user_id, do_raise=True, is_admin=None):
+    def check_read_permission(self, user_id, do_raise=True, is_admin=None, nav=True):
         """
             Check whether this user can read this project
+            nav: Indicates whether you can return true if the user is not an owner but
+            is allowed to see the project for navigation purposes.
         """
 
         if str(user_id) == str(self.created_by):
@@ -1441,10 +1603,11 @@ class Project(Base, Inspect):
                 if owner.view == 'Y':
                     return True
 
-        Project.build_user_cache(user_id)
-        for k, v in Project.get_cache().get(user_id, {}).items():
-            if self.id in v:
-                return True
+        if nav is True:
+            Project.build_user_cache(user_id)
+            for k, v in Project.get_cache(user_id).items():
+                if self.id in v:
+                    return True
 
         if has_permission is False and do_raise is True:
             raise PermissionError("Permission denied. User %s does not have read"
@@ -1530,6 +1693,16 @@ class Network(Base, Inspect):
 
     _parents = ['tNode', 'tLink', 'tResourceGroup']
     _children = ['tProject']
+
+    def is_owner(self, user_id):
+        """Check whether this user is an owner of this project, either directly
+        #or by virtue of being an owner of a higher-up project"""
+
+        if self.check_read_permission(user_id, do_raise=False) is True:
+            return True
+
+        else:
+            return self.project.is_owner(user_id)
 
     def get_name(self):
         return self.name
@@ -1658,19 +1831,24 @@ class Network(Base, Inspect):
         if is_admin is True:
             return True
 
+        can_read = True
         for owner in self.owners:
             if int(owner.user_id) == int(user_id):
                 if owner.view == 'Y':
+                    can_read = True
                     break
         else:
-            if do_raise is True:
-                raise PermissionError("Permission denied. User %s does not have read"
-                             " access on network %s" %
-                             (user_id, self.id))
-            else:
-                return False
+            can_read = False
 
-        return True
+        if can_read is False:
+            can_read = self.project.is_owner(user_id)
+
+        if can_read is False and do_raise is True:
+            raise PermissionError("Permission denied. User %s does not have read"
+                         " access on network %s" %
+                         (user_id, self.id))
+
+        return can_read
 
     def check_write_permission(self, user_id, do_raise=True, is_admin=None):
         """
@@ -1722,6 +1900,22 @@ class Network(Base, Inspect):
             raise PermissionError("Permission denied. User %s does not have share"
                              " access on network %s" %
                              (user_id, self.id))
+
+    def get_owners(self):
+        """
+            Get all the owners of a network, both those which are applied directly
+            to this network, but also who have been granted access via a project
+        """
+
+        owners = [JSONObject(o) for o in self.owners]
+        owner_ids = [o.user_id for o in owners]
+
+        project_owners = list(filter(lambda x:x.user_id not in owner_ids, self.project.get_owners()))
+
+        for po in project_owners:
+            po.source = f'Inherited from: {po.project_name} (ID:{po.project_id})'
+
+        return owners + project_owners;
 
 class Link(Base, Inspect):
     """

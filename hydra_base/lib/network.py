@@ -960,19 +960,6 @@ def _get_all_group_items(network_id):
 
     return item_dict
 
-def _get_network_owners(network_id):
-    """
-        Get all the nodes in a network
-    """
-    owners_i = db.DBSession.query(NetworkOwner).filter(
-                        NetworkOwner.network_id == network_id)\
-            .options(noload('network'))\
-            .options(joinedload('user')).all()
-
-    owners = [JSONObject(owner_i) for owner_i in owners_i]
-
-    return owners
-
 def _get_nodes(network_id, template_id=None):
     """
         Get all the nodes in a network
@@ -1127,7 +1114,7 @@ def get_network(network_id,
         net.nodes = _get_nodes(network_id, template_id=template_id)
         net.links = _get_links(network_id, template_id=template_id)
         net.resourcegroups = _get_groups(network_id, template_id=template_id)
-        net.owners = _get_network_owners(network_id)
+        net.owners = net_i.get_owners()
 
         if include_attributes in ('Y', True):
             all_attributes = _get_all_resource_attributes(network_id,
@@ -1405,6 +1392,7 @@ def get_network_by_name(project_id, network_name,**kwargs):
     """
     Return a whole network as a complex model.
     """
+
 
     try:
         res = db.DBSession.query(Network.id).filter(func.lower(Network.name).like(network_name.lower()), Network.project_id == project_id).one()
