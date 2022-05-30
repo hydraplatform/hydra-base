@@ -300,16 +300,28 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
 
     def set_metadata(self, metadata_tree):
         """
-            Set the metadata on a dataset
+        Set the metadata on a dataset.
+        Note that the `mongo_storage_location_key` (MSLK) is not
+        managed by this mechanism, it is instead set and deleted
+        in the Dataset.value descriptor: see comments below.
 
-            **metadata_tree**: A dictionary of metadata key-vals.
-            Transforms this dict into an array of metadata objects for
-            storage in the DB.
+        **metadata_tree**: A dictionary of metadata key-vals.
+        Transforms this dict into an array of metadata objects for
+        storage in the DB.
         """
         if metadata_tree is None:
             return
         if isinstance(metadata_tree, str):
             metadata_tree = json.loads(metadata_tree)
+
+        """
+        For a currently-external dataset whose value has shrunk beneath
+        the size threshold, HWI will send metadata including the MSLK
+        even though this is no longer applicable.
+        This is deleted in the Dataset.value.__set__ action so remove
+        here to avoid unwanted recreation.
+        """
+        metadata_tree.pop(mongo_storage_location_key, None)
 
         existing_metadata = []
         for m in self.metadata:
@@ -325,6 +337,15 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
                 self.metadata.append(m_i)
 
         metadata_to_delete =  set(existing_metadata).difference(set(metadata_tree.keys()))
+        log.info(f"{metadata_to_delete=}")
+        log.info(f"{existing_metadata=}")
+        log.info(f"{metadata_tree.keys()=}")
+        """
+        For a dataset which is being created on external storage for the
+        first time, the metadata sent by HWI will not include the MSLK,
+        but this has already been added by the Dataset.value.__set__ action.
+        Discard from that set here to avoid unwanted deletion.
+        """
         metadata_to_delete.discard(mongo_storage_location_key)
         for m in self.metadata:
             if m.key in metadata_to_delete:

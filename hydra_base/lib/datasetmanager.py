@@ -57,8 +57,6 @@ class DatasetManager():
                 self.mongo.delete_value(oid)
                 setattr(dataset, self.ref_key, value)
                 log.info(f"Deleted {oid=} on {dataset.id=} and restored {value=} to DB")
-                newloc = self.get_storage_location(dataset)
-                log.info(f"new loc is now {newloc=}")
             else:
                 """ Update in external storage """
                 oid = getattr(dataset, self.ref_key)
@@ -111,7 +109,7 @@ class DatasetManager():
         from hydra_base.db.model import Metadata
         m = Metadata(key=self.loc_key, value=location)
         dataset.metadata.append(m)
-
+        get_session().flush()
 
     get_storage_location = _get_storage_location_lookup
-    delete_storage_location = _delete_storage_location_query
+    delete_storage_location = _delete_storage_location_lookup

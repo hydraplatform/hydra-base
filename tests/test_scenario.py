@@ -549,50 +549,6 @@ class TestScenario:
 
         assert len(new_datasets) == 2, "Data was not added correctly!"
 
-    def test_bulk_add_mongo_data(self, client, dateformat):
-        from hydra_base.lib.adaptors import HydraMongoDatasetAdaptor
-
-        mongo = HydraMongoDatasetAdaptor()
-
-        data = []
-
-        dataset1 = Dataset()
-
-        dataset1.type = 'timeseries'
-        dataset1.name = 'my time series'
-        dataset1.unit_id = client.get_unit_by_abbreviation("ft^3").id
-
-
-        t1 = datetime.datetime.now()
-        t2 = t1+datetime.timedelta(hours=1)
-        t3 = t1+datetime.timedelta(hours=2)
-
-        t1 = t1.strftime(dateformat)
-        t2 = t2.strftime(dateformat)
-        t3 = t3.strftime(dateformat)
-
-        val_1 = 1.234
-        val_2 = 2.345
-        val_3 = 3.456
-
-        ts_val = json.dumps({0: {t1: val_1,
-                      t2: val_2,
-                      t3: val_3}})
-        dataset1.value = ts_val
-        data.append(dataset1)
-
-        dataset2 = Dataset()
-        dataset2.type = 'descriptor'
-        dataset2.name = 'Max Capacity'
-        dataset2.unit_id = client.get_unit_by_abbreviation("m s^-1").id
-
-        dataset2.value ='I am an updated test!'
-
-        data.append(dataset2)
-
-        inserted = mongo.bulk_insert_values([d.value for d in data])
-        assert len(inserted.inserted_ids) == 2, "Data was not added correctly!"
-
 
     def test_bulk_insert_data(self, client, dateformat):
         import random
@@ -613,7 +569,7 @@ class TestScenario:
             datasets.append(ds)
 
         inserted = [Dataset(ds) for ds in client.bulk_insert_data(datasets)]
-        assert len(inserted) == num_datasets, "Data was not added correctly"
+        assert len(inserted) == num_datasets, "Datasets insertion count mismatch"
 
 
     def test_clone_scenario(self, client, network_with_data):
