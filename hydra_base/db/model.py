@@ -36,6 +36,7 @@ from hydra_base.lib.datasetmanager import DatasetManager
 from sqlalchemy.orm.exc import NoResultFound
 
 from sqlalchemy.ext.declarative import declared_attr
+from sqlalchemy.ext.hybrid import hybrid_property
 
 import datetime
 
@@ -65,6 +66,7 @@ from .. import config
 import logging
 import bcrypt
 log = logging.getLogger(__name__)
+
 
 mongo_storage_location_key = config.get("mongodb", "value_location_key")
 
@@ -290,7 +292,21 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
     hidden     = Column(String(1),  nullable=False, server_default=text(u"'N'"))
     value_ref  = Column('value', Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
 
-    value = DatasetManager()
+    _value = DatasetManager()
+
+    @hybrid_property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, val):
+        self._value = val
+
+    @value.expression
+    def value(cls):
+        log.warning(f"{cls.value_ref=}")
+        log.warning(f"{Dataset.value_ref=}")
+        return cls.value_ref
 
     unit = relationship('Unit', backref=backref("dataset_unit", order_by=unit_id))
 

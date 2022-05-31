@@ -571,6 +571,10 @@ class TestScenario:
         inserted = [Dataset(ds) for ds in client.bulk_insert_data(datasets)]
         assert len(inserted) == num_datasets, "Datasets insertion count mismatch"
 
+        for ds in inserted:
+            retrieved = client.get_dataset(ds.id)
+            assert ds.value == retrieved.value
+
 
     def test_clone_scenario(self, client, network_with_data):
 

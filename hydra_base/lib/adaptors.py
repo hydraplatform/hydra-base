@@ -48,6 +48,12 @@ class HydraMongoDatasetAdaptor(DatasetAdaptor):
         doc = path.find_one({"_id": ObjectId(object_id)})
         return doc
 
+    def get_document_by_oid_inst(self, object_id, collection=None):
+        collection = collection if collection else self.datasets
+        path = self.db[collection]
+        doc = path.find_one({"_id": object_id})
+        return doc
+
     def delete_document_by_object_id(self, object_id, collection=None):
         collection = collection if collection else self.datasets
         path = self.db[collection]

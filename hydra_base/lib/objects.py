@@ -33,6 +33,11 @@ import pandas as pd
 import logging
 log = logging.getLogger(__name__)
 
+from hydra_base.lib.adaptors import HydraMongoDatasetAdaptor
+from bson.objectid import ObjectId
+from bson.errors import InvalidId
+mongo = HydraMongoDatasetAdaptor()
+
 
 VALID_JSON_FIRST_CHARS = ['{', '[']
 
@@ -44,6 +49,7 @@ class JSONObject(dict):
     def __init__(self, obj_dict={}, parent=None, extras={}):
 
         if isinstance(obj_dict, six.string_types):
+            #log.warning("string")
             try:
                 obj = json.loads(obj_dict)
                 assert isinstance(obj, dict), "JSON string does not evaluate to a dict"
@@ -52,14 +58,41 @@ class JSONObject(dict):
                 log.critical(parent)
                 raise ValueError("Unable to read string value. Make sure it's JSON serialisable")
         elif hasattr(obj_dict, '_asdict') and obj_dict._asdict is not None:
-            #A special case, trying to load a SQLAlchemy object, which is a 'dict' object
+            """
+            The argument is a SQLAlchemy object. This originated from a
+            Class.column query so there was no instance to trigger the
+            value descriptor's __get__ and the external lookup must be
+            performed here.
+            """
+            log.warning("_asdict")
             obj = obj_dict._asdict()
+            ref_key = obj.get("value")
+            try:
+                oid = ObjectId(ref_key)
+                obj["value"] = get_external_value_by_object_id(oid)
+            except (TypeError, InvalidId):
+                """ The value wasn't an valid ObjectID, keep the value """
+                pass
         elif hasattr(obj_dict, '__dict__') and len(obj_dict.__dict__) > 0:
-            #A special case, trying to load a SQLAlchemy object, which is a 'dict' object
+            #log.warning("__dict__")
             obj = obj_dict.__dict__
         elif isinstance(obj_dict, dict):
+            """
+            The argument is a dict of uncertain provenance. This can
+            originate from a from  SQLAlchemy row._asdict() so must be
+            handled similarly.
+            """
+            log.warning("dict")
             obj = obj_dict
+            ref_key = obj.get("value")
+            try:
+                oid = ObjectId(ref_key)
+                obj["value"] = get_external_value_by_object_id(oid)
+            except (TypeError, InvalidId):
+                """ The value wasn't an valid ObjectID, keep the value """
+                pass
         else:
+            #log.warning("else")
             #last chance...try to cast it as a dict. Do this for sqlalchemy result proxies.
             try:
                 obj = dict(obj_dict)
@@ -76,6 +109,7 @@ class JSONObject(dict):
         returned object whereas the "value" should.
         """
         if "value_ref" in obj:
+            log.warning(f"value_ref in obj {obj=}")
             obj["value"] = obj_dict.value
 
         for k, v in obj.items():
@@ -323,3 +357,18 @@ class Dataset(JSONObject):
         data_hash = generate_data_hash(dataset_dict)
 
         return data_hash
+
+
+def get_external_value_by_object_id(oid):
+    """
+    Returns the value from a document identified by the oid argument.
+    """
+    value = None
+    doc = mongo.get_document_by_oid_inst(oid)
+    try:
+        value = doc["value"]
+    except TypeError:
+        """ No such document """
+        pass
+
+    return value

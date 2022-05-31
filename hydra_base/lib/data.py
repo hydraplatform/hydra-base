@@ -601,9 +601,13 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
     # !!! NB TEST COLLECTION HERE
     inserted = mongo.bulk_insert_values(list(mongo_data.values()), collection="bitest")
     for idx, key in enumerate(mongo_data):
-        prev_hash = new_data_for_insert[key]["hash"]
+        #prev_hash = new_data_for_insert[key]["hash"]
+        #log.warning(f"{new_data_for_insert[key]['name']=} {prev_hash=}")
         new_data_for_insert[key]["value"] = str(inserted.inserted_ids[idx])  # Replace ds.values with _id ref
-        new_data_hashes[key] = new_data_for_insert[key]["hash"]  # Replace hash
+        #new_hash = generate_data_hash(new_data_for_insert[key])
+        #new_data_hashes[key] = new_data_for_insert[key]["hash"]  # Replace hash
+        #new_data_hashes[key] = new_hash  # Replace hash
+        #log.warning(f"{new_data_for_insert[key]['name']=} {new_data_hashes[key]=}")
 
     if len(new_data_for_insert) > 0:
     	#If we're working with mysql, we have to lock the table..
