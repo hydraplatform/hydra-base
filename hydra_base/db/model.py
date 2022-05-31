@@ -1602,12 +1602,19 @@ class Project(Base, Inspect):
             if owner.user_id == user_id:
                 if owner.view == 'Y':
                     return True
+                elif owner.view == 'N':
+                    #Access has been denied on this project directly, so this
+                    #takes priority
+                    return False
 
         if nav is True:
             Project.build_user_cache(user_id)
             for k, v in Project.get_cache(user_id).items():
                 if self.id in v:
                     return True
+
+        if has_permission is False and self.parent_id is not None:
+            has_permission = self.parent.check_read_permission(user_id)
 
         if has_permission is False and do_raise is True:
             raise PermissionError("Permission denied. User %s does not have read"
@@ -1629,18 +1636,25 @@ class Project(Base, Inspect):
         if is_admin is True:
             return True
 
+        has_permission = False
+
         for owner in self.owners:
             if owner.user_id == int(user_id):
                 if owner.view == 'Y' and owner.edit == 'Y':
-                    break
-        else:
-            if do_raise is True:
-                raise PermissionError("Permission denied. User %s does not have edit"
-                                      " access on project %s" % (user_id, self.id))
-            else:
-                return False
+                    return True
+                elif owner.view == 'N':
+                    #Access has been denied on this project directly, so this
+                    #takes priority
+                    return False
 
-        return True
+        if self.parent_id is not None:
+            has_permission = self.parent.check_write_permission(user_id)
+
+        if has_permission is False and do_raise is True:
+            raise PermissionError("Permission denied. User %s does not have edit"
+                                  " access on project %s" % (user_id, self.id))
+
+        return has_permission
 
     def check_share_permission(self, user_id, is_admin=None):
         """
@@ -1837,11 +1851,16 @@ class Network(Base, Inspect):
                 if owner.view == 'Y':
                     can_read = True
                     break
+                elif owner.view == 'N':
+                    #This has been explicitly set on the Network so it has highest priority
+                    return False
         else:
             can_read = False
 
         if can_read is False:
             can_read = self.project.is_owner(user_id)
+
+        can_read = self.project.check_read_permission(user_id)
 
         if can_read is False and do_raise is True:
             raise PermissionError("Permission denied. User %s does not have read"
@@ -1864,19 +1883,27 @@ class Network(Base, Inspect):
         if is_admin is True:
             return True
 
+        can_write = True
+
         for owner in self.owners:
             if owner.user_id == int(user_id):
-                if owner.view == 'Y' and owner.edit == 'Y':
+                if owner.edit == 'Y':
+                    can_write = True
                     break
+                elif owner.edit == 'N':
+                    return False # this has been explicitly set on the Network, so it overrules all.
         else:
-            if do_raise is True:
-                raise PermissionError("Permission denied. User %s does not have edit"
-                             " access on network %s" %
-                             (user_id, self.id))
-            else:
-                return False
+            can_write = False
 
-        return True
+        if can_write is False:
+            can_write = self.project.check_write_permission(user_id)
+
+        if can_write is False and do_raise is True:
+            raise PermissionError("Permission denied. User %s does not have edit"
+                         " access on network %s" %
+                         (user_id, self.id))
+
+        return can_write
 
     def check_share_permission(self, user_id, is_admin=None):
         """
