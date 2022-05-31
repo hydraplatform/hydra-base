@@ -1414,7 +1414,7 @@ class Project(Base, Inspect):
         if self.parent_id is not None:
             parent_owners = list(filter(lambda x:x.user_id not in owner_ids, self.parent.get_owners()))
             for po in parent_owners:
-                po.source = f'Inherited ({po.project_name} == {po.project_id})'
+                po.source = f'Inherited from: {po.project_name} (ID:{po.project_id})'
 
         return owners + parent_owners
 
