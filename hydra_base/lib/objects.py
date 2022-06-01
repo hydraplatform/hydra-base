@@ -64,33 +64,47 @@ class JSONObject(dict):
             value descriptor's __get__ and the external lookup must be
             performed here.
             """
-            log.warning("_asdict")
+            #log.warning("_asdict")
             obj = obj_dict._asdict()
             ref_key = obj.get("value")
-            try:
-                oid = ObjectId(ref_key)
-                obj["value"] = get_external_value_by_object_id(oid)
-            except (TypeError, InvalidId):
-                """ The value wasn't an valid ObjectID, keep the value """
-                pass
+            if ref_key:
+                try:
+                    oid = ObjectId(ref_key)
+                    obj["value"] = get_external_value_by_object_id(oid)
+                except (TypeError, InvalidId):
+                    """ The value wasn't an valid ObjectID, keep the value """
+                    pass
         elif hasattr(obj_dict, '__dict__') and len(obj_dict.__dict__) > 0:
             #log.warning("__dict__")
             obj = obj_dict.__dict__
+            """
+            Handle indirect references.
+            The sqlalchemy attr "value_ref" is in the instance __dict__
+            but the "value" descriptor class attr is not.
+            The "value_ref" must remain present in the __dict__ for
+            later external db lookup, but should not be present in the
+            returned object whereas the "value" should.
+            """
+            if "value_ref" in obj:
+                #log.warning(f"value_ref in obj {obj=}")
+                if obj_dict.value:
+                    obj["value"] = obj_dict.value
         elif isinstance(obj_dict, dict):
             """
             The argument is a dict of uncertain provenance. This can
             originate from a from  SQLAlchemy row._asdict() so must be
             handled similarly.
             """
-            log.warning("dict")
+            #log.warning("dict")
             obj = obj_dict
             ref_key = obj.get("value")
-            try:
-                oid = ObjectId(ref_key)
-                obj["value"] = get_external_value_by_object_id(oid)
-            except (TypeError, InvalidId):
-                """ The value wasn't an valid ObjectID, keep the value """
-                pass
+            if ref_key:
+                try:
+                    oid = ObjectId(ref_key)
+                    obj["value"] = get_external_value_by_object_id(oid)
+                except (TypeError, InvalidId):
+                    """ The value wasn't an valid ObjectID, keep the value """
+                    pass
         else:
             #log.warning("else")
             #last chance...try to cast it as a dict. Do this for sqlalchemy result proxies.
@@ -100,17 +114,6 @@ class JSONObject(dict):
                 log.critical("Error with value: %s" , obj_dict)
                 raise ValueError("Unrecognised value. It must be a valid JSON dict, a SQLAlchemy result or a dictionary.")
 
-        """
-        Handle indirect references.
-        The sqlalchemy attr "value_ref" is in the instance __dict__
-        but the "value" descriptor class attr is not.
-        The "value_ref" must remain present in the __dict__ for
-        later external db lookup, but should not be present in the
-        returned object whereas the "value" should.
-        """
-        if "value_ref" in obj:
-            log.warning(f"value_ref in obj {obj=}")
-            obj["value"] = obj_dict.value
 
         for k, v in obj.items():
             if k == "value_ref":

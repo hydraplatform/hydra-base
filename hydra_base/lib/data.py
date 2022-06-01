@@ -584,7 +584,10 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
     Identify datasets whose size exceeds the external storage threshold,
     add these to external storage rather than the main db, and replace
     the dataset.value of these with a reference to the external ObjectId.
-    Update the metadata to indicate the storage location and current hash.
+    Update the metadata to indicate the storage location.
+    Note that it isn't necessary to update the hashes calculated above,
+    index positions are preserved so these still act as unique identifiers
+    for datasets and metadata.
     """
     threshold_sz = int(config.get("mongodb", "threshold"))
     mongo_location_token = config.get("mongodb", "direct_location_token")
@@ -598,16 +601,11 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
             ds_metadata = metadata[ds["hash"]]
             ds_metadata[loc_key] = mongo_location_token
 
-    # !!! NB TEST COLLECTION HERE
-    inserted = mongo.bulk_insert_values(list(mongo_data.values()), collection="bitest")
-    for idx, key in enumerate(mongo_data):
-        #prev_hash = new_data_for_insert[key]["hash"]
-        #log.warning(f"{new_data_for_insert[key]['name']=} {prev_hash=}")
-        new_data_for_insert[key]["value"] = str(inserted.inserted_ids[idx])  # Replace ds.values with _id ref
-        #new_hash = generate_data_hash(new_data_for_insert[key])
-        #new_data_hashes[key] = new_data_for_insert[key]["hash"]  # Replace hash
-        #new_data_hashes[key] = new_hash  # Replace hash
-        #log.warning(f"{new_data_for_insert[key]['name']=} {new_data_hashes[key]=}")
+    if mongo_data:
+        # !!! NB TEST COLLECTION HERE
+        inserted = mongo.bulk_insert_values(list(mongo_data.values()), collection="bitest")
+        for idx, key in enumerate(mongo_data):
+            new_data_for_insert[key]["value"] = str(inserted.inserted_ids[idx])  # Replace ds.values with _id ref
 
     if len(new_data_for_insert) > 0:
     	#If we're working with mysql, we have to lock the table..

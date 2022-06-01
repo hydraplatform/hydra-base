@@ -22,13 +22,13 @@ class DatasetManager():
 
 
     def __set_name__(self, dataset, attr):
-        """ Always 'value' """
+        """ Always '_value' """
         self.instattr = attr
 
 
     def __get__(self, dataset, dtype=None):
-        log.info(f"* Dataset read: on {dataset=}")
         value = getattr(dataset, self.ref_key)
+        log.info(f"* Dataset read: on {dataset=} {dtype=}")
         if loc := self.get_storage_location(dataset):
             log.info(f"* External storage {loc=} with id='{value}'")
             if loc == self.loc_mongo_direct:
@@ -38,10 +38,13 @@ class DatasetManager():
 
 
     def __set__(self, dataset, value):
-        try:
-            size = len(value)
-        except TypeError as err:
-            raise HydraError(f"{value=} written to dataset has invalid type {type(value)=}") from err
+        if not value:
+            size = 0
+        else:
+            try:
+                size = len(value)
+            except TypeError as err:
+                raise HydraError(f"{value=} written to dataset has invalid type {type(value)=}") from err
 
         log.info(f"* Dataset write: {size=} {value=} on {dataset=}")
 
@@ -69,10 +72,13 @@ class DatasetManager():
             log.info(f"* External create in {self.loc_mongo_direct=} as {_id=}")
         else:
             """ In SQL DB: set value directly """
+            log.info(f"* Direct set {value=}")
             setattr(dataset, self.ref_key, value)
 
 
     def _get_storage_location_lookup(self, dataset):
+        if not dataset:
+            return
         for datum in dataset.metadata:
             if datum.key == self.loc_key:
                 return datum.value
@@ -102,14 +108,14 @@ class DatasetManager():
                 break
         dataset.metadata.pop(idx)
         get_session().delete(datum)
-        get_session().flush()
+        #get_session().flush(datum)
 
 
     def set_storage_location(self, dataset, location):
         from hydra_base.db.model import Metadata
         m = Metadata(key=self.loc_key, value=location)
         dataset.metadata.append(m)
-        get_session().flush()
+        #get_session().flush()
 
     get_storage_location = _get_storage_location_lookup
     delete_storage_location = _delete_storage_location_lookup

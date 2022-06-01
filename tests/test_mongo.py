@@ -1,6 +1,7 @@
 import pytest
 import random
 
+import hydra_base
 from hydra_base import config
 from hydra_base.lib.adaptors import HydraMongoDatasetAdaptor
 from hydra_base.lib.objects import Dataset
@@ -39,6 +40,12 @@ class TestMongo():
 
         inserted = mongo.bulk_insert_values([d.value for d in datasets], collection=mongo_collection)
         assert len(inserted.inserted_ids) == num_datasets, "Datasets insertion count mismatch"
+        """ Verify correct data inserted """
+        """
+        for ds in inserted:
+            #retrieved = client.get_dataset(ds.id)
+            #assert ds.value == retrieved.value
+        """
         """ Remove data from test collection """
         for _id in inserted.inserted_ids:
             mongo.delete_document_by_object_id(_id, collection=mongo_collection)
