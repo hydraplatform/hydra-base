@@ -33,9 +33,9 @@ class HydraMongoDatasetAdaptor(DatasetAdaptor):
         self.host = config.get(config_key, "host")
         self.port = config.get(config_key, "port")
         self.db_name = config.get(config_key, "db_name")
-        self.datasets = config.get(config_key, "datasets")
+        #self.datasets = config.get(config_key, "datasets")
         # !!! NB BULK INSERTION TEST COLLECTION HERE
-        #self.datasets = "bitest"
+        self.datasets = "bitest"
         # Todo: Add user and passwd
 
         self.client = MongoClient(f"mongodb://{self.host}:{self.port}")
@@ -109,9 +109,11 @@ class HydraMongoDatasetAdaptor(DatasetAdaptor):
         return self.datasets
 
 
-if __name__ == "__main__":
-    adaptor = HydraMongoDatasetAdaptor()
-    doc = adaptor.get_document_by_object_id("628cee2fe5e9c1f01dccb14f")
-    print(doc)
-    doc = adaptor.get_value("628cee2fe5e9c1f01dccb14f")
-    print(doc)
+def get_mongo_config(config_key="mongodb"):
+    numeric = ("threshold",)
+    mongo_keys = [k for k in config.CONFIG.options(config_key) if k not in config.CONFIG.defaults()]
+    mongo_items = {k: config.CONFIG.get(config_key, k) for k in mongo_keys}
+    for k in numeric:
+        mongo_items[k] = int(mongo_items[k])
+
+    return mongo_items
