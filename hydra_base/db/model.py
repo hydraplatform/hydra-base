@@ -67,8 +67,8 @@ import logging
 import bcrypt
 log = logging.getLogger(__name__)
 
-
 mongo_storage_location_key = config.get("mongodb", "value_location_key")
+mongo_external = config.get("mongodb", "direct_location_token")
 
 # Python 2 and 3 compatible string checking
 # TODO remove this when Python2 support is dropped.
@@ -417,6 +417,14 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
         """
         if self.hidden == 'N':
             return True
+
+        return False
+
+
+    def is_external(self):
+        for datum in self.metadata:
+            if datum.key == mongo_storage_location_key and datum.value == mongo_external:
+                return True
 
         return False
 
