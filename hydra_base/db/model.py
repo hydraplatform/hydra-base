@@ -304,8 +304,6 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
 
     @value.expression
     def value(cls):
-        log.warning(f"{cls.value_ref=}")
-        log.warning(f"{Dataset.value_ref=}")
         return cls.value_ref
 
     unit = relationship('Unit', backref=backref("dataset_unit", order_by=unit_id))
@@ -422,6 +420,9 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
 
 
     def is_external(self):
+        """
+        Does the metadata indicate that this Dataset is stored in external storage?
+        """
         for datum in self.metadata:
             if datum.key == mongo_storage_location_key and datum.value == mongo_external:
                 return True
