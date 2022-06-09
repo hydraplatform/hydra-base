@@ -67,8 +67,11 @@ import logging
 import bcrypt
 log = logging.getLogger(__name__)
 
-mongo_storage_location_key = config.get("mongodb", "value_location_key")
-mongo_external = config.get("mongodb", "direct_location_token")
+from hydra_base.lib.adaptors import get_mongo_config
+
+mongo_config = get_mongo_config()
+mongo_storage_location_key = mongo_config["value_location_key"]
+mongo_external = mongo_config["direct_location_token"]
 
 # Python 2 and 3 compatible string checking
 # TODO remove this when Python2 support is dropped.

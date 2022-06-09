@@ -18,28 +18,30 @@
 #
 
 import json
-import six
 import enum
+import logging
+import six
 
+from bson.objectid import ObjectId
+from bson.errors import InvalidId
 from datetime import datetime
+
+from hydra_base.lib.adaptors import HydraMongoDatasetAdaptor
+
 from ..exceptions import HydraError
+from ..util import (
+    generate_data_hash,
+    get_json_as_dict,
+    get_json_as_string
+)
 
 from .HydraTypes.Registry import HydraObjectFactory
 
-from ..util import generate_data_hash, get_json_as_dict, get_json_as_string
-from .. import config
-import pandas as pd
 
-import logging
 log = logging.getLogger(__name__)
-
-from hydra_base.lib.adaptors import HydraMongoDatasetAdaptor
-from bson.objectid import ObjectId
-from bson.errors import InvalidId
 mongo = HydraMongoDatasetAdaptor()
-
-
 VALID_JSON_FIRST_CHARS = ['{', '[']
+
 
 class JSONObject(dict):
     """

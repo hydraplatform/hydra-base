@@ -5,28 +5,32 @@ import random
 from packaging import version
 
 import hydra_base
-from hydra_base import config
 from hydra_base.lib.adaptors import (
     HydraMongoDatasetAdaptor,
     get_mongo_config
 )
 from hydra_base.lib.objects import Dataset
 
-# Retrieve size threshold for mongo storage from config
-mongo_threshold = int(config.get("mongodb", "threshold"))
 # Collection for test data
 mongo_collection = "bitest"
 # Minimum required mongo version
 mongo_min_version = version.parse("3.6.8")
+
 
 @pytest.fixture
 def mongo():
     mongo = HydraMongoDatasetAdaptor()
     return mongo
 
+@pytest.fixture
+def mongo_config():
+    """ This can be parametrized to allow different config sources to be tested """
+    return get_mongo_config()
+
 
 class TestMongo():
-    def generate_datasets(self, client, num_datasets=12, large_step=3):
+    def generate_datasets(self, client, mongo_config, num_datasets=12, large_step=3):
+        mongo_threshold = mongo_config["threshold"]
         datasets = []
         unit_id = client.get_unit_by_abbreviation("m s^-1").id
         for idx in range(num_datasets):
@@ -71,7 +75,7 @@ class TestMongo():
             assert key in mongo_config, f"Mongo config missing `{key}` definition"
 
 
-    def test_bulk_add_mongo_data(self, client, mongo):
+    def test_bulk_add_mongo_data(self, client, mongo_config, mongo):
         """
         Builds a non-trivial number of large datasets and adds *the values*
         of these directly to mongo using the adaptor's `bulk_insert_values`
@@ -79,6 +83,7 @@ class TestMongo():
         Bulk insertion of datasets via Hydra is tested in test_scenario::bulk_add_data
         """
 
+        mongo_threshold = mongo_config["threshold"]
         num_datasets = 32
         datasets = []
         unit_id = client.get_unit_by_abbreviation("m s^-1").id
@@ -98,20 +103,21 @@ class TestMongo():
             mongo.delete_document_by_object_id(_id, collection=mongo_collection)
 
 
-    def test_add_datasets(self, client, mongo):
+    def test_add_datasets(self, client, mongo_config, mongo):
         """
         Are datasets with size exceeding `mongo_threshold` correctly routed to
         external storage with appropriate metadata added to indicate this?
         """
-        mongo_location_key = config.get("mongodb", "value_location_key")
-        mongo_location_external = config.get("mongodb", "direct_location_token")
+        mongo_threshold = mongo_config["threshold"]
+        mongo_location_key = mongo_config["value_location_key"]
+        mongo_location_external = mongo_config["direct_location_token"]
 
         def lookup_dataset_metadata(ds_id):
             for m in metadatas:
                 if m["dataset_id"] == ds_id:
                     return m
 
-        datasets = self.generate_datasets(client)
+        datasets = self.generate_datasets(client, mongo_config)
         added = []
         for ds in datasets:
             added.append(client.add_dataset(ds.type, ds.value, ds.unit_id, {}, ds.name, flush=True))
@@ -135,13 +141,14 @@ class TestMongo():
             assert local_ds.value == added_ds.value, "Dataset value mismatch"
 
 
-    def test_shrink_dataset(self, client, mongo):
+    def test_shrink_dataset(self, client, mongo_config, mongo):
         """
         Is a large dataset initially placed in external storage, then relocated
         to the SQL db if its size is reduced beneath the external threshold?
         """
-        mongo_location_key = config.get("mongodb", "value_location_key")
-        mongo_location_external = config.get("mongodb", "direct_location_token")
+        mongo_location_key = mongo_config["value_location_key"]
+        mongo_location_external = mongo_config["direct_location_token"]
+        mongo_threshold = mongo_config["threshold"]
         unit_id = client.get_unit_by_abbreviation("m s^-1").id
 
         ds = Dataset()
@@ -166,13 +173,14 @@ class TestMongo():
         assert not shrunk_metadata
 
 
-    def test_grow_dataset(self, client, mongo):
+    def test_grow_dataset(self, client, mongo_config, mongo):
         """
         Is a small dataset initially placed in SQL db storage, and then relocated
         to external storage when its size grows to exceeds the external threshold?
         """
-        mongo_location_key = config.get("mongodb", "value_location_key")
-        mongo_location_external = config.get("mongodb", "direct_location_token")
+        mongo_location_key = mongo_config["value_location_key"]
+        mongo_location_external = mongo_config["direct_location_token"]
+        mongo_threshold = mongo_config["threshold"]
         unit_id = client.get_unit_by_abbreviation("m s^-1").id
 
         ds = Dataset()

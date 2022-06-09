@@ -42,8 +42,10 @@ from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
 from ..util import generate_data_hash
 from ..util.hydra_dateutil import get_datetime
 
-from hydra_base.lib.adaptors import HydraMongoDatasetAdaptor
-mongo = HydraMongoDatasetAdaptor()
+from hydra_base.lib.adaptors import (
+    HydraMongoDatasetAdaptor,
+    get_mongo_config
+)
 
 
 global FORMAT
@@ -589,9 +591,11 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
     index positions are preserved so these still act as unique identifiers
     for datasets and metadata.
     """
-    threshold_sz = int(config.get("mongodb", "threshold"))
-    mongo_location_token = config.get("mongodb", "direct_location_token")
-    loc_key = config.get("mongodb", "value_location_key")
+    mongo = HydraMongoDatasetAdaptor()
+    mongo_config = get_mongo_config()
+    threshold_sz = mongo_config["threshold"]
+    mongo_location_token = mongo_config["direct_location_token"]
+    loc_key = mongo_config["value_location_key"]
     mongo_data = {}
 
     for idx, ds in enumerate(new_data_for_insert):

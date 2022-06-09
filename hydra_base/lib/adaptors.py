@@ -29,18 +29,25 @@ class DatasetAdaptor(ABC):
 
 
 class HydraMongoDatasetAdaptor(DatasetAdaptor):
-    def __init__(self, config_key="mongodb"):
-        self.host = config.get(config_key, "host")
-        self.port = config.get(config_key, "port")
-        self.db_name = config.get(config_key, "db_name")
-        #self.datasets = config.get(config_key, "datasets")
+    def __init__(self):
+        mongo_config = get_mongo_config()
+        host = mongo_config["host"]
+        port = mongo_config["port"]
+        user = mongo_config["user"]
+        passwd = mongo_config["passwd"]
+        self.db_name = mongo_config["db_name"]
+        self.datasets = mongo_config["datasets"]
         # !!! NB BULK INSERTION TEST COLLECTION HERE
         self.datasets = "bitest"
-        # Todo: Add user and passwd
 
-        self.client = MongoClient(f"mongodb://{self.host}:{self.port}")
+        authtext = f"{user}:{passwd}@" if (user and passwd) else ""
+        self.client = MongoClient(f"mongodb://{authtext}{host}:{port}")
+
         self.db = self.client[self.db_name]
 
+    def __del__(self):
+        """ Close connection on object destruction """
+        self.client.close()
 
     def get_document_by_object_id(self, object_id, collection=None):
         collection = collection if collection else self.datasets
@@ -95,14 +102,12 @@ class HydraMongoDatasetAdaptor(DatasetAdaptor):
         collection = kwargs.get("collection")
         self.delete_document_by_object_id(object_id, collection)
 
-
     def bulk_insert_values(self, values, collection=None):
         collection = collection if collection else self.datasets
         path = self.db[collection]
         data = [{"value": value} for value in values]
         inserted = path.insert_many(data)
         return inserted # InsertManyResults, has .inserted_ids list
-
 
     @property
     def default_collection(self):

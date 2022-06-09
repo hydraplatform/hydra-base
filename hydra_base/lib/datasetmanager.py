@@ -3,10 +3,12 @@ Defines a descriptor which manages access to dataset storage
 """
 from sqlalchemy.exc import NoResultFound
 
-from hydra_base import config
 from hydra_base.db import get_session
 from hydra_base.exceptions import HydraError
-from hydra_base.lib.adaptors import HydraMongoDatasetAdaptor
+from hydra_base.lib.adaptors import (
+    HydraMongoDatasetAdaptor,
+    get_mongo_config
+)
 
 import logging
 log = logging.getLogger(__name__)
@@ -14,10 +16,11 @@ log = logging.getLogger(__name__)
 
 class DatasetManager():
     def __init__(self, ref_key="value_ref", loc_key=None):
+        mongo_config = get_mongo_config()
         self.ref_key = ref_key
-        self.loc_key = loc_key if loc_key else config.get("mongodb", "value_location_key")
-        self.threshold = int(config.get("mongodb", "threshold"))
-        self.loc_mongo_direct = config.get("mongodb", "direct_location_token")
+        self.loc_key = loc_key if loc_key else mongo_config["value_location_key"]
+        self.threshold = mongo_config["threshold"]
+        self.loc_mongo_direct = mongo_config["direct_location_token"]
         self.mongo = HydraMongoDatasetAdaptor() # Default config from hydra.ini
 
 
