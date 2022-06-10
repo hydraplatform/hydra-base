@@ -606,8 +606,7 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
             ds_metadata[loc_key] = mongo_location_token
 
     if mongo_data:
-        # !!! NB TEST COLLECTION HERE
-        inserted = mongo.bulk_insert_values(list(mongo_data.values()), collection="bitest")
+        inserted = mongo.bulk_insert_values(list(mongo_data.values()))
         for idx, key in enumerate(mongo_data):
             new_data_for_insert[key]["value"] = str(inserted.inserted_ids[idx])  # Replace ds.values with _id ref
 

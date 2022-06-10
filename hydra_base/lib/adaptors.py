@@ -1,3 +1,4 @@
+import logging
 from abc import (
     ABC,
     abstractmethod
@@ -5,8 +6,11 @@ from abc import (
 
 from bson.objectid import ObjectId
 from pymongo import MongoClient
+from pymongo.errors import ServerSelectionTimeoutError
 
 from hydra_base import config
+
+log = logging.getLogger(__name__)
 
 
 class DatasetAdaptor(ABC):
@@ -37,11 +41,16 @@ class HydraMongoDatasetAdaptor(DatasetAdaptor):
         passwd = mongo_config["passwd"]
         self.db_name = mongo_config["db_name"]
         self.datasets = mongo_config["datasets"]
-        # !!! NB BULK INSERTION TEST COLLECTION HERE
-        self.datasets = "bitest"
 
+        """ Mongo usernames/passwds require percent encoding of `:/?#[]@` chars """
+        user, passwd = percent_encode(user), percent_encode(passwd)
         authtext = f"{user}:{passwd}@" if (user and passwd) else ""
-        self.client = MongoClient(f"mongodb://{authtext}{host}:{port}")
+        conntext = f"mongodb://{authtext}{host}:{port}"
+        try:
+            self.client = MongoClient(conntext)
+        except pymongo.errors.ServerSelectionTimeoutError as sste:
+            log.critical(f"Unable to connect to Mongo server {conntext}: {sste}")
+            raise sste
 
         self.db = self.client[self.db_name]
 
@@ -107,7 +116,7 @@ class HydraMongoDatasetAdaptor(DatasetAdaptor):
         path = self.db[collection]
         data = [{"value": value} for value in values]
         inserted = path.insert_many(data)
-        return inserted # InsertManyResults, has .inserted_ids list
+        return inserted  # InsertManyResults, has .inserted_ids list
 
     @property
     def default_collection(self):
@@ -122,3 +131,7 @@ def get_mongo_config(config_key="mongodb"):
         mongo_items[k] = int(mongo_items[k])
 
     return mongo_items
+
+
+def percent_encode(s, xchars=":/?#[]@"):
+    return "".join(f"%{ord(char):2X}" if char in xchars else char for char in s)

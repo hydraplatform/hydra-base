@@ -11,8 +11,6 @@ from hydra_base.lib.adaptors import (
 )
 from hydra_base.lib.objects import Dataset
 
-# Collection for test data
-mongo_collection = "bitest"
 # Minimum required mongo version
 mongo_min_version = version.parse("3.6.8")
 
@@ -96,11 +94,11 @@ class TestMongo():
             ds.value = [random.uniform(1, 100) for _ in range(data_sz)]
             datasets.append(ds)
 
-        inserted = mongo.bulk_insert_values([d.value for d in datasets], collection=mongo_collection)
+        inserted = mongo.bulk_insert_values([d.value for d in datasets])
         assert len(inserted.inserted_ids) == num_datasets, "Datasets insertion count mismatch"
         """ Remove data from test collection """
         for _id in inserted.inserted_ids:
-            mongo.delete_document_by_object_id(_id, collection=mongo_collection)
+            mongo.delete_document_by_object_id(_id)
 
 
     def test_add_datasets(self, client, mongo_config, mongo):

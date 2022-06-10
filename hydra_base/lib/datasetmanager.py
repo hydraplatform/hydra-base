@@ -31,9 +31,9 @@ class DatasetManager():
 
     def __get__(self, dataset, dtype=None):
         value = getattr(dataset, self.ref_key)
-        log.info(f"* Dataset read: on {dataset=} {dtype=}")
+        log.debug(f"* Dataset read: on {dataset=} {dtype=}")
         if loc := self.get_storage_location(dataset):
-            log.info(f"* External storage {loc=} with id='{value}'")
+            log.debug(f"* External storage {loc=} with id='{value}'")
             if loc == self.loc_mongo_direct:
                 return self.mongo.get_value(value)
 
@@ -49,7 +49,7 @@ class DatasetManager():
             except TypeError as err:
                 raise HydraError(f"{value=} written to dataset has invalid type {type(value)=}") from err
 
-        log.info(f"* Dataset write: {size=} {value=} on {dataset=}")
+        log.debug(f"* Dataset write: {size=} {value=} on {dataset=}")
 
         loc = self.get_storage_location(dataset)
         is_mongo_direct = loc == self.loc_mongo_direct
@@ -62,7 +62,7 @@ class DatasetManager():
                 oid = getattr(dataset, self.ref_key)
                 self.mongo.delete_value(oid)
                 setattr(dataset, self.ref_key, value)
-                log.info(f"Deleted {oid=} on {dataset.id=} and restored {value=} to DB")
+                log.debug(f"Deleted {oid=} on {dataset.id=} and restored {value=} to DB")
             else:
                 """ Update in external storage """
                 oid = getattr(dataset, self.ref_key)
@@ -72,10 +72,10 @@ class DatasetManager():
             _id = self.mongo.create_value(value)
             self.set_storage_location(dataset, self.loc_mongo_direct)
             setattr(dataset, self.ref_key, str(_id))
-            log.info(f"* External create in {self.loc_mongo_direct=} as {_id=}")
+            log.debug(f"* External create in {self.loc_mongo_direct=} as {_id=}")
         else:
             """ In SQL DB: set value directly """
-            log.info(f"* Direct set {value=}")
+            log.debug(f"* Direct set {value=}")
             setattr(dataset, self.ref_key, value)
 
 

@@ -354,9 +354,6 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
                 self.metadata.append(m_i)
 
         metadata_to_delete =  set(existing_metadata).difference(set(metadata_tree.keys()))
-        log.info(f"{metadata_to_delete=}")
-        log.info(f"{existing_metadata=}")
-        log.info(f"{metadata_tree.keys()=}")
         """
         For a dataset which is being created on external storage for the
         first time, the metadata sent by HWI will not include the MSLK,
@@ -431,6 +428,7 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
                 return True
 
         return False
+
 
 class DatasetCollection(Base, Inspect):
     """
