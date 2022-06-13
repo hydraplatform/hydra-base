@@ -90,7 +90,7 @@ class JSONObject(dict):
         elif isinstance(obj_dict, dict):
             """
             The argument is a dict of uncertain provenance. This can
-            originate from a from  SQLAlchemy row._asdict() so must be
+            originate from SQLAlchemy row._asdict() so must be
             handled similarly.
             """
             obj = obj_dict

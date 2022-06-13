@@ -111,14 +111,12 @@ class DatasetManager():
                 break
         dataset.metadata.pop(idx)
         get_session().delete(datum)
-        #get_session().flush(datum)
 
 
     def set_storage_location(self, dataset, location):
         from hydra_base.db.model import Metadata
         m = Metadata(key=self.loc_key, value=location)
         dataset.metadata.append(m)
-        #get_session().flush()
 
     get_storage_location = _get_storage_location_lookup
     delete_storage_location = _delete_storage_location_lookup

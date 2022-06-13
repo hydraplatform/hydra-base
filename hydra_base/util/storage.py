@@ -137,10 +137,3 @@ def get_mongo_client():
     mongo_config = get_mongo_config()
     mongo = MongoClient(f"mongodb://{mongo_config['host']}:{mongo_config['port']}")
     return mongo
-
-
-if __name__ == "__main__":
-    #export_dataset_to_external_storage(22115)
-    #breakpoint()
-    #import_dataset_from_external_storage(22115)
-    breakpoint()

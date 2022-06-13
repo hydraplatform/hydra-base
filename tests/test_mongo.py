@@ -28,6 +28,11 @@ def mongo_config():
 
 class TestMongo():
     def generate_datasets(self, client, mongo_config, num_datasets=12, large_step=3):
+        """
+        Returns `num_datasets` Datasets containing an array of random floats.
+        Every `large_step`'th dataset (including the 0'th) is larger
+        than the external storage threshold.
+        """
         mongo_threshold = mongo_config["threshold"]
         datasets = []
         unit_id = client.get_unit_by_abbreviation("m s^-1").id
