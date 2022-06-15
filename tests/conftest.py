@@ -14,6 +14,8 @@ from hydra_base.util.hdb import create_default_users_and_perms, make_root_user,\
                                 create_default_units_and_dimensions
 from hydra_base.util import testing
 from hydra_client.connection import JSONConnection, RemoteJSONConnection
+from hydra_base.lib.cache import clear_cache
+
 
 
 def pytest_addoption(parser):
@@ -93,10 +95,14 @@ def client(connection_type, testdb_uri):
     pytest.user_a = client.testutils.create_user("UserA")
     pytest.user_b = client.testutils.create_user("UserB")
     pytest.user_c = client.testutils.create_user("UserC", role='developer')
+    pytest.user_d = client.testutils.create_user("UserD", role='developer')
     yield client
     #???
     hydra_base.lib.template.clear_cache()
     hydra_base.db.close_session()
+
+    clear_cache() # clear the cache before every test
+
     try:
         drop_tables(testdb_uri)
     except Exception as err:

@@ -90,7 +90,7 @@ class TestRules:
             rule_j = JSONObject(client.get_rule(2))
 
         #temporarily set the client user_id to a different (non-admin) user
-        client.user_id = 4 #4 is not an admin
+        client.user_id = 5 #5 is not an admin and is not an owner of the rule
         with pytest.raises((PermissionError, HydraError)):
             client.get_rule(new_rule_j.id)
 
@@ -222,9 +222,8 @@ class TestRules:
         #sanity check to ensure we're actually testing that the ownership functionality
         #is testing correctly
         rule_network = client.get_network(network_with_data.id)
-        assert len(rule_network.owners) == 2
+        assert len(rule_network.owners) == len(new_rule_j.owners)
 
-        assert len(new_rule_j.owners) == 2
 
     def test_clone_rule(self, client, network_with_data):
 

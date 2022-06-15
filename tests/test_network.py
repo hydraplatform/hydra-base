@@ -1026,7 +1026,7 @@ class TestNetwork:
 
         cloned_network = client.get_network(cloned_network_id, include_data=True)
 
-        assert cloned_network.name == net.name + " 1"
+        assert cloned_network.name == net.name + " (1)"
         assert len(net.nodes) == len(cloned_network.nodes)
         assert len(net.links) == len(cloned_network.links)
         assert len(net.resourcegroups) == len(cloned_network.resourcegroups)

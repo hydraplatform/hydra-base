@@ -590,7 +590,7 @@ def convert_dataset(dataset_id, target_unit_abbreviation,**kwargs):
 
         new_dataset = Dataset()
         new_dataset.type   = ds_i.type
-        new_dataset.value  = str(new_val).encode('utf-8') # The data type is Binary so needs encoding.
+        new_dataset.value  = str(new_val)
         new_dataset.name   = ds_i.name
 
         new_dataset.unit_id   = get_unit_by_abbreviation(target_unit_abbreviation).id

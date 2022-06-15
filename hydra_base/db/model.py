@@ -124,7 +124,7 @@ class AuditMixin(object):
     def updated_by(cls):
         return Column(Integer, ForeignKey('tUser.id'), onupdate=get_user_id_from_engine)
 
-    updated_at = Column(DateTime, nullable=False, server_default=text(u'CURRENT_TIMESTAMP'), onupdate=func.utc_timestamp())
+    updated_at = Column(DateTime, nullable=False, server_default=text(u'CURRENT_TIMESTAMP'), onupdate=func.current_timestamp())
 
 class PermissionControlled(object):
     def set_owner(self, user_id, read='Y', write='Y', share='Y'):
@@ -141,7 +141,7 @@ class PermissionControlled(object):
 
         if read is not None:
             owner.view = read
-        if edit is not None:
+        if write is not None:
             owner.edit = write
         if share is not None:
             owner.share = share
@@ -1614,7 +1614,11 @@ class Project(Base, Inspect):
                     return True
 
         if has_permission is False and self.parent_id is not None:
-            has_permission = self.parent.check_read_permission(user_id)
+	    """
+		Permission check up the tree only applies to non 'nav'. i.e. i a parent which
+                can be accessed for nav purposes does not count.
+            """
+            has_permission = self.parent.check_read_permission(user_id, nav=False, do_raise=False)
 
         if has_permission is False and do_raise is True:
             raise PermissionError("Permission denied. User %s does not have read"
@@ -2699,6 +2703,24 @@ class Rule(AuditMixin, Base, Inspect, PermissionControlled):
             rule_network = self.group.network
 
         return rule_network
+
+    def get_owners(self):
+        """
+            Get all the owners of a rule, both those which are applied directly
+            to this rule, but also who have been granted access via a project / network
+        """
+
+        owners = [JSONObject(o) for o in self.owners]
+        owner_ids = [o.user_id for o in owners]
+
+        network = self.get_network()
+        network_owners = list(filter(lambda x:x.user_id not in owner_ids, network.get_owners()))
+
+        for no in network_owners:
+            no.source = f'Inherited from: {po.network_name} (ID:{po.network_id})'
+
+        return owners + network_owners;
+
 
 class Note(Base, Inspect, PermissionControlled):
     """

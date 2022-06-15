@@ -1158,6 +1158,25 @@ def get_network(network_id,
 
     return net
 
+def get_networks(network_ids, **kwargs):
+    """
+        Get the list of networks specified in a list of network IDS
+        args:
+            network_ids (list(int)) : a list of network IDs
+        returns:
+            list(Network)
+    """
+    user_id = kwargs.get('user_id')
+
+    networks = db.DBSession.query(Network).filter(
+            Network.id.in_(network_ids))
+
+    for n in networks:
+        n.check_read_permission(user_id)
+
+    return networks
+
+
 def get_nodes(network_id, template_id=None, **kwargs):
     """
         Get all the nodes in a network.
@@ -2774,7 +2793,7 @@ def clone_network(network_id,
                                                         f"{new_network_name}%")).all()
 
     if len(ex_network) > 0:
-        new_network_name = f"{new_network_name}  ({str(len(ex_network))})"
+        new_network_name = f"{new_network_name} ({str(len(ex_network))})"
 
     newnet = Network()
 

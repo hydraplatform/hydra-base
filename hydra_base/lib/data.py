@@ -80,8 +80,6 @@ def get_dataset(dataset_id,**kwargs):
                 DatasetOwner.user_id,
                 null().label('metadata'),
                 case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
-                        else_=Dataset.value_uncompressed).label('value_uncompressed'),
-                case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
                         else_=Dataset.value).label('value')).filter(
                 Dataset.id==dataset_id).outerjoin(DatasetOwner,
                                     and_(DatasetOwner.dataset_id==Dataset.id,

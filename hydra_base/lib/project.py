@@ -318,6 +318,23 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
 
     return projects_j + nav_projects
 
+def get_projects_in(project_ids, **kwargs):
+    """
+        Get the list of projects specified in a list of IDS
+        args:
+            project_ids (list(int)) : a list of project IDs
+        returns:
+            list(Project)
+    """
+    user_id = kwargs.get('user_id')
+
+    projects = db.DBSession.query(Project).filter(
+            Project.id.in_(project_ids))
+
+    for p in projects:
+        p.check_read_permission(user_id)
+
+    return projects
 
 
 def get_projects_networks(project_ids, uid, isadmin=None, **kwargs):
