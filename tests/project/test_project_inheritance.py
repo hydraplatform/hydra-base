@@ -283,7 +283,7 @@ class TestProjectInheritance:
             client.get_project(proj3.id)
         client.user_id = proj_user
 
-    def test_access_to_shared_network_in_sub_projec(self, client, projectmaker, networkmaker):
+    def test_access_to_shared_network_in_sub_project(self, client, projectmaker, networkmaker):
         """
             Test sharing a network contained in sub-project. This should result in the sharee having
             access to the full tree of projects until the shared projects, but not
