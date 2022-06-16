@@ -1614,8 +1614,8 @@ class Project(Base, Inspect):
                     return True
 
         if has_permission is False and self.parent_id is not None:
-	    """
-		Permission check up the tree only applies to non 'nav'. i.e. i a parent which
+            """
+                Permission check up the tree only applies to non 'nav'. i.e. i a parent which
                 can be accessed for nav purposes does not count.
             """
             has_permission = self.parent.check_read_permission(user_id, nav=False, do_raise=False)
