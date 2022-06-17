@@ -1356,16 +1356,16 @@ class Project(Base, Inspect):
         child_projects_i = get_session().query(Project).outerjoin(ProjectOwner)\
             .filter(Project.parent_id == self.id).all()
 
-        projects = []
+        projects_with_access = [] # projects to which the user has access
         for child_proj_i in child_projects_i:
             if child_proj_i.check_read_permission(user_id, do_raise=False) is True:
-                projects.append(JSONObject(child_proj_i))
+                projects_with_access.append(child_proj_i)
 
-        owners = get_session().query(ProjectOwner).filter(ProjectOwner.project_id.in_([p.id for p in projects])).all()
-        creators = get_session().query(User.id, User.username, User.display_name).filter(User.id.in_([p.created_by for p in projects])).all()
+        owners = get_session().query(ProjectOwner).filter(ProjectOwner.project_id.in_([p.id for p in child_projects_i])).all()
+        creators = get_session().query(User.id, User.username, User.display_name).filter(User.id.in_([p.created_by for p in child_projects_i])).all()
         creator_lookup = {u.id:JSONObject(u)  for u in creators}
         owner_lookup = defaultdict(list)
-        for p in projects:
+        for p in child_projects_i:
             owner_lookup[p.id] = [creator_lookup[p.created_by]]
         for o in owners:
             if o.user_id == p.created_by:
@@ -1373,13 +1373,14 @@ class Project(Base, Inspect):
             owner_lookup[o.project_id].append(o)
 
         child_projects = []
-        for project in projects:
+        for child_proj_i in projects_with_access:
+            project = JSONObject(child_proj_i)
             project.owners = owner_lookup.get(project.id, [])
-            project.networks = self.get_networks(
+            project.networks = child_proj_i.get_networks(
                 user_id,
                 include_deleted_networks=include_deleted_networks)
             if levels > 0:
-                project.projects = self.get_child_projects(
+                project.projects = child_proj_i.get_child_projects(
                     user_id,
                     include_deleted_networks=include_deleted_networks, levels=(levels-1))
             else:
