@@ -312,6 +312,7 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
         project_i.get_attribute_data()
         project_j = JSONObject(project_i)
         project_j.networks = project_network_lookup.get(project_i.id, [])
+        project_j.projects = [JSONObject(p) for p in project_i.get_child_projects(req_user_id)]
         projects_j.append(project_j)
 
     log.info("Networks loaded projects for user %s", uid)

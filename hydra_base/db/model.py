@@ -1346,7 +1346,7 @@ class Project(Base, Inspect):
 
         return networks
 
-    def get_child_projects(self, user_id, include_deleted_networks=False):
+    def get_child_projects(self, user_id, include_deleted_networks=False, levels=1):
         """
         Get all the direct child projects of a given project
         i.e. all projects which have this project specified in the 'parent_id' column
@@ -1378,7 +1378,12 @@ class Project(Base, Inspect):
             project.networks = self.get_networks(
                 user_id,
                 include_deleted_networks=include_deleted_networks)
-
+            if levels > 0:
+                project.projects = self.get_child_projects(
+                    user_id,
+                    include_deleted_networks=include_deleted_networks, levels=(levels-1))
+            else:
+                project.projects = []
             child_projects.append(project)
 
         log.info("%s child projects retrieved", len(child_projects))
