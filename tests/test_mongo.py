@@ -26,6 +26,7 @@ def mongo_config():
     return get_mongo_config()
 
 
+@pytest.mark.externaldb
 class TestMongo():
     def generate_datasets(self, client, mongo_config, num_datasets=12, large_step=3):
         """
