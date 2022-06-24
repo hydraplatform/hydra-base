@@ -1,0 +1,38 @@
+name: CI
+
+on: [push]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    env:
+      TEST_DB: hydra_base_test
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+
+      - name: Install dependencies
+        run: |
+             pip install wheel
+             pip install pytest
+
+      - name: Setup MySQL
+        run: |
+             sudo systemctl start mysql
+             mysql -e "create database $TEST_DB;" -uroot -proot
+             mysql -e "show databases;" -uroot -proot
+
+      - name: Install hydra-base
+        run: |
+             pip install git+https://github.com/hydraplatform/hydra-client-python.git
+             pip install git+https://github.com/hydraplatform/hydra-server.git
+             pip install -e .
+
+      - name: Run pytests
+        run: |
+             pytest --db-backend=mysql
