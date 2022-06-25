@@ -21,6 +21,7 @@ import pytest
 import hydra_base
 import hydra_base.exceptions
 
+@pytest.mark.order("last")
 class TestLogin:
     """ A collection of tests of the User part of the DB.
     """
@@ -33,6 +34,7 @@ class TestLogin:
         assert user_id == 1
 
         assert session_id is not None
+        client.logout()
 
     def test_logout(self, client):
 
@@ -66,6 +68,7 @@ class TestLogin:
         retrieved_user_id = client.get_session_user(session_id=session_id)
 
         assert retrieved_user_id == user_id
+        client.logout()
 
     def test_login_wrong_user(self, client):
 
@@ -79,6 +82,8 @@ class TestLogin:
 
 
     def test_login_too_many_attempts(self, client):
+        from hydra_base.lib.users import reset_failed_logins, get_failed_login_count
+
         for i in range(8):
             if i < 7:
                 with pytest.raises(hydra_base.exceptions.HydraError):
@@ -86,3 +91,6 @@ class TestLogin:
             if i == 7:
                 with pytest.raises(hydra_base.exceptions.HydraLoginUserMaxAttemptsExceeded):
                     user_id, session_id = client.login('root', 'wrong-password!')
+
+        reset_failed_logins("root", flush=True)
+        assert get_failed_login_count("root") == 0
