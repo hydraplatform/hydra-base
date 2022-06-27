@@ -37,6 +37,8 @@ install_requires=[
     "cheroot",
     "beaker",
     "packaging",
+    "pylibmc",
+    "diskcache"
     ]
 
 # get version string from __init__.py
