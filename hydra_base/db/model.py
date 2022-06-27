@@ -1721,8 +1721,10 @@ class Network(Base, Inspect):
     _children = ['tProject']
 
     def is_owner(self, user_id):
-        """Check whether this user is an owner of this project, either directly
-        #or by virtue of being an owner of a higher-up project"""
+        """
+            Check whether this user is an owner of this project, either directly
+            or by virtue of being an owner of a higher-up project
+        """
 
         if self.check_read_permission(user_id, do_raise=False) is True:
             return True
