@@ -1589,7 +1589,7 @@ def move_network(network_id, target_project_id, **kwargs):
     """
         Update an entire network
     """
-    log.info("Updating Network %s", network.name)
+    log.info(f"Moving {network_id=} to {target_project_id=}")
     user_id = kwargs.get('user_id')
 
     try:
