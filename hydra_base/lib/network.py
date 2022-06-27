@@ -1587,7 +1587,7 @@ def update_network(network,
 @required_perms("edit_network")
 def move_network(network_id, target_project_id, **kwargs):
     """
-        Update an entire network
+        Move a network to the project with `target_project_id`
     """
     log.info(f"Moving {network_id=} to {target_project_id=}")
     user_id = kwargs.get('user_id')
