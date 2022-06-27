@@ -134,9 +134,6 @@ def get_val(dataset, timestamp=None):
 
     val = dataset.get_value()
 
-    if isinstance(val, bytes):
-        val = val.decode('utf-8')
-
     if dataset.type == 'array':
         #TODO: design a mechansim to retrieve this data if it's stored externally
         return json.loads(val)
