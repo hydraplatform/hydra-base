@@ -62,7 +62,7 @@ def testdb_uri(db_backend):
         # This is designed to work on Travis CI
         return 'postgresql://postgres@localhost:5432/hydra_base_test'
     elif db_backend == 'mysql':
-        return 'mysql+mysqldb://root@localhost/hydra_base_test'
+        return 'mysql+mysqldb://root:root@localhost/hydra_base_test'
     else:
         raise ValueError('Database backend "{}" not supported when running the tests.'.format(db_backend))
 
@@ -101,13 +101,11 @@ def client(connection_type, testdb_uri):
     hydra_base.lib.template.clear_cache()
     hydra_base.db.close_session()
 
-    clear_cache() # clear the cache before every test
-
+    clear_cache() # clear the user project cache
     try:
         drop_tables(testdb_uri)
     except Exception as err:
         print("Error dropping DB")
-
 
 def drop_tables(db_url):
     """
