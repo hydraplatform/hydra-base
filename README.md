@@ -1,7 +1,7 @@
 HydraPlatform
 =============
 
-![Build Status](https://github.com/pmslavin/hydra-base/workflows/CI/badge.svg)
+![Build Status](workflows/CI/badge.svg)
 
 
 A library for managing networks. Full documentation can be found [here](http://umwrg.github.io/HydraPlatform/).
