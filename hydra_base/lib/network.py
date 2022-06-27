@@ -3288,5 +3288,4 @@ def apply_unit_to_network_rs(network_id, unit_id, attr_id, scenario_id=None, **k
 
     #set the unit ID for each of the resource scenarios
     for network_rs in network_rs_list:
-        #need to set this to avoid the compressed value being re-compressed
         network_rs.dataset.unit_id = unit_id

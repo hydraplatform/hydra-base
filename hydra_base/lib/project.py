@@ -26,7 +26,7 @@ from sqlalchemy import and_, or_
 
 from ..util import hdb
 from ..exceptions import PermissionError, HydraError
-from ..db.model import Project, ProjectOwner, Network, NetworkOwner, User, Scenario
+from ..db.model import Project, ProjectOwner, Network, NetworkOwner, User
 from .. import db
 from . import network
 from .objects import JSONObject
@@ -86,7 +86,7 @@ def add_project(project, **kwargs):
     proj_i.name = project.name
     proj_i.description = project.description
     proj_i.created_by = user_id
-    #A project can only be moved to another if the user has write access to the target,
+    #A project can only be added to another if the user has write access to the target,
     #so we need to check the permissions on the target project if it is specified
     if project.parent_id is not None:
         #check the user has the correct permission to write to the target project

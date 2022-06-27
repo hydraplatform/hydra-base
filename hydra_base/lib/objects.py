@@ -139,16 +139,6 @@ class JSONObject(dict):
             elif isinstance(v, enum.Enum):
                 setattr(self, k, v.value)
             else:
-                if isinstance(v, bytes):
-                    #if it is bytes, then it could be compressed.
-                    #(for example the dataset value column)
-                    #Try to decode it. If compressed, then will throw a
-                    #UnicodeDecodeError, so we can ignore it.
-                    #"If it doesn't decode, it's probably because it's compressed"
-                    try:
-                        v = v.decode('utf-8')
-                    except UnicodeDecodeError:
-                        pass
 
                 if k == '_sa_instance_state':
                     continue
@@ -251,21 +241,13 @@ class Dataset(JSONObject):
 
     def __setattr__(self, name, value):
         if name == 'value' and value is not None:
-            if isinstance(value, bytes):
-                try:
-                    value = value.decode('utf-8')
-                except UnicodeDecodeError:
-                    pass
             value = six.text_type(value)
         super(Dataset, self).__setattr__(name, value)
 
     def get_value(self):
         """
             This function is here to match the equivalent one on the tDataset class in model.py
-            so that the get_value function can be used throughout to replace the '.value' property
-            which now may contain compressed data.
-            This should return a string value for the dataset's value rather than the compressed
-            value
+            so that the get_value function can be used without throwing an exception
         """
         return self.value
 
