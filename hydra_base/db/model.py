@@ -1604,7 +1604,7 @@ class Project(Base, Inspect):
 
         if nav is True:
             Project.build_user_cache(user_id)
-            for k, v in Project.get_cache(user_id).items():
+            for v in Project.get_cache(user_id).values():
                 if self.id in v:
                     return True
 
