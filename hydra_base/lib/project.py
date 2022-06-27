@@ -270,8 +270,7 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
             # Trying to read a csv string
             projects_ids_list_filter = json.loads(projects_ids_list_filter)
             if isinstance(projects_ids_list_filter, int):
-                projects_qry = projects_qry.filter(Project.id == projects_ids_list_filter)
-            else:
+                projects_ids_list_filter = [projects_ids_list_filter]
                 projects_qry = projects_qry.filter(Project.id.in_(projects_ids_list_filter))
 
 
