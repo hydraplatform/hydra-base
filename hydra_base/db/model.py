@@ -1413,16 +1413,18 @@ class Project(Base, Inspect):
 
         return owners + parent_owners
 
-    #This map should look like:
-    # {'UID' :
-    #     {
-    #         None: [P1, P2],
-    #         'P1': [P3, P4]
-    #     }
-    # }
-    #Where UID is the user ID and the inner keys are project IDS, and the lists are
-    #projects the user can see within those projects. The 'None' key at the top is for
-    #top-level projects.
+    """
+    This map should look like:
+     {'UID' :
+         {
+             None: [P1, P2],
+             'P1': [P3, P4]
+         }
+     }
+    Where UID is the user ID and the inner keys are project IDS, and the lists are
+    projects the user can see within those projects. The 'None' key at the top is for
+    top-level projects.
+    """
     @classmethod
     def get_cache(cls, user_id=None):
         if user_id is None:
@@ -1708,8 +1710,10 @@ class Network(Base, Inspect):
     _children = ['tProject']
 
     def is_owner(self, user_id):
-        """Check whether this user is an owner of this project, either directly
-        #or by virtue of being an owner of a higher-up project"""
+        """
+            Check whether this user is an owner of this project, either directly
+            or by virtue of being an owner of a higher-up project
+        """
 
         if self.check_read_permission(user_id, do_raise=False) is True:
             return True
