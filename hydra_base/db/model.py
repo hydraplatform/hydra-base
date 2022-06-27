@@ -58,6 +58,8 @@ import logging
 import bcrypt
 log = logging.getLogger(__name__)
 
+global project_cache_key
+project_cache_key = config.get('cache', 'projectkey', 'userprojects')
 
 # Python 2 and 3 compatible string checking
 # TODO remove this when Python2 support is dropped.
@@ -1424,17 +1426,17 @@ class Project(Base, Inspect):
     @classmethod
     def get_cache(cls, user_id=None):
         if user_id is None:
-            return cache.get('userprojects', {})
+            return cache.get(project_cache_key, {})
         else:
-            return cache.get('userprojects', {}).get(user_id, {})
+            return cache.get(project_cache_key, {}).get(user_id, {})
 
     @classmethod
     def set_cache(cls, data):
-        cache.set('userprojects', dict(data))
+        cache.set(project_cache_key, dict(data))
 
     @classmethod
     def clear_cache(cls, uid):
-        projectcache = cache.get('userprojects', {})
+        projectcache = cache.get(project_cache_key, {})
         if projectcache.get(uid) is not None:
             del projectcache[uid]
         cls.set_cache(projectcache)
