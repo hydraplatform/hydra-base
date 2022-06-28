@@ -35,7 +35,7 @@ jobs:
              mysql -e "show databases;" -uroot -proot
 
       - name: Setup MongoDB
-        run: sudo systemctl start mongodb
+        run: sudo systemctl start mongod
 
       - name: Install hydra-base
         run: |
