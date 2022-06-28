@@ -34,9 +34,11 @@ jobs:
              mysql -e "create database $TEST_DB;" -uroot -proot
              mysql -e "show databases;" -uroot -proot
 
-      - name: Setup MongoDB
+      - name: Setup Memcache
         run: |
-             sudo apt-get install mongodb
+             sudo apt-get install -y memcached
+             sudo apt-get install -y libmemcached-dev
+             sudo systemctl start memcached
 
       - name: Install hydra-base
         run: |
