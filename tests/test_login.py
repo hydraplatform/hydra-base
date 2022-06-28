@@ -21,6 +21,7 @@ import pytest
 import hydra_base
 import hydra_base.exceptions
 
+@pytest.mark.order("last")
 class TestLogin:
     """ A collection of tests of the User part of the DB.
     """
