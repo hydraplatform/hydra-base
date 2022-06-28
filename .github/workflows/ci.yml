@@ -34,6 +34,11 @@ jobs:
              mysql -e "create database $TEST_DB;" -uroot -proot
              mysql -e "show databases;" -uroot -proot
 
+      - name: Setup MongoDB
+        run: |
+             sudo apt-get install mongodb
+             sudo systemctl start mongo
+
       - name: Install hydra-base
         run: |
              pip install git+https://github.com/hydraplatform/hydra-client-python.git
