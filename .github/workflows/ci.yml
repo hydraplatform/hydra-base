@@ -36,8 +36,7 @@ jobs:
 
       - name: Setup MongoDB
         run: |
-             sudo apt-get install mongodb-org
-             sudo systemctl start mongo
+             sudo apt-get install mongodb
 
       - name: Install hydra-base
         run: |
