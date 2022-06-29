@@ -1,7 +1,7 @@
 HydraPlatform
 =============
 
-[![Build Status](https://travis-ci.org/hydraplatform/hydra-base.svg?branch=master)](https://travis-ci.org/hydraplatform/hydra-base)
+![Build Status](../../workflows/CI/badge.svg)
 
 
 A library for managing networks. Full documentation can be found [here](http://umwrg.github.io/HydraPlatform/).

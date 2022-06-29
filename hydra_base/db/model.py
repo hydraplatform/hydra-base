@@ -31,7 +31,7 @@ DateTime,\
 Unicode
 
 from hydra_base.lib.objects import JSONObject
-from hydra_base.lib.datasetmanager import DatasetManager
+from hydra_base.lib.storage import MongoDatasetManager, get_mongo_config
 
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -67,7 +67,6 @@ import logging
 import bcrypt
 log = logging.getLogger(__name__)
 
-from hydra_base.lib.adaptors import get_mongo_config
 
 mongo_config = get_mongo_config()
 mongo_storage_location_key = mongo_config["value_location_key"]
@@ -295,7 +294,7 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
     hidden     = Column(String(1),  nullable=False, server_default=text(u"'N'"))
     value_ref  = Column('value', Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
 
-    _value = DatasetManager()
+    _value = MongoDatasetManager()
 
     @hybrid_property
     def value(self):

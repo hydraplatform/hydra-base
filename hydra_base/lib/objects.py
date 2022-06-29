@@ -26,7 +26,7 @@ from bson.objectid import ObjectId
 from bson.errors import InvalidId
 from datetime import datetime
 
-from hydra_base.lib.adaptors import HydraMongoDatasetAdaptor
+from hydra_base.lib.storage import MongoStorageAdapter
 
 from ..exceptions import HydraError
 from ..util import (
@@ -39,7 +39,7 @@ from .HydraTypes.Registry import HydraObjectFactory
 
 
 log = logging.getLogger(__name__)
-mongo = HydraMongoDatasetAdaptor()
+mongo = MongoStorageAdapter()
 VALID_JSON_FIRST_CHARS = ['{', '[']
 
 
@@ -67,7 +67,7 @@ class JSONObject(dict):
             """
             obj = obj_dict._asdict()
             ref_key = obj.get("value")
-            if ref_key:
+            if ref_key is not None:
                 try:
                     oid = ObjectId(ref_key)
                     obj["value"] = get_external_value_by_object_id(oid)

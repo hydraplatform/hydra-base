@@ -5,8 +5,8 @@ import random
 from packaging import version
 
 import hydra_base
-from hydra_base.lib.adaptors import (
-    HydraMongoDatasetAdaptor,
+from hydra_base.lib.storage import (
+    MongoStorageAdapter,
     get_mongo_config
 )
 from hydra_base.lib.objects import Dataset
@@ -17,7 +17,7 @@ mongo_min_version = version.parse("3.6.8")
 
 @pytest.fixture
 def mongo():
-    mongo = HydraMongoDatasetAdaptor()
+    mongo = MongoStorageAdapter()
     return mongo
 
 @pytest.fixture
@@ -82,7 +82,7 @@ class TestMongo():
     def test_bulk_add_mongo_data(self, client, mongo_config, mongo):
         """
         Builds a non-trivial number of large datasets and adds *the values*
-        of these directly to mongo using the adaptor's `bulk_insert_values`
+        of these directly to mongo using the adapter's `bulk_insert_values`
         func.
         Bulk insertion of datasets via Hydra is tested in test_scenario::bulk_add_data
         """

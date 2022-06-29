@@ -42,8 +42,8 @@ from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
 from ..util import generate_data_hash
 from ..util.hydra_dateutil import get_datetime
 
-from hydra_base.lib.adaptors import (
-    HydraMongoDatasetAdaptor,
+from hydra_base.lib.storage import (
+    MongoStorageAdapter,
     get_mongo_config
 )
 
@@ -591,7 +591,7 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
     index positions are preserved so these still act as unique identifiers
     for datasets and metadata.
     """
-    mongo = HydraMongoDatasetAdaptor()
+    mongo = MongoStorageAdapter()
     mongo_config = get_mongo_config()
     threshold_sz = mongo_config["threshold"]
     mongo_location_token = mongo_config["direct_location_token"]

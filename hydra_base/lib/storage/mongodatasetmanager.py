@@ -1,27 +1,29 @@
-"""
-Defines a descriptor which manages access to dataset storage
-"""
 from sqlalchemy.exc import NoResultFound
 
 from hydra_base.db import get_session
 from hydra_base.exceptions import HydraError
-from hydra_base.lib.adaptors import (
-    HydraMongoDatasetAdaptor,
+from .mongostorageadapter import (
+    MongoStorageAdapter,
     get_mongo_config
 )
+from .datasetmanager import DatasetManager
 
 import logging
 log = logging.getLogger(__name__)
 
 
-class DatasetManager():
+class MongoDatasetManager(DatasetManager):
+    """
+    Implements the descriptor protocol to manage accesses to Dataset._value
+    and route these to the correct storage provider
+    """
     def __init__(self, ref_key="value_ref", loc_key=None):
         mongo_config = get_mongo_config()
         self.ref_key = ref_key
         self.loc_key = loc_key if loc_key else mongo_config["value_location_key"]
         self.threshold = mongo_config["threshold"]
         self.loc_mongo_direct = mongo_config["direct_location_token"]
-        self.mongo = HydraMongoDatasetAdaptor() # Default config from hydra.ini
+        self.mongo = MongoStorageAdapter()  # Default config from hydra.ini
 
 
     def __set_name__(self, dataset, attr):
@@ -35,7 +37,7 @@ class DatasetManager():
         if loc := self.get_storage_location(dataset):
             log.debug(f"* External storage {loc=} with id='{value}'")
             if loc == self.loc_mongo_direct:
-                return self.mongo.get_value(value)
+                return self.mongo.get_document_by_object_id(value)["value"]
 
         return value
 
@@ -60,7 +62,7 @@ class DatasetManager():
                 """ Value has shrunk so restore to SQL DB """
                 self.delete_storage_location(dataset)
                 oid = getattr(dataset, self.ref_key)
-                self.mongo.delete_value(oid)
+                self.mongo.delete_document_by_object_id(oid)
                 setattr(dataset, self.ref_key, value)
                 log.debug(f"Deleted {oid=} on {dataset.id=} and restored {value=} to DB")
             else:
@@ -69,7 +71,7 @@ class DatasetManager():
                 self.mongo.set_document_value(oid, value)
         elif size > self.threshold:
             """ Create in external storage """
-            _id = self.mongo.create_value(value)
+            _id = self.mongo.insert_document(value)
             self.set_storage_location(dataset, self.loc_mongo_direct)
             setattr(dataset, self.ref_key, str(_id))
             log.debug(f"* External create in {self.loc_mongo_direct=} as {_id=}")
@@ -79,7 +81,7 @@ class DatasetManager():
             setattr(dataset, self.ref_key, value)
 
 
-    def _get_storage_location_lookup(self, dataset):
+    def get_storage_location(self, dataset):
         if not dataset:
             return
         for datum in dataset.metadata:
@@ -87,25 +89,7 @@ class DatasetManager():
                 return datum.value
 
 
-    def _get_storage_location_query(self, dataset):
-        if not dataset.id:
-            return
-        qry_txt = f"select `value` from tMetadata where dataset_id = {dataset.id} and `key` = '{self.loc_key}'"
-        try:
-            cols = get_session().execute(qry_txt).one()
-        except NoResultFound:
-            # The dataset's metadata does not have a location key
-            return
-        return cols[0]
-
-
-    def _delete_storage_location_query(self, dataset):
-        dataset_id = getattr(dataset, "id")
-        qry_txt = f"delete from tMetadata where dataset_id = {dataset_id} and `key` = '{self.loc_key}'"
-        get_session().execute(qry_txt)
-
-
-    def _delete_storage_location_lookup(self, dataset):
+    def delete_storage_location(self, dataset):
         for idx, datum in enumerate(dataset.metadata):
             if datum.key == self.loc_key:
                 break
@@ -117,6 +101,3 @@ class DatasetManager():
         from hydra_base.db.model import Metadata
         m = Metadata(key=self.loc_key, value=location)
         dataset.metadata.append(m)
-
-    get_storage_location = _get_storage_location_lookup
-    delete_storage_location = _delete_storage_location_lookup

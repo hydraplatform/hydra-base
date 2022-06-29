@@ -18,7 +18,7 @@ from hydra_base.db.model import (
     Dataset,
     Metadata
 )
-from hydra_base.lib.adaptors import get_mongo_config
+from hydra_base.lib.storage import get_mongo_config
 
 log = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ def datasets_larger_than(size):
     return datasets
 
 
-def export_dataset_to_external_storage(ds_id, db_name=None, collection="storage"):
+def export_dataset_to_external_storage(ds_id, db_name=None, collection=None):
     """
     Place the value of the dataset identified by `ds_id` in external
     storage, replace the value with an ObjectID reference, and
@@ -82,7 +82,7 @@ def export_dataset_to_external_storage(ds_id, db_name=None, collection="storage"
     return result
 
 
-def import_dataset_from_external_storage(ds_id, db_name=None, collection="storage"):
+def import_dataset_from_external_storage(ds_id, db_name=None, collection=None):
     """
     Retrieve the value of the dataset identified by `ds_id` from
     external storage, and replace the SQL db dataset value with this.
