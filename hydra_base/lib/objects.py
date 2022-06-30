@@ -69,10 +69,16 @@ class JSONObject(dict):
             ref_key = obj.get("value")
             if ref_key is not None:
                 try:
+                    """
+                    ref_key may be not None but also not a valid oid string, so
+                    must handle InvalidId from ObjectId and possible TypeError
+                    if oid inst is created but then matches no document.
+                    """
                     oid = ObjectId(ref_key)
-                    obj["value"] = get_external_value_by_object_id(oid)
+                    doc = mongo.get_document_by_oid_inst(oid)
+                    obj["value"] = doc["value"]
                 except (TypeError, InvalidId):
-                    """ The value wasn't an valid ObjectID, keep the value """
+                    """ The value wasn't an valid ObjectID, keep the current value """
                     pass
         elif hasattr(obj_dict, '__dict__') and len(obj_dict.__dict__) > 0:
             obj = obj_dict.__dict__
@@ -98,9 +104,10 @@ class JSONObject(dict):
             if ref_key:
                 try:
                     oid = ObjectId(ref_key)
-                    obj["value"] = get_external_value_by_object_id(oid)
+                    doc = mongo.get_document_by_oid_inst(oid)
+                    obj["value"] = doc["value"]
                 except (TypeError, InvalidId):
-                    """ The value wasn't an valid ObjectID, keep the value """
+                    """ The value wasn't an valid ObjectID, keep the current value """
                     pass
         else:
             #last chance...try to cast it as a dict. Do this for sqlalchemy result proxies.
@@ -356,18 +363,3 @@ class Dataset(JSONObject):
         data_hash = generate_data_hash(dataset_dict)
 
         return data_hash
-
-
-def get_external_value_by_object_id(oid):
-    """
-    Returns the value from a document identified by the oid argument.
-    """
-    value = None
-    doc = mongo.get_document_by_oid_inst(oid)
-    try:
-        value = doc["value"]
-    except TypeError:
-        """ No such document """
-        pass
-
-    return value

@@ -2,10 +2,7 @@ from sqlalchemy.exc import NoResultFound
 
 from hydra_base.db import get_session
 from hydra_base.exceptions import HydraError
-from .mongostorageadapter import (
-    MongoStorageAdapter,
-    get_mongo_config
-)
+from .mongostorageadapter import MongoStorageAdapter
 from .datasetmanager import DatasetManager
 
 import logging
@@ -18,7 +15,7 @@ class MongoDatasetManager(DatasetManager):
     and route these to the correct storage provider
     """
     def __init__(self, ref_key="value_ref", loc_key=None):
-        mongo_config = get_mongo_config()
+        mongo_config = MongoStorageAdapter.get_mongo_config()
         self.ref_key = ref_key
         self.loc_key = loc_key if loc_key else mongo_config["value_location_key"]
         self.threshold = mongo_config["threshold"]

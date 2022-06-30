@@ -31,7 +31,10 @@ DateTime,\
 Unicode
 
 from hydra_base.lib.objects import JSONObject
-from hydra_base.lib.storage import MongoDatasetManager, get_mongo_config
+from hydra_base.lib.storage import (
+    MongoDatasetManager,
+    MongoStorageAdapter
+)
 
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -68,7 +71,7 @@ import bcrypt
 log = logging.getLogger(__name__)
 
 
-mongo_config = get_mongo_config()
+mongo_config = MongoStorageAdapter.get_mongo_config()
 mongo_storage_location_key = mongo_config["value_location_key"]
 mongo_external = mongo_config["direct_location_token"]
 

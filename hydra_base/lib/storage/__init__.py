@@ -7,7 +7,4 @@ Package for DatasetManagers and StorageAdapters.
 from .mongodatasetmanager import MongoDatasetManager
 
 """ Storage adapters """
-from .mongostorageadapter import (
-    MongoStorageAdapter,
-    get_mongo_config
-)
+from .mongostorageadapter import MongoStorageAdapter

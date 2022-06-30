@@ -18,7 +18,7 @@ from hydra_base.db.model import (
     Dataset,
     Metadata
 )
-from hydra_base.lib.storage import get_mongo_config
+from hydra_base.lib.storage import MongoStorageAdapter
 
 log = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ def export_dataset_to_external_storage(ds_id, db_name=None, collection=None):
     storage, replace the value with an ObjectID reference, and
     update the dataset metadata to indicate the new location.
     """
-    mongo_config = get_mongo_config()
+    mongo_config = MongoStorageAdapter.get_mongo_config()
     db_name = db_name if db_name else mongo_config["db_name"]
     collection = collection if collection else mongo_config["datasets"]
 
@@ -92,7 +92,7 @@ def import_dataset_from_external_storage(ds_id, db_name=None, collection=None):
     if not dataset.is_external():
         raise LookupError(f"Dataset {dataset.id} does not have external storage metadata")
 
-    mongo_config = get_mongo_config()
+    mongo_config = MongoStorageAdapter.get_mongo_config()
     db_name = db_name if db_name else mongo_config["db_name"]
     collection = collection if collection else mongo_config["datasets"]
 
@@ -134,6 +134,6 @@ def get_mongo_client():
     global mongo
     if mongo:
         return mongo
-    mongo_config = get_mongo_config()
+    mongo_config = MongoStorageAdapter.get_mongo_config()
     mongo = MongoClient(f"mongodb://{mongo_config['host']}:{mongo_config['port']}")
     return mongo

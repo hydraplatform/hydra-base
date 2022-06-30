@@ -5,10 +5,7 @@ import random
 from packaging import version
 
 import hydra_base
-from hydra_base.lib.storage import (
-    MongoStorageAdapter,
-    get_mongo_config
-)
+from hydra_base.lib.storage import MongoStorageAdapter
 from hydra_base.lib.objects import Dataset
 
 # Minimum required mongo version
@@ -23,7 +20,7 @@ def mongo():
 @pytest.fixture
 def mongo_config():
     """ This can be parametrized to allow different config sources to be tested """
-    return get_mongo_config()
+    return MongoStorageAdapter.get_mongo_config()
 
 
 @pytest.mark.externaldb
@@ -73,7 +70,7 @@ class TestMongo():
 
     def test_mongo_config(self, mongo):
         required = ("threshold", "value_location_key", "direct_location_token")
-        mongo_config = get_mongo_config()
+        mongo_config = MongoStorageAdapter.get_mongo_config()
 
         for key in required:
             assert key in mongo_config, f"Mongo config missing `{key}` definition"

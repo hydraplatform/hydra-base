@@ -14,7 +14,7 @@ class MongoStorageAdapter():
     Provides an interface to DatasetManager instances to access MongoDB storage
     """
     def __init__(self):
-        mongo_config = get_mongo_config()
+        mongo_config = self.__class__.get_mongo_config()
         host = mongo_config["host"]
         port = mongo_config["port"]
         user = mongo_config["user"]
@@ -33,6 +33,16 @@ class MongoStorageAdapter():
             raise sste
 
         self.db = self.client[self.db_name]
+
+    @staticmethod
+    def get_mongo_config(config_key="mongodb"):
+        numeric = ("threshold",)
+        mongo_keys = [k for k in config.CONFIG.options(config_key) if k not in config.CONFIG.defaults()]
+        mongo_items = {k: config.CONFIG.get(config_key, k) for k in mongo_keys}
+        for k in numeric:
+            mongo_items[k] = int(mongo_items[k])
+
+        return mongo_items
 
     def __del__(self):
         """ Close connection on object destruction """
@@ -92,14 +102,6 @@ class MongoStorageAdapter():
         return self.datasets
 
 
-def get_mongo_config(config_key="mongodb"):
-    numeric = ("threshold",)
-    mongo_keys = [k for k in config.CONFIG.options(config_key) if k not in config.CONFIG.defaults()]
-    mongo_items = {k: config.CONFIG.get(config_key, k) for k in mongo_keys}
-    for k in numeric:
-        mongo_items[k] = int(mongo_items[k])
-
-    return mongo_items
 
 
 def percent_encode(s, xchars=":/?#[]@"):
