@@ -134,9 +134,9 @@ def _check_ra_duplicates(all_resource_attrs, resource_id_name_map):
             elif ref_key == 'LINK':
                 ref_id = ra['link_id']
             elif ref_key == 'GROUP':
-                ref_id == ra['group_id']
+                ref_id = ra['group_id']
             elif ref_key == 'NETWORK':
-                ref_id == ra['network_id']
+                ref_id = ra['network_id']
 
             resource_name = resource_id_name_map[ref_id]
             attr_id = ra['attr_id']
@@ -264,6 +264,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
                             'attr_id' : ta.attr_id,
                             'attr_is_var' : ta.attr_is_var,
                         })
+                        existing_attrs.append(ta.attr_id)
 
                         if ta.default_dataset_id is not None:
                             defaults[(ref_id, ta.attr_id)] = {'dataset_id':ta.default_dataset_id}
@@ -1412,7 +1413,7 @@ def get_node(node_id, scenario_id=None, **kwargs):
     n = JSONObject(n)
 
     if scenario_id is not None:
-        res_scens = scenario.get_resource_data('NODE', node_id, scenario_id, None)
+        res_scens = scenario.get_resource_data('NODE', node_id, scenario_id, None, **kwargs)
         rs_dict = {}
         for rs in res_scens:
             rs_dict[rs.resource_attr_id] = JSONObject(rs)
@@ -1445,7 +1446,7 @@ def get_link(link_id, scenario_id=None, **kwargs):
     l = JSONObject(l)
 
     if scenario_id is not None:
-        res_scens = scenario.get_resource_data('LINK', link_id, scenario_id, None)
+        res_scens = scenario.get_resource_data('LINK', link_id, scenario_id, None, **kwargs)
         rs_dict = {}
         for rs in res_scens:
             rs_dict[rs.resource_attr_id] = JSONObject(rs)
@@ -1477,7 +1478,7 @@ def get_resourcegroup(group_id, scenario_id=None, **kwargs):
     rg = JSONObject(rg)
 
     if scenario_id is not None:
-        res_scens = scenario.get_resource_data('GROUP', group_id, scenario_id, None)
+        res_scens = scenario.get_resource_data('GROUP', group_id, scenario_id, None, **kwargs)
         rs_dict = {}
         for rs in res_scens:
             rs_dict[rs.resource_attr_id] = JSONObject(rs)
@@ -2198,7 +2199,14 @@ def add_link(network_id, link,**kwargs):
 
     return link_i
 
-def update_link(link,**kwargs):
+@required_perms("edit_network")
+def update_links(links, **kwargs):
+    log.info("Updating %s links", len(links))
+    for l in links:
+        update_link(l, flush=False, **kwargs)
+    db.DBSession.flush()
+
+def update_link(link, flush=False, **kwargs):
     """
         Update a link.
     """
@@ -2225,8 +2233,8 @@ def update_link(link,**kwargs):
         hdb.add_resource_attributes(link_i, link.attributes)
     if link.types is not None:
         hdb.add_resource_types(link_i, link.types)
-
-    db.DBSession.flush()
+    if flush is True:
+        db.DBSession.flush()
     return link_i
 
 def set_link_status(link_id, status, **kwargs):
@@ -3188,9 +3196,9 @@ def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, gro
 def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, group_id_map):
 
     log.info("Cloning Network Types")
-    network_ras = db.DBSession.query(ResourceType).filter(ResourceType.network_id==network_id)
+    network_rts = db.DBSession.query(ResourceType).filter(ResourceType.network_id==network_id)
     new_ras = []
-    for rt in network_ras:
+    for rt in network_rts:
         new_ras.append(dict(
             ref_key=rt.ref_key,
             network_id=newnetworkid,
@@ -3198,6 +3206,7 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
             link_id=rt.link_id,
             group_id=rt.group_id,
             type_id=rt.type_id,
+            child_template_id=rt.child_template_id,
         ))
     log.info("Cloning Node Types")
     node_rts = db.DBSession.query(ResourceType).filter(and_(ResourceType.node_id==Node.id, Node.network_id==network_id))
@@ -3209,6 +3218,7 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
             link_id=rt.link_id,
             group_id=rt.group_id,
             type_id=rt.type_id,
+            child_template_id=rt.child_template_id,
         ))
     log.info("Cloning Link Types")
     link_rts = db.DBSession.query(ResourceType).filter(and_(ResourceType.link_id==Link.id, Link.network_id==network_id))
@@ -3220,6 +3230,7 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
             link_id=link_id_map[rt.link_id],
             group_id=rt.group_id,
             type_id=rt.type_id,
+            child_template_id=rt.child_template_id,
         ))
 
     log.info("Cloning Group Types")
@@ -3232,6 +3243,7 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
             link_id=rt.link_id,
             group_id=group_id_map[rt.group_id],
             type_id=rt.type_id,
+            child_template_id=rt.child_template_id,
         ))
 
     log.info("Inserting new resource types")

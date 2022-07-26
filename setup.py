@@ -37,6 +37,7 @@ install_requires=[
     "cheroot",
     "beaker",
     "packaging",
+    "pymongo"
     ]
 
 # get version string from __init__.py
@@ -45,8 +46,8 @@ with open(os.path.join(os.path.dirname(__file__), "hydra_base", "__init__.py")) 
         if line.startswith("__version__"):
             version = line.split("=")[1].strip().strip("\"'")
 
-if platform.system() == "Windows":  # only add winpaths when platform is Windows so that setup.py is universal
-    install_requires.append("winpaths")
+if platform.system() == "Windows":  # only add winpath when platform is Windows so that setup.py is universal
+    install_requires.append("winpath")
 
 setup(
     name='hydra-base',

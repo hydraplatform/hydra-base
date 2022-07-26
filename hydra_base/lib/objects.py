@@ -18,23 +18,30 @@
 #
 
 import json
-import six
 import enum
+import logging
+import six
 
+from bson.objectid import ObjectId
+from bson.errors import InvalidId
 from datetime import datetime
+
+from hydra_base.lib.storage import MongoStorageAdapter
+
 from ..exceptions import HydraError
+from ..util import (
+    generate_data_hash,
+    get_json_as_dict,
+    get_json_as_string
+)
 
 from .HydraTypes.Registry import HydraObjectFactory
 
-from ..util import generate_data_hash, get_json_as_dict, get_json_as_string
-from .. import config
-import pandas as pd
 
-import logging
 log = logging.getLogger(__name__)
-
-
+mongo = MongoStorageAdapter()
 VALID_JSON_FIRST_CHARS = ['{', '[']
+
 
 class JSONObject(dict):
     """
@@ -52,13 +59,56 @@ class JSONObject(dict):
                 log.critical(parent)
                 raise ValueError("Unable to read string value. Make sure it's JSON serialisable")
         elif hasattr(obj_dict, '_asdict') and obj_dict._asdict is not None:
-            #A special case, trying to load a SQLAlchemy object, which is a 'dict' object
+            """
+            The argument is a SQLAlchemy object. This originated from a
+            Class.column query so there was no instance to trigger the
+            value descriptor's __get__ and the external lookup must be
+            performed here.
+            """
             obj = obj_dict._asdict()
+            ref_key = obj.get("value")
+            if ref_key is not None:
+                try:
+                    """
+                    ref_key may be not None but also not a valid oid string, so
+                    must handle InvalidId from ObjectId and possible TypeError
+                    if oid inst is created but then matches no document.
+                    """
+                    oid = ObjectId(ref_key)
+                    doc = mongo.get_document_by_oid_inst(oid)
+                    obj["value"] = doc["value"]
+                except (TypeError, InvalidId):
+                    """ The value wasn't an valid ObjectID, keep the current value """
+                    pass
         elif hasattr(obj_dict, '__dict__') and len(obj_dict.__dict__) > 0:
-            #A special case, trying to load a SQLAlchemy object, which is a 'dict' object
             obj = obj_dict.__dict__
+            """
+            Handle indirect references.
+            The sqlalchemy attr "value_ref" is in the instance __dict__
+            but the "value" descriptor class attr is not.
+            The "value_ref" must remain present in the __dict__ for
+            later external db lookup, but should not be present in the
+            returned object whereas the "value" should.
+            """
+            if "value_ref" in obj:
+                if obj_dict.value:
+                    obj["value"] = obj_dict.value
         elif isinstance(obj_dict, dict):
+            """
+            The argument is a dict of uncertain provenance. This can
+            originate from SQLAlchemy row._asdict() so must be
+            handled similarly.
+            """
             obj = obj_dict
+            ref_key = obj.get("value")
+            if ref_key:
+                try:
+                    oid = ObjectId(ref_key)
+                    doc = mongo.get_document_by_oid_inst(oid)
+                    obj["value"] = doc["value"]
+                except (TypeError, InvalidId):
+                    """ The value wasn't an valid ObjectID, keep the current value """
+                    pass
         else:
             #last chance...try to cast it as a dict. Do this for sqlalchemy result proxies.
             try:
@@ -67,7 +117,10 @@ class JSONObject(dict):
                 log.critical("Error with value: %s" , obj_dict)
                 raise ValueError("Unrecognised value. It must be a valid JSON dict, a SQLAlchemy result or a dictionary.")
 
+
         for k, v in obj.items():
+            if k == "value_ref":
+                continue
 
             #This occurs regularly enough to warrant its own if statement.
             #if isinstance(k, int):
@@ -230,7 +283,6 @@ class Dataset(JSONObject):
         # Keys that start and end with "__" won't be retrievable via attributes
         if name.startswith('__') and name.endswith('__'):
             return super(JSONObject, self).__getattr__(name)
-
         else:
             return self.get(name, None)
 

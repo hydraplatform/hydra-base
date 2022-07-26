@@ -387,15 +387,16 @@ class TestUnits():
 
         network = client.testutils.create_network_with_data(num_nodes=2, project_id=project.id)
 
-        scenario = \
+        resourcescenarios = \
             network.scenarios[0].resourcescenarios
 
         # Select the first array (should have untis 'bar') and convert it
-        for res_scen in scenario:
+        for res_scen in resourcescenarios:
             if res_scen.dataset.type == 'array':
                 dataset_id = res_scen.dataset.id
                 old_val = res_scen.dataset.value
                 break
+
         newid = client.convert_dataset(dataset_id, 'mmHg')
 
         assert newid is not None
@@ -433,7 +434,6 @@ class TestUnits():
         dimension = client.get_dimension(unit.dimension_id)
 
         new_unit = dimension.units[0].id
-
         client.apply_unit_to_network_rs(network_id, new_unit, attr_id)
 
         #now try to apply an incompatible unit. Just go grab another dimension, ensuring it's not accidenally
@@ -451,10 +451,13 @@ class TestUnits():
 
         #it's possible that the same unit spans multiple attributes in the original scenario
         #so the updated scenario can only be tested for datsets which are attached to the attribute
-        old_unit_rs = [rs for rs in network_with_data.scenarios[0].resourcescenarios if rs.resourceattr.attr_id==attr_id and rs.dataset.unit_id==unit_to_change]
-        new_unit_rs = [rs for rs in updated_scenario.resourcescenarios if rs.resourceattr.attr_id==attr_id and rs.dataset.unit_id==new_unit]
+        old_unit_rs = [rs for rs in network_with_data.scenarios[0].resourcescenarios if rs.resourceattr.attr_id==attr_id]
+        new_unit_rs = [rs for rs in updated_scenario.resourcescenarios if rs.resourceattr.attr_id==attr_id]
 
+        #check that the attributes haven't changed
         assert len(old_unit_rs) == len(new_unit_rs)
+        #check that all units have been updated
+        assert set([rs.dataset.unit_id for rs in new_unit_rs]) == {new_unit}
 
         for rs in updated_scenario.resourcescenarios:
             if rs.resourceattr.attr_id == attr_id:
