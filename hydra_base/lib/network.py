@@ -117,7 +117,7 @@ def _get_all_attributes(network):
 
     return attrs
 
-def _check_ra_duplicates(all_resource_attrs):
+def _check_ra_duplicates(all_resource_attrs, resource_id_name_map):
     """
         Check for any duplicate resource attributes before inserting
         into the DB. This just helps to prevent an ugly DB contraint error
@@ -128,7 +128,19 @@ def _check_ra_duplicates(all_resource_attrs):
         if unique_ra_check.get(k) is None:
             unique_ra_check[k] = ra
         else:
-            raise HydraError(f"Duplicate Resource Attr specified: {ra}")
+            ref_key = ra['ref_key']
+            if ref_key == 'NODE':
+                ref_id = ra['node_id']
+            elif ref_key == 'LINK':
+                ref_id = ra['link_id']
+            elif ref_key == 'GROUP':
+                ref_id = ra['group_id']
+            elif ref_key == 'NETWORK':
+                ref_id = ra['network_id']
+
+            resource_name = resource_id_name_map[ref_id]
+            attr_id = ra['attr_id']
+            raise HydraError(f"Duplicate Resource Attr specified: {resource_name}  {attr_id}")
 
 def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, template_lookup=None):
 
@@ -145,6 +157,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
     #Default ra / dataset pairings.
     defaults = {}
 
+    attr_lookup = {}
     #First get all the attributes assigned from the csv files.
     t0 = time.time()
     for resource in resources:
@@ -153,6 +166,11 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
         resource_attrs[resource.id] = []
         if resource.attributes is not None:
             for ra in resource.attributes:
+                if attr_lookup.get(ra.attr_id) is None:
+                    attr = db.DBSession.query(Attr).filter(Attr.id == ra.attr_id).first()
+                    if attr is None:
+                        raise Exception("Unable to process attribute %s on resource %s as it does not exist", ra.attr_id, resource.name)
+                    attr_lookup[ra.attr_id] = attr
                 resource_attrs[resource.id].append({
                     'ref_key'     : ref_key,
                     'node_id'     : resource_i.id if ref_key == 'NODE' else None,
@@ -180,9 +198,11 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
     #Holds all the attributes supposed to be on a resource based on its specified
     #type
     resource_resource_types = []
+    resource_id_name_map = {}
     for resource in resources:
         #cast name as string here in case the name is a number
         resource_i = resource_name_map[str(resource.name)]
+        resource_id_name_map[resource_i.id] = str(resource.name)
         existing_attrs = [ra['attr_id'] for ra in resource_attrs[resource.id]]
         if resource.types is not None:
             for resource_type in resource.types:
@@ -205,6 +225,9 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
                     resource_type.child_template_id = type_child_template_id_lookup[resource_type_id]
 
                 ref_id = resource_i.id
+
+                if resource_type.id is None:
+                    raise HydraError(f"Resource type on resource {resource_i.name} has no ID")
 
                 resource_resource_types.append(
                     {
@@ -241,6 +264,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
                             'attr_id' : ta.attr_id,
                             'attr_is_var' : ta.attr_is_var,
                         })
+                        existing_attrs.append(ta.attr_id)
 
                         if ta.default_dataset_id is not None:
                             defaults[(ref_id, ta.attr_id)] = {'dataset_id':ta.default_dataset_id}
@@ -258,7 +282,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
         for na in resource_attrs.values():
             all_resource_attrs.extend(na)
 
-        _check_ra_duplicates(all_resource_attrs)
+        _check_ra_duplicates(all_resource_attrs, resource_id_name_map)
 
 
         if len(all_resource_attrs) > 0:
@@ -1389,7 +1413,7 @@ def get_node(node_id, scenario_id=None, **kwargs):
     n = JSONObject(n)
 
     if scenario_id is not None:
-        res_scens = scenario.get_resource_data('NODE', node_id, scenario_id, None)
+        res_scens = scenario.get_resource_data('NODE', node_id, scenario_id, None, **kwargs)
         rs_dict = {}
         for rs in res_scens:
             rs_dict[rs.resource_attr_id] = JSONObject(rs)
@@ -1422,7 +1446,7 @@ def get_link(link_id, scenario_id=None, **kwargs):
     l = JSONObject(l)
 
     if scenario_id is not None:
-        res_scens = scenario.get_resource_data('LINK', link_id, scenario_id, None)
+        res_scens = scenario.get_resource_data('LINK', link_id, scenario_id, None, **kwargs)
         rs_dict = {}
         for rs in res_scens:
             rs_dict[rs.resource_attr_id] = JSONObject(rs)
@@ -1454,7 +1478,7 @@ def get_resourcegroup(group_id, scenario_id=None, **kwargs):
     rg = JSONObject(rg)
 
     if scenario_id is not None:
-        res_scens = scenario.get_resource_data('GROUP', group_id, scenario_id, None)
+        res_scens = scenario.get_resource_data('GROUP', group_id, scenario_id, None, **kwargs)
         rs_dict = {}
         for rs in res_scens:
             rs_dict[rs.resource_attr_id] = JSONObject(rs)
@@ -2154,7 +2178,14 @@ def add_link(network_id, link,**kwargs):
 
     return link_i
 
-def update_link(link,**kwargs):
+@required_perms("edit_network")
+def update_links(links, **kwargs):
+    log.info("Updating %s links", len(links))
+    for l in links:
+        update_link(l, flush=False, **kwargs)
+    db.DBSession.flush()
+
+def update_link(link, flush=False, **kwargs):
     """
         Update a link.
     """
@@ -2181,8 +2212,8 @@ def update_link(link,**kwargs):
         hdb.add_resource_attributes(link_i, link.attributes)
     if link.types is not None:
         hdb.add_resource_types(link_i, link.types)
-
-    db.DBSession.flush()
+    if flush is True:
+        db.DBSession.flush()
     return link_i
 
 def set_link_status(link_id, status, **kwargs):
@@ -3144,9 +3175,9 @@ def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, gro
 def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, group_id_map):
 
     log.info("Cloning Network Types")
-    network_ras = db.DBSession.query(ResourceType).filter(ResourceType.network_id==network_id)
+    network_rts = db.DBSession.query(ResourceType).filter(ResourceType.network_id==network_id)
     new_ras = []
-    for rt in network_ras:
+    for rt in network_rts:
         new_ras.append(dict(
             ref_key=rt.ref_key,
             network_id=newnetworkid,
@@ -3154,6 +3185,7 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
             link_id=rt.link_id,
             group_id=rt.group_id,
             type_id=rt.type_id,
+            child_template_id=rt.child_template_id,
         ))
     log.info("Cloning Node Types")
     node_rts = db.DBSession.query(ResourceType).filter(and_(ResourceType.node_id==Node.id, Node.network_id==network_id))
@@ -3165,6 +3197,7 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
             link_id=rt.link_id,
             group_id=rt.group_id,
             type_id=rt.type_id,
+            child_template_id=rt.child_template_id,
         ))
     log.info("Cloning Link Types")
     link_rts = db.DBSession.query(ResourceType).filter(and_(ResourceType.link_id==Link.id, Link.network_id==network_id))
@@ -3176,6 +3209,7 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
             link_id=link_id_map[rt.link_id],
             group_id=rt.group_id,
             type_id=rt.type_id,
+            child_template_id=rt.child_template_id,
         ))
 
     log.info("Cloning Group Types")
@@ -3188,6 +3222,7 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
             link_id=rt.link_id,
             group_id=group_id_map[rt.group_id],
             type_id=rt.type_id,
+            child_template_id=rt.child_template_id,
         ))
 
     log.info("Inserting new resource types")

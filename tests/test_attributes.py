@@ -287,6 +287,7 @@ class TestResourceAttribute:
                     manual_all_network_attributes.append(a.attr_id)
         for n in network_with_data.links:
             for a in n.attributes:
+                print(a.attr_id)
                 if a.attr_id not in manual_all_network_attributes:
                     manual_all_network_attributes.append(a.attr_id)
         for n in network_with_data.resourcegroups:
@@ -294,7 +295,7 @@ class TestResourceAttribute:
                 if a.attr_id not in manual_all_network_attributes:
                     manual_all_network_attributes.append(a.attr_id)
 
-        assert len(all_network_attributes) == len(manual_all_network_attributes)
+        assert len(set([a.id for a in all_network_attributes])) == len(manual_all_network_attributes)
 
 
     def test_add_group_attribute(self, client, network_with_data, attribute):
@@ -467,8 +468,8 @@ class TestResourceAttribute:
         duplicate_attribute = JSONObject({'name': 'duplicate', 'dimension_id': None})
 
         #use dedicated testing function  which allows duplicates
-        dupe_attr_1 = client.add_attribute(duplicate_attribute, check_existing=False)
-        dupe_attr_2 = client.add_attribute(duplicate_attribute, check_existing=False)
+        dupe_attr_1 = client.add_attribute_no_checks(duplicate_attribute)
+        dupe_attr_2 = client.add_attribute_no_checks(duplicate_attribute)
 
         all_attrs = client.get_attributes()
 
@@ -555,8 +556,8 @@ class TestResourceAttribute:
         dataset = client.get_dataset(1)
         #set a value on the RA which sould get transferred in the deletion later
         new_rscen = client.add_data_to_attribute(network_with_data.scenarios[0].id,
-                                                 dupe_ra1.id,
-                                                 dataset)
+                                     dupe_ra1.id,
+                                     dataset)
         #add 2 more dupes but with no data associated to them
         dupe_ra2 = client.add_resource_attribute('NETWORK', network_with_data.id, dupeattr2.id, 'N')
         dupe_ra3 = client.add_resource_attribute('NETWORK', network_with_data.id, dupeattr3.id, 'N')

@@ -31,10 +31,15 @@ DateTime,\
 Unicode
 
 from hydra_base.lib.objects import JSONObject
+from hydra_base.lib.storage import (
+    MongoDatasetManager,
+    MongoStorageAdapter
+)
 
 from sqlalchemy.orm.exc import NoResultFound
 
 from sqlalchemy.ext.declarative import declared_attr
+from sqlalchemy.ext.hybrid import hybrid_property
 
 import datetime
 
@@ -65,6 +70,10 @@ import logging
 import bcrypt
 log = logging.getLogger(__name__)
 
+
+mongo_config = MongoStorageAdapter.get_mongo_config()
+mongo_storage_location_key = mongo_config["value_location_key"]
+mongo_external = mongo_config["direct_location_token"]
 
 # Python 2 and 3 compatible string checking
 # TODO remove this when Python2 support is dropped.
@@ -286,25 +295,52 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
     hash       = Column(BIGINT(),  nullable=False, unique=True)
     cr_date    = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     hidden     = Column(String(1),  nullable=False, server_default=text(u"'N'"))
-    value      = Column('value', Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
+    value_ref  = Column('value', Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
+
+    _value = MongoDatasetManager()
+
+    @hybrid_property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, val):
+        self._value = val
+
+    @value.expression
+    def value(cls):
+        return cls.value_ref
 
     unit = relationship('Unit', backref=backref("dataset_unit", order_by=unit_id))
 
     _parents  = ['tResourceScenario', 'tUnit']
     _children = ['tMetadata']
 
+
     def set_metadata(self, metadata_tree):
         """
-            Set the metadata on a dataset
+        Set the metadata on a dataset.
+        Note that the `mongo_storage_location_key` (MSLK) is not
+        managed by this mechanism, it is instead set and deleted
+        in the Dataset.value descriptor: see comments below.
 
-            **metadata_tree**: A dictionary of metadata key-vals.
-            Transforms this dict into an array of metadata objects for
-            storage in the DB.
+        **metadata_tree**: A dictionary of metadata key-vals.
+        Transforms this dict into an array of metadata objects for
+        storage in the DB.
         """
         if metadata_tree is None:
             return
         if isinstance(metadata_tree, str):
             metadata_tree = json.loads(metadata_tree)
+
+        """
+        For a currently-external dataset whose value has shrunk beneath
+        the size threshold, HWI will send metadata including the MSLK
+        even though this is no longer applicable.
+        This is deleted in the Dataset.value.__set__ action so remove
+        here to avoid unwanted recreation.
+        """
+        metadata_tree.pop(mongo_storage_location_key, None)
 
         existing_metadata = []
         for m in self.metadata:
@@ -320,6 +356,13 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
                 self.metadata.append(m_i)
 
         metadata_to_delete =  set(existing_metadata).difference(set(metadata_tree.keys()))
+        """
+        For a dataset which is being created on external storage for the
+        first time, the metadata sent by HWI will not include the MSLK,
+        but this has already been added by the Dataset.value.__set__ action.
+        Discard from that set here to avoid unwanted deletion.
+        """
+        metadata_to_delete.discard(mongo_storage_location_key)
         for m in self.metadata:
             if m.key in metadata_to_delete:
                 get_session().delete(m)
@@ -342,14 +385,13 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
 
     def set_hash(self,metadata=None):
 
-
         if metadata is None:
             metadata = self.get_metadata_as_dict()
 
         dataset_dict = dict(name      = self.name,
-                           unit_id       = self.unit_id,
+                           unit_id    = self.unit_id,
                            type       = self.type,
-                           value      = self.value,
+                           value      = self.value_ref,
                            metadata   = metadata)
 
         data_hash = generate_data_hash(dataset_dict)
@@ -377,6 +419,18 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
             return True
 
         return False
+
+
+    def is_external(self):
+        """
+        Does the metadata indicate that this Dataset is stored in external storage?
+        """
+        for datum in self.metadata:
+            if datum.key == mongo_storage_location_key and datum.value == mongo_external:
+                return True
+
+        return False
+
 
 class DatasetCollection(Base, Inspect):
     """
@@ -413,11 +467,12 @@ class Metadata(Base, Inspect):
 
     __tablename__='tMetadata'
 
-    dataset_id = Column(Integer(), ForeignKey('tDataset.id', ondelete='CASCADE'), primary_key=True, nullable=False, index=True)
-    key = Column(String(60), primary_key=True, nullable=False)
-    value = Column(String(1000), nullable=False)
+    dataset_id = Column(Integer(), ForeignKey('tDataset.id',  ondelete='CASCADE'), primary_key=True, nullable=False, index=True)
+    key       = Column(String(60), primary_key=True, nullable=False)
+    value     = Column(String(1000),  nullable=False)
 
     dataset = relationship('Dataset', backref=backref("metadata", order_by=dataset_id, cascade="all, delete-orphan"))
+
 
     _parents  = ['tDataset']
     _children = []
@@ -427,27 +482,23 @@ class Metadata(Base, Inspect):
 
 class Attr(Base, Inspect):
     """
-    An Attribute Definition
     """
 
     __tablename__='tAttr'
 
     __table_args__ = (
-        UniqueConstraint('name', 'dimension_id', 'network_id', 'project_id', name="unique name dimension_id"),
+        UniqueConstraint('name', 'dimension_id', name="unique name dimension_id"),
     )
 
-    id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(200),  nullable=False)
-    dimension_id = Column(Integer(), ForeignKey('tDimension.id'), nullable=True)
-    description = Column(String(1000))
+    id           = Column(Integer(), primary_key=True, nullable=False)
+    name         = Column(String(200),  nullable=False)
+    dimension_id    = Column(Integer(), ForeignKey('tDimension.id'), nullable=True)
+    description  = Column(String(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-
-    project_id = Column(Integer(), ForeignKey('tProject.id'), nullable=True)
-    network_id = Column(Integer(), ForeignKey('tNetwork.id'), nullable=True)
 
     dimension = relationship('Dimension', backref=backref("attributes", uselist=True))
 
-    _parents = ['tDimension']
+    _parents  = ['tDimension']
     _children = []
 
 class AttrMap(Base, Inspect):
@@ -932,7 +983,7 @@ class TemplateType(Base, Inspect):
         """
         type_rs = get_session().query(ResourceType).filter(ResourceType.type_id==self.id).all()
 
-        log.warn("Forcing the deletion of %s resource types from type %s",\
+        log.warning("Forcing the deletion of %s resource types from type %s",\
                  len(type_rs), self.id)
 
         for resource_type in type_rs:

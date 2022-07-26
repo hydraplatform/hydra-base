@@ -17,18 +17,14 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
-import json
-
 import logging
+log = logging.getLogger(__name__)
+
+import json
 
 from collections import defaultdict
 
-from sqlalchemy import or_, and_
-from sqlalchemy.orm import aliased, joinedload
-from sqlalchemy.orm.exc import NoResultFound
-
 from ..db.model import Attr,\
-        User,\
         Node,\
         Link,\
         ResourceGroup,\
@@ -45,29 +41,27 @@ from ..db.model import Attr,\
         AttrGroupItem, \
         Dimension, \
         Unit
-
-from sqlalchemy import func
-
 from .. import db
-
+from sqlalchemy.orm.exc import NoResultFound
 from ..exceptions import HydraError, ResourceNotFoundError
 from ..util.permissions import required_perms, required_role
-
+from sqlalchemy import or_, and_
+from sqlalchemy.orm import aliased, joinedload
 from . import units
 from .objects import JSONObject
 
-log = logging.getLogger(__name__)
-
 def _get_network(network_id):
     try:
-        network_i = db.DBSession.query(Network).filter(Network.id == network_id).one()
+
+        network_i = db.DBSession.query(Network).filter(Network.id==network_id).one()
     except NoResultFound:
         raise HydraError("Network %s not found" % (network_id))
     return network_i
 
 def _get_project(project_id):
     try:
-        project_i = db.DBSession.query(Project).filter(Project.id == project_id).one()
+
+        project_i = db.DBSession.query(Project).filter(Project.id==project_id).one()
     except NoResultFound:
         raise HydraError("Project %s not found" % (project_id))
     return project_i
@@ -79,20 +73,40 @@ def _get_resource(ref_key, ref_id):
             return db.DBSession.query(Node).filter(Node.id == ref_id).one()
         elif ref_key == 'LINK':
             return db.DBSession.query(Link).filter(Link.id == ref_id).one()
-        elif ref_key == 'GROUP':
+        if ref_key == 'GROUP':
             return db.DBSession.query(ResourceGroup).filter(ResourceGroup.id == ref_id).one()
         elif ref_key == 'NETWORK':
-            return _get_network(ref_id)
+            return db.DBSession.query(Network).filter(Network.id == ref_id).one()
         elif ref_key == 'SCENARIO':
             return db.DBSession.query(Scenario).filter(Scenario.id == ref_id).one()
         elif ref_key == 'PROJECT':
-            return _get_project(ref_id)
-        return None
+            return db.DBSession.query(Project).filter(Project.id == ref_id).one()
+        else:
+            return None
     except NoResultFound:
         raise ResourceNotFoundError("Resource %s with ID %s not found"%(ref_key, ref_id))
 
 def _get_ra_resource(ra):
-    return _get_resource(ra.ref_key, ra.ref_id)
+    ref_key = ra.ref_key
+    try:
+        if ref_key == 'NODE':
+            return db.DBSession.query(Node).filter(Node.id == ra.node_id).one()
+        elif ref_key == 'LINK':
+            return db.DBSession.query(Link).filter(Link.id == ra.link_id).one()
+        if ref_key == 'GROUP':
+            return db.DBSession.query(ResourceGroup).filter(ResourceGroup.id == ra.group_id).one()
+        elif ref_key == 'NETWORK':
+            return db.DBSession.query(Network).filter(Network.id == ra.network_id).one()
+        elif ref_key == 'SCENARIO':
+            return db.DBSession.query(Scenario).filter(Scenario.id == ra.scenario_id).one()
+        elif ref_key == 'PROJECT':
+            return db.DBSession.query(Project).filter(Project.id == ra.project_id).one()
+        else:
+            return None
+    except NoResultFound:
+        raise ResourceNotFoundError("Resource found on resource attribute %s"%(ra))
+
+
 
 def _get_resource_id(ra):
     ref_key = ra.ref_key
@@ -124,21 +138,24 @@ def get_template_attributes(template_id, **kwargs):
     """
 
     try:
-        attrs_i = db.DBSession.query(Attr).filter(
-            TemplateType.template_id == template_id).filter(
-                TypeAttr.type_id == TemplateType.id).filter(
-                    Attr.id == TypeAttr.id).all()
-
+        attrs_i = db.DBSession.query(Attr).filter(TemplateType.template_id==template_id).filter(TypeAttr.type_id==TemplateType.id).filter(Attr.id==TypeAttr.id).all()
         log.debug(attrs_i)
         return attrs_i
     except NoResultFound:
         return None
 
 
-def get_attribute_by_name_and_dimension(name, dimension_id=None, network_id=None, project_id=None, **kwargs):
+def get_attribute_by_name_and_dimension(name, dimension_id=None,**kwargs):
     """
-        Get a specific attribute by its name.
+        Get all attributes with the specified name and dimension, irrespective of
+        scoping.
         dimension_id can be None, because in attribute the dimension_id is not anymore mandatory
+        args:
+            name (str): The name of the attribute. Lower() is called on this for comparison, so this
+                        is case-insensitive
+            dimension_id (int): the ID of the dimension of the attribute
+        returns:
+            list: JSONObjects derived from the Sqlalchemy rows.
     """
     try:
         attr_qry = db.DBSession.query(Attr).filter(
@@ -157,17 +174,11 @@ def get_attribute_by_name_and_dimension(name, dimension_id=None, network_id=None
     except NoResultFound:
         return None
 
-def get_attributes_by_name_and_dimension(name, dimension_id=None, **kwargs):
+@required_role('admin')
+def add_attribute_no_checks(attr,**kwargs):
     """
-        Get all attributes with the specified name and dimension, irrespective of
-        scoping.
-        dimension_id can be None, because in attribute the dimension_id is not anymore mandatory
-        args:
-            name (str): The name of the attribute. Lower() is called on this for comparison, so this
-                        is case-insensitive
-            dimension_id (int): the ID of the dimension of the attribute
-        returns:
-            list: JSONObjects derived from the Sqlalchemy rows.
+        Add an attribute without checking if there is another attribute with the same
+        name and dimension
     """
     log.info("Retrieving all attributes with name %s and dimension %s", name, dimension_id)
     attr_qry = db.DBSession.query(Attr).filter(
@@ -230,8 +241,7 @@ def _add_attribute(attr, user_id, flush=True, do_reassign=True):
 
 
     db.DBSession.add(attr_i)
-    if flush is True:
-        db.DBSession.flush()
+    db.DBSession.flush()
     log.info("New attr added")
 
     """
@@ -357,7 +367,7 @@ def _check_can_add_attribute(name, dimension, project_id, network_id, do_raise=T
 
 
 @required_perms('add_attribute')
-def add_attribute(attr, check_existing=True, **kwargs):
+def add_attribute(attr,**kwargs):
     """
     Add a generic attribute, which can then be used in creating
     a resource attribute, and put into a type.
@@ -391,7 +401,7 @@ def add_attribute(attr, check_existing=True, **kwargs):
     return JSONObject(attr_i)
 
 @required_perms('edit_attribute')
-def update_attribute(attr, **kwargs):
+def update_attribute(attr,**kwargs):
     """
     Add a generic attribute, which can then be used in creating
     a resource attribute, and put into a type.
@@ -406,33 +416,27 @@ def update_attribute(attr, **kwargs):
 
     """
 
-    existing_attr_qry = db.DBSession.query(Attr).filter(
+    existing_attr_i = db.DBSession.query(Attr).filter(
         Attr.name == attr.name,
         Attr.dimension_id == attr.dimension_id,
-        Attr.id != attr.id)
-
-    if attr.network_id is not None:
-        existing_attr_qry = existing_attr_qry.filter(Attr.network_id == attr.network_id)
-
-    if attr.project_id is not None:
-        existing_attr_qry = existing_attr_qry.filter(Attr.project_id == attr.project_id)
-
-    existing_attr_i = existing_attr_qry.first()
+        Attr.id != attr.id).first() #its ok if this is the one being updated!
 
     if existing_attr_i is not None:
-        dimension_name = 'None'
         if attr.dimension_id is not None:
             dimension = units.get_dimension(attr.dimension_id)
             dimension_name = dimension.name
+        else:
+            dimension_name = 'None'
+
         raise HydraError(f"Cannot update attribute. An attribute with name {attr.name}"
                          f" and dimension {dimension_name} already exists with "
                          f"ID {existing_attr_i.id}")
-
-    log.debug("Updating attribute: %s", attr.name)
-    attr_i = _get_attr(attr.id)
-    attr_i.name = attr.name
-    attr_i.dimension_id = attr.dimension_id
-    attr_i.description = attr.description
+    else:
+        log.debug("Updating attribute: %s", attr.name)
+        attr_i = _get_attr(attr.id)
+        attr_i.name = attr.name
+        attr_i.dimension_id = attr.dimension_id
+        attr_i.description = attr.description
 
     db.DBSession.flush()
     return JSONObject(attr_i)
@@ -448,7 +452,7 @@ def delete_attribute(attr_id, **kwargs):
         raise ResourceNotFoundError("Attribute (attribute id=%s) does not exist"%(attr_id))
 
 
-def add_attributes(attrs, **kwargs):
+def add_attributes(attrs,**kwargs):
     """
     Add a list of generic attributes, which can then be used in creating
     a resource attribute, and put into a type.
@@ -467,13 +471,12 @@ def add_attributes(attrs, **kwargs):
     #If they are there already, don't add a new one. If an attribute
     #with the same name is there already but with a different dimension,
     #add a new attribute.
-    user_id = kwargs.get('user_id')
 
     # All existing attributes
     all_attrs = db.DBSession.query(Attr).all()
     attr_dict = {}
     for attr in all_attrs:
-        attr_dict[(attr.name.lower(), attr.dimension_id, attr.network_id, attr.project_id)] = JSONObject(attr)
+        attr_dict[(attr.name.lower(), attr.dimension_id)] = JSONObject(attr)
 
     attrs_to_add = []
     existing_attrs = []
@@ -481,68 +484,36 @@ def add_attributes(attrs, **kwargs):
         if potential_new_attr is not None:
             # If the attrinute is None we cannot manage it
             log.debug("Adding attribute: %s", potential_new_attr)
-            key = (potential_new_attr.name.lower(), potential_new_attr.dimension_id, potential_new_attr.network_id, potential_new_attr.project_id)
 
-            if attr_dict.get(key) is None:
+            if attr_dict.get((potential_new_attr.name.lower(), potential_new_attr.dimension_id)) is None:
                 attrs_to_add.append(JSONObject(potential_new_attr))
             else:
-                existing_attrs.append(attr_dict.get(key))
+                existing_attrs.append(attr_dict.get((potential_new_attr.name.lower(), potential_new_attr.dimension_id)))
+
     new_attrs = []
     for attr in attrs_to_add:
-        new_attr_i = _add_attribute(attr, flush=True, user_id=user_id)
-        new_attrs.append(new_attr_i)
+        attr_i = Attr()
+        attr_i.name = attr.name
+        attr_i.dimension_id = attr.dimension_id
+        attr_i.description = attr.description
+        db.DBSession.add(attr_i)
+        new_attrs.append(attr_i)
 
     db.DBSession.flush()
+
 
     new_attrs = new_attrs + existing_attrs
 
     return [JSONObject(a) for a in new_attrs]
 
-def get_attributes(network_id=None, project_id=None, include_global=False, **kwargs):
+def get_attributes(**kwargs):
     """
-        Get all attributes.
-        args:
-            network_id (optional): Return network-scoped attributes (attributes defined only on a network)
-            project_id (optional): Return project-scoped attributes (attributes defined only on a project)
-            include_global (Bool): If a network ID or project ID are specified, global attributes are
-                                   not returned unless this flag is True.
+        Get all attributes
     """
 
-    base_qry = db.DBSession.query(Attr)
+    attrs = db.DBSession.query(Attr).order_by(Attr.name).all()
 
-    if (network_id is None and project_id is None) or include_global is True:
-        #First get all global attributes
-        attrs = base_qry.filter(
-            and_(
-                Attr.network_id == None,
-                Attr.project_id == None
-            )
-            ).all()
-
-        global_attrs = [JSONObject(a) for a in attrs]
-    else:
-        global_attrs = []
-
-
-    #Now get all project attributes
-    project_scoped_attributes = []
-    if project_id is not None:
-        project_attributes = base_qry.filter(
-            Attr.project_id == project_id).all()
-        project_scoped_attributes = [JSONObject(a) for a in project_attributes]
-
-
-    network_scoped_attributes = []
-    if network_id is not None:
-        network_attributes = base_qry.filter(
-            Attr.network_id == network_id).all()
-        network_scoped_attributes = [JSONObject(a) for a in network_attributes]
-
-    all_attrs = network_scoped_attributes + project_scoped_attributes + global_attrs
-
-    all_attrs = sorted(all_attrs, key=lambda x: x.name)
-
-    return all_attrs
+    return attrs
 
 def _get_attr(attr_id):
     try:
@@ -599,25 +570,25 @@ def add_resource_attribute(resource_type, resource_id, attr_id, is_var, error_on
         to be filled in by the simulator.
     """
 
-    attr = db.DBSession.query(Attr).filter(Attr.id == attr_id).first()
+    attr = db.DBSession.query(Attr).filter(Attr.id==attr_id).first()
 
     if attr is None:
         raise ResourceNotFoundError("Attribute with ID %s does not exist."%attr_id)
 
     resource_i = _get_resource(resource_type, resource_id)
 
-    resourceattr_qry = db.DBSession.query(ResourceAttr).filter(ResourceAttr.ref_key == resource_type)
+    resourceattr_qry = db.DBSession.query(ResourceAttr).filter(ResourceAttr.ref_key==resource_type)
 
     if resource_type == 'NETWORK':
-        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.network_id == resource_id)
+        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.network_id==resource_id)
     elif resource_type == 'NODE':
-        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.node_id == resource_id)
+        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.node_id==resource_id)
     elif resource_type == 'LINK':
-        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.link_id == resource_id)
+        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.link_id==resource_id)
     elif resource_type == 'GROUP':
-        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.group_id == resource_id)
+        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.group_id==resource_id)
     elif resource_type == 'PROJECT':
-        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.project_id == resource_id)
+        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.project_id==resource_id)
     else:
         raise HydraError('Resource type "{}" not recognised.'.format(resource_type))
     resource_attrs = resourceattr_qry.all()
@@ -637,7 +608,7 @@ def add_resource_attribute(resource_type, resource_id, attr_id, is_var, error_on
 
     return new_ra
 
-def add_resource_attrs_from_type(type_id, resource_type, resource_id, **kwargs):
+def add_resource_attrs_from_type(type_id, resource_type, resource_id,**kwargs):
     """
         adds all the attributes defined by a type to a node.
     """
@@ -645,18 +616,18 @@ def add_resource_attrs_from_type(type_id, resource_type, resource_id, **kwargs):
 
     resource_i = _get_resource(resource_type, resource_id)
 
-    resourceattr_qry = db.DBSession.query(ResourceAttr).filter(ResourceAttr.ref_key == resource_type)
+    resourceattr_qry = db.DBSession.query(ResourceAttr).filter(ResourceAttr.ref_key==resource_type)
 
     if resource_type == 'NETWORK':
-        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.network_id == resource_id)
+        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.network_id==resource_id)
     elif resource_type == 'NODE':
-        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.node_id == resource_id)
+        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.node_id==resource_id)
     elif resource_type == 'LINK':
-        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.link_id == resource_id)
+        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.link_id==resource_id)
     elif resource_type == 'GROUP':
-        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.group_id == resource_id)
+        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.group_id==resource_id)
     elif resource_type == 'PROJECT':
-        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.project_id == resource_id)
+        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.project_id==resource_id)
 
     resource_attrs = resourceattr_qry.all()
 
@@ -698,40 +669,35 @@ def get_all_network_resourceattributes(network_id, template_id=None, return_orm=
                 attr_is_var: 'Y' #comes from the ResourceAttr
                 }
     """
-    user_id = kwargs.get('user_id')
-    net = _get_network(network_id)
-    net.check_read_permission(user_id, do_raise=True)
+
     resource_attr_qry = db.DBSession.query(ResourceAttr).\
-            join(Attr, ResourceAttr.attr_id == Attr.id).\
-            outerjoin(Network, Network.id == ResourceAttr.network_id).\
-            outerjoin(Node, Node.id == ResourceAttr.node_id).\
-            outerjoin(Link, Link.id == ResourceAttr.link_id).\
-            outerjoin(ResourceGroup, ResourceGroup.id == ResourceAttr.group_id).filter(
-                or_(
-                    and_(ResourceAttr.network_id != None,
-                         ResourceAttr.network_id == network_id),
+            join(Attr, ResourceAttr.attr_id==Attr.id).\
+            outerjoin(Network, Network.id==ResourceAttr.network_id).\
+            outerjoin(Node, Node.id==ResourceAttr.node_id).\
+            outerjoin(Link, Link.id==ResourceAttr.link_id).\
+            outerjoin(ResourceGroup, ResourceGroup.id==ResourceAttr.group_id).filter(
+        or_(
+            and_(ResourceAttr.network_id != None,
+                    ResourceAttr.network_id == network_id),
 
-                    and_(ResourceAttr.node_id != None,
-                         ResourceAttr.node_id == Node.id,
-                         Node.network_id == network_id),
+            and_(ResourceAttr.node_id != None,
+                    ResourceAttr.node_id == Node.id,
+                                        Node.network_id==network_id),
 
-                    and_(ResourceAttr.link_id != None,
-                         ResourceAttr.link_id == Link.id,
-                         Link.network_id == network_id),
+            and_(ResourceAttr.link_id != None,
+                    ResourceAttr.link_id == Link.id,
+                                        Link.network_id==network_id),
 
-                    and_(ResourceAttr.group_id != None,
-                         ResourceAttr.group_id == ResourceGroup.id,
-                         ResourceGroup.network_id == network_id)
-                )
-            )
+            and_(ResourceAttr.group_id != None,
+                    ResourceAttr.group_id == ResourceGroup.id,
+                                        ResourceGroup.network_id==network_id)
+        ))
 
     if template_id is not None:
         attr_ids = []
-        rs = db.DBSession.query(TypeAttr).join(
-            TemplateType,
-            TemplateType.id == TypeAttr.type_id).filter(
-            TemplateType.template_id == template_id).all()
-
+        rs = db.DBSession.query(TypeAttr).join(TemplateType,
+                                            TemplateType.id==TypeAttr.type_id).filter(
+                                                TemplateType.template_id==template_id).all()
         for r in rs:
             attr_ids.append(r.attr_id)
 
@@ -771,47 +737,63 @@ def get_all_network_attributes(network_id, template_id=None, **kwargs):
                 dimension_id: 124,
                 attr_is_var: 'Y' #comes from the ResourceAttr
                 }
+        NOTE: This was originally done with a single query, but was split up for
+              performamce reasons
     """
-    user_id = kwargs.get('user_id')
-    net = _get_network(network_id)
-    net.check_read_permission(user_id, do_raise=True)
 
-    resource_attr_qry = db.DBSession.query(Attr, ResourceAttr.attr_is_var).\
-        join(ResourceAttr, ResourceAttr.attr_id == Attr.id).\
-        outerjoin(Network, Network.id == ResourceAttr.network_id).\
-        outerjoin(Node, Node.id == ResourceAttr.node_id).\
-        outerjoin(Link, Link.id == ResourceAttr.link_id).\
-        outerjoin(ResourceGroup, ResourceGroup.id == ResourceAttr.group_id).filter(
-            or_(
-                and_(ResourceAttr.network_id != None,
-                     ResourceAttr.network_id == network_id),
+    network_attr_qry = db.DBSession.query(Attr, ResourceAttr.attr_is_var).\
+            join(ResourceAttr, ResourceAttr.attr_id == Attr.id).\
+            join(Network, Network.id == ResourceAttr.network_id).filter(
+            and_(ResourceAttr.network_id != None,
+                 ResourceAttr.network_id == network_id))
+    network_attrs = network_attr_qry.all()
 
-                and_(ResourceAttr.node_id != None,
-                     ResourceAttr.node_id == Node.id,
-                     Node.network_id == network_id),
+    node_attr_qry = db.DBSession.query(Attr, ResourceAttr.attr_is_var).\
+            join(ResourceAttr, ResourceAttr.attr_id == Attr.id).\
+            join(Node, Node.id == ResourceAttr.node_id).filter(
+                and_(ResourceAttr.node_id is not None,
+                 ResourceAttr.node_id == Node.id,
+                 Node.network_id == network_id))
+    node_attrs = node_attr_qry.all()
 
-                and_(ResourceAttr.link_id != None,
-                     ResourceAttr.link_id == Link.id,
-                     Link.network_id == network_id),
+    link_attr_qry = db.DBSession.query(Attr, ResourceAttr.attr_is_var).\
+            join(ResourceAttr, ResourceAttr.attr_id==Attr.id).\
+            join(Link, Link.id == ResourceAttr.link_id).filter(
+                and_(ResourceAttr.link_id is not None,
+                 ResourceAttr.link_id == Link.id,
+                 Link.network_id==network_id))
+    link_attrs = link_attr_qry.all()
 
-                and_(ResourceAttr.group_id != None,
-                     ResourceAttr.group_id == ResourceGroup.id,
-                     ResourceGroup.network_id == network_id)
-            )
-        )
+    group_attr_qry = db.DBSession.query(Attr, ResourceAttr.attr_is_var).\
+            join(ResourceAttr, ResourceAttr.attr_id == Attr.id).\
+            join(ResourceGroup, ResourceGroup.id == ResourceAttr.group_id).filter(
+                and_(ResourceAttr.group_id is not None,
+                 ResourceAttr.group_id == ResourceGroup.id,
+                 ResourceGroup.network_id == network_id))
+
+    group_attrs = group_attr_qry.all()
+
+    resource_attrs = network_attrs + node_attrs + link_attrs + group_attrs
 
     if template_id is not None:
+        log.info("Filtering out only attributes which appear in template %s", template_id)
         attr_ids = []
         rs = db.DBSession.query(TypeAttr).join(
             TemplateType,
             TemplateType.id == TypeAttr.type_id).filter(
-                TemplateType.template_id == template_id).all()
+            TemplateType.template_id == template_id).all()
+
         for r in rs:
             attr_ids.append(r.attr_id)
+        filtered_results = []
+        for ra in resource_attrs:
+            if ra[0].id in attr_ids:
+                filtered_results.append(ra)
 
-        resource_attr_qry = resource_attr_qry.filter(ResourceAttr.attr_id.in_(attr_ids))
+        log.info("Filtered out %s attributes", len(resource_attrs)-len(filtered_results))
 
-    resource_attrs = resource_attr_qry.all()
+        resource_attrs = filtered_results
+
 
     network_attributes = []
     for ra in resource_attrs:
@@ -821,7 +803,6 @@ def get_all_network_attributes(network_id, template_id=None, **kwargs):
 
     return network_attributes
 
-@required_perms('get_network')
 def get_all_resource_attributes(ref_key, network_id, template_id=None, **kwargs):
     """
         Get all the resource attributes for a given resource type in the network.
@@ -835,34 +816,30 @@ def get_all_resource_attributes(ref_key, network_id, template_id=None, **kwargs)
 
     user_id = kwargs.get('user_id')
 
-    net = _get_network(network_id)
-    net.check_read_permission(user_id, do_raise=True)
-
     resource_attr_qry = db.DBSession.query(ResourceAttr).\
-        outerjoin(Node, Node.id == ResourceAttr.node_id).\
-        outerjoin(Link, Link.id == ResourceAttr.link_id).\
-        outerjoin(ResourceGroup, ResourceGroup.id == ResourceAttr.group_id).filter(
-            ResourceAttr.ref_key == ref_key,
-            or_(
-                and_(ResourceAttr.node_id != None,
-                     ResourceAttr.node_id == Node.id,
-                     Node.network_id == network_id),
+            outerjoin(Node, Node.id==ResourceAttr.node_id).\
+            outerjoin(Link, Link.id==ResourceAttr.link_id).\
+            outerjoin(ResourceGroup, ResourceGroup.id==ResourceAttr.group_id).filter(
+        ResourceAttr.ref_key == ref_key,
+        or_(
+            and_(ResourceAttr.node_id != None,
+                    ResourceAttr.node_id == Node.id,
+                                        Node.network_id==network_id),
 
-                and_(ResourceAttr.link_id != None,
-                     ResourceAttr.link_id == Link.id,
-                     Link.network_id == network_id),
+            and_(ResourceAttr.link_id != None,
+                    ResourceAttr.link_id == Link.id,
+                                        Link.network_id==network_id),
 
-                and_(ResourceAttr.group_id != None,
-                     ResourceAttr.group_id == ResourceGroup.id,
-                     ResourceGroup.network_id == network_id)
-            ))
+            and_(ResourceAttr.group_id != None,
+                    ResourceAttr.group_id == ResourceGroup.id,
+                                        ResourceGroup.network_id==network_id)
+        ))
 
     if template_id is not None:
         attr_ids = []
-        rs = db.DBSession.query(TypeAttr).join(
-            TemplateType,
-            TemplateType.id == TypeAttr.type_id).filter(
-                TemplateType.template_id == template_id).all()
+        rs = db.DBSession.query(TypeAttr).join(TemplateType,
+                                            TemplateType.id==TypeAttr.type_id).filter(
+                                                TemplateType.template_id==template_id).all()
         for r in rs:
             attr_ids.append(r.attr_id)
 
@@ -884,15 +861,15 @@ def get_resource_attributes(ref_key, ref_id, type_id=None, **kwargs):
     resource_attr_qry = db.DBSession.query(ResourceAttr).filter(
         ResourceAttr.ref_key == ref_key,
         or_(
-            ResourceAttr.network_id == ref_id,
-            ResourceAttr.node_id == ref_id,
-            ResourceAttr.link_id == ref_id,
-            ResourceAttr.group_id == ref_id
+            ResourceAttr.network_id==ref_id,
+            ResourceAttr.node_id==ref_id,
+            ResourceAttr.link_id==ref_id,
+            ResourceAttr.group_id==ref_id
         ))
 
     if type_id is not None:
         attr_ids = []
-        rs = db.DBSession.query(TypeAttr).filter(TypeAttr.type_id == type_id).all()
+        rs = db.DBSession.query(TypeAttr).filter(TypeAttr.type_id==type_id).all()
         for r in rs:
             attr_ids.append(r.attr_id)
 
@@ -912,18 +889,16 @@ def check_attr_dimension(attr_id, **kwargs):
     """
     attr_i = _get_attr(attr_id)
 
-    datasets = db.DBSession.query(Dataset).filter(
-        Dataset.id == ResourceScenario.dataset_id,
-        ResourceScenario.resource_attr_id == ResourceAttr.id,
-        ResourceAttr.attr_id == attr_id).all()
-
+    datasets = db.DBSession.query(Dataset).filter(Dataset.id == ResourceScenario.dataset_id,
+                        ResourceScenario.resource_attr_id == ResourceAttr.id,
+                        ResourceAttr.attr_id == attr_id).all()
     bad_datasets = []
     for d in datasets:
         if  attr_i.dimension_id is None and d.unit is not None or \
             attr_i.dimension_id is not None and d.unit is None or \
             units.get_dimension_by_unit_id(d.unit_id) != attr_i.dimension_id:
                 # If there is an inconsistency
-            bad_datasets.append(d.id)
+                bad_datasets.append(d.id)
 
     if len(bad_datasets) > 0:
         raise HydraError("Datasets %s have a different dimension_id to attribute %s"%(bad_datasets, attr_id))
@@ -936,16 +911,12 @@ def get_resource_attribute(resource_attr_id, **kwargs):
         If type_id is Gspecified, only
         return the resource attributes within the type.
     """
-    user_id = kwargs.get('user_id')
 
     resource_attr_qry = db.DBSession.query(ResourceAttr).filter(
         ResourceAttr.id == resource_attr_id,
-    )
+        )
 
     resource_attr = resource_attr_qry.first()
-
-    network = resource_attr.get_resource().network
-    network.check_read_permission(user_id)
 
     if resource_attr is None:
         raise ResourceNotFoundError(f"Resource attribute {resource_attr_id} does not exist")
@@ -958,15 +929,13 @@ def set_attribute_mapping(resource_attr_a, resource_attr_b, **kwargs):
         that from another network.
     """
     user_id = kwargs.get('user_id')
-    ra_1 = get_resource_attribute(resource_attr_a, user_id=user_id)
-    ra_2 = get_resource_attribute(resource_attr_b, user_id=user_id)
+    ra_1 = get_resource_attribute(resource_attr_a)
+    ra_2 = get_resource_attribute(resource_attr_b)
 
-    mapping = ResourceAttrMap(
-        resource_attr_id_a=resource_attr_a,
-        resource_attr_id_b=resource_attr_b,
-        network_a_id=ra_1.get_network().id,
-        network_b_id=ra_2.get_network().id
-    )
+    mapping = ResourceAttrMap(resource_attr_id_a = resource_attr_a,
+                             resource_attr_id_b  = resource_attr_b,
+                             network_a_id     = ra_1.get_network().id,
+                             network_b_id     = ra_2.get_network().id )
 
     db.DBSession.add(mapping)
 
@@ -979,13 +948,14 @@ def delete_attribute_mapping(resource_attr_a, resource_attr_b, **kwargs):
         Define one resource attribute from one network as being the same as
         that from another network.
     """
+    user_id = kwargs.get('user_id')
 
     rm = aliased(ResourceAttrMap, name='rm')
 
     log.info("Trying to delete attribute map. %s -> %s", resource_attr_a, resource_attr_b)
     mapping = db.DBSession.query(rm).filter(
-        rm.resource_attr_id_a == resource_attr_a,
-        rm.resource_attr_id_b == resource_attr_b).first()
+                             rm.resource_attr_id_a == resource_attr_a,
+                             rm.resource_attr_id_b == resource_attr_b).first()
 
     if mapping is not None:
         log.info("Deleting attribute map. %s -> %s", resource_attr_a, resource_attr_b)
@@ -999,10 +969,6 @@ def delete_mappings_in_network(network_id, network_2_id=None, **kwargs):
         Delete all the resource attribute mappings in a network. If another network
         is specified, only delete the mappings between the two networks.
     """
-    user_id = kwargs.get('user_id')
-    net = _get_network(network_id)
-    net.check_read_permission(user_id, do_raise=True)
-
     qry = db.DBSession.query(ResourceAttrMap).filter(or_(ResourceAttrMap.network_a_id == network_id, ResourceAttrMap.network_b_id == network_id))
 
     if network_2_id is not None:
@@ -1158,8 +1124,8 @@ def add_attribute_group(attributegroup, **kwargs):
             }
     """
     log.info("attributegroup.project_id %s",attributegroup.project_id) # It is None while it should be valued
-    user_id = kwargs.get('user_id')
-    project_i = _get_project(attributegroup.project_id)
+    user_id=kwargs.get('user_id')
+    project_i = db.DBSession.query(Project).filter(Project.id==attributegroup.project_id).one()
     project_i.check_write_permission(user_id)
     try:
 
