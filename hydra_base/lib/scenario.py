@@ -162,7 +162,19 @@ def merge_scenarios(source_scenario_id, target_scenario_id, match_all_names=True
                     log.warning(f"Unable to find attribute {source_ra.attr.name} on target {target_resource.name}. Ignoring.")
                     continue
                 else:
-                    raise HydraError(f"Unable to merge as target doesn't have attribute {source_ra.attr.name}")
+                    new_ra = ResourceAttr()
+                    new_ra.attr_id = source_ra.attr_id
+                    new_ra.ref_key = source_ra.ref_key
+                    ref = new_ra.ref_key
+                    new_ra.node_id = target_resource.id if ref == 'NODE' else None
+                    new_ra.network_id = target_resource.id if ref == 'NETWORK' else None
+                    new_ra.link_id = target_resource.id if ref == 'LINK' else None
+                    new_ra.group_id = target_resource.id if ref == 'GROUP' else None
+                    db.DBSession.add(new_ra)
+                    db.DBSession.flush()
+                    target_ra_id = new_ra.id
+                # else:
+                #     raise HydraError(f"Unable to merge as target doesn't have attribute {source_ra.attr.name}")
             source_rs = source_ra_rs_map.get(source_ra.id)
             target_rs = target_ra_rs_map.get(target_ra_id)
             if source_rs is None:

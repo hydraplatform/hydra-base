@@ -7,6 +7,8 @@ bcrypt
 lxml
 mysql-client
 pymongo
+mysqlclient
+pudb
 python-dateutil
 cheroot
 beaker
