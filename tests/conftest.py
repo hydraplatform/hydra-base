@@ -15,12 +15,30 @@ from hydra_base.util.hdb import create_default_users_and_perms, make_root_user,\
 from hydra_base.util import testing
 from hydra_client.connection import JSONConnection, RemoteJSONConnection
 
+no_externaldb_opt = "--no-externaldb"
+externaldb_mark = "externaldb"
 
 def pytest_addoption(parser):
     parser.addoption("--db-backend", action="store", default="sqlite",
                      help="Database backend to use when running the tests.")
     parser.addoption("--connection-type", action="store", default="local",
                      help="Remote or Local Connection")
+    parser.addoption(no_externaldb_opt, action="store_true", default=False,
+                     help="Do not run tests which require an external storage database")
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", f"{externaldb_mark}: Tests external storage")
+
+def pytest_collection_modifyitems(config, items):
+    """
+    When the `no_externaldb_opt` is present, add a skip mark to every
+    test marked with `externaldb_mark`
+    """
+    if config.getoption(no_externaldb_opt):
+        externaldb_skip = pytest.mark.skip(reason=f"{no_externaldb_opt} selected")
+        for item in items:
+            if externaldb_mark in item.keywords:
+                item.add_marker(externaldb_skip)
 
 @pytest.fixture(scope="session")
 def db_backend(request):

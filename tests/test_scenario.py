@@ -550,6 +550,32 @@ class TestScenario:
         assert len(new_datasets) == 2, "Data was not added correctly!"
 
 
+    def test_bulk_insert_data(self, client, dateformat):
+        import random
+        from hydra_base.lib.data import bulk_insert_data
+
+        num_datasets = 10
+        datasets = []
+        unit_id = client.get_unit_by_abbreviation("m s^-1").id
+        for idx in range(num_datasets):
+            ds = Dataset()
+            ds.name = f"Bulk dataset {idx}"
+            ds.type = "ARRAY"
+            ds.unit_id = unit_id
+            # Every third dataset is large
+            data_sz = 10 if idx % 3 else 8192
+            ds.value = [random.uniform(1, 100) for _ in range(data_sz)]
+
+            datasets.append(ds)
+
+        inserted = [Dataset(ds) for ds in client.bulk_insert_data(datasets)]
+        assert len(inserted) == num_datasets, "Datasets insertion count mismatch"
+
+        for ds in inserted:
+            retrieved = client.get_dataset(ds.id)
+            assert ds.value == retrieved.value
+
+
     def test_clone_scenario(self, client, network_with_data):
 
         network =  network_with_data
