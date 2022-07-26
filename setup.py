@@ -37,7 +37,7 @@ install_requires=[
     "cheroot",
     "beaker",
     "packaging",
-    "pymongo"
+    "pymongo",
     "pylibmc",
     "diskcache"
     ]
