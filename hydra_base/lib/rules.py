@@ -34,9 +34,6 @@ def _get_rule(rule_id, user_id, check_write=False):
     except NoResultFound:
         raise ResourceNotFoundError("Rule {0} not found".format(rule_id))
 
-    #lazy load owners
-    rule_i.owners
-
     #lazy load types
     rule_i.types
 
@@ -298,7 +295,7 @@ def add_rule(rule, include_network_users=True, **kwargs):
     rule_i.set_owner(user_id)
 
     if include_network_users is True:
-        for owner in rule_i.get_network().owners:
+        for owner in rule_i.get_network().get_owners():
             #apply ownership with the same conditions as on the parent network
             rule_i.set_owner(owner.user_id, owner.view, owner.edit, owner.share)
 
@@ -436,10 +433,8 @@ def clone_rule(rule_id, target_ref_key=None, target_ref_id=None, scenario_id_map
     #lazy load types
     rule_i.types
 
-    #lazy load owners
-    rule_i.owners
-
     rule_j = JSONObject(rule_i)
+    rule_j.owners = rule_i.get_owners()
 
     #Unset the reference ID for the rule in case the target resource type
     #has changed, then apply the new ref_key and ref_id

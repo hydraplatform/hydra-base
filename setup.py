@@ -38,6 +38,8 @@ install_requires=[
     "beaker",
     "packaging",
     "pymongo"
+    "pylibmc",
+    "diskcache"
     ]
 
 # get version string from __init__.py

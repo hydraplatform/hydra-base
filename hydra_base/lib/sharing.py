@@ -89,18 +89,10 @@ def share_network(network_id, usernames, read_only, share, **kwargs):
         user_i = _get_user(username)
         #Set the owner ship on the network itself
         net_i.set_owner(user_i.id, write=write, share=share)
-        for o in net_i.project.owners:
-            if o.user_id == user_i.id:
-                break
-        else:
-            #Give the user read access to the containing project
-            net_i.project.set_owner(user_i.id, write='N', share='N')
 
         for rule_i in net_i.rules:
             rule_i.set_owner(user_i.id, write=write, share=share)
-
-    share_project(net_i.project_id, usernames, None, None, flush=False, **kwargs)
-
+        Project.clear_cache(user_i.id)
     db.DBSession.flush()
 
 def unshare_network(network_id, usernames, **kwargs):
@@ -115,8 +107,9 @@ def unshare_network(network_id, usernames, **kwargs):
     for username in usernames:
         user_i = _get_user(username)
         #Set the owner ship on the network itself
+        net_i.unset_owner(user_i.id)
+        Project.clear_cache(user_i.id)
 
-    net_i.unset_owner(user_i.id)
     db.DBSession.flush()
 
 def share_project(project_id, usernames, read_only=False, share=False, flush=True, **kwargs):
@@ -168,11 +161,8 @@ def share_project(project_id, usernames, read_only=False, share=False, flush=Tru
 
         proj_i.set_owner(user_i.id, write=write, share=share)
 
-        for net_i in proj_i.networks:
-            net_i.set_owner(user_i.id, write=write, share=share)
+        Project.clear_cache(user_i.id)
 
-    if proj_i.parent_id is not None:
-        share_project(proj_i.parent_id, usernames, read_only=read_only, share=share, **kwargs)
 
     if flush is True:
         db.DBSession.flush()
@@ -190,6 +180,7 @@ def unshare_project(project_id, usernames, **kwargs):
         user_i = _get_user(username)
         #Set the owner ship on the network itself
         proj_i.unset_owner(user_i.id)
+        Project.clear_cache(user_i.id)
     db.DBSession.flush()
 
 def set_project_permission(project_id, usernames, read, write, share,**kwargs):
@@ -275,6 +266,7 @@ def hide_dataset(dataset_id, exceptions, read, write, share,**kwargs):
 
     user_id = kwargs.get('user_id')
     dataset_i = _get_dataset(dataset_id)
+
     #check that I can hide the dataset
     if dataset_i.created_by != int(user_id):
         raise HydraError('Permission denied. '
