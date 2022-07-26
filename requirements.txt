@@ -6,6 +6,8 @@ numpy
 bcrypt
 lxml
 mysql-client
+mysqlclient
+pudb
 python-dateutil
 cheroot
 beaker
