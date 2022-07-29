@@ -468,8 +468,8 @@ class TestResourceAttribute:
         duplicate_attribute = JSONObject({'name': 'duplicate', 'dimension_id': None})
 
         #use dedicated testing function  which allows duplicates
-        dupe_attr_1 = client.add_attribute_no_checks(duplicate_attribute)
-        dupe_attr_2 = client.add_attribute_no_checks(duplicate_attribute)
+        dupe_attr_1 = client.add_attribute(duplicate_attribute, check_existing=False)
+        dupe_attr_2 = client.add_attribute(duplicate_attribute, check_existing=False)
 
         all_attrs = client.get_attributes()
 
@@ -556,8 +556,8 @@ class TestResourceAttribute:
         dataset = client.get_dataset(1)
         #set a value on the RA which sould get transferred in the deletion later
         new_rscen = client.add_data_to_attribute(network_with_data.scenarios[0].id,
-                                     dupe_ra1.id,
-                                     dataset)
+                                                 dupe_ra1.id,
+                                                 dataset)
         #add 2 more dupes but with no data associated to them
         dupe_ra2 = client.add_resource_attribute('NETWORK', network_with_data.id, dupeattr2.id, 'N')
         dupe_ra3 = client.add_resource_attribute('NETWORK', network_with_data.id, dupeattr3.id, 'N')
