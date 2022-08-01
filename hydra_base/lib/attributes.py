@@ -147,6 +147,8 @@ def get_attribute_by_name_and_dimension(name, dimension_id=None, network_id=None
         returns:
             list: JSONObjects derived from the Sqlalchemy rows.
     """
+
+    log.info("Retrieving all attributes with name %s and dimension %s", name, dimension_id)
     try:
         attr_qry = db.DBSession.query(Attr).filter(
             and_(
@@ -167,26 +169,27 @@ def get_attribute_by_name_and_dimension(name, dimension_id=None, network_id=None
     except NoResultFound:
         return None
 
-def _add_attribute(attr, user_id, flush=True):
+def search_attributes(name, network_id=None, project_id=None, **kwargs):
     """
-        Add an attribute without checking if there is another attribute with the same
-        name and dimension
+        Search for all attributes matching the given name
     """
-    log.info("Retrieving all attributes with name %s and dimension %s", name, dimension_id)
-    attr_qry = db.DBSession.query(Attr).filter(
-        and_(
-            func.lower(Attr.name) == name.strip().lower(),
-            Attr.dimension_id == dimension_id
-        )
-    )
+    name = name.lower()
+    try:
+        attrs_i = db.DBSession.query(Attr).filter(
+            func.lower(Attr.name).like(f'%{name}%')).options(joinedload('dimension')).all()
+        return_attrs = []
+        for a in attrs_i:
+            a_j = JSONObject(a)
+            if (a.dimension_id is not None):
+                a_j.dimension = JSONObject(a.dimension)
+            return_attrs.append(a_j)
+        log.debug("%s attributes matching %s", len(attrs_i), name)
+        return return_attrs
+    except NoResultFound:
+        return None
 
-    attrs_i = attr_qry.all()
 
-    log.info("Found %s attributes", len(attrs_i))
-
-    return attrs_i
-
-def _add_attribute(attr, user_id, flush=True, do_reassign=True):
+def _add_attribute(attr, user_id, flush=True, do_reassign=False):
     """
     Add an attribute to the DB
     args:
@@ -234,6 +237,7 @@ def _add_attribute(attr, user_id, flush=True, do_reassign=True):
     db.DBSession.add(attr_i)
     if flush is True:
         db.DBSession.flush()
+
     log.info("New attr added")
 
     """
@@ -557,6 +561,33 @@ def get_attributes(network_id=None, project_id=None, include_global=False, **kwa
     all_attrs = sorted(all_attrs, key=lambda x: x.name)
 
     return all_attrs
+
+def get_attributes_by_name_and_dimension(name, dimension_id=None, **kwargs):
+    """
+        Get all attributes with the specified name and dimension, irrespective of
+        scoping.
+        dimension_id can be None, because in attribute the dimension_id is not anymore mandatory
+        args:
+            name (str): The name of the attribute. Lower() is called on this for comparison, so this
+                        is case-insensitive
+            dimension_id (int): the ID of the dimension of the attribute
+        returns:
+            list: JSONObjects derived from the Sqlalchemy rows.
+    """
+    log.info("Retrieving all attributes with name %s and dimension %s", name, dimension_id)
+    attr_qry = db.DBSession.query(Attr).filter(
+        and_(
+            func.lower(Attr.name) == name.strip().lower(),
+            Attr.dimension_id == dimension_id
+        )
+    )
+
+    attrs_i = attr_qry.all()
+
+    log.info("Found %s attributes", len(attrs_i))
+
+    return attrs_i
+
 
 def _get_attr(attr_id):
     try:
@@ -1337,7 +1368,7 @@ def _get_attr_group(group_id):
     try:
         group_i = db.DBSession.query(AttrGroup).filter(AttrGroup.id==group_id).one()
     except NoResultFound:
-        raise HydraError("Error adding attribute group item: group %s not found" % (agi.group_id))
+        raise HydraError("Error adding attribute group item: group %s not found" % (group_id))
 
     return group_i
 
