@@ -154,15 +154,12 @@ def get_attribute_by_name_and_dimension(name, dimension_id=None, network_id=None
             and_(
                 func.lower(Attr.name) == name.strip().lower(),
                 Attr.dimension_id == dimension_id,
+                Attr.network_id == network_id,
+                Attr.project_id == project_id
             )
         )
-
-        if network_id is not None:
-            attr_qry = attr_qry.filter(Attr.network_id == network_id)
-        if project_id is not None:
-            attr_qry = attr_qry.filter(Attr.project_id == project_id)
-
-        attr_i = attr_qry.one()
+        
+        attr_i = attr_qry.first()
 
         log.debug("Attribute retrieved")
         return attr_i
@@ -175,15 +172,42 @@ def search_attributes(name, network_id=None, project_id=None, **kwargs):
     """
     name = name.lower()
     try:
-        attrs_i = db.DBSession.query(Attr).filter(
-            func.lower(Attr.name).like(f'%{name}%')).options(joinedload('dimension')).all()
+        #first get attribtues scoped to the containing project
+        proj_attrs_i = db.DBSession.query(Attr).filter(
+            func.lower(Attr.name).like(f'%{name}%'),
+            Attr.network_id==None,
+            Attr.project_id==project_id).options(joinedload('dimension')).all()
+        attrs_dict = {a.name:a for a in proj_attrs_i}
+
+        #Then get network-scoped attributes in case there are any scoped to the proejct
+        #which supercede the project attributes
+        net_attrs_i = db.DBSession.query(Attr).filter(
+            func.lower(Attr.name).like(f'%{name}%'),
+            Attr.network_id==network_id,
+            Attr.project_id==None).options(joinedload('dimension')).all()
+        for na in net_attrs_i:
+            attrs_dict[na.name] = na
+        
+        #Finally add in all the global attributes which do not have the same
+        #name as the scoped attributes. WHy? Becuase we assume that within scoping,
+        #names must be unique --- you can't have a 'cost' at different dimensions within a scope,
+        #so if there is a 'cost' which is scoped, then all 'cost' (regardless of dimension) can be ignored.
+        global_attrs_i = db.DBSession.query(Attr).filter(
+            func.lower(Attr.name).like(f'%{name}%'),
+            Attr.network_id==None,
+            Attr.project_id==None).options(joinedload('dimension')).all()
+
+        for a in global_attrs_i:
+            if a.name not in attrs_dict:
+                attrs_dict[a.name] = a 
+
         return_attrs = []
-        for a in attrs_i:
+        for a in attrs_dict.values():
             a_j = JSONObject(a)
             if (a.dimension_id is not None):
                 a_j.dimension = JSONObject(a.dimension)
             return_attrs.append(a_j)
-        log.debug("%s attributes matching %s", len(attrs_i), name)
+        log.debug("%s attributes matching %s", len(return_attrs), name)
         return return_attrs
     except NoResultFound:
         return None
@@ -207,7 +231,9 @@ def _add_attribute(attr, user_id, flush=True, do_reassign=False):
     attr_i = Attr(
         name=attr.name,
         dimension_id=attr.dimension_id,
-        description=attr.description
+        description=attr.description,
+        network_id = attr.network_id,
+        project_id = attr.project_id
     )
 
     _check_can_add_attribute(attr.name, attr.dimension, attr.project_id, attr.network_id)
@@ -242,7 +268,7 @@ def _add_attribute(attr, user_id, flush=True, do_reassign=False):
 
     """
       Now that we have an ID, check for inconsistencies in the attribute scoping
-      hierarchy, and fix them buy removing any conflicting entries and reassigning
+      hierarchy, and fix them by removing any conflicting entries and reassigning
       any resource attributes to the non-conflicting attribute.
       Only do this for attributes not scoped to a network as a network is the lowest scope.
     """
@@ -451,6 +477,8 @@ def update_attribute(attr, **kwargs):
     attr_i.name = attr.name
     attr_i.dimension_id = attr.dimension_id
     attr_i.description = attr.description
+    attr_i.network_id = attr.network_id
+    attr_i.project_id = attr.project_id
 
     db.DBSession.flush()
     return JSONObject(attr_i)

@@ -1731,7 +1731,7 @@ class Link(Base, Inspect):
         """
             Check whether this user can read this link
         """
-        return self.network.check_read_permission(user_id, do_raise=do_raise, is_admin=is_none)
+        return self.network.check_read_permission(user_id, do_raise=do_raise, is_admin=is_admin)
 
     def check_write_permission(self, user_id, do_raise=True, is_admin=None):
         """
