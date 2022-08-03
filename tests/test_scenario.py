@@ -257,6 +257,7 @@ class TestScenario:
 
         rs_to_update = []
         updated_dataset_id = None
+        scenario = client.get_scenario(scenario.id, include_data=True)
         for resourcescenario in scenario.resourcescenarios:
             ra_id = resourcescenario.resource_attr_id
             if ra_id == descriptor.resource_attr_id:
@@ -380,7 +381,7 @@ class TestScenario:
         rs_to_update = self._get_rs_to_update(scenario_2, scalar)
 
         new_resourcescenarios = client.update_resourcedata(scenario_2.id,
-                                                                        rs_to_update)
+                                                           rs_to_update)
         rs_2_id = None
         #Check that scenario 2 has been updated correctly.
         updated_scenario_2 = client.get_scenario(scenario_2.id)

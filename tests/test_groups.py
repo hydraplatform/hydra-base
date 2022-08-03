@@ -20,6 +20,8 @@
 import pytest
 import hydra_base as hb
 from hydra_base.lib.objects import JSONObject
+from hydra_base.exceptions import HydraError
+
 
 import logging
 log = logging.getLogger(__name__)
@@ -152,7 +154,7 @@ class TestGroup:
             #In these tests, all timeseries are unique to their resources,
             #so after removing the group no timeseries to which it was attached
             #should still exist.
-            d = rs.value
+            d = rs.dataset
             if d.type == 'timeseries':
-                with pytest.raises(hydra_base.HydraError):
+                with pytest.raises(HydraError):
                     client.get_dataset(d.id)

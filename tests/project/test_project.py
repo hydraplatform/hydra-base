@@ -281,3 +281,27 @@ class TestProject:
         project_i = client.get_project_by_network_id(net1.id)
 
         assert project_i.id == proj.id
+
+    def test_share_project(self, client, projectmaker):
+
+        proj_user = client.user_id
+        proj = projectmaker.create(share=False)
+        client.user_id = pytest.user_c.id
+        with pytest.raises(hb.HydraError):
+            client.get_project(proj.id)
+
+        client.user_id = proj_user
+        client.share_project(proj.id, ['UserC'], False, False)
+
+        #Get the project as user C -- this should succeeed
+        client.user_id = pytest.user_c.id
+        client.get_project(proj.id)
+
+        #now revolk access
+        client.user_id = proj_user
+        client.unshare_project(proj.id, ['UserC'])
+
+        #user c no longer has access
+        client.user_id = pytest.user_c.id
+        with pytest.raises(hb.HydraError):
+            client.get_project(proj.id)

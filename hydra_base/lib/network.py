@@ -26,7 +26,7 @@ from ..exceptions import HydraError, ResourceNotFoundError
 from . import scenario, rules
 from . import data
 from . import units
-from .objects import JSONObject, Dataset as JSONDataset
+from .objects import JSONObject
 
 from ..util.permissions import required_perms
 from hydra_base.lib import template
@@ -961,129 +961,6 @@ def _get_all_group_items(network_id):
 
     return item_dict
 
-def _get_all_resourcescenarios(network_id, scenario_ids, include_results, user_id):
-    """
-        Get all the resource scenarios in a network, across all scenarios
-        returns a dictionary of dict objects, keyed on scenario_id
-    """
-
-    rs_qry = db.DBSession.query(
-                Dataset.type,
-                Dataset.unit_id,
-                Dataset.name,
-                Dataset.hash,
-                Dataset.cr_date,
-                Dataset.created_by,
-                Dataset.hidden,
-                Dataset.value,
-                ResourceScenario.dataset_id,
-                ResourceScenario.scenario_id,
-                ResourceScenario.resource_attr_id,
-                ResourceScenario.source,
-                ResourceAttr.attr_id,
-    ).outerjoin(DatasetOwner, and_(DatasetOwner.dataset_id==Dataset.id, DatasetOwner.user_id==user_id)).filter(
-                or_(Dataset.hidden=='N', Dataset.created_by==user_id, DatasetOwner.user_id != None),
-                ResourceAttr.id == ResourceScenario.resource_attr_id,
-                Scenario.id==ResourceScenario.scenario_id,
-                Scenario.network_id==network_id,
-                Dataset.id==ResourceScenario.dataset_id)
-
-    if include_results == False:
-        rs_qry = rs_qry.filter(ResourceAttr.attr_is_var=='N')
-
-    if scenario_ids is not None and len(scenario_ids) > 0:
-        rs_qry = rs_qry.filter(ResourceScenario.scenario_id.in_(scenario_ids))
-
-    x = time.time()
-    logging.info("Getting all resource scenarios")
-    all_rs = rs_qry.all()
-    log.info("%s resource scenarios retrieved in %s", len(all_rs), time.time()-x)
-
-
-    logging.info("resource scenarios retrieved. Processing results...")
-    x = time.time()
-    rs_dict = dict()
-    for rs in all_rs:
-        rs_obj = JSONObject(rs)
-        rs_attr = JSONObject({'attr_id':rs.attr_id})
-
-        value = rs.value
-
-        rs_dataset = JSONDataset({
-            'id':rs.dataset_id,
-            'type' : rs.type,
-            'unit_id' : rs.unit_id,
-            'name' : rs.name,
-            'hash' : rs.hash,
-            'cr_date':rs.cr_date,
-            'created_by':rs.created_by,
-            'hidden':rs.hidden,
-            'value':value,
-            'metadata':{},
-        })
-        rs_obj.resourceattr = rs_attr
-        rs_obj.value = rs_dataset
-        rs_obj.dataset = rs_dataset
-
-        scenario_rs = rs_dict.get(rs.scenario_id, [])
-        scenario_rs.append(rs_obj)
-        rs_dict[rs.scenario_id] = scenario_rs
-
-    logging.info("resource scenarios processed in %s", time.time()-x)
-
-    return rs_dict
-
-
-def _get_metadata(network_id, scenario_ids, user_id):
-    """
-        Get all the metadata in a network, across all scenarios
-        returns a dictionary of dict objects, keyed on dataset ID
-    """
-    log.info("Getting Metadata")
-    metadata_qry = db.DBSession.query(Metadata)\
-        .join(Dataset)\
-        .outerjoin(DatasetOwner)\
-        .join(ResourceScenario)\
-        .join(Scenario)\
-        .filter(or_(Dataset.hidden=='N', DatasetOwner.user_id != None),
-                Scenario.id==ResourceScenario.scenario_id,
-                Scenario.network_id==network_id,
-                Dataset.id==ResourceScenario.dataset_id).distinct()
-
-    if scenario_ids is not None and len(scenario_ids) > 0:
-        metadata_qry = metadata_qry.filter(ResourceScenario.scenario_id.in_(scenario_ids))
-
-    x = time.time()
-    logging.info("Getting all matadata")
-    all_metadata = metadata_qry.all()
-    log.info("%s metadata jointly retrieved in %s",len(all_metadata), time.time()-x)
-
-    logging.info("metadata retrieved. Processing results...")
-    x = time.time()
-    metadata_dict = dict()
-    for m in all_metadata:
-        if metadata_dict.get(m.dataset_id):
-            metadata_dict[m.dataset_id][m.key] = six.text_type(m.value)
-        else:
-            metadata_dict[m.dataset_id] = {m.key : six.text_type(m.value)}
-
-    logging.info("metadata processed in %s", time.time()-x)
-
-    return metadata_dict
-
-def _get_network_owners(network_id):
-    """
-        Get all the nodes in a network
-    """
-    owners_i = db.DBSession.query(NetworkOwner).filter(
-                        NetworkOwner.network_id == network_id)\
-            .options(noload('network'))\
-            .options(joinedload('user')).all()
-
-    owners = [JSONObject(owner_i) for owner_i in owners_i]
-
-    return owners
-
 def _get_nodes(network_id, template_id=None):
     """
         Get all the nodes in a network
@@ -1167,27 +1044,23 @@ def _get_scenarios(network_id, include_data, include_results, user_id,
         logging.info("Filtering by scenario_ids %s",scenario_ids)
         scen_qry = scen_qry.filter(Scenario.id.in_(scenario_ids))
     extras = {'resourcescenarios': [], 'resourcegroupitems': []}
-    scens = [JSONObject(s,extras=extras) for s in scen_qry.all()]
+    scens_i = scen_qry.all()
+    scens = [JSONObject(s,extras=extras) for s in scens_i]
 
     all_resource_group_items = _get_all_group_items(network_id)
 
     #default to empty metadata
     metadata = {}
 
-    if include_data == True:
-        all_rs = _get_all_resourcescenarios(network_id, scenario_ids, include_results, user_id)
-
-        if include_metadata is True:
-            metadata = _get_metadata(network_id, scenario_ids, user_id)
-
-    for s in scens:
+    for i, s in enumerate(scens):
+        s_i = scens_i[i]
         s.resourcegroupitems = all_resource_group_items.get(s.id, [])
 
         if include_data == True:
-            s.resourcescenarios  = all_rs.get(s.id, [])
-
-            for rs in s.resourcescenarios:
-                rs.dataset.metadata = metadata.get(rs.dataset_id, {})
+            s.resourcescenarios  = s_i.get_all_resourcescenarios(
+                user_id=user_id,
+                include_results=include_results,
+                include_metadata=include_metadata)
 
     return scens
 
@@ -1242,7 +1115,7 @@ def get_network(network_id,
         net.nodes = _get_nodes(network_id, template_id=template_id)
         net.links = _get_links(network_id, template_id=template_id)
         net.resourcegroups = _get_groups(network_id, template_id=template_id)
-        net.owners = _get_network_owners(network_id)
+        net.owners = net_i.get_owners()
 
         if include_attributes in ('Y', True):
             all_attributes = _get_all_resource_attributes(network_id,
@@ -1284,6 +1157,25 @@ def get_network(network_id,
         raise ResourceNotFoundError("Network (network_id=%s) not found." % network_id)
 
     return net
+
+def get_networks(network_ids, **kwargs):
+    """
+        Get the list of networks specified in a list of network IDS
+        args:
+            network_ids (list(int)) : a list of network IDs
+        returns:
+            list(Network)
+    """
+    user_id = kwargs.get('user_id')
+
+    networks = db.DBSession.query(Network).filter(
+            Network.id.in_(network_ids))
+
+    for n in networks:
+        n.check_read_permission(user_id)
+
+    return networks
+
 
 def get_nodes(network_id, template_id=None, **kwargs):
     """
@@ -1521,6 +1413,7 @@ def get_network_by_name(project_id, network_name,**kwargs):
     Return a whole network as a complex model.
     """
 
+
     try:
         res = db.DBSession.query(Network.id).filter(func.lower(Network.name).like(network_name.lower()), Network.project_id == project_id).one()
         net = get_network(res.id, 'Y', None, **kwargs)
@@ -1690,6 +1583,27 @@ def update_network(network,
 
     updated_net = get_network(network.id, summary=True, **kwargs)
     return updated_net
+
+@required_perms("edit_network")
+def move_network(network_id, target_project_id, **kwargs):
+    """
+        Move a network to the project with `target_project_id`
+    """
+    log.info(f"Moving {network_id=} to {target_project_id=}")
+    user_id = kwargs.get('user_id')
+
+    try:
+        net_i = db.DBSession.query(Network).filter(Network.id == network_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError("Network with id %s not found"%(network_id))
+
+    net_i.check_write_permission(user_id)
+
+    net_i.project_id = target_project_id
+
+    db.DBSession.flush()
+
+    return JSONObject(net_i)
 
 def update_resource_layout(resource_type, resource_id, key, value, **kwargs):
     log.info("Updating %s %s's layout with {%s:%s}", resource_type, resource_id, key, value)
@@ -2810,6 +2724,7 @@ def get_all_resource_data(scenario_id, include_metadata=False, page_start=None, 
 def clone_network(network_id,
                   recipient_user_id=None,
                   new_network_name=None,
+                  new_network_description=None,
                   project_id=None,
                   project_name=None,
                   new_project=True,
@@ -2878,13 +2793,13 @@ def clone_network(network_id,
                                                         f"{new_network_name}%")).all()
 
     if len(ex_network) > 0:
-        new_network_name = new_network_name + " " + str(len(ex_network))
+        new_network_name = f"{new_network_name} ({str(len(ex_network))})"
 
     newnet = Network()
 
     newnet.project_id = project_id
     newnet.name = new_network_name
-    newnet.description = ex_net.description
+    newnet.description = ex_net.description if new_network_description is None else new_network_description
     newnet.layout = ex_net.layout
     newnet.status = ex_net.status
     newnet.projection = ex_net.projection
@@ -3328,6 +3243,7 @@ def _clone_scenario(old_scenario,
             ref_key=old_rgi.ref_key,
             node_id=node_id_map.get(old_rgi.node_id),
             link_id=link_id_map.get(old_rgi.link_id),
+            subgroup_id=group_id_map.get(old_rgi.subgroup_id),
             group_id=group_id_map.get(old_rgi.group_id),
             scenario_id=scenario_id,
         ))

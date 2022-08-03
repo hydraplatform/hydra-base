@@ -45,7 +45,7 @@ from .. import db
 from sqlalchemy.orm.exc import NoResultFound
 from ..exceptions import HydraError, ResourceNotFoundError
 from ..util.permissions import required_perms, required_role
-from sqlalchemy import or_, and_
+from sqlalchemy import or_, and_, func
 from sqlalchemy.orm import aliased, joinedload
 from . import units
 from .objects import JSONObject
@@ -192,7 +192,7 @@ def add_attribute(attr,**kwargs):
     log.debug("Adding attribute: %s", attr.name)
 
     try:
-        attr_i = db.DBSession.query(Attr).filter(Attr.name == attr.name,
+        attr_i = db.DBSession.query(Attr).filter(func.lower(Attr.name) == attr.name.lower(),
                                                  Attr.dimension_id == attr.dimension_id).one()
         log.info("Attr already exists")
     except NoResultFound:

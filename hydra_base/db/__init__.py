@@ -102,15 +102,13 @@ def create_mysql_db(db_url):
             else:
                 no_db_url = db_url
                 db_url = no_db_url + "/" + db_name
-
-        if db_url.find('charset=utf8&use_unicode=1') == -1:
+        if db_url.find('charset') == -1:
             db_url = "{}?charset=utf8&use_unicode=1".format(db_url)
 
         if config.get('mysqld', 'auto_create', 'Y') == 'Y':
             tmp_engine = create_engine(no_db_url)
             log.debug("Creating database {0} as it does not exist.".format(db_name))
             tmp_engine.execute("CREATE DATABASE IF NOT EXISTS {0}".format(db_name))
-
     return db_url
 
 def connect(db_url=None):
@@ -156,7 +154,6 @@ def connect(db_url=None):
     DBSession = scoped_session(maker)
     register(DBSession)
 
-
     global DeclarativeBase
     try:
         DeclarativeBase.metadata.create_all(engine, checkfirst=True)
@@ -173,12 +170,27 @@ def commit_transaction():
     try:
         transaction.commit()
     except Exception as e:
-        #import pudb; pudb.set_trace()
         log.critical(e)
         transaction.abort()
 
+def open_session():
+    log.debug("OPENING SESSION")
+
+    global DBSession
+
+    from .model import User
+    session = DBSession()
+    session.query(User).all()
+
+    session2 = DBSession()
+    session2.query(User).all()
+
+    DBSession()
+
 def close_session():
+    log.debug("CLOSING SESSION")
     DBSession.remove()
+
 
 def rollback_transaction():
     #import pudb; pudb.set_trace()

@@ -131,21 +131,23 @@ def get_val(dataset, timestamp=None):
         for example) or as a single python dictionary
 
     """
+
+    val = dataset.get_value()
+
     if dataset.type == 'array':
         #TODO: design a mechansim to retrieve this data if it's stored externally
-        return json.loads(dataset.value)
+        return json.loads(val)
 
     elif dataset.type == 'descriptor':
-        return str(dataset.value)
+        return str(val)
     elif dataset.type == 'scalar':
-        return Decimal(str(dataset.value))
+        return Decimal(str(val))
     elif dataset.type == 'timeseries':
         #TODO: design a mechansim to retrieve this data if it's stored externally
-        val = dataset.value
 
         seasonal_year = config.get('DEFAULT','seasonal_year', '1678')
         seasonal_key = config.get('DEFAULT', 'seasonal_key', '9999')
-        val = dataset.value.replace(seasonal_key, seasonal_year)
+        val = val.replace(seasonal_key, seasonal_year)
 
         timeseries = pd.read_json(val, convert_axes=True)
 
