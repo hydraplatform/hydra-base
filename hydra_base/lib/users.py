@@ -22,7 +22,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from .objects import JSONObject
 from ..db.model import User, Role, Perm, RoleUser, RolePerm
-from ..exceptions import ResourceNotFoundError, HydraError, HydraLoginUserNotFound, HydraLoginUserMaxAttemptsExceeded, HydraLoginUserPasswordWrong
+from ..exceptions import ResourceNotFoundError, HydraError, HydraLoginUserNotFound
 from .. import db
 from .. import config
 from ..util.permissions import required_perms

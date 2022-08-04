@@ -272,8 +272,9 @@ class TestScopedAttribute:
             "dimension_id": None,
             "network_id" : network_with_data.id
         })
-        #User C does not own this network, so fail.
-        client.user_id = pytest.user_c.id
+        user = client.testutils.create_user("UserD", role="developer")
+        #User D does not own this network, so fail.
+        client.user_id = user.id
         with pytest.raises(hb.PermissionError):
             client.add_attribute(network_scoped_attr)
 

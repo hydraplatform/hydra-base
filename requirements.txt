@@ -12,6 +12,9 @@ pudb
 python-dateutil
 cheroot
 beaker
+click
+diskcache
+pylibmc
 mysqlclient
 packaging
 requests

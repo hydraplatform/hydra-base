@@ -279,7 +279,7 @@ class TestUtil:
 
         return child_template_j
 
-    def create_project(self, name=None, share=True):
+    def create_project(self, name=None, share=True, parent_id=None):
 
         if name is None:
             name = "Unittest Project"
@@ -290,12 +290,12 @@ class TestUtil:
             project = JSONObject()
             project.name = name
             project.description = "Project which contains all unit test networks"
+            project.parent_id = parent_id
             project = JSONObject(self.client.add_project(project))
             if share is True:
-                self.client.share_project(project.id,
-                                     ["UserA", "UserB", "UserC"],
-                                     'N',
-                                     'Y')
+                self.client.share_project(
+                    project.id,
+                    ["UserA", "UserB", "UserC"], 'N', 'Y')
 
             proj_scoped_attr = self.create_attribute("Project Scoped Attr", dimension=None, project_id=project.id)
 

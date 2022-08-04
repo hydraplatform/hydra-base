@@ -83,14 +83,14 @@ class TestNetwork:
 
         unfiltered_net = client.get_network(net.id)
 
-        assert len(unfiltered_net.attributes) == 3
+        assert len(unfiltered_net.attributes) == 4
 
         filtered_net_with_extra_attributes = client.get_network(
             net.id,
             template_id=template_id,
             include_non_template_attributes=True)
 
-        assert len(filtered_net.attributes) == len(filtered_net_with_extra_attributes.attributes) - 1
+        assert len(filtered_net.attributes) == len(filtered_net_with_extra_attributes.attributes) - 2
 
     def test_get_resources_of_type(self, client, network_with_data):
         """
@@ -1026,7 +1026,7 @@ class TestNetwork:
 
         cloned_network = client.get_network(cloned_network_id, include_data=True)
 
-        assert cloned_network.name == net.name + " 1"
+        assert cloned_network.name == net.name + " (1)"
         assert len(net.nodes) == len(cloned_network.nodes)
         assert len(net.links) == len(cloned_network.links)
         assert len(net.resourcegroups) == len(cloned_network.resourcegroups)

@@ -192,6 +192,7 @@ class JSONObject(dict):
             elif isinstance(v, enum.Enum):
                 setattr(self, k, v.value)
             else:
+
                 if k == '_sa_instance_state':
                     continue
 
@@ -278,6 +279,11 @@ class ResourceScenario(JSONObject):
 
 class Dataset(JSONObject):
 
+    def __init__(self, dataset={}, parent=None, extras={}):
+
+        super(Dataset, self).__init__(dataset, parent=parent, extras=extras)
+
+
     def __getattr__(self, name):
 
         # Keys that start and end with "__" won't be retrievable via attributes
@@ -290,6 +296,13 @@ class Dataset(JSONObject):
         if name == 'value' and value is not None:
             value = six.text_type(value)
         super(Dataset, self).__setattr__(name, value)
+
+    def get_value(self):
+        """
+            This function is here to match the equivalent one on the tDataset class in model.py
+            so that the get_value function can be used without throwing an exception
+        """
+        return self.value
 
     def parse_value(self):
         """
@@ -314,7 +327,6 @@ class Dataset(JSONObject):
         except Exception as e:
             log.exception(e)
             raise HydraError("Error parsing value %s: %s"%(self.value, e))
-
 
     def get_metadata_as_dict(self, user_id=None, source=None):
         """

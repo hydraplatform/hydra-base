@@ -37,6 +37,12 @@ jobs:
       - name: Setup MongoDB
         run: sudo systemctl start mongod
 
+      - name: Setup Memcache
+        run: |
+             sudo apt-get install -y memcached
+             sudo apt-get install -y libmemcached-dev
+             sudo systemctl start memcached
+
       - name: Install hydra-base
         run: |
              pip install git+https://github.com/hydraplatform/hydra-client-python.git

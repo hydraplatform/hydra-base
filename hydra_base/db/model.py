@@ -36,33 +36,28 @@ from hydra_base.lib.storage import (
     MongoStorageAdapter
 )
 
+from collections import defaultdict
+
+from hydra_base.lib.objects import JSONObject, Dataset as JSONDataset
+from hydra_base.lib.cache import cache
 from sqlalchemy.orm.exc import NoResultFound
 
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.ext.hybrid import hybrid_property
 
-import datetime
-
-from sqlalchemy import inspect, func
+from sqlalchemy import inspect, func, and_, or_
 
 from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
 
-from sqlalchemy.orm import relationship, backref
-
-from sqlalchemy.orm import noload, joinedload
-
+from sqlalchemy.orm import relationship, backref, noload, joinedload
 
 from . import DeclarativeBase as Base, get_session
 
 from ..util import generate_data_hash, get_val, get_json_as_string
 
 from sqlalchemy.sql.expression import case
-from sqlalchemy import UniqueConstraint, and_
+from sqlalchemy import UniqueConstraint
 from sqlalchemy.dialects import mysql
-
-import pandas as pd
-
-from sqlalchemy.orm import validates
 
 import json
 from .. import config
@@ -70,6 +65,8 @@ import logging
 import bcrypt
 log = logging.getLogger(__name__)
 
+global project_cache_key
+project_cache_key = config.get('cache', 'projectkey', 'userprojects')
 
 mongo_config = MongoStorageAdapter.get_mongo_config()
 mongo_storage_location_key = mongo_config["value_location_key"]
@@ -117,7 +114,7 @@ class Inspect(object):
 
 class AuditMixin(object):
 
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     @declared_attr
     def created_by(cls):
@@ -127,7 +124,7 @@ class AuditMixin(object):
     def updated_by(cls):
         return Column(Integer, ForeignKey('tUser.id'), onupdate=get_user_id_from_engine)
 
-    updated_at = Column(DateTime,  nullable=False, default=datetime.datetime.utcnow(), onupdate=datetime.datetime.utcnow())
+    updated_at = Column(DateTime, nullable=False, server_default=text(u'CURRENT_TIMESTAMP'), onupdate=func.current_timestamp())
 
 class PermissionControlled(object):
     def set_owner(self, user_id, read='Y', write='Y', share='Y'):
@@ -138,13 +135,17 @@ class PermissionControlled(object):
                 break
         else:
             owner = self.__ownerclass__()
-            setattr(owner, self.__ownerfk__,  self.id)
+            setattr(owner, self.__ownerfk__, self.id)
             owner.user_id = int(user_id)
             self.owners.append(owner)
 
-        owner.view  = read
-        owner.edit  = write
-        owner.share = share
+        if read is not None:
+            owner.view = read
+        if write is not None:
+            owner.edit = write
+        if share is not None:
+            owner.share = share
+
         return owner
 
     def unset_owner(self, user_id):
@@ -269,9 +270,9 @@ class DatasetOwner(Base, Inspect):
     user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
     dataset_id = Column(Integer(), ForeignKey('tDataset.id'), primary_key=True, nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    view = Column(String(1),  nullable=False)
-    edit = Column(String(1),  nullable=False)
-    share = Column(String(1),  nullable=False)
+    view = Column(String(1),  nullable=False, default='Y')
+    edit = Column(String(1),  nullable=False, default='N')
+    share = Column(String(1),  nullable=False, default='N')
 
     user = relationship('User')
     dataset = relationship('Dataset', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
@@ -316,6 +317,11 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
     _parents  = ['tResourceScenario', 'tUnit']
     _children = ['tMetadata']
 
+    def get_value(self):
+        """
+            Get the value
+        """
+        return self.value
 
     def set_metadata(self, metadata_tree):
         """
@@ -1313,14 +1319,274 @@ class Project(Base, Inspect):
 
     user = relationship('User', backref=backref("projects", order_by=id))
 
+    parent_id = Column(Integer(), ForeignKey('tProject.id'), nullable=True)
+    parent = relationship('Project', remote_side=[id],
+        backref=backref("children", order_by=id))
+
     _parents  = []
     _children = ['tNetwork']
+
+    def get_networks(self, user_id, include_deleted_networks=False):
+        """
+        get all the networks, scenarios and owners of all the networks in the project.
+        These are in 3 different sets:
+        1: Networks of which user_id is the creator
+        2: Networks of which user_id has read access but is not the creator
+        3: Networks which user_id can see by virtue of being an owner of the project
+           In this case, user_id can see all the networks. Ownership can be directly set
+           on this project, or can be set at a higher level project
+        """
+
+        log.info("Getting networks for project %s", self.id)
+
+        networks = []
+        networks_is_creator = []
+        networks_not_creator = []
+
+        if self.is_owner(user_id):
+            #all networks in the project, as the user owns the project
+            networks_not_creator = get_session().query(Network)\
+                .filter(Network.project_id == self.id).all()
+        else:
+            #all networks created by this user
+            networks_is_creator = get_session().query(Network)\
+                .filter(Network.project_id == self.id)\
+                .filter(Network.created_by == user_id).all()
+
+            #all networks created by someone else, but which this user is an owner,
+            #and this user can read this network
+            networks_not_creator = get_session().query(Network).join(NetworkOwner)\
+                .filter(Network.project_id == self.id)\
+                .filter(Network.created_by != user_id)\
+                .filter(NetworkOwner.user_id == user_id)\
+                .filter(NetworkOwner.view == 'Y').all()
+
+        all_network_ids = [n.id for n in networks_is_creator] + [n.id for n in networks_not_creator]
+
+        #for efficiency, get all the owners in 1 query and sort them by network
+        all_owners = get_session().query(NetworkOwner)\
+            .filter(NetworkOwner.network_id.in_(all_network_ids)).all()
+
+        owners_by_network = defaultdict(list)
+        for owner in all_owners:
+            owners_by_network[owner.network_id].append(owner)
+
+        #for efficiency, get all the scenarios in 1 query and sort them by network
+        all_scenarios = get_session().query(Scenario)\
+            .filter(Scenario.network_id.in_(all_network_ids)).all()
+
+        scenarios_by_network = defaultdict(list)
+        for netscenario in all_scenarios:
+            scenarios_by_network[netscenario.network_id].append(netscenario)
+
+        for net_i in networks_is_creator + networks_not_creator:
+
+            if include_deleted_networks is False and net_i.status.lower() == 'x':
+                continue
+
+            net_j = JSONObject(net_i)
+            net_j.owners = owners_by_network[net_j.id]
+            net_j.scenarios = scenarios_by_network[net_j.id]
+            networks.append(net_j)
+
+        log.debug("%s networks retrieved", len(networks))
+
+        return networks
+
+    def get_child_projects(self, user_id, include_deleted_networks=False, levels=1):
+        """
+        Get all the direct child projects of a given project
+        i.e. all projects which have this project specified in the 'parent_id' column
+        """
+        log.info("Getting child projects of project %s", self.id)
+
+        child_projects_i = get_session().query(Project).outerjoin(ProjectOwner)\
+            .filter(Project.parent_id == self.id).all()
+
+        projects_with_access = [] # projects to which the user has access
+        for child_proj_i in child_projects_i:
+            if child_proj_i.check_read_permission(user_id, do_raise=False) is True:
+                projects_with_access.append(child_proj_i)
+
+        owners = get_session().query(ProjectOwner).filter(ProjectOwner.project_id.in_([p.id for p in child_projects_i])).all()
+        creators = get_session().query(User.id, User.username, User.display_name).filter(User.id.in_([p.created_by for p in child_projects_i])).all()
+        creator_lookup = {u.id:JSONObject(u)  for u in creators}
+        owner_lookup = defaultdict(list)
+        for p in child_projects_i:
+            owner_lookup[p.id] = [creator_lookup[p.created_by]]
+        for o in owners:
+            if o.user_id == p.created_by:
+                continue
+            owner_lookup[o.project_id].append(o)
+
+        child_projects = []
+        for child_proj_i in projects_with_access:
+            project = JSONObject(child_proj_i)
+            project.owners = owner_lookup.get(project.id, [])
+            project.networks = child_proj_i.get_networks(
+                user_id,
+                include_deleted_networks=include_deleted_networks)
+            if levels > 0:
+                project.projects = child_proj_i.get_child_projects(
+                    user_id,
+                    include_deleted_networks=include_deleted_networks, levels=(levels-1))
+            else:
+                project.projects = []
+            child_projects.append(project)
+
+        log.info("%s child projects retrieved", len(child_projects))
+
+        return child_projects
+
+    def is_owner(self, user_id):
+        """Check whether this user is an owner of this project, either directly
+        #or by virtue of being an owner of a higher-up project"""
+
+        if self.check_read_permission(user_id, nav=False, do_raise=False) is True:
+            return True
+        p = self.parent
+        if p is not None:
+            return p.is_owner(user_id)
+
+        return False
+
+    def get_owners(self):
+        """
+            Get all the owners of a project, both those which are applied directly
+            to this project, but also who have been granted access via a parent project
+        """
+
+        owners = [JSONObject(o) for o in self.owners]
+        owner_ids = [o.user_id for o in owners]
+
+        for o in owners:
+            o.project_name = self.name
+            o.type = 'PROJECT'
+
+        parent_owners = []
+        if self.parent_id is not None:
+            parent_owners = list(filter(lambda x:x.user_id not in owner_ids, self.parent.get_owners()))
+            for po in parent_owners:
+                po.source = f'Inherited from: {po.project_name} (ID:{po.project_id})'
+
+        return owners + parent_owners
+
+    """
+    This map should look like:
+     {'UID' :
+         {
+             None: [P1, P2],
+             'P1': [P3, P4]
+         }
+     }
+    Where UID is the user ID and the inner keys are project IDS, and the lists are
+    projects the user can see within those projects. The 'None' key at the top is for
+    top-level projects.
+    """
+    @classmethod
+    def get_cache(cls, user_id=None):
+        if user_id is None:
+            return cache.get(project_cache_key, {})
+        else:
+            return cache.get(project_cache_key, {}).get(user_id, {})
+
+    @classmethod
+    def set_cache(cls, data):
+        cache.set(project_cache_key, dict(data))
+
+    @classmethod
+    def clear_cache(cls, uid):
+        projectcache = cache.get(project_cache_key, {})
+        if projectcache.get(uid) is not None:
+            del projectcache[uid]
+        cls.set_cache(projectcache)
 
     def get_name(self):
         return self.project_name
 
+    @classmethod
+    def build_user_cache(cls, uid):
+        """
+            Build the cache of projects a user has access to either by direct Ownership
+            or by indirect access required for navigating to a projct to which they own
+        """
+        if cls.get_cache().get(uid) is not None:
+            return
+
+        project_user_cache = defaultdict(lambda: defaultdict(list))
+        ##Don't load the project's networks. Load them separately, as the networks
+        #must be checked individually for ownership
+        projects_qry = get_session().query(Project)
+        network_project_qry = get_session().query(Project.id)
+
+        log.info("Getting projects for user %s", uid)
+
+        network_projects_i = network_project_qry.outerjoin(Network).outerjoin(NetworkOwner).filter(
+            Network.status == 'A', or_(
+                and_(NetworkOwner.user_id == uid, NetworkOwner.view == 'Y'),
+                Network.created_by == uid)).distinct().all()
+
+        #for some reason this outputs a list of tuples.
+        projects_with_network_owner = [p[0] for p in network_projects_i]
+
+        projects_qry = projects_qry.outerjoin(ProjectOwner).filter(
+            Project.status == 'A', or_(
+                and_(ProjectOwner.user_id == uid, ProjectOwner.view == 'Y'),
+                Project.created_by == uid,
+                Project.id.in_(projects_with_network_owner)
+            )
+        )
+
+        projects_qry = projects_qry.options(noload('networks')).order_by('id')
+
+        projects_i = projects_qry.all()
+
+        parent_project_ids = []
+        for p in projects_i:
+            project_user_cache[uid][p.parent_id].append(p.id)
+            if p.parent_id is not None:
+                parent_project_ids.append(p.parent_id)
+
+        cls._build_user_cache_up_tree(uid, parent_project_ids, project_user_cache)
+
+        cls._build_user_cache_down_tree(uid, [p.id for p in projects_i], project_user_cache)
+
+        cls.set_cache(project_user_cache)
+
+    @classmethod
+    def _build_user_cache_down_tree(cls, uid, project_ids, project_user_cache):
+
+        if len(project_ids) == 0:
+            return
+
+        projects = get_session().query(Project).filter(Project.parent_id.in_(project_ids)).all()
+
+        child_project_ids = []
+        for p in projects:
+            project_user_cache[uid][p.parent_id].append(p.id)
+            child_project_ids.append(p.id)
+
+        cls._build_user_cache_down_tree(uid, child_project_ids, project_user_cache)
+
+    @classmethod
+    def _build_user_cache_up_tree(cls, uid, project_ids, project_user_cache):
+
+        if len(project_ids) == 0:
+            return
+
+        projects = get_session().query(Project).filter(Project.id.in_(project_ids)).all()
+
+        parent_project_ids = []
+        for p in projects:
+            project_user_cache[uid][p.parent_id].append(p.id)
+            if p.parent_id is not None:
+                parent_project_ids.append(p.parent_id)
+
+        cls._build_user_cache_up_tree(uid, parent_project_ids, project_user_cache)
+
     def get_attribute_data(self):
-        attribute_data_rs = get_session().query(ResourceScenario).join(ResourceAttr).filter(ResourceAttr.project_id==self.id).all()
+        attribute_data_rs = get_session().query(ResourceScenario).join(ResourceAttr).filter(
+            ResourceAttr.project_id==self.id).all()
         #lazy load datasets
         [rs.dataset.metadata for rs in attribute_data_rs]
         [rs.resourceattr.attr for rs in attribute_data_rs]
@@ -1353,6 +1619,8 @@ class Project(Base, Inspect):
         owner.edit = write
         owner.share = share
 
+        Project.clear_cache(user_id)
+
         return owner
 
     def unset_owner(self, user_id):
@@ -1365,10 +1633,13 @@ class Project(Base, Inspect):
                 owner = o
                 get_session().delete(owner)
                 break
+        Project.clear_cache(user_id)
 
-    def check_read_permission(self, user_id, do_raise=True, is_admin=None):
+    def check_read_permission(self, user_id, do_raise=True, is_admin=None, nav=True):
         """
             Check whether this user can read this project
+            nav: Indicates whether you can return true if the user is not an owner but
+            is allowed to see the project for navigation purposes.
         """
 
         if str(user_id) == str(self.created_by):
@@ -1380,19 +1651,35 @@ class Project(Base, Inspect):
         if is_admin is True:
             return True
 
+        has_permission = False
+
         for owner in self.owners:
             if owner.user_id == user_id:
                 if owner.view == 'Y':
-                    break
-        else:
-            if do_raise is True:
-                raise PermissionError("Permission denied. User %s does not have read"
-                             " access on project %s" %
-                             (user_id, self.id))
-            else:
-                return False
+                    return True
+                elif owner.view == 'N':
+                    #Access has been denied on this project directly, so this
+                    #takes priority
+                    return False
 
-        return True
+        if nav is True:
+            Project.build_user_cache(user_id)
+            for v in Project.get_cache(user_id).values():
+                if self.id in v:
+                    return True
+
+        if has_permission is False and self.parent_id is not None:
+            """
+                Permission check up the tree only applies to non 'nav'. i.e. i a parent which
+                can be accessed for nav purposes does not count.
+            """
+            has_permission = self.parent.check_read_permission(user_id, nav=False, do_raise=False)
+
+        if has_permission is False and do_raise is True:
+            raise PermissionError("Permission denied. User %s does not have read"
+                                  " access on project '%s'" % (user_id, self.name))
+
+        return has_permission
 
     def check_write_permission(self, user_id, do_raise=True, is_admin=None):
         """
@@ -1408,18 +1695,25 @@ class Project(Base, Inspect):
         if is_admin is True:
             return True
 
+        has_permission = False
+
         for owner in self.owners:
             if owner.user_id == int(user_id):
                 if owner.view == 'Y' and owner.edit == 'Y':
-                    break
-        else:
-            if do_raise is True:
-                raise PermissionError("Permission denied. User %s does not have edit"
-                                      " access on project %s" % (user_id, self.id))
-            else:
-                return False
+                    return True
+                elif owner.view == 'N':
+                    #Access has been denied on this project directly, so this
+                    #takes priority
+                    return False
 
-        return True
+        if self.parent_id is not None:
+            has_permission = self.parent.check_write_permission(user_id)
+
+        if has_permission is False and do_raise is True:
+            raise PermissionError("Permission denied. User %s does not have edit"
+                                  " access on project %s" % (user_id, self.id))
+
+        return has_permission
 
     def check_share_permission(self, user_id, is_admin=None):
         """
@@ -1472,6 +1766,18 @@ class Network(Base, Inspect):
 
     _parents = ['tNode', 'tLink', 'tResourceGroup']
     _children = ['tProject']
+
+    def is_owner(self, user_id):
+        """
+            Check whether this user is an owner of this project, either directly
+            or by virtue of being an owner of a higher-up project
+        """
+
+        if self.check_read_permission(user_id, do_raise=False) is True:
+            return True
+
+        else:
+            return self.project.is_owner(user_id)
 
     def get_name(self):
         return self.name
@@ -1600,19 +1906,29 @@ class Network(Base, Inspect):
         if is_admin is True:
             return True
 
+        can_read = True
         for owner in self.owners:
             if int(owner.user_id) == int(user_id):
                 if owner.view == 'Y':
+                    can_read = True
                     break
+                elif owner.view == 'N':
+                    #This has been explicitly set on the Network so it has highest priority
+                    return False
         else:
-            if do_raise is True:
-                raise PermissionError("Permission denied. User %s does not have read"
-                             " access on network %s" %
-                             (user_id, self.id))
-            else:
-                return False
+            can_read = False
 
-        return True
+        if can_read is False:
+            can_read = self.project.is_owner(user_id)
+
+        can_read = self.project.check_read_permission(user_id)
+
+        if can_read is False and do_raise is True:
+            raise PermissionError("Permission denied. User %s does not have read"
+                         " access on network %s" %
+                         (user_id, self.id))
+
+        return can_read
 
     def check_write_permission(self, user_id, do_raise=True, is_admin=None):
         """
@@ -1628,19 +1944,27 @@ class Network(Base, Inspect):
         if is_admin is True:
             return True
 
+        can_write = True
+
         for owner in self.owners:
             if owner.user_id == int(user_id):
-                if owner.view == 'Y' and owner.edit == 'Y':
+                if owner.edit == 'Y':
+                    can_write = True
                     break
+                elif owner.edit == 'N':
+                    return False # this has been explicitly set on the Network, so it overrules all.
         else:
-            if do_raise is True:
-                raise PermissionError("Permission denied. User %s does not have edit"
-                             " access on network %s" %
-                             (user_id, self.id))
-            else:
-                return False
+            can_write = False
 
-        return True
+        if can_write is False:
+            can_write = self.project.check_write_permission(user_id)
+
+        if can_write is False and do_raise is True:
+            raise PermissionError("Permission denied. User %s does not have edit"
+                         " access on network %s" %
+                         (user_id, self.id))
+
+        return can_write
 
     def check_share_permission(self, user_id, is_admin=None):
         """
@@ -1664,6 +1988,22 @@ class Network(Base, Inspect):
             raise PermissionError("Permission denied. User %s does not have share"
                              " access on network %s" %
                              (user_id, self.id))
+
+    def get_owners(self):
+        """
+            Get all the owners of a network, both those which are applied directly
+            to this network, but also who have been granted access via a project
+        """
+
+        owners = [JSONObject(o) for o in self.owners]
+        owner_ids = [o.user_id for o in owners]
+
+        project_owners = list(filter(lambda x:x.user_id not in owner_ids, self.project.get_owners()))
+
+        for po in project_owners:
+            po.source = f'Inherited from: {po.project_name} (ID:{po.project_id})'
+
+        return owners + project_owners;
 
 class Link(Base, Inspect):
     """
@@ -1971,6 +2311,8 @@ class ResourceScenario(Base, Inspect):
                 Dataset.name,
                 Dataset.hidden,
                 case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
+                        else_=Dataset.value).label('value'),
+                case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
                         else_=Dataset.value).label('value')).filter(
                 Dataset.id==self.id).outerjoin(DatasetOwner,
                                     and_(Dataset.id==DatasetOwner.dataset_id,
@@ -2006,7 +2348,8 @@ class Scenario(Base, Inspect):
     parent_id = Column(Integer(), ForeignKey('tScenario.id'), nullable=True)
 
     network = relationship('Network', backref=backref("scenarios", order_by=id))
-    parent = relationship('Scenario', remote_side=[id], backref=backref("children", order_by=id))
+    parent = relationship('Scenario', remote_side=[id],
+        backref=backref("children", order_by=id))
 
     _parents  = ['tNetwork']
     _children = ['tResourceScenario']
@@ -2037,7 +2380,13 @@ class Scenario(Base, Inspect):
             group_item_i.link     = resource
         self.resourcegroupitems.append(group_item_i)
 
-    def get_data(self, child_data=None, get_parent_data=False, ra_ids=None, include_results=True, include_only_results=False):
+    def get_data(self, user_id,
+        child_data=None,
+        get_parent_data=False,
+        ra_ids=None,
+        include_results=True,
+        include_only_results=False,
+        include_metadata=True):
         """
             Return all the resourcescenarios relevant to this scenario.
             If this scenario inherits from another, look up the tree to compile
@@ -2059,34 +2408,135 @@ class Scenario(Base, Inspect):
         for child_rs in child_data:
             childrens_ras.append(child_rs.resource_attr_id)
 
-        #Add resource attributes which are not defined already
-        rs_query = get_session().query(ResourceScenario).filter(
-            ResourceScenario.scenario_id == self.id).options(joinedload('dataset')).options(joinedload('resourceattr'))
-
-        if ra_ids is not None:
-            rs_query = rs_query.filter(ResourceScenario.resource_attr_id.in_(ra_ids))
-
-        if include_results is False:
-            rs_query = rs_query.outerjoin(ResourceAttr).filter(
-                ResourceAttr.attr_is_var == 'N')
-
-        if include_only_results is True:
-            rs_query = rs_query.outerjoin(ResourceAttr).filter(
-                ResourceAttr.attr_is_var == 'Y')
-
-        resourcescenarios = rs_query.all()
+        resourcescenarios = self.get_all_resourcescenarios(
+            user_id,
+            ra_ids=ra_ids,
+            include_results=include_results,
+            include_only_results=include_only_results,
+            include_metadata=include_metadata)
 
         for this_rs in resourcescenarios:
             if this_rs.resource_attr_id not in childrens_ras:
                 child_data.append(this_rs)
 
         if self.parent is not None and get_parent_data is True:
-            return self.parent.get_data(child_data=child_data,
+            return self.parent.get_data(user_id, child_data=child_data,
                                         get_parent_data=get_parent_data,
                                        ra_ids=ra_ids)
 
         return child_data
 
+    def get_all_resourcescenarios(self, user_id,
+        ra_ids=None,
+        include_results=True,
+        include_only_results=False,
+        include_metadata=True):
+        """
+            Get all the resource scenarios in a network, across all scenarios
+            returns a dictionary of dict objects, keyed on scenario_id
+        """
+
+        rs_qry = get_session().query(
+                    Dataset.type,
+                    Dataset.unit_id,
+                    Dataset.name,
+                    Dataset.hash,
+                    Dataset.cr_date,
+                    Dataset.created_by,
+                    Dataset.hidden,
+                    Dataset.value,
+                    ResourceScenario.dataset_id,
+                    ResourceScenario.scenario_id,
+                    ResourceScenario.resource_attr_id,
+                    ResourceScenario.source,
+                    ResourceAttr.attr_id,
+                    ResourceAttr.attr_is_var,
+                    ResourceAttr.ref_key,
+                    ResourceAttr.node_id,
+                    ResourceAttr.network_id,
+                    ResourceAttr.link_id,
+                    ResourceAttr.group_id,
+                    Attr.name.label('attr_name'),
+                    Attr.description.label('attr_description')
+        ).outerjoin(DatasetOwner, and_(DatasetOwner.dataset_id==Dataset.id, DatasetOwner.user_id==user_id)).filter(
+                    or_(Dataset.hidden=='N', Dataset.created_by==user_id, DatasetOwner.user_id != None),
+                    ResourceAttr.id == ResourceScenario.resource_attr_id,
+                    Scenario.id==ResourceScenario.scenario_id,
+                    Scenario.id==self.id,
+                    Dataset.id==ResourceScenario.dataset_id,
+                    Attr.id==ResourceAttr.attr_id)
+
+        if include_results is False:
+            rs_qry = rs_qry.filter(ResourceAttr.attr_is_var=='N')
+
+        if include_only_results is True:
+            rs_qry = rs_qry.filter(ResourceAttr.attr_is_var=='Y')
+
+        if ra_ids is not None:
+            rs_qry = rs_qry.filter(ResourceScenario.resource_attr_id.in_(ra_ids))
+
+        all_rs = rs_qry.all()
+
+        processed_rs = []
+        for rs in all_rs:
+            rs_obj = JSONObject({
+                'resource_attr_id': rs.resource_attr_id,
+                'scenario_id':rs.scenario_id,
+                'dataset_id':rs.dataset_id
+            })
+            rs_attr = JSONObject({
+                'id': rs.resource_attr_id,
+                'attr_id':rs.attr_id,
+                'attr_is_var': rs.attr_is_var,
+                'ref_key': rs.ref_key,
+                'node_id': rs.node_id,
+                'link_id': rs.link_id,
+                'network_id': rs.network_id,
+                'group_id': rs.group_id,
+                'attr':{
+                    'name': rs.attr_name,
+                    'description':rs.attr_description,
+                    'id': rs.attr_id
+                }
+            })
+
+            rs_dataset = JSONDataset({
+                'id':rs.dataset_id,
+                'type' : rs.type,
+                'unit_id' : rs.unit_id,
+                'name' : rs.name,
+                'hash' : rs.hash,
+                'cr_date':rs.cr_date,
+                'created_by':rs.created_by,
+                'hidden':rs.hidden,
+                'value':rs.value,
+                'metadata':{},
+            })
+            rs_obj.resourceattr = rs_attr
+            rs_obj.dataset = rs_dataset
+
+            processed_rs.append(rs_obj)
+
+        ## If metadata is requested, use a dedicated query to extract metadata
+        ## from the scenario's datasets,
+        ## and enter them into a lookup table, keyed by dataset_id so they can
+        ## be extracted later.
+        metadata_lookup = {}
+        if include_metadata is True:
+            dataset_ids = [rs.dataset.id for rs in processed_rs]
+            metadata = get_session().query(Metadata)\
+                        .join(Dataset)\
+                        .join(ResourceScenario)\
+                        .filter(ResourceScenario.scenario_id == self.id).all()
+            for m in metadata:
+                if metadata_lookup.get(m.dataset_id):
+                    metadata_lookup[m.dataset_id][m.key] = m.value
+                else:
+                    metadata_lookup[m.dataset_id] = {m.key:m.value}
+            for rs in processed_rs:
+                if rs.dataset.value is not None:
+                    rs.dataset.metadata = metadata_lookup.get(rs.dataset.id, {})
+        return processed_rs
 
     def get_group_items(self, child_items=None, get_parent_items=False):
         """
@@ -2173,9 +2623,9 @@ class RuleOwner(AuditMixin, Base, Inspect):
     user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
     rule_id = Column(Integer(), ForeignKey('tRule.id'), primary_key=True, nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    view = Column(String(1),  nullable=False)
-    edit = Column(String(1),  nullable=False)
-    share = Column(String(1),  nullable=False)
+    view = Column(String(1),  nullable=False, default='Y')
+    edit = Column(String(1),  nullable=False, default='N')
+    share = Column(String(1),  nullable=False, default='N')
 
     user = relationship('User', foreign_keys=[user_id])
     rule = relationship('Rule', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
@@ -2311,6 +2761,24 @@ class Rule(AuditMixin, Base, Inspect, PermissionControlled):
 
         return rule_network
 
+    def get_owners(self):
+        """
+            Get all the owners of a rule, both those which are applied directly
+            to this rule, but also who have been granted access via a project / network
+        """
+
+        owners = [JSONObject(o) for o in self.owners]
+        owner_ids = [o.user_id for o in owners]
+
+        network = self.get_network()
+        network_owners = list(filter(lambda x:x.user_id not in owner_ids, network.get_owners()))
+
+        for no in network_owners:
+            no.source = f'Inherited from: {po.network_name} (ID:{po.network_id})'
+
+        return owners + network_owners;
+
+
 class Note(Base, Inspect, PermissionControlled):
     """
         A note is an arbitrary piece of text which can be applied
@@ -2411,15 +2879,19 @@ class ProjectOwner(Base, Inspect):
     user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
     project_id = Column(Integer(), ForeignKey('tProject.id'), primary_key=True, nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    view = Column(String(1),  nullable=False)
-    edit = Column(String(1),  nullable=False)
-    share = Column(String(1),  nullable=False)
+    view = Column(String(1),  nullable=False, default='Y')
+    edit = Column(String(1),  nullable=False, default='N')
+    share = Column(String(1),  nullable=False, default='N')
 
     user = relationship('User')
     project = relationship('Project', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
 
     _parents  = ['tProject', 'tUser']
     _children = []
+
+    @property
+    def read(self):
+        return self.view
 
 class NetworkOwner(Base, Inspect):
     """
@@ -2430,9 +2902,9 @@ class NetworkOwner(Base, Inspect):
     user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
     network_id = Column(Integer(), ForeignKey('tNetwork.id'), primary_key=True, nullable=False)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    view = Column(String(1),  nullable=False)
-    edit = Column(String(1),  nullable=False)
-    share = Column(String(1),  nullable=False)
+    view = Column(String(1),  nullable=False, default='Y')
+    edit = Column(String(1),  nullable=False, default='N')
+    share = Column(String(1),  nullable=False, default='N')
 
     user = relationship('User')
     network = relationship('Network', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
@@ -2483,15 +2955,15 @@ class RolePerm(Base, Inspect):
     """
     """
 
-    __tablename__='tRolePerm'
+    __tablename__ = 'tRolePerm'
 
     perm_id = Column(Integer(), ForeignKey('tPerm.id'), primary_key=True, nullable=False)
     role_id = Column(Integer(), ForeignKey('tRole.id'), primary_key=True, nullable=False)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     perm = relationship('Perm', backref=backref('roleperms', uselist=True, lazy='joined'), lazy='joined')
     role = relationship('Role', backref=backref('roleperms', uselist=True, lazy='joined'), lazy='joined')
 
-    _parents  = ['tRole', 'tPerm']
+    _parents = ['tRole', 'tPerm']
     _children = []
 
     def __repr__(self):

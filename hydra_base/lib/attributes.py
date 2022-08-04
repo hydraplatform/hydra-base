@@ -23,7 +23,7 @@ import logging
 
 from collections import defaultdict
 
-from sqlalchemy import or_, and_
+from sqlalchemy import or_, and_, func
 from sqlalchemy.orm import aliased, joinedload
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import IntegrityError
@@ -47,7 +47,6 @@ from ..db.model import Attr,\
         Dimension, \
         Unit
 
-from sqlalchemy import func
 
 from .. import db
 
