@@ -84,7 +84,8 @@ class TestScopedAttribute:
         #This should not have changed
         assert len(global_attributes_no_network) == len(all_global_attributes)
 
-        assert len(network_scoped_attributes) == 1
+        #It's 2 because there is one added by default to all new networks, plus the one we just added
+        assert len(network_scoped_attributes) == 2
 
 
     def test_add_project_scoped_attribute(self, client, network_with_data):
@@ -122,8 +123,9 @@ class TestScopedAttribute:
 
         #This should not have changed
         assert len(global_attributes_no_project) == len(all_global_attributes)
-
-        assert len(project_scoped_attributes) == 1
+        
+        #It's 2 because there is one added by default to all new projects, plus the one we just added
+        assert len(project_scoped_attributes) == 2
 
 
     def test_add_network_and_project_scoped_attribute(self, client, network_with_data):
@@ -165,7 +167,8 @@ class TestScopedAttribute:
         #This should not have changed
         assert len(global_attributes_no_network) == len(all_global_attributes)
 
-        assert len(network_scoped_attributes) == 1
+        #It's 2 because there is one added by default to all new networks and projects, plus the ones we just added
+        assert len(network_scoped_attributes) == 2
 
 
         project_scoped_attr = JSONObject({
@@ -183,21 +186,34 @@ class TestScopedAttribute:
         #This should not have changed
         assert len(global_attributes_no_project) == len(all_global_attributes)
 
-        assert len(project_scoped_attributes) == 1
+        #It's 2 because there is one added by default to all new projects, plus the one we just added
+        assert len(project_scoped_attributes) == 2
 
         project_and_network_scoped_attributes = client.get_attributes(
             project_id=network_with_data.project_id,
             network_id=network_with_data.id)
 
-        assert len(project_and_network_scoped_attributes) == 2
+        #It's 4 because there is one added by default to all new networks and projects, plus the ones we just added
+        assert len(project_and_network_scoped_attributes) == 4
 
 
         global_and_project_and_network_scoped_attributes = client.get_attributes(
             project_id=network_with_data.project_id,
             network_id=network_with_data.id,
             include_global=True)
+        
+        #It's 4 because there is one added by default to all new networks and projects, plus the ones we just added
+        assert len(global_and_project_and_network_scoped_attributes) == len(all_global_attributes) + 4
 
-        assert len(global_and_project_and_network_scoped_attributes) == len(all_global_attributes) + 2
+        #Now get project attributes, and include attributes from all networks within that project
+        global_and_project_and_network_scoped_attributes = client.get_attributes(
+            project_id=network_with_data.project_id,
+            include_global=True,
+            include_network_attributes=True)
+
+        #It's 4 because there is one added by default to all new networks and projects, plus the ones we just added
+        assert len(global_and_project_and_network_scoped_attributes) == len(all_global_attributes) + 4
+
 
     def test_add_duplicate_scoped_attribute(self, client, network_with_data):
         """

@@ -26,6 +26,7 @@ from collections import defaultdict
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import aliased, joinedload
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.exc import IntegrityError
 
 from ..db.model import Attr,\
         User,\
@@ -492,6 +493,8 @@ def delete_attribute(attr_id, **kwargs):
         return True
     except NoResultFound:
         raise ResourceNotFoundError("Attribute (attribute id=%s) does not exist"%(attr_id))
+    except IntegrityError:
+        raise HydraError("Unable to delete this attribute as it is in use in a Network")
 
 
 def add_attributes(attrs, **kwargs):
@@ -544,7 +547,7 @@ def add_attributes(attrs, **kwargs):
 
     return [JSONObject(a) for a in new_attrs]
 
-def get_attributes(network_id=None, project_id=None, include_global=False, **kwargs):
+def get_attributes(network_id=None, project_id=None, include_global=False, include_network_attributes=False, **kwargs):
     """
         Get all attributes.
         args:
@@ -552,6 +555,9 @@ def get_attributes(network_id=None, project_id=None, include_global=False, **kwa
             project_id (optional): Return project-scoped attributes (attributes defined only on a project)
             include_global (Bool): If a network ID or project ID are specified, global attributes are
                                    not returned unless this flag is True.
+            include_network_attributes (Bool): If a project ID is specified but not a network ID, then use
+                                               this flag to indicate whether the attributes scoped to all networks
+                                               inside the specified project should also be returned.
     """
 
     base_qry = db.DBSession.query(Attr)
@@ -569,20 +575,34 @@ def get_attributes(network_id=None, project_id=None, include_global=False, **kwa
     else:
         global_attrs = []
 
-
-    #Now get all project attributes
     project_scoped_attributes = []
+    network_scoped_attributes = []
+
+    
+    #Now get all project attributes
     if project_id is not None:
+        project = db.DBSession.query(Project).filter(Project.id==project_id).one()
         project_attributes = base_qry.filter(
             Attr.project_id == project_id).all()
         project_scoped_attributes = [JSONObject(a) for a in project_attributes]
+        for p in project_scoped_attributes:
+            p.project_name = project.name
+        
+        if network_id is None and include_network_attributes is True:
+            nets = db.DBSession.query(Network).filter(Network.project_id==project_id).all()
+            netlookup = {n.id:n for n in nets}
+            network_attributes = base_qry.filter(Attr.network_id.in_([n.id for n in nets])).all()
+            network_scoped_attributes = [JSONObject(a) for a in network_attributes]
+            for nsa in network_scoped_attributes:
+                nsa.network_name = netlookup[nsa.network_id].name
 
-
-    network_scoped_attributes = []
     if network_id is not None:
+        net = db.DBSession.query(Network).filter(Network.id==network_id).one()
         network_attributes = base_qry.filter(
             Attr.network_id == network_id).all()
         network_scoped_attributes = [JSONObject(a) for a in network_attributes]
+        for nsa in network_scoped_attributes:
+            nsa.network_name = net.name
 
     all_attrs = network_scoped_attributes + project_scoped_attributes + global_attrs
 
