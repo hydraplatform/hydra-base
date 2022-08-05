@@ -14,6 +14,8 @@ version = '0.1.14'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
+
+# Extensions
 import sphinx_rtd_theme
 
 extensions = [
@@ -22,10 +24,10 @@ extensions = [
     "sphinx.ext.napoleon"
 ]
 
+autodoc_member_order = 'bysource'
+
 templates_path = ['_templates']
 exclude_patterns = []
-
-
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
