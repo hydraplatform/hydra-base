@@ -35,5 +35,3 @@ exclude_patterns = []
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
 html_css_files = ['theme_override.css']
-
-#from hydra_base import __version__ as version
