@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EBSD constraints &mdash; hydra-base 0.1.14 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/theme_override.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> hydra-base
+          </a>
+              <div class="version">
+                0.1.14
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugins/index.html">Apps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../design/index.html">Design</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../implementation/index.html">Implementation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../webapi/index.html">Web API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../index.html">Developers documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">hydra-base</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>EBSD constraints</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/devdocs/techdocs/EBSD_constraints.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="ebsd-constraints">
+<h1>EBSD constraints<a class="headerlink" href="#ebsd-constraints" title="Permalink to this heading"></a></h1>
+<p>This document describes how constraints of an EBSD model can be generated from a
+Hydra dataset using groups. All code examples show how the different constraints
+are implemented in the EBSD GAMS code. The concepts shown here will be used for
+the development of a Hydra-EBSD plug-in.</p>
+<section id="general-remarks">
+<h2>General remarks<a class="headerlink" href="#general-remarks" title="Permalink to this heading"></a></h2>
+<p>It is assumed here that EBSD will have a template that defines one or multiple
+groups that are used in each constraint type.</p>
+</section>
+<section id="environmental-demand">
+<span id="id1"></span><h2>Environmental demand<a class="headerlink" href="#environmental-demand" title="Permalink to this heading"></a></h2>
+<dl class="simple">
+<dt>Implementation in GAMS:</dt><dd><p>Environmental demands are demands on a node or on a link. They are
+implemented as a normal group (named <code class="docutils literal notranslate"><span class="pre">envDEM</span></code>) summarising all nodes or
+links where environmental demands are necessary. Currently they are
+proportional to total supply from a source to a user. The values are chosen
+on a ‘scenario’ basis (Note: a scenario in EBSD is not the same as a
+scenario in Hydra, in EBSD a scenario refers to dry, wet and normal years).</p>
+</dd>
+<dt>Implementation in Hydra:</dt><dd><p>Nodes or links where an environmental demand is active, need to be
+summarised in one group. The group needs one attribute (the fraction of
+supply which is re-routed to the environment).</p>
+</dd>
+</dl>
+</section>
+<section id="water-treatment-works-constraints">
+<span id="id2"></span><h2>Water treatment works constraints<a class="headerlink" href="#water-treatment-works-constraints" title="Permalink to this heading"></a></h2>
+</section>
+<section id="negative-do">
+<span id="negative-d0"></span><h2>Negative DO<a class="headerlink" href="#negative-do" title="Permalink to this heading"></a></h2>
+<dl class="simple">
+<dt>Implementation in GAMS:</dt><dd><p>At the moment there is one equation for each node. Equations need to be
+hard-coded in the GAMS code.</p>
+</dd>
+</dl>
+</section>
+<section id="capacity-constraints">
+<span id="id3"></span><h2>Capacity constraints<a class="headerlink" href="#capacity-constraints" title="Permalink to this heading"></a></h2>
+<dl>
+<dt>Implementation in GAMS:</dt><dd><p>The set of existing capacity constraints is defined using the <code class="docutils literal notranslate"><span class="pre">capSET</span></code>
+variable:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">capSET</span> <span class="o">/</span>
+<span class="n">CAP14001</span>
+<span class="n">CAP14002</span>
+<span class="o">/</span>
+</pre></div>
+</div>
+<p>There are two groups for each resource type (node and link). A resource can
+either belong to a maximum capacity constraint or a minimum capacity
+constraint. Since equation of this constraint is of the form:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">sum</span><span class="p">(</span><span class="n">Supply</span><span class="p">[</span><span class="n">max_constr_nodes</span><span class="p">])</span> <span class="o">+</span> <span class="nb">sum</span><span class="p">(</span><span class="n">Flow</span><span class="p">[</span><span class="n">max_constr_links</span><span class="p">])</span>
+<span class="o">&lt;=</span>
+<span class="nb">sum</span><span class="p">(</span><span class="n">Supply</span><span class="p">[</span><span class="n">min_constr_nodes</span><span class="p">])</span> <span class="o">+</span> <span class="nb">sum</span><span class="p">(</span><span class="n">Flow</span><span class="p">[</span><span class="n">min_constr_links</span><span class="p">])</span>
+<span class="o">+</span> <span class="n">constr_flow</span><span class="p">[</span><span class="n">flow_scenario</span><span class="p">],</span>
+</pre></div>
+</div>
+<p>the groups are named after their position in the equation (left and right):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">capSleft</span><span class="p">(</span><span class="n">capSET</span><span class="p">,</span><span class="n">i</span><span class="p">)</span> <span class="o">/</span>
+<span class="n">CAP14001</span> <span class="o">.</span> <span class="n">Node1</span>
+<span class="n">CAP14001</span> <span class="o">.</span> <span class="n">Node2</span>
+<span class="o">/</span>
+
+<span class="n">capLleft</span><span class="p">(</span><span class="n">capSET</span><span class="p">,</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">)</span> <span class="o">/</span>
+<span class="n">CAP14002</span> <span class="o">.</span> <span class="n">Node1</span> <span class="o">.</span> <span class="n">Node2</span>
+<span class="o">/</span>
+
+<span class="n">capSright</span><span class="p">(</span><span class="n">capSET</span><span class="p">,</span><span class="n">i</span><span class="p">)</span> <span class="o">/</span>
+<span class="n">CAP14002</span> <span class="o">.</span> <span class="n">Node1</span>
+<span class="o">/</span>
+
+<span class="n">capLright</span><span class="p">(</span><span class="n">capSET</span><span class="p">,</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">)</span> <span class="o">/</span>
+<span class="n">cap14001</span> <span class="o">.</span> <span class="n">Node2</span> <span class="o">.</span> <span class="n">Node3</span>
+<span class="o">/</span>
+</pre></div>
+</div>
+<p>Data for flow constraints is stored as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">flow_scenario</span> <span class="o">/</span>
+<span class="n">FlowDYAA</span>
+<span class="n">FlowDYCP</span>
+<span class="n">FlowMDO</span>
+<span class="n">FlowNYAA</span>
+<span class="o">/</span>
+
+<span class="n">Table</span> <span class="n">constr_flow</span><span class="p">(</span><span class="n">capSET</span><span class="p">,</span><span class="n">flow_scenario</span><span class="p">)</span> <span class="o">/</span>
+          <span class="n">FlowDYAA</span> <span class="n">FlowDYCP</span> <span class="n">FlowMDO</span> <span class="n">FlowNYAA</span>
+<span class="n">CAP14001</span>  <span class="mi">50</span>       <span class="mi">60</span>       <span class="mi">60</span>      <span class="mi">15</span>
+<span class="n">CAP14002</span>  <span class="mi">30</span>       <span class="mi">30</span>       <span class="mi">15</span>      <span class="mi">30</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>From the EBSD code at hand, the implementation of these constraints is not
+entirely clear. There is a constraint group (<code class="docutils literal notranslate"><span class="pre">CAP14010</span></code>) that translates
+to the following equation:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">Supply</span><span class="p">[</span><span class="n">CAP14010</span><span class="p">])</span> <span class="o">+</span> <span class="nb">sum</span><span class="p">(</span><span class="n">Flow</span><span class="p">[</span><span class="n">CAP14010</span><span class="p">])</span> <span class="o">+</span> <span class="mi">110</span>
+</pre></div>
+</div>
+<p>This is equivalent to a negative minimum supply, unless we have a negative
+flow in some links belonging to the group CAP14010 (that doesn’t seem right).</p>
+</div>
+<dl>
+<dt>Implementation in Hydra:</dt><dd><p>Implementing these constraints in Hydra might be a bit tricky.</p>
+<p>The general form of a capacity constraint is:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>   <span class="s2">&quot;Nodes subject to maximum constraint&quot;</span>
+<span class="o">&lt;=</span> <span class="s2">&quot;Nodes subject to minimum constraint&quot;</span>
+ <span class="o">+</span> <span class="s2">&quot;Constant value&quot;</span>
+</pre></div>
+</div>
+<p>Basically each resource has to be grouped by constraint it belongs to and by
+position in the equation. There two possible positions for each resource
+type, on the left hand side of the equation and on the right hand side.
+Since Hydra knows the type of each resource, nodes and links can be mixed in
+one group. Also one node or link can be part of multiple constraints.</p>
+<p>This means we need to group the resources subject to a capacity constraint
+in a group that determines the constraint and a group that determines the
+position. This can only be achieved with hierarchical groups:</p>
+<blockquote>
+<div><table class="docutils align-default">
+<colgroup>
+<col style="width: 47%" />
+<col style="width: 53%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td colspan="2"><p><strong>Group:</strong> <code class="docutils literal notranslate"><span class="pre">Example</span> <span class="pre">capacity</span> <span class="pre">constraint</span></code></p></td>
+</tr>
+<tr class="row-even"><td colspan="2"><p><strong>Attributes:</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Constant</span> <span class="pre">value</span></code>:</p></td>
+<td><p>Number</p></td>
+</tr>
+<tr class="row-even"><td colspan="2"><p><strong>Members:</strong></p></td>
+</tr>
+<tr class="row-odd"><td colspan="2"><p><code class="docutils literal notranslate"><span class="pre">left</span></code> <em>(group)</em></p></td>
+</tr>
+<tr class="row-even"><td colspan="2"><p><code class="docutils literal notranslate"><span class="pre">right</span></code> <em>(group)</em></p></td>
+</tr>
+</tbody>
+</table>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 100%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>Group:</strong> <code class="docutils literal notranslate"><span class="pre">left</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Members:</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><em>Nodes on the left hand side</em></p></td>
+</tr>
+<tr class="row-even"><td><p><em>Links on the left hand side</em></p></td>
+</tr>
+</tbody>
+</table>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 100%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><strong>Group:</strong> <code class="docutils literal notranslate"><span class="pre">right</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Members:</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><em>Nodes on the right hand side</em></p></td>
+</tr>
+<tr class="row-even"><td><p><em>Links on the right hand side</em></p></td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>This means that there will be three groups for every capacity constraint.</p>
+</dd>
+</dl>
+</section>
+<section id="ratchet-constraints">
+<span id="id4"></span><h2>Ratchet constraints<a class="headerlink" href="#ratchet-constraints" title="Permalink to this heading"></a></h2>
+<dl class="simple">
+<dt>Implementation in GAMS:</dt><dd><p>Ratchet constraints act on one single node or link only.  Unfortunately
+there are no ratchet constraints in the EBSD code which was available at the
+time of writing of this document. But it can be inferred from the code that
+a flag determines, whether a ratchet constraint is active on a node or not.
+The flag is called <code class="docutils literal notranslate"><span class="pre">SO_Flg_RC</span></code> for options and <code class="docutils literal notranslate"><span class="pre">SE_Flg_RC</span></code> for existing
+nodes.</p>
+</dd>
+<dt>Implementation in Hydra:</dt><dd><p>Since a ratchet constraint only acts on one single node, a simple attribute
+to a node or a link is sufficient. Attribute names are <code class="docutils literal notranslate"><span class="pre">SO_Flg_RC</span></code> and
+<code class="docutils literal notranslate"><span class="pre">SO_Flg_RC</span></code>, respectively.</p>
+</dd>
+</dl>
+</section>
+<section id="start-date-constraints">
+<span id="id5"></span><h2>Start date constraints<a class="headerlink" href="#start-date-constraints" title="Permalink to this heading"></a></h2>
+<p>I have found no trace of such a constraint in the EBSD code. It will certainly
+act on one node or link only. It should therefore be possible to assign a value
+to an attribute of the node or link subject to this constraint.</p>
+</section>
+<section id="continuity-constraints">
+<span id="id6"></span><h2>Continuity constraints<a class="headerlink" href="#continuity-constraints" title="Permalink to this heading"></a></h2>
+<p>This is a constraint hard-coded in the EBSD code.</p>
+</section>
+<section id="mutually-exclusive-constraints">
+<span id="mutually-exclusive"></span><h2>Mutually exclusive constraints<a class="headerlink" href="#mutually-exclusive-constraints" title="Permalink to this heading"></a></h2>
+<dl>
+<dt>Implementation in GAMS:</dt><dd><p>In the GAMS code three sets are needed. One defines the groups within which
+nodes or links are mutually exclusive:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mutset</span>  <span class="o">/</span>
+   <span class="n">MUT0001</span>
+   <span class="n">MUT0002</span>
+<span class="o">/</span>
+</pre></div>
+</div>
+<p>Two sets define which nodes and links belong to which group:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">NmutexclSet</span><span class="p">(</span><span class="n">mutset</span><span class="p">,</span><span class="n">i</span><span class="p">)</span> <span class="s2">&quot;Assign nodes to group&quot;</span> <span class="o">/</span>
+    <span class="n">MUT00001</span> <span class="o">.</span> <span class="n">Node1</span>
+    <span class="n">MUT00001</span> <span class="o">.</span> <span class="n">Node2</span>
+<span class="o">/</span>
+
+<span class="n">LmutexclSet</span><span class="p">(</span><span class="n">mutset</span><span class="p">,</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">)</span> <span class="s2">&quot;Assign links to group&quot;</span> <span class="o">/</span>
+    <span class="n">MUT0001</span> <span class="o">.</span> <span class="n">Node1</span> <span class="o">.</span> <span class="n">Node</span> <span class="mi">2</span>
+<span class="o">/</span>
+</pre></div>
+</div>
+</dd>
+<dt>Implementation in Hydra:</dt><dd><p>Nodes and links need to be assigned to a group of the type <code class="docutils literal notranslate"><span class="pre">Mutually</span>
+<span class="pre">exclusive</span> <span class="pre">constraint</span></code>. This group does not need any attributes.</p>
+</dd>
+</dl>
+</section>
+<section id="prerequisite-constraints-and-or-lag-time">
+<span id="prerequisite-constraints"></span><h2>Prerequisite constraints (AND / OR / Lag time)<a class="headerlink" href="#prerequisite-constraints-and-or-lag-time" title="Permalink to this heading"></a></h2>
+<dl>
+<dt>Implementation in GAMS:</dt><dd><p>In GAMS, prerequisite constraints depend on the definition of five different
+sets. The implementation of AND and OR prerequisite constraints are
+equivalent.</p>
+<p>Definition of all constraints:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">prersetAND</span> <span class="o">/</span>
+<span class="n">prer0001</span>
+<span class="n">prer0002</span>
+<span class="o">/</span>
+</pre></div>
+</div>
+<p>Nodes on the left and the right hand side of the equation:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">NprerSETleftAND</span> <span class="p">(</span><span class="n">prersetAND</span><span class="p">,</span><span class="n">i</span><span class="p">)</span> <span class="o">/</span>
+<span class="n">prer0001</span><span class="o">.</span><span class="n">Node1</span>
+<span class="n">prer0002</span><span class="o">.</span><span class="n">Node2</span>
+<span class="o">/</span>
+
+<span class="n">NprerSETrightAND</span> <span class="p">(</span><span class="n">prersetAND</span><span class="p">,</span><span class="n">i</span><span class="p">)</span> <span class="o">/</span>
+<span class="n">prer0001</span><span class="o">.</span><span class="n">Node3</span>
+<span class="n">prer0001</span><span class="o">.</span><span class="n">Node4</span>
+<span class="o">/</span>
+</pre></div>
+</div>
+<p>Links on the left and the right hand side of the equation:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">LprerSETleftAND</span> <span class="p">(</span><span class="n">prersetAND</span><span class="p">,</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">)</span> <span class="o">/</span>
+<span class="n">prer001</span><span class="o">.</span><span class="n">Node1</span><span class="o">.</span><span class="n">Node3</span>
+<span class="o">/</span>
+
+<span class="n">LprerSETrightAND</span> <span class="p">(</span><span class="n">prersetAND</span><span class="p">,</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">)</span> <span class="o">/</span>
+<span class="n">prer001</span><span class="o">.</span><span class="n">Node3</span><span class="o">.</span><span class="n">Node4</span>
+<span class="o">/</span>
+</pre></div>
+</div>
+<p>This grouping is equivalent to the grouping for capacity constraints.</p>
+</dd>
+<dt>Implementation in Hydra:</dt><dd><p>The structure of groups needed for prerequisite constraints is equivalent
+to the structure needed for <a class="reference internal" href="#capacity-constraints"><span class="std std-ref">Capacity constraints</span></a>. Each constraint uses a
+constraint group and two sub-groups. The constraint group has an attribute
+<code class="docutils literal notranslate"><span class="pre">lagyear</span></code> and. The two sub-groups determine whether a resource (node or
+link) is on the left or the right hand side of the equation.</p>
+</dd>
+</dl>
+</section>
+<section id="mutually-dependent-constraints">
+<span id="id7"></span><h2>Mutually dependent constraints<a class="headerlink" href="#mutually-dependent-constraints" title="Permalink to this heading"></a></h2>
+<p>See <a class="reference internal" href="#mutually-exclusive"><span class="std std-ref">Mutually exclusive constraints</span></a>.</p>
+</section>
+<section id="flow-constraints">
+<span id="id8"></span><h2>Flow constraints<a class="headerlink" href="#flow-constraints" title="Permalink to this heading"></a></h2>
+<p>See <a class="reference internal" href="#capacity-constraints"><span class="std std-ref">Capacity constraints</span></a>.</p>
+</section>
+<section id="demand-management-constraints">
+<span id="id9"></span><h2>Demand management constraints<a class="headerlink" href="#demand-management-constraints" title="Permalink to this heading"></a></h2>
+<dl class="simple">
+<dt>Implemenation in GAMS:</dt><dd><p>There is one group (<code class="docutils literal notranslate"><span class="pre">DMLR</span></code>) that defines which nodes are subject to demand
+management constraints. There are time series associated with each single
+node.</p>
+</dd>
+<dt>Implementation in Hydra:</dt><dd><p>This constraint needs one single group without attributes. The timeseries
+attribute needed are attached to each node.</p>
+</dd>
+</dl>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, The University of Manchester.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+<script type="text/javascript">
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+     (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+       m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+         })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-71439863-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+
+</body>
+</html>

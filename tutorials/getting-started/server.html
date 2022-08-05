@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>How to run the server natively on Windows Using python. &mdash; hydra-base 0.1.14 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/theme_override.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="HydraPlatform web service" href="../webservice/index.html" />
+    <link rel="prev" title="Getting started" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> hydra-base
+          </a>
+              <div class="version">
+                0.1.14
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Tutorials</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Getting started</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">How to run the server natively on Windows Using python.</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#running-the-server-and-client">Running the server and client</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#creating-the-windows-executable-using-cx-freeze-deprecated">Creating the windows executable using cx_Freeze (deprecated)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#building-windows-execuatable-using-pyinstaller">Building windows execuatable using Pyinstaller</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#installing-python">Installing Python</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#additional-libraries">Additional Libraries</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../webservice/index.html">HydraPlatform web service</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../plug-in/index.html">App development</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../using-templates/index.html">Building HydraPlatform templates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugins/index.html">Apps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../design/index.html">Design</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../implementation/index.html">Implementation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../webapi/index.html">Web API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../devdocs/index.html">Developers documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">hydra-base</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Tutorials</a> &raquo;</li>
+          <li><a href="index.html">Getting started</a> &raquo;</li>
+      <li>How to run the server natively on Windows Using python.</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/tutorials/getting-started/server.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="how-to-run-the-server-natively-on-windows-using-python">
+<h1>How to run the server natively on Windows Using python.<a class="headerlink" href="#how-to-run-the-server-natively-on-windows-using-python" title="Permalink to this heading"></a></h1>
+<p>The soap server runs in python (2.7), and requires some external
+libraries. The following lists all the istallations required to get
+the server up and running natively on Windows.</p>
+<p>First, you must install all the appropriate libraries, as described below.
+You will need to command prompt to do this.</p>
+<p>To open the command prommpt, click the ‘start button’, type ‘cmd’ and hit enter.</p>
+<section id="running-the-server-and-client">
+<h2>Running the server and client<a class="headerlink" href="#running-the-server-and-client" title="Permalink to this heading"></a></h2>
+<p>Open two command promots, and in both, navigate to the directory containing both the server and test python files.</p>
+<p>To run the server, in the first command prompt, type “python server.py”
+To run the test client, in the second command promot, type “python test.py”</p>
+</section>
+<section id="creating-the-windows-executable-using-cx-freeze-deprecated">
+<h2>Creating the windows executable using cx_Freeze (deprecated)<a class="headerlink" href="#creating-the-windows-executable-using-cx-freeze-deprecated" title="Permalink to this heading"></a></h2>
+<p>To create a windows executable, in the same directory as the server and test,
+type <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">setup.py</span> <span class="pre">build</span></code> This will create or update the
+build/exe.win23-2.7 directory.</p>
+<p>Thei server executable can be run by double-clicking on the server.bat file in
+the server directory from a windows explorer window.</p>
+</section>
+<section id="building-windows-execuatable-using-pyinstaller">
+<h2>Building windows execuatable using Pyinstaller<a class="headerlink" href="#building-windows-execuatable-using-pyinstaller" title="Permalink to this heading"></a></h2>
+<p>Make sure you have installed pip (<a class="reference internal" href="#pip"><span class="std std-ref">Additional Libraries</span></a>).</p>
+<p>Install pyinstaller (if you haven’t done so already):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">pyinstaller</span>
+</pre></div>
+</div>
+<p>Build the server:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pyinstaller</span> <span class="n">server</span><span class="o">.</span><span class="n">spec</span>
+</pre></div>
+</div>
+<p>The server can now be run in the commandline:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">dist</span>\<span class="n">server</span>\<span class="n">server</span><span class="o">.</span><span class="n">exe</span>
+</pre></div>
+</div>
+</section>
+<section id="installing-python">
+<h2>Installing Python<a class="headerlink" href="#installing-python" title="Permalink to this heading"></a></h2>
+<p>Several installations of python are available.
+The one we recommend is <a class="reference external" href="http://code.google.com/p/pythonxy/wiki/Downloads">PythonXY</a></p>
+<p>Some of the libraries may require you to install them from source. This means
+running a setup python file in a zip file you have downloaded. To ensure you can unzip the files correctly, make sure you have an unzip program installed like <a class="reference external" href="http://peazip.sourceforge.net/">PeaZip</a></p>
+<p>For the moment, we recommend installing the 32 bit version of python, even
+if your operating system is 64 bit. This ensures maximum compatability, particularly
+if you need to build the server as an exe.</p>
+</section>
+<section id="additional-libraries">
+<span id="pip"></span><h2>Additional Libraries<a class="headerlink" href="#additional-libraries" title="Permalink to this heading"></a></h2>
+<p>First off, you need to install Pip. This is a tool which downloads and installs python libraries for you.</p>
+<ul class="simple">
+<li><p>Navigate to <a class="reference external" href="http://www.lfd.uci.edu/~gohlke/pythonlibs/">pythonlibs</a></p></li>
+<li><p>Search for Pip</p></li>
+<li><p>Download and install this exe: pip-2.4.1.win32-py2.7.exe</p></li>
+</ul>
+<p>To use Pip, open the command prompt.</p>
+<p>To check if Pip is working, type ‘pip’. It should print out some documentation.</p>
+<section id="spyne">
+<h3>Spyne<a class="headerlink" href="#spyne" title="Permalink to this heading"></a></h3>
+<p>Spyne is the SOAP server library.</p>
+<p><em>edit</em>: The spyne library has a small bug, which needs to be fixed in order
+to work with plugins. The fixed version is available here. To install it, you
+need to download the zip file on the right hand side of this page: <a class="reference external" href="https://github.com/knoxsp/spyne">https://github.com/knoxsp/spyne</a></p>
+<p>Open up this zip file somewhere and navigate to this directory in the command line.
+Then type <cite>python setup.py install</cite> or read the Read me.</p>
+<p>If this does not work and you want to install the base version of spyne, do the
+following:</p>
+<p>In the command prompt, type:</p>
+<p><cite>pip install spyne</cite></p>
+<p>Should this fail, you must install it from source. Don’t worry. It’s easy.
+The source is available at: www.spyne.io</p>
+<ul class="simple">
+<li><p>Click on <cite>Download</cite> at the top.</p></li>
+<li><p>This will download a file called something like: spyne-2.10.9.tar.gz</p></li>
+<li><p>Once done, unzip the file.
+(If you are using peazip, right-click on the downloaded spyne file and click PeaZIp &gt; ExtractHere.
+This will create a new file to which you can navigate. Perform the same procedure on the tar
+file in the new directory. This will again create a new directory containing the source.)</p></li>
+<li><p>Navigate to the file containing the source. Something like:</p></li>
+<li><p><cite>cd Downloadsspyne-2.10.9.tardistspyne-2.10.9spyne</cite></p></li>
+<li><p><cite>python setup.py install</cite></p></li>
+</ul>
+<p>The screen should fill with logging and after about 5 seconds, you are done.</p>
+</section>
+<section id="suds">
+<h3>Suds<a class="headerlink" href="#suds" title="Permalink to this heading"></a></h3>
+<p>Suds is the soap client library. This is not needed for the server to run, but is needed to build the server executable as the test is built into this process.</p>
+<p>first try:
+<cite>pip install suds</cite></p>
+<p>If this fails, you must install it from source. This process is identical to that of installing spyne.</p>
+<ul class="simple">
+<li><p>Download the SUDS source at: <a class="reference external" href="https://fedorahosted.org/releases/s/u/suds/python-suds-0.4.tar.gz">https://fedorahosted.org/releases/s/u/suds/python-suds-0.4.tar.gz</a></p></li>
+<li><p>Once downloaded navigate to the file and unzip it (See above on how to do this).</p></li>
+<li><p>Open up a command prompt</p></li>
+<li><p>Navigate to the file containing the source. Something like:</p></li>
+<li><p>cd Downloadspython-suds-0.4.tarpython-suds-0.4</p></li>
+<li><p>Type <cite>python setup.py install</cite></p></li>
+</ul>
+<p>The screen should fill with logging and after about 5 seconds, you are done.</p>
+</section>
+<section id="bcrypt">
+<h3>Bcrypt<a class="headerlink" href="#bcrypt" title="Permalink to this heading"></a></h3>
+<p>Try:
+<cite>pip install bcrypt</cite></p>
+<p>If you see some errors referring to ‘vcvarsall.bat’, then download and install the executable, located here:</p>
+<p><a class="reference external" href="https://bitbucket.org/alexandrul/py-bcrypt/downloads/">https://bitbucket.org/alexandrul/py-bcrypt/downloads/</a></p>
+<p>If the file extention ends with a <cite>.whl</cite>, then do the following:
+<cite>pip install wheel</cite>
+<cite>wheel install py-bcrypt_my_version.whl</cite></p>
+</section>
+<section id="mysql-connector">
+<h3>MySql Connector<a class="headerlink" href="#mysql-connector" title="Permalink to this heading"></a></h3>
+<p>Navigate to: <a class="reference external" href="http://dev.mysql.com/downloads/connector/python/">http://dev.mysql.com/downloads/connector/python/</a></p>
+<p>Click on ‘Download’ of the MSI installer appropriate for your windows installation.</p>
+</section>
+<section id="sqlalchemy">
+<h3>SqlAlchemy<a class="headerlink" href="#sqlalchemy" title="Permalink to this heading"></a></h3>
+<p>Try:
+<cite>pip install sqlalchemy</cite></p>
+<p>We use sqlalchemy to provide database connections and manage the database communication.</p>
+</section>
+<section id="zope-sqlalchemy">
+<h3>zope.sqlalchemy<a class="headerlink" href="#zope-sqlalchemy" title="Permalink to this heading"></a></h3>
+<p>Try:
+<cite>pip install zope.sqlalchemy</cite></p>
+<p>The aim of this package is to unify the plethora of existing packages integrating
+SQLAlchemy with Zope’s transaction management. As such it seeks only to provide
+a data manager and makes no attempt to define a zopeish way to configure engines.</p>
+</section>
+<section id="pandas">
+<h3>Pandas<a class="headerlink" href="#pandas" title="Permalink to this heading"></a></h3>
+<p>Try:
+<cite>pip install pandas</cite></p>
+<p>Pandas allows us to manipulate and store timeseries and arrays in a very efficient and flexible way.</p>
+</section>
+<section id="winpath">
+<h3>winpath<a class="headerlink" href="#winpath" title="Permalink to this heading"></a></h3>
+<p>Try:
+<cite>pip install winpath</cite></p>
+<p>winpath is a python module that retrieves the names of common Windows folders.</p>
+</section>
+<section id="cherrypy">
+<h3>CherryPy<a class="headerlink" href="#cherrypy" title="Permalink to this heading"></a></h3>
+<p>Try:
+<cite>pip install cherrypy</cite></p>
+<p>CherryPy allows developers to build web applications in much the same way they would build any other object-oriented Python program.</p>
+</section>
+<section id="python-dateutil">
+<h3>python-dateutil<a class="headerlink" href="#python-dateutil" title="Permalink to this heading"></a></h3>
+<p>Try:
+<cite>pip install python-dateutil</cite></p>
+<p>The dateutil module provides powerful extensions to the standard datetime module.</p>
+</section>
+<section id="lxml">
+<h3>lxml<a class="headerlink" href="#lxml" title="Permalink to this heading"></a></h3>
+<p><cite>pip install lxml</cite>
+Lxml is an efficient library for parsing XML content.</p>
+</section>
+<section id="pywin32">
+<h3>pywin32:<a class="headerlink" href="#pywin32" title="Permalink to this heading"></a></h3>
+<p>If you plan on building the server into an exe, you will need this:
+<a class="reference external" href="http://sourceforge.net/projects/pywin32/">http://sourceforge.net/projects/pywin32/</a></p>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Getting started" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../webservice/index.html" class="btn btn-neutral float-right" title="HydraPlatform web service" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, The University of Manchester.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+<script type="text/javascript">
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+     (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+       m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+         })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-71439863-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+
+</body>
+</html>

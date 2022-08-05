@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>How to set up your account for SVN+SSH and Trac &mdash; hydra-base 0.1.14 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/theme_override.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> hydra-base
+          </a>
+              <div class="version">
+                0.1.14
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugins/index.html">Apps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../design/index.html">Design</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../implementation/index.html">Implementation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../webapi/index.html">Web API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html">Developers documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">hydra-base</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>How to set up your account for SVN+SSH and Trac</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/devdocs/account.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="how-to-set-up-your-account-for-svn-ssh-and-trac">
+<h1>How to set up your account for SVN+SSH and Trac<a class="headerlink" href="#how-to-set-up-your-account-for-svn-ssh-and-trac" title="Permalink to this heading"></a></h1>
+<section id="svn-ssh-for-windows-users">
+<h2>SVN+SSH for Windows users<a class="headerlink" href="#svn-ssh-for-windows-users" title="Permalink to this heading"></a></h2>
+<section id="ssh">
+<h3>SSH<a class="headerlink" href="#ssh" title="Permalink to this heading"></a></h3>
+<ol class="arabic">
+<li><p>Install PuTTY and friends: <a class="reference external" href="http://the.earth.li/~sgtatham/putty/latest/x86/putty-0.63-installer.exe">http://the.earth.li/~sgtatham/putty/latest/x86/putty-0.63-installer.exe</a></p></li>
+<li><p>Start PuTTYgen (puttygen.exe) and generate a new SSH-2/RSA key.</p></li>
+<li><p>Add a passphrase.</p></li>
+<li><p>Save both keys (private and public).</p></li>
+<li><p>Send the <strong>public</strong> key and a username you’d like to have to the system
+administrator (currently <a class="reference external" href="mailto:p&#46;meier&#37;&#52;&#48;ucl&#46;ac&#46;uk">p<span>&#46;</span>meier<span>&#64;</span>ucl<span>&#46;</span>ac<span>&#46;</span>uk</a>)</p></li>
+<li><p>Once your account is created it’s time to test it:</p>
+<blockquote>
+<div><ol class="loweralpha simple">
+<li><p>Start up  PuTTY.</p></li>
+<li><p>In the “Session” tab enter the hostname
+(ec2-54-229-95-247.eu-west-1.compute.amazonaws.com), port 22 is fine.</p></li>
+<li><p>Go to the “SSH -&gt; Auth” tab and load your private key file generated
+before.</p></li>
+<li><p>Go back to the “Session” tab, give the connection a name (it is best if
+you use the domain name as session name) and hit “Save”</p></li>
+<li><p>Select the connection just created and hit “Open”</p></li>
+<li><p>A window will ask you for your username and private key passphrase</p></li>
+<li><p>If you see no error messages, your account is created successfully.
+<strong>Congratulations!</strong></p></li>
+</ol>
+</div></blockquote>
+</li>
+<li><p>Start <em>Pageant</em>, which is part of the PuTTY installation. A new icon will
+appear in the notification toolbar (bottom right).</p></li>
+<li><p>Right click on this icon and select <em>Add key …</em>.</p></li>
+<li><p>Locate your private key file and load it. You will have to provide your key
+pass phrase.</p></li>
+</ol>
+<p>You are now ready to checkout the source code from the repository.</p>
+</section>
+<section id="svn">
+<h3>SVN<a class="headerlink" href="#svn" title="Permalink to this heading"></a></h3>
+<ol class="arabic">
+<li><p>Install TortoiseSVN, you can get it from here: <a class="reference external" href="http://sourceforge.net/projects/tortoisesvn/?source=pdlp">http://sourceforge.net/projects/tortoisesvn/?source=pdlp</a></p></li>
+<li><p>Create a folder where the code should be checked out to. Right click that
+folder and select <em>SVN Checkout…</em>.</p>
+<p>The URL of the SVN repository is:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">svn</span><span class="o">+</span><span class="n">ssh</span><span class="p">:</span><span class="o">//&lt;</span><span class="n">user</span><span class="o">&gt;</span><span class="nd">@ec2</span><span class="o">-</span><span class="mi">54</span><span class="o">-</span><span class="mi">229</span><span class="o">-</span><span class="mi">95</span><span class="o">-</span><span class="mf">247.</span><span class="n">eu</span><span class="o">-</span><span class="n">west</span><span class="o">-</span><span class="mf">1.</span><span class="n">compute</span><span class="o">.</span><span class="n">amazonaws</span><span class="o">.</span><span class="n">com</span>
+<span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">svn</span><span class="o">/</span><span class="n">svnrepository</span><span class="o">/</span><span class="n">HYDRA</span>
+</pre></div>
+</div>
+</li>
+</ol>
+</section>
+</section>
+<section id="svn-ssh-for-linux-users">
+<h2>SVN+SSH for Linux users<a class="headerlink" href="#svn-ssh-for-linux-users" title="Permalink to this heading"></a></h2>
+<p>Creating an account is pretty much the same as the procedure for Windows users. A few
+helpful commands are listed below.</p>
+<ol class="arabic">
+<li><p>Generate a key pair:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ssh</span><span class="o">-</span><span class="n">keygen</span> <span class="o">-</span><span class="n">b</span> <span class="mi">2048</span> <span class="o">-</span><span class="n">t</span> <span class="n">rsa</span> <span class="o">-</span><span class="n">N</span> <span class="o">&lt;</span><span class="n">passphrase</span><span class="o">&gt;</span> <span class="o">-</span><span class="n">f</span> <span class="o">&lt;</span><span class="n">keyfile</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+</li>
+<li><p>Let ssh know that you would like to use this key-file for connection with the
+Hydra server. Add the following to <code class="docutils literal notranslate"><span class="pre">~/.ssh/config</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Host</span> <span class="n">ec2</span><span class="o">-</span><span class="mi">54</span><span class="o">-</span><span class="mi">229</span><span class="o">-</span><span class="mi">95</span><span class="o">-</span><span class="mf">247.</span><span class="n">eu</span><span class="o">-</span><span class="n">west</span><span class="o">-</span><span class="mf">1.</span><span class="n">compute</span><span class="o">.</span><span class="n">amazonaws</span><span class="o">.</span><span class="n">com</span> <span class="n">ec2hydra</span>
+    <span class="n">Hostname</span> <span class="n">ec2</span><span class="o">-</span><span class="mi">54</span><span class="o">-</span><span class="mi">229</span><span class="o">-</span><span class="mi">95</span><span class="o">-</span><span class="mf">247.</span><span class="n">eu</span><span class="o">-</span><span class="n">west</span><span class="o">-</span><span class="mf">1.</span><span class="n">compute</span><span class="o">.</span><span class="n">amazonaws</span><span class="o">.</span><span class="n">com</span>
+    <span class="n">IdentityFile</span> <span class="o">&lt;</span><span class="n">keyfile</span><span class="o">&gt;</span>
+    <span class="n">User</span> <span class="o">&lt;</span><span class="n">username</span><span class="o">&gt;</span>
+    <span class="n">ForwardX11</span> <span class="n">no</span>
+</pre></div>
+</div>
+<p>This will also provide a shortcut to the server which allows you to connect like this:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ssh</span> <span class="o">&lt;</span><span class="n">username</span><span class="o">&gt;</span><span class="nd">@ec2hydra</span>
+</pre></div>
+</div>
+</li>
+</ol>
+</section>
+<section id="trac">
+<h2>Trac<a class="headerlink" href="#trac" title="Permalink to this heading"></a></h2>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Trac accouts are created on request. If you don’t need access to the SVN
+repository, you can still get an account for Trac. A user account will allow
+you to view the source code, file bugs, etc.</p>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, The University of Manchester.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+<script type="text/javascript">
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+     (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+       m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+         })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-71439863-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+
+</body>
+</html>

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3. Connecting to Hydra Platform &mdash; hydra-base 0.1.14 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/theme_override.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="4. Exporting the Network" href="export.html" />
+    <link rel="prev" title="2. Imports" href="imports.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> hydra-base
+          </a>
+              <div class="version">
+                0.1.14
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Tutorials</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../getting-started/index.html">Getting started</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../webservice/index.html">HydraPlatform web service</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">App development</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="index.html#general-concepts">General concepts</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="index.html#developing-an-app-in-python">Developing an app in Python</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="setup.html">1. Setup</a></li>
+<li class="toctree-l4"><a class="reference internal" href="imports.html">2. Imports</a></li>
+<li class="toctree-l4 current"><a class="current reference internal" href="#">3. Connecting to Hydra Platform</a></li>
+<li class="toctree-l4"><a class="reference internal" href="export.html">4. Exporting the Network</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parsing_arguments.html">5. Parsing the Arguments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="run.html">6. Running the Code</a></li>
+<li class="toctree-l4"><a class="reference internal" href="documentation.html">7. Documentation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="templates.html">8. Working with templates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="integration.html">9. Integrating the plug-in into Hydra Modeller</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../using-templates/index.html">Building HydraPlatform templates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugins/index.html">Apps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../design/index.html">Design</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../implementation/index.html">Implementation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../webapi/index.html">Web API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../devdocs/index.html">Developers documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">hydra-base</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Tutorials</a> &raquo;</li>
+          <li><a href="index.html">App development</a> &raquo;</li>
+      <li><span class="section-number">3. </span>Connecting to Hydra Platform</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/tutorials/plug-in/connecting.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="connecting-to-hydra-platform">
+<h1><span class="section-number">3. </span>Connecting to Hydra Platform<a class="headerlink" href="#connecting-to-hydra-platform" title="Permalink to this heading"></a></h1>
+<p>To start the Plugin, we create an <code class="docutils literal notranslate"><span class="pre">ExportJSON</span></code> class which will do our
+work for us.</p>
+<p>The constructor of this class, <code class="docutils literal notranslate"><span class="pre">__init__</span></code> takes two arguments:
+a URL and a session_id. The url tells the plugin where Hydra Platform is. If this is left as None, a default is found in config.</p>
+<p>The second parameter is session_id. If a user is already connected to Hydra, (through Hydra Modeller) they already have a session ID.
+By passing their existing session ID into the plugin,
+there is no need for the user to log in again.</p>
+<p>The connection is created by creating a new <code class="docutils literal notranslate"><span class="pre">JsonConnection</span></code> object, passing
+in the url and then calling <code class="docutils literal notranslate"><span class="pre">login</span></code> if necessary. This can take a username and password, but if not provided, these details are fetched from config.</p>
+<p>Finally <code class="docutils literal notranslate"><span class="pre">self.num_steps</span></code> is defined. This simply allows us to keep track of how many steps there are in the plugin, so that we can use it as a way to display to the user at what point in the process the plugin is currently operating.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">ExportJSON</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">       Exporter of Hydra networks to JSON or XML files.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">session_id</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+        <span class="c1">#Record the names of the files created by the plugin so we can</span>
+        <span class="c1">#display them to the user.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">files</span>    <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">connection</span> <span class="o">=</span> <span class="n">JsonConnection</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+        <span class="n">write_output</span><span class="p">(</span><span class="s2">&quot;Connecting...&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">session_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Using existing session </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">session_id</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">session_id</span><span class="o">=</span><span class="n">session_id</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connection</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_steps</span> <span class="o">=</span> <span class="mi">3</span>
+</pre></div>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="imports.html" class="btn btn-neutral float-left" title="2. Imports" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="export.html" class="btn btn-neutral float-right" title="4. Exporting the Network" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, The University of Manchester.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+<script type="text/javascript">
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+     (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+       m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+         })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-71439863-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+
+</body>
+</html>

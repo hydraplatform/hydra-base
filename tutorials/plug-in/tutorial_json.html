@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Developing a app using JSON &mdash; hydra-base 0.1.14 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/theme_override.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Developing a app using SOAP" href="tutorial_soap.html" />
+    <link rel="prev" title="App development" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> hydra-base
+          </a>
+              <div class="version">
+                0.1.14
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Tutorials</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../getting-started/index.html">Getting started</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../webservice/index.html">HydraPlatform web service</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">App development</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="index.html#general-concepts">General concepts</a><ul class="current">
+<li class="toctree-l4 current"><a class="current reference internal" href="#">Developing a app using JSON</a></li>
+<li class="toctree-l4"><a class="reference internal" href="tutorial_soap.html">Developing a app using SOAP</a></li>
+<li class="toctree-l4"><a class="reference internal" href="tutorial_xml.html">App XML</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="index.html#developing-an-app-in-python">Developing an app in Python</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../using-templates/index.html">Building HydraPlatform templates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugins/index.html">Apps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../design/index.html">Design</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../implementation/index.html">Implementation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../webapi/index.html">Web API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../devdocs/index.html">Developers documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">hydra-base</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Tutorials</a> &raquo;</li>
+          <li><a href="index.html">App development</a> &raquo;</li>
+      <li>Developing a app using JSON</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/tutorials/plug-in/tutorial_json.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="developing-a-app-using-json">
+<span id="json-app-example"></span><h1>Developing a app using JSON<a class="headerlink" href="#developing-a-app-using-json" title="Permalink to this heading"></a></h1>
+<p>Developing an app involves connecting to Hydra through its SOAP or JSON API.
+Here we provide an example of simple app, which retrieves a network.
+This example uses the requests python library to connect to JSON api.</p>
+<section id="creating-a-client">
+<h2>Creating a client<a class="headerlink" href="#creating-a-client" title="Permalink to this heading"></a></h2>
+<p>First, the WSDL must be identified and connected to the library.
+By default, the hydra server is hosted on port 8080: <code class="docutils literal notranslate"><span class="pre">http://localhost:8080/json</span></code></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">HydraLib.PluginLib</span> <span class="kn">import</span> <span class="n">JsonConnection</span>
+<span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;http://localhost:8080/json?wsdl&quot;</span>
+<span class="n">conn</span> <span class="o">=</span> <span class="n">JsonConnection</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="connect-to-the-server">
+<h2>Connect to the server<a class="headerlink" href="#connect-to-the-server" title="Permalink to this heading"></a></h2>
+<p>As the app connects to a remote server, a login is required so that data is protected.
+For local use with one user, this can simply be read from a config file.
+Once login is performed, the <code class="docutils literal notranslate"><span class="pre">session_id</span></code> must be stored and added to the request
+header for all subsequent requests. Hydra provides a library which handles this through
+the JsonConnection object. To log in, just call <code class="docutils literal notranslate"><span class="pre">login</span></code> like so:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">login_response</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">login</span><span class="p">(</span><span class="s1">&#39;myuser&#39;</span><span class="p">,</span> <span class="s1">&#39;Pa55w0rD&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="creating-a-network-instance">
+<h2>Creating a network instance<a class="headerlink" href="#creating-a-network-instance" title="Permalink to this heading"></a></h2>
+<p>Having successfully logged in, networks can be added, accessed and manipulated.</p>
+<p>Hydra employs following structure:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Project</span> <span class="o">-&gt;</span>
+   <span class="n">Networks</span> <span class="o">-&gt;</span>
+       <span class="n">Nodes</span> <span class="o">-&gt;</span>
+           <span class="n">Node</span> <span class="n">Attributes</span>
+       <span class="n">Links</span> <span class="o">-&gt;</span>
+           <span class="n">Link</span> <span class="n">Attributes</span>
+       <span class="n">Scenarios</span> <span class="o">-&gt;</span>
+           <span class="n">Data</span>
+</pre></div>
+</div>
+<p>This way, a project can contain multiple networks, which can in turn contain
+multiple scenarios. A scenario represents one ‘state’ of the network.</p>
+<p>Before a network can be created, we must first create a project</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">proj</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;JSON test </span><span class="si">%s</span><span class="s1">&#39;</span><span class="o">%</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()))</span>
+<span class="n">project</span>   <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="s1">&#39;add_project&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;project&#39;</span><span class="p">:</span><span class="n">proj</span><span class="p">})</span>
+</pre></div>
+</div>
+<p>A network can now be created
+.. code-block:: python</p>
+<blockquote>
+<div><dl>
+<dt>net  = dict(</dt><dd><blockquote>
+<div><p>name        = args.network_name
+description = “A network created by the example plugin”
+project_id  = project.id #Note that the project now has an ID, after adding it</p>
+</div></blockquote>
+<p>)</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>Nodes can now be added to the project</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">node1</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+    <span class="nb">id</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Node 1&quot;</span><span class="p">,</span>
+    <span class="n">description</span> <span class="o">=</span> <span class="s2">&quot;A node representing a water resource&quot;</span><span class="p">,</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+
+<span class="n">node2</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+    <span class="n">node1</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="o">-</span><span class="mi">2</span><span class="p">,</span>
+    <span class="n">node2</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Node 2&quot;</span><span class="p">,</span>
+    <span class="n">node2</span><span class="o">.</span><span class="n">description</span> <span class="o">=</span> <span class="s2">&quot;A node representing another water resource&quot;</span><span class="p">,</span>
+    <span class="n">node2</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+    <span class="n">node2</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">nodes</span> <span class="o">=</span> <span class="p">[</span><span class="n">node1</span><span class="p">,</span> <span class="n">node2</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>…and now we link the nodes</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">link</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Link 1&quot;</span><span class="p">,</span>
+    <span class="n">description</span> <span class="o">=</span> <span class="s2">&quot;A link between two water resources&quot;</span><span class="p">,</span>
+    <span class="n">node_1_id</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="n">node_2_id</span> <span class="o">=</span> <span class="o">-</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">links</span> <span class="o">=</span> <span class="p">[</span><span class="n">link</span><span class="p">]</span>
+
+<span class="n">network</span><span class="p">[</span><span class="s1">&#39;nodes&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">nodes</span>
+<span class="n">network</span><span class="p">[</span><span class="s1">&#39;links&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">linkd</span>
+</pre></div>
+</div>
+<p>One slight complication with linking nodes is that the
+nodes do not yet have IDS. So how do the links what they are connecting? For this,
+<strong>temporary negative IDS</strong> are used. Notice on the nodes above, they have been assigned negative IDS. These will be replaced by permenant, positive IDS once the data is inserted into hydra. <em>Negative IDs are only necessary if the object needs to be referred to and the referrer is not a direct descendant of the referee.</em></p>
+<p>Now the network can be created</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">network</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="s1">&#39;add_network&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;net&#39;</span><span class="p">:</span><span class="n">network</span><span class="p">})</span>
+</pre></div>
+</div>
+</section>
+<section id="attributes">
+<h2>Attributes<a class="headerlink" href="#attributes" title="Permalink to this heading"></a></h2>
+<p>Hydra provides the feature to assign attributes to nodes and links.
+For example, data associated with a node representing a water treatment plant
+might be ‘capacity’, ‘annual energy cost’ or ‘daily throughput’.</p>
+<p>To achieve this, first the attributes themselves must be defined. Once an attribute
+is defined, it does not need to be defined again. It can be used throughout Hydra.
+A Name and Dimension uniquely define an attribute</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1">#Define the attribute details</span>
+<span class="n">name</span>      <span class="o">=</span> <span class="s2">&quot;Capacity&quot;</span>
+<span class="n">dimension</span> <span class="o">=</span> <span class="n">Volume</span>
+
+<span class="c1">#Check the attribute does not already exist.</span>
+<span class="n">attr</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="s1">&#39;get_attribute&#39;</span><span class="p">,</span> <span class="p">({</span><span class="s1">&#39;name&#39;</span><span class="p">:</span><span class="n">name</span><span class="p">,</span> <span class="s1">&#39;dimension&#39;</span><span class="p">:</span><span class="n">dimension</span><span class="p">})</span>
+<span class="k">if</span> <span class="n">attr</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">attr</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+        <span class="n">name</span>  <span class="o">=</span> <span class="n">name</span><span class="p">,</span>
+        <span class="n">dimen</span> <span class="o">=</span> <span class="n">dimension</span><span class="p">)</span>
+    <span class="n">attr</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="s1">&#39;get_attribute&#39;</span><span class="p">,</span> <span class="p">({</span><span class="s1">&#39;attr&#39;</span><span class="p">:</span><span class="n">attr</span><span class="p">})</span>
+</pre></div>
+</div>
+<p>Once the attribute has been defined, it can be assigned to the node.
+Going back to the network creation example, a node is defined as follows</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">node2</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+    <span class="nb">id</span> <span class="o">=</span> <span class="o">-</span><span class="mi">2</span><span class="p">,</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Node 2&quot;</span><span class="p">,</span>
+    <span class="n">description</span> <span class="o">=</span> <span class="s2">&quot;A node representing another water resource&quot;</span><span class="p">,</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>An attribute is added to this node using a <code class="docutils literal notranslate"><span class="pre">ResourceAttr</span></code> object.
+A <code class="docutils literal notranslate"><span class="pre">ResourceAttr</span></code> links a resource (a network, node or link) to a network. Each has
+its own id and ref_key, which indicates whether it refers to a node, link or network.
+In this example, the node <code class="docutils literal notranslate"><span class="pre">Node</span> <span class="pre">2</span></code> is being given attribute <code class="docutils literal notranslate"><span class="pre">Capacity</span></code></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">res_attr</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+    <span class="n">ref_key</span> <span class="o">=</span> <span class="s1">&#39;NODE&#39;</span>
+    <span class="n">attr_id</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">id</span>
+    <span class="nb">id</span>      <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+<span class="p">)</span>
+<span class="n">node</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span> <span class="o">=</span> <span class="p">[</span><span class="n">res_attr</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>Note that a temporary negative ID is once again given to the ResourceAttr. This bears no
+relation to the negative ID on the node. It will be used later to associate data
+with this attribute. When the network is saved, this ID will be replaced by a permenant,
+positive, ID.</p>
+</section>
+<section id="scenarios-and-data">
+<h2>Scenarios and Data<a class="headerlink" href="#scenarios-and-data" title="Permalink to this heading"></a></h2>
+<p>Node and link attributes are not particularly useful by themselves without them
+having a value. Using scenarios, attributes can have multiple values for different
+purposes. For example, a network represenging a river network might have two
+scenarios: <code class="docutils literal notranslate"><span class="pre">Dry</span> <span class="pre">Year</span></code> and <code class="docutils literal notranslate"><span class="pre">Wet</span> <span class="pre">Year</span></code>. While the topology of the network will
+not change, the attributes of many of the nodes might change. <code class="docutils literal notranslate"><span class="pre">Daily</span> <span class="pre">Throughput</span></code> of
+our water treatment work will be less in a dry year compared to a wet year, for example.</p>
+<p>In order to assign data to specific attributes, a scenario is used</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">scenario</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+    <span class="n">name</span>        <span class="o">=</span> <span class="s1">&#39;Dry Year&#39;</span><span class="p">,</span>
+    <span class="n">description</span> <span class="o">=</span> <span class="s1">&#39;Projected scenario of network in a dry year.&#39;</span><span class="p">,</span>
+    <span class="n">resourcescenarios</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Now data can be added</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">rs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+    <span class="n">resource_attr_id</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="c1">#This refers to the ID given to the resource attr earlier.</span>
+<span class="p">)</span>
+
+<span class="n">dataset</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+    <span class="nb">type</span> <span class="o">=</span> <span class="s1">&#39;descriptor&#39;</span><span class="p">,</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;Volume of water in a reservoir during a dry year&#39;</span><span class="p">,</span>
+    <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;ml&#39;</span><span class="p">,</span>
+    <span class="n">dimension</span> <span class="o">=</span> <span class="s1">&#39;Volume&#39;</span><span class="p">,</span> <span class="c1"># THis must match the dimension of the attribute.</span>
+    <span class="n">hidden</span> <span class="o">=</span> <span class="s1">&#39;N&#39;</span><span class="p">,</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;desc_val&#39;</span><span class="p">:</span><span class="mi">100000</span><span class="p">},</span>
+<span class="p">)</span>
+<span class="n">rs</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">dataset</span>
+
+<span class="n">scenario</span><span class="p">[</span><span class="s1">&#39;resourcescenarios&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">rs</span><span class="p">]</span>
+
+<span class="n">net</span><span class="p">[</span><span class="s1">&#39;scenarios&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">scenario</span><span class="p">]</span>
+<span class="c1">#add the network...</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="App development" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="tutorial_soap.html" class="btn btn-neutral float-right" title="Developing a app using SOAP" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, The University of Manchester.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+<script type="text/javascript">
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+     (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+       m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+         })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-71439863-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+
+</body>
+</html>

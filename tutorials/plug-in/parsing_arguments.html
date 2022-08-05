@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>5. Parsing the Arguments &mdash; hydra-base 0.1.14 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/theme_override.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="6. Running the Code" href="run.html" />
+    <link rel="prev" title="4. Exporting the Network" href="export.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> hydra-base
+          </a>
+              <div class="version">
+                0.1.14
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Tutorials</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../getting-started/index.html">Getting started</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../webservice/index.html">HydraPlatform web service</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">App development</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="index.html#general-concepts">General concepts</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="index.html#developing-an-app-in-python">Developing an app in Python</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="setup.html">1. Setup</a></li>
+<li class="toctree-l4"><a class="reference internal" href="imports.html">2. Imports</a></li>
+<li class="toctree-l4"><a class="reference internal" href="connecting.html">3. Connecting to Hydra Platform</a></li>
+<li class="toctree-l4"><a class="reference internal" href="export.html">4. Exporting the Network</a></li>
+<li class="toctree-l4 current"><a class="current reference internal" href="#">5. Parsing the Arguments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="run.html">6. Running the Code</a></li>
+<li class="toctree-l4"><a class="reference internal" href="documentation.html">7. Documentation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="templates.html">8. Working with templates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="integration.html">9. Integrating the plug-in into Hydra Modeller</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../using-templates/index.html">Building HydraPlatform templates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugins/index.html">Apps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../design/index.html">Design</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../implementation/index.html">Implementation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../webapi/index.html">Web API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../devdocs/index.html">Developers documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">hydra-base</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Tutorials</a> &raquo;</li>
+          <li><a href="index.html">App development</a> &raquo;</li>
+      <li><span class="section-number">5. </span>Parsing the Arguments</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/tutorials/plug-in/parsing_arguments.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="parsing-the-arguments">
+<h1><span class="section-number">5. </span>Parsing the Arguments<a class="headerlink" href="#parsing-the-arguments" title="Permalink to this heading"></a></h1>
+<p>All Hydra plugins must run as command-line processes. They therefore must
+parse the arguments and provide help functions to help uses figure out what
+kind of arguments are needed. Luckily, Python provides a simple mechanism to
+do this, using the <cite>ArgumentParser</cite> class.</p>
+<p>This allows you to put in a short description of your plugin and define the
+arguments using <cite>add_argument</cite>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">commandline_parser</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parse the arguments passed in from the command line</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">ap</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;Export a network in to a file in JSON format.</span>
+<span class="s2">                    Written by Stephen Knox &lt;stephen.knox@manchester.ac.uk&gt;</span>
+<span class="s2">                    (c) Copyright 2015, University of Manchester.</span>
+<span class="s2">        &quot;&quot;&quot;</span><span class="p">,</span> <span class="n">epilog</span><span class="o">=</span><span class="s2">&quot;For more information visit www.hydraplatform.org&quot;</span><span class="p">,</span>
+       <span class="n">formatter_class</span><span class="o">=</span><span class="n">ap</span><span class="o">.</span><span class="n">RawDescriptionHelpFormatter</span><span class="p">)</span>
+
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-n&#39;</span><span class="p">,</span> <span class="s1">&#39;--network-id&#39;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s1">&#39;&#39;&#39;Specify the network_id of the network to be exported.&#39;&#39;&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-s&#39;</span><span class="p">,</span> <span class="s1">&#39;--scenario-id&#39;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s1">&#39;&#39;&#39;Specify the ID of the scenario to be exported. If no</span>
+<span class="s1">                        scenario is specified, all scenarios in the network will be</span>
+<span class="s1">                        exported.</span>
+<span class="s1">                        &#39;&#39;&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-d&#39;</span><span class="p">,</span> <span class="s1">&#39;--target-dir&#39;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s1">&#39;&#39;&#39;Target directory&#39;&#39;&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-u&#39;</span><span class="p">,</span> <span class="s1">&#39;--server-url&#39;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s1">&#39;&#39;&#39;Specify the URL of the server to which this</span>
+<span class="s1">                        plug-in connects.&#39;&#39;&#39;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s1">&#39;-c&#39;</span><span class="p">,</span> <span class="s1">&#39;--session-id&#39;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s1">&#39;&#39;&#39;Session ID. If this does not exist, a login will be</span>
+<span class="s1">                        attempted based on details in config.&#39;&#39;&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">parser</span>
+</pre></div>
+</div>
+<p>When you run <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">ExportJSON.py</span> <span class="pre">-h</span></code> to get some help, this will be printed:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">&gt;&gt;</span> <span class="n">python</span> <span class="n">ExportJSON</span><span class="o">.</span><span class="n">py</span> <span class="o">-</span><span class="n">h</span>
+
+<span class="n">usage</span><span class="p">:</span> <span class="n">ExportJSON</span><span class="o">.</span><span class="n">py</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">n</span> <span class="n">NETWORK_ID</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">s</span> <span class="n">SCENARIO_ID</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">d</span> <span class="n">TARGET_DIR</span><span class="p">]</span>
+                     <span class="p">[</span><span class="o">-</span><span class="n">u</span> <span class="n">SERVER_URL</span><span class="p">]</span> <span class="p">[</span><span class="o">-</span><span class="n">c</span> <span class="n">SESSION_ID</span><span class="p">]</span>
+
+<span class="n">Export</span> <span class="n">a</span> <span class="n">network</span> <span class="ow">in</span> <span class="n">to</span> <span class="n">a</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">JSON</span> <span class="nb">format</span><span class="o">.</span> <span class="n">Written</span> <span class="n">by</span> <span class="n">Stephen</span> <span class="n">Knox</span>
+<span class="o">&lt;</span><span class="n">stephen</span><span class="o">.</span><span class="n">knox</span><span class="nd">@manchester</span><span class="o">.</span><span class="n">ac</span><span class="o">.</span><span class="n">uk</span><span class="o">&gt;</span> <span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="n">Copyright</span> <span class="mi">2015</span><span class="p">,</span> <span class="n">University</span> <span class="n">of</span> <span class="n">Manchester</span><span class="o">.</span>
+
+<span class="n">optional</span> <span class="n">arguments</span><span class="p">:</span>
+  <span class="o">-</span><span class="n">h</span><span class="p">,</span> <span class="o">--</span><span class="n">help</span>            <span class="n">show</span> <span class="n">this</span> <span class="n">help</span> <span class="n">message</span> <span class="ow">and</span> <span class="n">exit</span>
+  <span class="o">-</span><span class="n">n</span> <span class="n">NETWORK_ID</span><span class="p">,</span> <span class="o">--</span><span class="n">network</span><span class="o">-</span><span class="nb">id</span> <span class="n">NETWORK_ID</span>
+                        <span class="n">Specify</span> <span class="n">the</span> <span class="n">network_id</span> <span class="n">of</span> <span class="n">the</span> <span class="n">network</span> <span class="n">to</span> <span class="n">be</span> <span class="n">exported</span><span class="o">.</span>
+  <span class="o">-</span><span class="n">s</span> <span class="n">SCENARIO_ID</span><span class="p">,</span> <span class="o">--</span><span class="n">scenario</span><span class="o">-</span><span class="nb">id</span> <span class="n">SCENARIO_ID</span>
+                        <span class="n">Specify</span> <span class="n">the</span> <span class="n">ID</span> <span class="n">of</span> <span class="n">the</span> <span class="n">scenario</span> <span class="n">to</span> <span class="n">be</span> <span class="n">exported</span><span class="o">.</span> <span class="n">If</span> <span class="n">no</span>
+                        <span class="n">scenario</span> <span class="ow">is</span> <span class="n">specified</span><span class="p">,</span> <span class="nb">all</span> <span class="n">scenarios</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">network</span>
+                        <span class="n">will</span> <span class="n">be</span> <span class="n">exported</span><span class="o">.</span>
+  <span class="o">-</span><span class="n">d</span> <span class="n">TARGET_DIR</span><span class="p">,</span> <span class="o">--</span><span class="n">target</span><span class="o">-</span><span class="nb">dir</span> <span class="n">TARGET_DIR</span>
+                        <span class="n">Target</span> <span class="n">directory</span>
+  <span class="o">-</span><span class="n">u</span> <span class="n">SERVER_URL</span><span class="p">,</span> <span class="o">--</span><span class="n">server</span><span class="o">-</span><span class="n">url</span> <span class="n">SERVER_URL</span>
+                        <span class="n">Specify</span> <span class="n">the</span> <span class="n">URL</span> <span class="n">of</span> <span class="n">the</span> <span class="n">server</span> <span class="n">to</span> <span class="n">which</span> <span class="n">this</span> <span class="n">plug</span><span class="o">-</span><span class="ow">in</span>
+                        <span class="n">connects</span><span class="o">.</span>
+  <span class="o">-</span><span class="n">c</span> <span class="n">SESSION_ID</span><span class="p">,</span> <span class="o">--</span><span class="n">session</span><span class="o">-</span><span class="nb">id</span> <span class="n">SESSION_ID</span>
+                        <span class="n">Session</span> <span class="n">ID</span><span class="o">.</span> <span class="n">If</span> <span class="n">this</span> <span class="n">does</span> <span class="ow">not</span> <span class="n">exist</span><span class="p">,</span> <span class="n">a</span> <span class="n">login</span> <span class="n">will</span> <span class="n">be</span>
+                        <span class="n">attempted</span> <span class="n">based</span> <span class="n">on</span> <span class="n">details</span> <span class="ow">in</span> <span class="n">config</span><span class="o">.</span>
+
+<span class="n">For</span> <span class="n">more</span> <span class="n">information</span> <span class="n">visit</span> <span class="n">www</span><span class="o">.</span><span class="n">hydraplatform</span><span class="o">.</span><span class="n">org</span>
+</pre></div>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="export.html" class="btn btn-neutral float-left" title="4. Exporting the Network" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="run.html" class="btn btn-neutral float-right" title="6. Running the Code" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, The University of Manchester.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+<script type="text/javascript">
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+     (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+       m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+         })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-71439863-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+
+</body>
+</html>

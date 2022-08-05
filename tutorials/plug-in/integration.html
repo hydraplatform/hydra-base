@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>9. Integrating the plug-in into Hydra Modeller &mdash; hydra-base 0.1.14 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/theme_override.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Building HydraPlatform templates" href="../using-templates/index.html" />
+    <link rel="prev" title="8. Working with templates" href="templates.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> hydra-base
+          </a>
+              <div class="version">
+                0.1.14
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Tutorials</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../getting-started/index.html">Getting started</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../webservice/index.html">HydraPlatform web service</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">App development</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="index.html#general-concepts">General concepts</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="index.html#developing-an-app-in-python">Developing an app in Python</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="setup.html">1. Setup</a></li>
+<li class="toctree-l4"><a class="reference internal" href="imports.html">2. Imports</a></li>
+<li class="toctree-l4"><a class="reference internal" href="connecting.html">3. Connecting to Hydra Platform</a></li>
+<li class="toctree-l4"><a class="reference internal" href="export.html">4. Exporting the Network</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parsing_arguments.html">5. Parsing the Arguments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="run.html">6. Running the Code</a></li>
+<li class="toctree-l4"><a class="reference internal" href="documentation.html">7. Documentation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="templates.html">8. Working with templates</a></li>
+<li class="toctree-l4 current"><a class="current reference internal" href="#">9. Integrating the plug-in into Hydra Modeller</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../using-templates/index.html">Building HydraPlatform templates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugins/index.html">Apps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../design/index.html">Design</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../implementation/index.html">Implementation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../webapi/index.html">Web API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../devdocs/index.html">Developers documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">hydra-base</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Tutorials</a> &raquo;</li>
+          <li><a href="index.html">App development</a> &raquo;</li>
+      <li><span class="section-number">9. </span>Integrating the plug-in into Hydra Modeller</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/tutorials/plug-in/integration.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="integrating-the-plug-in-into-hydra-modeller">
+<span id="integrating"></span><h1><span class="section-number">9. </span>Integrating the plug-in into Hydra Modeller<a class="headerlink" href="#integrating-the-plug-in-into-hydra-modeller" title="Permalink to this heading"></a></h1>
+<p>Turning an app into a hydra modeller plugin requires creating an exe
+of your code (see <a class="reference internal" href="#creating-an-exe"><span class="std std-ref">Creating an executable of your code</span></a>), putting it into a pre-defined
+folder structure (:see: <cite>folder_structure</cite>) along with a plugin xml.</p>
+<section id="plugin-xml">
+<span id="id1"></span><h2><span class="section-number">9.1. </span>Plugin XML<a class="headerlink" href="#plugin-xml" title="Permalink to this heading"></a></h2>
+<p>Hydra Modeller uses a plugin XML file to describe the required inputs to the
+plugin as well as the icon it will use when displaying the button in the user
+interface.</p>
+<dl class="simple">
+<dt>The main information in the XML file is as follows:</dt><dd><ul class="simple">
+<li><p>The plugin name</p></li>
+<li><p>The plugin location (the location of the exe)</p></li>
+<li><p>The plugin description</p></li>
+<li><p>The epilog</p></li>
+<li><p>Icons (large (32x32px) and small (16x16 px))</p></li>
+<li><p>Mandatory arguments</p></li>
+<li><p>Non-Mandatory arguments</p></li>
+<li><p>Switches</p></li>
+</ul>
+</dd>
+</dl>
+<p>For each argument, there are the following details. They should be familiar from
+the arguments we defined in the plugin:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>The name that will be displayed in the UI (human readable)</p></li>
+<li><p>The switch (in our plugin, these would be ‘-n’ and ‘-s’)</p></li>
+<li><p>The argtype (string, integer etc. There are a few wildcards such as ‘network’, ‘scenario’ and ‘template’ which allow the UI to provide a drop-down rather than asking the
+user to remember the ID of the network they are working on!</p></li>
+<li><p>The help is a string of text that is displayed when the user  clicks on the argument in the UI</p></li>
+</ul>
+</div></blockquote>
+<p>The Export JSON file is below in full. Notice that there is 1 switch defined.
+This is here purely to show what a switch would look like and does not have
+any reference to the code we have looked at until now.</p>
+<div class="highlight-xml notranslate"><div class="highlight"><pre><span></span><span class="nt">&lt;plugin_info&gt;</span>
+    <span class="nt">&lt;plugin_name&gt;</span>Export JSON<span class="nt">&lt;/plugin_name&gt;</span>
+    <span class="nt">&lt;plugin_dir&gt;</span>ExportCSV.exe<span class="nt">&lt;/plugin_dir&gt;</span>
+    <span class="nt">&lt;plugin_description&gt;</span>Export a network saved in Hydra to a JSON file.<span class="nt">&lt;/plugin_description&gt;</span>
+    <span class="nt">&lt;plugin_epilog&gt;</span>
+        Written by Stephen Knox stephen.knox@manchester.ac.uk
+        (c) Copyright 20135, University of Manchester.
+        For more information visit www.hydra-network.com
+    <span class="nt">&lt;/plugin_epilog&gt;</span>
+    <span class="nt">&lt;smallicon&gt;</span>icon16.png<span class="nt">&lt;/smallicon&gt;</span>
+    <span class="nt">&lt;largeicon&gt;</span>icon32.png<span class="nt">&lt;/largeicon&gt;</span>
+    <span class="nt">&lt;mandatory_args&gt;</span>
+        <span class="nt">&lt;arg&gt;</span>
+            <span class="nt">&lt;name&gt;</span>Network ID<span class="nt">&lt;/name&gt;</span>
+            <span class="nt">&lt;switch&gt;</span>-n<span class="nt">&lt;/switch&gt;</span>
+            <span class="nt">&lt;multiple&gt;</span>N<span class="nt">&lt;/multiple&gt;</span>
+            <span class="nt">&lt;argtype&gt;</span>network<span class="nt">&lt;/argtype&gt;</span>
+            <span class="nt">&lt;help&gt;</span>The ID of the network to be exported<span class="nt">&lt;/help&gt;</span>
+        <span class="nt">&lt;/arg&gt;</span>
+    <span class="nt">&lt;/mandatory_args&gt;</span>
+   <span class="nt">&lt;non_mandatory_args&gt;</span>
+       <span class="nt">&lt;arg&gt;</span>
+           <span class="nt">&lt;name&gt;</span>Scenario ID<span class="nt">&lt;/name&gt;</span>
+           <span class="nt">&lt;switch&gt;</span>-s<span class="nt">&lt;/switch&gt;</span>
+           <span class="nt">&lt;multiple&gt;</span>N<span class="nt">&lt;/multiple&gt;</span>
+           <span class="nt">&lt;argtype&gt;</span>scenario<span class="nt">&lt;/argtype&gt;</span>
+           <span class="nt">&lt;help&gt;</span>The ID of the scenario to be exported. If no
+                 scenario is specified, all scenarios in the network will be
+                 exported.
+            <span class="nt">&lt;/help&gt;</span>
+        <span class="nt">&lt;/arg&gt;</span>
+       <span class="nt">&lt;arg&gt;</span>
+           <span class="nt">&lt;name&gt;</span>Target Dir<span class="nt">&lt;/name&gt;</span>
+           <span class="nt">&lt;switch&gt;</span>-d<span class="nt">&lt;/switch&gt;</span>
+           <span class="nt">&lt;multiple&gt;</span>N<span class="nt">&lt;/multiple&gt;</span>
+           <span class="nt">&lt;argtype&gt;</span>string<span class="nt">&lt;/argtype&gt;</span>
+           <span class="nt">&lt;help&gt;</span>The directory / folder you wish the file to export to. This defaults
+           to the Desktop.<span class="nt">&lt;/help&gt;</span>
+        <span class="nt">&lt;/arg&gt;</span>
+        <span class="nt">&lt;arg&gt;</span>
+            <span class="nt">&lt;name&gt;</span>Server URL<span class="nt">&lt;/name&gt;</span>
+            <span class="nt">&lt;switch&gt;</span>-u<span class="nt">&lt;/switch&gt;</span>
+            <span class="nt">&lt;multiple&gt;</span>N<span class="nt">&lt;/multiple&gt;</span>
+            <span class="nt">&lt;argtype&gt;</span>string<span class="nt">&lt;/argtype&gt;</span>
+            <span class="nt">&lt;help&gt;</span>The URL of the server to which this
+                        plug-in connects.<span class="nt">&lt;/help&gt;</span>
+        <span class="nt">&lt;/arg&gt;</span>
+        <span class="nt">&lt;arg&gt;</span>
+            <span class="nt">&lt;name&gt;</span>Session ID<span class="nt">&lt;/name&gt;</span>
+            <span class="nt">&lt;switch&gt;</span>-c<span class="nt">&lt;/switch&gt;</span>
+            <span class="nt">&lt;multiple&gt;</span>N<span class="nt">&lt;/multiple&gt;</span>
+            <span class="nt">&lt;argtype&gt;</span>string<span class="nt">&lt;/argtype&gt;</span>
+            <span class="nt">&lt;help&gt;</span>The session ID for the connection. If not specified,
+            the plugin will try to connect based on the credentials it finds in config<span class="nt">&lt;/help&gt;</span>
+        <span class="nt">&lt;/arg&gt;</span>
+    <span class="nt">&lt;/non_mandatory_args&gt;</span>
+    <span class="nt">&lt;switches&gt;</span>
+        <span class="nt">&lt;arg&gt;</span>
+            <span class="nt">&lt;name&gt;</span>Export as XML<span class="nt">&lt;/name&gt;</span>
+            <span class="nt">&lt;switch&gt;</span>-x<span class="nt">&lt;/switch&gt;</span>
+            <span class="nt">&lt;help&gt;</span>Export as an XML file instead of a JSON file.<span class="nt">&lt;/help&gt;</span>
+        <span class="nt">&lt;/arg&gt;</span>
+    <span class="nt">&lt;/switches&gt;</span>
+ <span class="nt">&lt;/plugin_info&gt;</span>
+</pre></div>
+</div>
+<p>All arguments are defined inside an <cite>&lt;arg&gt;&lt;/arg&gt;</cite> tag, and must define
+a <cite>&lt;name&gt;</cite> That will be shown in the UI, <cite>&lt;switch&gt;</cite> (-n for network, for example),
+<cite>&lt;multiple&gt;</cite> which defines whether multiple of this argument can be provided,
+<cite>&lt;allownew&gt;</cite> which if set to ‘Y’ allows the user in the UI create a new network
+<cite>&lt;argtype&gt;</cite> which states the type of the argument, be it a date, string, integer
+or even network or scenario. The latter options create a drop-down in the UI.
+The <cite>&lt;help&gt;</cite> tag allows users of the UI to see exactly what the argument is for.</p>
+<p>An example of a full <cite>&lt;arg&gt;</cite> tag might be:</p>
+<div class="highlight-xml notranslate"><div class="highlight"><pre><span></span><span class="nt">&lt;arg&gt;</span>
+   <span class="nt">&lt;name&gt;</span>nodes<span class="nt">&lt;/name&gt;</span>
+   <span class="nt">&lt;switch&gt;</span>-n<span class="nt">&lt;/switch&gt;</span>
+   <span class="nt">&lt;multiple&gt;</span>Y<span class="nt">&lt;/multiple&gt;</span>
+   <span class="nt">&lt;argtype&gt;</span>file<span class="nt">&lt;/argtype&gt;</span>
+   <span class="nt">&lt;help&gt;</span>One or multiple files containing nodes and
+               attributes.<span class="nt">&lt;/help&gt;</span>
+<span class="nt">&lt;/arg&gt;</span>
+</pre></div>
+</div>
+<p>There are 3 types of category these args can be put into within the plugin xml. <em>mandatory</em>,  <em>non-mandatory</em> and <em>switches</em>.</p>
+<p>Mandatory inputs are must be included or the plugin will not even start. Normally
+this will be a network ID, session ID, URL and any other necessary inputs.</p>
+<p>Non-Mandatory inputs may be provided to the plugin to provide extra functionality, but
+the plugin will still run without them. One example for an export plugin might
+be to define a specific directory for export: ‘export_dir=/tmp/’.</p>
+<p>Switches arguments which do not require an input, but are simply ‘on/off’. They
+appear as check boxes in the UI.</p>
+<section id="plugin-xml-example">
+<h3><span class="section-number">9.1.1. </span>Plugin XML example:<a class="headerlink" href="#plugin-xml-example" title="Permalink to this heading"></a></h3>
+<p>Click <a class="reference download internal" download="" href="../../_downloads/6ebe38d7abbe1948f883b217a3581b47/plugin_input.xsd"><code class="xref download docutils literal notranslate"><span class="pre">here</span></code></a> for the plugin xsd file</p>
+<p>Click <a class="reference download internal" download="" href="../../_downloads/62e42c334054786a30d273c48b086c5b/plugin.xml"><code class="xref download docutils literal notranslate"><span class="pre">here</span></code></a> for a full example of the plugin xml</p>
+</section>
+</section>
+<section id="folder-structure">
+<span id="id2"></span><h2><span class="section-number">9.2. </span>Folder Structure<a class="headerlink" href="#folder-structure" title="Permalink to this heading"></a></h2>
+<p>There are 2 structures supported by Hydra Modeller.
+If there is only one executable in the plugin, the the following structure
+should be used:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">MyPlugin</span>
+  <span class="o">--&gt;</span> <span class="n">templates</span> <span class="p">(</span><span class="n">optional</span><span class="p">)</span>
+     <span class="o">--&gt;</span> <span class="n">template</span><span class="o">.</span><span class="n">xml</span>
+  <span class="o">--&gt;</span> <span class="n">ExportJSON</span>
+     <span class="o">--&gt;</span> <span class="n">ExportJSON</span><span class="o">.</span><span class="n">exe</span>
+     <span class="o">--&gt;</span> <span class="n">plugin</span><span class="o">.</span><span class="n">xml</span>
+     <span class="o">--&gt;</span> <span class="n">icon</span><span class="o">.</span><span class="n">png</span>
+</pre></div>
+</div>
+<p>or alternatively, if the plugin package contains more than 1 executable (import
+and export, for example):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">MyPlugin</span>
+  <span class="o">--&gt;</span> <span class="n">templates</span> <span class="p">(</span><span class="n">optional</span><span class="p">)</span>
+     <span class="o">--&gt;</span> <span class="n">template</span><span class="o">.</span><span class="n">xml</span>
+  <span class="o">--&gt;</span> <span class="n">plugins</span>
+     <span class="o">--&gt;</span> <span class="n">ExportJSON</span>
+       <span class="o">--&gt;</span> <span class="n">ExportJSON</span><span class="o">.</span><span class="n">exe</span>
+       <span class="o">--&gt;</span> <span class="n">plugin</span><span class="o">.</span><span class="n">xml</span>
+       <span class="o">--&gt;</span> <span class="n">icon32</span><span class="o">.</span><span class="n">png</span>
+       <span class="o">--&gt;</span> <span class="n">icon16</span><span class="o">.</span><span class="n">png</span>
+     <span class="o">--&gt;</span> <span class="n">ImportJSON</span>
+       <span class="o">--&gt;</span> <span class="n">ImportJSON</span><span class="o">.</span><span class="n">exe</span>
+       <span class="o">--&gt;</span> <span class="n">plugin</span><span class="o">.</span><span class="n">xml</span>
+       <span class="o">--&gt;</span> <span class="n">icon32</span><span class="o">.</span><span class="n">png</span>
+       <span class="o">--&gt;</span> <span class="n">icon16</span><span class="o">.</span><span class="n">png</span>
+</pre></div>
+</div>
+</section>
+<section id="session-id-and-server-url">
+<span id="session-and-url"></span><h2><span class="section-number">9.3. </span>Session ID and Server URL<a class="headerlink" href="#session-id-and-server-url" title="Permalink to this heading"></a></h2>
+<p>As Hydra apps connect to Hydra Platform via the same interface as the UI, they need to us the same credentials as the UI. To this end, all plugins should implement
+two arguments, namely server_url (to tell the plugin where the server is) and session_id
+to tell the server who is making the call. These two arguments should appear
+in the non_mandatory_args section of the plugin.xml and look just like this:</p>
+<div class="highlight-xml notranslate"><div class="highlight"><pre><span></span><span class="nt">&lt;arg&gt;</span>
+    <span class="nt">&lt;name&gt;</span>server_url<span class="nt">&lt;/name&gt;</span>
+    <span class="nt">&lt;switch&gt;</span>-u<span class="nt">&lt;/switch&gt;</span>
+    <span class="nt">&lt;multiple&gt;</span>N<span class="nt">&lt;/multiple&gt;</span>
+    <span class="nt">&lt;argtype&gt;</span>string<span class="nt">&lt;/argtype&gt;</span>
+    <span class="nt">&lt;help&gt;</span>Specify the URL of the server to which this
+                plug-in connects.<span class="nt">&lt;/help&gt;</span>
+<span class="nt">&lt;/arg&gt;</span>
+<span class="nt">&lt;arg&gt;</span>
+    <span class="nt">&lt;name&gt;</span>session_id<span class="nt">&lt;/name&gt;</span>
+    <span class="nt">&lt;switch&gt;</span>-c<span class="nt">&lt;/switch&gt;</span>
+    <span class="nt">&lt;multiple&gt;</span>N<span class="nt">&lt;/multiple&gt;</span>
+    <span class="nt">&lt;argtype&gt;</span>string<span class="nt">&lt;/argtype&gt;</span>
+    <span class="nt">&lt;help&gt;</span>Specify the session ID for the connection. If not specified,
+    the plugin will try to connect based on the credentials it finds in config<span class="nt">&lt;/help&gt;</span>
+<span class="nt">&lt;/arg&gt;</span>
+</pre></div>
+</div>
+</section>
+<section id="creating-an-executable-of-your-code">
+<span id="creating-an-exe"></span><h2><span class="section-number">9.4. </span>Creating an executable of your code<a class="headerlink" href="#creating-an-executable-of-your-code" title="Permalink to this heading"></a></h2>
+<p>Hydra Modeller is windows-based and so requires all its plugins to be executable
+in windows. <em>This still means that plugins can be written in cross-platform languages
+like python, java or ruby.</em>. Taking python as an example, the <a class="reference external" href="https://github.com/pyinstaller/pyinstaller/wiki">pyinstaller</a> package
+allows a python script to be turned into an exe by simply typing:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pyinstaller</span> <span class="n">mypluginscript</span><span class="o">.</span><span class="n">py</span>
+</pre></div>
+</div>
+<p>Which produces a file called mypluginscript.exe</p>
+<p>For more control, you can define a ‘.spec’ file, which allows you to decide
+what level of compression you want (more compression = less performance normally),
+the name of the output file, whether it’s a console application or not etc…</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="templates.html" class="btn btn-neutral float-left" title="8. Working with templates" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../using-templates/index.html" class="btn btn-neutral float-right" title="Building HydraPlatform templates" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, The University of Manchester.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+<script type="text/javascript">
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+     (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+       m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+         })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-71439863-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+
+</body>
+</html>

@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Working with datasets &mdash; hydra-base 0.1.14 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/theme_override.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Working with scenarios" href="scenarios.html" />
+    <link rel="prev" title="Attributes" href="attributes.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> hydra-base
+          </a>
+              <div class="version">
+                0.1.14
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Tutorials</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../getting-started/index.html">Getting started</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">HydraPlatform web service</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="index.html#common-tasks">Common Tasks</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="projects.html">Working with projects</a></li>
+<li class="toctree-l4"><a class="reference internal" href="networks.html">Working with networks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="attributes.html">Attributes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="attributes.html#resource-attributes">Resource Attributes</a></li>
+<li class="toctree-l4 current"><a class="current reference internal" href="#">Working with datasets</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scenarios.html">Working with scenarios</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../plug-in/index.html">App development</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../using-templates/index.html">Building HydraPlatform templates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugins/index.html">Apps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../design/index.html">Design</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../implementation/index.html">Implementation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../webapi/index.html">Web API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../devdocs/index.html">Developers documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">hydra-base</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Tutorials</a> &raquo;</li>
+          <li><a href="index.html">HydraPlatform web service</a> &raquo;</li>
+      <li>Working with datasets</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/tutorials/webservice/datasets.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="working-with-datasets">
+<span id="datasets"></span><h1>Working with datasets<a class="headerlink" href="#working-with-datasets" title="Permalink to this heading"></a></h1>
+<p>In Hydra, a dataset is not directly connected to a network or scenario. It lives
+on its own, separately from everything else and can be managed independently.
+While datasets can be added or removed <cite>through</cite> the use of scenarios, that is
+merely for convenience. Datasets are separate and as such can be added,
+updated, deleted individually. In this section, we explain how this is done.</p>
+<p>Hydra supports 4 types of values: Scalars (numbers), Descriptors (Strings of text),
+Time series (a series of time-value pairs) and Arrays (a list of numbers or strings or
+a combination of both).</p>
+<p>These values are contained in Dataset objects, which require the following:</p>
+<ul class="simple">
+<li><p><strong>id</strong>: The unique ID of the dataset with Hydra</p></li>
+<li><p><strong>type</strong>: The type of the dataset: ‘scalar’, ‘descriptor’, ‘array’, ‘timeseries’</p></li>
+<li><p><strong>dimension</strong>: For example, ‘length’, ‘volume’. For more info see TODO</p></li>
+<li><p><strong>unit</strong>: For example ‘m’ or ‘m^3’ based on the above dimensions.</p></li>
+<li><p><strong>name</strong>: A human-readable name of the datast</p></li>
+<li><p><strong>value</strong>: The actual value (see below)</p></li>
+<li><p><strong>hidden</strong>: A flag (‘Y’ or ‘N’) to indicate whether this has been hidden by the user who uploaded it, meaning other hydra users cannot view it.</p></li>
+<li><p><strong>metadata</strong>: A list of key-value pairs representing the metadata for the dataset.</p></li>
+</ul>
+<p>Two un-editable properties of an existing dataset are:</p>
+<ul class="simple">
+<li><p><strong>created_by</strong>: THe user who inserted this dataset</p></li>
+<li><p><strong>cr_date</strong>: The time this datast was created</p></li>
+</ul>
+<p>These are created automatically by Hydra and cannot be changed.</p>
+<p>A new dataset in the client, might look like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+    <span class="nb">id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="nb">type</span> <span class="o">=</span> <span class="s1">&#39;descriptor&#39;</span><span class="p">,</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;Flow speed&#39;</span><span class="p">,</span>
+    <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;m s^-1&#39;</span><span class="p">,</span>
+    <span class="n">dimension</span> <span class="o">=</span> <span class="s1">&#39;Speed&#39;</span><span class="p">,</span>
+    <span class="n">hidden</span> <span class="o">=</span> <span class="s1">&#39;N&#39;</span><span class="p">,</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;desc_val&#39;</span><span class="p">:</span><span class="s1">&#39;hello&#39;</span><span class="p">},</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Note the ‘value’ entry is itself a dict, with ‘desc_val’ as the key.
+This is a secondary check to ensure that the type and value match.</p>
+<p>For a given <cite>val</cite>, the values for the 4 data types should look like:</p>
+<ul class="simple">
+<li><p><strong>descriptor</strong> : <cite>{desc_val: val}</cite></p></li>
+<li><p><strong>scalar</strong>     : <cite>{param_value: val}</cite></p></li>
+<li><p><strong>array</strong>      : <cite>{arr_data: }</cite></p></li>
+<li><p><strong>timeseries</strong> : <cite>{ts_values: val}</cite></p></li>
+</ul>
+<p>Adding the dataset is as simple as calling <code class="docutils literal notranslate"><span class="pre">add_dataset</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">add_dataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+</pre></div>
+</div>
+<section id="searching-for-datasets">
+<h2>Searching for Datasets<a class="headerlink" href="#searching-for-datasets" title="Permalink to this heading"></a></h2>
+<p>As datasets can live in Hydra indepenently of networks, we provide a facility
+to search for them, through the <code class="docutils literal notranslate"><span class="pre">search_datasets</span></code> function.</p>
+<p>For example, if I know what some time ago, I added a timeseries with units of
+of litres, I put these criteria into the search:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">search_datasets</span><span class="p">(</span><span class="n">units</span><span class="o">=</span><span class="s1">&#39;l&#39;</span><span class="p">,</span> <span class="n">data_type</span><span class="o">=</span><span class="s1">&#39;timeseries&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This search will return the first 2000 timeseries matching this criteria. If there
+are more and you still can’t find your dataset, either change the <code class="docutils literal notranslate"><span class="pre">page_start</span></code>
+or <code class="docutils literal notranslate"><span class="pre">page_size</span></code> or both:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">search_datasets</span><span class="p">(</span><span class="n">units</span><span class="o">=</span><span class="s1">&#39;l&#39;</span><span class="p">,</span> <span class="n">data_type</span><span class="o">=</span><span class="s1">&#39;timeseries&#39;</span><span class="p">,</span>
+                                     <span class="n">page_size</span><span class="o">=</span><span class="mi">3000</span><span class="p">,</span> <span class="n">page_start</span><span class="o">=</span><span class="mi">1999</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This search will return the 3000 results after result 1999.</p>
+</section>
+<section id="scalars-and-descriptors">
+<span id="scalarsanddescriptors"></span><h2>Scalars and descriptors<a class="headerlink" href="#scalars-and-descriptors" title="Permalink to this heading"></a></h2>
+<p>Scalars and descriptors are the most basic data types in Hydra.
+A scalar is stored as a decimal value in Hydra, so a 1 is stored as 1.0 etc.</p>
+<p>A scalar would look like;</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">value</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;param_value:&#39;</span><span class="p">:</span><span class="mi">123</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>Whereas a descriptor looks like (as above):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">value</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;desc_val&#39;</span><span class="p">:</span><span class="s1">&#39;hello&#39;</span><span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="arrays">
+<span id="id1"></span><h2>Arrays<a class="headerlink" href="#arrays" title="Permalink to this heading"></a></h2>
+<p>Hydra support n-dimensional arrays. There is no restriction on the type or shape of array you use, so long as it is parseable by the python library <a class="reference external" href="http://www.numpy.org/">numpy</a>.</p>
+<p>Some examples are:</p>
+<p>[1, 2, 3]</p>
+<p>[[1, 2, 3], [4, 5, 6]]</p>
+<p>and so on…</p>
+<section id="array-format">
+<span id="id2"></span><h3>Array format<a class="headerlink" href="#array-format" title="Permalink to this heading"></a></h3>
+<p><strong>deprecated</strong>
+In order to deal with arrays using XML, rather than using literal strings, Hydra uses a custom array format encoded as XML. THis format involves using
+<cite>&lt;array&gt;</cite> and <cite>&lt;item&gt;</cite> tags, for example, from above:</p>
+<div class="highlight-xml notranslate"><div class="highlight"><pre><span></span><span class="nt">&lt;array&gt;</span>
+   <span class="nt">&lt;item&gt;</span>1<span class="nt">&lt;/item&gt;</span>
+   <span class="nt">&lt;item&gt;</span>2<span class="nt">&lt;/item&gt;</span>
+   <span class="nt">&lt;item&gt;</span>3<span class="nt">&lt;/item&gt;</span>
+<span class="nt">&lt;/array&gt;</span>
+</pre></div>
+</div>
+<p>and for multi-dimensional arrays:</p>
+<div class="highlight-xml notranslate"><div class="highlight"><pre><span></span><span class="nt">&lt;array&gt;</span>
+ <span class="nt">&lt;array&gt;</span>
+   <span class="nt">&lt;item&gt;</span>1<span class="nt">&lt;/item&gt;</span>
+   <span class="nt">&lt;item&gt;</span>2<span class="nt">&lt;/item&gt;</span>
+   <span class="nt">&lt;item&gt;</span>3<span class="nt">&lt;/item&gt;</span>
+ <span class="nt">&lt;/array&gt;</span>
+ <span class="nt">&lt;array&gt;</span>
+    <span class="nt">&lt;item&gt;</span>4<span class="nt">&lt;/item&gt;</span>
+    <span class="nt">&lt;item&gt;</span>5<span class="nt">&lt;/item&gt;</span>
+    <span class="nt">&lt;item&gt;</span>6<span class="nt">&lt;/item&gt;</span>
+ <span class="nt">&lt;/array&gt;</span>
+<span class="nt">&lt;/array&gt;</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="time-series">
+<span id="timeseries"></span><h2>Time series<a class="headerlink" href="#time-series" title="Permalink to this heading"></a></h2>
+<p><strong>deprecated</strong>
+Hydra uses the python library <a class="reference external" href="http://pandas.pydata.org/">pandas</a> to
+support timeseries. It converts the timeseries sent to it into a pandas-compatible timeseries and then back to the expected format during a request.</p>
+<p>In the soap interface, a timeseries is formatted as a list of dictionaries, with each dictionary having a ts_time and ts_value. For example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">value</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;ts_values&#39;</span> <span class="p">:</span>
+<span class="p">[</span>
+    <span class="p">{</span><span class="s1">&#39;ts_time&#39;</span> <span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(),</span>
+    <span class="s1">&#39;ts_value&#39;</span> <span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
+    <span class="p">{</span><span class="s1">&#39;ts_time&#39;</span> <span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">+</span><span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">hours</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+    <span class="s1">&#39;ts_value&#39;</span> <span class="p">:</span> <span class="mi">2</span><span class="p">},</span>
+    <span class="p">{</span><span class="s1">&#39;ts_time&#39;</span> <span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">+</span><span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">hours</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span>
+    <span class="s1">&#39;ts_value&#39;</span> <span class="p">:</span> <span class="s1">&#39;hello&#39;</span><span class="p">},</span>
+<span class="p">]</span>
+</pre></div>
+</div>
+<p>Note that the final ts_value is a string, demonstrating that any form of value can be contained in this element.</p>
+<p>The array frormat described in <a class="reference internal" href="#array-format"><span class="std std-ref">Array format</span></a> can also be a used in a ts_value element.</p>
+</section>
+<section id="timeseries-json-format">
+<h2>Timeseries JSON format<a class="headerlink" href="#timeseries-json-format" title="Permalink to this heading"></a></h2>
+<p>A series of timestamps and values (which can be single values or multi-dimensional arrays).</p>
+<p>Using single values…</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="s1">&#39;0&#39;</span><span class="p">:</span>
+        <span class="p">{</span>
+            <span class="s1">&#39;2014-09-09 12:00:00&#39;</span><span class="p">:</span> <span class="mf">12.10</span><span class="p">,</span>
+            <span class="s1">&#39;2014-09-09 13:00:00&#39;</span><span class="p">:</span> <span class="mf">13.20</span><span class="p">,</span>
+            <span class="s1">&#39;2014-09-09 14:00:00&#39;</span><span class="p">:</span> <span class="mf">14.40</span><span class="p">,</span>
+        <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>But why the ‘0’ at the beginning?
+How about we look at an array structure…</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="s1">&#39;0&#39;</span><span class="p">:</span>
+        <span class="p">{</span>
+            <span class="s1">&#39;2014-09-09 12:00:00&#39;</span><span class="p">:</span> <span class="mf">12.10</span><span class="p">,</span>
+            <span class="s1">&#39;2014-09-09 13:00:00&#39;</span><span class="p">:</span> <span class="mf">13.20</span><span class="p">,</span>
+            <span class="s1">&#39;2014-09-09 14:00:00&#39;</span><span class="p">:</span> <span class="mf">14.40</span><span class="p">,</span>
+        <span class="p">},</span>
+    <span class="s1">&#39;1&#39;</span><span class="p">:</span>
+        <span class="p">{</span>
+            <span class="s1">&#39;2014-09-09 12:00:00&#39;</span><span class="p">:</span> <span class="mf">22.10</span><span class="p">,</span>
+            <span class="s1">&#39;2014-09-09 13:00:00&#39;</span><span class="p">:</span> <span class="mf">33.20</span><span class="p">,</span>
+            <span class="s1">&#39;2014-09-09 14:00:00&#39;</span><span class="p">:</span> <span class="mf">44.40</span><span class="p">,</span>
+        <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>And we can make it even more interesting by not using numbers, but tags.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="s1">&#39;OBSERVER1&#39;</span><span class="p">:</span>
+        <span class="p">{</span>
+            <span class="s1">&#39;2014-09-09 12:00:00&#39;</span><span class="p">:</span> <span class="mf">12.10</span><span class="p">,</span>
+            <span class="s1">&#39;2014-09-09 13:00:00&#39;</span><span class="p">:</span> <span class="mf">13.20</span><span class="p">,</span>
+            <span class="s1">&#39;2014-09-09 14:00:00&#39;</span><span class="p">:</span> <span class="mf">14.40</span><span class="p">,</span>
+        <span class="p">},</span>
+    <span class="s1">&#39;OBSERVER2&#39;</span><span class="p">:</span>
+        <span class="p">{</span>
+            <span class="s1">&#39;2014-09-09 12:00:00&#39;</span><span class="p">:</span> <span class="mf">22.10</span><span class="p">,</span>
+            <span class="s1">&#39;2014-09-09 13:00:00&#39;</span><span class="p">:</span> <span class="mf">33.20</span><span class="p">,</span>
+            <span class="s1">&#39;2014-09-09 14:00:00&#39;</span><span class="p">:</span> <span class="mf">44.40</span><span class="p">,</span>
+        <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="metadata">
+<h2>Metadata<a class="headerlink" href="#metadata" title="Permalink to this heading"></a></h2>
+<p>All datsets can have any arbitraty metadata associated with it. This is achieved by encoding metadata as simple name, value pairs.</p>
+<p>A single piece of metadata looks like:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span><span class="s1">&#39;observed_by&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span><span class="s1">&#39;Stephen Knox&#39;</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>A dataset takes a list of these pairs.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;metadata&#39;</span><span class="p">]</span>
+    <span class="o">=</span> <span class="p">[</span>
+        <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span><span class="s1">&#39;observed_by&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span><span class="s1">&#39;Stephen Knox&#39;</span><span class="p">},</span>
+        <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span><span class="s1">&#39;observed_at&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span><span class="s1">&#39;Niagara Falls&#39;</span><span class="p">}</span>
+    <span class="p">]</span>
+</pre></div>
+</div>
+</section>
+<section id="dataset-collections">
+<h2>Dataset Collections<a class="headerlink" href="#dataset-collections" title="Permalink to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="attributes.html" class="btn btn-neutral float-left" title="Attributes" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="scenarios.html" class="btn btn-neutral float-right" title="Working with scenarios" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, The University of Manchester.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+<script type="text/javascript">
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+     (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+       m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+         })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-71439863-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+
+</body>
+</html>

@@ -1,0 +1,2158 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Handling of units and dimensions &mdash; hydra-base 0.1.14 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/theme_override.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Time Series" href="timeseries.html" />
+    <link rel="prev" title="Developers documentation" href="../index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> hydra-base
+          </a>
+              <div class="version">
+                0.1.14
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/index.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugins/index.html">Apps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../design/index.html">Design</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../implementation/index.html">Implementation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../webapi/index.html">Web API</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Developers documentation</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../index.html#technical-documents">Technical documents</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Handling of units and dimensions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#definitions">Definitions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#dimensions">Dimensions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#units">Units</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="timeseries.html">Time Series</a></li>
+<li class="toctree-l3"><a class="reference internal" href="libraries_and_templates.html">Libraries and templates</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../index.html#api-doumentation">API doumentation</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">hydra-base</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Developers documentation</a> &raquo;</li>
+      <li>Handling of units and dimensions</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/devdocs/techdocs/units_and_dimensions.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="handling-of-units-and-dimensions">
+<h1>Handling of units and dimensions<a class="headerlink" href="#handling-of-units-and-dimensions" title="Permalink to this heading"></a></h1>
+<p>The Hydra server implements checks that make sure that the units of a dataset
+assigned to an attribute are consistent with the physical dimension asked for by
+the attribute. This requires some conventions about how physical dimensions are
+denoted in the respective fields of the database. Also, a standard way of
+describing physical units needs to be defined. This document describes these
+conventions and provides a controlled vocabulary for both, dimensions and units.</p>
+<div class="contents local topic" id="table-of-contents">
+<p class="topic-title">Table of Contents</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#definitions" id="id2">Definitions</a></p></li>
+<li><p><a class="reference internal" href="#dimensions" id="id3">Dimensions</a></p>
+<ul>
+<li><p><a class="reference internal" href="#basic-concepts" id="id4">Basic concepts</a></p></li>
+<li><p><a class="reference internal" href="#list-of-dimension-keywords" id="id5">List of dimension keywords</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#units" id="id6">Units</a></p>
+<ul>
+<li><p><a class="reference internal" href="#id1" id="id7">Basic concepts</a></p></li>
+<li><p><a class="reference internal" href="#list-of-unit-keywords" id="id8">List of unit keywords</a></p></li>
+</ul>
+</li>
+</ul>
+</div>
+<section id="definitions">
+<h2><a class="toc-backref" href="#id2">Definitions</a><a class="headerlink" href="#definitions" title="Permalink to this heading"></a></h2>
+<dl class="simple">
+<dt><strong>Dimension</strong></dt><dd><p>In this document a dimension is the physical dimension of a physical
+quantity. A dimension is independent of the units used to describe a
+physical quantity.</p>
+</dd>
+<dt><strong>Unit</strong></dt><dd><p>A unit defines the magnitude of a physical quantity. A unit is defined by
+convention and refers to a system of measurement, such as <a class="reference external" href="http://en.wikipedia.org/wiki/International_System_of_Units">SI</a>.</p>
+</dd>
+</dl>
+</section>
+<section id="dimensions">
+<h2><a class="toc-backref" href="#id3">Dimensions</a><a class="headerlink" href="#dimensions" title="Permalink to this heading"></a></h2>
+<section id="basic-concepts">
+<h3><a class="toc-backref" href="#id4">Basic concepts</a><a class="headerlink" href="#basic-concepts" title="Permalink to this heading"></a></h3>
+<p>There are two basic ways of defining physical dimensions.</p>
+<ol class="arabic">
+<li><p>Define a dimension as mathematical expression based on the seven fundamental
+quantities:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 61%" />
+<col style="width: 39%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>Base quantity</p></td>
+<td><p>Symbol</p></td>
+</tr>
+<tr class="row-even"><td><p><em>Length</em></p></td>
+<td><p><span class="math notranslate nohighlight">\(L\)</span></p></td>
+</tr>
+<tr class="row-odd"><td><p><em>Mass</em></p></td>
+<td><p><span class="math notranslate nohighlight">\(M\)</span></p></td>
+</tr>
+<tr class="row-even"><td><p><em>Time</em></p></td>
+<td><p><span class="math notranslate nohighlight">\(T\)</span></p></td>
+</tr>
+<tr class="row-odd"><td><p><em>Electric current</em></p></td>
+<td><p><span class="math notranslate nohighlight">\(I\)</span></p></td>
+</tr>
+<tr class="row-even"><td><p><em>Temperature</em></p></td>
+<td><p><span class="math notranslate nohighlight">\(\Theta\)</span></p></td>
+</tr>
+<tr class="row-odd"><td><p><em>Amount of substance</em></p></td>
+<td><p><span class="math notranslate nohighlight">\(N\)</span></p></td>
+</tr>
+<tr class="row-even"><td><p><em>Luminous intensity</em></p></td>
+<td><p><span class="math notranslate nohighlight">\(J\)</span></p></td>
+</tr>
+</tbody>
+</table>
+<p>All derived quantities can be expressed based on these fundamental
+quantities. For example <em>Energy</em> would be written as <span class="math notranslate nohighlight">\(M L^{2} T^{-2}\)</span>.</p>
+</li>
+<li><p>Define a dimension using a keyword. This will allow to set fundamental and
+derived quantities using a name defined by a controlled vocabulary.</p></li>
+</ol>
+<p>In Hydra the second definition is implemented since expressing all the derived
+quantities based on the fundamental ones is rather complicated, even for
+quantities that are used frequently (such as energy, power, etc.).</p>
+</section>
+<section id="list-of-dimension-keywords">
+<h3><a class="toc-backref" href="#id5">List of dimension keywords</a><a class="headerlink" href="#list-of-dimension-keywords" title="Permalink to this heading"></a></h3>
+<blockquote>
+<div><table class="docutils align-default">
+<colgroup>
+<col style="width: 96%" />
+<col style="width: 4%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Length</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Mass</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Time</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Temperature</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Area</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Volume</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Angle</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Speed</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Energy</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Force</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Power</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Pressure</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Volumetric</span> <span class="pre">flow</span> <span class="pre">rate</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Monetary</span> <span class="pre">value</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Unit</span> <span class="pre">price</span> <span class="pre">(volume)</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Unit</span> <span class="pre">price</span> <span class="pre">(mass)</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Energy</span> <span class="pre">price</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Dimensionless</span></code></p></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</section>
+</section>
+<section id="units">
+<h2><a class="toc-backref" href="#id6">Units</a><a class="headerlink" href="#units" title="Permalink to this heading"></a></h2>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 29%" />
+<col style="width: 13%" />
+<col style="width: 17%" />
+<col style="width: 14%" />
+<col style="width: 28%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Unit</p></th>
+<th class="head"><p>Abbr.</p></th>
+<th class="head"><p>Linear factor</p></th>
+<th class="head"><p>Constant fac.</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Dimensionless</strong></p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>No unit</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">-</span></code></p></td>
+<td><p>1.0</p></td>
+<td><p>0.0</p></td>
+<td><p>Dimensionless parameter
+without units</p></td>
+</tr>
+<tr class="row-even"><td><p>Percent</p></td>
+<td><p>%</p></td>
+<td><p>0.01</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Energy price</strong></p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>US Dollars per joule</p></td>
+<td><p>USD J^-1</p></td>
+<td><p>1.0</p></td>
+<td><p>0.0</p></td>
+<td><p>Cost in US Dollars per
+Joule</p></td>
+</tr>
+<tr class="row-odd"><td><p>US Dollars per kilojoule</p></td>
+<td><p>USD kJ^-1</p></td>
+<td><p>0.001</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>US Dollars per kilowatt-hour</p></td>
+<td><p>USD kWh^-1</p></td>
+<td><p>2.77777777e-07</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Mass flow rate</strong></p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>kilograms per second</p></td>
+<td><p>kg s^-1</p></td>
+<td><p>1.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>kilograms per minute</p></td>
+<td><p>kg min^-1</p></td>
+<td><p>0.0166666667</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>kilograms per hour</p></td>
+<td><p>kg h^-1</p></td>
+<td><p>0.000277777778</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>kilograms per day</p></td>
+<td><p>kg day^-1</p></td>
+<td><p>1.15740741e-05</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>kilograms per month</p></td>
+<td><p>kg mon^-1</p></td>
+<td><p>3.80265176e-07</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>kilograms per year</p></td>
+<td><p>kg yr^-1</p></td>
+<td><p>3.16887646e-08</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>grams per second</p></td>
+<td><p>g s^-1</p></td>
+<td><p>0.001</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>tonnes per second</p></td>
+<td><p>kg s^-1</p></td>
+<td><p>1000.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>tonnes per minute</p></td>
+<td><p>kg min^-1</p></td>
+<td><p>16.66666666667</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>tonnes per hour</p></td>
+<td><p>kg h^-1</p></td>
+<td><p>0.277777777778</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>tonnes per day</p></td>
+<td><p>kg day^-1</p></td>
+<td><p>1.15740741e-02</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>tonnes per month</p></td>
+<td><p>kg mon^-1</p></td>
+<td><p>3.80265176e-04</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>tonnes per year</p></td>
+<td><p>kg yr^-1</p></td>
+<td><p>3.16887646e-05</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Volumetric flow rate</strong></p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>cubic metres per second</p></td>
+<td><p>m^3 s^-1</p></td>
+<td><p>1.0</p></td>
+<td><p>0.0</p></td>
+<td><p>SI unit for volumetric
+flow rate.</p></td>
+</tr>
+<tr class="row-odd"><td><p>cubic metres per minute</p></td>
+<td><p>m^3 min^-1</p></td>
+<td><p>0.0166666667</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>cubic metres per hour</p></td>
+<td><p>m^3 h^-1</p></td>
+<td><p>0.000277777778</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>cubic metres per day</p></td>
+<td><p>m^3 day^-1</p></td>
+<td><p>1.15740741e-05</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>cubic metres per month</p></td>
+<td><p>m^3 mon^-1</p></td>
+<td><p>3.80265176e-07</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>cubic hectometres per second</p></td>
+<td><p>hm^3 s^-1</p></td>
+<td><p>1000000.0</p></td>
+<td><p>0.0</p></td>
+<td><p>SI unit for volumetric
+flow rate.</p></td>
+</tr>
+<tr class="row-even"><td><p>cubic hectometres per minute</p></td>
+<td><p>hm^3 min^-1</p></td>
+<td><p>16666.6667</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>cubic hectometres per hour</p></td>
+<td><p>hm^3 h^-1</p></td>
+<td><p>277.777778</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>cubic hectometres per day</p></td>
+<td><p>hm^3 day^-1</p></td>
+<td><p>11.5740741</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>cubic hectometres per month</p></td>
+<td><p>hm^3 mon^-1</p></td>
+<td><p>0.380265176</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>cubic foot per second</p></td>
+<td><p>ft^3 s^-1</p></td>
+<td><p>0.0283168466</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>cubic foot per minute</p></td>
+<td><p>ft^3 min^-1</p></td>
+<td><p>0.000471947443</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>cubic foot per hour</p></td>
+<td><p>ft^3 h^-1</p></td>
+<td><p>7.86579072e-06</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>cubic foot per day</p></td>
+<td><p>ft^3 day^-1</p></td>
+<td><p>3.2774128e-07</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>cubic foot per month</p></td>
+<td><p>ft^3 mon^-1</p></td>
+<td><p>1.07679106e-08</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>gallons per second</p></td>
+<td><p>gal s^-1</p></td>
+<td><p>0.00378541178</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>gallons per minute</p></td>
+<td><p>gal min^-1</p></td>
+<td><p>6.30901964e-05</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>gallons per hour</p></td>
+<td><p>gal h^-1</p></td>
+<td><p>1.05150327e-06</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>gallons per day</p></td>
+<td><p>gal day^-1</p></td>
+<td><p>4.38126364e-08</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>gallons per month</p></td>
+<td><p>gal mon^-1</p></td>
+<td><p>1.43946028e-09</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>acre-foot per second</p></td>
+<td><p>ac-ft s^-1</p></td>
+<td><p>1233.48184</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>acre-foot per minute</p></td>
+<td><p>ac-ft min^-1</p></td>
+<td><p>20.5580306</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>acre-foot per hour</p></td>
+<td><p>ac-ft h^-1</p></td>
+<td><p>0.342633844</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>acre-foot per day</p></td>
+<td><p>ac-ft day^-1</p></td>
+<td><p>0.0142764102</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>acre-foot per month</p></td>
+<td><p>ac-ft mon^-1</p></td>
+<td><p>0.000469050188</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>acre-inch per second</p></td>
+<td><p>ac-in s^-1</p></td>
+<td><p>102.790153</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>acre-inch per minute</p></td>
+<td><p>ac-in min^-1</p></td>
+<td><p>1.71316922</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>acre-inch per hour</p></td>
+<td><p>ac-in h^-1</p></td>
+<td><p>0.0285528203</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>acre-inch per day</p></td>
+<td><p>ac-in day^-1</p></td>
+<td><p>0.00118970085</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>acre-inch per month</p></td>
+<td><p>ac-in mon^-1</p></td>
+<td><p>3.90875157e-05</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>litre per second</p></td>
+<td><p>l s^-1</p></td>
+<td><p>0.001</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>litre per minute</p></td>
+<td><p>l min^-1</p></td>
+<td><p>1.66666667e-05</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>litre per hour</p></td>
+<td><p>l h^-1</p></td>
+<td><p>2.77777778e-07</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>litre per day</p></td>
+<td><p>l day^-1</p></td>
+<td><p>1.15740741e-08</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>litre per month</p></td>
+<td><p>l mon^-1</p></td>
+<td><p>3.80265176e-10</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>megalitre per second</p></td>
+<td><p>Ml s^-1</p></td>
+<td><p>1000</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>megalitre per minute</p></td>
+<td><p>Ml min^-1</p></td>
+<td><p>1.66666667</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>megalitre per hour</p></td>
+<td><p>Ml h^-1</p></td>
+<td><p>2.77777778e-01</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>megalitre per day</p></td>
+<td><p>Ml day^-1</p></td>
+<td><p>1.15740741e-02</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>megalitre per month</p></td>
+<td><p>Ml mon^-1</p></td>
+<td><p>3.80265176e-04</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><strong>Angle</strong></p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>degree</p></td>
+<td><p>°</p></td>
+<td><p>1.0</p></td>
+<td><p>0.0</p></td>
+<td><p>Is a measurement of plane
+angle, representing 1/360
+of a full rotation</p></td>
+</tr>
+<tr class="row-even"><td><p>grad or gon</p></td>
+<td><p>grd</p></td>
+<td><p>0.9</p></td>
+<td><p>0.0</p></td>
+<td><p>One grad equals 9/10 of a
+degree or π/200 of a
+radian</p></td>
+</tr>
+<tr class="row-odd"><td><p>radian</p></td>
+<td><p>rad</p></td>
+<td><p>57.29577951</p></td>
+<td><p>0.0</p></td>
+<td><p>1 rad=180/π</p></td>
+</tr>
+<tr class="row-even"><td><p>minutes</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">'</span></code></p></td>
+<td><p>0.0166666666</p></td>
+<td><p>0.0</p></td>
+<td><p>1°=1/60</p></td>
+</tr>
+<tr class="row-odd"><td><p>seconds</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">''</span></code></p></td>
+<td><p>0.00027777777778</p></td>
+<td><p>0.0</p></td>
+<td><p>1°=1/3600</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Temperature</strong></p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>Celsius</p></td>
+<td><p>°C</p></td>
+<td><p>1.0</p></td>
+<td><p>273.15</p></td>
+<td><p>The Celsius scale sets
+0.01 °C to be at the
+triple point of water and
+a degree Celsius to be
+1/273.16 of the difference
+in temperature between the
+triple point of water and
+absolute zero. Until 1954
+the scale was defined with
+the freezing point of
+water at 0 °C and the
+boiling point at 100 °C at
+standard atmospheric
+pressure.</p></td>
+</tr>
+<tr class="row-even"><td><p>Delisle</p></td>
+<td><p>°De</p></td>
+<td><p>-0.666666666667</p></td>
+<td><p>373.15</p></td>
+<td><p>The Delisle scale is a
+temperature scale invented
+in 1732 by the French
+astronomer Joseph-Nicolas
+Delisle (16881768). It is
+similar to that of Reaumur</p></td>
+</tr>
+<tr class="row-odd"><td><p>Electronvolt</p></td>
+<td><p>eV</p></td>
+<td><p>11605.0</p></td>
+<td><p>0.0</p></td>
+<td><p>In some fields, plasma
+physics in particular, the
+electronvolt (eV) is used
+as a unit of ‘temperature’</p></td>
+</tr>
+<tr class="row-even"><td><p>Fahrenheit</p></td>
+<td><p>°F</p></td>
+<td><p>0.555555555556</p></td>
+<td><p>255.372222222</p></td>
+<td><p>In this scale, the
+freezing point of water is
+32 degrees Fahrenheit
+(written as 32 °F), and
+the boiling point is 212
+degrees, placing the
+boiling and melting points
+of water 180 degrees
+apart. Thus the unit of
+this scale, a degree
+Fahrenheit, is 5/9ths of a
+kelvin (which is a degree
+Celsius), and negative 40
+degrees Fahrenheit is
+equal to negative 40
+degrees Celsius</p></td>
+</tr>
+<tr class="row-odd"><td><p>Kelvin</p></td>
+<td><p>K</p></td>
+<td><p>1.0</p></td>
+<td><p>0.0</p></td>
+<td><p>The kelvin, unit of
+thermodynamic temperature
+is the fraction 1/273.16
+of the thermodynamic
+temperature of the triple
+point of water. [13th CGPM
+(1967), Resolution 4]</p></td>
+</tr>
+<tr class="row-even"><td><p>Rankine</p></td>
+<td><p>°Ra</p></td>
+<td><p>0.555555555556</p></td>
+<td><p>0.0</p></td>
+<td><p>Like Kelvin, Rankine zero
+is absolute zero, but
+Fahrenheit degrees are
+used. As a result, a
+difference of 1°R is equal
+to a difference of 1°F,
+but 0°R is 459.67°F</p></td>
+</tr>
+<tr class="row-odd"><td><p>Réaumur</p></td>
+<td><p>°Ré</p></td>
+<td><p>1.25</p></td>
+<td><p>273.15</p></td>
+<td><p>The freezing point of
+water is 0 degrees
+Réaumur, the boiling point
+80 degrees Réaumur. Hence
+a degree Reaumur is 1.25
+degrees Celsius or
+kelvins. The Réaumur
+temperature scale is also
+known as the octogesimal
+division (division
+octogesimale)</p></td>
+</tr>
+<tr class="row-even"><td><p>Rømer</p></td>
+<td><p>°Rø</p></td>
+<td><p>1.90476190476</p></td>
+<td><p>258.864285714</p></td>
+<td><p>Rømer is a disused
+temperature scale named
+after the Danish
+astronomer Ole Christensen
+Rømer, who proposed it in
+1701</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Power</strong></p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>BTU/hour</p></td>
+<td><p>BTU h^-1</p></td>
+<td><p>0.29301067</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>BTU/minutes</p></td>
+<td><p>BTU min^-1</p></td>
+<td><p>17.56863</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>BTU/seconds</p></td>
+<td><p>BTU s^-1</p></td>
+<td><p>1055.056</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>calorie/seconds</p></td>
+<td><p>cal s^-1</p></td>
+<td><p>4.183076</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>gigawatt</p></td>
+<td><p>GW</p></td>
+<td><p>1000000000.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>horsepower</p></td>
+<td><p>hp</p></td>
+<td><p>745.699871582</p></td>
+<td><p>0.0</p></td>
+<td><p>The mechanical horsepower
+is originally proposed by
+James Watt in 1782.</p></td>
+</tr>
+<tr class="row-even"><td><p>watt</p></td>
+<td><p>W</p></td>
+<td><p>1.0</p></td>
+<td><p>0.0</p></td>
+<td><p>One watt is one joule of
+energy per second</p></td>
+</tr>
+<tr class="row-odd"><td><p>kilowatt</p></td>
+<td><p>kW</p></td>
+<td><p>1000.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>megawatt</p></td>
+<td><p>MW</p></td>
+<td><p>1000000.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>gigawatt</p></td>
+<td><p>GW</p></td>
+<td><p>1000000000.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>volt-ampere</p></td>
+<td><p>VA</p></td>
+<td><p>1.0</p></td>
+<td><p>0.0</p></td>
+<td><p>A volt-ampere in
+electrical terms, means
+the amount of apparent
+power in an alternating
+current circuit equal to
+a current of one ampere
+at an emf of one volt. It
+is dimensionally
+equivalent to watts</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Area</strong></p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>square metre</p></td>
+<td><p>m^2</p></td>
+<td><p>1.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>square kilometre</p></td>
+<td><p>km^2</p></td>
+<td><p>1000000.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>are</p></td>
+<td><p>a</p></td>
+<td><p>100.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>acre</p></td>
+<td><p>ac</p></td>
+<td><p>4046.8564224</p></td>
+<td><p>0.0</p></td>
+<td><p>International acre.</p></td>
+</tr>
+<tr class="row-even"><td><p>acre(US)</p></td>
+<td><p>ac (US)</p></td>
+<td><p>4046.87261</p></td>
+<td><p>0.0</p></td>
+<td><p>United States survey acre.</p></td>
+</tr>
+<tr class="row-odd"><td><p>hectare</p></td>
+<td><p>ha</p></td>
+<td><p>10000.0</p></td>
+<td><p>0.0</p></td>
+<td><p>Commonly used for
+measuring land area.</p></td>
+</tr>
+<tr class="row-even"><td><p>square yard</p></td>
+<td><p>yd^2</p></td>
+<td><p>0.83612736</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>square foot</p></td>
+<td><p>ft^2</p></td>
+<td><p>0.09290304</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>square inch</p></td>
+<td><p>in^2</p></td>
+<td><p>0.00064516</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>square mile</p></td>
+<td><p>mi^2</p></td>
+<td><p>2589988.11034</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><strong>Energy</strong></p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>BTU(IT)</p></td>
+<td><p>BTU</p></td>
+<td><p>1055.056</p></td>
+<td><p>0.0</p></td>
+<td><p>The British thermal unit
+(BTU or Btu) is a unit of
+energy used in the United
+States. In most other
+areas, it has been
+replaced by the SI unit of
+energy, the joule (J). A
+Btu is defined as the
+amount of heat required to
+raise the temperature of
+one pound avoirdupois of
+water by one degree
+Fahrenheit. 143 Btu is
+required to melt a pound
+of ice. As is the case
+with the calorie, several
+different definitions of
+the Btu exist, here ISO
+BTU is used  1 ISO BTU =
+1055.056 J</p></td>
+</tr>
+<tr class="row-even"><td><p>calorie(IT)</p></td>
+<td><p>cal</p></td>
+<td><p>4.1868</p></td>
+<td><p>0.0</p></td>
+<td><p>The small calorie or gram
+calorie approximates the
+energy needed to increase
+the temperature of 1 g of
+water by 1C. Here the
+definition adopted by the
+Fifth International
+Conference on Properties
+of Steam (London, July
+1956) is used. 1 cal =
+4.1868 J exactly.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Electronvolt</p></td>
+<td><p>eV</p></td>
+<td><p>11605.0</p></td>
+<td><p>0.0</p></td>
+<td><p>In some fields, plasma
+physics in particular,
+the electronvolt (eV) is
+used as a unit of
+‘temperature’</p></td>
+</tr>
+<tr class="row-even"><td><p>erg</p></td>
+<td><p>erg</p></td>
+<td><p>1e-07</p></td>
+<td><p>0.0</p></td>
+<td><p>An erg is the unit of
+energy and mechanical
+work in the
+centimetre-gram-second
+(CGS) system of units. Its
+name is derived from the
+Greek word meaning ‘work’.
+The erg is a quite small
+unit, equal to a force of
+one dyne exerted for a
+distance of one centimetre</p></td>
+</tr>
+<tr class="row-odd"><td><p>gigajoule</p></td>
+<td><p>GJ</p></td>
+<td><p>1000000000.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>horsepower-hours</p></td>
+<td><p>hph</p></td>
+<td><p>2684520.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>joule</p></td>
+<td><p>J</p></td>
+<td><p>1.0</p></td>
+<td><p>0.0</p></td>
+<td><p>The joule is a derived
+unit defined as the work
+done or energy required,
+to exert a force of one
+newton for a distance of
+one metre, so the same
+quantity may be referred
+to as a newton metre or
+newton-metre with the
+symbol N·m. However, the
+newton metre is usually
+used as a measure of
+torque, not energy</p></td>
+</tr>
+<tr class="row-even"><td><p>kilojoule</p></td>
+<td><p>kJ</p></td>
+<td><p>1000.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>kilocalorie</p></td>
+<td><p>kcal</p></td>
+<td><p>4184.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>watt-hour</p></td>
+<td><p>Wh</p></td>
+<td><p>3600.0</p></td>
+<td><p>0.0</p></td>
+<td><p>One watt-hour is
+equivalent to one watt of
+power used for one hour.
+This is equivalent to
+3,600 joules. For example,
+a sixty watt light bulb
+uses 60 watt-hours of
+energy every hour</p></td>
+</tr>
+<tr class="row-odd"><td><p>kilowatt-hour</p></td>
+<td><p>kWh</p></td>
+<td><p>3600000.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>Megawatt-hour</p></td>
+<td><p>MWh</p></td>
+<td><p>3600000000.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>Gigawatt-hour</p></td>
+<td><p>GWh</p></td>
+<td><p>3.6e+12</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>megajoule</p></td>
+<td><p>MJ</p></td>
+<td><p>1000000.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Volume</strong></p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>barrel(oil)</p></td>
+<td><p>bbl</p></td>
+<td><p>0.158987295</p></td>
+<td><p>0.0</p></td>
+<td><p>The standard oil barrel is
+used in the United States
+for crude oil or other
+petroleum products. 1 Oil
+barrel = 42 US gallons</p></td>
+</tr>
+<tr class="row-odd"><td><p>centilitre</p></td>
+<td><p>cl</p></td>
+<td><p>1e-05</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>cubic centimetre</p></td>
+<td><p>cm^3</p></td>
+<td><p>1e-06</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>cubic decimetre</p></td>
+<td><p>dm^3</p></td>
+<td><p>0.001</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>cubic hectometre</p></td>
+<td><p>hm^3</p></td>
+<td><p>1000000.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>cubic foot</p></td>
+<td><p>ft^3</p></td>
+<td><p>0.028316846592</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>cubic inch</p></td>
+<td><p>in^3</p></td>
+<td><p>1.6387064e-05</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>cubic metre</p></td>
+<td><p>m^3</p></td>
+<td><p>1.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>cubic millimetre</p></td>
+<td><p>mm^3</p></td>
+<td><p>1e-09</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>cubic yard</p></td>
+<td><p>yd^3</p></td>
+<td><p>0.764554857984</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>decilitre</p></td>
+<td><p>dl</p></td>
+<td><p>0.0001</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>fluid ounce(US)</p></td>
+<td><p>fl oz</p></td>
+<td><p>2.9574e-05</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>gallon, liquid(US)</p></td>
+<td><p>gal</p></td>
+<td><p>0.003785411784</p></td>
+<td><p>0.0</p></td>
+<td><p>US liquid gallon is 231
+in^3 or 128 fl oz or
+3.785411784 L.</p></td>
+</tr>
+<tr class="row-odd"><td><p>litre</p></td>
+<td><p>L</p></td>
+<td><p>0.001</p></td>
+<td><p>0.0</p></td>
+<td><p>A litre is defined as a
+special name for a cubic
+decimetre (1 L = 1 dm^3).</p></td>
+</tr>
+<tr class="row-even"><td><p>decilitre</p></td>
+<td><p>dl</p></td>
+<td><p>0.0001</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>millilitre</p></td>
+<td><p>ml</p></td>
+<td><p>1e-06</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>megalitre</p></td>
+<td><p>Ml</p></td>
+<td><p>1000</p></td>
+<td><p>0.0</p></td>
+<td><p>A megalitre is a unit used
+in water management (1 Ml
+= 10^3 m^3)</p></td>
+</tr>
+<tr class="row-odd"><td><p>pint, liquid(US)</p></td>
+<td><p>pt</p></td>
+<td><p>0.000473176475</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>acre-foot</p></td>
+<td><p>ac-ft</p></td>
+<td><p>1.23348184</p></td>
+<td><p>0.0</p></td>
+<td><p>An acre foot is the volume
+of water that covers one
+acre in one foot. This
+unit is popular among
+irrigation people in the
+US.</p></td>
+</tr>
+<tr class="row-odd"><td><p>acre-inch</p></td>
+<td><p>ac-in</p></td>
+<td><p>0.102790153</p></td>
+<td><p>0.0</p></td>
+<td><p>See acre-foot.</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Pressure</strong></p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>atmosphere</p></td>
+<td><p>atm</p></td>
+<td><p>101325.0</p></td>
+<td><p>0.0</p></td>
+<td><p>an atmosphere (symbol:
+atm) or standard
+atmosphere is a unit of
+pressure roughly equal to
+the average atmospheric
+pressure at sea level on
+Earth. It is defined as
+101.325 kPa and equal to
+the pressure under 760 mm
+of mercury</p></td>
+</tr>
+<tr class="row-even"><td><p>pascal</p></td>
+<td><p>Pa</p></td>
+<td><p>1.0</p></td>
+<td><p>0.0</p></td>
+<td><p>The pascal is equivalent
+to one newton per square
+metre, and was used in SI
+under that name before
+the name pascal was
+adopted by the 14th CGPM
+in 1971. The same unit is
+also used for stress,
+Young’s modulus, and
+tensile strength</p></td>
+</tr>
+<tr class="row-odd"><td><p>bar</p></td>
+<td><p>bar</p></td>
+<td><p>100000.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>hectopascal</p></td>
+<td><p>hPa</p></td>
+<td><p>100.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>iches of water</p></td>
+<td><p>inH2O</p></td>
+<td><p>249.08891</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>inches of mercury</p></td>
+<td><p>inHg</p></td>
+<td><p>3386.388</p></td>
+<td><p>0.0</p></td>
+<td><p>Inches of mercury is a
+non-SI unit for pressure.
+It is defined as the
+pressure exerted by a
+column of mercury of 1
+inch in height at 0 °C at
+the standard acceleration
+of gravity. 1 inHg =
+3386.389 pascals at 0 °C.</p></td>
+</tr>
+<tr class="row-odd"><td><p>kilopascal</p></td>
+<td><p>kPa</p></td>
+<td><p>1000.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>metre of water</p></td>
+<td><p>mH2O</p></td>
+<td><p>9806.65</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>microbar</p></td>
+<td><p>µbar</p></td>
+<td><p>0.1</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>milibar</p></td>
+<td><p>mbar</p></td>
+<td><p>100.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>millimetre of mercury</p></td>
+<td><p>mmHg</p></td>
+<td><p>133.322</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>millimetre of water</p></td>
+<td><p>mmH2O</p></td>
+<td><p>9.80665</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>lbf/in^2</p></td>
+<td><p>psi</p></td>
+<td><p>6894.76</p></td>
+<td><p>0.0</p></td>
+<td><p>The pound-force per square
+inch (symbol: lbf/in^2) is
+a non-SI unit of pressure
+based on avoirdupois
+units. In casual English
+language use it is
+rendered as ‘pounds per
+square inch’, abbreviated
+to psi with little
+distinction between ‘mass’
+and ‘force’</p></td>
+</tr>
+<tr class="row-even"><td><p>technical atmosphere</p></td>
+<td><p>at</p></td>
+<td><p>98066.5</p></td>
+<td><p>0.0</p></td>
+<td><p>A technical atmosphere is
+a non-SI unit of pressure
+equal to 1 kilogram-force
+per square centimetre,
+i.e. 98.066 5 kilopascals
+(kPa) or about 0.96784
+standard atmospheres</p></td>
+</tr>
+<tr class="row-odd"><td><p>torr</p></td>
+<td><p>torr</p></td>
+<td><p>133.322</p></td>
+<td><p>0.0</p></td>
+<td><p>The torr (symbol: Torr) or
+millimetre of mercury
+(mmHg) is a non-SI unit of
+pressure. It is the
+atmospheric pressure that
+supports a column of
+mercury 1 millimetre high</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Length</strong></p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>angström</p></td>
+<td><p>Å</p></td>
+<td><p>1e-10</p></td>
+<td><p>0.0</p></td>
+<td><p>Angstrom sometimes used
+expressing the size of
+atoms, and lengths of
+chemical bonds and
+visible-light spectra.</p></td>
+</tr>
+<tr class="row-even"><td><p>astronomical unit</p></td>
+<td><p>AU</p></td>
+<td><p>1.4959855e+11</p></td>
+<td><p>0.0</p></td>
+<td><p>Is a unit of length
+approximately equal to the
+distance from the Earth to
+the Sun.</p></td>
+</tr>
+<tr class="row-odd"><td><p>centimetre</p></td>
+<td><p>cm</p></td>
+<td><p>0.01</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>decimetre</p></td>
+<td><p>dm</p></td>
+<td><p>0.1</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>femtometre</p></td>
+<td><p>fm</p></td>
+<td><p>1e-15</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>foot</p></td>
+<td><p>ft</p></td>
+<td><p>0.3048</p></td>
+<td><p>0.0</p></td>
+<td><p>International foot. Foot
+is a unit of length, in a
+number of different
+systems, including English
+units, Imperial units, and
+United States customary
+units. Its size can vary
+from system to system, but
+in each is around a
+quarter to a third of a
+metre. The most commonly
+used foot today is the
+international foot.</p></td>
+</tr>
+<tr class="row-odd"><td><p>hectometre</p></td>
+<td><p>hm</p></td>
+<td><p>100.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>inch</p></td>
+<td><p>in</p></td>
+<td><p>0.0254</p></td>
+<td><p>0.0</p></td>
+<td><p>The international inch is
+defined to be precisely
+25.4 mm</p></td>
+</tr>
+<tr class="row-odd"><td><p>kilometre</p></td>
+<td><p>km</p></td>
+<td><p>1000.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>light-year</p></td>
+<td><p>ly</p></td>
+<td><p>9.460528405e+15</p></td>
+<td><p>0.0</p></td>
+<td><p>A light-year is the
+distance that light
+travels in a vacuum in one
+year. While there is no
+authoritative decision on
+which year is used, the
+International Astronomical
+Union (IAU) recommends the
+Julian year.</p></td>
+</tr>
+<tr class="row-odd"><td><p>metre</p></td>
+<td><p>m</p></td>
+<td><p>1.0</p></td>
+<td><p>0.0</p></td>
+<td><p>Is the fundamental unit of
+length in the
+International System of
+Units (SI). The metre is
+defined as the length of
+the path traveled by light
+in vacuum during a time
+interval of 1/299,792,458
+second.</p></td>
+</tr>
+<tr class="row-even"><td><p>micrometre</p></td>
+<td><p>µm</p></td>
+<td><p>1e-06</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>mile</p></td>
+<td><p>mi</p></td>
+<td><p>1609.344</p></td>
+<td><p>0.0</p></td>
+<td><p>The international mile is
+defined to be precisely
+1760 international yards
+(by definition, 0.9144 m
+each) and is therefore
+exactly 1609.344 metres.</p></td>
+</tr>
+<tr class="row-even"><td><p>mile(nautical)</p></td>
+<td><p>nmi</p></td>
+<td><p>1852.0</p></td>
+<td><p>0.0</p></td>
+<td><p>Corresponds approximately
+to one minute of latitude
+along any meridian. It is
+a non-SI unit used by
+special interest groups
+such as navigators in the
+shipping and aviation
+industries. It is commonly
+used in international law
+and treaties, especially
+regarding the limits of
+territorial waters. It
+developed from the
+geographical mile.</p></td>
+</tr>
+<tr class="row-odd"><td><p>millimetre</p></td>
+<td><p>mm</p></td>
+<td><p>0.001</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>nanometre</p></td>
+<td><p>nm</p></td>
+<td><p>1e-09</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>parsec</p></td>
+<td><p>pc</p></td>
+<td><p>3.0856776e+16</p></td>
+<td><p>0.0</p></td>
+<td><p>The name parsec stands for
+‘’parallax of one second
+of arc’’, and one parsec
+is defined to be the
+distance from the Earth to
+a star that has a parallax
+of 1 arcsecond.</p></td>
+</tr>
+<tr class="row-even"><td><p>picometre</p></td>
+<td><p>pm</p></td>
+<td><p>1e-12</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>yard</p></td>
+<td><p>yd</p></td>
+<td><p>0.9144</p></td>
+<td><p>0.0</p></td>
+<td><p>The international yard is
+defined as 3 feet, 36
+inches, or 1/1760 of a
+mile, which is exactly
+0.9144 metres.</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Mass</strong></p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>carat</p></td>
+<td><p>carat</p></td>
+<td><p>0.0002</p></td>
+<td><p>0.0</p></td>
+<td><p>The carat is a unit of
+mass used for gems, and
+equals 200 milligrams. The
+word derives from the
+Greek keration (fruit of
+the carob), via Arabic and
+Italian. Carob seeds were
+used as weights on
+precision scales because
+of their uniform weight.
+In the distant past,
+different countries each
+had their own carat,
+roughly equivalent to a
+carob seed</p></td>
+</tr>
+<tr class="row-even"><td><p>gram</p></td>
+<td><p>g</p></td>
+<td><p>0.001</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>kilogram</p></td>
+<td><p>kg</p></td>
+<td><p>1.0</p></td>
+<td><p>0.0</p></td>
+<td><p>The kilogram is the unit
+of mass equal to the mass
+of the international
+prototype of kilogram.
+[1st CGPM (1889), 3rd CGPM
+(1901)]. It is the only SI
+unit that is still defined
+in relation to an artifact
+rather than to a
+fundamental physical
+property that can be
+reproduced in different
+laboratories.</p></td>
+</tr>
+<tr class="row-even"><td><p>microgram</p></td>
+<td><p>µg</p></td>
+<td><p>1e-09</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>milligram</p></td>
+<td><p>mg</p></td>
+<td><p>1e-06</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>ounce</p></td>
+<td><p>oz</p></td>
+<td><p>0.02835</p></td>
+<td><p>0.0</p></td>
+<td><p>International avoirdupois
+ounce (most common). The
+abbreviation ‘’oz’’ comes
+from the old Italian word
+‘’onza’’ (now spelled
+oncia), meaning ounce.</p></td>
+</tr>
+<tr class="row-odd"><td><p>pound</p></td>
+<td><p>lbm</p></td>
+<td><p>0.45359237</p></td>
+<td><p>0.0</p></td>
+<td><p>The pound is the name of a
+number of units of mass,
+all in the range of 300 to
+600 grams. Most commonly,
+it refers to the
+avoirdupois pound (454 g),
+divided into 16
+avoirdupois ounces.</p></td>
+</tr>
+<tr class="row-even"><td><p>tonne</p></td>
+<td><p>t</p></td>
+<td><p>1000.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Time</strong></p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>day</p></td>
+<td><p>day</p></td>
+<td><p>86400.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>hour</p></td>
+<td><p>h</p></td>
+<td><p>3600.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>minute</p></td>
+<td><p>min</p></td>
+<td><p>60.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>month</p></td>
+<td><p>mon</p></td>
+<td><p>2629743.8328</p></td>
+<td><p>0.0</p></td>
+<td><p>Here: 1 month =  1/12
+year.
+January = 31 days
+February, 28 days, 29 in
+leap years, or 30 on
+certain occasions in
+related calendars
+March, 31 days
+April, 30 days
+May, 31 days
+June, 30 days
+July, 31 days
+August, 31 days
+September, 30 days
+October, 31 days
+November, 30 days
+December, 31 days</p></td>
+</tr>
+<tr class="row-even"><td><p>second</p></td>
+<td><p>s</p></td>
+<td><p>1.0</p></td>
+<td><p>0.0</p></td>
+<td><p>The second is the SI base
+unit of time and is
+defined as the duration of
+9 192 631 770 periods of
+the radiation
+corresponding to the
+transition between the two
+hyperfine levels of the
+ground state of the
+caesium-133 atom. This
+definition refers to a
+caesium atom at rest at a
+temperature of 0 K</p></td>
+</tr>
+<tr class="row-odd"><td><p>millisecond</p></td>
+<td><p>ms</p></td>
+<td><p>0.001</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>microsecond</p></td>
+<td><p>μs</p></td>
+<td><p>1e-06</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>nanosecond</p></td>
+<td><p>ns</p></td>
+<td><p>1e-09</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>picosecond</p></td>
+<td><p>ps</p></td>
+<td><p>1e-12</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>year</p></td>
+<td><p>yr</p></td>
+<td><p>31556925.9936</p></td>
+<td><p>0.0</p></td>
+<td><p>Here: 1 year = 365.242199
+days.</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Force</strong></p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>dyne</p></td>
+<td><p>dyn</p></td>
+<td><p>1e-05</p></td>
+<td><p>0.0</p></td>
+<td><p>The dyne is a unit of force
+specified in the
+centimetre-gram-second
+(cgs) system of units. One
+dyne is equal to exactly
+10-5 newtons. The dyne can
+be defined as ‘the force
+required to accelerate a
+mass of one gram at a rate
+of one centimetre per
+second squared’</p></td>
+</tr>
+<tr class="row-even"><td><p>gram-force</p></td>
+<td><p>gf</p></td>
+<td><p>0.00980665</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>joule/metre</p></td>
+<td><p>J m^-1</p></td>
+<td><p>1.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>kg·m/s^2</p></td>
+<td><p>kg m s^-2</p></td>
+<td><p>1.0</p></td>
+<td><p>0.0</p></td>
+<td><p>Same as 1 newton</p></td>
+</tr>
+<tr class="row-odd"><td><p>kilogram-force</p></td>
+<td><p>kgf</p></td>
+<td><p>9.80665</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>kilopond</p></td>
+<td><p>kp</p></td>
+<td><p>9.80665</p></td>
+<td><p>0.0</p></td>
+<td><p>The deprecated unit
+kilogram-force (kgf) or
+kilopond (kp) is defined
+as the force exerted by
+one kilogram of mass in
+standard Earth gravity.
+Although the gravitational
+pull of the Earth varies
+as a function of position
+on earth, it is here
+defined as exactly 9.80665
+m/s^2. So one
+kilogram-force is by
+definition equal to
+9.80665 newtons</p></td>
+</tr>
+<tr class="row-odd"><td><p>kilopound-force</p></td>
+<td><p>kipf</p></td>
+<td><p>4448.22161525</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>lb·ft/s^2</p></td>
+<td><p>lb ft s^-2</p></td>
+<td><p>0.138254954376</p></td>
+<td><p>0.0</p></td>
+<td><p>Same as 1 poundal</p></td>
+</tr>
+<tr class="row-odd"><td><p>newton</p></td>
+<td><p>N</p></td>
+<td><p>1.0</p></td>
+<td><p>0.0</p></td>
+<td><p>A newton is the amount of
+force required to
+accelerate a mass of one
+kilogram at a rate of one
+metre per second squared.
+In addition, 1N is the
+force of gravity on a
+small apple on Earth</p></td>
+</tr>
+<tr class="row-even"><td><p>ounce-force</p></td>
+<td><p>ozf</p></td>
+<td><p>0.278013850953</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>pond</p></td>
+<td><p>p</p></td>
+<td><p>0.00980665</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>pound-force</p></td>
+<td><p>lbf</p></td>
+<td><p>4.448222</p></td>
+<td><p>0.0</p></td>
+<td><p>The pound-force is a
+non-SI unit of force or
+weight. The pound-force is
+equal to a mass of one
+avoirdupois pound (which
+is currently defined as
+exactly 0.45359237
+kilogram) multiplied by
+the standard acceleration
+due to gravity on Earth.
+(The pound-force is thus
+roughly the force exerted
+due to gravity by a mass
+of one pound at the
+surface of the Earth)</p></td>
+</tr>
+<tr class="row-odd"><td><p>poundal</p></td>
+<td><p>pdl</p></td>
+<td><p>0.138254954376</p></td>
+<td><p>0.0</p></td>
+<td><p>The poundal is a non-SI
+unit of force. It is a
+part of the absolute
+foot-pound-second system
+of units, a coherent
+subsystem of English units
+introduced in 1879, and
+one of several specialized
+subsystems of mechanical
+units used as aids in
+calculations. It is
+defined as 1 lb·ft/s^2</p></td>
+</tr>
+<tr class="row-even"><td><p>tonne-force(metric)</p></td>
+<td><p>tf</p></td>
+<td><p>9806.65</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Speed</strong></p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>metre/second</p></td>
+<td><p>m s^-1</p></td>
+<td><p>1.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>foot/hour</p></td>
+<td><p>fph</p></td>
+<td><p>8.4666666666e-05</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>inch/minute</p></td>
+<td><p>ipm</p></td>
+<td><p>0.00042333333333</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>foot/minute</p></td>
+<td><p>fpm</p></td>
+<td><p>0.00508</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>inch/second</p></td>
+<td><p>ips</p></td>
+<td><p>0.0254</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>kilometre/hour</p></td>
+<td><p>km h^-1</p></td>
+<td><p>0.277777777778</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>foot/second</p></td>
+<td><p>fps</p></td>
+<td><p>0.3048</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>mile/hour</p></td>
+<td><p>mph</p></td>
+<td><p>0.44704</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>knot(admiralty)</p></td>
+<td><p>kn</p></td>
+<td><p>0.514773</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>mile/minute</p></td>
+<td><p>mpm</p></td>
+<td><p>26.8224</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>mile/second</p></td>
+<td><p>mps</p></td>
+<td><p>1609.344</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>speed of light in vacuum</p></td>
+<td><p>c</p></td>
+<td><p>299792458.0</p></td>
+<td><p>0.0</p></td>
+<td><p>The speed of light in a
+vacuum is an important
+physical constant denoted
+by the letter c for
+constant or the Latin word
+celeritas meaning
+‘swiftness’. It is the
+speed of all
+electromagnetic radiation,
+including visible light,
+in a vacuum. More
+generally, it is the speed
+of anything having zero
+rest mass.</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Monetary value</strong></p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>US Dollar</p></td>
+<td><p>$</p></td>
+<td><p>1.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><strong>Unit price (volume)</strong></p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>US Dollar per square metre</p></td>
+<td><p>$ m^-3</p></td>
+<td><p>1.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><strong>Unit price (mass)</strong></p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>US Dollar per kilogram</p></td>
+<td><p>$ kg^-1</p></td>
+<td><p>1.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><strong>Energy price</strong></p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>USDollars per kilowatt-hour</p></td>
+<td><p>$ kWh^-1</p></td>
+<td><p>2.77777777e-07</p></td>
+<td><p>0.0</p></td>
+<td><p>Cost in US Dollars per
+energy unit
+(kilowatt-hour).</p></td>
+</tr>
+<tr class="row-even"><td><p>USDollars per kilojoule</p></td>
+<td><p>$ kJ^-1</p></td>
+<td><p>0.001</p></td>
+<td><p>0.0</p></td>
+<td><p>Cost in US Dollars per
+energy unit (kilojoule).</p></td>
+</tr>
+<tr class="row-odd"><td><p>USDollars per joule</p></td>
+<td><p>$ J^-1</p></td>
+<td><p>1.0</p></td>
+<td><p>0.0</p></td>
+<td><p>Cost in US Dollars per
+energy unit (joule).</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Specific cost (time)</strong></p></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>US Dollar per second</p></td>
+<td><p>$ s^-1</p></td>
+<td><p>1.0</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>US Dollar per minute</p></td>
+<td><p>$ min^-1</p></td>
+<td><p>0.0166666667</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>US Dollar per hour</p></td>
+<td><p>$ h^-1</p></td>
+<td><p>0.000277777778</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>US Dollar per day</p></td>
+<td><p>$ day^-1</p></td>
+<td><p>1.15740741e-05</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>US Dollar per month</p></td>
+<td><p>$ mon^-1</p></td>
+<td><p>3.80265176e-07</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>US Dollar per year</p></td>
+<td><p>$ yr^-1</p></td>
+<td><p>3.16887646e-08</p></td>
+<td><p>0.0</p></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<section id="id1">
+<h3><a class="toc-backref" href="#id7">Basic concepts</a><a class="headerlink" href="#id1" title="Permalink to this heading"></a></h3>
+</section>
+<section id="list-of-unit-keywords">
+<h3><a class="toc-backref" href="#id8">List of unit keywords</a><a class="headerlink" href="#list-of-unit-keywords" title="Permalink to this heading"></a></h3>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../index.html" class="btn btn-neutral float-left" title="Developers documentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="timeseries.html" class="btn btn-neutral float-right" title="Time Series" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, The University of Manchester.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+<script type="text/javascript">
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+     (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+       m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+         })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-71439863-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+
+</body>
+</html>

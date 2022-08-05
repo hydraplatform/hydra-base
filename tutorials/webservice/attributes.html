@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attributes &mdash; hydra-base 0.1.14 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/theme_override.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Working with datasets" href="datasets.html" />
+    <link rel="prev" title="Working with networks" href="networks.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> hydra-base
+          </a>
+              <div class="version">
+                0.1.14
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Tutorials</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../getting-started/index.html">Getting started</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">HydraPlatform web service</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="index.html#common-tasks">Common Tasks</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="projects.html">Working with projects</a></li>
+<li class="toctree-l4"><a class="reference internal" href="networks.html">Working with networks</a></li>
+<li class="toctree-l4 current"><a class="current reference internal" href="#">Attributes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#resource-attributes">Resource Attributes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="datasets.html">Working with datasets</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scenarios.html">Working with scenarios</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../plug-in/index.html">App development</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../using-templates/index.html">Building HydraPlatform templates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugins/index.html">Apps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../design/index.html">Design</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../implementation/index.html">Implementation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../webapi/index.html">Web API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../devdocs/index.html">Developers documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">hydra-base</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Tutorials</a> &raquo;</li>
+          <li><a href="index.html">HydraPlatform web service</a> &raquo;</li>
+      <li>Attributes</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/tutorials/webservice/attributes.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="attributes">
+<span id="id1"></span><h1>Attributes<a class="headerlink" href="#attributes" title="Permalink to this heading"></a></h1>
+<p>As well as having a topological structure (nodes connected by links), a network
+can also have associated information. For example, in a river network, a node
+representing a hydro electric plant might have information such as its annual
+cost of running measured in pounds sterling, maximum capacity measured in megawatts,
+and daily throughput of water measured in megalitres per second.</p>
+<p>An <em>Attr</em> in hydra is the definition of an attribute which can be assigned
+to a resource.
+Attributes are then linked to resources (nodes or links) using <code class="docutils literal notranslate"><span class="pre">ResourceAttributes</span></code>.
+ResourceAttributes can then be linked to a specific value through a scenario (see <a class="reference internal" href="scenarios.html#scenarios"><span class="std std-ref">Working with scenarios</span></a>).</p>
+<p>An attribute is uniquely identified by its name and dimension.</p>
+<p>Before resources can be given attributes, the Attributes must be defined.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">attr</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">factory</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;hyd:Attr&#39;</span><span class="p">)</span>
+<span class="n">attr</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Daily Throughput&quot;</span>
+<span class="n">attr</span><span class="o">.</span><span class="n">dimension</span> <span class="o">=</span> <span class="s2">&quot;Volumetric flow rate&quot;</span>
+
+<span class="n">daily_throughput</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">add_attr</span><span class="p">(</span><span class="n">attr</span><span class="p">)</span>
+<span class="nb">print</span> <span class="n">daily_throughput</span><span class="o">.</span><span class="n">id</span> <span class="c1">#Will print an ID</span>
+</pre></div>
+</div>
+<p>All the valid dimensions are valid :download:’here ../../../HydraLib/trunk/HydraLib/static/unit_definitions.xml`.</p>
+</section>
+<section id="resource-attributes">
+<h1>Resource Attributes<a class="headerlink" href="#resource-attributes" title="Permalink to this heading"></a></h1>
+<p>Should a nodei (or lots of nodes) in your network need a ‘Daily Throughput’, then first the attribute needs
+to be defined (see above). Next, the node(s) needs to be linked to the attribute.</p>
+<p>This can be done when creating the network for the first time or retrospectively.
+This example shows Daily Throughput from above being assigned to a node before the network
+is added:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1">#Create the project</span>
+<span class="o">...</span>
+<span class="c1">#Define the network</span>
+<span class="o">...</span>
+<span class="c1">#Now define the network nodes.</span>
+<span class="n">node1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">factory</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;hyd:Node&#39;</span><span class="p">)</span>
+<span class="n">node1</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Node 1&quot;</span><span class="p">,</span>
+<span class="n">node1</span><span class="o">.</span><span class="n">description</span> <span class="o">=</span> <span class="s2">&quot;A node representing a water resource&quot;</span><span class="p">,</span>
+<span class="n">node1</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="n">node1</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="mi">10</span>
+
+<span class="n">node1_throughput</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">factory</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;hyd:ResourceAttr&#39;</span><span class="p">)</span>
+<span class="n">node1_throughput</span><span class="o">.</span><span class="n">attr_id</span> <span class="o">=</span> <span class="n">daily_throughput</span><span class="o">.</span><span class="n">id</span>
+<span class="n">node1_throughput</span><span class="o">.</span><span class="n">ref_key</span> <span class="o">=</span> <span class="s1">&#39;NODE&#39;</span>
+<span class="n">node1_throughput</span><span class="o">.</span><span class="n">ref_id</span>  <span class="o">=</span> <span class="kc">None</span>
+<span class="n">node1_throughput</span><span class="o">.</span><span class="n">attr_is_var</span> <span class="o">=</span> <span class="s1">&#39;N&#39;</span>
+<span class="n">node1_throughput</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+<span class="n">node1</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">ResourceAttr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node1_throughput</span><span class="p">)</span>
+
+<span class="c1">#Add more nodes</span>
+<span class="o">...</span>
+<span class="c1">#Add some links</span>
+<span class="o">...</span>
+<span class="c1">#Create the network</span>
+<span class="n">net_with_nodes_and_attributes</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">add_network</span><span class="p">(</span><span class="n">net</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>There are a few interesting things to investigate here. For example, what is
+<cite>ref key</cite> and why do we need to define it?</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">node1_throughput</span><span class="o">.</span><span class="n">ref_key</span> <span class="o">=</span> <span class="s1">&#39;NODE&#39;</span>
+</pre></div>
+</div>
+<p>A ResourceAttr is a general object which can be applied to several different
+types of resource: A network, a node, a link, a group and even a project.
+In order to keep track of which resource this ResourceAttr belongs to, a ref_key is
+used. This is particularly interesting later, where many attributes can be loaded
+from the server at once, so knowing which one points where is necessary.</p>
+<p>Next, what is <cite>attr_is_var</cite>?</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">node1_throughpyt</span><span class="o">.</span><span class="n">attr_is_var</span> <span class="o">=</span> <span class="s1">&#39;N&#39;</span>
+</pre></div>
+</div>
+<p>This indicates whether data should be assigned to this resource attr or not. If
+set to ‘N’, then we would expect data to be assigned to it in a scenario. If it is
+set to ‘Y’, then it is expected that a model or some external entity should fill in
+this data.</p>
+<p>Let’s take an example:
+If your work involves finding the model which optimises cost from several proposals
+for a water company. First you would create a network and add lots of attributes to the nodes, including ‘cost’.
+All attributes except ‘cost’ would then be filled with data for your model to work with, but ‘cost’
+is left blank. The network can then be exported and run inside your cost saving model.
+At this stage, the ‘cost’ attribute is calculated in the app and these attributes
+can be filled in.</p>
+<p>Finally, why is the id -1?</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">node1_throughput</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+</pre></div>
+</div>
+<p><strong>Negative IDs</strong> are the way Hydra deals with objects referencing each other but
+whihout yet having permenant IDS.
+When data is assigned to this ResourceAttr through a scenario, the scenario
+must identify the ResourceAttr somehow. By giving the resourceAttr a temporary
+negative ID, referencing becomes possible.
+When the network is added, all ResourceAttrs will be given permenant, positive IDS.</p>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="networks.html" class="btn btn-neutral float-left" title="Working with networks" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="datasets.html" class="btn btn-neutral float-right" title="Working with datasets" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, The University of Manchester.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+<script type="text/javascript">
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+     (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+       m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+         })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-71439863-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+
+</body>
+</html>

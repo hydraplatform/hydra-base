@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Working with networks &mdash; hydra-base 0.1.14 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/theme_override.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="Attributes" href="attributes.html" />
+    <link rel="prev" title="Working with projects" href="projects.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> hydra-base
+          </a>
+              <div class="version">
+                0.1.14
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">Tutorials</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../getting-started/index.html">Getting started</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">HydraPlatform web service</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="index.html#common-tasks">Common Tasks</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="projects.html">Working with projects</a></li>
+<li class="toctree-l4 current"><a class="current reference internal" href="#">Working with networks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="attributes.html">Attributes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="attributes.html#resource-attributes">Resource Attributes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="datasets.html">Working with datasets</a></li>
+<li class="toctree-l4"><a class="reference internal" href="scenarios.html">Working with scenarios</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../plug-in/index.html">App development</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../using-templates/index.html">Building HydraPlatform templates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugins/index.html">Apps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../design/index.html">Design</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../implementation/index.html">Implementation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../webapi/index.html">Web API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../devdocs/index.html">Developers documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">hydra-base</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Tutorials</a> &raquo;</li>
+          <li><a href="index.html">HydraPlatform web service</a> &raquo;</li>
+      <li>Working with networks</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../_sources/tutorials/webservice/networks.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="working-with-networks">
+<span id="networks"></span><h1>Working with networks<a class="headerlink" href="#working-with-networks" title="Permalink to this heading"></a></h1>
+<section id="adding-networks">
+<h2>Adding networks<a class="headerlink" href="#adding-networks" title="Permalink to this heading"></a></h2>
+<p>Before a network can be added, a project must first be created. See <a class="reference internal" href="projects.html#projects"><span class="std std-ref">Working with projects</span></a>.</p>
+<p>Networks are made up of nodes, links and scenarios, and can be created with
+any number of each.</p>
+<p>We use the word <code class="docutils literal notranslate"><span class="pre">resource</span></code> to describe things in hydra that can have attributes (see <a class="reference internal" href="attributes.html#attributes"><span class="std std-ref">Attributes</span></a>). Resources include
+Projects, Networks, Nodes, Links and Groups. A group is a grouping of nodes and/or links within a network. Groups are used to categorise sub-sections of a network, for example political jurisdictions.</p>
+<p>The simplest way to get started is to add an ‘empty’ network</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1">#Assume we have created a project</span>
+<span class="n">project_id</span>      <span class="o">=</span> <span class="n">my_project</span><span class="o">.</span><span class="n">id</span>
+
+<span class="n">net</span>             <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">factory</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;hyd:Network&#39;</span><span class="p">)</span>
+
+<span class="c1">#necessary info:</span>
+<span class="n">net</span><span class="o">.</span><span class="n">name</span>        <span class="o">=</span> <span class="s2">&quot;An empty network&quot;</span>
+<span class="n">net</span><span class="o">.</span><span class="n">description</span> <span class="o">=</span> <span class="s2">&quot;A network with no nodes, links or data (scenarios)&quot;</span>
+<span class="n">net</span><span class="o">.</span><span class="n">project_id</span>  <span class="o">=</span> <span class="n">project</span><span class="o">.</span><span class="n">id</span>
+</pre></div>
+</div>
+<p>A network also has a ‘layout’ attribute, which can be any XML encoding. This
+is used to help apps (the user interface) to store app-specific information
+about the network</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1">#Some helpful stuff for the UI, encoded in XML</span>
+<span class="n">net</span><span class="o">.</span><span class="n">layout</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;background_colour&#39;</span><span class="p">:</span> <span class="s1">&#39;blue&#39;</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>Having defined the network, it is added</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1">#add network</span>
+<span class="n">empty_net</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">add_network</span><span class="p">(</span><span class="n">net</span><span class="p">)</span>
+
+<span class="c1">#The new project now has an ID</span>
+<span class="nb">print</span> <span class="n">empty_net</span><span class="o">.</span><span class="n">id</span>
+
+<span class="nb">print</span> <span class="n">empty_net</span><span class="o">.</span><span class="n">nodes</span>      <span class="c1"># None</span>
+<span class="nb">print</span> <span class="n">empty_net</span><span class="o">.</span><span class="n">links</span>      <span class="c1"># None</span>
+<span class="nb">print</span> <span class="n">empty_net</span><span class="o">.</span><span class="n">scenarios</span>  <span class="c1"># None</span>
+<span class="nb">print</span> <span class="n">empty_net</span><span class="o">.</span><span class="n">attributes</span> <span class="c1"># None</span>
+</pre></div>
+</div>
+</section>
+<section id="retrieving-networks">
+<h2>Retrieving Networks<a class="headerlink" href="#retrieving-networks" title="Permalink to this heading"></a></h2>
+<p>Existing networks can be retrieved in a few ways:
+The simplest and most common is by ID</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">my_network</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">get_network</span><span class="p">(</span><span class="n">my_network_id</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>If you don’t know the ID, but know the name, you can still find the network, but
+you must know the project ID</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">my_network</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">get_network_by_name</span><span class="p">(</span><span class="n">my_project_id</span><span class="p">,</span> <span class="s2">&quot;An empty network&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Failing that, just ask for all the networks a given project</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">my_networks</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">get_networks</span><span class="p">(</span><span class="n">project_id</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="deleting-networks">
+<h2>Deleting Networks<a class="headerlink" href="#deleting-networks" title="Permalink to this heading"></a></h2>
+<p>If a project is being clogged up with too many networks, the networks can
+be deleted</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">delete_network</span><span class="p">(</span><span class="n">network_id</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>however, this will not permenantly delete the project. It will still
+be retrievable using <code class="docutils literal notranslate"><span class="pre">get_network</span></code> but it will not be returned in <code class="docutils literal notranslate"><span class="pre">get_networks</span></code>. A network can be reactivated by calling</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">activate_network</span><span class="p">(</span><span class="n">network_id</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>To delete a network peremenantly, use</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">purge_network</span><span class="p">(</span><span class="n">network_id</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Warning</strong> This cannot be undone and all sub-nodes, links, scenarios and attributes will also be purged. This may also include the deletion of data (see <a class="reference internal" href="datasets.html#datasets"><span class="std std-ref">Working with datasets</span></a>).</p>
+</section>
+<section id="sharing-networks">
+<h2>Sharing Networks<a class="headerlink" href="#sharing-networks" title="Permalink to this heading"></a></h2>
+<p>It is not uncommon for multiple people to work on the same network, so to facilitate this, Hydra allows users to share networks with other users</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1">#connect...</span>
+<span class="n">my_user_id</span>      <span class="o">=</span> <span class="mi">1</span>
+<span class="n">friend_1_user_id</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">friend_2_user_id</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="n">my_network_id</span>      <span class="o">=</span> <span class="mi">999</span>
+
+<span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">share_network</span><span class="p">(</span><span class="n">my_network_id</span><span class="p">,</span> <span class="p">[</span><span class="n">friend_1_user_id</span><span class="p">,</span> <span class="n">friend_2_user_id</span><span class="p">],</span> <span class="s1">&#39;Y&#39;</span><span class="p">,</span> <span class="s1">&#39;N&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In this example, user 1 is sharing network 999 with two other users. The first ‘Y’ parameter indicates that the network is ‘read only’, while the second indicates that the users are not allowed to re-share the network with other users.</p>
+</section>
+<section id="nodes-links-and-groups">
+<h2>Nodes, Links and Groups<a class="headerlink" href="#nodes-links-and-groups" title="Permalink to this heading"></a></h2>
+<section id="nodes">
+<h3>Nodes<a class="headerlink" href="#nodes" title="Permalink to this heading"></a></h3>
+<p>Nodes and links are the fundamental structure of a network. As mentioned, they
+are <em>resources</em>, so they can have attributes.</p>
+<p>A node is defined like this</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">node1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">factory</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;hyd:Node&#39;</span><span class="p">)</span>
+<span class="n">node1</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Node 1&quot;</span><span class="p">,</span>
+<span class="n">node1</span><span class="o">.</span><span class="n">description</span> <span class="o">=</span> <span class="s2">&quot;A node representing a water resource&quot;</span><span class="p">,</span>
+<span class="n">node1</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="n">node1</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="mi">10</span>
+
+<span class="n">node2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">factory</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;hyd:Node&#39;</span><span class="p">)</span>
+<span class="n">node2</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Node 2&quot;</span><span class="p">,</span>
+<span class="n">node2</span><span class="o">.</span><span class="n">description</span> <span class="o">=</span> <span class="s2">&quot;A node representing another water resource&quot;</span><span class="p">,</span>
+<span class="n">node2</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="mi">20</span>
+<span class="n">node2</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="mi">20</span>
+</pre></div>
+</div>
+<p>A common approach is to add nodes to a new network before creating it.
+From our previous examples:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">net</span>             <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">factory</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;hyd:Network&#39;</span><span class="p">)</span>
+
+<span class="c1">#...create node1 and node2...</span>
+<span class="n">nodes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">factory</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;hyd:NodeArray&#39;</span><span class="p">)</span>
+<span class="n">nodes</span><span class="o">.</span><span class="n">Node</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node1</span><span class="p">)</span>
+<span class="n">nodes</span><span class="o">.</span><span class="n">Node</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node2</span><span class="p">)</span>
+
+<span class="n">net</span><span class="o">.</span><span class="n">nodes</span> <span class="o">=</span> <span class="n">nodes</span>
+
+<span class="n">net_with_nodes</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">add_network</span><span class="p">(</span><span class="n">net</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Nodes and links can be added to a network in two ways:
+# Adding the node directly</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">network_id</span> <span class="o">=</span> <span class="mi">999</span>
+<span class="n">my_new_node</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">add_node</span><span class="p">(</span><span class="n">network_id</span><span class="p">,</span> <span class="n">node1</span><span class="p">)</span>
+<span class="nb">print</span> <span class="n">my_new_node</span><span class="o">.</span><span class="n">id</span> <span class="c1">#will give a newly created ID</span>
+</pre></div>
+</div>
+<p># Retrieving the network, adding the node, then updating the network.
+As the server must process the entire incoming network to see what has changed, this should only be done if multiple changes are being made at the same time.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">my_network</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">get_network</span><span class="p">(</span><span class="mi">999</span><span class="p">)</span>
+<span class="n">my_network</span><span class="o">.</span><span class="n">nodes</span><span class="o">.</span><span class="n">Node</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node1</span><span class="p">)</span>
+<span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">update_network</span><span class="p">(</span><span class="n">my_network</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="links">
+<h3>Links<a class="headerlink" href="#links" title="Permalink to this heading"></a></h3>
+<p>Links connect nodes and can be added to a network in much the same way as nodes.
+The only complication in adding links is that the linking is done based on node ID, so nodes have to exist in the network before they can be added.
+Using the nodes we defined earlier:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">net</span>             <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">factory</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;hyd:Network&#39;</span><span class="p">)</span>
+<span class="c1">#...define network information...</span>
+
+<span class="c1">#...create node1 and node2...</span>
+<span class="n">nodes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">factory</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;hyd:NodeArray&#39;</span><span class="p">)</span>
+<span class="n">nodes</span><span class="o">.</span><span class="n">Node</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node1</span><span class="p">)</span>
+<span class="n">nodes</span><span class="o">.</span><span class="n">Node</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node2</span><span class="p">)</span>
+
+<span class="n">net</span><span class="o">.</span><span class="n">nodes</span> <span class="o">=</span> <span class="n">nodes</span>
+
+<span class="c1">#Add the network which gives IDs to each of the nodes.</span>
+<span class="n">net_with_nodes</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">add_network</span><span class="p">(</span><span class="n">net</span><span class="p">)</span>
+
+<span class="c1">#Get the node IDS</span>
+<span class="n">node_1_id</span> <span class="o">=</span> <span class="n">net_with_nodes</span><span class="o">.</span><span class="n">nodes</span><span class="o">.</span><span class="n">Node</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">id</span>
+<span class="n">node_2_id</span> <span class="o">=</span> <span class="n">net_with_nodes</span><span class="o">.</span><span class="n">nodes</span><span class="o">.</span><span class="n">Node</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">id</span>
+
+<span class="c1">#Link the nodes</span>
+<span class="n">link1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">factory</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;hyd:Link&#39;</span><span class="p">)</span>
+<span class="n">link1</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Link 1&quot;</span><span class="p">,</span>
+<span class="n">link1</span><span class="o">.</span><span class="n">description</span> <span class="o">=</span> <span class="s2">&quot;A link between two water resources&quot;</span><span class="p">,</span>
+<span class="n">link1</span><span class="o">.</span><span class="n">node_1_id</span> <span class="o">=</span> <span class="n">node_1_id</span>
+<span class="n">link1</span><span class="o">.</span><span class="n">node_2_id</span> <span class="o">=</span> <span class="n">node_2_id</span>
+<span class="n">links</span><span class="o">.</span><span class="n">Link</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">link1</span><span class="p">)</span>
+<span class="n">net</span><span class="o">.</span><span class="n">links</span> <span class="o">=</span> <span class="n">links</span>
+
+<span class="n">net_with_nodes_and_links</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">update_network</span><span class="p">(</span><span class="n">net</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This is clearly not a good solution, as we have to send the network to
+the server twice. To get around this, Hydra provides a mechanism whereby
+links can be defined on nodes even if they don’t yet exist on the server yet.
+TO achieve this, we use <strong>negative IDS</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">net</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">factory</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;hyd:Network&#39;</span><span class="p">)</span>
+<span class="c1">#...define network information...</span>
+
+<span class="c1">#...create node1 and node2...</span>
+<span class="n">nodes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">factory</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;hyd:NodeArray&#39;</span><span class="p">)</span>
+
+<span class="n">node1</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+<span class="n">node2</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="o">-</span><span class="mi">2</span>
+
+<span class="n">nodes</span><span class="o">.</span><span class="n">Node</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node1</span><span class="p">)</span>
+<span class="n">nodes</span><span class="o">.</span><span class="n">Node</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node2</span><span class="p">)</span>
+
+<span class="n">net</span><span class="o">.</span><span class="n">nodes</span> <span class="o">=</span> <span class="n">nodes</span>
+
+<span class="c1">#Link the nodes</span>
+<span class="n">link1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">factory</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;hyd:Link&#39;</span><span class="p">)</span>
+<span class="n">link1</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Link 1&quot;</span><span class="p">,</span>
+<span class="n">link1</span><span class="o">.</span><span class="n">description</span> <span class="o">=</span> <span class="s2">&quot;A link between two water resources&quot;</span><span class="p">,</span>
+<span class="n">link1</span><span class="o">.</span><span class="n">node_1_id</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+<span class="n">link1</span><span class="o">.</span><span class="n">node_2_id</span> <span class="o">=</span> <span class="o">-</span><span class="mi">2</span>
+<span class="n">links</span><span class="o">.</span><span class="n">Link</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">link1</span><span class="p">)</span>
+<span class="n">net</span><span class="o">.</span><span class="n">links</span> <span class="o">=</span> <span class="n">links</span>
+
+<span class="n">net_with_nodes_and_links</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">add_network</span><span class="p">(</span><span class="n">net</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The add_network function will recognise that the IDS on the nodes
+and links are negative, generate positive IDS and link everything correctly. This
+approach also works when adding nodes &amp; links to an existing network. Just use
+negative IDS to refer to other resources locally and let the server sort out
+the IDS when <code class="docutils literal notranslate"><span class="pre">update_network</span></code> is called.</p>
+</section>
+<section id="groups">
+<h3>Groups<a class="headerlink" href="#groups" title="Permalink to this heading"></a></h3>
+<p>A <code class="docutils literal notranslate"><span class="pre">group</span></code>, or <code class="docutils literal notranslate"><span class="pre">resource</span> <span class="pre">group</span></code> is not a structural part of a network. Instead
+it allows nodes, links to be grouped together into high-level containers.
+One example might be where a network representing a river might contain several
+political juristidictions, where different rules may apply.</p>
+<p>The contents of a group are called <code class="docutils literal notranslate"><span class="pre">items</span></code> or <code class="docutils literal notranslate"><span class="pre">resource</span> <span class="pre">group</span> <span class="pre">items</span></code>. Group
+items are defined on a scenario-by-scenario basis. See <a class="reference internal" href="scenarios.html#scenarios"><span class="std std-ref">Working with scenarios</span></a>.</p>
+<p>Groups are still resources, however, and act in much the same way as nodes and links.</p>
+<p>Adding a group to a new network:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1">#...define network with nodes and links...</span>
+
+<span class="n">groups</span>            <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">factory</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;hyd:ResourceGroupArray&#39;</span><span class="p">)</span>
+<span class="n">group</span>             <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">factory</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;hyd:ResourceGroup&#39;</span><span class="p">)</span>
+<span class="n">group</span><span class="o">.</span><span class="n">id</span>          <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+<span class="n">group</span><span class="o">.</span><span class="n">name</span>        <span class="o">=</span> <span class="s2">&quot;Test Group&quot;</span>
+<span class="n">group</span><span class="o">.</span><span class="n">description</span> <span class="o">=</span> <span class="s2">&quot;Test group description&quot;</span>
+<span class="n">groups</span><span class="o">.</span><span class="n">ResourceGroup</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">group</span><span class="p">)</span>
+<span class="n">net</span><span class="o">.</span><span class="n">resourcegroups</span> <span class="o">=</span> <span class="n">groups</span>
+
+<span class="n">net_with_nodes_links_groups</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">add_network</span><span class="p">(</span><span class="n">net</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Notice that this group has a negative ID. This is set so the group items know which group they are in. ALso notice that this uses ‘-1’ even though this ID is also used on the node ID we set earlier. This doesn’t matter so long as there is consistency between nodes and between groups.</p>
+<p>Groups can also be added using <code class="docutils literal notranslate"><span class="pre">add_resourcegroup</span></code></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1">#...define network with nodes and links...</span>
+<span class="n">net_with_nodes_and_links</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">add_network</span><span class="p">(</span><span class="n">net</span><span class="p">)</span>
+
+<span class="n">group</span>             <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">factory</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;hyd:ResourceGroup&#39;</span><span class="p">)</span>
+<span class="n">group</span><span class="o">.</span><span class="n">id</span>          <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+<span class="n">group</span><span class="o">.</span><span class="n">name</span>        <span class="o">=</span> <span class="s2">&quot;Test Group&quot;</span>
+<span class="n">group</span><span class="o">.</span><span class="n">description</span> <span class="o">=</span> <span class="s2">&quot;Test group description&quot;</span>
+
+<span class="n">new_group</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">add_resourcegroup</span><span class="p">(</span><span class="n">net</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">group</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Or update the network</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1">#...define network with nodes and links...</span>
+<span class="n">net_with_nodes_and_links</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">add_network</span><span class="p">(</span><span class="n">net</span><span class="p">)</span>
+
+<span class="n">group</span>             <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">factory</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;hyd:ResourceGroup&#39;</span><span class="p">)</span>
+<span class="n">group</span><span class="o">.</span><span class="n">id</span>          <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+<span class="n">group</span><span class="o">.</span><span class="n">name</span>        <span class="o">=</span> <span class="s2">&quot;Test Group&quot;</span>
+<span class="n">group</span><span class="o">.</span><span class="n">description</span> <span class="o">=</span> <span class="s2">&quot;Test group description&quot;</span>
+
+<span class="n">net</span><span class="o">.</span><span class="n">resourcegroups</span><span class="o">.</span><span class="n">ResourceGroup</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">group</span><span class="p">)</span>
+
+<span class="n">net_with_nodes_links_groups</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">update_network</span><span class="p">(</span><span class="n">net</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Deletion of a group is done using <code class="docutils literal notranslate"><span class="pre">delete_resourcegroup</span></code></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">group_id</span> <span class="o">=</span> <span class="mi">123</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">delete_resourcegroup</span><span class="p">(</span><span class="n">group_id</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>and activate it again…</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">group_id</span> <span class="o">=</span> <span class="mi">123</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">activate_resourcegroup</span><span class="p">(</span><span class="n">group_id</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>and finally purge it</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">group_id</span> <span class="o">=</span> <span class="mi">123</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">service</span><span class="o">.</span><span class="n">purge_resourcegroup</span><span class="p">(</span><span class="n">group_id</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="projects.html" class="btn btn-neutral float-left" title="Working with projects" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="attributes.html" class="btn btn-neutral float-right" title="Attributes" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, The University of Manchester.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+ 
+<script type="text/javascript">
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+     (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+       m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+         })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-71439863-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+
+</body>
+</html>
