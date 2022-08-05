@@ -172,19 +172,22 @@ def search_attributes(name, network_id=None, project_id=None, **kwargs):
     """
     name = name.lower()
     try:
-        #first get attribtues scoped to the containing project
-        proj_attrs_i = db.DBSession.query(Attr).filter(
-            func.lower(Attr.name).like(f'%{name}%'),
-            Attr.network_id==None,
-            Attr.project_id==project_id).options(joinedload('dimension')).all()
+        proj_attrs_i = []
+        if project_id is not None:
+            proj_i = db.DBSession.query(Project).filter(Project.id==project_id).one()
+            proj_attrs_i = proj_i.get_scoped_attributes(name_match=name, include_hierarchy=True)
         attrs_dict = {a.name:a for a in proj_attrs_i}
 
         #Then get network-scoped attributes in case there are any scoped to the proejct
         #which supercede the project attributes
-        net_attrs_i = db.DBSession.query(Attr).filter(
-            func.lower(Attr.name).like(f'%{name}%'),
-            Attr.network_id==network_id,
-            Attr.project_id==None).options(joinedload('dimension')).all()
+        net_attrs_i = []
+        if network_id is not None:
+            net_i = db.DBSession.query(Network).filter(Network.id==network_id).one()
+            include_network_hierarchy=True
+            if project_id is not None:
+                include_network_hierarchy=False
+            net_attrs_i = net_i.get_scoped_attributes(name_match=name, include_network_hierarchy=True)
+
         for na in net_attrs_i:
             attrs_dict[na.name] = na
         
@@ -546,7 +549,7 @@ def add_attributes(attrs, **kwargs):
 
     return [JSONObject(a) for a in new_attrs]
 
-def get_attributes(network_id=None, project_id=None, include_global=False, include_network_attributes=False, **kwargs):
+def get_attributes(network_id=None, project_id=None, include_global=False, include_network_attributes=False, include_hierarchy=False, **kwargs):
     """
         Get all attributes.
         args:
@@ -557,6 +560,7 @@ def get_attributes(network_id=None, project_id=None, include_global=False, inclu
             include_network_attributes (Bool): If a project ID is specified but not a network ID, then use
                                                this flag to indicate whether the attributes scoped to all networks
                                                inside the specified project should also be returned.
+            include_hierarchy (Bool): Include attributes from projects higher up in the project hierarchy
     """
 
     base_qry = db.DBSession.query(Attr)
@@ -581,11 +585,7 @@ def get_attributes(network_id=None, project_id=None, include_global=False, inclu
     #Now get all project attributes
     if project_id is not None:
         project = db.DBSession.query(Project).filter(Project.id==project_id).one()
-        project_attributes = base_qry.filter(
-            Attr.project_id == project_id).all()
-        project_scoped_attributes = [JSONObject(a) for a in project_attributes]
-        for p in project_scoped_attributes:
-            p.project_name = project.name
+        project_scoped_attributes = project.get_scoped_attributes(include_hierarchy=include_hierarchy)
         
         if network_id is None and include_network_attributes is True:
             nets = db.DBSession.query(Network).filter(Network.project_id==project_id).all()
@@ -597,11 +597,12 @@ def get_attributes(network_id=None, project_id=None, include_global=False, inclu
 
     if network_id is not None:
         net = db.DBSession.query(Network).filter(Network.id==network_id).one()
-        network_attributes = base_qry.filter(
-            Attr.network_id == network_id).all()
-        network_scoped_attributes = [JSONObject(a) for a in network_attributes]
-        for nsa in network_scoped_attributes:
-            nsa.network_name = net.name
+        #don't get the hierarchy if this has already been retrieved by the project
+        #attribute retrieval
+        include_network_hierarchy=include_hierarchy
+        if project_id is not None:
+            include_network_hierarchy=False
+        network_scoped_attributes = net.get_scoped_attributes(include_hierarchy=include_network_hierarchy)
 
     all_attrs = network_scoped_attributes + project_scoped_attributes + global_attrs
 

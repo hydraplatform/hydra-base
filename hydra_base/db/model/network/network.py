@@ -16,15 +16,22 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-from xml.dom.pulldom import PullDOM
+
 from ..base import *
 
 from ..template import Template, TemplateType
 from ..ownership import NetworkOwner
 from .resourceattr import ResourceAttr
 from ..scenario import ResourceGroupItem
+from ..attributes import Attr
 
-__all__ = ['Network', 'Node', 'Link', 'ResourceGroup']
+from . import Link
+from . import Node
+from . import ResourceGroup
+
+__all__ = ['Network']
+
+
 
 class Network(Base, Inspect, PermissionControlled):
     """
@@ -230,231 +237,36 @@ class Network(Base, Inspect, PermissionControlled):
         for po in project_owners:
             po.source = f'Inherited from: {po.project_name} (ID:{po.project_id})'
 
-        return owners + project_owners;
+        return owners + project_owners
 
-class Link(Base, Inspect):
-    """
-    """
-
-    __tablename__='tLink'
-
-    __table_args__ = (
-        UniqueConstraint('network_id', 'name', name="unique link name"),
-    )
-    ref_key = 'LINK'
-
-    id = Column(Integer(), primary_key=True, nullable=False)
-    network_id = Column(Integer(), ForeignKey('tNetwork.id'), nullable=False)
-    status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
-    node_1_id = Column(Integer(), ForeignKey('tNode.id'), nullable=False)
-    node_2_id = Column(Integer(), ForeignKey('tNode.id'), nullable=False)
-    name = Column(String(200))
-    description = Column(String(1000))
-    layout  = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-
-    network = relationship('Network', backref=backref("links", order_by=network_id, cascade="all, delete-orphan"), lazy='joined')
-    node_a = relationship('Node', foreign_keys=[node_1_id], backref=backref("links_to", order_by=id, cascade="all, delete-orphan"))
-    node_b = relationship('Node', foreign_keys=[node_2_id], backref=backref("links_from", order_by=id, cascade="all, delete-orphan"))
-
-    _parents  = ['tNetwork']
-    _children = ['tResourceAttr', 'tResourceType']
-
-    def get_name(self):
-        return self.name
-
-    #For backward compatibility
-    @property
-    def link_id(self):
-        return self.id
-
-    @property
-    def link_name(self):
-        return self.name
-
-    @link_name.setter
-    def link_name_setter(self, value):
-        self.name = value
-
-    @property
-    def link_description(self):
-        return self.description
-
-    @link_description.setter
-    def link_description_setter(self):
-        self.description = self.link_description
-
-    def add_attribute(self, attr_id, attr_is_var='N'):
-        res_attr = ResourceAttr()
-        res_attr.attr_id = attr_id
-        res_attr.attr_is_var = attr_is_var
-        res_attr.ref_key = self.ref_key
-        res_attr.link_id  = self.id
-        self.attributes.append(res_attr)
-
-        return res_attr
-
-    def check_read_permission(self, user_id, do_raise=True, is_admin=None):
+    def get_scoped_attributes(self, include_hierarchy=False, name_match=None, return_json=True):
         """
-            Check whether this user can read this link
-        """
-        return self.network.check_read_permission(user_id, do_raise=do_raise, is_admin=is_admin)
-
-    def check_write_permission(self, user_id, do_raise=True, is_admin=None):
-        """
-            Check whether this user can write this link
+            Get all the attributes scoped to this project, and to all projects above
+            it in the project hierarchy (including global attributes if requested)
+            args:
+                include_hierarchy (Bool): Include attribtues from projects higher up in the 
+                    project hierarchy
         """
 
-        return self.network.check_write_permission(user_id, do_raise=do_raise, is_admin=is_admin)
+        scoped_attrs_qry = get_session().query(Attr).filter(Attr.network_id==self.id)
 
-class Node(Base, Inspect):
-    """
-    """
+        if name_match is not None:
+            name_match = name_match.lower()
+            scoped_attrs_qry = scoped_attrs_qry.filter(
+                func.lower(Attr.name).like(f'%{name_match}%'))
 
-    __tablename__='tNode'
-    __table_args__ = (
-        UniqueConstraint('network_id', 'name', 'status', name="unique node name"),
-    )
-    ref_key = 'NODE'
+        scoped_attrs = scoped_attrs_qry.all()
 
-    id = Column(Integer(), primary_key=True, nullable=False)
-    network_id = Column(Integer(), ForeignKey('tNetwork.id'), nullable=False)
-    description = Column(String(1000))
-    name = Column(String(200),  nullable=False)
-    status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
-    x = Column(Float(precision=10, asdecimal=True))
-    y = Column(Float(precision=10, asdecimal=True))
-    layout  = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+        if include_hierarchy is True:
+            scoped_attrs.extend(self.project.get_scoped_attributes(
+                include_hierarchy=True, name_match=name_match))
 
-    network = relationship('Network', backref=backref("nodes", order_by=network_id, cascade="all, delete-orphan"), lazy='joined')
-
-    _parents  = ['tNetwork']
-    _children = ['tResourceAttr', 'tResourceType']
-
-    def get_name(self):
-        return self.name
-
-    #For backward compatibility
-    @property
-    def node_id(self):
-        return self.id
-
-    @property
-    def node_name(self):
-        return self.name
-
-    @node_name.setter
-    def node_name_setter(self, value):
-        self.name = value
-
-    @property
-    def node_description(self):
-        return self.description
-
-    @node_description.setter
-    def node_description_setter(self):
-        self.description = self.node_description
-
-    def add_attribute(self, attr_id, attr_is_var='N'):
-        res_attr = ResourceAttr()
-        res_attr.attr_id = attr_id
-        res_attr.attr_is_var = attr_is_var
-        res_attr.ref_key = self.ref_key
-        res_attr.node_id  = self.id
-        self.attributes.append(res_attr)
-
-        return res_attr
-
-    def check_read_permission(self, user_id, do_raise=True, is_admin=None):
-        """
-            Check whether this user can read this node
-        """
-        return self.network.check_read_permission(user_id, do_raise=do_raise, is_admin=is_admin)
-
-    def check_write_permission(self, user_id, do_raise=True, is_admin=None):
-        """
-            Check whether this user can write this node
-        """
-
-        return self.network.check_write_permission(user_id, do_raise=do_raise, is_admin=is_admin)
-
-class ResourceGroup(Base, Inspect):
-    """
-    """
-
-    __tablename__='tResourceGroup'
-    __table_args__ = (
-        UniqueConstraint('network_id', 'name', name="unique resourcegroup name"),
-    )
-
-    ref_key = 'GROUP'
-    id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(200),  nullable=False)
-    description = Column(String(1000))
-    status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    network_id = Column(Integer(), ForeignKey('tNetwork.id'),  nullable=False)
-
-    network = relationship('Network', backref=backref("resourcegroups", order_by=id, cascade="all, delete-orphan"), lazy='joined')
-
-    _parents  = ['tNetwork']
-    _children = ['tResourceAttr', 'tResourceType']
-
-    def get_name(self):
-        return self.group_name
-
-    #For backward compatibility
-    @property
-    def group_id(self):
-        return self.id
-
-    @property
-    def group_name(self):
-        return self.name
-
-    @group_name.setter
-    def group_name_setter(self, value):
-        self.name = value
-
-    @property
-    def group_description(self):
-        return self.description
-
-    @group_description.setter
-    def group_description_setter(self):
-        self.description = self.group_description
-
-    def add_attribute(self, attr_id, attr_is_var='N'):
-        res_attr = ResourceAttr()
-        res_attr.attr_id = attr_id
-        res_attr.attr_is_var = attr_is_var
-        res_attr.ref_key = self.ref_key
-        res_attr.group_id  = self.id
-        self.attributes.append(res_attr)
-
-        return res_attr
-
-    def get_items(self, scenario_id):
-        """
-            Get all the items in this group, in the given scenario
-        """
-        items = get_session().query(ResourceGroupItem)\
-                .filter(ResourceGroupItem.group_id==self.id).\
-                filter(ResourceGroupItem.scenario_id==scenario_id).all()
-
-        return items
-
-    def check_read_permission(self, user_id, do_raise=True, is_admin=None):
-        """
-            Check whether this user can read this group
-        """
-        return self.network.check_read_permission(user_id, do_raise=do_raise, is_admin=is_admin)
-
-    def check_write_permission(self, user_id, do_raise=True, is_admin=None):
-        """
-            Check whether this user can write this group
-        """
-
-        return self.network.check_write_permission(user_id, do_raise=do_raise, is_admin=is_admin)
-
+        if return_json is True:
+            
+            scoped_attrs_j = [JSONObject(a) for a in scoped_attrs]
+            #This is for convenience to avoid having to do extra calls to get the network name
+            for a in scoped_attrs_j:
+                a.network_name = self.name
+            return scoped_attrs_j
+        else:
+            return scoped_attrs

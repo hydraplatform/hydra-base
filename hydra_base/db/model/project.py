@@ -16,12 +16,14 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
+from turtle import pu
 from .base import *
 
 from .ownership import NetworkOwner, ProjectOwner
 from .scenario import Scenario, ResourceScenario
 from .permissions import User
 from .network import Network, ResourceAttr
+from .attributes import Attr
 
 global project_cache_key
 project_cache_key = config.get('cache', 'projectkey', 'userprojects')
@@ -171,10 +173,6 @@ class Project(Base, Inspect, PermissionControlled):
         log.info("%s child projects retrieved", len(child_projects))
 
         return child_projects
-
-    def get_scoped_attributes():
-        """
-        """
 
     def is_owner(self, user_id):
         """Check whether this user is an owner of this project, either directly
@@ -417,3 +415,35 @@ class Project(Base, Inspect, PermissionControlled):
                                   " access on project %s" % (user_id, self.id))
 
         return has_permission
+
+    def get_scoped_attributes(self, include_hierarchy=False, name_match=None, return_json=True):
+        """
+            Get all the attributes scoped to this project, and to all projects above
+            it in the project hierarchy (including global attributes if requested)
+            args:
+                include_hierarchy (Bool): Include attribtues from projects higher up in the 
+                    project hierarchy
+        """
+
+        scoped_attrs_qry = get_session().query(Attr).filter(Attr.project_id==self.id)
+
+        if name_match is not None:
+            name_match = name_match.lower()
+            scoped_attrs_qry = scoped_attrs_qry.filter(
+                func.lower(Attr.name).like(f'%{name_match}%'))
+
+        scoped_attrs = scoped_attrs_qry.all()
+
+        if self.parent_id is not None and include_hierarchy is True:
+            scoped_attrs.extend(self.parent.get_scoped_attributes(
+                include_hierarchy=True, name_match=name_match))
+
+        if return_json is True:
+            scoped_attrs_j = [JSONObject(a) for a in scoped_attrs]
+            #This is for convenience to avoid having to do extra calls to get the project name
+            for a in scoped_attrs_j:
+                a.project_name = self.name
+
+            return scoped_attrs_j
+        else:
+            return scoped_attrs
