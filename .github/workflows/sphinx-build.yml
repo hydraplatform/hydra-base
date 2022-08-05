@@ -1,15 +1,10 @@
 name: sphinx-build
 
-on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    branches: [162-update-docs]
+on: [push]
 
 jobs:
 
   build:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     env:
       LAST_BUILD_FILE: last-build.html
