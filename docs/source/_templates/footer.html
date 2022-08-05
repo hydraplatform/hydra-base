@@ -1,0 +1,11 @@
+{% extends "!footer.html" %}
+{%- block extrafooter %}
+{{ super }}
+<style>
+#ps-build-block {
+  width: 100%;
+  margin-top: 12px;
+}
+</style>
+<embed id="last-build-block" src="last-build.html"></embed>
+{% endblock %}

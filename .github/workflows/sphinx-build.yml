@@ -1,0 +1,54 @@
+name: sphinx-build
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [162-update-docs]
+
+jobs:
+
+  build:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    env:
+      LAST_BUILD_FILE: last-build.html
+
+    steps:
+      - name: Checkout hydra-base 162-update-docs
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+          ref: 162-update-docs
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+
+      - name: Install dependencies
+        run: |
+             pip install --upgrade sphinx
+             pip install --upgrade sphinx_rtd_theme
+
+      - name: Build Sphinx html docs
+        run: sphinx-build -a docs/source docs/build/html
+
+      - name: Checkout hydra-base gh-pages
+        run: git clone -b gh-pages --single-branch https://token:${{ secrets.GITHUB_TOKEN }}@github.com/hydraplatform/hydra-base.git gh-pages
+
+      - name: Copy doc changes
+        run: |
+             cp -r docs/build/html/* gh-pages
+             touch gh-pages/.nojekyll
+             echo "<p style='color:grey;font-size:8px'>Docs built from ${GITHUB_REF} commit ${GITHUB_SHA} at `git log -1 --pretty=%cd`</p>" > gh-pages/$LAST_BUILD_FILE
+
+      - name: Commit doc changes
+        run: |
+             cd gh-pages
+             git config --local user.email ${{ secrets.PAGES_EMAIL }}
+             git config --local user.name ${{ secrets.PAGES_USER }}
+             git add $LAST_BUILD_FILE
+             git commit -a -m "sphinx-build workflow adds doc changes"
+             git push origin gh-pages
+
