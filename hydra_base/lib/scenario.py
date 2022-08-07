@@ -170,18 +170,19 @@ def merge_scenarios(source_scenario_id, target_scenario_id, match_all_names=True
                     new_ra.network_id = target_resource.id if ref == 'NETWORK' else None
                     new_ra.link_id = target_resource.id if ref == 'LINK' else None
                     new_ra.group_id = target_resource.id if ref == 'GROUP' else None
+                    new_ra.attr_is_var = source_ra.attr_is_var
                     db.DBSession.add(new_ra)
                     db.DBSession.flush()
                     target_ra_id = new_ra.id
-                # else:
-                #     raise HydraError(f"Unable to merge as target doesn't have attribute {source_ra.attr.name}")
+
+                    log.info(f"Adding new attribute {source_ra.attr.name} to {target_resource.name}")
+
             source_rs = source_ra_rs_map.get(source_ra.id)
             target_rs = target_ra_rs_map.get(target_ra_id)
             if source_rs is None:
                 continue ## no data associated to the source, so ignore.
 
             if target_rs is None:
-                log.info("Adding new RS")
                 target_rs = ResourceScenario()
                 target_rs.scenario_id = cloned_scenario.id
                 target_rs.dataset_id = source_rs.dataset_id
@@ -1394,7 +1395,6 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id=None, expunge_sessio
         db.DBSession.expunge_all()
 
     return requested_rs
-
 
 @required_perms("get_data", "get_network")
 def get_attribute_datasets(attr_id, scenario_id, get_parent_data=False, **kwargs):
