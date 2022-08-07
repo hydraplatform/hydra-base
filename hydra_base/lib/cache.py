@@ -12,7 +12,7 @@ import tempfile
 log = logging.getLogger(__name__)
 global cache
 
-if hydraconfig.get('cache', 'type') is None:
+if hydraconfig.get('cache', 'type') != "memcached":
     import diskcache as dc
     cache = dc.Cache(tempfile.gettempdir())
 elif hydraconfig.get('cache', 'type') == 'memcached':
