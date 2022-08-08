@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-from turtle import pu
 from .base import *
 
 from .ownership import NetworkOwner, ProjectOwner
@@ -421,7 +420,7 @@ class Project(Base, Inspect, PermissionControlled):
             Get all the attributes scoped to this project, and to all projects above
             it in the project hierarchy (including global attributes if requested)
             args:
-                include_hierarchy (Bool): Include attribtues from projects higher up in the 
+                include_hierarchy (Bool): Include attribtues from projects higher up in the
                     project hierarchy
         """
 
