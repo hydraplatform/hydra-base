@@ -186,7 +186,7 @@ def search_attributes(name, network_id=None, project_id=None, **kwargs):
             include_network_hierarchy=True
             if project_id is not None:
                 include_network_hierarchy=False
-            net_attrs_i = net_i.get_scoped_attributes(name_match=name, include_network_hierarchy=True)
+            net_attrs_i = net_i.get_scoped_attributes(name_match=name, include_hierarchy=include_network_hierarchy)
 
         for na in net_attrs_i:
             attrs_dict[na.name] = na
