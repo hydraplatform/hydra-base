@@ -41,6 +41,8 @@ class Attr(Base, Inspect):
     project_id = Column(Integer(), ForeignKey('tProject.id'), nullable=True)
     network_id = Column(Integer(), ForeignKey('tNetwork.id'), nullable=True)
 
+    network = relationship('Network', foreign_keys=[network_id], backref=backref('scopedattributes', uselist=True, cascade="all, delete-orphan"), lazy='joined')
+    project = relationship('Project', foreign_keys=[project_id], backref=backref('scopedattributes', uselist=True, cascade="all, delete-orphan"), lazy='joined')
     dimension = relationship('Dimension', backref=backref("attributes", uselist=True))
 
     _parents = ['tDimension']
