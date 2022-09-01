@@ -41,11 +41,7 @@ log = logging.getLogger(__name__)
 
 class TestScopedAttribute:
     """
-        Test for attribute-based functionality
-    """
-
-    """
-        TESTED
+        Test for scoped-attribute-based functionality
     """
 
     def test_add_network_scoped_attribute(self, client, network_with_data):
@@ -317,3 +313,64 @@ class TestScopedAttribute:
         client.user_id = user.id
         client.add_attribute(project_scoped_attr)
         client.user_id = 1 ## reset the user ID
+
+    def test_search_attribute_in_sub_project(self, client, projectmaker, networkmaker):
+        """
+           Test searching for an attribute defined on a parent project (p1) when searching from 
+           network n1. This requires recursively looking up the project tree to collate
+           all attributes available to network n1. Attributes defined on P3 should not
+           be visible.
+                                 p1
+                                /  \
+                               p2   p3
+                              /
+                             p4
+                            /
+                           n1
+        """
+        client.user_id = 1 # force current user to be 1 to avoid potential inconsistencies
+        proj_user = client.user_id
+        proj1 = projectmaker.create(share=False)
+        proj2 = projectmaker.create(share=False, parent_id=proj1.id)
+        proj3 = projectmaker.create(share=False, parent_id=proj1.id)
+        proj4 = projectmaker.create(share=False, parent_id=proj2.id)
+
+        net1 = networkmaker.create(project_id=proj4.id)
+
+        client.user_id = pytest.user_c.id
+        with pytest.raises(HydraError):
+            client.get_project(proj4.id)
+
+        with pytest.raises(HydraError):
+            client.get_network(net1.id)
+
+        #Now, as the main user, share P4 with user C
+        client.user_id = proj_user
+        client.share_network(net1.id, ['UserC'], False, False)
+
+        client.add_attribute({'project_id': proj1.id,'name': 'p1_attr'})
+        client.add_attribute({'project_id': proj3.id,'name': 'p3_attr'})
+        client.add_attribute({'network_id': net1.id,'name': 'n1_attr'})
+
+        matching_attributes = client.search_attributes('p1_', project_id=proj1.id)
+        assert 'p1_attr' in [a.name for a in matching_attributes]
+        matching_attributes = client.search_attributes('p1_', network_id=net1.id)
+        assert 'p1_attr' in [a.name for a in matching_attributes]
+        matching_attributes = client.search_attributes('n1_', network_id=net1.id)
+        assert 'n1_attr' in [a.name for a in matching_attributes]
+        matching_attributes = client.search_attributes('p3_', network_id=net1.id)
+        assert 'p3_attr' not in [a.name for a in matching_attributes]
+
+        #now do all the same things except with the shared user.
+        client.user_id = pytest.user_c.id
+        matching_attributes = client.search_attributes('p1_', project_id=proj1.id)
+        assert 'p1_attr' in [a.name for a in matching_attributes]
+        matching_attributes = client.search_attributes('p1_', network_id=net1.id)
+        assert 'p1_attr' in [a.name for a in matching_attributes]
+        matching_attributes = client.search_attributes('n1_', network_id=net1.id)
+        assert 'n1_attr' in [a.name for a in matching_attributes]
+        matching_attributes = client.search_attributes('p3_', network_id=net1.id)
+        assert 'p3_attr' not in [a.name for a in matching_attributes]
+
+        with pytest.raises(HydraError):
+            client.search_attributes('p3_', project_id=proj3.id)

@@ -170,11 +170,14 @@ def search_attributes(name, network_id=None, project_id=None, **kwargs):
     """
         Search for all attributes matching the given name
     """
+    user_id = kwargs.get('user_id')
     name = name.lower()
     try:
         proj_attrs_i = []
         if project_id is not None:
             proj_i = db.DBSession.query(Project).filter(Project.id==project_id).one()
+            proj_i.check_read_permission(user_id)
+
             proj_attrs_i = proj_i.get_scoped_attributes(name_match=name, include_hierarchy=True)
         attrs_dict = {a.name:a for a in proj_attrs_i}
 
@@ -183,6 +186,7 @@ def search_attributes(name, network_id=None, project_id=None, **kwargs):
         net_attrs_i = []
         if network_id is not None:
             net_i = db.DBSession.query(Network).filter(Network.id==network_id).one()
+            net_i.check_read_permission(user_id)
             include_network_hierarchy=True
             if project_id is not None:
                 include_network_hierarchy=False
@@ -198,17 +202,18 @@ def search_attributes(name, network_id=None, project_id=None, **kwargs):
         global_attrs_i = db.DBSession.query(Attr).filter(
             func.lower(Attr.name).like(f'%{name}%'),
             Attr.network_id==None,
-            Attr.project_id==None).options(joinedload('dimension')).all()
+            Attr.project_id==None).all()
 
         for a in global_attrs_i:
             if a.name not in attrs_dict:
-                attrs_dict[a.name] = a 
+                attrs_dict[a.name] = JSONObject(a) 
 
         return_attrs = []
-        for a in attrs_dict.values():
-            a_j = JSONObject(a)
-            if (a.dimension_id is not None):
-                a_j.dimension = JSONObject(a.dimension)
+        #now load the dimension for each attribute.
+        for a_j in attrs_dict.values():
+            if a_j.dimension_id is not None:
+                dimension_i = db.DBSession.query(Dimension).filter(Dimension.id==a_j.dimension_id).one()
+                a_j.dimension = JSONObject(dimension_i)
             return_attrs.append(a_j)
         log.debug("%s attributes matching %s", len(return_attrs), name)
         return return_attrs

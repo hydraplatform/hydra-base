@@ -43,7 +43,7 @@ class Attr(Base, Inspect):
 
     network = relationship('Network', foreign_keys=[network_id], backref=backref('scopedattributes', uselist=True, cascade="all, delete-orphan"), lazy='joined')
     project = relationship('Project', foreign_keys=[project_id], backref=backref('scopedattributes', uselist=True, cascade="all, delete-orphan"), lazy='joined')
-    dimension = relationship('Dimension', backref=backref("attributes", uselist=True))
+    dimension = relationship('Dimension', foreign_keys=[dimension_id], backref=backref("attributes", uselist=True))
 
     _parents = ['tDimension']
     _children = []
