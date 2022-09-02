@@ -374,3 +374,50 @@ class TestScopedAttribute:
 
         with pytest.raises(HydraError):
             client.search_attributes('p3_', project_id=proj3.id)
+
+
+
+    def test_rescope_attribute(self, client, projectmaker, networkmaker):
+        """
+           Test to make sure that when a scoped attribute is added to a network
+           which has a sibling containing the same attribute, then rather than
+           adding a new attribute, the current attribute is re-scoped to the project
+        """
+        client.user_id = 1 # force current user to be 1 to avoid potential inconsistencies
+        proj_user = client.user_id
+        proj1 = projectmaker.create(share=False)
+
+        net1 = networkmaker.create(project_id=proj1.id)
+        net2 = networkmaker.create(project_id=proj1.id)
+
+        net_scoped_attr = client.add_attribute({'network_id': net1.id,'name': 'test_scoped_attr'})
+        #safety net to make sure it's been added properly
+        net_scoped_attr = client.get_attribute_by_id(attr_id=net_scoped_attr.id)
+
+        new_ra = client.add_resource_attribute('NODE', net1.nodes[0].id, net_scoped_attr.id, is_var=False)
+
+        assert  net_scoped_attr.network_id == net1.id
+
+        #now add an attribute with the same name at the project level, thus creating a potential
+        #duplication
+        newly_scoped_attr = client.add_attribute({'project_id': proj1.id,'name': 'test_scoped_attr'})
+
+
+        with pytest.raises(HydraError):
+            client.get_attribute_by_id(attr_id=net_scoped_attr.id)
+
+        #check it has been rescoped
+        assert newly_scoped_attr.project_id == proj1.id
+
+        #the 
+        updated_ra = client.get_resource_attribute(new_ra.id)
+
+        assert updated_ra.attr_id == newly_scoped_attr.id
+
+        matching_attributes = client.search_attributes('test_scoped', network_id=net1.id)
+
+        assert len(matching_attributes) == 1 # the default scoped attrs plus this one.
+
+        assert 'test_scoped_attr' in [a.name for a in matching_attributes]
+        
+        assert matching_attributes[0].id == newly_scoped_attr.id

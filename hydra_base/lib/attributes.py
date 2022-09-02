@@ -438,7 +438,7 @@ def add_attribute(attr, check_existing=True, **kwargs):
         #set the user ID to 2 here, as this requires admin priviliges. THis is
         #safe to do because this function has already been checked for add_attribute
         #permission from the caller
-        attr_i = _add_attribute(attr, user_id=user_id)
+        attr_i = _add_attribute(attr, user_id=user_id, do_reassign=True)
 
     return JSONObject(attr_i)
 
