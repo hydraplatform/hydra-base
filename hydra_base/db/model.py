@@ -473,12 +473,11 @@ class Metadata(Base, Inspect):
 
     __tablename__='tMetadata'
 
-    dataset_id = Column(Integer(), ForeignKey('tDataset.id',  ondelete='CASCADE'), primary_key=True, nullable=False, index=True)
-    key       = Column(String(60), primary_key=True, nullable=False)
-    value     = Column(String(1000),  nullable=False)
+    dataset_id = Column(Integer(), ForeignKey('tDataset.id', ondelete='CASCADE'), primary_key=True, nullable=False, index=True)
+    key = Column(String(60), primary_key=True, nullable=False)
+    value = Column(String(1000), nullable=False)
 
     dataset = relationship('Dataset', backref=backref("metadata", order_by=dataset_id, cascade="all, delete-orphan"))
-
 
     _parents  = ['tDataset']
     _children = []
@@ -488,23 +487,27 @@ class Metadata(Base, Inspect):
 
 class Attr(Base, Inspect):
     """
+    An Attribute Definition
     """
 
     __tablename__='tAttr'
 
     __table_args__ = (
-        UniqueConstraint('name', 'dimension_id', name="unique name dimension_id"),
+        UniqueConstraint('name', 'dimension_id', 'network_id', 'project_id', name="unique name dimension_id"),
     )
 
-    id           = Column(Integer(), primary_key=True, nullable=False)
-    name         = Column(String(200),  nullable=False)
-    dimension_id    = Column(Integer(), ForeignKey('tDimension.id'), nullable=True)
-    description  = Column(String(1000))
+    id = Column(Integer(), primary_key=True, nullable=False)
+    name = Column(String(200),  nullable=False)
+    dimension_id = Column(Integer(), ForeignKey('tDimension.id'), nullable=True)
+    description = Column(String(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+
+    project_id = Column(Integer(), ForeignKey('tProject.id'), nullable=True)
+    network_id = Column(Integer(), ForeignKey('tNetwork.id'), nullable=True)
 
     dimension = relationship('Dimension', backref=backref("attributes", uselist=True))
 
-    _parents  = ['tDimension']
+    _parents = ['tDimension']
     _children = []
 
 class AttrMap(Base, Inspect):
