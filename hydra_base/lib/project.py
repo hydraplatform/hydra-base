@@ -121,6 +121,7 @@ def update_project(project, **kwargs):
 
     proj_i.name = project.name
     proj_i.description = project.description
+    proj_i.layout = project.get_json('layout')
 
     #A project can only be moved to another if the user has write access on both,
     #so we need to check the permissions on the target project if it is specified

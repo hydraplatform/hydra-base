@@ -83,14 +83,14 @@ class TestNetwork:
 
         unfiltered_net = client.get_network(net.id)
 
-        assert len(unfiltered_net.attributes) == 3
+        assert len(unfiltered_net.attributes) == 4
 
         filtered_net_with_extra_attributes = client.get_network(
             net.id,
             template_id=template_id,
             include_non_template_attributes=True)
 
-        assert len(filtered_net.attributes) == len(filtered_net_with_extra_attributes.attributes) - 1
+        assert len(filtered_net.attributes) == len(filtered_net_with_extra_attributes.attributes) - 2
 
     def test_get_resources_of_type(self, client, network_with_data):
         """
@@ -1045,6 +1045,36 @@ class TestNetwork:
         cloned_network = client.get_network(cloned_network_id, include_data=True)
         assert cloned_network.name == 'My New Name'
 
+    def test_clone_network_with_scoped_attributes(self, client, network_with_data):
+        net = network_with_data
+
+        network_scoped_attributes = client.get_attributes(network_id=net.id)
+        assert len(network_scoped_attributes) == 1
+        network_scoped_resource_attributes = list(filter(lambda x: x.attr_id==network_scoped_attributes[0].id, net.attributes))
+        assert len(network_scoped_resource_attributes) == 1
+
+        recipient_user = client.get_user_by_name('UserA')
+
+        cloned_network_id = client.clone_network(net.id,
+                                          recipient_user_id=recipient_user.id,
+                                          new_network_name=None,
+                                          project_id=None,
+                                          project_name=None,
+                                          new_project=False)
+
+        cloned_network = client.get_network(cloned_network_id, include_data=True)
+
+        assert net.project_id == cloned_network.project_id
+
+        network_scoped_attributes = client.get_attributes(network_id=cloned_network.id)
+        assert len(network_scoped_attributes) == 0
+
+        project_scoped_attributes = client.get_attributes(project_id=cloned_network.project_id)
+        #the attribute has been re-scoped to the project, so now there are 2 on the project. one
+        #is the project's original scoped attribute, and the other is the one which has been rescoped.
+        assert len(project_scoped_attributes) == 2
+        
+
     def test_clone_network_into_new_project(self, client, network_with_data):
         net = network_with_data
 
@@ -1060,3 +1090,33 @@ class TestNetwork:
         cloned_network = client.get_network(cloned_network_id, include_data=True)
         #No need to assert that the clone itself worked, as the other test does that.
         assert cloned_network.project_id != net.project_id
+
+    def test_clone_network_with_scoped_attributes_to_new_project(self, client, network_with_data):
+        net = network_with_data
+
+        network_scoped_attributes = client.get_attributes(network_id=net.id)
+        assert len(network_scoped_attributes) == 1
+        network_scoped_resource_attributes = list(filter(lambda x: x.attr_id==network_scoped_attributes[0].id, net.attributes))
+        assert len(network_scoped_resource_attributes) == 1
+
+        recipient_user = client.get_user_by_name('UserA')
+
+        cloned_network_id = client.clone_network(net.id,
+                                          recipient_user_id=recipient_user.id,
+                                          new_network_name=None,
+                                          project_id=None,
+                                          project_name=None,
+                                          new_project=True)
+
+        cloned_network = client.get_network(cloned_network_id, include_data=True)
+
+        assert net.project_id != cloned_network.project_id
+
+        network_scoped_attributes = client.get_attributes(network_id=cloned_network.id)
+        assert len(network_scoped_attributes) == 1
+
+        project_scoped_attributes = client.get_attributes(project_id=cloned_network.project_id)
+        #the attribute has not been re-scoped to the project, so the project should have no attributes.
+        #this project (as it was created outside the project test suite) does not have a default scoped
+        #attributes like the projectes created using the ProjectMaker, hence it will have 0
+        assert len(project_scoped_attributes) == 0
