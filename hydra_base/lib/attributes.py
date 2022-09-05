@@ -23,9 +23,10 @@ import logging
 
 from collections import defaultdict
 
-from sqlalchemy import or_, and_
+from sqlalchemy import or_, and_, func
 from sqlalchemy.orm import aliased, joinedload
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.exc import IntegrityError
 
 from ..db.model import Attr,\
         User,\
@@ -46,12 +47,12 @@ from ..db.model import Attr,\
         Dimension, \
         Unit
 
-from sqlalchemy import func
 
 from .. import db
 
 from ..exceptions import HydraError, ResourceNotFoundError
 from ..util.permissions import required_perms, required_role
+
 from . import units
 from .objects import JSONObject
 
@@ -146,46 +147,81 @@ def get_attribute_by_name_and_dimension(name, dimension_id=None, network_id=None
         returns:
             list: JSONObjects derived from the Sqlalchemy rows.
     """
+
+    log.info("Retrieving all attributes with name %s and dimension %s", name, dimension_id)
     try:
         attr_qry = db.DBSession.query(Attr).filter(
             and_(
                 func.lower(Attr.name) == name.strip().lower(),
                 Attr.dimension_id == dimension_id,
+                Attr.network_id == network_id,
+                Attr.project_id == project_id
             )
         )
 
-        if network_id is not None:
-            attr_qry = attr_qry.filter(Attr.network_id == network_id)
-        if project_id is not None:
-            attr_qry = attr_qry.filter(Attr.project_id == project_id)
-
-        attr_i = attr_qry.one()
+        attr_i = attr_qry.first()
 
         log.debug("Attribute retrieved")
         return attr_i
     except NoResultFound:
         return None
 
-def _add_attribute(attr, user_id, flush=True):
+def search_attributes(name, network_id=None, project_id=None, **kwargs):
     """
-        Add an attribute without checking if there is another attribute with the same
-        name and dimension
+        Search for all attributes matching the given name
     """
-    log.info("Retrieving all attributes with name %s and dimension %s", name, dimension_id)
-    attr_qry = db.DBSession.query(Attr).filter(
-        and_(
-            func.lower(Attr.name) == name.strip().lower(),
-            Attr.dimension_id == dimension_id
-        )
-    )
+    user_id = kwargs.get('user_id')
+    name = name.lower()
+    try:
+        proj_attrs_i = []
+        if project_id is not None:
+            proj_i = db.DBSession.query(Project).filter(Project.id==project_id).one()
+            proj_i.check_read_permission(user_id)
 
-    attrs_i = attr_qry.all()
+            proj_attrs_i = proj_i.get_scoped_attributes(name_match=name, include_hierarchy=True)
+        attrs_dict = {a.name:a for a in proj_attrs_i}
 
-    log.info("Found %s attributes", len(attrs_i))
+        #Then get network-scoped attributes in case there are any scoped to the proejct
+        #which supercede the project attributes
+        net_attrs_i = []
+        if network_id is not None:
+            net_i = db.DBSession.query(Network).filter(Network.id==network_id).one()
+            net_i.check_read_permission(user_id)
+            include_network_hierarchy=True
+            if project_id is not None:
+                include_network_hierarchy=False
+            net_attrs_i = net_i.get_scoped_attributes(name_match=name, include_hierarchy=include_network_hierarchy)
 
-    return attrs_i
+        for na in net_attrs_i:
+            attrs_dict[na.name] = na
 
-def _add_attribute(attr, user_id, flush=True, do_reassign=True):
+        #Finally add in all the global attributes which do not have the same
+        #name as the scoped attributes. WHy? Becuase we assume that within scoping,
+        #names must be unique --- you can't have a 'cost' at different dimensions within a scope,
+        #so if there is a 'cost' which is scoped, then all 'cost' (regardless of dimension) can be ignored.
+        global_attrs_i = db.DBSession.query(Attr).filter(
+            func.lower(Attr.name).like(f'%{name}%'),
+            Attr.network_id==None,
+            Attr.project_id==None).all()
+
+        for a in global_attrs_i:
+            if a.name not in attrs_dict:
+                attrs_dict[a.name] = JSONObject(a)
+
+        return_attrs = []
+        #now load the dimension for each attribute.
+        for a_j in attrs_dict.values():
+            if a_j.dimension_id is not None:
+                dimension_i = db.DBSession.query(Dimension).filter(Dimension.id==a_j.dimension_id).one()
+                a_j.dimension = JSONObject(dimension_i)
+            return_attrs.append(a_j)
+        log.debug("%s attributes matching %s", len(return_attrs), name)
+        return return_attrs
+    except NoResultFound:
+        return None
+
+
+def _add_attribute(attr, user_id, flush=True, do_reassign=False):
     """
     Add an attribute to the DB
     args:
@@ -203,7 +239,9 @@ def _add_attribute(attr, user_id, flush=True, do_reassign=True):
     attr_i = Attr(
         name=attr.name,
         dimension_id=attr.dimension_id,
-        description=attr.description
+        description=attr.description,
+        network_id = attr.network_id,
+        project_id = attr.project_id
     )
 
     _check_can_add_attribute(attr.name, attr.dimension, attr.project_id, attr.network_id)
@@ -233,11 +271,12 @@ def _add_attribute(attr, user_id, flush=True, do_reassign=True):
     db.DBSession.add(attr_i)
     if flush is True:
         db.DBSession.flush()
+
     log.info("New attr added")
 
     """
       Now that we have an ID, check for inconsistencies in the attribute scoping
-      hierarchy, and fix them buy removing any conflicting entries and reassigning
+      hierarchy, and fix them by removing any conflicting entries and reassigning
       any resource attributes to the non-conflicting attribute.
       Only do this for attributes not scoped to a network as a network is the lowest scope.
     """
@@ -399,7 +438,7 @@ def add_attribute(attr, check_existing=True, **kwargs):
         #set the user ID to 2 here, as this requires admin priviliges. THis is
         #safe to do because this function has already been checked for add_attribute
         #permission from the caller
-        attr_i = _add_attribute(attr, user_id=user_id)
+        attr_i = _add_attribute(attr, user_id=user_id, do_reassign=True)
 
     return JSONObject(attr_i)
 
@@ -446,6 +485,8 @@ def update_attribute(attr, **kwargs):
     attr_i.name = attr.name
     attr_i.dimension_id = attr.dimension_id
     attr_i.description = attr.description
+    attr_i.network_id = attr.network_id
+    attr_i.project_id = attr.project_id
 
     db.DBSession.flush()
     return JSONObject(attr_i)
@@ -459,6 +500,8 @@ def delete_attribute(attr_id, **kwargs):
         return True
     except NoResultFound:
         raise ResourceNotFoundError("Attribute (attribute id=%s) does not exist"%(attr_id))
+    except IntegrityError:
+        raise HydraError("Unable to delete this attribute as it is in use in a Network")
 
 
 def add_attributes(attrs, **kwargs):
@@ -511,7 +554,7 @@ def add_attributes(attrs, **kwargs):
 
     return [JSONObject(a) for a in new_attrs]
 
-def get_attributes(network_id=None, project_id=None, include_global=False, **kwargs):
+def get_attributes(network_id=None, project_id=None, include_global=False, include_network_attributes=False, include_hierarchy=False, **kwargs):
     """
         Get all attributes.
         args:
@@ -519,6 +562,10 @@ def get_attributes(network_id=None, project_id=None, include_global=False, **kwa
             project_id (optional): Return project-scoped attributes (attributes defined only on a project)
             include_global (Bool): If a network ID or project ID are specified, global attributes are
                                    not returned unless this flag is True.
+            include_network_attributes (Bool): If a project ID is specified but not a network ID, then use
+                                               this flag to indicate whether the attributes scoped to all networks
+                                               inside the specified project should also be returned.
+            include_hierarchy (Bool): Include attributes from projects higher up in the project hierarchy
     """
 
     base_qry = db.DBSession.query(Attr)
@@ -536,26 +583,64 @@ def get_attributes(network_id=None, project_id=None, include_global=False, **kwa
     else:
         global_attrs = []
 
+    project_scoped_attributes = []
+    network_scoped_attributes = []
+
 
     #Now get all project attributes
-    project_scoped_attributes = []
     if project_id is not None:
-        project_attributes = base_qry.filter(
-            Attr.project_id == project_id).all()
-        project_scoped_attributes = [JSONObject(a) for a in project_attributes]
+        project = db.DBSession.query(Project).filter(Project.id==project_id).one()
+        project_scoped_attributes = project.get_scoped_attributes(include_hierarchy=include_hierarchy)
 
+        if network_id is None and include_network_attributes is True:
+            nets = db.DBSession.query(Network).filter(Network.project_id==project_id).all()
+            netlookup = {n.id:n for n in nets}
+            network_attributes = base_qry.filter(Attr.network_id.in_([n.id for n in nets])).all()
+            network_scoped_attributes = [JSONObject(a) for a in network_attributes]
+            for nsa in network_scoped_attributes:
+                nsa.network_name = netlookup[nsa.network_id].name
 
-    network_scoped_attributes = []
     if network_id is not None:
-        network_attributes = base_qry.filter(
-            Attr.network_id == network_id).all()
-        network_scoped_attributes = [JSONObject(a) for a in network_attributes]
+        net = db.DBSession.query(Network).filter(Network.id==network_id).one()
+        #don't get the hierarchy if this has already been retrieved by the project
+        #attribute retrieval
+        include_network_hierarchy=include_hierarchy
+        if project_id is not None:
+            include_network_hierarchy=False
+        network_scoped_attributes = net.get_scoped_attributes(include_hierarchy=include_network_hierarchy)
 
     all_attrs = network_scoped_attributes + project_scoped_attributes + global_attrs
 
     all_attrs = sorted(all_attrs, key=lambda x: x.name)
 
     return all_attrs
+
+def get_attributes_by_name_and_dimension(name, dimension_id=None, **kwargs):
+    """
+        Get all attributes with the specified name and dimension, irrespective of
+        scoping.
+        dimension_id can be None, because in attribute the dimension_id is not anymore mandatory
+        args:
+            name (str): The name of the attribute. Lower() is called on this for comparison, so this
+                        is case-insensitive
+            dimension_id (int): the ID of the dimension of the attribute
+        returns:
+            list: JSONObjects derived from the Sqlalchemy rows.
+    """
+    log.info("Retrieving all attributes with name %s and dimension %s", name, dimension_id)
+    attr_qry = db.DBSession.query(Attr).filter(
+        and_(
+            func.lower(Attr.name) == name.strip().lower(),
+            Attr.dimension_id == dimension_id
+        )
+    )
+
+    attrs_i = attr_qry.all()
+
+    log.info("Found %s attributes", len(attrs_i))
+
+    return attrs_i
+
 
 def _get_attr(attr_id):
     try:
@@ -1336,7 +1421,7 @@ def _get_attr_group(group_id):
     try:
         group_i = db.DBSession.query(AttrGroup).filter(AttrGroup.id==group_id).one()
     except NoResultFound:
-        raise HydraError("Error adding attribute group item: group %s not found" % (agi.group_id))
+        raise HydraError("Error adding attribute group item: group %s not found" % (group_id))
 
     return group_i
 

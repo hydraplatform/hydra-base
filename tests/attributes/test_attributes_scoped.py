@@ -41,11 +41,7 @@ log = logging.getLogger(__name__)
 
 class TestScopedAttribute:
     """
-        Test for attribute-based functionality
-    """
-
-    """
-        TESTED
+        Test for scoped-attribute-based functionality
     """
 
     def test_add_network_scoped_attribute(self, client, network_with_data):
@@ -84,7 +80,8 @@ class TestScopedAttribute:
         #This should not have changed
         assert len(global_attributes_no_network) == len(all_global_attributes)
 
-        assert len(network_scoped_attributes) == 1
+        #It's 2 because there is one added by default to all new networks, plus the one we just added
+        assert len(network_scoped_attributes) == 2
 
 
     def test_add_project_scoped_attribute(self, client, network_with_data):
@@ -122,8 +119,9 @@ class TestScopedAttribute:
 
         #This should not have changed
         assert len(global_attributes_no_project) == len(all_global_attributes)
-
-        assert len(project_scoped_attributes) == 1
+        
+        #It's 2 because there is one added by default to all new projects, plus the one we just added
+        assert len(project_scoped_attributes) == 2
 
 
     def test_add_network_and_project_scoped_attribute(self, client, network_with_data):
@@ -165,7 +163,8 @@ class TestScopedAttribute:
         #This should not have changed
         assert len(global_attributes_no_network) == len(all_global_attributes)
 
-        assert len(network_scoped_attributes) == 1
+        #It's 2 because there is one added by default to all new networks and projects, plus the ones we just added
+        assert len(network_scoped_attributes) == 2
 
 
         project_scoped_attr = JSONObject({
@@ -183,21 +182,34 @@ class TestScopedAttribute:
         #This should not have changed
         assert len(global_attributes_no_project) == len(all_global_attributes)
 
-        assert len(project_scoped_attributes) == 1
+        #It's 2 because there is one added by default to all new projects, plus the one we just added
+        assert len(project_scoped_attributes) == 2
 
         project_and_network_scoped_attributes = client.get_attributes(
             project_id=network_with_data.project_id,
             network_id=network_with_data.id)
 
-        assert len(project_and_network_scoped_attributes) == 2
+        #It's 4 because there is one added by default to all new networks and projects, plus the ones we just added
+        assert len(project_and_network_scoped_attributes) == 4
 
 
         global_and_project_and_network_scoped_attributes = client.get_attributes(
             project_id=network_with_data.project_id,
             network_id=network_with_data.id,
             include_global=True)
+        
+        #It's 4 because there is one added by default to all new networks and projects, plus the ones we just added
+        assert len(global_and_project_and_network_scoped_attributes) == len(all_global_attributes) + 4
 
-        assert len(global_and_project_and_network_scoped_attributes) == len(all_global_attributes) + 2
+        #Now get project attributes, and include attributes from all networks within that project
+        global_and_project_and_network_scoped_attributes = client.get_attributes(
+            project_id=network_with_data.project_id,
+            include_global=True,
+            include_network_attributes=True)
+
+        #It's 4 because there is one added by default to all new networks and projects, plus the ones we just added
+        assert len(global_and_project_and_network_scoped_attributes) == len(all_global_attributes) + 4
+
 
     def test_add_duplicate_scoped_attribute(self, client, network_with_data):
         """
@@ -256,8 +268,9 @@ class TestScopedAttribute:
             "dimension_id": None,
             "network_id" : network_with_data.id
         })
-        #User C does not own this network, so fail.
-        client.user_id = pytest.user_c.id
+        user = client.testutils.create_user("UserD", role="developer")
+        #User D does not own this network, so fail.
+        client.user_id = user.id
         with pytest.raises(hb.PermissionError):
             client.add_attribute(network_scoped_attr)
 
@@ -300,3 +313,111 @@ class TestScopedAttribute:
         client.user_id = user.id
         client.add_attribute(project_scoped_attr)
         client.user_id = 1 ## reset the user ID
+
+    def test_search_attribute_in_sub_project(self, client, projectmaker, networkmaker):
+        """
+           Test searching for an attribute defined on a parent project (p1) when searching from 
+           network n1. This requires recursively looking up the project tree to collate
+           all attributes available to network n1. Attributes defined on P3 should not
+           be visible.
+                                 p1
+                                /  \
+                               p2   p3
+                              /
+                             p4
+                            /
+                           n1
+        """
+        client.user_id = 1 # force current user to be 1 to avoid potential inconsistencies
+        proj_user = client.user_id
+        proj1 = projectmaker.create(share=False)
+        proj2 = projectmaker.create(share=False, parent_id=proj1.id)
+        proj3 = projectmaker.create(share=False, parent_id=proj1.id)
+        proj4 = projectmaker.create(share=False, parent_id=proj2.id)
+
+        net1 = networkmaker.create(project_id=proj4.id)
+
+        client.user_id = pytest.user_c.id
+        with pytest.raises(HydraError):
+            client.get_project(proj4.id)
+
+        with pytest.raises(HydraError):
+            client.get_network(net1.id)
+
+        #Now, as the main user, share P4 with user C
+        client.user_id = proj_user
+        client.share_network(net1.id, ['UserC'], False, False)
+
+        client.add_attribute({'project_id': proj1.id,'name': 'p1_attr'})
+        client.add_attribute({'project_id': proj3.id,'name': 'p3_attr'})
+        client.add_attribute({'network_id': net1.id,'name': 'n1_attr'})
+
+        matching_attributes = client.search_attributes('p1_', project_id=proj1.id)
+        assert 'p1_attr' in [a.name for a in matching_attributes]
+        matching_attributes = client.search_attributes('p1_', network_id=net1.id)
+        assert 'p1_attr' in [a.name for a in matching_attributes]
+        matching_attributes = client.search_attributes('n1_', network_id=net1.id)
+        assert 'n1_attr' in [a.name for a in matching_attributes]
+        matching_attributes = client.search_attributes('p3_', network_id=net1.id)
+        assert 'p3_attr' not in [a.name for a in matching_attributes]
+
+        #now do all the same things except with the shared user.
+        client.user_id = pytest.user_c.id
+        matching_attributes = client.search_attributes('p1_', project_id=proj1.id)
+        assert 'p1_attr' in [a.name for a in matching_attributes]
+        matching_attributes = client.search_attributes('p1_', network_id=net1.id)
+        assert 'p1_attr' in [a.name for a in matching_attributes]
+        matching_attributes = client.search_attributes('n1_', network_id=net1.id)
+        assert 'n1_attr' in [a.name for a in matching_attributes]
+        matching_attributes = client.search_attributes('p3_', network_id=net1.id)
+        assert 'p3_attr' not in [a.name for a in matching_attributes]
+
+        with pytest.raises(HydraError):
+            client.search_attributes('p3_', project_id=proj3.id)
+
+
+
+    def test_rescope_attribute(self, client, projectmaker, networkmaker):
+        """
+           Test to make sure that when a scoped attribute is added to a network
+           which has a sibling containing the same attribute, then rather than
+           adding a new attribute, the current attribute is re-scoped to the project
+        """
+        client.user_id = 1 # force current user to be 1 to avoid potential inconsistencies
+        proj_user = client.user_id
+        proj1 = projectmaker.create(share=False)
+
+        net1 = networkmaker.create(project_id=proj1.id)
+        net2 = networkmaker.create(project_id=proj1.id)
+
+        net_scoped_attr = client.add_attribute({'network_id': net1.id,'name': 'test_scoped_attr'})
+        #safety net to make sure it's been added properly
+        net_scoped_attr = client.get_attribute_by_id(attr_id=net_scoped_attr.id)
+
+        new_ra = client.add_resource_attribute('NODE', net1.nodes[0].id, net_scoped_attr.id, is_var=False)
+
+        assert  net_scoped_attr.network_id == net1.id
+
+        #now add an attribute with the same name at the project level, thus creating a potential
+        #duplication
+        newly_scoped_attr = client.add_attribute({'project_id': proj1.id,'name': 'test_scoped_attr'})
+
+
+        with pytest.raises(HydraError):
+            client.get_attribute_by_id(attr_id=net_scoped_attr.id)
+
+        #check it has been rescoped
+        assert newly_scoped_attr.project_id == proj1.id
+
+        #the 
+        updated_ra = client.get_resource_attribute(new_ra.id)
+
+        assert updated_ra.attr_id == newly_scoped_attr.id
+
+        matching_attributes = client.search_attributes('test_scoped', network_id=net1.id)
+
+        assert len(matching_attributes) == 1 # the default scoped attrs plus this one.
+
+        assert 'test_scoped_attr' in [a.name for a in matching_attributes]
+        
+        assert matching_attributes[0].id == newly_scoped_attr.id
