@@ -81,6 +81,7 @@ class TestProject:
         project.name = 'SOAP test %s'%(datetime.datetime.now())
         project.description = \
             'A project created through the SOAP interface.'
+        project.layout = {"color": "blue"}
         project = self.add_attributes(client, project)
         project = self.add_data(client, project)
 
@@ -101,6 +102,8 @@ class TestProject:
             "created by is null."
         assert project_j.name == updated_project.name, \
             "project_name changed on update."
+        assert project_j.layout == updated_project.layout, \
+            "project_layout changed on update."
         assert project_j.description != updated_project.description,\
             "project_description did not update"
         assert updated_project.description == \
