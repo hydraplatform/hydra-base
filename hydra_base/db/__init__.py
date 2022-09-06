@@ -17,10 +17,16 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
+import sqlalchemy
 from sqlalchemy.orm import scoped_session
 from sqlalchemy import create_engine
+
+#Import these as a test for foreign key checking in
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+
 from .. import config
-from zope.sqlalchemy import ZopeTransactionExtension
+from zope.sqlalchemy import register
 
 from hydra_base.exceptions import HydraError
 
@@ -40,6 +46,21 @@ DBSession = None
 global engine
 engine = None
 
+global hydra_db_url
+hydra_db_url=None
+
+global restart_counter
+restart_counter = 0
+
+#logger_sqlalchemy = logging.getLogger('sqlalchemy')
+#logger_sqlalchemy.setLevel(logging.DEBUG)
+
+# @event.listens_for(Engine, "connect")
+# def set_sqlite_pragma(dbapi_connection, connection_record):
+#     cursor = dbapi_connection.cursor()
+#     cursor.execute("PRAGMA foreign_keys=ON")
+#     cursor.close()
+
 def create_mysql_db(db_url):
     """
         To simplify deployment, create the mysql DB if it's not there.
@@ -54,8 +75,13 @@ def create_mysql_db(db_url):
         if no DB name is specified, it is retrieved from config
     """
 
+    #add a special case for a memory-based sqlite session
+    if db_url == 'sqlite://':
+        return db_url
+
     #Remove trailing whitespace and forwardslashes
     db_url = db_url.strip().strip('/')
+
 
     #Check this is a mysql URL
     if db_url.find('mysql') >= 0:
@@ -76,32 +102,65 @@ def create_mysql_db(db_url):
             else:
                 no_db_url = db_url
                 db_url = no_db_url + "/" + db_name
+        if db_url.find('charset') == -1:
+            db_url = "{}?charset=utf8&use_unicode=1".format(db_url)
 
         if config.get('mysqld', 'auto_create', 'Y') == 'Y':
             tmp_engine = create_engine(no_db_url)
-            log.warn("Creating database {0} as it does not exist.".format(db_name))
+            log.debug("Creating database {0} as it does not exist.".format(db_name))
             tmp_engine.execute("CREATE DATABASE IF NOT EXISTS {0}".format(db_name))
-
     return db_url
 
 def connect(db_url=None):
     if db_url is None:
         db_url = config.get('mysqld', 'url')
 
-    log.info("Connecting to database: %s", db_url)
+    log.info("Connecting to database")
+    if db_url.find('@') >= 0:
+        log.info("DB URL: %s", db_url.split('@')[1])
+    else:
+        log.info("DB URL: %s", db_url)
 
     db_url = create_mysql_db(db_url)
 
     global engine
-    engine = create_engine(db_url)
 
-    maker = sessionmaker(bind=engine, autoflush=False, autocommit=False,
-                     extension=ZopeTransactionExtension())
+    # Let's use at least 10 for size and 20 for overflow (hydra.ini file)
+    # To test the timeout: pool_size:1, max_overflow: 0, pool_timeout: 5 or any low value
+    db_pool_size = int(config.get('mysqld', 'pool_size',10)) # 10
+    db_pool_recycle = int(config.get('mysqld', 'pool_recycle', 300)) # 300
+    db_max_overflow = int(config.get('mysqld', 'max_overflow', 20)) # 10 -> 30
+    db_pool_timeout = int(config.get('mysqld', 'pool_timeout', 10))
+
+    log.warning(f"db_pool_size: {db_pool_size} - pool_recycle: {db_pool_recycle} - max_overflow: {db_max_overflow} - pool_timeout: {db_pool_timeout}")
+
+    if db_url.startswith('sqlite'):
+        engine = create_engine(db_url, encoding='utf8')
+    else:
+        engine = create_engine(db_url,
+                               encoding='utf8',
+                               pool_recycle=db_pool_recycle,
+                               pool_size=db_pool_size,
+                               pool_timeout=db_pool_timeout,
+                               max_overflow=db_max_overflow)
+
+    global hydra_db_url
+    hydra_db_url=db_url
+
+
     global DBSession
+
+    maker = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     DBSession = scoped_session(maker)
+    register(DBSession)
 
     global DeclarativeBase
-    DeclarativeBase.metadata.create_all(engine)
+    try:
+        DeclarativeBase.metadata.create_all(engine, checkfirst=True)
+    except sqlalchemy.exc.OperationalError as err:
+        log.warning("Error creating database: %s", err)
+
+    return db_url
 
 def get_session():
     global DBSession
@@ -114,8 +173,37 @@ def commit_transaction():
         log.critical(e)
         transaction.abort()
 
+def open_session():
+    log.debug("OPENING SESSION")
+
+    global DBSession
+
+    from .model import User
+    session = DBSession()
+    session.query(User).all()
+
+    session2 = DBSession()
+    session2.query(User).all()
+
+    DBSession()
+
 def close_session():
+    log.debug("CLOSING SESSION")
     DBSession.remove()
 
+
 def rollback_transaction():
+    #import pudb; pudb.set_trace()
     transaction.abort()
+
+def restart_session(caller='-- not specified --'):
+    """
+        WILL RESTART THE SESSION
+    """
+    global DBSession
+    global restart_counter
+    restart_counter = restart_counter + 1
+    log.warning(f"[# Restarts: {restart_counter}] [{caller}] Restarting the DB Session!")
+    close_session()
+    global hydra_db_url
+    connect(hydra_db_url)

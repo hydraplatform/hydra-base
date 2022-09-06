@@ -18,10 +18,11 @@
 #
 
 from ..exceptions import HydraError, ResourceNotFoundError
-from . import scenario
+from . import scenario, network
 
 from .. import db
 from ..db.model import ResourceGroup, ResourceGroupItem, Node, Link
+from .scenario import _get_scenario
 from sqlalchemy.orm.exc import NoResultFound
 
 import logging
@@ -53,11 +54,14 @@ def add_resourcegroup(group, network_id,**kwargs):
     db.DBSession.flush()
     return group_i
 
-def delete_resourcegroup(group_id,**kwargs):
+def delete_resourcegroup(group_id, purge_data='N', **kwargs):
     """
         Add a new group to a scenario.
     """
     group_i = _get_group(group_id)
+
+    if purge_data == 'Y':
+        network._purge_datasets_unique_to_resource('GROUP', group_id)
     #This should cascaded to delete all the group items.
     db.DBSession.delete(group_i)
     db.DBSession.flush()
@@ -81,7 +85,7 @@ def update_resourcegroup(group,**kwargs):
 
 def add_resourcegroupitem(group_item, scenario_id,**kwargs):
 
-    scenario._check_can_edit_scenario(scenario_id, kwargs['user_id'])
+    _get_scenario(scenario_id, kwargs['user_id'], check_can_edit=True)
     #Check whether the ref_id is correct.
 
     if group_item.ref_key == 'NODE':
@@ -122,7 +126,8 @@ def add_resourcegroupitem(group_item, scenario_id,**kwargs):
 
 def delete_resourcegroupitem(item_id,**kwargs):
     group_item_i = _get_item(item_id)
-    scenario._check_can_edit_scenario(group_item_i.scenario_id, kwargs['user_id'])
+
+    _get_scenario(group_item_i.scenario_id, kwargs['user_id'], check_can_edit=True)
     db.DBSession.delete(group_item_i)
     db.DBSession.flush()
 

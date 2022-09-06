@@ -76,11 +76,11 @@ def load_config():
     repofiles = glob.glob(repofile)
 
     if os.name == 'nt':
-        import winpaths
+        import winpath
         userfile = os.path.join(os.path.expanduser('~'),'AppData','Local','hydra.ini')
         userfiles = glob.glob(userfile)
 
-        sysfile = os.path.join(winpaths.get_common_documents(), 'Hydra','hydra.ini')
+        sysfile = os.path.join(winpath.get_common_documents(), 'Hydra','hydra.ini')
         sysfiles = glob.glob(sysfile)
     else:
         userfile = os.path.join(os.path.expanduser('~'), '.hydra', 'hydra.ini')
@@ -106,7 +106,7 @@ def load_config():
     env_value = os.environ.get('HYDRA_CONFIG')
     if env_value is not None:
         if os.path.exists(env_value):
-            config.read(ini_file)
+            config.read(env_value)
         else:
             logging.warning('HYDRA_CONFIG set as %s but file does not exist', env_value)
 
@@ -147,26 +147,26 @@ def read_values_from_environment(config, section_key, options_key):
 
 
 def set_windows_env_variables(config):
-    import winpaths
-    config.set('DEFAULT', 'common_app_data_folder', winpaths.get_common_appdata())
-    config.set('DEFAULT', 'win_local_appdata', winpaths.get_local_appdata())
-    config.set('DEFAULT', 'win_appdata', winpaths.get_appdata())
-    config.set('DEFAULT', 'win_desktop', winpaths.get_desktop())
-    config.set('DEFAULT', 'win_programs', winpaths.get_programs())
-    config.set('DEFAULT', 'win_common_admin_tools', winpaths.get_common_admin_tools())
-    config.set('DEFAULT', 'win_common_documents', winpaths.get_common_documents())
-    config.set('DEFAULT', 'win_cookies', winpaths.get_cookies())
-    config.set('DEFAULT', 'win_history', winpaths.get_history())
-    config.set('DEFAULT', 'win_internet_cache', winpaths.get_internet_cache())
-    config.set('DEFAULT', 'win_my_pictures', winpaths.get_my_pictures())
-    config.set('DEFAULT', 'win_personal', winpaths.get_personal())
-    config.set('DEFAULT', 'win_my_documents', winpaths.get_my_documents())
-    config.set('DEFAULT', 'win_program_files', winpaths.get_program_files())
-    config.set('DEFAULT', 'win_program_files_common', winpaths.get_program_files_common())
-    config.set('DEFAULT', 'win_system', winpaths.get_system())
-    config.set('DEFAULT', 'win_windows', winpaths.get_windows())
-    config.set('DEFAULT', 'win_startup', winpaths.get_startup())
-    config.set('DEFAULT', 'win_recent', winpaths.get_recent())
+    import winpath
+    config.set('DEFAULT', 'common_app_data_folder', winpath.get_common_appdata())
+    config.set('DEFAULT', 'win_local_appdata', winpath.get_local_appdata())
+    config.set('DEFAULT', 'win_appdata', winpath.get_appdata())
+    config.set('DEFAULT', 'win_desktop', winpath.get_desktop())
+    config.set('DEFAULT', 'win_programs', winpath.get_programs())
+    config.set('DEFAULT', 'win_common_admin_tools', winpath.get_common_admin_tools())
+    config.set('DEFAULT', 'win_common_documents', winpath.get_common_documents())
+    config.set('DEFAULT', 'win_cookies', winpath.get_cookies())
+    config.set('DEFAULT', 'win_history', winpath.get_history())
+    config.set('DEFAULT', 'win_internet_cache', winpath.get_internet_cache())
+    config.set('DEFAULT', 'win_my_pictures', winpath.get_my_pictures())
+    config.set('DEFAULT', 'win_personal', winpath.get_personal())
+    config.set('DEFAULT', 'win_my_documents', winpath.get_my_documents())
+    config.set('DEFAULT', 'win_program_files', winpath.get_program_files())
+    config.set('DEFAULT', 'win_program_files_common', winpath.get_program_files_common())
+    config.set('DEFAULT', 'win_system', winpath.get_system())
+    config.set('DEFAULT', 'win_windows', winpath.get_windows())
+    config.set('DEFAULT', 'win_startup', winpath.get_startup())
+    config.set('DEFAULT', 'win_recent', winpath.get_recent())
 
 def get(section, option, default=None):
 

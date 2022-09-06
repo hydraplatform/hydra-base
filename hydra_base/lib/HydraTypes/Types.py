@@ -9,8 +9,9 @@
 import json
 import math
 import six
+import numpy as np
 import pandas as pd
-from abc import ABCMeta, abstractmethod, abstractproperty
+from abc import abstractmethod, abstractproperty
 from datetime import datetime
 import collections
 from hydra_base import config
@@ -22,24 +23,21 @@ import logging
 log = logging.getLogger(__name__)
 
 
-class DataTypeMeta(ABCMeta):
-    def __new__(cls, clsname, bases, attrs):
-        newclass = super(DataTypeMeta, cls).__new__(cls, clsname, bases, attrs)
+class DataType(object):
+    """ The DataType class serves as an abstract base class for data types"""
+    def __init_subclass__(cls):
+        tag = cls.tag
+        name = cls.name
 
         # Register class with hydra
         from .Registry import typemap
-        if clsname != 'DataType':
-            if newclass.tag in typemap:
-                raise ValueError('Type with tag "{}" already registered.'.format(newclass.tag))
-            else:
-                typemap[newclass.tag] = newclass
-                log.info('Registering data type "{}".'.format(newclass.tag))
-        return newclass
+        if tag in typemap:
+            raise ValueError('Type with tag "{}" already registered.'.format(tag))
+        else:
+            typemap[tag] = cls
+            log.info('Registering data type "{}".'.format(tag))
 
 
-@six.add_metaclass(DataTypeMeta)
-class DataType(object):
-    """ The DataType class serves as an abstract base class for data types"""
 
     @abstractproperty
     def skeleton(self):
@@ -83,6 +81,7 @@ class DataType(object):
 
 class Scalar(DataType):
     tag      = "SCALAR"
+    name     = "Scalar"
     skeleton = "[%f]"
     json     = ScalarJSON()
 
@@ -110,6 +109,7 @@ class Scalar(DataType):
 
 class Array(DataType):
     tag      = "ARRAY"
+    name     = "Array"
     skeleton = "[%f, ...]"
     json     = ArrayJSON()
 
@@ -140,6 +140,7 @@ class Array(DataType):
 
 class Descriptor(DataType):
     tag      = "DESCRIPTOR"
+    name     = "Descriptor"
     skeleton = "%s"
     json     = DescriptorJSON()
 
@@ -177,6 +178,7 @@ class Descriptor(DataType):
 
 class Dataframe(DataType):
     tag      = "DATAFRAME"
+    name     = "Data Frame"
     skeleton = "%s"
     json     = DataframeJSON()
 
@@ -213,26 +215,39 @@ class Dataframe(DataType):
             if isinstance(ordered_jo[cols[0]], list):
                 index = range(len(ordered_jo[cols[0]]))
             else:
-                index = list(ordered_jo[cols[0]].keys())
-            data = []
-            for c in cols:
-                if isinstance(ordered_jo[c], list):
-                    data.append(ordered_jo[c])
-                else:
-                    data.append(ordered_jo[c].values())
+                #cater for when the indices are not the same by identifying
+                #all the indices, and then making a set of them.
+                longest_index = []
+                for col in ordered_jo.keys():
+                    index = list(ordered_jo[col].keys())
+                    if len(index) > len(longest_index):
+                        longest_index = index
+                index = longest_index
 
-            #This goes in 'sideways' (cols=index, index=cols), so it needs to be transposed after to keep
-            #the correct structure
-            df = pd.DataFrame(data, columns=index, index=cols).transpose()
+            df = pd.read_json(value, convert_axes=False)
+
+            #Make both indices the same type, so they can be compared
+            df.index = df.index.astype(str)
+            new_index = pd.Index(index).astype(str)
+
+            #Now reindex the dataframe so that the index is in the correct order,
+            #as per the data in the DB, and not with the default pandas ordering.
+            new_df = df.reindex(new_index)
+
+            #If the reindex didn't work, don't use that value
+            if new_df.isnull().sum().sum() != len(df.index):
+                df = new_df
+
 
         except ValueError as e:
             """ Raised on scalar types used as pd.DataFrame values
                 in absence of index arg
             """
+            log.exception(e)
             raise HydraError(str(e))
 
         except AssertionError as e:
-            log.warn("An error occurred creating the new data frame: %s. Defaulting to a simple read_json"%(e))
+            log.warning("An error occurred creating the new data frame: %s. Defaulting to a simple read_json"%(e))
             df = pd.read_json(value).fillna(0)
 
         return df
@@ -264,6 +279,7 @@ class Dataframe(DataType):
 
 class Timeseries(DataType):
     tag      = "TIMESERIES"
+    name     = "Time Series"
     skeleton = "[%s, ...]"
     json     = TimeseriesJSON()
 
@@ -293,7 +309,7 @@ class Timeseries(DataType):
                     date = date.replace(seasonal_key, seasonal_year)
 
                 ts = pd.Timestamp(date)
-                print(ts, type(ts))
+
                 assert isinstance(ts, base_ts.__class__) # Same type as known valid ts
 
 

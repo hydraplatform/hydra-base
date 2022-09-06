@@ -17,38 +17,33 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
+import copy
 import datetime
-import sys
-from ..util.hydra_dateutil import get_datetime
+import json
 import logging
-from ..db.model import Dataset, Metadata, DatasetOwner, DatasetCollection,\
-        DatasetCollectionItem, ResourceScenario, ResourceAttr, TypeAttr
-from ..util import generate_data_hash
-from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.orm import aliased, make_transient, joinedload_all
-from sqlalchemy.sql.expression import case
-from sqlalchemy import func
-from sqlalchemy import null
-from .. import db
-from ..import config
-
-from .objects import JSONObject
+import sys
 
 import pandas as pd
-from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
-from sqlalchemy import and_, or_
-from sqlalchemy.exc import OperationalError
-from sqlalchemy.sql.expression import literal_column
-from sqlalchemy import distinct
-
 from collections import namedtuple
-
 from decimal import Decimal
-import copy
 
-import json
+from sqlalchemy import func, null, and_, or_, distinct
+from sqlalchemy.orm import aliased, make_transient, joinedload
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.sql.expression import literal_column, case
 
-from . import units as hydra_units
+from .objects import JSONObject, Dataset as JSONDataset
+from .. import db
+from .. import config
+from ..db.model import Dataset, Metadata, DatasetOwner, DatasetCollection,\
+        DatasetCollectionItem, ResourceScenario, ResourceAttr, TypeAttr
+from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
+from ..util import generate_data_hash
+from ..util.hydra_dateutil import get_datetime
+
+from hydra_base.lib.storage import MongoStorageAdapter
+
 
 global FORMAT
 FORMAT = "%Y-%m-%d %H:%M:%S.%f"
@@ -73,7 +68,7 @@ def get_dataset(dataset_id,**kwargs):
     try:
         dataset_rs = db.DBSession.query(Dataset.id,
                 Dataset.type,
-                Dataset.unit,
+                Dataset.unit_id,
                 Dataset.name,
                 Dataset.hidden,
                 Dataset.cr_date,
@@ -89,6 +84,7 @@ def get_dataset(dataset_id,**kwargs):
         rs_dict = dataset_rs._asdict()
 
         #convert the value row into a string as it is returned as a binary
+
         if dataset_rs.value is not None:
             rs_dict['value'] = str(dataset_rs.value)
 
@@ -101,8 +97,7 @@ def get_dataset(dataset_id,**kwargs):
     except NoResultFound:
         raise HydraError("Dataset %s does not exist."%(dataset_id))
 
-
-    dataset = namedtuple('Dataset', rs_dict.keys())(**rs_dict)
+    dataset = JSONDataset(rs_dict)
 
     return dataset
 
@@ -117,7 +112,7 @@ def clone_dataset(dataset_id,**kwargs):
         return None
 
     dataset = db.DBSession.query(Dataset).filter(
-            Dataset.id==dataset_id).options(joinedload_all('metadata')).first()
+            Dataset.id==dataset_id).options(joinedload('metadata')).first()
 
     if dataset is None:
         raise HydraError("Dataset %s does not exist."%(dataset_id))
@@ -172,7 +167,7 @@ def get_datasets(dataset_ids,**kwargs):
     try:
         dataset_rs = db.DBSession.query(Dataset.id,
                 Dataset.type,
-                Dataset.unit,
+                Dataset.unit_id,
                 Dataset.name,
                 Dataset.hidden,
                 Dataset.cr_date,
@@ -212,7 +207,7 @@ def search_datasets(dataset_id=None,
                 dataset_name=None,
                 collection_name=None,
                 data_type=None,
-                unit=None,
+                unit_id=None,
                 scenario_id=None,
                 metadata_key=None,
                 metadata_val=None,
@@ -236,7 +231,7 @@ def search_datasets(dataset_id=None,
                                   "datset_name: %s,\n"
                                   "collection_name: %s,\n"
                                   "data_type: %s,\n"
-                                  "unit: %s,\n"
+                                  "unit_id: %s,\n"
                                   "scenario_id: %s,\n"
                                   "metadata_key: %s,\n"
                                   "metadata_val: %s,\n"
@@ -250,7 +245,7 @@ def search_datasets(dataset_id=None,
                 dataset_name,
                 collection_name,
                 data_type,
-                unit,
+                unit_id,
                 scenario_id,
                 metadata_key,
                 metadata_val,
@@ -269,7 +264,7 @@ def search_datasets(dataset_id=None,
 
     dataset_qry = db.DBSession.query(Dataset.id,
             Dataset.type,
-            Dataset.unit,
+            Dataset.unit_id,
             Dataset.name,
             Dataset.hidden,
             Dataset.cr_date,
@@ -306,16 +301,10 @@ def search_datasets(dataset_id=None,
         #null is a valid unit, so we need a way for the searcher
         #to specify that they want to search for datasets with a null unit
         #rather than ignoring the unit. We use 'null' to do this.
-        if unit is not None:
-            unit = unit.lower()
-            if unit == 'null':
-                unit = None
-            if unit is not None:
-                dataset_qry = dataset_qry.filter(
-                    func.lower(Dataset.unit) == unit)
-            else:
-                dataset_qry = dataset_qry.filter(
-                    Dataset.unit == unit)
+
+        if unit_id is not None:
+            dataset_qry = dataset_qry.filter(
+                Dataset.unit_id == unit_id)
 
         if scenario_id is not None:
             dataset_qry = dataset_qry.join(ResourceScenario,
@@ -415,6 +404,8 @@ def update_dataset(dataset, flush=True, **kwargs):
         Update an existing dataset
     """
 
+    dataset = JSONDataset(dataset)
+
     if dataset.id is None:
         raise HydraError("Dataset must have an ID to be updated.")
 
@@ -435,8 +426,7 @@ def update_dataset(dataset, flush=True, **kwargs):
     #Are any of these scenarios locked?
     if len(locked_scenarios) > 0:
         #If so, create a new dataset and assign to all unlocked datasets.
-        dataset = add_dataset(dataset,
-                                user_id=kwargs['user_id'])
+        dataset = add_dataset(dataset, user_id=kwargs['user_id'])
         for unlocked_rs in unlocked_scenarios:
             unlocked_rs.dataset = dataset
 
@@ -446,7 +436,7 @@ def update_dataset(dataset, flush=True, **kwargs):
         dataset_i.value = dataset.value
         dataset_i.set_metadata(dataset.get_metadata_as_dict())
 
-        dataset_i.unit = dataset.unit
+        dataset_i.unit_id = dataset.unit_id
         dataset_i.name  = dataset.name
 
         #Only the owner of a dataset can hide it.
@@ -458,12 +448,12 @@ def update_dataset(dataset, flush=True, **kwargs):
 
         #Is there a dataset in the DB already which is identical to the updated dataset?
         existing_dataset_i = db.DBSession.query(Dataset).filter(Dataset.hash==dataset_i.hash, Dataset.id != dataset_i.id).first()
-        if existing_dataset_i is not None and existing_dataset_i.check_user(user_id):
+        if existing_dataset_i is not None and existing_dataset_i.check_read_permission(user_id, do_raise=False) is True:
             log.warn("An identical dataset %s has been found to dataset %s."
                      " Deleting dataset and returning dataset %s",
                      existing_dataset_i.id, dataset_i.id, existing_dataset_i.id)
             db.DBSession.delete(dataset_i)
-            dataset = existing_dataset
+            dataset_i = existing_dataset_i
     if flush==True:
         db.DBSession.flush()
 
@@ -478,13 +468,15 @@ def add_dataset(dataset, user_id=None, flush=False):
         A typical use of this would be for setting default values on types.
     """
 
+    dataset = JSONDataset(dataset)
+
     d = Dataset()
 
     d.type  = dataset.type
     d.value = dataset.value
     d.set_metadata(dataset.get_metadata_as_dict())
 
-    d.unit  = dataset.unit
+    d.unit_id  = dataset.unit_id
     d.name  = dataset.get('name', '')
     d.hidden  = dataset.get('hidden', 'N')
     d.created_by = user_id
@@ -492,7 +484,7 @@ def add_dataset(dataset, user_id=None, flush=False):
 
     try:
         existing_dataset_i = db.DBSession.query(Dataset).filter(Dataset.hash==d.hash).one()
-        if existing_dataset_i.check_user(user_id):
+        if existing_dataset_i.check_write_permission(user_id, do_raise=False) is True:
             d = existing_dataset_i
         else:
             d.set_metadata({'created_at': datetime.datetime.now()})
@@ -534,8 +526,7 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
         both user_id and source are added as metadata
     """
     get_timing = lambda x: datetime.datetime.now() - x
-    start_time=datetime.datetime.now()
-
+    start_time = datetime.datetime.now()
     new_data = _process_incoming_data(bulk_data, user_id, source)
     log.info("Incoming data processed in %s", (get_timing(start_time)))
 
@@ -549,21 +540,28 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
     metadata         = {}
     #This is what gets returned.
     for d in bulk_data:
+
+        #limit the name to 200
+        d.name = d.name[0:200]
+
         dataset_dict = new_data[d.hash]
         current_hash = d.hash
 
         #if this piece of data is already in the DB, then
         #there is no need to insert it!
-        if  existing_data.get(current_hash) is not None:
+        if existing_data.get(current_hash) is not None:
 
             dataset = existing_data.get(current_hash)
+
             #Is this user allowed to use this dataset?
-            if dataset.check_user(user_id) == False:
+            #TODO is this too slow?
+            if dataset.check_read_permission(user_id, do_raise=False) == False:
                 new_dataset = _make_new_dataset(dataset_dict)
                 new_datasets.append(new_dataset)
                 metadata[new_dataset['hash']] = dataset_dict['metadata']
             else:
-                hash_id_map[current_hash] = dataset#existing_data[current_hash]
+                hash_id_map[current_hash] = dataset
+
         elif current_hash in hash_id_map:
             new_datasets.append(dataset_dict)
         else:
@@ -574,7 +572,7 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
             hash_id_map[current_hash] = dataset_dict
             metadata[current_hash] = dataset_dict['metadata']
 
-    log.debug("Isolating new data %s", get_timing(start_time))
+    log.info("Isolating new data %s", get_timing(start_time))
     #Isolate only the new datasets and insert them
     new_data_for_insert = []
     #keep track of the datasets that are to be inserted to avoid duplicate
@@ -582,8 +580,37 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
     new_data_hashes = []
     for d in new_datasets:
         if d['hash'] not in new_data_hashes:
+            d['name'] = d['name'][0:200]
             new_data_for_insert.append(d)
             new_data_hashes.append(d['hash'])
+
+    """
+    Identify datasets whose size exceeds the external storage threshold,
+    add these to external storage rather than the main db, and replace
+    the dataset.value of these with a reference to the external ObjectId.
+    Update the metadata to indicate the storage location.
+    Note that it isn't necessary to update the hashes calculated above,
+    index positions are preserved so these still act as unique identifiers
+    for datasets and metadata.
+    """
+    mongo = MongoStorageAdapter()
+    mongo_config = mongo.get_mongo_config()
+    threshold_sz = mongo_config["threshold"]
+    mongo_location_token = mongo_config["direct_location_token"]
+    loc_key = mongo_config["value_location_key"]
+    mongo_data = {}
+
+    for idx, ds in enumerate(new_data_for_insert):
+        ds_size = len(ds["value"])
+        if ds_size > threshold_sz:
+            mongo_data[idx] = ds["value"]
+            ds_metadata = metadata[ds["hash"]]
+            ds_metadata[loc_key] = mongo_location_token
+
+    if mongo_data:
+        inserted = mongo.bulk_insert_values(list(mongo_data.values()))
+        for idx, key in enumerate(mongo_data):
+            new_data_for_insert[key]["value"] = str(inserted.inserted_ids[idx])  # Replace ds.values with _id ref
 
     if len(new_data_for_insert) > 0:
     	#If we're working with mysql, we have to lock the table..
@@ -593,9 +620,10 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
         #except OperationalError:
         #    pass
 
-        log.debug("Inserting new data %s", get_timing(start_time))
-        db.DBSession.bulk_insert_mappings(Dataset, new_data_for_insert)
-        log.debug("New data Inserted %s", get_timing(start_time))
+        log.info("Inserting new data %s", get_timing(start_time))
+
+        db.DBSession.execute(Dataset.__table__.insert(), new_data_for_insert)
+        log.info("New data Inserted %s", get_timing(start_time))
 
         #try:
         #    db.DBSession.execute("UNLOCK TABLES")
@@ -604,13 +632,13 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
 
 
         new_data = _get_existing_data(new_data_hashes)
-        log.debug("New data retrieved %s", get_timing(start_time))
+        log.info("New data retrieved %s", get_timing(start_time))
 
         for k, v in new_data.items():
             hash_id_map[k] = v
 
         _insert_metadata(metadata, hash_id_map)
-        log.debug("Metadata inserted %s", get_timing(start_time))
+        log.info("Metadata inserted %s", get_timing(start_time))
 
     returned_ids = []
     for d in bulk_data:
@@ -649,8 +677,8 @@ def _process_incoming_data(data, user_id=None, source=None):
         data_dict = {
             'type': d.type,
             'name': d.name,
-            'unit': d.unit,
-            'hidden': d.hidden,
+            'unit_id': d.unit_id,
+            'hidden': d.hidden if d.hidden else 'N',
             'created_by': user_id,
         }
 
@@ -882,7 +910,8 @@ def get_dataset_collection(collection_id,**kwargs):
         collection = db.DBSession.query(DatasetCollection).filter(DatasetCollection.id==collection_id).one()
     except NoResultFound:
         raise ResourceNotFoundError("No dataset collection found with id %s"%collection_id)
-
+    #lazy load items
+    collection.items
     return collection
 
 def get_dataset_collection_by_name(collection_name,**kwargs):
@@ -890,7 +919,8 @@ def get_dataset_collection_by_name(collection_name,**kwargs):
         collection = db.DBSession.query(DatasetCollection).filter(DatasetCollection.name==collection_name).one()
     except NoResultFound:
         raise ResourceNotFoundError("No dataset collection found with name %s"%collection_name)
-
+    #lazy load items
+    collection.items
     return collection
 
 def add_dataset_collection(collection,**kwargs):
@@ -919,10 +949,12 @@ def get_collections_like_name(collection_name,**kwargs):
         Get all the datasets from the collection with the specified name
     """
     try:
-        collections = db.DBSession.query(DatasetCollection).filter(DatasetCollection.name.like("%%%s%%"%collection_name.lower())).all()
+        collections = db.DBSession.query(DatasetCollection).filter(
+            DatasetCollection.name.like("%%%s%%"%collection_name.lower())).all()
     except NoResultFound:
         raise ResourceNotFoundError("No dataset collection found with name %s"%collection_name)
-
+    #lazy load items
+    [collection.items for collection in collections]
     return collections
 
 def get_collection_datasets(collection_id,**kwargs):
@@ -942,6 +974,7 @@ def get_val_at_time(dataset_id, timestamps,**kwargs):
     If the timestamp is before the start of the timeseries data, return
     None If the timestamp is after the end of the timeseries data, return
     the last value.  """
+
     t = []
     for time in timestamps:
         t.append(get_datetime(time))
@@ -981,7 +1014,7 @@ def get_multiple_vals_at_time(dataset_ids, timestamps,**kwargs):
 
     return return_vals
 
-def get_vals_between_times(dataset_id, start_time, end_time, timestep,increment,**kwargs):
+def get_vals_between_times(dataset_id, start_time, end_time, timestep, increment, **kwargs):
     """
         Retrive data between two specified times within a timeseries. The times
         need not be specified in the timeseries. This function will 'fill in the blanks'.
@@ -998,6 +1031,7 @@ def get_vals_between_times(dataset_id, start_time, end_time, timestep,increment,
         to be used between the start and end.
         Ex: start_time = 1, end_time = 5, increment = 1 will get times at 1, 2, 3, 4, 5
     """
+
     try:
         server_start_time = get_datetime(start_time)
         server_end_time   = get_datetime(end_time)

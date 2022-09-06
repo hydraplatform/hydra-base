@@ -20,6 +20,10 @@
 import logging
 log = logging.getLogger(__name__)
 
+import json
+
+from collections import defaultdict
+
 from ..db.model import Attr,\
         Node,\
         Link,\
@@ -34,13 +38,17 @@ from ..db.model import Attr,\
         ResourceScenario,\
         Dataset,\
         AttrGroup,\
-        AttrGroupItem
+        AttrGroupItem, \
+        Dimension, \
+        Unit
 from .. import db
 from sqlalchemy.orm.exc import NoResultFound
 from ..exceptions import HydraError, ResourceNotFoundError
-from sqlalchemy import or_, and_
-from sqlalchemy.orm import aliased
+from ..util.permissions import required_perms, required_role
+from sqlalchemy import or_, and_, func
+from sqlalchemy.orm import aliased, joinedload
 from . import units
+from .objects import JSONObject
 
 def _get_network(network_id):
     try:
@@ -78,16 +86,51 @@ def _get_resource(ref_key, ref_id):
     except NoResultFound:
         raise ResourceNotFoundError("Resource %s with ID %s not found"%(ref_key, ref_id))
 
+def _get_ra_resource(ra):
+    ref_key = ra.ref_key
+    try:
+        if ref_key == 'NODE':
+            return db.DBSession.query(Node).filter(Node.id == ra.node_id).one()
+        elif ref_key == 'LINK':
+            return db.DBSession.query(Link).filter(Link.id == ra.link_id).one()
+        if ref_key == 'GROUP':
+            return db.DBSession.query(ResourceGroup).filter(ResourceGroup.id == ra.group_id).one()
+        elif ref_key == 'NETWORK':
+            return db.DBSession.query(Network).filter(Network.id == ra.network_id).one()
+        elif ref_key == 'SCENARIO':
+            return db.DBSession.query(Scenario).filter(Scenario.id == ra.scenario_id).one()
+        elif ref_key == 'PROJECT':
+            return db.DBSession.query(Project).filter(Project.id == ra.project_id).one()
+        else:
+            return None
+    except NoResultFound:
+        raise ResourceNotFoundError("Resource found on resource attribute %s"%(ra))
+
+
+
+def _get_resource_id(ra):
+    ref_key = ra.ref_key
+    if ref_key == 'NETWORK':
+        return ra.network_id
+    elif ref_key == 'NODE':
+        return ra.node_id
+    elif ref_key == 'LINK':
+        return ra.link_id
+    elif ref_key == 'GROUP':
+        return ra.group_id
+    elif ref_key == 'PROJECT':
+        return ra.project_id
+
 def get_attribute_by_id(attr_id, **kwargs):
     """
         Get a specific attribute by its ID.
     """
-
     try:
         attr_i = db.DBSession.query(Attr).filter(Attr.id==attr_id).one()
-        return attr_i
     except NoResultFound:
-        return None
+        raise ResourceNotFoundError("Attribute (attribute id=%s) does not exist"%(attr_id))
+
+    return attr_i
 
 def get_template_attributes(template_id, **kwargs):
     """
@@ -96,25 +139,42 @@ def get_template_attributes(template_id, **kwargs):
 
     try:
         attrs_i = db.DBSession.query(Attr).filter(TemplateType.template_id==template_id).filter(TypeAttr.type_id==TemplateType.id).filter(Attr.id==TypeAttr.id).all()
-        log.info(attrs_i)
+        log.debug(attrs_i)
         return attrs_i
     except NoResultFound:
         return None
 
 
-
-def get_attribute_by_name_and_dimension(name, dimension='dimensionless',**kwargs):
+def get_attribute_by_name_and_dimension(name, dimension_id=None,**kwargs):
     """
         Get a specific attribute by its name.
+        dimension_id can be None, because in attribute the dimension_id is not anymore mandatory
     """
-
     try:
-        attr_i = db.DBSession.query(Attr).filter(and_(Attr.name==name, or_(Attr.dimension==dimension, Attr.dimension == ''))).one()
-        log.info("Attribute retrieved")
+        attr_i = db.DBSession.query(Attr).filter(and_(Attr.name==name, Attr.dimension_id==dimension_id)).one()
+        log.debug("Attribute retrieved")
         return attr_i
     except NoResultFound:
         return None
 
+@required_role('admin')
+def add_attribute_no_checks(attr,**kwargs):
+    """
+    ***WARNING*** This is used for test purposes only, and can allow
+    duplicate attributes to be created
+    """
+    log.debug("Adding attribute: %s", attr.name)
+
+    attr_i = Attr(name = attr.name, dimension_id = attr.dimension_id)
+    attr_i.description = attr.description
+    db.DBSession.add(attr_i)
+    db.DBSession.flush()
+    log.info("New attr added")
+    return JSONObject(attr_i)
+
+
+
+@required_perms('add_attribute')
 def add_attribute(attr,**kwargs):
     """
     Add a generic attribute, which can then be used in creating
@@ -125,28 +185,25 @@ def add_attribute(attr,**kwargs):
         (Attr){
             id = 1020
             name = "Test Attr"
-            dimen = "very big"
+            dimension_id = 123
         }
 
     """
     log.debug("Adding attribute: %s", attr.name)
 
-    if attr.dimension is None or attr.dimension.lower() == 'dimensionless':
-        log.info("Setting 'dimesionless' on attribute %s", attr.name)
-        attr.dimension = 'dimensionless'
-
     try:
-        attr_i = db.DBSession.query(Attr).filter(Attr.name == attr.name,
-                                              Attr.dimension == attr.dimension).one()
+        attr_i = db.DBSession.query(Attr).filter(func.lower(Attr.name) == attr.name.lower(),
+                                                 Attr.dimension_id == attr.dimension_id).one()
         log.info("Attr already exists")
     except NoResultFound:
-        attr_i = Attr(name = attr.name, dimension = attr.dimension)
+        attr_i = Attr(name = attr.name, dimension_id = attr.dimension_id)
         attr_i.description = attr.description
         db.DBSession.add(attr_i)
         db.DBSession.flush()
         log.info("New attr added")
-    return attr_i
+    return JSONObject(attr_i)
 
+@required_perms('edit_attribute')
 def update_attribute(attr,**kwargs):
     """
     Add a generic attribute, which can then be used in creating
@@ -157,30 +214,50 @@ def update_attribute(attr,**kwargs):
         (Attr){
             id = 1020
             name = "Test Attr"
-            dimen = "very big"
+            dimension_id = 123
         }
 
     """
 
-    if attr.dimension is None or attr.dimension.lower() == 'dimensionless':
-        log.info("Setting 'dimesionless' on attribute %s", attr.name)
-        attr.dimension = 'dimensionless'
+    existing_attr_i = db.DBSession.query(Attr).filter(
+        Attr.name == attr.name,
+        Attr.dimension_id == attr.dimension_id,
+        Attr.id != attr.id).first() #its ok if this is the one being updated!
 
-    log.debug("Adding attribute: %s", attr.name)
-    attr_i = _get_attr(attr.id)
-    attr_i.name = attr.name
-    attr_i.dimension = attr.dimension
-    attr_i.description = attr.description
+    if existing_attr_i is not None:
+        if attr.dimension_id is not None:
+            dimension = units.get_dimension(attr.dimension_id)
+            dimension_name = dimension.name
+        else:
+            dimension_name = 'None'
 
-    #Make sure an update hasn't caused an inconsistency.
-    #check_sion(attr_i.id)
+        raise HydraError(f"Cannot update attribute. An attribute with name {attr.name}"
+                         f" and dimension {dimension_name} already exists with "
+                         f"ID {existing_attr_i.id}")
+    else:
+        log.debug("Updating attribute: %s", attr.name)
+        attr_i = _get_attr(attr.id)
+        attr_i.name = attr.name
+        attr_i.dimension_id = attr.dimension_id
+        attr_i.description = attr.description
 
     db.DBSession.flush()
-    return attr_i
+    return JSONObject(attr_i)
+
+
+def delete_attribute(attr_id, **kwargs):
+    try:
+        attribute = db.DBSession.query(Attr).filter(Attr.id == attr_id).one()
+        db.DBSession.delete(attribute)
+        db.DBSession.flush()
+        return True
+    except NoResultFound:
+        raise ResourceNotFoundError("Attribute (attribute id=%s) does not exist"%(attr_id))
+
 
 def add_attributes(attrs,**kwargs):
     """
-    Add a generic attribute, which can then be used in creating
+    Add a list of generic attributes, which can then be used in creating
     a resource attribute, and put into a type.
 
     .. code-block:: python
@@ -193,42 +270,44 @@ def add_attributes(attrs,**kwargs):
 
     """
 
-    log.debug("Adding s: %s", [attr.name for attr in attrs])
     #Check to see if any of the attributs being added are already there.
     #If they are there already, don't add a new one. If an attribute
     #with the same name is there already but with a different dimension,
     #add a new attribute.
 
+    # All existing attributes
     all_attrs = db.DBSession.query(Attr).all()
     attr_dict = {}
     for attr in all_attrs:
-        attr_dict[(attr.name.lower(), attr.dimension.lower())] = attr
+        attr_dict[(attr.name.lower(), attr.dimension_id)] = JSONObject(attr)
 
     attrs_to_add = []
     existing_attrs = []
     for potential_new_attr in attrs:
-        if potential_new_attr.dimension is None or potential_new_attr.dimension.lower() == 'dimensionless':
-            potential_new_attr.dimension = 'dimensionless'
+        if potential_new_attr is not None:
+            # If the attrinute is None we cannot manage it
+            log.debug("Adding attribute: %s", potential_new_attr)
 
-        if attr_dict.get((potential_new_attr.name.lower(), potential_new_attr.dimension.lower())) is None:
-            attrs_to_add.append(potential_new_attr)
-        else:
-            existing_attrs.append(attr_dict.get((potential_new_attr.name.lower(), potential_new_attr.dimension.lower())))
+            if attr_dict.get((potential_new_attr.name.lower(), potential_new_attr.dimension_id)) is None:
+                attrs_to_add.append(JSONObject(potential_new_attr))
+            else:
+                existing_attrs.append(attr_dict.get((potential_new_attr.name.lower(), potential_new_attr.dimension_id)))
 
     new_attrs = []
     for attr in attrs_to_add:
         attr_i = Attr()
         attr_i.name = attr.name
-        attr_i.dimension = attr.dimension
+        attr_i.dimension_id = attr.dimension_id
         attr_i.description = attr.description
         db.DBSession.add(attr_i)
         new_attrs.append(attr_i)
 
     db.DBSession.flush()
 
+
     new_attrs = new_attrs + existing_attrs
 
-    return new_attrs
+    return [JSONObject(a) for a in new_attrs]
 
 def get_attributes(**kwargs):
     """
@@ -343,15 +422,15 @@ def add_resource_attrs_from_type(type_id, resource_type, resource_id,**kwargs):
     resourceattr_qry = db.DBSession.query(ResourceAttr).filter(ResourceAttr.ref_key==resource_type)
 
     if resource_type == 'NETWORK':
-        resourceattr_qry.filter(ResourceAttr.network_id==resource_id)
+        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.network_id==resource_id)
     elif resource_type == 'NODE':
-        resourceattr_qry.filter(ResourceAttr.node_id==resource_id)
+        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.node_id==resource_id)
     elif resource_type == 'LINK':
-        resourceattr_qry.filter(ResourceAttr.link_id==resource_id)
+        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.link_id==resource_id)
     elif resource_type == 'GROUP':
-        resourceattr_qry.filter(ResourceAttr.group_id==resource_id)
+        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.group_id==resource_id)
     elif resource_type == 'PROJECT':
-        resourceattr_qry.filter(ResourceAttr.project_id==resource_id)
+        resourceattr_qry = resourceattr_qry.filter(ResourceAttr.project_id==resource_id)
 
     resource_attrs = resourceattr_qry.all()
 
@@ -368,6 +447,164 @@ def add_resource_attrs_from_type(type_id, resource_type, resource_id,**kwargs):
     db.DBSession.flush()
 
     return new_resource_attrs
+
+def get_all_network_resourceattributes(network_id, template_id=None, return_orm=False, **kwargs):
+    """
+        Get all the resource attributes for all the nodes, links and groups in the network
+        including network attributes. This is used primarily to avoid retrieving
+        all global attributes for menus etc, most of which are not necessary.
+
+        args:
+            network_id (int): The ID of the network containing the attributes
+            template_id (int): A filter which will cause the function to
+                                return attributes associated to that template
+            return_orm (bool): Flag to force the function to return ORM objects instead
+                                of JSONObjects, likely to be used internally from another
+                                function
+
+        returns:
+            A list of Attributes as JSONObjects, with the
+            additional data of 'attr_is_var'
+            from its assocated ResourceAttribute. ex:
+                {id:123,
+                name: 'cost'
+                dimension_id: 124,
+                attr_is_var: 'Y' #comes from the ResourceAttr
+                }
+    """
+
+    resource_attr_qry = db.DBSession.query(ResourceAttr).\
+            join(Attr, ResourceAttr.attr_id==Attr.id).\
+            outerjoin(Network, Network.id==ResourceAttr.network_id).\
+            outerjoin(Node, Node.id==ResourceAttr.node_id).\
+            outerjoin(Link, Link.id==ResourceAttr.link_id).\
+            outerjoin(ResourceGroup, ResourceGroup.id==ResourceAttr.group_id).filter(
+        or_(
+            and_(ResourceAttr.network_id != None,
+                    ResourceAttr.network_id == network_id),
+
+            and_(ResourceAttr.node_id != None,
+                    ResourceAttr.node_id == Node.id,
+                                        Node.network_id==network_id),
+
+            and_(ResourceAttr.link_id != None,
+                    ResourceAttr.link_id == Link.id,
+                                        Link.network_id==network_id),
+
+            and_(ResourceAttr.group_id != None,
+                    ResourceAttr.group_id == ResourceGroup.id,
+                                        ResourceGroup.network_id==network_id)
+        ))
+
+    if template_id is not None:
+        attr_ids = []
+        rs = db.DBSession.query(TypeAttr).join(TemplateType,
+                                            TemplateType.id==TypeAttr.type_id).filter(
+                                                TemplateType.template_id==template_id).all()
+        for r in rs:
+            attr_ids.append(r.attr_id)
+
+        resource_attr_qry = resource_attr_qry.filter(ResourceAttr.attr_id.in_(attr_ids))
+
+    resource_attrs = resource_attr_qry.all()
+
+    network_attributes = []
+    for ra in resource_attrs:
+        if return_orm is True:
+            network_attributes.append(ra)
+        else:
+            ra_j = JSONObject(ra)
+            ra_j.attr = JSONObject(ra.attr)
+            network_attributes.append(ra_j)
+
+    return network_attributes
+
+
+def get_all_network_attributes(network_id, template_id=None, **kwargs):
+    """
+        Get all the attributes for all the nodes, links and groups in the network
+        including network attributes. This is used primarily to avoid retrieving
+        all global attributes for menus etc, most of which are not necessary.
+
+        args:
+            network_id (int): The ID of the network containing the attributes
+            template_id (int): A filter which will cause the function to
+                                return attributes associated to that template
+
+        returns:
+            A list of Attributes as JSONObjects, with the
+            additional data of 'attr_is_var'
+            from its assocated ResourceAttribute. ex:
+                {id:123,
+                name: 'cost'
+                dimension_id: 124,
+                attr_is_var: 'Y' #comes from the ResourceAttr
+                }
+        NOTE: This was originally done with a single query, but was split up for
+              performamce reasons
+    """
+
+    network_attr_qry = db.DBSession.query(Attr, ResourceAttr.attr_is_var).\
+            join(ResourceAttr, ResourceAttr.attr_id == Attr.id).\
+            join(Network, Network.id == ResourceAttr.network_id).filter(
+            and_(ResourceAttr.network_id != None,
+                 ResourceAttr.network_id == network_id))
+    network_attrs = network_attr_qry.all()
+
+    node_attr_qry = db.DBSession.query(Attr, ResourceAttr.attr_is_var).\
+            join(ResourceAttr, ResourceAttr.attr_id == Attr.id).\
+            join(Node, Node.id == ResourceAttr.node_id).filter(
+                and_(ResourceAttr.node_id is not None,
+                 ResourceAttr.node_id == Node.id,
+                 Node.network_id == network_id))
+    node_attrs = node_attr_qry.all()
+
+    link_attr_qry = db.DBSession.query(Attr, ResourceAttr.attr_is_var).\
+            join(ResourceAttr, ResourceAttr.attr_id==Attr.id).\
+            join(Link, Link.id == ResourceAttr.link_id).filter(
+                and_(ResourceAttr.link_id is not None,
+                 ResourceAttr.link_id == Link.id,
+                 Link.network_id==network_id))
+    link_attrs = link_attr_qry.all()
+
+    group_attr_qry = db.DBSession.query(Attr, ResourceAttr.attr_is_var).\
+            join(ResourceAttr, ResourceAttr.attr_id == Attr.id).\
+            join(ResourceGroup, ResourceGroup.id == ResourceAttr.group_id).filter(
+                and_(ResourceAttr.group_id is not None,
+                 ResourceAttr.group_id == ResourceGroup.id,
+                 ResourceGroup.network_id == network_id))
+
+    group_attrs = group_attr_qry.all()
+
+    resource_attrs = network_attrs + node_attrs + link_attrs + group_attrs
+
+    if template_id is not None:
+        log.info("Filtering out only attributes which appear in template %s", template_id)
+        attr_ids = []
+        rs = db.DBSession.query(TypeAttr).join(
+            TemplateType,
+            TemplateType.id == TypeAttr.type_id).filter(
+            TemplateType.template_id == template_id).all()
+
+        for r in rs:
+            attr_ids.append(r.attr_id)
+        filtered_results = []
+        for ra in resource_attrs:
+            if ra[0].id in attr_ids:
+                filtered_results.append(ra)
+
+        log.info("Filtered out %s attributes", len(resource_attrs)-len(filtered_results))
+
+        resource_attrs = filtered_results
+
+
+    network_attributes = []
+    for ra in resource_attrs:
+        attr_j = JSONObject(ra[0])
+        attr_j.attr_is_var = ra[1]
+        network_attributes.append(attr_j)
+
+    return network_attributes
 
 def get_all_resource_attributes(ref_key, network_id, template_id=None, **kwargs):
     """
@@ -455,16 +692,19 @@ def check_attr_dimension(attr_id, **kwargs):
     """
     attr_i = _get_attr(attr_id)
 
-    datasets = db.DBSession.query(Dataset).filter(Dataset.id==ResourceScenario.dataset_id,
-                                               ResourceScenario.resource_attr_id == ResourceAttr.id,
-                                               ResourceAttr.attr_id == attr_id).all()
+    datasets = db.DBSession.query(Dataset).filter(Dataset.id == ResourceScenario.dataset_id,
+                        ResourceScenario.resource_attr_id == ResourceAttr.id,
+                        ResourceAttr.attr_id == attr_id).all()
     bad_datasets = []
     for d in datasets:
-        if units.get_unit_dimension(d.unit) != attr_i.dimension:
-            bad_datasets.append(d.id)
+        if  attr_i.dimension_id is None and d.unit is not None or \
+            attr_i.dimension_id is not None and d.unit is None or \
+            units.get_dimension_by_unit_id(d.unit_id) != attr_i.dimension_id:
+                # If there is an inconsistency
+                bad_datasets.append(d.id)
 
     if len(bad_datasets) > 0:
-        raise HydraError("Datasets %s have a different dimension to attribute %s"%(bad_datasets, attr_id))
+        raise HydraError("Datasets %s have a different dimension_id to attribute %s"%(bad_datasets, attr_id))
 
     return 'OK'
 
@@ -482,7 +722,7 @@ def get_resource_attribute(resource_attr_id, **kwargs):
     resource_attr = resource_attr_qry.first()
 
     if resource_attr is None:
-        raise ResourceNotFoundError("Resource attribute %s does not exist", resource_attr_id)
+        raise ResourceNotFoundError(f"Resource attribute {resource_attr_id} does not exist")
 
     return resource_attr
 
@@ -740,9 +980,10 @@ def update_attribute_group(attributegroup, **kwargs):
         group_i = db.DBSession.query(AttrGroup).filter(AttrGroup.id==attributegroup.id).one()
         group_i.project.check_write_permission(user_id)
 
+        layout = attributegroup.layout
         group_i.name        = attributegroup.name
         group_i.description = attributegroup.description
-        group_i.layout      = attributegroup.layout
+        group_i.layout = json.dumps(layout) if not isinstance(layout, str) else layout
         group_i.exclusive   = attributegroup.exclusive
 
         db.DBSession.flush()
@@ -860,7 +1101,7 @@ def add_attribute_group_items(attributegroupitems, **kwargs):
         in any other group (within a network).
     """
 
-    user_id=kwargs.get('user_id')
+    user_id = kwargs.get('user_id')
 
     if not isinstance(attributegroupitems, list):
         raise HydraError("Cannpt add attribute group items. Attributegroupitems must be a list")
@@ -877,7 +1118,6 @@ def add_attribute_group_items(attributegroupitems, **kwargs):
 
     #'agi' = shorthand for 'attribute group item'
     for agi in attributegroupitems:
-
 
         network_i = network_lookup.get(agi.network_id)
 
@@ -998,3 +1238,247 @@ def delete_attribute_group_items(attributegroupitems, **kwargs):
     log.info("Attribute group items deleted")
 
     return 'OK'
+
+@required_role('admin')
+def delete_all_duplicate_attributes(**kwargs):
+    """
+        duplicate attributes can appear in the DB when attributes are added
+        with a dimension of None (because mysql allows multiple entries
+        even if there is a unique constraint where one of the values is null)
+
+        This identifies one attribute of a duplicate set and then remaps all pointers to duplicates
+        to that attribute, before deleting all other duplicate attributes.
+
+        steps are:
+            1: Identify all duplicate attributes
+            2: Select one of the duplicates to be the one to keep
+            3: Remap all resource attributes and type attributes to point from
+               duplicate attrs to the keeper.
+            4: Delete the duplicates.
+    """
+
+    #step 1: get all attributes and filter out the duplicates
+    all_attributes = db.DBSession.query(Attr).all()
+
+    #a lookup based on name/dimension (The apparent unique identifier for an attribute)
+    attribute_lookup = defaultdict(lambda: [])
+    for attribute in all_attributes:
+        key = (attribute.name, attribute.dimension_id)
+        attribute_lookup[key].append(attribute)
+
+    #Now identify the dupes -- any of the dict's values which has a length > 1
+    duplicate_attributes = filter(lambda x: len(x) > 1, attribute_lookup.values())
+
+    for dupe_list in duplicate_attributes:
+        log.info("Duplicate attributes found: name: %s, dimension: %s",
+                 dupe_list[0].name, dupe_list[0].dimension_id)
+        delete_duplicate_attributes(dupe_list)
+
+    db.DBSession.flush()
+
+
+@required_perms('delete_attribute', 'edit_network')
+def delete_duplicate_resourceattributes(network_id=None, **kwargs):
+    """
+    for every resource, find any situations where there are duplicate attribute
+    names, ex 2 max_flows, but where the attribute IDs are different. In this case,
+    remove one of them, and keep the one which is used in the template for that node.
+    """
+
+    if network_id is None:
+        #get all the resource attrs in the system -- but limit by only inputs
+        all_ras = db.DBSession.query(ResourceAttr)\
+            .filter(ResourceAttr.attr_is_var == 'N')\
+            .options(joinedload('attr')).all()
+    else:
+        all_ras = get_all_network_resourceattributes(network_id, return_orm=True)
+
+    #create a mapping for a node's resource attrs by its ID and the name of the attr
+    ra_lookup = defaultdict(lambda: [])
+    for ra in all_ras:
+        key = (ra.ref_key, ra.get_resource_id(), ra.attr.name)
+        ra_lookup[key].append(ra)
+
+    duplicate_ra_list = filter(lambda x: len(x) > 1, ra_lookup.values())
+
+    #we now have the duplicate resourceattrs. We need to identify which of them
+    #to delete.
+    for duplicate_ras in duplicate_ra_list:
+        #first get the type of the resource
+        resource = duplicate_ras[0].get_resource()
+        #now get all the typeattrs defined for that resource
+        resource_typeattrs = []
+        for rt in resource.types:
+            for ta in rt.get_templatetype().typeattrs:
+                resource_typeattrs.append(ta.attr_id)
+
+        data_to_transfer = {}
+        ras_to_delete = []
+        #now identify the attributes which are not defined in a typeattr, and
+        #mark them for deletion
+        for duplicate_ra in duplicate_ras:
+            if duplicate_ra.attr_id not in resource_typeattrs:
+
+                #we've found  a resource attribute not defined on the type.
+                #Now check if there's data associated to it, and not the other.
+
+                ra_rs = db.DBSession.query(ResourceScenario)\
+                        .filter(ResourceScenario.resource_attr_id == duplicate_ra.id).first()
+
+                #If this is the case, then remap the resource scenario to the RA
+                #we wish to keep.
+                if ra_rs is not None:
+                    data_to_transfer[ra.attr.name] = ra_rs
+
+                ras_to_delete.append(duplicate_ra)
+
+        #None of the dupes are associated to a template, then delete any with
+        #no data. Leave any with data, and let the user deal with them individually
+        if len(ras_to_delete) == len(duplicate_ras):
+            for ra_to_delete in ras_to_delete:
+                ra_rs = db.DBSession.query(ResourceScenario)\
+                        .filter(ResourceScenario.resource_attr_id == ra_to_delete.id).first()
+                if ra_rs is None:
+                    log.info("A duplicate found for %s on %s %s. Deleting as it has no data.",
+                             ra_to_delete.attr.name,
+                             ra_to_delete.ref_key,
+                             resource.name)
+                    db.DBSession.delete(ra_to_delete)
+                else:
+                    log.info("A duplicate found for %s on %s %s. Not deleting as it has data.",
+                             ra_to_delete.attr.name,
+                             ra_to_delete.ref_key,
+                             resource.name)
+
+            #no need to go further, so continue the outer loop
+            continue
+
+        #do a second pass, this time transferring data from the bad resourceattributes
+        #to the keepers
+        for duplicate_ra in duplicate_ras:
+            #focus now on the keepers i.e. the ones defined in the template
+            if duplicate_ra.attr_id in resource_typeattrs:
+                ra_rs = db.DBSession.query(ResourceScenario)\
+                    .filter(ResourceScenario.resource_attr_id == duplicate_ra.id).first()
+
+                dupes_rs = data_to_transfer.get(ra.attr.name)
+                if ra_rs is None:
+                    #if this has no value, see if the dupe has a value and transfer it
+                    if dupes_rs is not None:
+                        log.info("Updating resource scenario with new reference to %s",
+                                 duplicate_ra.attr.name)
+                        newrs = ResourceScenario()
+                        newrs.scenario_id = dupes_rs.scenario_id
+                        newrs.resource_attr_id = duplicate_ra.id
+                        newrs.dataset_id = dupes_rs.dataset_id
+                        db.DBSession.add(newrs)
+                else:
+                    #delete any RS which are not needed
+                    if dupes_rs is not None:
+                        db.DBSession.delete(dupes_rs)
+
+
+        #now finally delete all the dupes
+        for ra_to_delete in ras_to_delete:
+
+            log.info("Deleting resource attr %s (id: %s) from %s %s",\
+                     duplicate_ra.attr.name,\
+                     duplicate_ra.id,\
+                     duplicate_ra.ref_key,\
+                     resource.name)
+            db.DBSession.delete(ra_to_delete)
+
+
+def delete_duplicate_attributes(dupe_list):
+    """
+        Take a list of duplicate attributes and delete all but one.
+        Steps are:
+            1: Select one of the duplicates to keep
+            2: Remap all resource attributes and type attributes to point
+               from duplicate attrs to the keeper
+            3: Delete the duplicates
+        args:
+            dupe_list: a list of iterables containing duplicate attributes
+    """
+
+    #sort by ID, and choose the attribute with the smallest ID to keep
+    #The rationale being that this likely has the most existing references
+    dupe_list.sort(key=lambda x: x.id)
+
+    keeper = dupe_list[0]
+
+    #remove all the rest in the list
+    attrs_to_remove = dupe_list[1:]
+
+    #remap all the attributes from those to delete to the keeper so they can be removed safely
+    for attr_to_remove in attrs_to_remove:
+        remap_attribute_reference(attr_to_remove.id, keeper.id)
+
+        #now that the remapping is done, we can safely delete the old attribute
+        delete_attribute(attr_to_remove.id)
+
+    db.DBSession.flush()
+
+    return keeper
+
+def remap_attribute_reference(old_attr_id, new_attr_id, flush=False):
+    """
+        Remap everything which references old_attr_id to reference
+        new_attr_id
+    """
+    #first, remap all the resource attributes
+    ras_to_remap = db.DBSession.query(ResourceAttr)\
+        .filter(ResourceAttr.attr_id == old_attr_id).all()
+
+    deleted_ras = []
+    for ra_to_remap in ras_to_remap:
+        #is there an RA with the new attribute already on the same resource?
+        existing_ra = db.DBSession.query(ResourceAttr)\
+            .filter(ResourceAttr.attr_id == new_attr_id,
+                    ResourceAttr.ref_key == ra_to_remap.ref_key,
+                    ResourceAttr.node_id == ra_to_remap.node_id,
+                    ResourceAttr.link_id == ra_to_remap.link_id,
+                    ResourceAttr.group_id == ra_to_remap.group_id,
+                    ResourceAttr.network_id == ra_to_remap.network_id).first()
+
+        #if so, then it must be deleted so there is only one on the resource.
+        if existing_ra is not None:
+            #if the RA to be deleted is linked with data and the one to keep
+            #is not, then remap the resource scenario.
+            old_ra_rs = db.DBSession.query(ResourceScenario)\
+                .filter(ResourceScenario.resource_attr_id == ra_to_remap.id).first()
+            new_ra_rs = db.DBSession.query(ResourceScenario)\
+                .filter(ResourceScenario.resource_attr_id == existing_ra.id).first()
+
+            if old_ra_rs is not None and new_ra_rs is None:
+                old_ra_rs.resource_attr_id = existing_ra.id
+
+            #mark the RA as deleted so it can be ignored in the remapping
+            #process later
+            deleted_ras.append(ra_to_remap.id)
+            db.DBSession.delete(ra_to_remap)
+
+
+    for ra_to_remap in ras_to_remap:
+        #no need to remap as it's been deleted
+        if ra_to_remap.id in deleted_ras:
+            continue
+        ra_to_remap.attr_id = new_attr_id
+
+    tas_to_remap = db.DBSession.query(TypeAttr)\
+        .filter(TypeAttr.attr_id == old_attr_id).all()
+
+    for ta_to_remap in tas_to_remap:
+        #is there an existing type attr on the type with the same attr?
+        existing_ta = db.DBSession.query(TypeAttr)\
+            .filter(TypeAttr.attr_id == new_attr_id,
+                    TypeAttr.type_id == ta_to_remap.type_id).first()
+
+        #if so, delete it
+        if existing_ta is not None:
+            db.DBSession.delete(ta_to_remap)
+        else:
+            ta_to_remap.attr_id = new_attr_id
+
+    if flush is True:
+        db.DBSession.flush()

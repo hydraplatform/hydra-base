@@ -19,7 +19,7 @@
 
 from functools import wraps
 from .. import db
-from ..db.model import Perm, User, RolePerm, RoleUser
+from ..db.model import Perm, User, Role, RolePerm, RoleUser
 from sqlalchemy.orm.exc import NoResultFound
 from ..exceptions import PermissionError
 
@@ -40,9 +40,13 @@ def check_perm(user_id, permission_code):
 
 
     try:
-        res = db.DBSession.query(User).join(RoleUser, RoleUser.user_id==User.id).\
-            join(Perm, Perm.id==perm.id).\
-            join(RolePerm, RolePerm.perm_id==Perm.id).filter(User.id==user_id).one()
+        #get all the roles where the specified user has the specified permission
+        qry = db.DBSession.query(RoleUser.role_id)\
+            .join(RolePerm, RolePerm.role_id == RoleUser.role_id)\
+            .filter(RolePerm.perm_id == perm.id)\
+            .filter(RoleUser.user_id == user_id)
+
+        res = qry.all()
     except NoResultFound:
         raise PermissionError("Permission denied. User %s does not have permission %s"%
                         (user_id, permission_code))
@@ -59,6 +63,11 @@ def required_perms(*req_perms):
         @wraps(wfunc)
         def wrapped(*args, **kwargs):
             user_id = kwargs.get("user_id")
+
+            #bind this here so that the 'updated by' columns can be updated
+            #automatically in the DB, in order to ensure correct auditing
+            db.DBSession.user_id = user_id
+
             for perm in req_perms:
                 check_perm(user_id, perm)
 
@@ -67,3 +76,21 @@ def required_perms(*req_perms):
         return wrapped
     return dec_wrapper
 
+def required_role(req_role):
+    """
+       Decorator applied to functions requiring caller to possess the specified role
+    """
+    def dec_wrapper(wfunc):
+        @wraps(wfunc)
+        def wrapped(*args, **kwargs):
+            user_id = kwargs.get("user_id")
+            try:
+                res = db.DBSession.query(RoleUser).filter(RoleUser.user_id==user_id).join(Role).filter(Role.code==req_role).one()
+            except NoResultFound:
+                raise PermissionError("Permission denied. User %s does not have role %s"%
+                                (user_id, req_role))
+
+            return wfunc(*args, **kwargs)
+
+        return wrapped
+    return dec_wrapper

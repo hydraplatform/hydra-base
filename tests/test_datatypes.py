@@ -24,7 +24,7 @@ def generator(size):
 """ Type arguments """
 
 scalar_valid_values       = [ 46, -1, 0, 7.7, -0.0 ]
-scalar_invalid_values     = [ "one", None, pd, {} ]
+scalar_invalid_values     = [ "one", pd, {} ]
 
 array_valid_values        = [ [-2, -1, 0, 1, 2], list(range(32)), [ 0.5e-3, 0.5, 0.5e3 ] ]
 array_invalid_values      = [ generator(32), 77, {}, "justastring" ]
@@ -129,6 +129,32 @@ def test_fail_create_dataframe(value):
         value = dataframe_dataset.parse_value()
 
 
-if __name__ == "__main__":
-#    pytest.main(['-v', '-s', __file__])
-    pytest.main(['-v', __file__])
+def test_dataframe_order_preserved():
+    #make the index deliberately non-ordered
+    index = ['0', '2', '1']
+    cols = ['A']
+    data = ['x', 'y', 'z']
+
+    df = pd.DataFrame(data, columns=cols, index=index)
+
+    dataframe_dataset = hb.lib.objects.Dataset({'type':'dataframe', 'value': df.to_json()})
+    parsed_value = dataframe_dataset.parse_value()
+
+    assert parsed_value == df.to_json()
+
+
+def test_dataframe_time_index_order_preserved():
+    #Test to make sure date time indices remain in the order they are sent to
+    #hydra, if they are not ordered by time for whatever reason.
+
+    #make the index deliberately non-ordered
+    index = ['2010-02-01', '2005-01-01', '2012-01-01']
+    cols = ['A']
+    data = ['x', 'y', 'z']
+
+    df = pd.DataFrame(data, columns=cols, index=index)
+
+    dataframe_dataset = hb.lib.objects.Dataset({'type':'dataframe', 'value': df.to_json()})
+    parsed_value = dataframe_dataset.parse_value()
+
+    assert parsed_value == df.to_json()

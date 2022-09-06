@@ -17,10 +17,14 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
+from beaker import session
+
 from .. import util
 from .. import config
 
-from beaker import session
+DEFAULT_VALIDATE_KEY = 'YxaDbzUUSo08b+'
+DEFAULT_DATA_DIR = '/tmp'
+DEFAULT_FILE_DIR = '/tmp/auth'
 
 def login(username, password, **kwargs):
     """
@@ -40,12 +44,14 @@ def login(username, password, **kwargs):
 
     user_id = util.hdb.login_user(username, password)
 
-    hydra_session = session.Session({}, #This is normally a request object, but in this case is empty
-            validate_key=config.get('COOKIES', 'VALIDATE_KEY', 'YxaDbzUUSo08b+'),
-            type='file',
-            cookie_expires=True,
-            data_dir=config.get('COOKIES', 'DATA_DIR', '/tmp'),
-            file_dir=config.get('COOKIES', 'FILE_DIR', '/tmp/auth'))
+    hydra_session = session.Session(
+        {}, #This is normally a request object, but in this case is empty
+        validate_key=config.get('COOKIES', 'VALIDATE_KEY', DEFAULT_VALIDATE_KEY),
+        type='file',
+        cookie_expires=True,
+        data_dir=config.get('COOKIES', 'DATA_DIR', DEFAULT_DATA_DIR),
+        file_dir=config.get('COOKIES', 'FILE_DIR', DEFAULT_FILE_DIR)
+    )
 
     hydra_session['user_id'] = user_id
     hydra_session['username'] = username
@@ -66,12 +72,13 @@ def logout(session_id, **kwargs):
             HydraError if the logout fails
     """
 
-    hydra_session_object = session.SessionObject({}, #This is normally a request object, but in this case is empty
-            validate_key=config.get('COOKIES', 'VALIDATE_KEY', 'YxaDbzUUSo08b+'),
-            type='file',
-            cookie_expires=True,
-            data_dir=config.get('COOKIES', 'DATA_DIR', '/tmp'),
-            file_dir=config.get('COOKIES', 'FILE_DIR', '/tmp/auth'))
+    hydra_session_object = session.SessionObject(
+        {}, #This is normally a request object, but in this case is empty
+        validate_key=config.get('COOKIES', 'VALIDATE_KEY', DEFAULT_VALIDATE_KEY),
+        type='file',
+        cookie_expires=True,
+        data_dir=config.get('COOKIES', 'DATA_DIR', DEFAULT_DATA_DIR),
+        file_dir=config.get('COOKIES', 'FILE_DIR', DEFAULT_FILE_DIR))
 
     hydra_session = hydra_session_object.get_by_id(session_id)
 
@@ -92,12 +99,13 @@ def get_session_user(session_id, **kwargs):
             user_id (string) or None if the session does not exist
     """
 
-    hydra_session_object = session.SessionObject({}, #This is normally a request object, but in this case is empty
-            validate_key=config.get('COOKIES', 'VALIDATE_KEY', 'YxaDbzUUSo08b+'),
-            type='file',
-            cookie_expires=True,
-            data_dir=config.get('COOKIES', 'DATA_DIR', '/tmp'),
-            file_dir=config.get('COOKIES', 'FILE_DIR', '/tmp/auth'))
+    hydra_session_object = session.SessionObject(
+        {}, #This is normally a request object, but in this case is empty
+        validate_key=config.get('COOKIES', 'VALIDATE_KEY', DEFAULT_VALIDATE_KEY),
+        type='file',
+        cookie_expires=True,
+        data_dir=config.get('COOKIES', 'DATA_DIR', DEFAULT_DATA_DIR),
+        file_dir=config.get('COOKIES', 'FILE_DIR', DEFAULT_FILE_DIR))
 
     hydra_session = hydra_session_object.get_by_id(session_id)
 
