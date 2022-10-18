@@ -1639,7 +1639,7 @@ def delete_duplicate_resourceattributes(network_id=None, **kwargs):
             .filter(ResourceAttr.attr_is_var == 'N')\
             .options(joinedload('attr')).all()
     else:
-        all_ras = get_all_network_resourceattributes(network_id, return_orm=True)
+        all_ras = get_all_network_resourceattributes(network_id, return_orm=True, **kwargs)
 
     #create a mapping for a node's resource attrs by its ID and the name of the attr
     ra_lookup = defaultdict(lambda: [])
