@@ -39,7 +39,10 @@ install_requires=[
     "packaging",
     "pymongo",
     "pylibmc",
-    "diskcache"
+    "diskcache",
+    "fsspec",
+    "h5py",
+    "s3fs"
     ]
 
 # get version string from __init__.py
