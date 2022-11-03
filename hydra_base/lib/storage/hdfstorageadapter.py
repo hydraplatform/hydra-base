@@ -1,8 +1,10 @@
 import fsspec
 import h5py
 import logging
+import os
 import pandas as pd
 from datetime import datetime
+from urllib.parse import urlparse
 
 from hydra_base import config
 
@@ -16,6 +18,9 @@ class HdfStorageAdapter():
 
     def __init__(self):
         self.config = self.__class__.get_hdf_config()
+        self.filestore_path = self.config.get("hdf_filestore")
+        if self.filestore_path and not os.path.exists(self.filestore_path):
+            self.filestore_path = None
 
     @staticmethod
     def get_hdf_config(config_key="storage_hdf"):
@@ -28,13 +33,23 @@ class HdfStorageAdapter():
         return hdf_items
 
     def open_hdf_url(self, url):
-        """
-          Add local filestore from config
-        """
+        url = self.url_to_filestore_path(url)
         with fsspec.open(url, mode='rb', anon=True, default_fill_cache=False) as s3f:
             return h5py.File(s3f.fs.open(url), mode='r')
 
+    def url_to_filestore_path(self, url):
+        u = urlparse(url)
+        if self.filestore_path and u.scheme in ("", "file"):
+            relpath = u.path.lstrip("/")
+            url = os.path.join(self.filestore_path, relpath)
+            print(f"{url=}")
+        elif u.scheme == "path":
+            url = u.path
+
+        return url
+
     def get_dataset_info_file(self, filepath, dsname):
+        filepath = self.url_to_filestore_path(filepath)
         df = pd.read_hdf(filepath)
         series = df[dsname]
         index = df.index
@@ -51,6 +66,7 @@ class HdfStorageAdapter():
         return info
 
     def get_dataset_block_file(self, filepath, dsname, start, end):
+        filepath = self.url_to_filestore_path(filepath)
         df = pd.read_hdf(filepath)
         section = df[dsname][start:end]
         block_index = section.index.map(str).tolist()
@@ -62,6 +78,7 @@ class HdfStorageAdapter():
         }
 
     def size(self, url):
+        url = self.url_to_filestore_path(url)
         with fsspec.open(url, mode='rb', anon=True, default_fill_cache=False) as fp:
             size_bytes = fp.fs.size(fp.path)
 
@@ -144,23 +161,30 @@ def nscale(ts):
 
 
 if __name__ == "__main__":
-    url = "/home/paul/data/eapp_new/data/ETH_flow_sim.h5"
+    path_url = "path:///home/paul/data/eapp_new/data/ETH_flow_sim.h5"
+    fs_url = "ETH_flow_sim.h5"
     remote_url = "s3://terrafusiondatasampler/P233/TERRA_BF_L1B_O12236_20020406135439_F000_V001.h5"
+    aws_url = "s3://modelers-data-bucket/eapp/single/ETH_flow_sim.h5"
     dsn = "BR_Kabura"
 
     hsa = HdfStorageAdapter()
     print(f"{hsa.config=}")
     print()
 
-    block_info = hsa.get_dataset_info_file(url, dsn)
+    block_info = hsa.get_dataset_info_file(fs_url, dsn)
     print(block_info)
-    block_info = hsa.get_dataset_info_url(url, dsn)
+    block_info = hsa.get_dataset_info_url(fs_url, dsn)
     print(block_info)
     print()
-    block_data = hsa.get_dataset_block_file(url, dsn, 8, 16)
+    block_data = hsa.get_dataset_block_file(fs_url, dsn, 8, 16)
     print(block_data)
-    df = hsa.hdf_dataset_to_pandas_dataframe(url, dsn, 8, 16)
+    block_data = hsa.get_dataset_block_file(fs_url, dsn, 12008, 12016)
+    print(block_data)
+    df = hsa.hdf_dataset_to_pandas_dataframe(aws_url, dsn, 8, 16)
     print(df)
-    print(f"{hsa.size(url)=}")
-    #print(hsa.size(remote_url))
+    df = hsa.hdf_dataset_to_pandas_dataframe(aws_url, dsn, 12008, 12016)
+    print(df)
+    print(f"{hsa.size(path_url)=}")
+    print(f"{hsa.size(remote_url)=}")
+    print(f"{hsa.size(aws_url)=}")
     #import pudb; pudb.set_trace()
