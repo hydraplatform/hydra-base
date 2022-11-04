@@ -42,7 +42,10 @@ from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
 from ..util import generate_data_hash
 from ..util.hydra_dateutil import get_datetime
 
-from hydra_base.lib.storage import MongoStorageAdapter
+from hydra_base.lib.storage import (
+    MongoStorageAdapter,
+    HdfStorageAdapter
+)
 
 
 global FORMAT
@@ -1092,3 +1095,32 @@ def delete_dataset(dataset_id,**kwargs):
 
 def read_json(json_string):
     pd.read_json(json_string)
+
+def get_hdf_filesize(url, **kwargs):
+    """
+      Returns the size in bytes of the hdf file <url> argument
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.size(url)
+
+def get_hdf_info(url, dataset_name, **kwargs):
+    """
+      Returns information about the <dataset_name> argument:
+      {
+        "name": str: Name of the dataset,
+        "size": int: Number of rows in dataset series,
+        "dtype": str: The numpy.dtype of the dataset
+      }
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.get_dataset_info_url(url, dataset_name)
+
+def get_hdf_dataframe(url, dataset_name, start, end, **kwargs):
+    """
+      Returns the rows from <start> to <end> of <dataset_name> in
+      the hdf file <url> as the json representation of a Pandas
+      DataFrame. This may then be read directly in a client with
+      pandas.read_json().
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.hdf_dataset_to_pandas_dataframe(url, dataset_name, start, end)

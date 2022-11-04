@@ -1,12 +1,10 @@
-import json
 import numpy as np
 import pandas as pd
 import pytest
-import random
 
 from packaging import version
 
-import hydra_base
+from hydra_base.lib import data
 from hydra_base.lib.storage import HdfStorageAdapter
 
 min_lib_versions = {
@@ -99,4 +97,55 @@ class TestHdf():
                 df_json = hdf.hdf_dataset_to_pandas_dataframe(aws_file["path"], dataset_name, *bounds)
                 df = pd.read_json(df_json)
                 for ts, val in data.items():
+                    assert np.isclose(df[dataset_name][ts], val)
+
+    def test_hydra_hdf_size(self, aws_file):
+        """
+          Does the reported file size match an expected value when
+          accessed via hydra.lib?
+        """
+        assert data.get_hdf_filesize(aws_file["path"]) == aws_file["file_size"]
+
+    def test_hydra_hdf_info(self, aws_file):
+        """
+          Do the reported properties of a dataset match expected values when
+          accessed via hydra.lib?
+        """
+        info = data.get_hdf_info(aws_file["path"], aws_file["dataset_name"])
+
+        assert info["name"] == aws_file["dataset_name"]
+        assert info["size"] == aws_file["dataset_size"]
+        assert info["dtype"] == aws_file["dataset_type"]
+
+    def test_hydra_hdf_dataset(self, aws_file):
+        """
+          Does a specified subset of a dataset match its expected
+          index and series values when accessed via hydra.lib?
+        """
+        expected = {
+            aws_file["dataset_name"]: {
+                (8,16): { "1972-01-09": 0.65664,
+                          "1972-01-10": 0.65664,
+                          "1972-01-11": 0.65664,
+                          "1972-01-12": 0.65664,
+                          "1972-01-13": 0.65664,
+                          "1972-01-14": 0.65664,
+                          "1972-01-15": 0.65664,
+                          "1972-01-16": 0.65664},
+
+                (12008,12016): { "2004-11-16": 1.2528,
+                                 "2004-11-17": 1.2528,
+                                 "2004-11-18": 1.2528,
+                                 "2004-11-19": 1.2528,
+                                 "2004-11-20": 1.2528,
+                                 "2004-11-21": 1.2528,
+                                 "2004-11-22": 1.2528,
+                                 "2004-11-23": 1.2528}
+            }
+        }
+        for dataset_name, ranges in expected.items():
+            for bounds, series in ranges.items():
+                df_json = data.get_hdf_dataframe(aws_file["path"], dataset_name, *bounds)
+                df = pd.read_json(df_json)
+                for ts, val in series.items():
                     assert np.isclose(df[dataset_name][ts], val)
