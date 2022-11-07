@@ -1099,6 +1099,7 @@ def read_json(json_string):
 def get_hdf_filesize(url, **kwargs):
     """
       Returns the size in bytes of the hdf file <url> argument
+      Raises ValueError on bad url
     """
     hdf = HdfStorageAdapter()
     return hdf.size(url)
@@ -1111,6 +1112,7 @@ def get_hdf_info(url, dataset_name, **kwargs):
         "size": int: Number of rows in dataset series,
         "dtype": str: The numpy.dtype of the dataset
       }
+      Raises ValueError on bad url or dataset name
     """
     hdf = HdfStorageAdapter()
     return hdf.get_dataset_info_url(url, dataset_name)
@@ -1121,6 +1123,7 @@ def get_hdf_dataframe(url, dataset_name, start, end, **kwargs):
       the hdf file <url> as the json representation of a Pandas
       DataFrame. This may then be read directly in a client with
       pandas.read_json().
+      Raises ValueError on bad url, dataset name or bounds.
     """
     hdf = HdfStorageAdapter()
     return hdf.hdf_dataset_to_pandas_dataframe(url, dataset_name, start, end)

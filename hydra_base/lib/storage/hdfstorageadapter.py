@@ -5,6 +5,7 @@ import logging
 import os
 import pandas as pd
 
+from botocore.exceptions import ClientError
 from datetime import datetime
 from urllib.parse import urlparse
 from functools import wraps
@@ -68,8 +69,11 @@ class HdfStorageAdapter():
 
     @filestore_url("url")
     def open_hdf_url(self, url):
-        with fsspec.open(url, mode='rb', anon=True, default_fill_cache=False) as s3f:
-            return h5py.File(s3f.fs.open(url), mode='r')
+        try:
+            with fsspec.open(url, mode='rb', anon=True, default_fill_cache=False) as fp:
+                return h5py.File(fp.fs.open(url), mode='r')
+        except (ClientError, FileNotFoundError, PermissionError) as e:
+            raise ValueError(f"Unable to access url: {url}") from e
 
     def url_to_filestore_path(self, url):
         u = urlparse(url)
@@ -141,10 +145,6 @@ class HdfStorageAdapter():
         except ValueError as ve:
             raise ValueError(f"No series '{dsname}' in {url}") from ve
 
-        ts_nano = group["axis1"][start:end]
-        ts_sec = [*map(nscale, ts_nano)]
-        timestamps = [*map(str, ts_sec)]
-
         val_ds = group["block0_values"]
         val_rows = val_ds.shape[0]
 
@@ -153,6 +153,10 @@ class HdfStorageAdapter():
 
         val_sect = val_ds[start:end]
         section = [ i[0] for i in val_sect[:, series_col:series_col+1].tolist() ]
+
+        ts_nano = group["axis1"][start:end]
+        ts_sec = [*map(nscale, ts_nano)]
+        timestamps = [*map(str, ts_sec)]
 
         h5f.close()
 
@@ -192,3 +196,39 @@ def nscale(ts):
       into instances of datetime.timestamp
     """
     return datetime.fromtimestamp(ts/1e9)
+
+
+
+
+if __name__ == "__main__":
+    bad_url = "does_not_exist.h5"
+    bad_aws_url = "s3://modelers-data-bucket/eapp/single/does_not_exist.h5"
+    path_url = "path:///home/paul/data/eapp_new/data/ETH_flow_sim.h5"
+    fs_url = "ETH_flow_sim.h5"
+    remote_url = "s3://terrafusiondatasampler/P233/TERRA_BF_L1B_O12236_20020406135439_F000_V001.h5"
+    aws_url = "s3://modelers-data-bucket/eapp/single/ETH_flow_sim.h5"
+    dsn = "BR_Kabura"
+
+    hsa = HdfStorageAdapter()
+    print(f"{hsa.config=}")
+    print()
+
+    block_info = hsa.get_dataset_info_url(bad_aws_url, dsn)
+    print(block_info)
+    block_info = hsa.get_dataset_info_file(fs_url, dsn)
+    print(block_info)
+    block_info = hsa.get_dataset_info_url(fs_url, dsn)
+    print(block_info)
+    print()
+    block_data = hsa.get_dataset_block_file(fs_url, dsn, 8, 16)
+    print(block_data)
+    block_data = hsa.get_dataset_block_file(fs_url, dsn, 12008, 12016)
+    print(block_data)
+    df = hsa.hdf_dataset_to_pandas_dataframe(aws_url, dsn, 8, 16)
+    print(df)
+    df = hsa.hdf_dataset_to_pandas_dataframe(aws_url, dsn, 12008, 12016)
+    print(df)
+    print(f"{hsa.size(path_url)=}")
+    print(f"{hsa.size(remote_url)=}")
+    print(f"{hsa.size(aws_url)=}")
+    #import pudb; pudb.set_trace()
