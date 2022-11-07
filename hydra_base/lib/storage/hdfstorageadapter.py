@@ -1,14 +1,48 @@
 import fsspec
 import h5py
+import inspect
 import logging
 import os
 import pandas as pd
+
 from datetime import datetime
 from urllib.parse import urlparse
+from functools import wraps
 
 from hydra_base import config
 
 log = logging.getLogger(__name__)
+
+
+def filestore_url(argname, rewrite_func="url_to_filestore_path"):
+    """
+      Decorator which rewrites the <argname> argument to the decorated function
+      to include the appropriate path according to the <rewrite_func> argument.
+    """
+    def dfunc(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            fas = inspect.getfullargspec(func)
+            idx = fas.args.index(argname)
+            av = inspect.getargvalues(inspect.currentframe())
+            """
+              NB. self appears in args from getfullargspec, but not in
+              getargvalues().locals(). Adjust the index to account for
+              this difference.
+            """
+            idx -= 1
+            pre_arg = av.locals["args"][idx]
+            try:
+                rw_func = getattr(self, rewrite_func)
+            except AttributeError as ae:
+                raise ValueError(f"Invalid rewrite_func '{rewrite_func}' for @filestore_url") from ae
+            # rw_func is a bound method so may be called directly
+            post_arg = rw_func(pre_arg)
+            insert = (*av.locals["args"][:idx], post_arg, *av.locals["args"][idx+1:])
+            return func(self, *insert, **kwargs)
+
+        return wrapper
+    return dfunc
 
 
 class HdfStorageAdapter():
@@ -32,8 +66,8 @@ class HdfStorageAdapter():
 
         return hdf_items
 
+    @filestore_url("url")
     def open_hdf_url(self, url):
-        url = self.url_to_filestore_path(url)
         with fsspec.open(url, mode='rb', anon=True, default_fill_cache=False) as s3f:
             return h5py.File(s3f.fs.open(url), mode='r')
 
@@ -48,8 +82,8 @@ class HdfStorageAdapter():
 
         return url
 
+    @filestore_url("filepath")
     def get_dataset_info_file(self, filepath, dsname):
-        filepath = self.url_to_filestore_path(filepath)
         df = pd.read_hdf(filepath)
         series = df[dsname]
         index = df.index
@@ -65,8 +99,8 @@ class HdfStorageAdapter():
         }
         return info
 
+    @filestore_url("filepath")
     def get_dataset_block_file(self, filepath, dsname, start, end):
-        filepath = self.url_to_filestore_path(filepath)
         df = pd.read_hdf(filepath)
         section = df[dsname][start:end]
         block_index = section.index.map(str).tolist()
@@ -77,8 +111,8 @@ class HdfStorageAdapter():
             "series": block_values
         }
 
+    @filestore_url("url")
     def size(self, url):
-        url = self.url_to_filestore_path(url)
         with fsspec.open(url, mode='rb', anon=True, default_fill_cache=False) as fp:
             size_bytes = fp.fs.size(fp.path)
 
