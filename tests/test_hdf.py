@@ -32,6 +32,10 @@ def aws_file():
         "dataset_type": "float64"
     }
 
+@pytest.fixture(params=["s3://modelers-data-bucket/does_not_exist.h5", "does_not_exist"])
+def bad_url(request):
+    return request.param
+
 
 class TestHdf():
     def test_exists(self, hdf, hdf_config):
@@ -149,3 +153,37 @@ class TestHdf():
                 df = pd.read_json(df_json)
                 for ts, val in series.items():
                     assert np.isclose(df[dataset_name][ts], val)
+
+    def test_bad_url(self, bad_url):
+        """
+          Does an inaccessible url raise ValueError?
+        """
+        with pytest.raises(ValueError):
+            info = data.get_hdf_info(bad_url, "dataset_name")
+
+    def test_bad_dataset_name(self, aws_file):
+        """
+          Does a nonexistent dataset name raise ValueError both for
+          info and series retrieval?
+        """
+        with pytest.raises(ValueError):
+            info = data.get_hdf_info(aws_file["path"], "nonexistent_dataset")
+
+        with pytest.raises(ValueError):
+            df_json = data.get_hdf_dataframe(aws_file["path"], "nonexistent_dataset", 8, 16)
+
+    def test_bad_bounds(self, aws_file):
+        """
+           Do invalid bounds (start<0, start>end, end<0, end>size) raise ValueError?
+        """
+        with pytest.raises(ValueError):
+            df_json = data.get_hdf_dataframe(aws_file["path"], aws_file["dataset_name"], -1, 16)
+
+        with pytest.raises(ValueError):
+            df_json = data.get_hdf_dataframe(aws_file["path"], aws_file["dataset_name"], 16, 8)
+
+        with pytest.raises(ValueError):
+            df_json = data.get_hdf_dataframe(aws_file["path"], aws_file["dataset_name"], 8, -1)
+
+        with pytest.raises(ValueError):
+            df_json = data.get_hdf_dataframe(aws_file["path"], aws_file["dataset_name"], 8, 1e72)

@@ -196,39 +196,3 @@ def nscale(ts):
       into instances of datetime.timestamp
     """
     return datetime.fromtimestamp(ts/1e9)
-
-
-
-
-if __name__ == "__main__":
-    bad_url = "does_not_exist.h5"
-    bad_aws_url = "s3://modelers-data-bucket/eapp/single/does_not_exist.h5"
-    path_url = "path:///home/paul/data/eapp_new/data/ETH_flow_sim.h5"
-    fs_url = "ETH_flow_sim.h5"
-    remote_url = "s3://terrafusiondatasampler/P233/TERRA_BF_L1B_O12236_20020406135439_F000_V001.h5"
-    aws_url = "s3://modelers-data-bucket/eapp/single/ETH_flow_sim.h5"
-    dsn = "BR_Kabura"
-
-    hsa = HdfStorageAdapter()
-    print(f"{hsa.config=}")
-    print()
-
-    block_info = hsa.get_dataset_info_url(bad_aws_url, dsn)
-    print(block_info)
-    block_info = hsa.get_dataset_info_file(fs_url, dsn)
-    print(block_info)
-    block_info = hsa.get_dataset_info_url(fs_url, dsn)
-    print(block_info)
-    print()
-    block_data = hsa.get_dataset_block_file(fs_url, dsn, 8, 16)
-    print(block_data)
-    block_data = hsa.get_dataset_block_file(fs_url, dsn, 12008, 12016)
-    print(block_data)
-    df = hsa.hdf_dataset_to_pandas_dataframe(aws_url, dsn, 8, 16)
-    print(df)
-    df = hsa.hdf_dataset_to_pandas_dataframe(aws_url, dsn, 12008, 12016)
-    print(df)
-    print(f"{hsa.size(path_url)=}")
-    print(f"{hsa.size(remote_url)=}")
-    print(f"{hsa.size(aws_url)=}")
-    #import pudb; pudb.set_trace()
