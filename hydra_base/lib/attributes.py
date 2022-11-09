@@ -168,7 +168,7 @@ def get_attribute_by_name_and_dimension(name, dimension_id=None, network_id=None
 
 def search_attributes(name, network_id=None, project_id=None, **kwargs):
     """
-        Search for all attributes matching the given name
+        Search for all attributes matching the given name, ignoring case
     """
     user_id = kwargs.get('user_id')
     name = name.lower()
