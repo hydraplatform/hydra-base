@@ -75,16 +75,27 @@ class HdfStorageAdapter():
         except (ClientError, FileNotFoundError, PermissionError) as e:
             raise ValueError(f"Unable to access url: {url}") from e
 
-    def url_to_filestore_path(self, url):
+    def url_to_filestore_path(self, url, do_raise=True, check_exists=False):
         u = urlparse(url)
+        if u.path == "" and do_raise:
+            raise ValueError(f"Invalid URL: {url}")
         if self.filestore_path and u.scheme in ("", "file"):
             relpath = u.path.lstrip("/")
-            url = os.path.join(self.filestore_path, relpath)
-            print(f"{url=}")
+            relurl = os.path.join(self.filestore_path, relpath)
         elif u.scheme == "path":
-            url = u.path
+            relurl = u.path
+        else:
+            relurl = url
 
-        return url
+        return relurl
+
+    def file_exists_at_url(self, url):
+        try:
+            url = self.url_to_filestore_path(url)
+            with fsspec.open(url, mode='rb', anon=True, default_fill_cache=False) as fp:
+                return fp.fs.exists(url)
+        except (ValueError, FileNotFoundError, PermissionError):
+            return False
 
     @filestore_url("filepath")
     def get_dataset_info_file(self, filepath, dsname):

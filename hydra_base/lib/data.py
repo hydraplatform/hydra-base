@@ -1104,7 +1104,7 @@ def get_hdf_filesize(url, **kwargs):
     hdf = HdfStorageAdapter()
     return hdf.size(url)
 
-def get_hdf_info(url, dataset_name, **kwargs):
+def get_hdf_dataset_info(url, dataset_name, **kwargs):
     """
       Returns information about the <dataset_name> argument:
       {
@@ -1123,7 +1123,25 @@ def get_hdf_dataframe(url, dataset_name, start, end, **kwargs):
       the hdf file <url> as the json representation of a Pandas
       DataFrame. This may then be read directly in a client with
       pandas.read_json().
-      Raises ValueError on bad url, dataset name or bounds.
+      Raises ValueError on bad url, dataset name or bounds
     """
     hdf = HdfStorageAdapter()
     return hdf.hdf_dataset_to_pandas_dataframe(url, dataset_name, start, end)
+
+def resolve_url_to_path(url, **kwargs):
+    hdf = HdfStorageAdapter()
+    """
+      Returns the path, either on a local filesystem or remote
+      storage, to which the <url> arg resolves.
+      Raises ValueError if the arg cannot be interpreted as a valid url
+    """
+    return hdf.url_to_filestore_path(url)
+
+def file_exists_at_url(url, **kwargs):
+    """
+      Return a boolean corresponding to the existence of a readable
+      file at the <url> arg.
+      Never raises, returns False for invalid args or no permission
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.file_exists_at_url(url)

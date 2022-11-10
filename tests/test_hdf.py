@@ -115,7 +115,7 @@ class TestHdf():
           Do the reported properties of a dataset match expected values when
           accessed via hydra.lib?
         """
-        info = data.get_hdf_info(aws_file["path"], aws_file["dataset_name"])
+        info = data.get_hdf_dataset_info(aws_file["path"], aws_file["dataset_name"])
 
         assert info["name"] == aws_file["dataset_name"]
         assert info["size"] == aws_file["dataset_size"]
@@ -159,7 +159,7 @@ class TestHdf():
           Does an inaccessible url raise ValueError?
         """
         with pytest.raises(ValueError):
-            info = data.get_hdf_info(bad_url, "dataset_name")
+            info = data.get_hdf_dataset_info(bad_url, "dataset_name")
 
     def test_bad_dataset_name(self, aws_file):
         """
@@ -167,14 +167,14 @@ class TestHdf():
           info and series retrieval?
         """
         with pytest.raises(ValueError):
-            info = data.get_hdf_info(aws_file["path"], "nonexistent_dataset")
+            info = data.get_hdf_dataset_info(aws_file["path"], "nonexistent_dataset")
 
         with pytest.raises(ValueError):
             df_json = data.get_hdf_dataframe(aws_file["path"], "nonexistent_dataset", 8, 16)
 
     def test_bad_bounds(self, aws_file):
         """
-           Do invalid bounds (start<0, start>end, end<0, end>size) raise ValueError?
+          Do invalid bounds (start<0, start>end, end<0, end>size) raise ValueError?
         """
         with pytest.raises(ValueError):
             df_json = data.get_hdf_dataframe(aws_file["path"], aws_file["dataset_name"], -1, 16)
@@ -187,3 +187,17 @@ class TestHdf():
 
         with pytest.raises(ValueError):
             df_json = data.get_hdf_dataframe(aws_file["path"], aws_file["dataset_name"], 8, 1e72)
+
+    def test_bad_url_does_not_exist(self, bad_url):
+        """
+          Does data.file_exists_at_url() return False for nonexistent
+          files on remote or local filesystem?
+        """
+        assert not data.file_exists_at_url(bad_url)
+
+    def test_existing_file_at_url_exists(self, aws_file):
+        """
+          Does data.file_exists_at_url() return True for existing
+          files on remote or local filesystem?
+        """
+        assert data.file_exists_at_url(aws_file["path"])
