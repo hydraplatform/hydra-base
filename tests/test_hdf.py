@@ -4,8 +4,10 @@ import pytest
 
 from packaging import version
 
+from hydra_base import config
 from hydra_base.lib import data
 from hydra_base.lib.storage import HdfStorageAdapter
+from hydra_base.util import NullAdapter
 
 min_lib_versions = {
     "fsspec": version.parse("0.9.0"),
@@ -36,6 +38,8 @@ def aws_file():
 def bad_url(request):
     return request.param
 
+conf_disabled = config.CONFIG.get("storage_hdf", "disable_hdf").lower()
+hdf_disabled = True if conf_disabled in ("true", "yes") else False
 
 class TestHdf():
     def test_exists(self, hdf, hdf_config):
@@ -54,12 +58,14 @@ class TestHdf():
             lib = importlib.import_module(libname)
             assert version.parse(lib.__version__) >= semver
 
+    @pytest.mark.skipif(hdf_disabled, reason="Test not applicable when HDF support disabled")
     def test_hdf_size(self, hdf, aws_file):
         """
           Does the reported file size match an expected value?
         """
         assert hdf.size(aws_file["path"]) == aws_file["file_size"]
 
+    @pytest.mark.skipif(hdf_disabled, reason="Test not applicable when HDF support disabled")
     def test_hdf_info(self, hdf, aws_file):
         """
           Do the reported properties of a dataset match expected values?
@@ -70,6 +76,7 @@ class TestHdf():
         assert info["size"] == aws_file["dataset_size"]
         assert info["dtype"] == aws_file["dataset_type"]
 
+    @pytest.mark.skipif(hdf_disabled, reason="Test not applicable when HDF support disabled")
     def test_hdf_dataset(self, hdf, aws_file):
         """
           Does a specified subset of a dataset match its expected
@@ -103,6 +110,7 @@ class TestHdf():
                 for ts, val in data.items():
                     assert np.isclose(df[dataset_name][ts], val)
 
+    @pytest.mark.skipif(hdf_disabled, reason="Test not applicable when HDF support disabled")
     def test_hydra_hdf_size(self, aws_file):
         """
           Does the reported file size match an expected value when
@@ -110,6 +118,7 @@ class TestHdf():
         """
         assert data.get_hdf_filesize(aws_file["path"]) == aws_file["file_size"]
 
+    @pytest.mark.skipif(hdf_disabled, reason="Test not applicable when HDF support disabled")
     def test_hydra_hdf_info(self, aws_file):
         """
           Do the reported properties of a dataset match expected values when
@@ -121,6 +130,7 @@ class TestHdf():
         assert info["size"] == aws_file["dataset_size"]
         assert info["dtype"] == aws_file["dataset_type"]
 
+    @pytest.mark.skipif(hdf_disabled, reason="Test not applicable when HDF support disabled")
     def test_hydra_hdf_dataset(self, aws_file):
         """
           Does a specified subset of a dataset match its expected
@@ -154,6 +164,7 @@ class TestHdf():
                 for ts, val in series.items():
                     assert np.isclose(df[dataset_name][ts], val)
 
+    @pytest.mark.skipif(hdf_disabled, reason="Test not applicable when HDF support disabled")
     def test_bad_url(self, bad_url):
         """
           Does an inaccessible url raise ValueError?
@@ -161,6 +172,7 @@ class TestHdf():
         with pytest.raises(ValueError):
             info = data.get_hdf_dataset_info(bad_url, "dataset_name")
 
+    @pytest.mark.skipif(hdf_disabled, reason="Test not applicable when HDF support disabled")
     def test_bad_dataset_name(self, aws_file):
         """
           Does a nonexistent dataset name raise ValueError both for
@@ -172,6 +184,7 @@ class TestHdf():
         with pytest.raises(ValueError):
             df_json = data.get_hdf_dataframe(aws_file["path"], "nonexistent_dataset", 8, 16)
 
+    @pytest.mark.skipif(hdf_disabled, reason="Test not applicable when HDF support disabled")
     def test_bad_bounds(self, aws_file):
         """
           Do invalid bounds (start<0, start>end, end<0, end>size) raise ValueError?
@@ -188,6 +201,7 @@ class TestHdf():
         with pytest.raises(ValueError):
             df_json = data.get_hdf_dataframe(aws_file["path"], aws_file["dataset_name"], 8, 1e72)
 
+    @pytest.mark.skipif(hdf_disabled, reason="Test not applicable when HDF support disabled")
     def test_bad_url_does_not_exist(self, bad_url):
         """
           Does data.file_exists_at_url() return False for nonexistent
@@ -195,9 +209,28 @@ class TestHdf():
         """
         assert not data.file_exists_at_url(bad_url)
 
+    @pytest.mark.skipif(hdf_disabled, reason="Test not applicable when HDF support disabled")
     def test_existing_file_at_url_exists(self, aws_file):
         """
           Does data.file_exists_at_url() return True for existing
           files on remote or local filesystem?
         """
         assert data.file_exists_at_url(aws_file["path"])
+
+    def test_nulladapter_is_null(self):
+        """
+          If HDF storage were to be disabled in config, does the NullAdapter
+          replacement class transparently allow the API to do nothing?
+        """
+        # Static method
+        NullAdapter.method()
+        NullAdapter.nested.method()
+
+        na = NullAdapter()
+        na.do.nothing()
+
+        # Is iterable
+        for i in na:
+            pass
+
+        assert na[2] == None

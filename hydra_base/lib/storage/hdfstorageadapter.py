@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 from functools import wraps
 
 from hydra_base import config
+from hydra_base.util import NullAdapter
 
 log = logging.getLogger(__name__)
 
@@ -60,10 +61,13 @@ class HdfStorageAdapter():
     @staticmethod
     def get_hdf_config(config_key="storage_hdf"):
         numeric = ()
+        boolean = ("disable_hdf", )
         hdf_keys = [k for k in config.CONFIG.options(config_key) if k not in config.CONFIG.defaults()]
         hdf_items = {k: config.CONFIG.get(config_key, k) for k in hdf_keys}
         for k in numeric:
             hdf_items[k] = int(hdf_items[k])
+        for k in boolean:
+            hdf_items[k] = hdf_items[k].lower() in ("true", "yes")
 
         return hdf_items
 
@@ -187,7 +191,7 @@ class HdfStorageAdapter():
         cols = [*map(bytes.decode, bcols)]
 
         try:
-            series_col = cols.index(dsname)
+            _ = cols.index(dsname)
         except ValueError as ve:
             raise ValueError(f"No series '{dsname}' in {url}") from ve
 
@@ -207,3 +211,11 @@ def nscale(ts):
       into instances of datetime.timestamp
     """
     return datetime.fromtimestamp(ts/1e9)
+
+
+"""
+  If config defines [hdf_storage]::disable_hdf as "True",
+  the above HdfStorageAdapter is replaced with a Null object.
+"""
+if HdfStorageAdapter.get_hdf_config().get("disable_hdf"):
+    HdfStorageAdapter = NullAdapter
