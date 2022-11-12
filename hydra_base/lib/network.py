@@ -29,7 +29,7 @@ from . import units
 from .objects import JSONObject
 
 from ..util.permissions import required_perms
-from hydra_base.lib import template
+from hydra_base.lib import template, attributes
 from ..db.model import Project, Network, Scenario, Node, Link, ResourceGroup,\
         ResourceAttr, Attr, ResourceType, ResourceGroupItem, Dataset, Metadata, DatasetOwner,\
         ResourceScenario, TemplateType, TypeAttr, Template, NetworkOwner, User, Rule
@@ -2835,7 +2835,10 @@ def clone_network(network_id,
                                      newnetworkid,
                                      node_id_map,
                                      link_id_map,
-                                     group_id_map)
+                                     group_id_map,
+                                     newnet.project_id,
+                                     ex_net.project_id,
+                                     user_id)
 
     log.info("Cloning Resource Types")
     _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, group_id_map)
@@ -3002,7 +3005,44 @@ def _clone_groups(old_network_id, new_network_id, node_id_map, link_id_map, user
 
     return id_map
 
-def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, group_id_map):
+def _clone_attributes(network_id, newnetworkid, exnet_project_id, newnet_project_id, user_id):
+    """
+        Clone the attributes scoped to a network nad its project when cloning a network
+    """
+    #first find any attributes which are scoped to the source network, and scope them to the parent project if the source
+    #and target are in the same project, otherwise clone all the scoped attributes.
+
+    #find any attributes scoped directly to the source
+    network_scoped_attrs = attributes.get_attributes(network_id=network_id, user_id=user_id) 
+    project_scoped_attrs = []
+    #get all the attributes scoped to the project of the source network (if it's not the same project as the target)
+    if exnet_project_id != newnet_project_id:
+        new_attributes = []
+        exnet_project_scoped_attrs = attributes.get_attributes(project_id=exnet_project_id, user_id=user_id)
+        for a in exnet_project_scoped_attrs:
+            a.project_id = newnet_project_id
+            new_attributes.append(a)
+    
+        for a in network_scoped_attrs:
+        #the networks are in different projects, so clone the attributes
+            a = JSONObject(a)
+            a.network_id = newnetworkid
+            new_attributes.append(a)
+
+        attributes.add_attributes(new_attributes, user_id=user_id)
+    else:
+        for a in network_scoped_attrs:
+            #the networks are in the same project, so re-scope the attribute
+            #to the project, so it is shared by the networks
+            a.network_id=None
+            a.project_id=exnet_project_id
+            attributes.update_attribute(a)
+
+def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, group_id_map, exnet_project_id, newnet_project_id, user_id):
+
+    #clone any attributes which are scoped to a network or to the network's project (if the networks)
+    #are in different projects.
+    _clone_attributes(network_id, newnetworkid, exnet_project_id, newnet_project_id, user_id)
 
     log.info("Cloning Network Attributes")
     network_ras = db.DBSession.query(ResourceAttr).filter(ResourceAttr.network_id==network_id)
