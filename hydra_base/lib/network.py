@@ -632,6 +632,8 @@ def add_network(network, **kwargs):
             incoming_datasets = []
             scenario_resource_attrs = []
             for r_scen in s.resourcescenarios:
+                if all_resource_attrs.get(r_scen.resource_attr_id) is None:
+                    raise HydraError("Couldn't find resource attribute %s on resource scenario %s. Shot in the dark: Does the exporting network have duplicate attributes?", r_scen.resource_attr_id, r_scen)
                 ra = all_resource_attrs[r_scen.resource_attr_id]
                 incoming_datasets.append(r_scen.dataset)
                 scenario_resource_attrs.append(ra)
