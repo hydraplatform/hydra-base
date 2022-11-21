@@ -1,4 +1,4 @@
-from sqlalchemy.exc import NoResultFound
+from sqlalchemy.orm.exc import NoResultFound
 
 from hydra_base.db import get_session
 from hydra_base.exceptions import HydraError
