@@ -297,6 +297,9 @@ class TestUtil:
                     project.id,
                     ["UserA", "UserB", "UserC"], 'N', 'Y')
 
+            proj_scoped_attr = self.create_attribute("Project Scoped Attr", dimension=None, project_id=project.id)
+
+
             return project
         else:
             return user_projects[0]
@@ -648,6 +651,10 @@ class TestUtil:
         LOG.info("Creating network...")
         response_network_summary = JSONObject(self.client.add_network(network))
 
+        #Add an attribute scoped to this network, and an associated resource attribute
+        net_scoped_attr = self.create_attribute("Network Scoped Attr", dimension=None, network_id=response_network_summary.id)
+        self.client.add_resource_attribute('NETWORK', response_network_summary.id, net_scoped_attr.id, False)
+
         LOG.info("Network Creation took: %s"%(datetime.datetime.now()-start))
         if ret_full_net is True:
             LOG.info("Fetching new network...:")
@@ -656,6 +663,7 @@ class TestUtil:
             response_net = JSONObject(net)
             LOG.info("Network Retrieval took: %s"%(datetime.datetime.now()-start))
             self.check_network(network, response_net)
+
             return response_net
         else:
            return response_network_summary
@@ -982,17 +990,19 @@ class TestUtil:
 
         return attrs
 
-    def create_attribute(self, name="Test attribute", dimension=None):
+    def create_attribute(self, name="Test attribute", dimension=None, network_id=None, project_id=None):
         dimension_id = None
         if dimension is not None:
             dimension_id = self.client.get_dimension_by_name(dimension).id
 
-        attr_i = self.client.get_attribute_by_name_and_dimension(name, dimension_id)
+        attr_i = self.client.get_attribute_by_name_and_dimension(name, dimension_id, network_id, project_id)
         if attr_i is None or attr_i == {}:
             attr = JSONObject({
                 'name'  : name,
                 'dimension_id' : dimension_id,
                 'description' : "Attribute description",
+                'network_id' : network_id,
+                'project_id': project_id
             })
             attr = JSONObject(self.client.add_attribute(attr))
         else:
