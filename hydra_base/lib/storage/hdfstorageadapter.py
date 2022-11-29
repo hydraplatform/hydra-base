@@ -4,6 +4,7 @@ import inspect
 import logging
 import os
 import pandas as pd
+import s3fs
 
 from botocore.exceptions import ClientError
 from datetime import datetime
@@ -101,6 +102,7 @@ class HdfStorageAdapter():
         except (ValueError, FileNotFoundError, PermissionError):
             return False
 
+
     @filestore_url("filepath")
     def get_dataset_info_file(self, filepath, dsname):
         df = pd.read_hdf(filepath)
@@ -137,18 +139,57 @@ class HdfStorageAdapter():
 
         return size_bytes
 
-    def hdf_dataset_to_pandas_dataframe(self, url, dsname, start, end):
+    def get_hdf_groups(self, url):
+        h5f = self.open_hdf_url(url)
+        return [*h5f.keys()]
+
+    def get_group_columns(self, url, groupname):
+        h5f = self.open_hdf_url(url)
+        try:
+            group = h5f[groupname]
+        except KeyError as ke:
+            raise ValueError(f"Data source {url} does not contain specified group: {groupname}") from ke
+
+        localpath, filename = self.equivalent_local_path(url)
+        localfile = os.path.join(localpath, filename)
+        if not os.path.exists(localfile):
+            self.retrieve_s3_file(url)
+        df = pd.read_hdf(localfile, key=groupname)
+        return df.columns.to_list()
+
+    def hdf_group_to_pandas_dataframe(self, url, groupname=None, series=None):
+        json_opts = {"date_format": "iso"}
+
+        localpath, filename = self.equivalent_local_path(url)
+        localfile = os.path.join(localpath, filename)
+        if not os.path.exists(localfile):
+            self.retrieve_s3_file(url)
+        df = pd.read_hdf(localfile, key=groupname)  # pd uses key=None as equivalent to no kwarg
+        if series:
+            return df[series].to_json(**json_opts)
+        return df.to_json(**json_opts)
+
+    def hdf_dataset_to_pandas_dataframe(self, url, dsname, start, end, groupname=None):
         h5f = self.open_hdf_url(url)
         """
           Pywr uses hdf group names implicitly and these vary by dataset type.
           Assume the first key of the hdf doc represents a group containing
           the [axis0, axis1, block0_index, block0_values] constituents of a
           Pandas dataframe.
+          Alternately, a groupname may be specified for cases where a data
+          source contains multiple groups.
         """
 
-        groupname = [*h5f.keys()][0]
+        if not groupname:
+            try:
+                groupname = [*h5f.keys()][0]
+            except IndexError as ie:
+                raise ValueError(f"Data source {url} contains no groups") from ie
         try:
             group = h5f[groupname]
+        except KeyError as ke:
+            raise ValueError(f"Data source {url} does not contain specified group: {groupname}") from ke
+        try:
             bcols = group["axis0"][:]
         except KeyError as ke:
             raise ValueError(f"Data source {url} has invalid structure") from ke
@@ -203,6 +244,36 @@ class HdfStorageAdapter():
             "size": val_rows,
             "dtype": str(val_ds.dtype)
         }
+
+    def equivalent_local_path(self, url):
+        u = urlparse(url)
+        filesrc = f"{u.netloc}{u.path}"
+        if u.scheme == "path":
+            return os.path.dirname(filesrc), os.path.basename(filesrc)
+        filedir = os.path.dirname(filesrc)
+        destdir = os.path.join(self.filestore_path, filedir.strip('/'))
+        return destdir, os.path.basename(filesrc)
+
+    def retrieve_s3_file(self, url):
+        u = urlparse(url)
+        if not u.scheme == "s3":
+            return
+        filesrc = f"{u.netloc}{u.path}"
+        destdir, filename = self.equivalent_local_path(url)
+
+        if not os.path.exists(destdir):
+            try:
+                os.makedirs(destdir)
+            except OSError as err:
+                raise OSError(f"Unable to create local path at {destdir}: {err}")
+
+        destfile = os.path.join(destdir, filename)
+        fs = s3fs.S3FileSystem(anon=True)
+        log.info(f"Retrieving {url} to {destfile} ...")
+        fs.get(filesrc, destfile)
+        file_sz = os.stat(destfile).st_size
+        log.info(f"Retrieved {destfile} ({file_sz} bytes)")
+        return destfile, file_sz
 
 
 def nscale(ts):

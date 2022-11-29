@@ -1129,12 +1129,12 @@ def get_hdf_dataframe(url, dataset_name, start, end, **kwargs):
     return hdf.hdf_dataset_to_pandas_dataframe(url, dataset_name, start, end)
 
 def resolve_url_to_path(url, **kwargs):
-    hdf = HdfStorageAdapter()
     """
       Returns the path, either on a local filesystem or remote
       storage, to which the <url> arg resolves.
       Raises ValueError if the arg cannot be interpreted as a valid url
     """
+    hdf = HdfStorageAdapter()
     return hdf.url_to_filestore_path(url)
 
 def file_exists_at_url(url, **kwargs):
@@ -1145,3 +1145,33 @@ def file_exists_at_url(url, **kwargs):
     """
     hdf = HdfStorageAdapter()
     return hdf.file_exists_at_url(url)
+
+def get_hdf_group_as_dataframe(url, **kwargs):
+    """
+      Return the entire table of series within an HDF group as a
+      single dataframe.
+      Timeseries indices are represented in iso8601 format
+      Keyword arguments:
+        <groupname> if absent assume file contains a single dataset
+        <series> if present returns only the matching column of the
+                 datasset
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.hdf_group_to_pandas_dataframe(url, **kwargs)
+
+def get_hdf_groups(url, **kwargs):
+    """
+      Returns the root groups of an HDF file.
+      These may subsequently be used as the <groupname> arg to
+      `get_hdf_group_as_dataframe`
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.get_hdf_groups(url)
+
+def get_hdf_group_columns(url, groupname, **kwargs):
+    """
+      Returns a list containing the names of series within
+      the dataset of a specified group
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.get_group_columns(url, groupname)
