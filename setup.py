@@ -43,7 +43,7 @@ install_requires=[
     "fsspec",
     "h5py",
     "s3fs",
-    "pytables"
+    "tables"
     ]
 
 # get version string from __init__.py
