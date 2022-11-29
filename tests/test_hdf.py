@@ -250,7 +250,7 @@ class TestHdf():
           NB rot13 strings
         """
         df = data.get_hdf_group_as_dataframe(multigroup_file["path"], groupname="RFJ_Rffrk_erfhygf")
-        assert df[:96] == '{"Ynatunz Vagnxr.Fhccyl.Nzbhag":{"1910-01-01T00:00:00.000Z":40.0,"1910-01-02T00:00:00.000Z":40.0'
+        assert df[:96] == '{"Ynatunz Vagnxr.Fhccyl.Nzbhag":{"1910-01-01T00:00:00.000":40.0,"1910-01-02T00:00:00.000":40.0'
 
     @pytest.mark.requires_hdf
     def test_multigroup_series(self, multigroup_file):
@@ -261,7 +261,7 @@ class TestHdf():
           NB rot13 strings
         """
         df = data.get_hdf_group_as_dataframe(multigroup_file["path"], groupname="RFJ_Rffrk_erfhygf", series="Jbezvatsbeq Vagnxr.Fhccyl.Nzbhag")
-        assert df[:96] == '{"1910-01-01T00:00:00.000Z":0.0,"1910-01-02T00:00:00.000Z":0.0,"1910-01-03T00:00:00.000Z":0.0,"1'
+        assert df[:96] == '{"1910-01-01T00:00:00.000":0.0,"1910-01-02T00:00:00.000":0.0,"1910-01-03T00:00:00.000":0.0,"1'
 
     @pytest.mark.requires_hdf
     def test_hdf_multigroups(self, multigroup_file):
