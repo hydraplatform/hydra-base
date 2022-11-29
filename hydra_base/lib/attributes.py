@@ -1061,7 +1061,12 @@ def get_resource_attribute(resource_attr_id, **kwargs):
 
     resource_attr = resource_attr_qry.first()
 
-    network = resource_attr.get_resource().network
+    resource = resource_attr.get_resource()
+    if resource_attr.network_id is not None:
+        network = resource
+    else:
+        network = resource.network
+
     network.check_read_permission(user_id)
 
     if resource_attr is None:
