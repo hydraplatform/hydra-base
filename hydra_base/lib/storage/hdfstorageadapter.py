@@ -157,7 +157,7 @@ class HdfStorageAdapter():
         df = pd.read_hdf(localfile, key=groupname)
         return df.columns.to_list()
 
-    def hdf_group_to_pandas_dataframe(self, url, groupname=None, series=None):
+    def hdf_group_to_pandas_dataframe(self, url, groupname=None, series=None, as_json=True):
         json_opts = {"date_format": "iso"}
 
         localpath, filename = self.equivalent_local_path(url)
@@ -166,10 +166,17 @@ class HdfStorageAdapter():
             self.retrieve_s3_file(url)
         df = pd.read_hdf(localfile, key=groupname)  # pd uses key=None as equivalent to no kwarg
         if series:
-            return df[series].to_json(**json_opts)
-        return df.to_json(**json_opts)
+            if as_json:
+                return df[series].to_json(**json_opts)
+            else:
+                return df[series]
+        if as_json:
+            return df.to_json(**json_opts)
+        else:
+            return df
 
     def hdf_dataset_to_pandas_dataframe(self, url, dsname, start, end, groupname=None):
+        json_opts = {"date_format": "iso"}
         h5f = self.open_hdf_url(url)
         """
           Pywr uses hdf group names implicitly and these vary by dataset type.
@@ -179,7 +186,6 @@ class HdfStorageAdapter():
           Alternately, a groupname may be specified for cases where a data
           source contains multiple groups.
         """
-
         if not groupname:
             try:
                 groupname = [*h5f.keys()][0]
@@ -192,6 +198,11 @@ class HdfStorageAdapter():
         try:
             bcols = group["axis0"][:]
         except KeyError as ke:
+            try:
+                df = self.hdf_group_to_pandas_dataframe(url, groupname=groupname, series=dsname, as_json=False)
+                return df[start:end].to_json(**json_opts)
+            except:
+                pass
             raise ValueError(f"Data source {url} has invalid structure") from ke
 
         cols = [*map(bytes.decode, bcols)]
@@ -217,7 +228,7 @@ class HdfStorageAdapter():
         h5f.close()
 
         df = pd.DataFrame({dsname: section}, index=pd.DatetimeIndex(timestamps))
-        return df.to_json()
+        return df.to_json(**json_opts)
 
     def get_dataset_info_url(self, url, dsname):
         h5f = self.open_hdf_url(url)
