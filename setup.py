@@ -42,7 +42,8 @@ install_requires=[
     "diskcache",
     "fsspec",
     "h5py",
-    "s3fs"
+    "s3fs",
+    "tables"
     ]
 
 # get version string from __init__.py

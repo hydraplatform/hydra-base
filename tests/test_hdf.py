@@ -33,6 +33,13 @@ def aws_file():
         "dataset_type": "float64"
     }
 
+@pytest.fixture
+def multigroup_file():
+    return {
+        "path": "s3://modelers-data-bucket/grid_data.h5",  # NB rot13 strings!
+        "groups": ['RFJ_Rffrk_erfhygf', 'prageny_fbhgu_rffrk_erfhygf', 'qnvyl_cebsvyrf', 'yvapbyafuver_erfhygf', 'zbaguyl_cebsvyrf', 'gvzrfrevrf']
+    }
+
 @pytest.fixture(params=["s3://modelers-data-bucket/does_not_exist.h5", "does_not_exist"])
 def bad_url(request):
     return request.param
@@ -233,3 +240,47 @@ class TestHdf():
 
         # Is subscriptable?
         assert na[2] == None
+
+    @pytest.mark.requires_hdf
+    def test_multigroup_dataframe(self, multigroup_file):
+        """
+          Is the correct dataframe returned when requesting a whole
+          dataframe from a remote multigroup file?
+
+          NB rot13 strings
+        """
+        df = data.get_hdf_group_as_dataframe(multigroup_file["path"], groupname="RFJ_Rffrk_erfhygf")
+        assert df[:94] == '{"Ynatunz Vagnxr.Fhccyl.Nzbhag":{"1910-01-01T00:00:00.000":40.0,"1910-01-02T00:00:00.000":40.0'
+
+    @pytest.mark.requires_hdf
+    def test_multigroup_series(self, multigroup_file):
+        """
+          Is the correct series returned when requesting a particular
+          series from a dataframe in a multigroup file?
+
+          NB rot13 strings
+        """
+        df = data.get_hdf_group_as_dataframe(multigroup_file["path"], groupname="RFJ_Rffrk_erfhygf", series="Jbezvatsbeq Vagnxr.Fhccyl.Nzbhag")
+        assert df[:93] == '{"1910-01-01T00:00:00.000":0.0,"1910-01-02T00:00:00.000":0.0,"1910-01-03T00:00:00.000":0.0,"1'
+
+    @pytest.mark.requires_hdf
+    def test_hdf_multigroups(self, multigroup_file):
+        """
+          Are the expected groups returned when querying an HDF file for its root groups?
+
+          NB rot13 strings
+        """
+        groups = data.get_hdf_groups(multigroup_file["path"])
+        assert set(groups) == set(multigroup_file["groups"])
+
+    @pytest.mark.requires_hdf
+    def test_hdf_group_columns(self, multigroup_file):
+        """
+          Are the correct columns in the correct order returned from a group dataframe?
+
+          NB rot13 strings
+        """
+        columns = data.get_hdf_group_columns(multigroup_file["path"], groupname="RFJ_Rffrk_erfhygf")
+        assert len(columns) == 109
+        assert columns[2] == 'Qraire Vagnxr.Fhccyl.Nzbhag'
+        assert 'Unaavatsvryq Erfreibve.Fgbentr.Pnyphyngrq (%)' in columns
