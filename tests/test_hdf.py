@@ -36,7 +36,7 @@ def aws_file():
 @pytest.fixture
 def multigroup_file():
     return {
-        "path": "s3://modelers-data-bucket/grid_data.h5",  # NB rot13 strings!
+        "path": "s3://modelers-data-bucket/grid_data.h5",  # NB rot13 strings
         "groups": ['RFJ_Rffrk_erfhygf', 'prageny_fbhgu_rffrk_erfhygf', 'qnvyl_cebsvyrf', 'yvapbyafuver_erfhygf', 'zbaguyl_cebsvyrf', 'gvzrfrevrf']
     }
 
@@ -272,6 +272,11 @@ class TestHdf():
         """
         groups = data.get_hdf_groups(multigroup_file["path"])
         assert set(groups) == set(multigroup_file["groups"])
+
+    @pytest.mark.requires_hdf
+    def test_get_hdf_multigroup_subset(self, multigroup_file):
+        df_json = data.get_hdf_dataframe(multigroup_file["path"], "Qraire Vagnxr.Fhccyl.Nzbhag", 4, 8, groupname="RFJ_Rffrk_erfhygf")
+        assert df_json == '{"Qraire Vagnxr.Fhccyl.Nzbhag":{"1910-01-05T00:00:00.000Z":61.19238,"1910-01-06T00:00:00.000Z":77.95459,"1910-01-07T00:00:00.000Z":106.8699,"1910-01-08T00:00:00.000Z":119.7732}}'
 
     @pytest.mark.requires_hdf
     def test_hdf_group_columns(self, multigroup_file):

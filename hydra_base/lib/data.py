@@ -1126,7 +1126,7 @@ def get_hdf_dataframe(url, dataset_name, start, end, **kwargs):
       Raises ValueError on bad url, dataset name or bounds
     """
     hdf = HdfStorageAdapter()
-    return hdf.hdf_dataset_to_pandas_dataframe(url, dataset_name, start, end)
+    return hdf.hdf_dataset_to_pandas_dataframe(url, dataset_name, start, end, **kwargs)
 
 def resolve_url_to_path(url, **kwargs):
     """
