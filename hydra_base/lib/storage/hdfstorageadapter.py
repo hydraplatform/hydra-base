@@ -60,7 +60,7 @@ class HdfStorageAdapter():
             self.filestore_path = None
 
     @staticmethod
-    def get_hdf_config(config_key="storage_hdf"):
+    def get_hdf_config(config_key="storage_hdf", **kwargs):
         numeric = ()
         boolean = ("disable_hdf", )
         hdf_keys = [k for k in config.CONFIG.options(config_key) if k not in config.CONFIG.defaults()]
@@ -73,14 +73,14 @@ class HdfStorageAdapter():
         return hdf_items
 
     @filestore_url("url")
-    def open_hdf_url(self, url):
+    def open_hdf_url(self, url, **kwargs):
         try:
             with fsspec.open(url, mode='rb', anon=True, default_fill_cache=False) as fp:
                 return h5py.File(fp.fs.open(url), mode='r')
         except (ClientError, FileNotFoundError, PermissionError) as e:
             raise ValueError(f"Unable to access url: {url}") from e
 
-    def url_to_filestore_path(self, url, do_raise=True, check_exists=False):
+    def url_to_filestore_path(self, url, do_raise=True, check_exists=False, **kwargs):
         u = urlparse(url)
         if u.path == "" and do_raise:
             raise ValueError(f"Invalid URL: {url}")
@@ -94,7 +94,7 @@ class HdfStorageAdapter():
 
         return relurl
 
-    def file_exists_at_url(self, url):
+    def file_exists_at_url(self, url, **kwargs):
         try:
             url = self.url_to_filestore_path(url)
             with fsspec.open(url, mode='rb', anon=True, default_fill_cache=False) as fp:
@@ -104,7 +104,7 @@ class HdfStorageAdapter():
 
 
     @filestore_url("filepath")
-    def get_dataset_info_file(self, filepath, dsname):
+    def get_dataset_info_file(self, filepath, dsname, **kwargs):
         df = pd.read_hdf(filepath)
         series = df[dsname]
         index = df.index
@@ -121,7 +121,7 @@ class HdfStorageAdapter():
         return info
 
     @filestore_url("filepath")
-    def get_dataset_block_file(self, filepath, dsname, start, end):
+    def get_dataset_block_file(self, filepath, dsname, start, end, **kwargs):
         df = pd.read_hdf(filepath)
         section = df[dsname][start:end]
         block_index = section.index.map(str).tolist()
@@ -133,17 +133,17 @@ class HdfStorageAdapter():
         }
 
     @filestore_url("url")
-    def size(self, url):
+    def size(self, url, **kwargs):
         with fsspec.open(url, mode='rb', anon=True, default_fill_cache=False) as fp:
             size_bytes = fp.fs.size(fp.path)
 
         return size_bytes
 
-    def get_hdf_groups(self, url):
+    def get_hdf_groups(self, url, **kwargs):
         h5f = self.open_hdf_url(url)
         return [*h5f.keys()]
 
-    def get_group_columns(self, url, groupname):
+    def get_group_columns(self, url, groupname, **kwargs):
         h5f = self.open_hdf_url(url)
         try:
             group = h5f[groupname]
@@ -157,7 +157,7 @@ class HdfStorageAdapter():
         df = pd.read_hdf(localfile, key=groupname)
         return df.columns.to_list()
 
-    def hdf_group_to_pandas_dataframe(self, url, groupname=None, series=None, as_json=True):
+    def hdf_group_to_pandas_dataframe(self, url, groupname=None, series=None, as_json=True, **kwargs):
         json_opts = {"date_format": "iso"}
 
         localpath, filename = self.equivalent_local_path(url)
@@ -175,7 +175,7 @@ class HdfStorageAdapter():
         else:
             return df
 
-    def hdf_dataset_to_pandas_dataframe(self, url, dsname, start, end, groupname=None):
+    def hdf_dataset_to_pandas_dataframe(self, url, dsname, start, end, groupname=None, **kwargs):
         json_opts = {"date_format": "iso"}
         h5f = self.open_hdf_url(url)
         """
@@ -230,7 +230,7 @@ class HdfStorageAdapter():
         df = pd.DataFrame({dsname: section}, index=pd.DatetimeIndex(timestamps))
         return df.to_json(**json_opts)
 
-    def get_dataset_info_url(self, url, dsname):
+    def get_dataset_info_url(self, url, dsname, **kwargs):
         h5f = self.open_hdf_url(url)
 
         groupname = [*h5f.keys()][0]
@@ -256,16 +256,20 @@ class HdfStorageAdapter():
             "dtype": str(val_ds.dtype)
         }
 
-    def equivalent_local_path(self, url):
+    def equivalent_local_path(self, url, **kwargs):
         u = urlparse(url)
         filesrc = f"{u.netloc}{u.path}"
         if u.scheme == "path":
             return os.path.dirname(filesrc), os.path.basename(filesrc)
         filedir = os.path.dirname(filesrc)
-        destdir = os.path.join(self.filestore_path, filedir.strip('/'))
+
+        if self.filestore_path is not None:
+            destdir = os.path.join(self.filestore_path, filedir.strip('/'))
+        else:
+            destdir = filedir
         return destdir, os.path.basename(filesrc)
 
-    def retrieve_s3_file(self, url):
+    def retrieve_s3_file(self, url, **kwargs):
         u = urlparse(url)
         if not u.scheme == "s3":
             return
