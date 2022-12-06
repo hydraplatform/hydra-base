@@ -42,7 +42,10 @@ from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
 from ..util import generate_data_hash
 from ..util.hydra_dateutil import get_datetime
 
-from hydra_base.lib.storage import MongoStorageAdapter
+from hydra_base.lib.storage import (
+    MongoStorageAdapter,
+    HdfStorageAdapter
+)
 
 
 global FORMAT
@@ -1092,3 +1095,83 @@ def delete_dataset(dataset_id,**kwargs):
 
 def read_json(json_string):
     pd.read_json(json_string)
+
+def get_hdf_filesize(url, **kwargs):
+    """
+      Returns the size in bytes of the hdf file <url> argument
+      Raises ValueError on bad url
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.size(url)
+
+def get_hdf_dataset_info(url, dataset_name, **kwargs):
+    """
+      Returns information about the <dataset_name> argument:
+      {
+        "name": str: Name of the dataset,
+        "size": int: Number of rows in dataset series,
+        "dtype": str: The numpy.dtype of the dataset
+      }
+      Raises ValueError on bad url or dataset name
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.get_dataset_info_url(url, dataset_name)
+
+def get_hdf_dataframe(url, dataset_name, start, end, **kwargs):
+    """
+      Returns the rows from <start> to <end> of <dataset_name> in
+      the hdf file <url> as the json representation of a Pandas
+      DataFrame. This may then be read directly in a client with
+      pandas.read_json().
+      Raises ValueError on bad url, dataset name or bounds
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.hdf_dataset_to_pandas_dataframe(url, dataset_name, start, end, **kwargs)
+
+def resolve_url_to_path(url, **kwargs):
+    """
+      Returns the path, either on a local filesystem or remote
+      storage, to which the <url> arg resolves.
+      Raises ValueError if the arg cannot be interpreted as a valid url
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.url_to_filestore_path(url)
+
+def file_exists_at_url(url, **kwargs):
+    """
+      Return a boolean corresponding to the existence of a readable
+      file at the <url> arg.
+      Never raises, returns False for invalid args or no permission
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.file_exists_at_url(url)
+
+def get_hdf_group_as_dataframe(url, **kwargs):
+    """
+      Return the entire table of series within an HDF group as a
+      single dataframe.
+      Timeseries indices are represented in iso8601 format
+      Keyword arguments:
+        <groupname> if absent assume file contains a single dataset
+        <series> if present returns only the matching column of the
+                 datasset
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.hdf_group_to_pandas_dataframe(url, **kwargs)
+
+def get_hdf_groups(url, **kwargs):
+    """
+      Returns the root groups of an HDF file.
+      These may subsequently be used as the <groupname> arg to
+      `get_hdf_group_as_dataframe`
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.get_hdf_groups(url)
+
+def get_hdf_group_columns(url, groupname, **kwargs):
+    """
+      Returns a list containing the names of series within
+      the dataset of a specified group
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.get_group_columns(url, groupname)
