@@ -276,7 +276,7 @@ class TestHdf():
     @pytest.mark.requires_hdf
     def test_get_hdf_multigroup_subset(self, multigroup_file):
         df_json = data.get_hdf_dataframe(multigroup_file["path"], "Qraire Vagnxr.Fhccyl.Nzbhag", 4, 8, groupname="RFJ_Rffrk_erfhygf")
-        assert df_json == '{"Qraire Vagnxr.Fhccyl.Nzbhag":{"1910-01-05T00:00:00.000Z":61.19238,"1910-01-06T00:00:00.000Z":77.95459,"1910-01-07T00:00:00.000Z":106.8699,"1910-01-08T00:00:00.000Z":119.7732}}'
+        assert df_json == '{"Qraire Vagnxr.Fhccyl.Nzbhag":{"1910-01-05T00:00:00.000":61.19238,"1910-01-06T00:00:00.000":77.95459,"1910-01-07T00:00:00.000":106.8699,"1910-01-08T00:00:00.000":119.7732}}'
 
     @pytest.mark.requires_hdf
     def test_hdf_group_columns(self, multigroup_file):
