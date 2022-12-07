@@ -1,4 +1,5 @@
 import logging
+import os
 
 from bson.objectid import ObjectId
 from pymongo import MongoClient
@@ -25,10 +26,26 @@ class MongoStorageAdapter():
         """ Mongo usernames/passwds require percent encoding of `:/?#[]@` chars """
         user, passwd = percent_encode(user), percent_encode(passwd)
         authtext = f"{user}:{passwd}@" if (user and passwd) else ""
-        conntext = f"mongodb://{authtext}{host}:{port}"
+
+        if mongo_config["use_replica_set"]:
+            replSet_path = os.path.expanduser(mongo_config["replset_config_path"])
+            try:
+                import json
+                with open(replSet_path, 'r') as fp:
+                    replSet = json.load(fp)
+            except:
+                log.critical(f"Unable to read replica set config at {replSet_path}, "
+                              "reverting to single-host MongoDB connection")
+                conntext = f"mongodb://{authtext}{host}:{port}"
+            else:
+                hosts_txt = ",".join(f"{m['host']}:{m['port']}" for m in replSet["members"])
+                conntext = f"mongodb://{hosts_txt}/?replicaSet={replSet['id']}"
+        else:
+            conntext = f"mongodb://{authtext}{host}:{port}"
+
         try:
-            self.client = MongoClient(conntext)
-        except pymongo.errors.ServerSelectionTimeoutError as sste:
+            self.client = MongoClient(conntext, w=2)
+        except ServerSelectionTimeoutError as sste:
             log.critical(f"Unable to connect to Mongo server {conntext}: {sste}")
             raise sste
 
@@ -37,10 +54,13 @@ class MongoStorageAdapter():
     @staticmethod
     def get_mongo_config(config_key="mongodb"):
         numeric = ("threshold",)
+        boolean = ("use_replica_set",)
         mongo_keys = [k for k in config.CONFIG.options(config_key) if k not in config.CONFIG.defaults()]
         mongo_items = {k: config.CONFIG.get(config_key, k) for k in mongo_keys}
         for k in numeric:
             mongo_items[k] = int(mongo_items[k])
+        for k in boolean:
+            mongo_items[k] = mongo_items[k].lower() in ("true", "yes", "y")
 
         return mongo_items
 
