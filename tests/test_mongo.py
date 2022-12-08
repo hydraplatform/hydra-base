@@ -1,7 +1,6 @@
 import json
 import pytest
 import random
-import time
 
 from packaging import version
 
@@ -77,6 +76,31 @@ class TestMongo():
             assert key in mongo_config, f"Mongo config missing `{key}` definition"
 
 
+    @pytest.mark.requires_replicaset
+    def test_replica_set_connection(self, client, mongo_config, mongo):
+        """
+        Verifies the connection, identity, and topology of the replica set.
+        """
+        # Connection should always be to the set primary
+        assert mongo.client.is_primary
+
+        td = mongo.client.topology_description
+        # The connection is some form of replica topology...
+        assert "replica" in td.topology_type_name.lower()
+
+        # ...and is the expected replica set...
+        assert td.replica_set_name == mongo.replSet["id"]
+
+        # ...and includes all of the hosts in our replSet config
+        for node in mongo.replSet["members"]:
+            assert (node["host"], node["port"]) in td.server_descriptions()
+
+        # Exactly one arbiter should be present...
+        assert len(mongo.client.arbiters) == 1
+        # ...and it is the expected host
+        assert (mongo.replSet["arbiter"]["host"], mongo.replSet["arbiter"]["port"]) in mongo.client.arbiters
+
+
     def test_bulk_add_mongo_data(self, client, mongo_config, mongo):
         """
         Builds a non-trivial number of large datasets and adds *the values*
@@ -86,7 +110,7 @@ class TestMongo():
         """
 
         mongo_threshold = mongo_config["threshold"]
-        num_datasets = 32
+        num_datasets = 24
         datasets = []
         unit_id = client.get_unit_by_abbreviation("m s^-1").id
         for idx in range(num_datasets):
@@ -123,7 +147,6 @@ class TestMongo():
         added = []
         for ds in datasets:
             added.append(client.add_dataset(ds.type, ds.value, ds.unit_id, {}, ds.name, flush=True))
-            time.sleep(1)
 
         metadatas = client.get_metadata([ds.id for ds in added])
 
@@ -201,14 +224,9 @@ class TestMongo():
         data_sz = mongo_threshold * random.randint(1, 3) + 1
         server_ds.value = [random.uniform(1, 100) for _ in range(data_sz)]
         grown_ds = client.update_dataset(server_ds.id, server_ds.name, server_ds.type, json.dumps(server_ds.value), server_ds.unit_id, {})
-        time.sleep(5)
 
         grown_metadata = client.get_metadata([grown_ds.id])
         key = grown_metadata[0].get("key")
         assert key == mongo_location_key, "Location key missing from large dataset"
         location = grown_metadata[0].get("value")
         assert location == mongo_location_external, "Invalid location metadata value"
-
-
-    def test_replica_set_connection(self, client, mongo_config, mongo):
-        pass
