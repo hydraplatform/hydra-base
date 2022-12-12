@@ -119,7 +119,7 @@ class TestScopedAttribute:
 
         #This should not have changed
         assert len(global_attributes_no_project) == len(all_global_attributes)
-        
+
         #It's 2 because there is one added by default to all new projects, plus the one we just added
         assert len(project_scoped_attributes) == 2
 
@@ -197,7 +197,7 @@ class TestScopedAttribute:
             project_id=network_with_data.project_id,
             network_id=network_with_data.id,
             include_global=True)
-        
+
         #It's 4 because there is one added by default to all new networks and projects, plus the ones we just added
         assert len(global_and_project_and_network_scoped_attributes) == len(all_global_attributes) + 4
 
@@ -316,7 +316,7 @@ class TestScopedAttribute:
 
     def test_search_attribute_in_sub_project(self, client, projectmaker, networkmaker):
         """
-           Test searching for an attribute defined on a parent project (p1) when searching from 
+           Test searching for an attribute defined on a parent project (p1) when searching from
            network n1. This requires recursively looking up the project tree to collate
            all attributes available to network n1. Attributes defined on P3 should not
            be visible.
@@ -409,7 +409,7 @@ class TestScopedAttribute:
         #check it has been rescoped
         assert newly_scoped_attr.project_id == proj1.id
 
-        #the 
+        #the
         updated_ra = client.get_resource_attribute(new_ra.id)
 
         assert updated_ra.attr_id == newly_scoped_attr.id
@@ -419,5 +419,95 @@ class TestScopedAttribute:
         assert len(matching_attributes) == 1 # the default scoped attrs plus this one.
 
         assert 'test_scoped_attr' in [a.name for a in matching_attributes]
-        
+
         assert matching_attributes[0].id == newly_scoped_attr.id
+
+
+    def test_bulk_add_network_and_project_scoped_attribute(self, client, network_with_data):
+        """
+            Test adding a network-scoped attributes.
+            1: Test adding a global attribute.
+            2: Test adding a network-scoped attribute.
+            3: Test that the network-scoped attribute doesn't appear in the
+            get_attributes() function but does appear in the get_attributes(network_id)
+            4: Test adding a project-scoped attribute.
+            5: Test that the project-scoped attribute doesn't appear in the
+            get_attributes() function but does appear in the get_attributes(project_id)
+        """
+        global_attr = JSONObject({
+            "name": f'Global Attribute {datetime.datetime.now()}',
+            "dimension_id": None
+        })
+
+        network_scoped_attr = JSONObject({
+            "name": f'Network Attribute {datetime.datetime.now()}',
+            "dimension_id": None,
+            "network_id": network_with_data.id
+        })
+
+        project_scoped_attr = JSONObject({
+            "name": f'Project Attribute {datetime.datetime.now()}',
+            "dimension_id": None,
+            "project_id": network_with_data.project_id
+        })
+
+
+        previous_all_attributes = client.get_attributes()
+
+        new_attributes = client.add_attributes([global_attr, network_scoped_attr, project_scoped_attr])
+
+        all_global_attributes = client.get_attributes()
+
+        assert len(all_global_attributes) == len(previous_all_attributes) + 1
+
+        #try add it again. SHould have no effect
+        client.add_attributes([global_attr, network_scoped_attr, project_scoped_attr])
+
+        global_attributes_no_network = client.get_attributes()
+        network_scoped_attributes = client.get_attributes(network_id=network_with_data.id)
+
+        #This should not have changed
+        assert len(global_attributes_no_network) == len(all_global_attributes)
+
+        #It's 2 because there is one added by default to all new networks and projects, plus the ones we just added
+        assert len(network_scoped_attributes) == 2
+
+        #try add it again. SHould have no effect
+        client.add_attribute(project_scoped_attr)
+
+        global_attributes_no_project = client.get_attributes()
+        project_scoped_attributes = client.get_attributes(project_id=network_with_data.project_id)
+
+        #This should not have changed
+        assert len(global_attributes_no_project) == len(all_global_attributes)
+
+        #It's 2 because there is one added by default to all new projects, plus the one we just added
+        assert len(project_scoped_attributes) == 2
+
+        project_and_network_scoped_attributes = client.get_attributes(
+            project_id=network_with_data.project_id,
+            network_id=network_with_data.id)
+
+        #It's 4 because there is one added by default to all new networks and projects, plus the ones we just added
+        assert len(project_and_network_scoped_attributes) == 4
+
+
+        global_and_project_and_network_scoped_attributes = client.get_attributes(
+            project_id=network_with_data.project_id,
+            network_id=network_with_data.id,
+            include_global=True)
+
+        #It's 4 because there is one added by default to all new networks and projects, plus the ones we just added
+        assert len(global_and_project_and_network_scoped_attributes) == len(all_global_attributes) + 4
+
+        #Now get project attributes, and include attributes from all networks within that project
+        global_and_project_and_network_scoped_attributes = client.get_attributes(
+            project_id=network_with_data.project_id,
+            include_global=True,
+            include_network_attributes=True)
+
+        #It's 4 because there is one added by default to all new networks and projects, plus the ones we just added
+        assert len(global_and_project_and_network_scoped_attributes) == len(all_global_attributes) + 4
+
+
+

@@ -158,7 +158,7 @@ def get_attribute_by_name_and_dimension(name, dimension_id=None, network_id=None
                 Attr.project_id == project_id
             )
         )
-        
+
         attr_i = attr_qry.first()
 
         log.debug("Attribute retrieved")
@@ -194,7 +194,7 @@ def search_attributes(name, network_id=None, project_id=None, **kwargs):
 
         for na in net_attrs_i:
             attrs_dict[na.name] = na
-        
+
         #Finally add in all the global attributes which do not have the same
         #name as the scoped attributes. WHy? Becuase we assume that within scoping,
         #names must be unique --- you can't have a 'cost' at different dimensions within a scope,
@@ -206,7 +206,7 @@ def search_attributes(name, network_id=None, project_id=None, **kwargs):
 
         for a in global_attrs_i:
             if a.name not in attrs_dict:
-                attrs_dict[a.name] = JSONObject(a) 
+                attrs_dict[a.name] = JSONObject(a)
 
         return_attrs = []
         #now load the dimension for each attribute.
@@ -525,8 +525,23 @@ def add_attributes(attrs, **kwargs):
     #add a new attribute.
     user_id = kwargs.get('user_id')
 
-    # All existing attributes
-    all_attrs = db.DBSession.query(Attr).all()
+    # All global attributes
+    global_attrs = db.DBSession.query(Attr).filter(and_(Attr.network_id == None, Attr.project_id == None)).all()
+
+    #project-scoped attributes
+    project_attrs = []
+    project_ids = set([a.project_id for a in filter(lambda x:x.project_id is not None, attrs)])
+    if len(project_ids) > 0:
+        project_attrs = db.DBSession.query(Attr).filter(Attr.project_id.in_(project_ids)).all()
+
+    #network scoped attributes
+    network_attrs = []
+    network_ids = set([a.network_id for a in filter(lambda x:x.network_id is not None, attrs)])
+    if len(network_ids) > 0:
+        network_attrs = db.DBSession.query(Attr).filter(Attr.network_id.in_(network_ids)).all()
+
+    all_attrs = global_attrs + project_attrs + network_attrs
+
     attr_dict = {}
     for attr in all_attrs:
         attr_dict[(attr.name.lower(), attr.dimension_id, attr.network_id, attr.project_id)] = JSONObject(attr)
@@ -538,11 +553,22 @@ def add_attributes(attrs, **kwargs):
             # If the attrinute is None we cannot manage it
             log.debug("Adding attribute: %s", potential_new_attr)
             key = (potential_new_attr.name.lower(), potential_new_attr.dimension_id, potential_new_attr.network_id, potential_new_attr.project_id)
+            projkey = (potential_new_attr.name.lower(), potential_new_attr.dimension_id, None, potential_new_attr.project_id)
+            globalkey = (potential_new_attr.name.lower(), potential_new_attr.dimension_id, None, None)
 
-            if attr_dict.get(key) is None:
-                attrs_to_add.append(JSONObject(potential_new_attr))
-            else:
+            #look for the attribute first at the network level
+            if attr_dict.get(key) is not None:
                 existing_attrs.append(attr_dict.get(key))
+                #try at a higher level...
+                #then at project level
+            elif attr_dict.get(projkey) is not None:
+                existing_attrs.append(attr_dict.get(projkey))
+            #then at the global level
+            elif attr_dict.get(globalkey) is not None:
+                existing_attrs.append(attr_dict.get(globalkey))
+            else:
+                attrs_to_add.append(JSONObject(potential_new_attr))
+
     new_attrs = []
     for attr in attrs_to_add:
         new_attr_i = _add_attribute(attr, flush=True, user_id=user_id)
@@ -586,12 +612,12 @@ def get_attributes(network_id=None, project_id=None, include_global=False, inclu
     project_scoped_attributes = []
     network_scoped_attributes = []
 
-    
+
     #Now get all project attributes
     if project_id is not None:
         project = db.DBSession.query(Project).filter(Project.id==project_id).one()
         project_scoped_attributes = project.get_scoped_attributes(include_hierarchy=include_hierarchy)
-        
+
         if network_id is None and include_network_attributes is True:
             nets = db.DBSession.query(Network).filter(Network.project_id==project_id).all()
             netlookup = {n.id:n for n in nets}
