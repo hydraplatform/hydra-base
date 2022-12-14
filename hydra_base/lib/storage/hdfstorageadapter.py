@@ -291,9 +291,6 @@ class HdfStorageAdapter():
         log.info(f"Retrieved {destfile} ({file_sz} bytes)")
         return destfile, file_sz
 
-    """
-      pandas_type == "frame_table" support
-    """
 
     def identify_group_format(self, url, groupname):
         hf = self.open_hdf_url(url)
@@ -311,9 +308,91 @@ class HdfStorageAdapter():
 
 
 class FrameGroupReader():
-    pass
+    """
+      pandas_type == "frame"
+    """
+    def __init__(self, hf, groupname):
+        self.hf = hf
+        try:
+            self.group = hf[groupname]
+        except KeyError as ke:
+            raise ValueError(f"Error: file {hf.filename} contains no group {groupname}") from ke
+
+    def get_columns_of_group(self):
+        try:
+            columns_raw = [*self.group["axis0"]]
+        except KeyError as ke:
+            raise ValueError(f"Error: {self.group.name} has invalid format") from ke
+        return [col.decode() for col in columns_raw]
+
+    def get_columns_by_block(self):
+        try:
+            nblocks = self.group.attrs["nblocks"]
+        except KeyError as ke:
+            raise KeyError(f"Error: group {self.group.name} contains no blocks") from ke
+        blocks_columns = []
+        for block_idx in range(nblocks):
+            columns_raw = [*self.group[f"block{block_idx}_items"]]
+            blocks_columns.append([col.decode() for col in columns_raw])
+        return blocks_columns
+
+    def make_column_map_of_group(self, blocks):
+        group_cols = self.get_columns_of_group()
+        return [column_to_block_coord(column, blocks) for column in group_cols]
+
+    def get_series_by_column_names(self, column_names, start=None, end=None):
+        columns = self.get_columns_of_group()
+        block_columns = self.get_columns_by_block()
+
+        column_map = self.make_column_map_of_group(block_columns)
+        named_map = {cname: cmap for cname, cmap in zip(columns, column_map)}
+
+        start = start or 0
+        end = end or len(table)
+        column_series = {}
+        for column_name in column_names:
+            block_idx, col_idx = named_map[column_name]
+            block_values_name = f"block{block_idx}_values"
+            block_values = self.group[block_values_name]
+            section = np.array([row[col_idx] for row in block_values[start:end]])
+            column_series[column_name] = section
+
+        return column_series
+
+    def find_index_axis_index(self):
+        for ent in self.group:
+            try:
+                index_class = self.group[ent].attrs["index_class"]
+                return ent
+            except KeyError:
+                continue
+
+        raise ValueError(f"Group {self.group.name} of pandas_type "
+                          "'frame' contains no index axis")
+
+    def get_index_range(self, start=None, end=None):
+        start = start or 0
+        end = end or len(table)
+
+        index_axis = self.find_index_axis_index()
+        index = self.group[index_axis]
+        return [nscale(row) for row in index[start:end]]
+
+    def get_columns_as_dataframe(self, columns, start=None, end=None):
+        index_range = self.get_index_range(start, end)
+        column_series = self.get_series_by_column_names(columns, start, end)
+        return make_pandas_dataframe(index_range, column_series)
+
+    def get_group_shape(self):
+        row_sz = len(self.group["axis1"])
+        col_sz = len(self.get_columns_of_group())
+        return (row_sz, col_sz)
+
 
 class FrameTableGroupReader():
+    """
+      pandas_type == "frame_table"
+    """
     def __init__(self, hf, groupname):
         self.hf = hf
         try:
@@ -388,9 +467,8 @@ class FrameTableGroupReader():
     def get_series_by_column_names(self, column_names, start=None, end=None):
         columns = self.get_columns_of_group()
         block_columns = self.get_columns_by_block()
-        attr_columns = [{"columns": block} for block in block_columns]
 
-        column_map = self.make_column_map_of_group(attr_columns)
+        column_map = self.make_column_map_of_group(block_columns)
         named_map = {cname: cmap for cname, cmap in zip(columns, column_map)}
 
         first_value_block_idx = self.get_values_start_block_index()
@@ -442,7 +520,7 @@ def trim_x_first_y_rest(x, y, names):
 def column_to_block_coord(column, blocks):
     for block_idx, block in enumerate(blocks):
         try:
-            col_idx = block["columns"].index(column)
+            col_idx = block.index(column)
         except ValueError:
             continue
         return (block_idx, col_idx)
@@ -465,17 +543,20 @@ if HdfStorageAdapter.get_hdf_config().get("disable_hdf"):
 
 if __name__ == "__main__":
     filepath = "grid_data.h5"
-    groupname = "central_south_essex_results"
-    #groupname = "ESW_Essex_results"
+    #groupname = "central_south_essex_results"
+    groupname = "ESW_Essex_results"
     #groupname = "daily_profiles"
     hsa = HdfStorageAdapter()
 
     pt = hsa.identify_group_format(filepath, groupname)
+    hf = hsa.open_hdf_url(filepath)
     if pt == "frame_table":
-        hf = hsa.open_hdf_url(filepath)
         reader = FrameTableGroupReader(hf, groupname)
         gc = reader.get_columns_of_group()
         df = reader.get_columns_as_dataframe(gc[:4], start=2, end=10)
     elif pt == "frame":
-        pass
+        reader = FrameGroupReader(hf, groupname)
+        gc = reader.get_columns_of_group()
+        df = reader.get_columns_as_dataframe(gc[:4], start=2, end=10)
+    s = reader.get_group_shape()
     breakpoint()
