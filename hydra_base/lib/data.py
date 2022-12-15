@@ -1117,7 +1117,7 @@ def get_hdf_dataset_info(url, dataset_name, **kwargs):
     hdf = HdfStorageAdapter()
     return hdf.get_dataset_info_url(url, dataset_name)
 
-def get_hdf_dataframe(url, dataset_name, start, end, **kwargs):
+def get_columns_as_dataframe(url, groupname, columns, start, end, **kwargs):
     """
       Returns the rows from <start> to <end> of <dataset_name> in
       the hdf file <url> as the json representation of a Pandas
@@ -1126,7 +1126,7 @@ def get_hdf_dataframe(url, dataset_name, start, end, **kwargs):
       Raises ValueError on bad url, dataset name or bounds
     """
     hdf = HdfStorageAdapter()
-    return hdf.hdf_dataset_to_pandas_dataframe(url, dataset_name, start, end, **kwargs)
+    return hdf.get_columns_as_dataframe(url, groupname, columns, start, end)
 
 def resolve_url_to_path(url, **kwargs):
     """

@@ -113,16 +113,21 @@ class HdfStorageAdapter():
         except (ValueError, FileNotFoundError, PermissionError):
             return False
 
-    #@filestore_url("filepath")
-    #def get_dataset_info_file(self, filepath, dsname, **kwargs):
     @filestore_url("url")
-    def get_group_info_file(self, url, group, **kwargs):
+    def get_group_info(self, url, groupname, **kwargs):
         """
-          Todo rewrite with no pandas.read_hdf
+          Returns a dict containing two keys:
+            - index: a dict of 'name', 'length', 'dtype' for
+                     the index of the <group> arg
+            - series: an array of dicts, each containing 'name',
+                      'length', 'dtype' for each column of the
+                      <group> arg
         """
-        df = pd.read_hdf(filepath)
-        series = df[dsname]
-        index = df.index
+        reader = self.make_group_reader(url, groupname)
+        columns = reader.get_columns_of_group()
+
+        index_info = reader.get_index_info()
+
         info = {
           "index":  {"name": index.name,
                      "length": len(index),
@@ -136,10 +141,9 @@ class HdfStorageAdapter():
         return info
 
     @filestore_url("url")
-    def size(self, url, **kwargs):
+    def file_size(self, url, **kwargs):
         with fsspec.open(url, mode='rb', anon=True, default_fill_cache=False) as fp:
             size_bytes = fp.fs.size(fp.path)
-
         return size_bytes
 
     @filestore_url("url")
@@ -148,15 +152,21 @@ class HdfStorageAdapter():
         return [*h5f.keys()]
 
     @filestore_url("url")
-    def get_group_columns(self, url, groupname, **kwargs):
-        h5f = self.open_hdf_url(url)
-        try:
-            group = h5f[groupname]
-        except KeyError as ke:
-            raise ValueError(f"Data source {url} does not contain specified group: {groupname}") from ke
-        # todo
+    def get_group_columns(self, url, groupname):
+        reader = self.make_group_reader(url, groupname)
+        return reader.get_columns_of_group()
 
-    def hdf_get_columns_as_dataframe(self, url, groupname=None, columns=None, start, end, **kwargs):
+    @filestore_url("url")
+    def get_group_index(self, url, groupname):
+        reader = self.make_group_reader(url, groupname)
+        return reader.get_index_range(start=0, end=None)
+
+    @filestore_url("url")
+    def get_group_shape(self, url, groupname):
+        reader = self.make_group_reader(url, groupname)
+        return reader.get_group_shape()
+
+    def get_columns_as_dataframe(self, url, groupname=None, columns=None, start=None, end=None, **kwargs):
         json_opts = {"date_format": "iso"}
         hf = self.open_hdf_url(url)
 
@@ -165,15 +175,11 @@ class HdfStorageAdapter():
                 groupname = [*hf.keys()][0]
             except IndexError as ie:
                 raise ValueError(f"Data source {url} contains no groups") from ie
-        try:
-            group = hf[groupname]
-        except KeyError as ke:
-            raise ValueError(f"Data source {url} does not contain specified group: {groupname}") from ke
 
+        reader = self.make_group_reader(url, groupname)
         if not columns:
             columns = reader.get_columns_of_group()
 
-        reader = self.make_reader(url, groupname)
         df = reader.get_columns_as_dataframe(columns, start=start, end=end)
 
         return df.to_json(**json_opts)
@@ -227,7 +233,7 @@ class HdfStorageAdapter():
         log.info(f"Retrieved {destfile} ({file_sz} bytes)")
         return destfile, file_sz
 
-    def make_reader(self, url, groupname):
+    def make_group_reader(self, url, groupname):
         Reader = self.get_group_reader(url, groupname)
         hf = self.open_hdf_url(url)
 

@@ -109,7 +109,7 @@ class TestHdf():
         }
         for dataset_name, ranges in expected.items():
             for bounds, data in ranges.items():
-                df_json = hdf.hdf_dataset_to_pandas_dataframe(aws_file["path"], dataset_name, *bounds)
+                df_json = hdf.get_columns_as_dataframe(aws_file["path"], dataset_name, *bounds)
                 df = pd.read_json(df_json)
                 for ts, val in data.items():
                     assert np.isclose(df[dataset_name][ts], val)
@@ -163,7 +163,7 @@ class TestHdf():
         }
         for dataset_name, ranges in expected.items():
             for bounds, series in ranges.items():
-                df_json = data.get_hdf_dataframe(aws_file["path"], dataset_name, *bounds)
+                df_json = data.get_columns_as_dataframe(aws_file["path"], groupname=None, columns=[dataset_name], start=bounds[0], end=bounds[1])
                 df = pd.read_json(df_json)
                 for ts, val in series.items():
                     assert np.isclose(df[dataset_name][ts], val)

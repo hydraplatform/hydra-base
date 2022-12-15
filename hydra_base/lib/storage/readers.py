@@ -47,10 +47,10 @@ class FrameGroupReader():
         column_map = self.make_column_map_of_group(block_columns)
         named_map = {cname: cmap for cname, cmap in zip(columns, column_map)}
 
-        _, col_sz = self.get_group_shape()
+        row_sz, _ = self.get_group_shape()
 
         start = start or 0
-        end = end or col_sz
+        end = end or row_sz
         column_series = {}
         for column_name in column_names:
             block_idx, col_idx = named_map[column_name]
@@ -85,9 +85,45 @@ class FrameGroupReader():
         return make_pandas_dataframe(index_range, column_series)
 
     def get_group_shape(self):
-        row_sz = len(self.group["axis1"])
+        index_axis = self.find_index_axis_index()
+        row_sz = len(self.group[index_axis])
         col_sz = len(self.get_columns_of_group())
         return (row_sz, col_sz)
+
+    def get_index_info(self):
+        index_axis = self.find_index_axis_index()
+        index = self.group[index_axis]
+        try:
+            dtype = index.attrs["kind"]
+        except KeyError as ke:
+            dtype = None
+        try:
+            name = index.attrs["name"]
+        except KeyError as ke:
+            name = ""
+
+        return {
+            "name": name,
+            "length": len(index),
+            "dtype": dtype
+        }
+
+    def get_series_info(self, column_name):
+        columns = self.get_columns_of_group()
+        block_columns = self.get_columns_by_block()
+
+        column_map = self.make_column_map_of_group(block_columns)
+        named_map = {cname: cmap for cname, cmap in zip(columns, column_map)}
+
+        block_idx, col_idx = named_map[column_name]
+        block_values_name = f"block{block_idx}_values"
+        block_values = self.group[block_values_name]
+
+        return {
+            "name": column_name,
+            "length": block_values.shape[0],
+            "dtype": str(block_values.dtype)
+        }
 
 
 class FrameTableGroupReader():
@@ -203,6 +239,34 @@ class FrameTableGroupReader():
         col_sz = len(self.get_columns_of_group())
         return (row_sz, col_sz)
 
+    def get_index_info(self):
+        index_idx = self.get_index_column_index()
+        index_name = self.table.attrs[f"FIELD_{index_idx}_NAME"].decode()
+        index_kind = self.table.attrs[f"{index_name}_kind"].decode()
+        index_rows = self.table.attrs["NROWS"]
+
+        return {
+            "name": index_name,
+            "length": index_rows,
+            "dtype": index_kind
+        }
+
+    def get_series_info(self, column_name):
+        columns = self.get_columns_of_group()
+        block_columns = self.get_columns_by_block()
+
+        column_map = self.make_column_map_of_group(block_columns)
+        named_map = {cname: cmap for cname, cmap in zip(columns, column_map)}
+
+        block_idx, col_idx = named_map[column_name]
+        dtype = self.table.attrs[f"values_block_{block_idx}_dtype"]
+
+        return {
+            "name": column_name,
+            "length": len(self.table),
+            "dtype": dtype.decode()
+        }
+
 
 """
   Auxiliary Functions
@@ -232,3 +296,31 @@ def make_pandas_dataframe(index, series):
         {name: values for name, values in series.items()},
         index=pd.DatetimeIndex(index)
     )
+
+
+if __name__ == "__main__":
+    from hydra_base.lib.storage import HdfStorageAdapter
+    filepath = "grid_data.h5"
+    groupname = "central_south_essex_results"
+    #groupname = "ESW_Essex_results"
+    #groupname = "daily_profiles"
+    hsa = HdfStorageAdapter()
+
+    pt = hsa.identify_group_format(filepath, groupname)
+    hf = hsa.open_hdf_url(filepath)
+    if pt == "frame_table":
+        reader = FrameTableGroupReader(hf, groupname)
+        gc = reader.get_columns_of_group()
+        df = reader.get_columns_as_dataframe(gc[:4], start=2, end=10)
+        ii = reader.get_index_info()
+        si = reader.get_series_info(gc[0])
+        sia = [ reader.get_series_info(c) for c in gc ]
+        breakpoint()
+    elif pt == "frame":
+        reader = FrameGroupReader(hf, groupname)
+        gc = reader.get_columns_of_group()
+        df = reader.get_columns_as_dataframe(gc[:4], start=2, end=10)
+        s = reader.get_group_shape()
+        si = reader.get_series_info("Alton LoS 1")
+        sia = [ reader.get_series_info(c) for c in gc ]
+    breakpoint()
