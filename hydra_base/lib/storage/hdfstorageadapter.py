@@ -2,23 +2,16 @@ import fsspec
 import h5py
 import inspect
 import logging
-import numpy as np
 import os
-import pandas as pd
 import s3fs
 
 from botocore.exceptions import ClientError
-from datetime import datetime
 from urllib.parse import urlparse
 from functools import wraps
 
 from hydra_base import config
 from hydra_base.util import NullAdapter
-
-from hydra_base.lib.storage.readers import (
-    FrameGroupReader,
-    FrameTableGroupReader
-)
+from hydra_base.lib.storage.readers import group_reader_map
 
 log = logging.getLogger(__name__)
 
@@ -59,11 +52,6 @@ class HdfStorageAdapter():
        Utilities to describe and retrieve data from HDF storage
     """
 
-    group_readers = {
-        "frame": FrameGroupReader,
-        "frame_table": FrameTableGroupReader
-    }
-
     def __init__(self):
         self.config = self.__class__.get_hdf_config()
         self.filestore_path = self.config.get("hdf_filestore")
@@ -86,7 +74,7 @@ class HdfStorageAdapter():
     @filestore_url("url")
     def open_hdf_url(self, url, **kwargs):
         try:
-            with fsspec.open(url, mode='rb', anon=True, default_fill_cache=False) as fp:
+            with fsspec.open(url, mode='rb', anon=True, default_fill_cache=True) as fp:
                 return h5py.File(fp.fs.open(url), mode='r')
         except (ClientError, FileNotFoundError, PermissionError) as e:
             raise ValueError(f"Unable to access url: {url}") from e
@@ -114,7 +102,7 @@ class HdfStorageAdapter():
             return False
 
     @filestore_url("url")
-    def get_group_info(self, url, groupname, **kwargs):
+    def get_group_info(self, url, groupname):
         """
           Returns a dict containing two keys:
             - index: a dict of 'name', 'length', 'dtype' for
@@ -124,21 +112,35 @@ class HdfStorageAdapter():
                       <group> arg
         """
         reader = self.make_group_reader(url, groupname)
-        columns = reader.get_columns_of_group()
-
         index_info = reader.get_index_info()
+        columns = reader.get_columns_of_group()
+        series_info = [reader.get_series_info(c) for c in columns]
 
-        info = {
-          "index":  {"name": index.name,
-                     "length": len(index),
-                     "dtype": str(index.dtype)
-                    },
-          "series": {"name": series.name,
-                     "length": len(series),
-                     "dtype": str(series.dtype)
-                    }
+        return {
+          "index": index_info,
+          "series": series_info
         }
-        return info
+
+    @filestore_url("url")
+    def get_index_info(self, url, groupname):
+        reader = self.make_group_reader(url, groupname)
+        return reader.get_index_info()
+
+    @filestore_url("url")
+    def get_series_info(self, url, groupname=None, columns=None):
+        reader = self.make_group_reader(url, groupname)
+        if isinstance(columns, str):
+            """
+              Assume any str arg represents a single column
+              name which should have been passed as a single-
+              element Sequence, *unless that string is empty*
+              in which case it is equivalent to an empty
+              container and represents *all* columns
+            """
+            columns = (columns,) if len(columns) > 0 else None
+        if not columns:
+            columns = reader.get_columns_of_group()
+        return [reader.get_series_info(c) for c in columns]
 
     @filestore_url("url")
     def file_size(self, url, **kwargs):
@@ -168,32 +170,23 @@ class HdfStorageAdapter():
 
     def get_columns_as_dataframe(self, url, groupname=None, columns=None, start=None, end=None, **kwargs):
         json_opts = {"date_format": "iso"}
-        hf = self.open_hdf_url(url)
-
-        if not groupname:
-            try:
-                groupname = [*hf.keys()][0]
-            except IndexError as ie:
-                raise ValueError(f"Data source {url} contains no groups") from ie
 
         reader = self.make_group_reader(url, groupname)
+        if isinstance(columns, str):
+            """
+              Assume any str arg represents a single column
+              name which should have been passed as a single-
+              element Sequence, *unless that string is empty*
+              in which case it is equivalent to an empty
+              container and represents *all* columns
+            """
+            columns = (columns,) if len(columns) > 0 else None
         if not columns:
             columns = reader.get_columns_of_group()
 
         df = reader.get_columns_as_dataframe(columns, start=start, end=end)
 
         return df.to_json(**json_opts)
-
-    def get_dataset_info_url(self, url, dsname, **kwargs):
-        """
-          Todo: preserve return
-        """
-
-        return {
-            "name": dsname,
-            "size": val_rows,
-            "dtype": str(val_ds.dtype)
-        }
 
     def equivalent_local_path(self, url, **kwargs):
         u = urlparse(url)
@@ -208,10 +201,6 @@ class HdfStorageAdapter():
             destdir = filedir
         return destdir, os.path.basename(filesrc)
 
-    """
-      Make this explicitly callable to force file
-      to local cache at user's discretion
-    """
     def retrieve_s3_file(self, url, **kwargs):
         u = urlparse(url)
         if not u.scheme == "s3":
@@ -234,15 +223,20 @@ class HdfStorageAdapter():
         return destfile, file_sz
 
     def make_group_reader(self, url, groupname):
-        Reader = self.get_group_reader(url, groupname)
         hf = self.open_hdf_url(url)
-
+        if not groupname:
+            # Use first group in file
+            try:
+                groupname = [*hf.keys()][0]
+            except IndexError as ie:
+                raise ValueError(f"Data source {url} contains no groups") from ie
+        Reader = self.get_group_reader(url, groupname)
         return Reader(hf, groupname)
 
     def get_group_reader(self, url, groupname):
         group_type = self.identify_group_format(url, groupname)
         try:
-            Reader = self.__class__.group_readers[group_type]
+            Reader = group_reader_map[group_type]
         except KeyError:
             # Not-None group_type was returned, but we don't have a reader for it
             raise ValueError(f"Error: No reader available for group of type {group_type}")
@@ -270,24 +264,3 @@ class HdfStorageAdapter():
 """
 if HdfStorageAdapter.get_hdf_config().get("disable_hdf"):
     HdfStorageAdapter = NullAdapter
-
-
-if __name__ == "__main__":
-    filepath = "grid_data.h5"
-    #groupname = "central_south_essex_results"
-    groupname = "ESW_Essex_results"
-    #groupname = "daily_profiles"
-    hsa = HdfStorageAdapter()
-
-    pt = hsa.identify_group_format(filepath, groupname)
-    hf = hsa.open_hdf_url(filepath)
-    if pt == "frame_table":
-        reader = FrameTableGroupReader(hf, groupname)
-        gc = reader.get_columns_of_group()
-        df = reader.get_columns_as_dataframe(gc[:4], start=2, end=10)
-    elif pt == "frame":
-        reader = FrameGroupReader(hf, groupname)
-        gc = reader.get_columns_of_group()
-        df = reader.get_columns_as_dataframe(gc[:4], start=2, end=10)
-    s = reader.get_group_shape()
-    breakpoint()

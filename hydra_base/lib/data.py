@@ -1096,33 +1096,58 @@ def delete_dataset(dataset_id,**kwargs):
 def read_json(json_string):
     pd.read_json(json_string)
 
-def get_hdf_filesize(url, **kwargs):
+def get_hdf_file_size(url, **kwargs):
     """
       Returns the size in bytes of the hdf file <url> argument
       Raises ValueError on bad url
     """
     hdf = HdfStorageAdapter()
-    return hdf.size(url)
+    return hdf.file_size(url)
 
-def get_hdf_dataset_info(url, dataset_name, **kwargs):
+def get_hdf_series_info(url, groupname=None, columns=None, **kwargs):
     """
-      Returns information about the <dataset_name> argument:
-      {
-        "name": str: Name of the dataset,
-        "size": int: Number of rows in dataset series,
-        "dtype": str: The numpy.dtype of the dataset
-      }
-      Raises ValueError on bad url or dataset name
+      Returns information about the series contained in the
+      <columns> argument in the specified <groupname>
+
+      Returns an object containing two keys:
+        - index: an object of 'name', 'length', 'dtype' for
+                 the index of the <group> arg
+        - series: an array of objects, each containing 'name',
+                  'length', 'dtype' for each column of the
+                  <group> arg
+
+      If <columns> is None or is an empty container (including a
+      zero-length string), info on *all* series in the group
+      <groupname> will be returned.
+
+      If <columns> is a non-empty string, it is considered to
+      represent a single column name.
+
+      Raises ValueError on bad arguments.
     """
     hdf = HdfStorageAdapter()
-    return hdf.get_dataset_info_url(url, dataset_name)
+    return hdf.get_series_info(url, groupname, columns)
 
-def get_columns_as_dataframe(url, groupname, columns, start, end, **kwargs):
+def get_hdf_index_info(url, groupname, **kwargs):
+    hdf = HdfStorageAdapter()
+    return hdf.get_index_info(url, groupname)
+
+def get_hdf_group_info(url, groupname=None, **kwargs):
+    hdf = HdfStorageAdapter()
+    return hdf.get_group_info(url, groupname)
+
+def get_hdf_columns_as_dataframe(url, columns, groupname=None, start=None, end=None, **kwargs):
     """
-      Returns the rows from <start> to <end> of <dataset_name> in
-      the hdf file <url> as the json representation of a Pandas
-      DataFrame. This may then be read directly in a client with
-      pandas.read_json().
+      Returns the rows from <start> to <end> of series specified in
+      columns=["col1", "col2", "col3, ...] in the hdf file <url> as
+      the json representation of a Pandas DataFrame. This may then
+      be read directly in a client with pandas.read_json().
+
+      Keyword arguments:
+        <groupname> if absent assume file contains a single group
+        <start> start group row, 0 if absent
+        <end> end group row, len(groupdata) if absent
+
       Raises ValueError on bad url, dataset name or bounds
     """
     hdf = HdfStorageAdapter()
@@ -1152,12 +1177,12 @@ def get_hdf_group_as_dataframe(url, **kwargs):
       single dataframe.
       Timeseries indices are represented in iso8601 format
       Keyword arguments:
-        <groupname> if absent assume file contains a single dataset
-        <series> if present returns only the matching column of the
-                 datasset
+        <groupname> if absent assume file contains a single group
+        <start> start group row, 0 if absent
+        <end> end group row, len(groupdata) if absent
     """
     hdf = HdfStorageAdapter()
-    return hdf.hdf_group_to_pandas_dataframe(url, **kwargs)
+    return hdf.get_columns_as_dataframe(url, columns=None, **kwargs)
 
 def get_hdf_groups(url, **kwargs):
     """
@@ -1175,3 +1200,14 @@ def get_hdf_group_columns(url, groupname, **kwargs):
     """
     hdf = HdfStorageAdapter()
     return hdf.get_group_columns(url, groupname)
+
+def retrieve_s3_file_to_local_storage(url, **kwargs):
+    """
+      Forces retrieval of the s3 file at <url> to Hydra's
+      local filesystem.
+      Future references to the original url may then be
+      replaced with the <file_path> location returned
+    """
+    hdf = HdfStorageAdapter()
+    file_path, file_size = hdf.retrieve_s3_file(url)
+    return file_path, file_size
