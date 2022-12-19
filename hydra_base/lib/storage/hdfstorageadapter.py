@@ -222,6 +222,67 @@ class HdfStorageAdapter():
         log.info(f"Retrieved {destfile} ({file_sz} bytes)")
         return destfile, file_sz
 
+    def list_local_files(self):
+        import glob
+        files = {}
+        pattern = os.path.join(self.filestore_path, "**")
+        for p in glob.iglob(pattern, recursive=True):
+            if not os.path.isfile(p):
+                continue
+            files[p] = os.stat(p).st_size
+        return files
+
+    def purge_local_file(self, filename):
+        """
+          This prevents directory traversal by:
+            - relative path components
+            - ~user path components
+            - $ENV_VAR components
+            - paths containing hard or symbolic links
+
+          A valid target file must be all of:
+            - a real absolute filesystem path
+            - a subtree of the filestore
+            - not a directory
+            - not a link
+            - not a device file or pipe
+            - owned by the Hydra user
+
+          In addition, the filestore_path may not be:
+            - undefined
+            - the root filesystem
+            - the root of any mount point
+          ValueError is raised if any of these conditions
+          are not met.
+        """
+        real_fsp = os.path.realpath(self.filestore_path)
+        if not self.filestore_path or real_fsp == '/' or os.path.ismount(real_fsp):
+            raise ValueError(f"Invalid filestore configuration value '{self.filestore_path}'")
+
+        expanded = os.path.expandvars(filename)
+        if expanded != filename:
+            raise ValueError(f"Invalid path '{filename}': Arguments may not contain variables")
+        target = os.path.realpath(expanded)
+        if os.path.commonprefix([target, self.filestore_path]) != self.filestore_path:
+            raise ValueError(f"Invalid path '{filename}': Only filestore files may be purged")
+
+        if not os.path.exists(target):
+            raise ValueError(f"Invalid path '{filename}': File does not exist")
+
+        # Tests for directories, device files and pipes, and existence again
+        if not os.path.isfile(target):
+            raise ValueError(f"Invalid path '{filename}': Only regular files may be purged")
+
+        if os.getuid() != os.stat(target).st_uid:
+            raise ValueError(f"Invalid path '{filename}': File is not owned by "
+                             f"user {os.getlogin()} ({os.getuid()})")
+        try:
+            os.unlink(target)
+        except OSError:
+            raise ValueError(f"Invalid path '{filename}': Unable to purge file")
+
+        return target
+
     def make_group_reader(self, url, groupname):
         hf = self.open_hdf_url(url)
         if not groupname:
@@ -239,7 +300,7 @@ class HdfStorageAdapter():
             Reader = group_reader_map[group_type]
         except KeyError:
             # Not-None group_type was returned, but we don't have a reader for it
-            raise ValueError(f"Error: No reader available for group of type {group_type}")
+            raise ValueError(f"No reader available for group of type {group_type}")
 
         return Reader
 
@@ -248,12 +309,12 @@ class HdfStorageAdapter():
         try:
             group = hf[groupname]
         except KeyError as ke:
-            raise ValueError(f"Error: file at {url} contains no group {groupname}") from ke
+            raise ValueError(f"File at {url} contains no group {groupname}") from ke
 
         try:
             pandas_type = group.attrs["pandas_type"]
         except KeyError as ke:
-            raise ValueError(f"Error: file at {url} has invalid format") from ke
+            raise ValueError(f"File at {url} has invalid format") from ke
 
         return pandas_type.decode()
 

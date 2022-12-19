@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import pandas as pd
 import pytest
 
@@ -43,6 +44,20 @@ def multigroup_file():
 @pytest.fixture(params=["s3://modelers-data-bucket/does_not_exist.h5", "does_not_exist"])
 def bad_url(request):
     return request.param
+
+@pytest.fixture
+def symlink_path(hdf):
+    symlink = os.path.join(hdf.filestore_path, "symlink.txt")
+    os.symlink("/dev/shm/somefile.txt", symlink)
+    yield symlink
+    os.unlink(symlink)
+
+bad_paths = {
+    "relative_component": "../../dev/shm/somefile.txt",
+    "variable_component": "$HOME/somefile.txt",
+    "user_component": "~/somefile.txt",
+    "device_file": "/dev/null"
+}
 
 
 class TestHdf():
@@ -290,3 +305,23 @@ class TestHdf():
         assert len(columns) == 109
         assert columns[2] == 'Qraire Vagnxr.Fhccyl.Nzbhag'
         assert 'Unaavatsvryq Erfreibve.Fgbentr.Pnyphyngrq (%)' in columns
+
+    @pytest.mark.requires_hdf
+    @pytest.mark.parametrize("pathname, path", {**bad_paths, **{"symlink_path": symlink_path}}.items())
+    def test_purge_file(self, hdf, pathname, path, request):
+        """
+          This tests the operation of HdfStorageAdapter.purge_local_file()
+          This is an inherently dangerous function which allows a file specified
+          as an argument to be deleted from the local filesystem.
+          The precautions taken against abuse of this are described in the function's
+          docstring.
+          Success in these tests occurs when an exception is raised as a result of a
+          invalid argument.
+        """
+        fsp = hdf.filestore_path
+        try:
+            path = request.getfixturevalue(pathname)
+        except:
+            pass
+        with pytest.raises(ValueError):
+            hdf.purge_local_file(os.path.join(fsp, path))
