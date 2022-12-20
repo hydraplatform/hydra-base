@@ -41,6 +41,7 @@ from ..db.model import Dataset, Metadata, DatasetOwner, DatasetCollection,\
 from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
 from ..util import generate_data_hash
 from ..util.hydra_dateutil import get_datetime
+from ..util.permissions import required_role
 
 from hydra_base.lib.storage import (
     MongoStorageAdapter,
@@ -1174,8 +1175,7 @@ def file_exists_at_url(url, **kwargs):
 def get_hdf_group_as_dataframe(url, **kwargs):
     """
       Return the entire table of series within an HDF group as a
-      single dataframe.
-      Timeseries indices are represented in iso8601 format
+      single dataframe.  Timeseries indices are represented in iso8601 format
       Keyword arguments:
         <groupname> if absent assume file contains a single group
         <start> start group row, 0 if absent
@@ -1201,6 +1201,7 @@ def get_hdf_group_columns(url, groupname, **kwargs):
     hdf = HdfStorageAdapter()
     return hdf.get_group_columns(url, groupname)
 
+@required_role("admin")
 def retrieve_s3_file_to_local_storage(url, **kwargs):
     """
       Forces retrieval of the s3 file at <url> to Hydra's
@@ -1211,3 +1212,23 @@ def retrieve_s3_file_to_local_storage(url, **kwargs):
     hdf = HdfStorageAdapter()
     file_path, file_size = hdf.retrieve_s3_file(url)
     return file_path, file_size
+
+@required_role("admin")
+def list_local_files(**kwargs):
+    """
+      Returns an object of filename: file_size mappings
+      describing files in the HDF filestore
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.list_local_files()
+
+@required_role("admin")
+def purge_local_file(filename, **kwargs):
+    """
+      Removes a file from the HDF filestore.
+      Returns the path of the deleted filename on
+      success.
+      Raises ValueError on failure.
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.purge_local_file(filename)

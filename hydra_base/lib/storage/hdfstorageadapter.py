@@ -252,6 +252,7 @@ class HdfStorageAdapter():
             - undefined
             - the root filesystem
             - the root of any mount point
+
           ValueError is raised if any of these conditions
           are not met.
         """
@@ -278,8 +279,8 @@ class HdfStorageAdapter():
                              f"user {os.getlogin()} ({os.getuid()})")
         try:
             os.unlink(target)
-        except OSError:
-            raise ValueError(f"Invalid path '{filename}': Unable to purge file")
+        except OSError as oe:
+            raise ValueError(f"Invalid path '{filename}': Unable to purge file") from oe
 
         return target
 
