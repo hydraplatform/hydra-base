@@ -127,6 +127,11 @@ class HdfStorageAdapter():
         return reader.get_index_info()
 
     @filestore_url("url")
+    def get_index_range(self, url, groupname, start=0, end=None):
+        reader = self.make_group_reader(url, groupname)
+        return reader.get_index_range(start, end)
+
+    @filestore_url("url")
     def get_series_info(self, url, groupname=None, columns=None):
         reader = self.make_group_reader(url, groupname)
         if isinstance(columns, str):

@@ -326,3 +326,28 @@ class TestHdf():
             pass
         with pytest.raises(ValueError):
             client.purge_local_file(os.path.join(fsp, path))
+
+    @pytest.mark.requires_hdf
+    @pytest.mark.parametrize("file, file_info", [("aws_file", aws_file), ("multigroup_file", multigroup_file)])
+    def test_index_info(self, client, file, file_info, request):
+        try:
+            file_info = request.getfixturevalue(file)
+        except:
+            pass
+        groups = client.get_hdf_groups(file_info["path"])
+        ii = client.get_hdf_index_info(file_info["path"], groupname=groups[0])
+        for key in ("name", "length", "dtype"):
+            assert key in ii
+        assert isinstance(ii, dict)
+
+    @pytest.mark.requires_hdf
+    @pytest.mark.parametrize("file, file_info", [("aws_file", aws_file), ("multigroup_file", multigroup_file)])
+    def test_index_range(self, client, file, file_info, request):
+        try:
+            file_info = request.getfixturevalue(file)
+        except:
+            pass
+        groups = client.get_hdf_groups(file_info["path"])
+        ir = client.get_hdf_index_range(file_info["path"], groupname=groups[0], start=2, end=8)
+        assert len(ir) > 0
+        assert isinstance(ir[0], str)

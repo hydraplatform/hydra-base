@@ -1130,10 +1130,31 @@ def get_hdf_series_info(url, groupname=None, columns=None, **kwargs):
     return hdf.get_series_info(url, groupname, columns)
 
 def get_hdf_index_info(url, groupname, **kwargs):
+    """
+      Returns an object with keys...
+        {name: str, length: int, dtype: str}
+      ...which describes the index of the <groupname> argument.
+    """
     hdf = HdfStorageAdapter()
     return hdf.get_index_info(url, groupname)
 
+def get_hdf_index_range(url, groupname, start=0, end=None, **kwargs):
+    """
+      Returns index entries in the range [start,end) of the <groupname>
+      argument.
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.get_index_range(url, groupname, start, end)
+
 def get_hdf_group_info(url, groupname=None, **kwargs):
+    """
+      Returns an object containing two keys:
+        - index: an object of 'name', 'length', 'dtype' for
+                 the index of the <group> arg
+        - series: an array of objects, each containing 'name',
+                  'length', 'dtype' for each column of the
+                  <group> arg
+    """
     hdf = HdfStorageAdapter()
     return hdf.get_group_info(url, groupname)
 

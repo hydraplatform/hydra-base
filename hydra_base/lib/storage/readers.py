@@ -133,11 +133,20 @@ class FrameGroupReader(GroupReader):
     def get_index_range(self, start=None, end=None):
         index_axis = self.find_index_axis_index()
         index = self.group[index_axis]
+        try:
+            index_class = index.attrs["index_class"].decode()
+        except KeyError:
+            index_class = ""
+
         start = start or 0
         end = end or len(index)-1
         if start < 0 or start >= len(index) or start >= end or end < 0 or end >= len(index):
             raise ValueError(f"Invalid bounds ({start=}, {end=} for index of length {len(index)}")
-        return [nscale(row) for row in index[start:end]]
+
+        if index_class.lower() == "datetime":
+            return [str(nscale(row)) for row in index[start:end]]
+        else:
+            return index[start:end]
 
     def get_columns_as_dataframe(self, columns, start=None, end=None):
         index_range = self.get_index_range(start, end)
@@ -245,9 +254,18 @@ class FrameTableGroupReader(GroupReader):
             raise ValueError(f"Invalid bounds ({start=}, {end=} for series of length {len(self.table)}")
 
         index_idx = self.get_index_column_index()
+        try:
+            index_name = self.table.attrs[f"FIELD_{index_idx}_NAME"].decode()
+            index_kind = self.table.attrs[f"{index_name}_kind"].decode()
+        except KeyError:
+            return []
+
         if index_idx is None:
             return []
-        return [nscale(row[index_idx]) for row in self.table[start:end]]
+        if index_kind.lower().find("datetime") != -1:
+            return [str(nscale(row[index_idx])) for row in self.table[start:end]]
+        else:
+            return [row[index_idx] for row in self.table[start:send]]
 
     def get_columns_by_block(self):
         value_cols_raw = self.group.attrs["values_cols"].decode().split('\n')[1:-1:2]
