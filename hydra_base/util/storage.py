@@ -6,12 +6,17 @@ to and from external storage, the Hydra config size threshold
 is ignored, but this is still applied to any changes to datasets
 performed via Hydra.
 """
+import bz2
+import io
+import json
 import logging
+import os
 import transaction
 
 from bson.objectid import ObjectId
 from pymongo import MongoClient
 from sqlalchemy.sql.expression import func
+from sqlalchemy.exc import NoResultFound
 
 from hydra_base import db
 from hydra_base.db.model import (
@@ -128,6 +133,118 @@ def import_dataset_from_external_storage(ds_id, db_name=None, collection=None):
         raise Warning(warntext)
 
     return result
+
+
+def write_dataset_as_bz2(dataset_id: int, path='.'):
+    """
+    Makes a compressed copy of dataset with id <dataset_id> in a
+    file named "<dataset_id>.bz2". An optional target directory may
+    be provided in <path>
+    """
+    if not os.path.isdir(path):
+        raise ValueError(f"Invalid path {path}; must be an existing directory")
+
+    try:
+        dataset = db.DBSession.query(Dataset).filter(Dataset.id == dataset_id).one()
+    except NoResultFound:
+        raise ValueError(f"No dataset found with id {dataset_id}")
+
+    filename = os.path.join(path, f"{dataset.id}.bz2")
+    if os.path.exists(filename):
+        raise ValueError(f"File {filename} already exists")
+
+    with bz2.BZ2File(filename, 'wb') as outfile:
+        with io.TextIOWrapper(outfile, encoding='utf-8') as tiw:
+            ds_size = tiw.write(dataset.value)
+
+    f_size = os.stat(filename).st_size
+    log.info(f"Written {filename} {ds_size} => {f_size} bytes ({(1-f_size/ds_size)*100.0:.2f}%)")
+    return filename, f_size
+
+
+def write_oid_as_bz2(oid: str, path='.', db_name=None, collection=None):
+    """
+    Makes a compressed copy of the 'value' attribute of a MongoDB document
+    with oid <oid> in a file named "<oid>.bz2". An optional target directory
+    may be provided in <path>
+    """
+    if not os.path.isdir(path):
+        raise ValueError(f"Invalid path {path}; must be an existing directory")
+
+    filename = os.path.join(path, f"{oid}.bz2")
+    if os.path.exists(filename):
+        raise ValueError(f"File {filename} already exists")
+
+    mongo_config = MongoStorageAdapter.get_mongo_config()
+    db_name = db_name if db_name else mongo_config["db_name"]
+    collection = collection if collection else mongo_config["datasets"]
+
+    mongo = get_mongo_client()
+    path = mongo[db_name][collection]
+
+    object_id = ObjectId(oid)
+    doc = path.find_one({"_id": object_id})
+    if not doc:
+        raise LookupError(f"No external document {object_id} found in {db_name}:{collection}")
+
+    with bz2.BZ2File(filename, 'wb') as outfile:
+        with io.TextIOWrapper(outfile, encoding='utf-8') as tiw:
+            ds_size = tiw.write(doc["value"])
+
+    f_size = os.stat(filename).st_size
+    log.info(f"Written {filename} {ds_size} => {f_size} bytes ({(1-f_size/ds_size)*100.0:.2f}%)")
+    return filename, f_size
+
+
+def bz2_file_equal_to_dataset(filename) -> bool:
+    """
+    Verifies that the bz2-compressed dataset contained in <filename> is
+    equal to the SQL db dataset with the same dataset_id, as determined
+    by the filename prefix.
+    """
+    _, ds_file = os.path.split(filename)
+    dataset_id, _ = os.path.splitext(ds_file)
+
+    try:
+        dataset = db.DBSession.query(Dataset).filter(Dataset.id == dataset_id).one()
+    except NoResultFound:
+        raise ValueError(f"No dataset found with id {dataset_id}")
+
+    with bz2.BZ2File(filename, 'rb') as infile:
+        with io.TextIOWrapper(infile, encoding='utf-8') as tiw:
+            file_dso = json.loads(tiw.read())
+
+    db_dso = json.loads(dataset.value)
+    return db_dso == file_dso
+
+
+def bz2_file_equal_to_oid(filename, db_name=None, collection=None) -> bool:
+    """
+    Verifies that the bz2-compressed dataset contained in <filename> is
+    equal to the MongoDB document with the same dataset_id, as determined
+    by the filename prefix.
+    """
+    _, oid_file = os.path.split(filename)
+    oid, _ = os.path.splitext(oid_file)
+
+    mongo_config = MongoStorageAdapter.get_mongo_config()
+    db_name = db_name if db_name else mongo_config["db_name"]
+    collection = collection if collection else mongo_config["datasets"]
+
+    mongo = get_mongo_client()
+    path = mongo[db_name][collection]
+
+    object_id = ObjectId(oid)
+    doc = path.find_one({"_id": object_id})
+    if not doc:
+        raise LookupError(f"No external document {object_id} found in {db_name}:{collection}")
+
+    with bz2.BZ2File(filename, 'rb') as infile:
+        with io.TextIOWrapper(infile, encoding='utf-8') as tiw:
+            file_oid = json.loads(tiw.read())
+
+    db_oid = json.loads(doc["value"])
+    return db_oid == file_oid
 
 
 def get_mongo_client():
