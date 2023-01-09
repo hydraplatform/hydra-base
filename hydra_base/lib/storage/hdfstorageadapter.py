@@ -290,6 +290,12 @@ class HdfStorageAdapter():
         return target
 
     def make_group_reader(self, url, groupname):
+        """
+        Returns an instance of the appropriate GroupReader subclass for the <groupname>
+        argument in the file at <url>.
+        The required type is first looked up by get_group_reader() and an instance of
+        this is returned.
+        """
         hf = self.open_hdf_url(url)
         if not groupname:
             # Use first group in file
@@ -301,6 +307,13 @@ class HdfStorageAdapter():
         return Reader(hf, groupname)
 
     def get_group_reader(self, url, groupname):
+        """
+        Returns the type of the appropriate GroupReader subclass for the <groupname>
+        argument in the file at <url>.
+        The internal format of the group used by Pandas is first identified by
+        identify_group_format(), and a reader capable of handling this type is then
+        looked up in the group_reader_map.
+        """
         group_type = self.identify_group_format(url, groupname)
         try:
             Reader = group_reader_map[group_type]
@@ -311,6 +324,13 @@ class HdfStorageAdapter():
         return Reader
 
     def identify_group_format(self, url, groupname):
+        """
+        Returns a string identifying the Pandas format of the group <groupname> in
+        the file at <url>.
+        This string, stored as the `pandas_type` attribute on the HDF group, indicates
+        the layout of datasets and indices for the group and therefore the type of
+        GroupReader required.
+        """
         hf = self.open_hdf_url(url)
         try:
             group = hf[groupname]

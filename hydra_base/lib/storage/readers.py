@@ -16,8 +16,10 @@ class GroupReader(ABC):
       Each subclass must define a class attribute of <subclass_type_key>
       which contains a string identifying the Group type handled by that
       reader.
-      These attributes then populate the group_reader_map which is used
-      by the adapter to instantiate the correct reader for a given group
+      These attributes then automatically populate the group_reader_map
+      when a subclass is defined.  This map is then used by the adapter
+      to instantiate the correct reader for the intercal format of a
+      given group.
     """
 
     subclass_type_key = "pandas_type"
@@ -57,6 +59,14 @@ class GroupReader(ABC):
 
 
 class FrameGroupReader(GroupReader):
+    """
+    Reader for groups where the `pandas_type` attribute of the HDF group is "frame".
+    This corresponds to a group where the application-level DataFrame is decomposed
+    into `axis` and `block` components which are described by a collection of
+    attributes and datasets inside the HDF group.
+    The base class abstract methods are overridden in this class to provide
+    implementations which deal specifically with groups of this format.
+    """
     pandas_type = "frame"
 
     def __init__(self, hf, groupname):
@@ -196,6 +206,16 @@ class FrameGroupReader(GroupReader):
 
 
 class FrameTableGroupReader(GroupReader):
+    """
+    Reader for groups where the `pandas_type` attribute of the HDF group is "frame_table".
+    This category of group stores the description of the layout of a DataFrame over
+    attributes of the group itself and of a `table` dataset contained in the group.
+    The "index_cols" attribute of a group stores the set of column names and the
+    `FIELD_x` and `values_block_x` attributes of the dataset indicate in which of the
+    dtype-specific columns of the dataset a particular series can be found.
+    The base class abstract methods are overridden in this class to provide
+    implementations which deal specifically with groups of this format.
+    """
     pandas_type = "frame_table"
 
     def __init__(self, hf, groupname):
