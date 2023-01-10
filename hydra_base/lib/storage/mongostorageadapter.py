@@ -36,12 +36,38 @@ class MongoStorageAdapter():
     """
     def __init__(self):
         mongo_config = self.__class__.get_mongo_config()
+        conntext, client_kwargs = self.__class__.get_connection_arguments()
+        self.db_name = mongo_config["db_name"]
+
+        try:
+            self.client = MongoClient(conntext, **client_kwargs)
+        except ServerSelectionTimeoutError as sste:
+            log.critical(f"Unable to connect to Mongo server {conntext}: {sste}")
+            raise sste
+
+        self.datasets = mongo_config["datasets"]
+        self.db = self.client[self.db_name]
+
+    @staticmethod
+    def get_mongo_config(config_key="mongodb"):
+        numeric = ("threshold",)
+        boolean = ("use_replica_set",)
+        mongo_keys = [k for k in config.CONFIG.options(config_key) if k not in config.CONFIG.defaults()]
+        mongo_items = {k: config.CONFIG.get(config_key, k) for k in mongo_keys}
+        for k in numeric:
+            mongo_items[k] = int(mongo_items[k])
+        for k in boolean:
+            mongo_items[k] = mongo_items[k].lower() in ("true", "yes", "y")
+
+        return mongo_items
+
+    @classmethod
+    def get_connection_arguments(cls):
+        mongo_config = cls.get_mongo_config()
         host = mongo_config["host"]
         port = mongo_config["port"]
         user = mongo_config["user"]
         passwd = mongo_config["passwd"]
-        self.db_name = mongo_config["db_name"]
-        self.datasets = mongo_config["datasets"]
 
         """ Mongo usernames/passwds require percent encoding of `:/?#[]@` chars """
         user, passwd = percent_encode(user), percent_encode(passwd)
@@ -63,30 +89,10 @@ class MongoStorageAdapter():
                 hosts_txt = ",".join(f"{m['host']}:{m['port']}" for m in replSet["members"])
                 conntext = f"mongodb://{hosts_txt}/?replicaSet={replSet['id']}"
                 client_kwargs.update({'w': 2})  # Replica set write concern level
-                self.replSet = replSet
         else:
             conntext = f"mongodb://{authtext}{host}:{port}"
 
-        try:
-            self.client = MongoClient(conntext, **client_kwargs)
-        except ServerSelectionTimeoutError as sste:
-            log.critical(f"Unable to connect to Mongo server {conntext}: {sste}")
-            raise sste
-
-        self.db = self.client[self.db_name]
-
-    @staticmethod
-    def get_mongo_config(config_key="mongodb"):
-        numeric = ("threshold",)
-        boolean = ("use_replica_set",)
-        mongo_keys = [k for k in config.CONFIG.options(config_key) if k not in config.CONFIG.defaults()]
-        mongo_items = {k: config.CONFIG.get(config_key, k) for k in mongo_keys}
-        for k in numeric:
-            mongo_items[k] = int(mongo_items[k])
-        for k in boolean:
-            mongo_items[k] = mongo_items[k].lower() in ("true", "yes", "y")
-
-        return mongo_items
+        return conntext, client_kwargs
 
     def __del__(self):
         """ Close connection on object destruction """
