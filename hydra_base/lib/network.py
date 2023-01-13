@@ -633,7 +633,10 @@ def add_network(network, **kwargs):
             scenario_resource_attrs = []
             for r_scen in s.resourcescenarios:
                 if all_resource_attrs.get(r_scen.resource_attr_id) is None:
-                    raise HydraError("Couldn't find resource attribute %s on resource scenario %s. Shot in the dark: Does the exporting network have duplicate attributes?", r_scen.resource_attr_id, r_scen)
+                    raise HydraError(f"Couldn't find resource attribute {r_scen.resource_attr_id} "
+                                     f"as defined on resource scenario {r_scen}. "
+                                     f"Shot in the dark: "
+                                     f"Does the exporting network have duplicate attributes?")
                 ra = all_resource_attrs[r_scen.resource_attr_id]
                 incoming_datasets.append(r_scen.dataset)
                 scenario_resource_attrs.append(ra)
@@ -3013,7 +3016,7 @@ def _clone_attributes(network_id, newnetworkid, exnet_project_id, newnet_project
     #and target are in the same project, otherwise clone all the scoped attributes.
 
     #find any attributes scoped directly to the source
-    network_scoped_attrs = attributes.get_attributes(network_id=network_id, user_id=user_id) 
+    network_scoped_attrs = attributes.get_attributes(network_id=network_id, user_id=user_id)
     project_scoped_attrs = []
     #get all the attributes scoped to the project of the source network (if it's not the same project as the target)
     if exnet_project_id != newnet_project_id:
@@ -3022,7 +3025,7 @@ def _clone_attributes(network_id, newnetworkid, exnet_project_id, newnet_project
         for a in exnet_project_scoped_attrs:
             a.project_id = newnet_project_id
             new_attributes.append(a)
-    
+
         for a in network_scoped_attrs:
         #the networks are in different projects, so clone the attributes
             a = JSONObject(a)
