@@ -21,6 +21,7 @@ from beaker import session
 
 from .. import util
 from .. import config
+from .. import db
 
 DEFAULT_VALIDATE_KEY = 'YxaDbzUUSo08b+'
 DEFAULT_DATA_DIR = '/tmp'
@@ -47,10 +48,10 @@ def login(username, password, **kwargs):
     hydra_session = session.Session(
         {}, #This is normally a request object, but in this case is empty
         validate_key=config.get('COOKIES', 'VALIDATE_KEY', DEFAULT_VALIDATE_KEY),
-        type='file',
+        type='file' if db.hydra_db_url.startswith('sqlite') else 'ext:database',
         cookie_expires=True,
         data_dir=config.get('COOKIES', 'DATA_DIR', DEFAULT_DATA_DIR),
-        file_dir=config.get('COOKIES', 'FILE_DIR', DEFAULT_FILE_DIR)
+        url=db.hydra_db_url
     )
 
     hydra_session['user_id'] = user_id
@@ -75,10 +76,10 @@ def logout(session_id, **kwargs):
     hydra_session_object = session.SessionObject(
         {}, #This is normally a request object, but in this case is empty
         validate_key=config.get('COOKIES', 'VALIDATE_KEY', DEFAULT_VALIDATE_KEY),
-        type='file',
+        type='file' if db.hydra_db_url.startswith('sqlite') else 'ext:database',
         cookie_expires=True,
         data_dir=config.get('COOKIES', 'DATA_DIR', DEFAULT_DATA_DIR),
-        file_dir=config.get('COOKIES', 'FILE_DIR', DEFAULT_FILE_DIR))
+        url=db.hydra_db_url)
 
     hydra_session = hydra_session_object.get_by_id(session_id)
 
@@ -102,10 +103,10 @@ def get_session_user(session_id, **kwargs):
     hydra_session_object = session.SessionObject(
         {}, #This is normally a request object, but in this case is empty
         validate_key=config.get('COOKIES', 'VALIDATE_KEY', DEFAULT_VALIDATE_KEY),
-        type='file',
+        type='file' if db.hydra_db_url.startswith('sqlite') else 'ext:database',
         cookie_expires=True,
         data_dir=config.get('COOKIES', 'DATA_DIR', DEFAULT_DATA_DIR),
-        file_dir=config.get('COOKIES', 'FILE_DIR', DEFAULT_FILE_DIR))
+        url=db.hydra_db_url)
 
     hydra_session = hydra_session_object.get_by_id(session_id)
 
