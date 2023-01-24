@@ -111,6 +111,6 @@ def get_session_user(session_id, **kwargs):
     hydra_session = hydra_session_object.get_by_id(session_id)
 
     if hydra_session is not None:
-        return hydra_session['user_id']
+        return hydra_session
 
     return None
