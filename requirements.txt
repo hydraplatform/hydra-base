@@ -11,7 +11,7 @@ mysqlclient
 pudb
 python-dateutil
 cheroot
-beaker
+beaker==1.11.0
 click
 diskcache
 pylibmc
