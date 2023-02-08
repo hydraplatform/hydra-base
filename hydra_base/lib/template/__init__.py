@@ -463,7 +463,8 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
         type_attrs = []
         for typeattr_j in type_j.typeattrs:
             if typeattr_j.attr_id is not None:
-                attr_j = attributes_j[typeattr_j.attr_id].name
+                # NB attr_id could be str, cast index to int
+                attr_j = attributes_j[int(typeattr_j.attr_id)].name
             elif typeattr_j.attr is not None:
                 attr_j = typeattr_j.attr.name
             type_attrs.append(attr_j)
@@ -485,7 +486,8 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
         #Support an external attribute dict or embedded attributes.
         for typeattr_j  in type_j.typeattrs:
             if typeattr_j.attr_id is not None:
-                attr_j = attributes_j[typeattr_j.attr_id]
+                # NB attr_id could be str, cast index to int
+                attr_j = attributes_j[int(typeattr_j.attr_id)]
             elif typeattr_j.attr is not None:
                 attr_j = typeattr_j.attr
 

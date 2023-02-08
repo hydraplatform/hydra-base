@@ -138,8 +138,8 @@ def convert(values, source_measure_or_unit_abbreviation, target_measure_or_unit_
         source.unit_data = get_unit_by_abbreviation(source.unit_abbreviation)
         target.unit_data = get_unit_by_abbreviation(target.unit_abbreviation)
 
-        source.conv_factor = JSONObject({'lf': source.unit_data.lf, 'cf': source.unit_data.cf})
-        target.conv_factor = JSONObject({'lf': target.unit_data.lf, 'cf': target.unit_data.cf})
+        source.conv_factor = JSONObject({'lf': float(source.unit_data.lf), 'cf': float(source.unit_data.cf)})
+        target.conv_factor = JSONObject({'lf': float(target.unit_data.lf), 'cf': float(target.unit_data.cf)})
 
         if isinstance(values, float):
             # If values is a float => returns a float

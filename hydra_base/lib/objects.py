@@ -199,21 +199,22 @@ class JSONObject(dict):
                 if parent is not None and type(v) == type(parent):
                     continue
 
-                try:
-                    int(v)
-                    if v.find('.'):
-                        if int(v.split('.')[0]) == int(v):
+                if not isinstance(v, str):
+                    # Avoid casting strings which can parse as numbers
+                    try:
+                        int(v)
+                        if v.find('.'):
+                            if int(v.split('.')[0]) == int(v):
+                                v = int(v)
+                        else:
                             v = int(v)
-                    else:
-                        v = int(v)
-                except:
-                    pass
-
-                try:
-                    if not isinstance(v, int):
-                        v = float(v)
-                except:
-                    pass
+                    except:
+                        pass
+                    try:
+                        if not isinstance(v, int):
+                            v = float(v)
+                    except:
+                        pass
 
                 if isinstance(v, datetime):
                     v = six.text_type(v)
