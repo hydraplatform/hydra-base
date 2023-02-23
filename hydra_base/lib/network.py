@@ -140,7 +140,8 @@ def _check_ra_duplicates(all_resource_attrs, resource_id_name_map):
 
             resource_name = resource_id_name_map[ref_id]
             attr_id = ra['attr_id']
-            raise HydraError(f"Duplicate Resource Attr specified: {resource_name}  {attr_id}")
+            attr_name = db.DBSession.query(Attr.name).filter(Attr.id==attr_id).one()
+            raise HydraError(f"Duplicate Resource Attr specified: {resource_name}  {attr_name}")
 
 def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, template_lookup=None):
 
@@ -2735,6 +2736,7 @@ def clone_network(network_id,
                   new_project=True,
                   include_outputs=False,
                   scenario_ids=[],
+                  creator_is_owner=False, 
                   **kwargs):
     """
      Create an exact clone of the specified network for the specified user.
@@ -2743,6 +2745,9 @@ def clone_network(network_id,
 
      Otherwise create a new project with the specified name and put it in there.
 
+     creator_is_owner (Bool) : The user who creates the network isn't added as an owner 
+        (won't have an entry in tNetworkOwner and therefore won't see the network in 'get_project')
+
     """
 
     user_id = kwargs['user_id']
@@ -2750,6 +2755,9 @@ def clone_network(network_id,
     ex_net = db.DBSession.query(Network).filter(Network.id==network_id).one()
 
     ex_net.check_read_permission(user_id)
+
+    if recipient_user_id is None:
+        recipient_user_id = user_id
 
     if project_id is None and new_project == True:
 
@@ -2772,8 +2780,8 @@ def clone_network(network_id,
         else:
             project.name = project_name
             project.created_by = user_id
-
-            project.set_owner(user_id)
+            if creator_is_owner is True and user_id != recipient_user_id:
+                project.set_owner(user_id)
 
         if recipient_user_id is not None:
             project.set_owner(recipient_user_id)
@@ -2810,9 +2818,13 @@ def clone_network(network_id,
     newnet.projection = ex_net.projection
     newnet.created_by = user_id
 
-    newnet.set_owner(user_id)
-    if recipient_user_id is not None:
-        newnet.set_owner(recipient_user_id)
+    #if true, the the creator will see this network in their project.networks.
+    if creator_is_owner is True and user_id != recipient_user_id:
+        newnet.set_owner(user_id)
+
+    #set the owner to the recipient. THis can be either the requesting user id (user_id)
+    #or an explicitly defined user. 
+    newnet.set_owner(recipient_user_id)
 
     db.DBSession.add(newnet)
 

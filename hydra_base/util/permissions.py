@@ -51,6 +51,30 @@ def check_perm(user_id, permission_code):
         raise PermissionError("Permission denied. User %s does not have permission %s"%
                         (user_id, permission_code))
 
+def check_role(user_id, role_code):
+    """
+        Checks whether a user has been assigned the specified role
+        The role_code parameter should be a role code contained in tRole.
+
+        If the user does not have code a permission error is thrown.
+    """
+    try:
+        role = db.DBSession.query(Role).filter(Role.code==role_code).one()
+    except NoResultFound:
+        raise PermissionError("Nonexistent role type: %s"%(role_code))
+
+
+    try:
+        #get all the roles where the specified user has the specified permission
+        qry = db.DBSession.query(RoleUser.role_id)\
+            .filter(RoleUser.role_id == role.id)\
+            .filter(RoleUser.user_id == user_id)
+
+        res = qry.all()
+    except NoResultFound:
+        raise PermissionError("Permission denied. User %s does not have role %s"%
+                        (user_id, role_code))
+
 
 
 def required_perms(*req_perms):

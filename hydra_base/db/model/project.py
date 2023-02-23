@@ -72,10 +72,9 @@ class Project(Base, Inspect, PermissionControlled):
            on this project, or can be set at a higher level project
         """
 
-        log.info("Getting networks for project %s", self.id)
+        log.debug("Getting networks for project %s", self.id)
 
         networks = []
-        networks_is_creator = []
         networks_not_creator = []
 
         if self.is_owner(user_id):
@@ -83,11 +82,6 @@ class Project(Base, Inspect, PermissionControlled):
             networks_not_creator = get_session().query(Network)\
                 .filter(Network.project_id == self.id).all()
         else:
-            #all networks created by this user
-            networks_is_creator = get_session().query(Network)\
-                .filter(Network.project_id == self.id)\
-                .filter(Network.created_by == user_id).all()
-
             #all networks created by someone else, but which this user is an owner,
             #and this user can read this network
             networks_not_creator = get_session().query(Network).join(NetworkOwner)\
@@ -96,7 +90,7 @@ class Project(Base, Inspect, PermissionControlled):
                 .filter(NetworkOwner.user_id == user_id)\
                 .filter(NetworkOwner.view == 'Y').all()
 
-        all_network_ids = [n.id for n in networks_is_creator] + [n.id for n in networks_not_creator]
+        all_network_ids = [n.id for n in networks_not_creator]
 
         #for efficiency, get all the owners in 1 query and sort them by network
         all_owners = get_session().query(NetworkOwner)\
@@ -114,7 +108,7 @@ class Project(Base, Inspect, PermissionControlled):
         for netscenario in all_scenarios:
             scenarios_by_network[netscenario.network_id].append(netscenario)
 
-        for net_i in networks_is_creator + networks_not_creator:
+        for net_i in networks_not_creator:
 
             if include_deleted_networks is False and net_i.status.lower() == 'x':
                 continue
@@ -133,7 +127,7 @@ class Project(Base, Inspect, PermissionControlled):
         Get all the direct child projects of a given project
         i.e. all projects which have this project specified in the 'parent_id' column
         """
-        log.info("Getting child projects of project %s", self.id)
+        log.debug("Getting child projects of project %s", self.id)
 
         child_projects_i = get_session().query(Project).outerjoin(ProjectOwner)\
             .filter(Project.parent_id == self.id).all()
@@ -169,7 +163,7 @@ class Project(Base, Inspect, PermissionControlled):
                 project.projects = []
             child_projects.append(project)
 
-        log.info("%s child projects retrieved", len(child_projects))
+        log.debug("%s child projects retrieved", len(child_projects))
 
         return child_projects
 
