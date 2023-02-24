@@ -251,9 +251,9 @@ class Project(Base, Inspect, PermissionControlled):
         log.info("Getting projects for user %s", uid)
 
         network_projects_i = network_project_qry.outerjoin(Network).outerjoin(NetworkOwner).filter(
-            Network.status == 'A', or_(
-                and_(NetworkOwner.user_id == uid, NetworkOwner.view == 'Y'),
-                Network.created_by == uid)).distinct().all()
+            Network.status == 'A',
+            NetworkOwner.user_id == uid,
+            NetworkOwner.view == 'Y').distinct().all()
 
         #for some reason this outputs a list of tuples.
         projects_with_network_owner = [p[0] for p in network_projects_i]
@@ -261,7 +261,6 @@ class Project(Base, Inspect, PermissionControlled):
         projects_qry = projects_qry.outerjoin(ProjectOwner).filter(
             Project.status == 'A', or_(
                 and_(ProjectOwner.user_id == uid, ProjectOwner.view == 'Y'),
-                Project.created_by == uid,
                 Project.id.in_(projects_with_network_owner)
             )
         )

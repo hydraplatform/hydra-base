@@ -32,6 +32,7 @@ from .objects import JSONObject
 from ..util.permissions import required_perms
 from . import scenario
 from ..exceptions import ResourceNotFoundError
+from datetime import datetime
 
 log = logging.getLogger(__name__)
 
@@ -79,7 +80,13 @@ def add_project(project, **kwargs):
     existing_proj = get_project_by_name(project.name, user_id=user_id)
 
     if len(existing_proj) > 0:
-        raise HydraError(f'A Project with the name "{project.name}" already exists')
+        if existing_proj[0].status == 'X':
+            now = datetime.now().strftime("%Y%m%d%H%M%S")
+            existing_proj[0].name = "{new_project_name} {now}"
+            log.info("Updating an existing deleted project %s with new project name to avoid naming clash %s",
+                      existing_proj[0].id, existing_proj[0].name)
+        else:
+            raise HydraError(f'A Project with the name "{project.name}" already exists')
 
     proj_i = Project()
     proj_i.name = project.name
@@ -485,17 +492,24 @@ def clone_project(project_id,
     if recipient_user_id is None:
         recipient_user_id = user_id
 
+    user = db.DBSession.query(User).filter(User.id == user_id).one()
+
     if new_project_name is None:
-        user = db.DBSession.query(User).filter(User.id == user_id).one()
         new_project_name = project.name + ' Cloned By {}'.format(user.display_name)
 
     #check a project with this name doesn't already exist:
     project_with_name =  db.DBSession.query(Project).filter(
         Project.name == new_project_name,
-        Project.created_by == user_id).all()
-
-    if len(project_with_name) > 0:
-        raise HydraError("A project with the name {0} already exists".format(new_project_name))
+        Project.created_by == user_id).first()
+    
+    if project_with_name is not None:
+        if project_with_name.status == 'X':
+            now = datetime.now().strftime("%Y%m%d%H%M%S")
+            project_with_name.name = f"{new_project_name} {now}"
+            log.info("Updating an existing deleted project %s with new project anme to avoid naming clash %s",
+                      project_with_name.id, project_with_name.name)
+        else:
+            raise HydraError(f"A project with the name {new_project_name} already exists for user {user.display_name}")
 
     new_project = Project()
     new_project.name = new_project_name
