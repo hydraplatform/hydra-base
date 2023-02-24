@@ -377,7 +377,7 @@ def _check_can_add_attribute(name, dimension, project_id, network_id, do_raise=T
                     f"Unable to add attribute with name '{name}' and dimension '{dimension}' "
                     f"to network '{network_id}' as an "
                     f"attribute with this name and dimension already "
-                    f"exists on the project ({project_id})")
+                    f"exists on the project ({net.project_id})")
             else:
                 return False
 

@@ -27,7 +27,6 @@ from ..db.model import Scenario,\
         ResourceScenario,\
         TypeAttr,\
         ResourceAttr,\
-        NetworkOwner,\
         Dataset,\
         Metadata,\
         Network,\
