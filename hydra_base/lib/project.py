@@ -22,7 +22,6 @@ import json
 from collections import defaultdict
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import noload, joinedload
-from sqlalchemy import and_, or_
 
 from ..util import hdb
 from ..exceptions import PermissionError, HydraError
@@ -364,8 +363,9 @@ def get_projects_networks(project_ids, uid, isadmin=None, **kwargs):
                                         Network.status=='A')
     if not isadmin:
         network_qry.outerjoin(NetworkOwner)\
-        .filter(and_(NetworkOwner.user_id == uid,
-                    NetworkOwner.view == 'Y')
+        .filter(
+            NetworkOwner.user_id == uid,
+            NetworkOwner.view == 'Y'
         )
 
     networks = network_qry.all()
