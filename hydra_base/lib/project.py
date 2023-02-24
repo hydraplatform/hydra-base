@@ -466,8 +466,8 @@ def clone_project(project_id,
     """
         Create an exact clone of the specified project for the specified user.
         args:
-            recipient_user_id (int): THe ID of the user who will be granted ownership of the project after cloning.
-                If None, ownershop will be granted to the reqwuesting user.
+            recipient_user_id (int): The ID of the user who will be granted ownership of the project after cloning.
+                If None, ownership will be granted to the requesting user.
             new_project_name (str): The name of the cloned project. If None, then the project's name will be postfixed with ('Cloned by XXX')
             new_project_description (str): The description of the cloned project. 
                 If None, the current project's description will be used.
