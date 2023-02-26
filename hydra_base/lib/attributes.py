@@ -244,7 +244,7 @@ def _add_attribute(attr, user_id, flush=True, do_reassign=False):
         project_id = attr.project_id
     )
 
-    _check_can_add_attribute(attr.name, attr.dimension, attr.project_id, attr.network_id)
+    _check_can_add_attribute(attr.name, attr.dimension_id, attr.project_id, attr.network_id)
 
     if attr.network_id is not None and attr.project_id is not None:
         raise HydraError(f"Unable to add attrubute {attr.name}. "+
@@ -310,7 +310,6 @@ def _reassign_scoped_attributes(attr_id):
         assert matching_attrs[0].id == attr_id
         return
 
-
     #Reassign all resource attributes which point to scoped attirbutes, and then delete
     #the scoped attributes.
     scoped_resource_attrs_qry = db.DBSession.query(ResourceAttr).join(Attr).filter(
@@ -320,7 +319,6 @@ def _reassign_scoped_attributes(attr_id):
         Attr.id != attr_id
     )
 
-    log.info("%s scoped attributes found with same name & dimension. Reassigning.")
     """
       If this is a project scoped attribute then we only want to change the scope
       of attributes scoped to networks contained within this project, and leave
@@ -329,12 +327,15 @@ def _reassign_scoped_attributes(attr_id):
       are project-scoped also.
     """
     if attr_i.project_id is not None:
-        scoped_resource_attrs_qry.join(Network).filter(
+        scoped_resource_attrs_qry = scoped_resource_attrs_qry.join(Network).filter(
             Attr.network_id == Network.id,
-            Network.project_id == Attr.project_id
+            Network.project_id == attr_i.project_id
         )
 
     scoped_resource_attrs = scoped_resource_attrs_qry.all()
+
+    if len(scoped_resource_attrs) > 0:
+        log.info(f"{len(scoped_resource_attrs)} scoped attributes found with same name & dimension. Reassigning.")
 
     #reassign the attributes
     for scoped_ra in scoped_resource_attrs:
