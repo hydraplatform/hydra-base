@@ -402,14 +402,12 @@ class TestScopedAttribute:
         #duplication
         newly_scoped_attr = client.add_attribute({'project_id': proj1.id,'name': 'test_scoped_attr'})
 
-
         with pytest.raises(HydraError):
             client.get_attribute_by_id(attr_id=net_scoped_attr.id)
 
         #check it has been rescoped
         assert newly_scoped_attr.project_id == proj1.id
 
-        #the
         updated_ra = client.get_resource_attribute(new_ra.id)
 
         assert updated_ra.attr_id == newly_scoped_attr.id
@@ -421,6 +419,44 @@ class TestScopedAttribute:
         assert 'test_scoped_attr' in [a.name for a in matching_attributes]
 
         assert matching_attributes[0].id == newly_scoped_attr.id
+
+
+    def test_different_projects_same_name_attributes(self, client, projectmaker, networkmaker):
+        """
+            Verifies that attribute deletion following rescoping occurs only within the
+            correct bounds.
+            Two same-name-and-dimension attrs added in peer projects should exist
+            independently; the addition of the second should have no consequences for the first.
+        """
+        client.user_id = 1
+        proj_user = client.user_id
+        proj1 = projectmaker.create(name="Project 1", share=False)
+        proj2 = projectmaker.create(name="Project 2", share=False)
+
+        project1_scoped_attr = JSONObject({
+            "name": f"Project Attribute",
+            "dimension_id": None,
+            "project_id": proj1.id
+        })
+
+        project2_scoped_attr = JSONObject({
+            "name": f"Project Attribute",
+            "dimension_id": None,
+            "project_id": proj2.id
+        })
+
+        proj1_attr = client.add_attribute(project1_scoped_attr)
+        net1 = networkmaker.create(project_id=proj1.id)
+        proj1_ra = client.add_resource_attribute('NODE', net1.nodes[0].id, proj1_attr.id, is_var=False)
+        proj1_attrs_before = client.get_attributes(project_id=proj1.id)
+
+        proj2_attr = client.add_attribute(project2_scoped_attr)
+        net2 = networkmaker.create(project_id=proj2.id)
+        proj2_ra = client.add_resource_attribute('NODE', net2.nodes[0].id, proj2_attr.id, is_var=False)
+        proj1_attrs_after = client.get_attributes(project_id=proj1.id)
+
+        assert len(proj1_attrs_before) == len(proj1_attrs_after)
+        assert proj1_attrs_before == proj1_attrs_after
 
 
     def test_bulk_add_network_and_project_scoped_attribute(self, client, network_with_data):

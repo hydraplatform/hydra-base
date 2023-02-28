@@ -49,6 +49,7 @@ from ..db.model import Attr,\
 
 
 from .. import db
+from .. import config
 
 from ..exceptions import HydraError, ResourceNotFoundError
 from ..util.permissions import required_perms, required_role
@@ -281,13 +282,13 @@ def _add_attribute(attr, user_id, flush=True, do_reassign=False):
       Only do this for attributes not scoped to a network as a network is the lowest scope.
     """
     if do_reassign is True and attr_i.network_id is None:
-        _reassign_scoped_attributes(attr_i.id)
+        _reassign_scoped_attributes(attr_i.id, user_id)
         if flush is True:
             db.DBSession.flush()
 
     return JSONObject(attr_i)
 
-def _reassign_scoped_attributes(attr_id):
+def _reassign_scoped_attributes(attr_id, user_id):
     """
     If a matching attribute exists (same name & dimension) but scoped at a lower
     level, then we need to delete those attributes and then
@@ -327,9 +328,18 @@ def _reassign_scoped_attributes(attr_id):
       are project-scoped also.
     """
     if attr_i.project_id is not None:
+        """
+            A `project_scope` is defined here which includes the ids of the current
+            and any nested projects. This represents the scope within which matching
+            network and project attrs will be rescoped to the current attr.
+        """
+        max_levels = int(config.get("limits", "project_max_nest_depth", 32))
+        attr_proj = db.DBSession.query(Project).filter(Project.id == attr_i.project_id).one()
+        child_projects = attr_proj.get_child_projects(user_id=user_id, levels=max_levels)
+        project_scope = {p["id"] for p in child_projects} | {attr_i.project_id}
         scoped_resource_attrs_qry = scoped_resource_attrs_qry.join(Network).filter(
             Attr.network_id == Network.id,
-            Network.project_id == attr_i.project_id
+            Network.project_id.in_(project_scope)
         )
 
     scoped_resource_attrs = scoped_resource_attrs_qry.all()
@@ -337,12 +347,16 @@ def _reassign_scoped_attributes(attr_id):
     if len(scoped_resource_attrs) > 0:
         log.info(f"{len(scoped_resource_attrs)} scoped attributes found with same name & dimension. Reassigning.")
 
-    #reassign the attributes
+    rescoped_from_networks = set()
+    # Reassign the attributes, noting the network_id of of any network attrs
     for scoped_ra in scoped_resource_attrs:
+        if scoped_ra.attr.network_id:
+            rescoped_from_networks.add(scoped_ra.attr.network_id)
         scoped_ra.attr_id = attr_i.id
 
+    # Remove rescoped attrs, both from project scope and those rescoped from network attrs
     for matching_attr in matching_attrs:
-        if matching_attr.id != attr_id:
+        if matching_attr.id != attr_id and (matching_attr.project_id in project_scope or matching_attr.network_id in rescoped_from_networks):
             db.DBSession.delete(matching_attr)
 
 def _check_can_add_attribute(name, dimension, project_id, network_id, do_raise=True):
