@@ -25,7 +25,7 @@ class MongoStorageAdapter():
         """ Mongo usernames/passwds require percent encoding of `:/?#[]@` chars """
         user, passwd = percent_encode(user), percent_encode(passwd)
         authtext = f"{user}:{passwd}@" if (user and passwd) else ""
-        conntext = f"mongodb://{authtext}{host}:{port}"
+        conntext = f"mongodb://{authtext}{host}:{port}/{self.db_name}"
         try:
             self.client = MongoClient(conntext)
         except pymongo.errors.ServerSelectionTimeoutError as sste:
@@ -46,7 +46,8 @@ class MongoStorageAdapter():
 
     def __del__(self):
         """ Close connection on object destruction """
-        self.client.close()
+        if hasattr(self, "client"):
+            self.client.close()
 
     def get_document_by_object_id(self, object_id: str, collection=None):
         """ Retrieve the document with the specified object_id from a collection """
