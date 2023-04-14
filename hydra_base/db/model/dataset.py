@@ -30,6 +30,7 @@ from hydra_base.lib.storage import (
 mongo_config = MongoStorageAdapter.get_mongo_config()
 mongo_storage_location_key = mongo_config["value_location_key"]
 mongo_external = mongo_config["direct_location_token"]
+use_mongo = mongo_config["use_mongo"]
 
 __all__ = ['Dataset', 'DatasetCollection', 'DatasetCollectionItem', 'Metadata']
 
@@ -51,21 +52,24 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
     hash       = Column(BIGINT(),  nullable=False, unique=True)
     cr_date    = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     hidden     = Column(String(1),  nullable=False, server_default=text(u"'N'"))
-    value_ref  = Column('value', Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
+    if use_mongo:
+        value_ref  = Column('value', Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
 
-    _value = MongoDatasetManager()
+        _value = MongoDatasetManager()
 
-    @hybrid_property
-    def value(self):
-        return self._value
+        @hybrid_property
+        def value(self):
+            return self._value
 
-    @value.setter
-    def value(self, val):
-        self._value = val
+        @value.setter
+        def value(self, val):
+            self._value = val
 
-    @value.expression
-    def value(cls):
-        return cls.value_ref
+        @value.expression
+        def value(cls):
+            return cls.value_ref
+    else:
+        value = Column('value', Text().with_variant(mysql.LONGTEXT, 'mysql'), nullable=True)
 
     unit = relationship('Unit', backref=backref("dataset_unit", order_by=unit_id))
 
@@ -101,7 +105,8 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
         This is deleted in the Dataset.value.__set__ action so remove
         here to avoid unwanted recreation.
         """
-        metadata_tree.pop(mongo_storage_location_key, None)
+        if use_mongo:
+            metadata_tree.pop(mongo_storage_location_key, None)
 
         existing_metadata = []
         for m in self.metadata:
@@ -123,7 +128,8 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
         but this has already been added by the Dataset.value.__set__ action.
         Discard from that set here to avoid unwanted deletion.
         """
-        metadata_to_delete.discard(mongo_storage_location_key)
+        if use_mongo:
+            metadata_to_delete.discard(mongo_storage_location_key)
         for m in self.metadata:
             if m.key in metadata_to_delete:
                 get_session().delete(m)

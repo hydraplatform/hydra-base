@@ -2,7 +2,10 @@ import logging
 
 from bson.objectid import ObjectId
 from pymongo import MongoClient
-from pymongo.errors import ServerSelectionTimeoutError
+from pymongo.errors import (
+    ServerSelectionTimeoutError,
+    OperationFailure
+)
 
 from hydra_base import config
 
@@ -28,7 +31,7 @@ class MongoStorageAdapter():
         conntext = f"mongodb://{authtext}{host}:{port}/{self.db_name}"
         try:
             self.client = MongoClient(conntext)
-        except pymongo.errors.ServerSelectionTimeoutError as sste:
+        except ServerSelectionTimeoutError as sste:
             log.critical(f"Unable to connect to Mongo server {conntext}: {sste}")
             raise sste
 
@@ -37,10 +40,15 @@ class MongoStorageAdapter():
     @staticmethod
     def get_mongo_config(config_key="mongodb"):
         numeric = ("threshold",)
+        boolean = ("use_replica_set", "use_mongo")
+        truthlike = ("true", "yes", "y")
         mongo_keys = [k for k in config.CONFIG.options(config_key) if k not in config.CONFIG.defaults()]
         mongo_items = {k: config.CONFIG.get(config_key, k) for k in mongo_keys}
-        for k in numeric:
-            mongo_items[k] = int(mongo_items[k])
+        for k in mongo_items:
+            if k in numeric:
+                mongo_items[k] = int(mongo_items[k])
+            if k in boolean:
+                mongo_items[k] = mongo_items[k].lower() in truthlike
 
         return mongo_items
 
@@ -103,7 +111,22 @@ class MongoStorageAdapter():
         return self.datasets
 
 
-
-
 def percent_encode(s, xchars=":/?#[]@"):
     return "".join(f"%{ord(char):2X}" if char in xchars else char for char in s)
+
+
+def validate_mongo_config():
+    required = ("",)
+    config = MongoStorageAdapter.get_mongo_config()
+    #breakpoint()
+    try:
+        mongo = MongoStorageAdapter()
+        log.info(mongo.client.server_info())
+    except ServerSelectionTimeoutError as sste:
+        log.error(sste)
+    except OperationFailure as of:
+        log.error(of)
+
+
+if __name__ == "__main__":
+    validate_mongo_config()

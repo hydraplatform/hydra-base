@@ -594,6 +594,7 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
     """
     mongo = MongoStorageAdapter()
     mongo_config = mongo.get_mongo_config()
+    use_mongo = mongo_config["use_mongo"]
     threshold_sz = mongo_config["threshold"]
     mongo_location_token = mongo_config["direct_location_token"]
     loc_key = mongo_config["value_location_key"]
@@ -601,7 +602,7 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
 
     for idx, ds in enumerate(new_data_for_insert):
         ds_size = len(ds["value"])
-        if ds_size > threshold_sz:
+        if use_mongo and ds_size > threshold_sz:
             mongo_data[idx] = ds["value"]
             ds_metadata = metadata[ds["hash"]]
             ds_metadata[loc_key] = mongo_location_token
