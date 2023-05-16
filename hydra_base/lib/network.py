@@ -976,7 +976,7 @@ def _get_nodes(network_id, template_id=None):
     node_qry = db.DBSession.query(Node).filter(
                         Node.network_id == network_id,
                         Node.status == 'A').options(
-                            noload('network')
+                            noload(Node.network)
                         )
     if template_id is not None:
         node_qry = node_qry.filter(ResourceType.node_id == Node.id,
@@ -998,7 +998,7 @@ def _get_links(network_id, template_id=None):
     link_qry = db.DBSession.query(Link).filter(
                                         Link.network_id==network_id,
                                         Link.status=='A').options(
-                                            noload('network')
+                                            noload(Link.network)
                                         )
     if template_id is not None:
         link_qry = link_qry.filter(ResourceType.link_id==Link.id,
@@ -1021,7 +1021,7 @@ def _get_groups(network_id, template_id=None):
     group_qry = db.DBSession.query(ResourceGroup).filter(
                                         ResourceGroup.network_id==network_id,
                                         ResourceGroup.status=='A').options(
-                                            noload('network')
+                                            noload(ResourceGroup.network)
                                         )
 
     if template_id is not None:
@@ -1043,7 +1043,7 @@ def _get_scenarios(network_id, include_data, include_results, user_id,
     """
     scen_qry = db.DBSession.query(Scenario).filter(
                     Scenario.network_id == network_id).options(
-                        noload('network')).filter(
+                        noload(Scenario.network)).filter(
                         Scenario.status == 'A')
 
     if scenario_ids:
@@ -1107,12 +1107,12 @@ def get_network(network_id,
         log.debug("Querying Network %s", network_id)
         net_i = db.DBSession.query(Network).filter(
             Network.id == network_id).options(
-            noload('scenarios')).options(
-            noload('nodes')).options(
-            noload('links')).options(
-            noload('types')).options(
-            noload('attributes')).options(
-            noload('resourcegroups')).one()
+            noload(Network.scenarios)).options(
+            noload(Network.nodes)).options(
+            noload(Network.links)).options(
+            noload(Network.types)).options(
+            noload(Network.attributes)).options(
+            noload(Network.resourcegroups)).one()
 
         net_i.check_read_permission(user_id)
 
