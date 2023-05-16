@@ -88,11 +88,11 @@ class MongoStorageAdapter():
         doc = {"_id": ObjectId(object_id)}
         path.update_one(doc, {"$set": {"value": value}})
 
-    def insert_document(self, value, collection=None):
+    def insert_document(self, ds_id, value, collection=None):
         """ Insert a document with the specified `value` into a collection """
         collection = collection if collection else self.datasets
         path = self.db[collection]
-        result = path.insert_one({"value": value})
+        result = path.insert_one({"dataset_id": ds_id, "value": value})
         return result.inserted_id
 
     def bulk_insert_values(self, values, collection=None):

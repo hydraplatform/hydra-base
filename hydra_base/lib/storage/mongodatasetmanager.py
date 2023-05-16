@@ -68,7 +68,7 @@ class MongoDatasetManager(DatasetManager):
                 self.mongo.set_document_value(oid, value)
         elif size > self.threshold:
             """ Create in external storage """
-            _id = self.mongo.insert_document(value)
+            _id = self.mongo.insert_document(dataset.id, value)
             self.set_storage_location(dataset, self.loc_mongo_direct)
             setattr(dataset, self.ref_key, str(_id))
             log.debug(f"* External create in {self.loc_mongo_direct=} as {_id=}")

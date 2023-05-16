@@ -155,10 +155,12 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
         if metadata is None:
             metadata = self.get_metadata_as_dict()
 
+        value_src = self.value_ref if use_mongo else self.value
+
         dataset_dict = dict(name      = self.name,
                            unit_id    = self.unit_id,
                            type       = self.type,
-                           value      = self.value_ref,
+                           value      = value_src,
                            metadata   = metadata)
 
         data_hash = generate_data_hash(dataset_dict)
