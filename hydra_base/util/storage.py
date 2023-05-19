@@ -15,6 +15,7 @@ import transaction
 
 from bson.objectid import ObjectId
 from pymongo import MongoClient
+from pymongo.errors import ServerSelectionTimeoutError
 from sqlalchemy.sql.expression import func
 from sqlalchemy.exc import NoResultFound
 
@@ -32,6 +33,9 @@ if not db.DBSession:
 
 mongo = None
 
+
+def percent_encode(s, xchars=":/?#[]@"):
+    return "".join(f"%{ord(char):2X}" if char in xchars else char for char in s)
 
 def largest_datasets(count=20):
     """
@@ -73,7 +77,12 @@ def export_dataset_to_external_storage(ds_id, db_name=None, collection=None):
     if dataset.is_external():
         raise LookupError(f"Dataset {dataset.id} has external storage metadata")
 
-    result = path.insert_one({"value": dataset.value, "dataset_id": dataset.id})
+    try:
+        result = path.insert_one({"value": dataset.value, "dataset_id": dataset.id})
+    except ServerSelectionTimeoutError:
+        raise TypeError(f"Insertion of dataset {dataset.id} to path {db_name}:{collection} failed "
+                        f"Unable to connect to server at {mongo_config['host']}:{mongo_config['port']}")
+
     if not (hasattr(result, "inserted_id") and isinstance(result.inserted_id, ObjectId)):
         raise TypeError(f"Insertion of dataset {dataset.id} to path {db_name}:{collection} failed")
 
@@ -252,5 +261,19 @@ def get_mongo_client():
     if mongo:
         return mongo
     mongo_config = MongoStorageAdapter.get_mongo_config()
-    mongo = MongoClient(f"mongodb://{mongo_config['host']}:{mongo_config['port']}")
+    host = mongo_config["host"]
+    port = mongo_config["port"]
+    user = mongo_config["user"]
+    passwd = mongo_config["passwd"]
+    db_name = mongo_config["db_name"]
+
+    """ Mongo usernames/passwds require percent encoding of `:/?#[]@` chars """
+    user, passwd = percent_encode(user), percent_encode(passwd)
+    authtext = f"{user}:{passwd}@" if (user and passwd) else ""
+    conntext = f"mongodb://{authtext}{host}:{port}/{db_name}"
+    try:
+        mongo = MongoClient(conntext)
+    except ServerSelectionTimeoutError as sste:
+        log.critical(f"Unable to connect to Mongo server {conntext}: {sste}")
+        raise sste
     return mongo
