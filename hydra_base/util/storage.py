@@ -171,16 +171,16 @@ def write_dataset_as_bz2(dataset_id: int, path='.'):
     return filename, f_size
 
 
-def write_oid_as_bz2(oid: str, path='.', db_name=None, collection=None):
+def write_oid_as_bz2(oid: str, filepath='.', db_name=None, collection=None):
     """
     Makes a compressed copy of the 'value' attribute of a MongoDB document
     with oid <oid> in a file named "<oid>.bz2". An optional target directory
     may be provided in <path>
     """
-    if not os.path.isdir(path):
-        raise ValueError(f"Invalid path {path}; must be an existing directory")
+    if not os.path.isdir(filepath):
+        raise ValueError(f"Invalid path {filepath}; must be an existing directory")
 
-    filename = os.path.join(path, f"{oid}.bz2")
+    filename = os.path.join(filepath, f"{oid}.bz2")
     if os.path.exists(filename):
         raise ValueError(f"File {filename} already exists")
 
@@ -205,7 +205,58 @@ def write_oid_as_bz2(oid: str, path='.', db_name=None, collection=None):
     return filename, f_size
 
 
-def bz2_file_equal_to_dataset(filename) -> bool:
+def export_oid_as_bz2_file(oid: str, filepath='.', db_name=None, collection=None):
+    """
+    Removes the dataset in the 'value' key of the specified document
+    from MongoDB, writes it as a bz2-compressed file, and adds a
+    reference to this file to the Mongo document.
+
+    See import_bz2_file_as_oid to reverse this process.
+    """
+    filename, f_size = write_oid_as_bz2(oid, filepath, db_name, collection)
+
+    mongo_config = MongoStorageAdapter.get_mongo_config()
+    db_name = db_name if db_name else mongo_config["db_name"]
+    collection = collection if collection else mongo_config["datasets"]
+
+    mongo = get_mongo_client()
+    path = mongo[db_name][collection]
+
+    object_id = ObjectId(oid)
+    status = path.update_one({'_id': object_id}, {'$set': {'location': 'FILE', 'value': filename}}, upsert=False)
+    assert status.matched_count == 1
+    assert status.modified_count == 1
+    doc = path.find_one({"_id": object_id})
+    print(f"{doc=}")
+    return filename, f_size
+
+
+def import_bz2_file_as_oid(filename: str, oid: str, db_name=None, collection=None):
+    """
+    Adds the bz2-compressed file specified by <filename> to MongoDB as
+    the 'value' key of the document with the specified oid, and removes
+    the reference reference to this file from the Mongo document.
+
+    Files imported in this way are assumed to originate from export_oid_as_bz2_file.
+    """
+    with bz2.BZ2File(filename, 'rb') as infile:
+        with io.TextIOWrapper(infile, encoding='utf-8') as tiw:
+            file_dso = json.loads(tiw.read())
+
+    mongo_config = MongoStorageAdapter.get_mongo_config()
+    db_name = db_name if db_name else mongo_config["db_name"]
+    collection = collection if collection else mongo_config["datasets"]
+
+    mongo = get_mongo_client()
+    path = mongo[db_name][collection]
+
+    object_id = ObjectId(oid)
+    status = path.update_one({'_id': object_id}, {'$set': {'value': file_dso}, '$unset': {'location': 1}}, upsert=False)
+    assert status.matched_count == 1
+    assert status.modified_count == 1
+    return status
+
+def bz2_file_equal_to_dataset(filename: str) -> bool:
     """
     Verifies that the bz2-compressed dataset contained in <filename> is
     equal to the SQL db dataset with the same dataset_id, as determined
