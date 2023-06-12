@@ -79,7 +79,7 @@ def get_dataset(dataset_id,**kwargs):
                 Dataset.created_by,
                 DatasetOwner.user_id,
                 null().label('metadata'),
-                case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
+                case((and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None),
                         else_=Dataset.value).label('value')).filter(
                 Dataset.id==dataset_id).outerjoin(DatasetOwner,
                                     and_(DatasetOwner.dataset_id==Dataset.id,

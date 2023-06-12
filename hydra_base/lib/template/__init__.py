@@ -249,10 +249,10 @@ def get_template_as_dict(template_id, **kwargs):
 
     template_i = db.DBSession.query(Template).filter(
                     Template.id==template_id).options(
-                        joinedload('templatetypes')\
-                        .joinedload('typeattrs')\
-                        .joinedload('default_dataset')\
-                        .joinedload('metadata')
+                        joinedload(Template.templatetypes)\
+                        .joinedload(Template.typeattrs)\
+                        .joinedload(Template.default_dataset)\
+                        .joinedload(Template.metadata)
                     ).one()
 
 
@@ -360,9 +360,9 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
     try:
         template_i = db.DBSession.query(Template).filter(
             Template.name==template_name).options(
-                joinedload('templatetypes')
-                .joinedload('typeattrs')
-                .joinedload('attr')).one()
+                joinedload(Template.templatetypes)
+                .joinedload(Template.typeattrs)
+                .joinedload(Template.attr)).one()
         if allow_update == False:
             raise HydraError("Existing Template Found with name %s"%(template_name,))
         else:
@@ -474,7 +474,7 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
         for attr_to_delete in attrs_to_delete:
             attr_id, type_id = attr_name_map[attr_to_delete]
             try:
-                attr_i = db.DBSession.query(TypeAttr).filter(TypeAttr.attr_id==attr_id, TypeAttr.type_id==type_id).options(joinedload('attr')).one()
+                attr_i = db.DBSession.query(TypeAttr).filter(TypeAttr.attr_id==attr_id, TypeAttr.type_id==type_id).options(joinedload(TypeAttr.attr)).one()
                 db.DBSession.delete(attr_i)
                 log.debug("Attr %s in type %s deleted",attr_i.attr.name, attr_i.templatetype.name)
             except NoResultFound:
@@ -751,7 +751,7 @@ def get_templates(load_all=True, include_inactive=False, **kwargs):
         Returns:
             List of Template objects
     """
-    templates_i = db.DBSession.query(Template).options(joinedload('templatetypes')).all()
+    templates_i = db.DBSession.query(Template).options(joinedload(Template.templatetypes)).all()
     if load_all is True:
         full_templates = []
         for template_i in templates_i:
@@ -1196,7 +1196,7 @@ def get_templatetype(type_id, include_parent_data=True, **kwargs):
 
     #First get the DB entry
     templatetype = db.DBSession.query(TemplateType).filter(
-        TemplateType.id == type_id).options(noload("typeattrs")).one()
+        TemplateType.id == type_id).options(noload(TemplateType.typeattrs)).one()
 
     if include_parent_data is False:
         return templatetype
@@ -1221,7 +1221,7 @@ def get_typeattr(typeattr_id, include_parent_data=True, **kwargs):
 
     typeattr = db.DBSession.query(TypeAttr)\
             .filter(TypeAttr.id == typeattr_id)\
-            .options(joinedload("default_dataset")).one()
+            .options(joinedload(TypeAttr.default_dataset)).one()
 
     if include_parent_data is False:
         return typeattr
