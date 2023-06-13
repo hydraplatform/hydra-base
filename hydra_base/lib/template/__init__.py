@@ -250,9 +250,8 @@ def get_template_as_dict(template_id, **kwargs):
     template_i = db.DBSession.query(Template).filter(
                     Template.id==template_id).options(
                         joinedload(Template.templatetypes)\
-                        .joinedload(Template.typeattrs)\
-                        .joinedload(Template.default_dataset)\
-                        .joinedload(Template.metadata)
+                        .joinedload(TemplateType.typeattrs)\
+                        .joinedload(TypeAttr.default_dataset)
                     ).one()
 
 
@@ -361,8 +360,8 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
         template_i = db.DBSession.query(Template).filter(
             Template.name==template_name).options(
                 joinedload(Template.templatetypes)
-                .joinedload(Template.typeattrs)
-                .joinedload(Template.attr)).one()
+                .joinedload(TemplateType.typeattrs)
+                .joinedload(TypeAttr.attr)).one()
         if allow_update == False:
             raise HydraError("Existing Template Found with name %s"%(template_name,))
         else:

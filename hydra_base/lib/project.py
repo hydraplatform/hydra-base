@@ -38,7 +38,7 @@ log = logging.getLogger(__name__)
 
 def _get_project(project_id, user_id, check_write=False):
     try:
-        project = db.DBSession.query(Project).filter(Project.id == project_id).options(noload('children')).one()
+        project = db.DBSession.query(Project).filter(Project.id == project_id).options(noload(Project.children)).one()
 
         if check_write is True:
             project.check_write_permission(user_id)
@@ -252,7 +252,7 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
 
     ##Don't load the project's networks. Load them separately, as the networks
     #must be checked individually for ownership
-    projects_qry = db.DBSession.query(Project).options(joinedload('owners'))
+    projects_qry = db.DBSession.query(Project).options(joinedload(Project.owners))
 
     log.info("Getting projects for user %s", uid)
 
@@ -279,7 +279,7 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
                 projects_qry = projects_qry.filter(Project.id.in_(projects_ids_list_filter))
 
 
-    projects_qry = projects_qry.options(noload('networks')).order_by('id')
+    projects_qry = projects_qry.options(noload(Project.networks)).order_by('id')
 
     projects_i = projects_qry.all()
 
@@ -365,7 +365,7 @@ def get_projects_networks(project_ids, uid, isadmin=None, **kwargs):
 
     log.info("Getting for all the networks for in the specified projects...")
     network_qry = db.DBSession.query(Network)\
-                                .options(joinedload('owners'))\
+                                .options(joinedload(Network.owners))\
                                 .filter(Network.project_id.in_(project_ids),\
                                         Network.status=='A')
     if not isadmin:

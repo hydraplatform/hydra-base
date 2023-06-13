@@ -559,8 +559,8 @@ def _get_links(link_ids):
     while lower < limit:
         upper = lower+block_size
         rs = db.DBSession.query(Link)\
-                   .options(joinedload('attributes'))\
-                   .options(joinedload('types'))\
+                   .options(joinedload(Link.attributes))\
+                   .options(joinedload(Link.types))\
                    .filter(Link.id.in_(link_ids[lower:upper])).all()
         log.debug("Retrieved %s links", len(rs))
         links.extend(rs)
@@ -588,8 +588,8 @@ def _get_nodes(node_ids):
     while lower < limit:
         upper = lower+block_size
         rs = db.DBSession.query(Node)\
-                   .options(joinedload('attributes'))\
-                   .options(joinedload('types'))\
+                   .options(joinedload(Node.attributes))\
+                   .options(joinedload(Node.types))\
                    .filter(Node.id.in_(node_ids[lower:upper])).all()
         log.debug("Retrieved %s nodes", len(rs))
         nodes.extend(rs)
@@ -616,8 +616,8 @@ def _get_groups(group_ids):
     while lower < limit:
         upper = lower+block_size
         rs = db.DBSession.query(ResourceGroup)\
-                   .options(joinedload('attributes'))\
-                   .options(joinedload('types'))\
+                   .options(joinedload(ResourceGroup.attributes))\
+                   .options(joinedload(ResourceGroup.types))\
                    .filter(ResourceGroup.id.in_(group_ids[lower:upper])).all()
         log.debug("Retrieved %s groups", len(rs))
         groups.extend(rs)
@@ -824,8 +824,8 @@ def validate_attr(resource_attr_id, scenario_id, template_id=None, **kwargs):
     rs = db.DBSession.query(ResourceScenario).\
                         filter(ResourceScenario.resource_attr_id == resource_attr_id,
                                ResourceScenario.scenario_id == scenario_id).options(
-                                   joinedload("resourceattr")).options(
-                                       joinedload("dataset")
+                                   joinedload(ResourceScenario.resourceattr)).options(
+                                       joinedload(ResourceScenario.dataset)
                                    ).one()
 
     error = None
@@ -856,8 +856,8 @@ def validate_attrs(resource_attr_ids, scenario_id, template_id=None, **kwargs):
     multi_rs = db.DBSession.query(ResourceScenario).\
                             filter(ResourceScenario.resource_attr_id.in_(resource_attr_ids),\
                                    ResourceScenario.scenario_id == scenario_id).\
-                                   options(joinedload("resourceattr")).\
-                                   options(joinedload("dataset")).all()
+                                   options(joinedload(ResourceScenario.resourceattr)).\
+                                   options(joinedload(ResourceScenario.dataset)).all()
 
     errors = []
     for rs in multi_rs:
@@ -890,8 +890,8 @@ def validate_scenario(scenario_id, template_id=None, **kwargs):
     """
     scenario_rs = db.DBSession.query(ResourceScenario).filter(
                 ResourceScenario.scenario_id==scenario_id)\
-                .options(joinedload("resourceattr"))\
-                .options(joinedload("dataset")).all()
+                .options(joinedload(ResourceScenario.resourceattr))\
+                .options(joinedload(ResourceScenario.dataset)).all()
 
     errors = []
     for rs in scenario_rs:
@@ -966,7 +966,7 @@ def validate_network(network_id, template_id, scenario_id=None, **kwargs):
     """
 
     network = db.DBSession.query(Network).filter(
-        Network.id == network_id).options(noload('scenarios')).first()
+        Network.id == network_id).options(noload(Network.scenarios)).first()
 
     if network is None:
         raise HydraError("Could not find network %s"%(network_id))

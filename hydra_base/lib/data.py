@@ -116,7 +116,7 @@ def clone_dataset(dataset_id,**kwargs):
         return None
 
     dataset = db.DBSession.query(Dataset).filter(
-            Dataset.id==dataset_id).options(joinedload('metadata')).first()
+            Dataset.id==dataset_id).options(joinedload(Dataset.metadata)).first()
 
     if dataset is None:
         raise HydraError("Dataset %s does not exist."%(dataset_id))

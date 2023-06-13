@@ -1291,7 +1291,7 @@ def get_network_simple(network_id,**kwargs):
 
 def get_node(node_id, scenario_id=None, **kwargs):
     try:
-        n = db.DBSession.query(Node).filter(Node.id==node_id).options(joinedload(Node.attributes).joinedload(Node.attr)).one()
+        n = db.DBSession.query(Node).filter(Node.id==node_id).options(joinedload(Node.attributes)).one()
         n.types
         for t in n.types:
             t.templatetype.typeattrs
@@ -1324,7 +1324,7 @@ def get_node(node_id, scenario_id=None, **kwargs):
 
 def get_link(link_id, scenario_id=None, **kwargs):
     try:
-        l = db.DBSession.query(Link).filter(Link.id==link_id).options(joinedload(Link.attributes).joinedload(Link.attr)).one()
+        l = db.DBSession.query(Link).filter(Link.id==link_id).options(joinedload(Link.attributes)).one()
         l.types
         for t in l.types:
             #lazy load the type's template
@@ -1391,7 +1391,7 @@ def get_node_by_name(network_id, node_name,**kwargs):
     try:
         n = db.DBSession.query(Node).filter(Node.name==node_name,
                                          Node.network_id==network_id).\
-                                         options(joinedload(Node.attributes).joinedload(Node.attr)).one()
+                                         options(joinedload(Node.attributes)).one()
         return n
     except NoResultFound:
         raise ResourceNotFoundError("Node %s not found in network %s"%(node_name, network_id,))
@@ -1400,7 +1400,7 @@ def get_link_by_name(network_id, link_name,**kwargs):
     try:
         l = db.DBSession.query(Link).filter(Link.name==link_name,
                                          Link.network_id==network_id).\
-                                         options(joinedload(Link.attributes).joinedload(Link.attr)).one()
+                                         options(joinedload(Link.attributes)).one()
         return l
     except NoResultFound:
         raise ResourceNotFoundError("Link %s not found in network %s"%(link_name, network_id))
@@ -2396,7 +2396,7 @@ def clean_up_network(network_id, **kwargs):
     try:
         log.debug("Querying Network %s", network_id)
         net_i = db.DBSession.query(Network).filter(Network.id == network_id).\
-        options(noload(Network.scenarios)).options(noload(Network.nodes)).options(noload(Network.links)).options(noload(Network.resourcegroups)).options(joinedload(Network.types).joinedload(Network.templatetype).joinedload(Network.template)).one()
+        options(noload(Network.scenarios)).options(noload(Network.nodes)).options(noload(Network.links)).options(noload(Network.resourcegroups)).options(joinedload(Network.types)).one()
         net_i.attributes
 
         #Define the basic resource queries
@@ -2488,8 +2488,7 @@ def get_attributes_for_resource(network_id, scenario_id, ref_key, ref_ids=None, 
                             ResourceAttr.id==ResourceScenario.resource_attr_id,
                             ResourceScenario.scenario_id==scenario_id,
                             ResourceAttr.ref_key==ref_key)\
-            .join(ResourceScenario.dataset)\
-            .options(noload(ResourceScenario.dataset.metadata))
+            .join(ResourceScenario.dataset)
 
     log.info("Querying %s data",ref_key)
     if ref_ids is not None and len(ref_ids) < 999:
@@ -2601,10 +2600,10 @@ def get_all_resource_attributes_in_network(attr_id, network_id, include_resource
             Node.network_id == network_id,
             Link.network_id == network_id,
             ResourceGroup.network_id == network_id)
-        ).outerjoin('node')\
-        .outerjoin('link')\
-        .outerjoin('network')\
-        .outerjoin('resourcegroup')\
+        ).outerjoin(ResourceAttr.node)\
+        .outerjoin(ResourceAttr.link)\
+        .outerjoin(ResourceAttr.network)\
+        .outerjoin(ResourceAttr.resourcegroup)\
         .options(joinedload(ResourceAttr.node))\
         .options(joinedload(ResourceAttr.link))\
         .options(joinedload(ResourceAttr.resourcegroup))\
@@ -2660,12 +2659,12 @@ def get_all_resource_data(scenario_id, include_metadata=False, page_start=None, 
                Dataset.hidden,
                Dataset.type,
                null().label('metadata'),
-               case([
-                    (ResourceAttr.node_id != None, Node.name),
-                    (ResourceAttr.link_id != None, Link.name),
-                    (ResourceAttr.group_id != None, ResourceGroup.name),
-                    (ResourceAttr.network_id != None, Network.name),
-               ]).label('ref_name'),
+               case(
+                   (ResourceAttr.node_id != None, Node.name),
+                   (ResourceAttr.link_id != None, Link.name),
+                   (ResourceAttr.group_id != None, ResourceGroup.name),
+                   (ResourceAttr.network_id != None, Network.name),
+               ).label('ref_name'),
               ).join(ResourceScenario, ResourceScenario.resource_attr_id==ResourceAttr.id)\
                 .join(Dataset, ResourceScenario.dataset_id==Dataset.id).\
                 join(Attr, ResourceAttr.attr_id==Attr.id).\

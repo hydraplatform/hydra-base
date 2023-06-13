@@ -1683,7 +1683,7 @@ def delete_duplicate_resourceattributes(network_id=None, **kwargs):
         #get all the resource attrs in the system -- but limit by only inputs
         all_ras = db.DBSession.query(ResourceAttr)\
             .filter(ResourceAttr.attr_is_var == 'N')\
-            .options(joinedload('attr')).all()
+            .options(joinedload(ResourceAttr.attr)).all()
     else:
         all_ras = get_all_network_resourceattributes(network_id, return_orm=True, **kwargs)
 
