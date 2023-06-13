@@ -18,6 +18,7 @@
 #
 
 from beaker import session
+import sqlalchemy as sa
 
 from .. import util
 from .. import config
@@ -26,6 +27,14 @@ from .. import db
 DEFAULT_VALIDATE_KEY = 'YxaDbzUUSo08b+'
 DEFAULT_DATA_DIR = '/tmp'
 DEFAULT_FILE_DIR = '/tmp/auth'
+
+
+CACHE_TABLE = sa.Table('beaker_cache', db.DeclarativeBase.metadata,
+                    sa.Column('namespace', sa.String(255), primary_key=True),
+                    sa.Column('accessed', sa.DateTime, nullable=False),
+                    sa.Column('created', sa.DateTime, nullable=False),
+                    sa.Column('data', sa.PickleType, nullable=False),
+                    schema=db.DeclarativeBase.metadata.schema)
 
 def login(username, password, **kwargs):
     """
@@ -48,10 +57,11 @@ def login(username, password, **kwargs):
     hydra_session = session.Session(
         {}, #This is normally a request object, but in this case is empty
         validate_key=config.get('COOKIES', 'VALIDATE_KEY', DEFAULT_VALIDATE_KEY),
-        type='file' if db.hydra_db_url.startswith('sqlite') else 'ext:database',
+        type='file' if db.hydra_db_url.startswith('sqlite') else 'ext:sqla',
         cookie_expires=True,
         data_dir=config.get('COOKIES', 'DATA_DIR', DEFAULT_DATA_DIR),
-        url=db.hydra_db_url
+        bind = db.engine,
+        table= CACHE_TABLE
     )
 
     hydra_session['user_id'] = user_id
@@ -76,16 +86,18 @@ def logout(session_id, **kwargs):
     hydra_session_object = session.SessionObject(
         {}, #This is normally a request object, but in this case is empty
         validate_key=config.get('COOKIES', 'VALIDATE_KEY', DEFAULT_VALIDATE_KEY),
-        type='file' if db.hydra_db_url.startswith('sqlite') else 'ext:database',
+        type='file' if db.hydra_db_url.startswith('sqlite') else 'ext:sqla',
         cookie_expires=True,
         data_dir=config.get('COOKIES', 'DATA_DIR', DEFAULT_DATA_DIR),
-        url=db.hydra_db_url)
+        bind=db.engine,
+        table=CACHE_TABLE
+    )
 
     hydra_session = hydra_session_object.get_by_id(session_id)
 
     if hydra_session is not None:
         hydra_session.delete()
-        hydra_session.save()
+        hydra_session.namespace.do_remove()
 
     return 'OK'
 
@@ -103,10 +115,12 @@ def get_session_user(session_id, **kwargs):
     hydra_session_object = session.SessionObject(
         {}, #This is normally a request object, but in this case is empty
         validate_key=config.get('COOKIES', 'VALIDATE_KEY', DEFAULT_VALIDATE_KEY),
-        type='file' if db.hydra_db_url.startswith('sqlite') else 'ext:database',
+        type='file' if db.hydra_db_url.startswith('sqlite') else 'ext:sqla',
         cookie_expires=True,
         data_dir=config.get('COOKIES', 'DATA_DIR', DEFAULT_DATA_DIR),
-        url=db.hydra_db_url)
+        bind=db.engine,
+        table=CACHE_TABLE
+    )
 
     hydra_session = hydra_session_object.get_by_id(session_id)
 
