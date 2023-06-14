@@ -29,6 +29,8 @@ from hydra_base import db
 from hydra_base.db.model import (Template, TemplateType, TypeAttr, Attr,
                                 Network, Node, Link, ResourceGroup,
                                 ResourceType, ResourceAttr, ResourceScenario, Scenario)
+
+from hydra_base.db.model import Dataset as ModelDataset
 from hydra_base.lib.objects import JSONObject, Dataset
 from hydra_base.lib.data import add_dataset
 from hydra_base.exceptions import HydraError, ResourceNotFoundError
@@ -251,7 +253,8 @@ def get_template_as_dict(template_id, **kwargs):
                     Template.id==template_id).options(
                         joinedload(Template.templatetypes)\
                         .joinedload(TemplateType.typeattrs)\
-                        .joinedload(TypeAttr.default_dataset)
+                        .joinedload(TypeAttr.default_dataset)\
+                        .joinedload(ModelDataset.metadata)
                     ).one()
 
 

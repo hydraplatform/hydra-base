@@ -1202,9 +1202,9 @@ def get_nodes(network_id, template_id=None, **kwargs):
                         Node.status == 'A').options(
                             noload(Node.network)
                         ).options(
-                            joinedload(Node.types).joinedload(Node.templatetype)
+                            joinedload(Node.types).joinedload(ResourceType.templatetype)
                         ).options(
-                            joinedload(Node.attributes).joinedload(Node.attr)
+                            joinedload(Node.attributes).joinedload(ResourceAttr.attr)
                         )
     if template_id is not None:
         node_qry = node_qry.filter(ResourceType.node_id==Node.id,
@@ -1233,9 +1233,9 @@ def get_links(network_id, template_id=None, **kwargs):
                                         Link.status=='A').options(
                                             noload(Link.network)
                                         ).options(
-                                            joinedload(Link.types).joinedload(Link.templatetype)
+                                            joinedload(Link.types).joinedload(ResourceType.templatetype)
                                         ).options(
-                                            joinedload(Link.attributes).joinedload(Link.attr)
+                                            joinedload(Link.attributes).joinedload(ResourceAttr.attr)
                                         )
 
     if template_id is not None:
@@ -1266,9 +1266,9 @@ def get_groups(network_id, template_id=None, **kwargs):
                                         ResourceGroup.status=='A').options(
                                             noload(ResourceGroup.network)
                                         ).options(
-                                            joinedload(ResourceGroup.types).joinedload(ResourceGroup.templatetype)
+                                            joinedload(ResourceGroup.types).joinedload(ResourceType.templatetype)
                                         ).options(
-                                            joinedload(ResourceGroup.attributes).joinedload(ResourceGroup.attr)
+                                            joinedload(ResourceGroup.attributes).joinedload(ResourceAttr.attr)
                                         )
     if template_id is not None:
         group_qry = group_qry.filter(ResourceType.group_id==ResourceGroup.id,
@@ -1281,7 +1281,7 @@ def get_groups(network_id, template_id=None, **kwargs):
 
 def get_network_simple(network_id,**kwargs):
     try:
-        n = db.DBSession.query(Network).filter(Network.id==network_id).options(joinedload(Network.attributes).joinedload(Network.attr)).one()
+        n = db.DBSession.query(Network).filter(Network.id==network_id).options(joinedload(Network.attributes).joinedload(ResourceAttr.attr)).one()
         n.types
         for t in n.types:
             t.templatetype.typeattrs
@@ -1291,7 +1291,7 @@ def get_network_simple(network_id,**kwargs):
 
 def get_node(node_id, scenario_id=None, **kwargs):
     try:
-        n = db.DBSession.query(Node).filter(Node.id==node_id).options(joinedload(Node.attributes)).one()
+        n = db.DBSession.query(Node).filter(Node.id==node_id).options(joinedload(Node.attributes).joinedload(ResourceAttr.attr)).one()
         n.types
         for t in n.types:
             t.templatetype.typeattrs
@@ -1324,7 +1324,7 @@ def get_node(node_id, scenario_id=None, **kwargs):
 
 def get_link(link_id, scenario_id=None, **kwargs):
     try:
-        l = db.DBSession.query(Link).filter(Link.id==link_id).options(joinedload(Link.attributes)).one()
+        l = db.DBSession.query(Link).filter(Link.id==link_id).options(joinedload(Link.attributes).joinedload(ResourceAttr.attr)).one()
         l.types
         for t in l.types:
             #lazy load the type's template
@@ -1357,7 +1357,7 @@ def get_link(link_id, scenario_id=None, **kwargs):
 
 def get_resourcegroup(group_id, scenario_id=None, **kwargs):
     try:
-        rg = db.DBSession.query(ResourceGroup).filter(ResourceGroup.id==group_id).options(joinedload(ResourceGroup.attributes)).one()
+        rg = db.DBSession.query(ResourceGroup).filter(ResourceGroup.id==group_id).options(joinedload(ResourceGroup.attributes).joinedload(ResourceAttr.attr)).one()
         rg.types
         for t in rg.types:
             #lazy load the type's template
@@ -1391,7 +1391,7 @@ def get_node_by_name(network_id, node_name,**kwargs):
     try:
         n = db.DBSession.query(Node).filter(Node.name==node_name,
                                          Node.network_id==network_id).\
-                                         options(joinedload(Node.attributes)).one()
+                                         options(joinedload(Node.attributes).joinedload(ResourceAttr.Attr)).one()
         return n
     except NoResultFound:
         raise ResourceNotFoundError("Node %s not found in network %s"%(node_name, network_id,))
@@ -1400,7 +1400,7 @@ def get_link_by_name(network_id, link_name,**kwargs):
     try:
         l = db.DBSession.query(Link).filter(Link.name==link_name,
                                          Link.network_id==network_id).\
-                                         options(joinedload(Link.attributes)).one()
+                                         options(joinedload(Link.attributes).joinedload(ResourceAttr.attr)).one()
         return l
     except NoResultFound:
         raise ResourceNotFoundError("Link %s not found in network %s"%(link_name, network_id))
@@ -1409,7 +1409,7 @@ def get_resourcegroup_by_name(network_id, group_name,**kwargs):
     try:
         rg = db.DBSession.query(ResourceGroup).filter(ResourceGroup.name==group_name,
                                                    ResourceGroup.network_id==network_id).\
-                                                    options(joinedload(ResourceGroup.attributes).joinedload(ResourceGroup.attr)).one()
+                                                    options(joinedload(ResourceGroup.attributes).joinedload(ResourceAttr.attr)).one()
         return rg
     except NoResultFound:
         raise ResourceNotFoundError("ResourceGroup %s not found in network %s"%(group_name,network_id))

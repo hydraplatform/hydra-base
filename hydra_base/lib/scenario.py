@@ -1322,7 +1322,7 @@ def get_attribute_data(attr_ids, node_ids, **kwargs):
     resource_scenarios = db.DBSession.query(ResourceScenario).filter(
         ResourceScenario.resource_attr_id.in_(ra_ids)).options(
             joinedload(ResourceScenario.resourceattr)).options(
-                joinedload(ResourceScenario.dataset).joinedload(ResourceScenario.metadata)
+                joinedload(ResourceScenario.dataset).joinedload(Dataset.metadata)
             ).order_by(ResourceScenario.scenario_id).all()
 
 
