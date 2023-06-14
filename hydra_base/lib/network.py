@@ -2396,7 +2396,12 @@ def clean_up_network(network_id, **kwargs):
     try:
         log.debug("Querying Network %s", network_id)
         net_i = db.DBSession.query(Network).filter(Network.id == network_id).\
-        options(noload(Network.scenarios)).options(noload(Network.nodes)).options(noload(Network.links)).options(noload(Network.resourcegroups)).options(joinedload(Network.types)).one()
+        options(noload(Network.scenarios)).options(noload(Network.nodes)).options(noload(Network.links)).options(
+            noload(Network.resourcegroups)).options(
+              joinedload(Network.types)\
+              .joinedload(ResourceType.templatetype)\
+              .joinedload(TemplateType.template)
+            ).one()
         net_i.attributes
 
         #Define the basic resource queries
