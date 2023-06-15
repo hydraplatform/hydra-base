@@ -45,6 +45,7 @@ jobs:
 
       - name: Install hydra-base
         run: |
+             pip install -r requirements.txt
              pip install git+https://github.com/hydraplatform/hydra-client-python.git
              pip install git+https://github.com/hydraplatform/hydra-server.git
              pip install -e .

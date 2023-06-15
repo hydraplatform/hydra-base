@@ -24,27 +24,7 @@ testpkgs=[
                'coverage',
                ]
 
-install_requires=[
-    "sqlalchemy",
-    "psycopg2-binary",
-    "zope.sqlalchemy >= 0.4",
-    "pandas",
-    "numpy",
-    "bcrypt",
-    "lxml",
-    "mysqlclient",
-    "python-dateutil",
-    "cheroot",
-    "beaker",
-    "packaging",
-    "pymongo",
-    "pylibmc",
-    "diskcache",
-    "fsspec",
-    "h5py",
-    "s3fs",
-    "tables"
-    ]
+install_requires=[]
 
 # get version string from __init__.py
 with open(os.path.join(os.path.dirname(__file__), "hydra_base", "__init__.py")) as f:

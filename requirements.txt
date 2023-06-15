@@ -1,6 +1,6 @@
 sqlalchemy
 psycopg2-binary
-zope.sqlalchemy>=0.4
+zope.sqlalchemy
 pandas
 numpy
 bcrypt
@@ -21,3 +21,4 @@ requests
 fsspec
 h5py
 s3fs
+tables
