@@ -35,7 +35,7 @@ install_requires=[
     "mysqlclient",
     "python-dateutil",
     "cheroot",
-    "beaker==1.11.0",
+    "beaker",
     "packaging",
     "pymongo",
     "pylibmc",
