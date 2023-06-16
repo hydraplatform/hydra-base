@@ -170,7 +170,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
                 if attr_lookup.get(ra.attr_id) is None:
                     attr = db.DBSession.query(Attr).filter(Attr.id == ra.attr_id).first()
                     if attr is None:
-                        raise Exception("Unable to process attribute %s on resource %s as it does not exist", ra.attr_id, resource.name)
+                        raise Exception(f"Unable to process attribute {ra.attr_id} on resource {resource.name} as it does not exist")
                     attr_lookup[ra.attr_id] = attr
                 resource_attrs[resource.id].append({
                     'ref_key'     : ref_key,
@@ -1595,7 +1595,7 @@ def move_network(network_id, target_project_id, **kwargs):
     """
         Move a network to the project with `target_project_id`
     """
-    log.info(f"Moving {network_id=} to {target_project_id=}")
+    log.info(f"Moving {network_id} to {target_project_id}")
     user_id = kwargs.get('user_id')
 
     try:
