@@ -1,4 +1,4 @@
-sqlalchemy==1.4.48
+sqlalchemy
 psycopg2-binary
 zope.sqlalchemy
 pandas
