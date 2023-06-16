@@ -79,7 +79,7 @@ def get_dataset(dataset_id,**kwargs):
                 Dataset.created_by,
                 DatasetOwner.user_id,
                 null().label('metadata'),
-                case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
+                case((and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None),
                         else_=Dataset.value).label('value')).filter(
                 Dataset.id==dataset_id).outerjoin(DatasetOwner,
                                     and_(DatasetOwner.dataset_id==Dataset.id,
@@ -116,7 +116,7 @@ def clone_dataset(dataset_id,**kwargs):
         return None
 
     dataset = db.DBSession.query(Dataset).filter(
-            Dataset.id==dataset_id).options(joinedload('metadata')).first()
+            Dataset.id==dataset_id).options(joinedload(Dataset.metadata)).first()
 
     if dataset is None:
         raise HydraError("Dataset %s does not exist."%(dataset_id))

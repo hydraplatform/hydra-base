@@ -1228,7 +1228,7 @@ def assign_value(rs, data_type, val,
     newrs = db.DBSession.query(ResourceScenario).filter(
         ResourceScenario.scenario_id==rs.scenario_id,
         ResourceScenario.resource_attr_id==rs.resource_attr_id,
-        ResourceScenario.dataset_id==rs.dataset_id).options(joinedload('dataset')).one()
+        ResourceScenario.dataset_id==rs.dataset_id).options(joinedload(ResourceScenario.dataset)).one()
 
     return newrs
 
@@ -1310,7 +1310,7 @@ def get_attribute_data(attr_ids, node_ids, **kwargs):
         resource scenarios in the network
     """
     node_attrs = db.DBSession.query(ResourceAttr).\
-        options(joinedload('attr')).\
+        options(joinedload(ResourceAttr.attr)).\
         filter(ResourceAttr.node_id.in_(node_ids),
                ResourceAttr.attr_id.in_(attr_ids)).all()
 
@@ -1321,8 +1321,8 @@ def get_attribute_data(attr_ids, node_ids, **kwargs):
 
     resource_scenarios = db.DBSession.query(ResourceScenario).filter(
         ResourceScenario.resource_attr_id.in_(ra_ids)).options(
-            joinedload('resourceattr')).options(
-                joinedload('dataset').joinedload('metadata')
+            joinedload(ResourceScenario.resourceattr)).options(
+                joinedload(ResourceScenario.dataset).joinedload(Dataset.metadata)
             ).order_by(ResourceScenario.scenario_id).all()
 
 

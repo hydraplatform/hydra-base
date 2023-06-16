@@ -1,6 +1,6 @@
 sqlalchemy==1.4.48
 psycopg2-binary
-zope.sqlalchemy>=0.4
+zope.sqlalchemy
 pandas
 numpy
 bcrypt
@@ -11,7 +11,7 @@ mysqlclient
 pudb
 python-dateutil
 cheroot
-beaker==1.11.0
+beaker
 click
 diskcache
 pylibmc
@@ -21,3 +21,4 @@ requests
 fsspec
 h5py
 s3fs
+tables

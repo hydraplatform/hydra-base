@@ -89,8 +89,8 @@ class Template(Base, Inspect):
         #get all the type attrs for this type, and add any which are missing
         this_typeattr_i = get_session().query(TypeAttr)\
             .filter(TypeAttr.id == typeattr_id)\
-            .options(joinedload('attr'))\
-            .options(joinedload('default_dataset')).one()
+            .options(joinedload(TypeAttr.attr))\
+            .options(joinedload(TypeAttr.default_dataset)).one()
 
         this_typeattr = JSONObject(this_typeattr_i)
 
@@ -118,7 +118,7 @@ class Template(Base, Inspect):
 
         #Add resource attributes which are not defined already
         this_type_i = get_session().query(TemplateType).filter(
-            TemplateType.id == type_id).options(noload('typeattrs')).one()
+            TemplateType.id == type_id).options(noload(TemplateType.typeattrs)).one()
 
         this_type = JSONObject(this_type_i)
 
@@ -130,9 +130,9 @@ class Template(Base, Inspect):
         #get all the type attrs for this type, and add any which are missing
         typeattrs_i = get_session().query(TypeAttr)\
             .filter(TypeAttr.type_id == type_id)\
-            .options(joinedload('attr'))\
-            .options(joinedload('unit'))\
-            .options(joinedload('default_dataset')).all()
+            .options(joinedload(TypeAttr.attr))\
+            .options(joinedload(TypeAttr.unit))\
+            .options(joinedload(TypeAttr.default_dataset)).all()
         typeattrs = [JSONObject(ta) for ta in typeattrs_i]
 
 
@@ -197,7 +197,7 @@ class Template(Base, Inspect):
 
         #Add resource attributes which are not defined already
         types_i = get_session().query(TemplateType).filter(
-            TemplateType.template_id == self.id).options(noload('typeattrs')).all()
+            TemplateType.template_id == self.id).options(noload(TemplateType.typeattrs)).all()
         types = [JSONObject(t) for t in types_i]
 
         if child_template_id is None:
@@ -217,8 +217,8 @@ class Template(Base, Inspect):
             #get all the type attrs for this type, and add any which are missing
             typeattrs_i = get_session().query(TypeAttr)\
                 .filter(TypeAttr.type_id == this_type.id)\
-                .options(joinedload('attr'))\
-                .options(joinedload('default_dataset')).all()
+                .options(joinedload(TypeAttr.attr))\
+                .options(joinedload(TypeAttr.default_dataset)).all()
 
             typeattrs = [JSONObject(ta) for ta in typeattrs_i]
 
@@ -339,7 +339,7 @@ class TemplateType(Base, Inspect):
         #get all the type attrs for this type, and add any which are missing
         typeattrs_i = get_session().query(TypeAttr)\
             .filter(TypeAttr.type_id == self.id)\
-            .options(joinedload('default_dataset')).all()
+            .options(joinedload(TypeAttr.default_dataset)).all()
         typeattrs = [JSONObject(ta) for ta in typeattrs_i]
 
 

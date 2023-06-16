@@ -265,7 +265,7 @@ class Project(Base, Inspect, PermissionControlled):
             )
         )
 
-        projects_qry = projects_qry.options(noload('networks')).order_by('id')
+        projects_qry = projects_qry.options(noload(Project.networks)).order_by('id')
 
         projects_i = projects_qry.all()
 

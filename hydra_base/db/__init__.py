@@ -22,7 +22,7 @@ from sqlalchemy.orm import scoped_session
 from sqlalchemy import create_engine
 
 #Import these as a test for foreign key checking in
-from sqlalchemy import event
+from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
 
 from .. import config
@@ -31,8 +31,7 @@ from zope.sqlalchemy import register
 from hydra_base.exceptions import HydraError
 
 import transaction
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, declarative_base
 
 import logging
 log = logging.getLogger(__name__)
@@ -108,7 +107,8 @@ def create_mysql_db(db_url):
         if config.get('mysqld', 'auto_create', 'Y') == 'Y':
             tmp_engine = create_engine(no_db_url)
             log.debug("Creating database {0} as it does not exist.".format(db_name))
-            tmp_engine.execute("CREATE DATABASE IF NOT EXISTS {0}".format(db_name))
+            with tmp_engine.connect() as conn:
+                conn.execute(text("CREATE DATABASE IF NOT EXISTS {0}".format(db_name)))
     return db_url
 
 def connect(db_url=None):
@@ -135,10 +135,9 @@ def connect(db_url=None):
     log.warning(f"db_pool_size: {db_pool_size} - pool_recycle: {db_pool_recycle} - max_overflow: {db_max_overflow} - pool_timeout: {db_pool_timeout}")
 
     if db_url.startswith('sqlite'):
-        engine = create_engine(db_url, encoding='utf8')
+        engine = create_engine(db_url)
     else:
         engine = create_engine(db_url,
-                               encoding='utf8',
                                pool_recycle=db_pool_recycle,
                                pool_size=db_pool_size,
                                pool_timeout=db_pool_timeout,
