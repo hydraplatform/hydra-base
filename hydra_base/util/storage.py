@@ -55,6 +55,38 @@ def datasets_larger_than(size):
     return datasets
 
 
+def total_datasets():
+    return db.DBSession.query(Dataset).count()
+
+
+def dataset_distribution(buckets=10):
+    max_sz = largest_datasets(1)[0][1]
+    bucket_sz = max_sz/buckets
+
+    hist = [{"lower": int(i*bucket_sz), "upper": int((i+1)*bucket_sz)} for i in range(buckets)]
+
+    for bucket in hist:
+        lower, upper = bucket["lower"], bucket["upper"]
+        bucket["count"] = db.DBSession.query(Dataset.id, func.length(Dataset.value))\
+                           .filter(func.length(Dataset.value) > lower)\
+                           .filter(func.length(Dataset.value) <= upper)\
+                           .count()
+    return hist
+
+
+def dataset_report():
+    total_sz = db.DBSession.query(func.sum(Dataset.value)).scalar()
+    mean = db.DBSession.query(func.avg(Dataset.value)).scalar()
+    report = {
+        "count": total_datasets(),
+        "total_size": int(total_sz),
+        "mean_size": round(mean, 2),
+        "distribution": dataset_distribution()
+    }
+
+    return report
+
+
 def export_dataset_to_external_storage(ds_id, db_name=None, collection=None):
     """
     Place the value of the dataset identified by `ds_id` in external
