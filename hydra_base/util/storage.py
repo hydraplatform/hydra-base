@@ -132,7 +132,7 @@ def largest_documents(count: int=20, db_name: str=None, collection: str=None) ->
 
     pipeline = [
         {"$match": {"value": {"$exists": True}}},
-        {"$match": {"value": {"$ne": None}}},
+        {"$match": {"value": {"$type": "string"}}},  # Must ensure string args to strLenCP below
         {"$project": {
             "length": {"$strLenCP": "$value"}
             }
@@ -159,7 +159,7 @@ def document_distribution(db_name: str=None, collection: str=None, buckets: str=
     for bucket in hist:
         pipeline = [
             {"$match": {"value": {"$exists": True}}},
-            {"$match": {"value": {"$ne": None}}},
+            {"$match": {"value": {"$type": "string"}}},  # Must ensure string args to strLenCP below
             {"$redact": {"$cond": [ {"$gt": [{"$strLenCP": "$value"}, bucket["lower"]]}, "$$KEEP", "$$PRUNE"]}},
             {"$redact": {"$cond": [ {"$lte": [{"$strLenCP": "$value"}, bucket["upper"]]}, "$$KEEP", "$$PRUNE"]}},
             {"$count": "count"}
