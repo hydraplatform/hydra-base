@@ -14,6 +14,7 @@ import os
 import transaction
 
 from bson.objectid import ObjectId
+import pymongo
 from pymongo import MongoClient
 from sqlalchemy.sql.expression import func
 from sqlalchemy.exc import NoResultFound
@@ -85,6 +86,79 @@ def dataset_report():
     }
 
     return report
+
+
+def collection_report(db_name=None, collection=None):
+    mongo_config = MongoStorageAdapter.get_mongo_config()
+    db_name = db_name if db_name else mongo_config["db_name"]
+    collection = collection if collection else mongo_config["datasets"]
+
+    mongo = get_mongo_client()
+    path = mongo[db_name][collection]
+
+    stats = mongo[db_name].command("collstats", collection)
+
+    report = {
+        "count": stats["count"],
+        "total_size": stats["size"],
+        "mean_size": stats["avgObjSize"],
+        "distribution": document_distribution(db_name, collection)
+    }
+
+    return report
+
+
+def largest_document(db_name=None, collection=None):
+    mongo_config = MongoStorageAdapter.get_mongo_config()
+    db_name = db_name if db_name else mongo_config["db_name"]
+    collection = collection if collection else mongo_config["datasets"]
+
+    mongo = get_mongo_client()
+    path = mongo[db_name][collection]
+
+    pipeline = [
+        {"$match": {"value": {"$exists": True}}},
+        {"$match": {"value": {"$ne": None}}},
+        {"$project": {
+            "length": {"$strLenCP": "$value"}
+            }
+        },
+        {"$sort": {"length": pymongo.DESCENDING}},
+        {"$limit": 1}
+    ]
+
+    c = path.aggregate(pipeline)
+    max_sz = [*c][0]["length"]
+    return max_sz
+
+
+def document_distribution(db_name=None, collection=None, buckets=10):
+    mongo_config = MongoStorageAdapter.get_mongo_config()
+    db_name = db_name if db_name else mongo_config["db_name"]
+    collection = collection if collection else mongo_config["datasets"]
+
+    mongo = get_mongo_client()
+    path = mongo[db_name][collection]
+
+    max_sz = largest_document(db_name, collection)
+    bucket_sz = max_sz/buckets
+    hist = [{"lower": int(i*bucket_sz), "upper": int((i+1)*bucket_sz)} for i in range(buckets)]
+
+    for bucket in hist:
+        pipeline = [
+            {"$match": {"value": {"$exists": True}}},
+            {"$match": {"value": {"$ne": None}}},
+            {"$redact": { "$cond": [ { "$gt": [ {"$strLenCP": "$value"}, bucket["lower"] ] }, "$$KEEP", "$$PRUNE" ]}},
+            {"$redact": { "$cond": [ { "$lte": [ {"$strLenCP": "$value"}, bucket["upper"] ] }, "$$KEEP", "$$PRUNE" ]}},
+            {"$count": "count"}
+        ]
+
+        result = path.aggregate(pipeline)
+        rl = [*result]
+        count = rl[0]["count"] if rl else 0
+        bucket["count"] = count
+
+    return hist
 
 
 def export_dataset_to_external_storage(ds_id, db_name=None, collection=None):
@@ -286,3 +360,8 @@ def get_mongo_client():
     mongo_config = MongoStorageAdapter.get_mongo_config()
     mongo = MongoClient(f"mongodb://{mongo_config['host']}:{mongo_config['port']}")
     return mongo
+
+if __name__ == "__main__":
+    cr = collection_report()
+    dr = dataset_report()
+    breakpoint()
