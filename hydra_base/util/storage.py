@@ -26,6 +26,12 @@ from hydra_base.db.model import (
 )
 from hydra_base.lib.storage import MongoStorageAdapter
 
+from typing import (
+    Dict,
+    List,
+    Tuple
+)
+
 log = logging.getLogger(__name__)
 
 if not db.DBSession:
@@ -34,7 +40,7 @@ if not db.DBSession:
 mongo = None
 
 
-def largest_datasets(count=20):
+def largest_datasets(count: int=20) -> List[Tuple[int, int]]:
     """
     Identify the `count` largest datasets in the SQL db and return ids
     and sizes of these.
@@ -45,7 +51,7 @@ def largest_datasets(count=20):
     return datasets
 
 
-def datasets_larger_than(size):
+def datasets_larger_than(size: int) -> List[Tuple[int, int]]:
     """
     Identify any datasets larger than `size` chars and return the ids and
     sizes of these.
@@ -56,11 +62,18 @@ def datasets_larger_than(size):
     return datasets
 
 
-def total_datasets():
+def total_datasets() -> int:
+    """
+    Return the total number of datasets in the SQL db
+    """
     return db.DBSession.query(Dataset).count()
 
 
-def dataset_distribution(buckets=10):
+def dataset_distribution(buckets: int=10) -> Dict:
+    """
+    Return a histogram of the distribution of dataset sizes in bytes
+    consisting of <buckets> divisions
+    """
     max_sz = largest_datasets(1)[0][1]
     bucket_sz = max_sz/buckets
 
@@ -75,7 +88,11 @@ def dataset_distribution(buckets=10):
     return hist
 
 
-def dataset_report():
+def dataset_report() -> Dict:
+    """
+    Return a report containing basic statistics describing datasets
+    in the SQL database
+    """
     total_sz = db.DBSession.query(func.sum(Dataset.value)).scalar()
     mean = db.DBSession.query(func.avg(Dataset.value)).scalar()
     report = {
@@ -88,7 +105,11 @@ def dataset_report():
     return report
 
 
-def collection_report(db_name=None, collection=None):
+def collection_report(db_name: str=None, collection: str=None) -> Dict:
+    """
+    Return a report containing basic statistics describing documents
+    in the specified <collection> of <db_name> Mongo database
+    """
     mdb, coll = get_db_and_collection(db_name, collection)
     stats = mdb.command("collstats", coll.name)
 
@@ -102,8 +123,12 @@ def collection_report(db_name=None, collection=None):
     return report
 
 
-def largest_document(db_name=None, collection=None):
-    mdb, coll = get_db_and_collection(db_name, collection)
+def largest_documents(count: int=20, db_name: str=None, collection: str=None) -> List[Tuple[ObjectId, int]]:
+    """
+    Identifies the <count> largest documents in the specified <collection>
+    of the Mongo database <db_name>
+    """
+    _, coll = get_db_and_collection(db_name, collection)
 
     pipeline = [
         {"$match": {"value": {"$exists": True}}},
@@ -113,18 +138,21 @@ def largest_document(db_name=None, collection=None):
             }
         },
         {"$sort": {"length": pymongo.DESCENDING}},
-        {"$limit": 1}
+        {"$limit": count}
     ]
 
-    c = coll.aggregate(pipeline)
-    max_sz = [*c][0]["length"]
-    return max_sz
+    agg = coll.aggregate(pipeline)
+    return [(d["_id"], d["length"]) for d in agg]
 
 
-def document_distribution(db_name=None, collection=None, buckets=10):
-    mdb, coll = get_db_and_collection(db_name, collection)
+def document_distribution(db_name: str=None, collection: str=None, buckets: str=10) -> Dict:
+    """
+    Returns a histogram consisting of <buckets> bins describing the distribution of
+    dataset sizes in documents of the <collection> in <db_name>
+    """
+    _, coll = get_db_and_collection(db_name, collection)
 
-    max_sz = largest_document(db_name, collection)
+    _, max_sz = largest_documents(1, db_name, collection)[0]
     bucket_sz = max_sz/buckets
     hist = [{"lower": int(i*bucket_sz), "upper": int((i+1)*bucket_sz)} for i in range(buckets)]
 
@@ -132,8 +160,8 @@ def document_distribution(db_name=None, collection=None, buckets=10):
         pipeline = [
             {"$match": {"value": {"$exists": True}}},
             {"$match": {"value": {"$ne": None}}},
-            {"$redact": { "$cond": [ { "$gt": [ {"$strLenCP": "$value"}, bucket["lower"] ] }, "$$KEEP", "$$PRUNE" ]}},
-            {"$redact": { "$cond": [ { "$lte": [ {"$strLenCP": "$value"}, bucket["upper"] ] }, "$$KEEP", "$$PRUNE" ]}},
+            {"$redact": {"$cond": [ {"$gt": [{"$strLenCP": "$value"}, bucket["lower"]]}, "$$KEEP", "$$PRUNE"]}},
+            {"$redact": {"$cond": [ {"$lte": [{"$strLenCP": "$value"}, bucket["upper"]]}, "$$KEEP", "$$PRUNE"]}},
             {"$count": "count"}
         ]
 
@@ -145,7 +173,7 @@ def document_distribution(db_name=None, collection=None, buckets=10):
     return hist
 
 
-def export_dataset_to_external_storage(ds_id, db_name=None, collection=None):
+def export_dataset_to_external_storage(ds_id: int, db_name: str=None, collection: str=None):
     """
     Place the value of the dataset identified by `ds_id` in external
     storage, replace the value with an ObjectID reference, and
@@ -177,7 +205,7 @@ def export_dataset_to_external_storage(ds_id, db_name=None, collection=None):
     return result
 
 
-def import_dataset_from_external_storage(ds_id, db_name=None, collection=None):
+def import_dataset_from_external_storage(ds_id: int, db_name: str=None, collection: str=None):
     """
     Retrieve the value of the dataset identified by `ds_id` from
     external storage, and replace the SQL db dataset value with this.
@@ -225,7 +253,7 @@ def import_dataset_from_external_storage(ds_id, db_name=None, collection=None):
     return result
 
 
-def write_dataset_as_bz2(dataset_id: int, path='.'):
+def write_dataset_as_bz2(dataset_id: int, path: str='.'):
     """
     Makes a compressed copy of dataset with id <dataset_id> in a
     file named "<dataset_id>.bz2". An optional target directory may
@@ -252,7 +280,7 @@ def write_dataset_as_bz2(dataset_id: int, path='.'):
     return filename, f_size
 
 
-def write_oid_as_bz2(oid: str, path='.', db_name=None, collection=None):
+def write_oid_as_bz2(oid: str, path: str='.', db_name=None, collection=None):
     """
     Makes a compressed copy of the 'value' attribute of a MongoDB document
     with oid <oid> in a file named "<oid>.bz2". An optional target directory
@@ -286,7 +314,7 @@ def write_oid_as_bz2(oid: str, path='.', db_name=None, collection=None):
     return filename, f_size
 
 
-def bz2_file_equal_to_dataset(filename) -> bool:
+def bz2_file_equal_to_dataset(filename: str) -> bool:
     """
     Verifies that the bz2-compressed dataset contained in <filename> is
     equal to the SQL db dataset with the same dataset_id, as determined
@@ -308,7 +336,7 @@ def bz2_file_equal_to_dataset(filename) -> bool:
     return db_dso == file_dso
 
 
-def bz2_file_equal_to_oid(filename, db_name=None, collection=None) -> bool:
+def bz2_file_equal_to_oid(filename: str, db_name=None, collection=None) -> bool:
     """
     Verifies that the bz2-compressed dataset contained in <filename> is
     equal to the MongoDB document with the same dataset_id, as determined
@@ -337,7 +365,7 @@ def bz2_file_equal_to_oid(filename, db_name=None, collection=None) -> bool:
     return db_oid == file_oid
 
 
-def get_mongo_client():
+def get_mongo_client() -> MongoClient:
     global mongo
     if mongo:
         return mongo
@@ -346,7 +374,7 @@ def get_mongo_client():
     return mongo
 
 
-def get_db_and_collection(db_name=None, collection=None):
+def get_db_and_collection(db_name: str=None, collection: str=None):
     mongo_config = MongoStorageAdapter.get_mongo_config()
     db_name = db_name if db_name else mongo_config["db_name"]
     collection = collection if collection else mongo_config["datasets"]
