@@ -89,14 +89,8 @@ def dataset_report():
 
 
 def collection_report(db_name=None, collection=None):
-    mongo_config = MongoStorageAdapter.get_mongo_config()
-    db_name = db_name if db_name else mongo_config["db_name"]
-    collection = collection if collection else mongo_config["datasets"]
-
-    mongo = get_mongo_client()
-    path = mongo[db_name][collection]
-
-    stats = mongo[db_name].command("collstats", collection)
+    mdb, coll = get_db_and_collection(db_name, collection)
+    stats = mdb.command("collstats", coll.name)
 
     report = {
         "count": stats["count"],
@@ -109,12 +103,7 @@ def collection_report(db_name=None, collection=None):
 
 
 def largest_document(db_name=None, collection=None):
-    mongo_config = MongoStorageAdapter.get_mongo_config()
-    db_name = db_name if db_name else mongo_config["db_name"]
-    collection = collection if collection else mongo_config["datasets"]
-
-    mongo = get_mongo_client()
-    path = mongo[db_name][collection]
+    mdb, coll = get_db_and_collection(db_name, collection)
 
     pipeline = [
         {"$match": {"value": {"$exists": True}}},
@@ -127,18 +116,13 @@ def largest_document(db_name=None, collection=None):
         {"$limit": 1}
     ]
 
-    c = path.aggregate(pipeline)
+    c = coll.aggregate(pipeline)
     max_sz = [*c][0]["length"]
     return max_sz
 
 
 def document_distribution(db_name=None, collection=None, buckets=10):
-    mongo_config = MongoStorageAdapter.get_mongo_config()
-    db_name = db_name if db_name else mongo_config["db_name"]
-    collection = collection if collection else mongo_config["datasets"]
-
-    mongo = get_mongo_client()
-    path = mongo[db_name][collection]
+    mdb, coll = get_db_and_collection(db_name, collection)
 
     max_sz = largest_document(db_name, collection)
     bucket_sz = max_sz/buckets
@@ -153,7 +137,7 @@ def document_distribution(db_name=None, collection=None, buckets=10):
             {"$count": "count"}
         ]
 
-        result = path.aggregate(pipeline)
+        result = coll.aggregate(pipeline)
         rl = [*result]
         count = rl[0]["count"] if rl else 0
         bucket["count"] = count
@@ -361,7 +345,14 @@ def get_mongo_client():
     mongo = MongoClient(f"mongodb://{mongo_config['host']}:{mongo_config['port']}")
     return mongo
 
-if __name__ == "__main__":
-    cr = collection_report()
-    dr = dataset_report()
-    breakpoint()
+
+def get_db_and_collection(db_name=None, collection=None):
+    mongo_config = MongoStorageAdapter.get_mongo_config()
+    db_name = db_name if db_name else mongo_config["db_name"]
+    collection = collection if collection else mongo_config["datasets"]
+
+    mongo = get_mongo_client()
+    mdb = mongo[db_name]
+    coll = mdb[collection]
+
+    return mdb, coll
