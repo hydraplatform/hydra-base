@@ -39,7 +39,7 @@ jobs:
 
       - name: Setup Memcache
         run: |
-             sudo apt-get install -y memcached libmemcached11 libmemcached-dev libhashkit-dev
+             sudo apt-get install -y memcached=1.5.22
              sudo systemctl start memcached
 
       - name: Install hydra-base
