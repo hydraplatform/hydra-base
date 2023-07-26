@@ -21,7 +21,7 @@ from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm.exc import NoResultFound
 
 from .objects import JSONObject
-from ..db.model import User, Role, Perm, RoleUser, RolePerm
+from ..db.model import User, Role, Perm, RoleUser, RolePerm, OTPSecret
 from ..exceptions import ResourceNotFoundError, HydraError, HydraLoginUserNotFound
 from .. import db
 from .. import config
@@ -29,6 +29,10 @@ from ..util.permissions import required_perms
 
 import bcrypt
 import logging
+
+from hydra_base.lib.otp.otp import (
+    make_user_secret_bundle
+)
 
 log = logging.getLogger(__name__)
 
@@ -106,6 +110,8 @@ def add_user(user, **kwargs):
 
     db.DBSession.add(u)
     db.DBSession.flush()
+
+    u.otp = generate_user_otp(u)
 
     return u
 
@@ -584,3 +590,40 @@ def get_perm_by_code(perm_code,**kwargs):
         return perm
     except NoResultFound:
         raise ResourceNotFoundError("Permission not found (perm_code={})".format(perm_code))
+
+def get_user_otp(user_id, **kwargs):
+    """
+        Retrieves OTP information for the specified <user_id> argument
+    """
+    try:
+        otp = db.DBSession.query(OTPSecret).filter(OTPSecret.id==user_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError(f"No OTP info for user {user_id}")
+
+    return otp
+
+def generate_user_otp(user, **kwargs):
+    """
+        Generates a OTP information for the specified <user> argument.
+        Returns a dict consisting of the otp secret, otpauth:// string,
+        and a base64 encoded qr code.
+    """
+    otp_info = make_user_secret_bundle(user.username)
+    otp_entry = OTPSecret(user.id, otp_info["secret"])
+
+    db.DBSession.add(otp_entry)
+    db.DBSession.flush()
+
+    return otp_info
+
+def reset_user_otp(user, **kwargs):
+    otp_info = make_user_secret_bundle(user.username)
+    try:
+        otp = db.DBSession.query(OTPSecret).filter(OTPSecret.id==user.id).one()
+    except NoResultFound:
+        otp = OTPSecret(user.id, otp_info["secret"])
+
+    db.DBSession.add(otp)
+    db.DBSession.flush()
+
+    return otp_info
