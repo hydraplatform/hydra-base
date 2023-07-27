@@ -10,6 +10,7 @@ import qrcode
 
 from typing import Dict
 
+SECRET_BYTE_LENGTH = 20
 
 def hotp(secret: str, counter: int, digits: int=6, hash: str="sha1") -> str:
     """
@@ -59,7 +60,7 @@ def make_data_image_url(uri: str) -> str:
     return f"data:image/png;Base64,{img_b64.decode()}"
 
 
-def gen_secret(sec_len: int=20) -> str:
+def gen_secret(sec_len: int=SECRET_BYTE_LENGTH) -> str:
     sec = os.urandom(sec_len)
     return base64.b32encode(sec).decode()
 
@@ -68,7 +69,7 @@ def get_user_secret(username: str) -> str:
     pass
 
 
-def make_user_secret_bundle(username: str) -> str:
+def make_user_secret_bundle(username: str) -> Dict[str, str]:
     secret = gen_secret()
     uri = make_uri("totp", f"waterstrategy.org:{username}", secret, {"issuer": "hydra.org"})
     img_url = make_data_image_url(uri)

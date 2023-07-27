@@ -111,8 +111,6 @@ def add_user(user, **kwargs):
     db.DBSession.add(u)
     db.DBSession.flush()
 
-    u.otp = generate_user_otp(u)
-
     return u
 
 @required_perms("edit_user")
@@ -182,6 +180,14 @@ def delete_user(deleted_user_id,**kwargs):
     """
     try:
         user_i = db.DBSession.query(User).filter(User.id==deleted_user_id).one()
+        try:
+            otp_entry = get_user_otp(deleted_user_id)
+        except ResourceNotFoundError:
+            # OTP not active for this user
+            pass
+        else:
+            # OTP must be deactivated before user deletion for FK constraint
+            deactivate_user_otp(deleted_user_id)
         db.DBSession.delete(user_i)
     except NoResultFound:
         raise ResourceNotFoundError("User (user_id=%s) does not exist"%(deleted_user_id))
@@ -596,25 +602,47 @@ def get_user_otp(user_id, **kwargs):
         Retrieves OTP information for the specified <user_id> argument
     """
     try:
-        otp = db.DBSession.query(OTPSecret).filter(OTPSecret.id==user_id).one()
+        otp_entry = db.DBSession.query(OTPSecret).filter(OTPSecret.id==user_id).one()
     except NoResultFound:
         raise ResourceNotFoundError(f"No OTP info for user {user_id}")
 
-    return otp
+    return otp_entry
 
-def generate_user_otp(user, **kwargs):
+def activate_user_otp(user_id, **kwargs):
     """
         Generates a OTP information for the specified <user> argument.
         Returns a dict consisting of the otp secret, otpauth:// string,
         and a base64 encoded qr code.
     """
+    user = _get_user(user_id)
     otp_info = make_user_secret_bundle(user.username)
-    otp_entry = OTPSecret(user.id, otp_info["secret"])
+    otp_entry = OTPSecret(user_id, otp_info["secret"])
 
     db.DBSession.add(otp_entry)
     db.DBSession.flush()
 
     return otp_info
+
+def deactivate_user_otp(user_id, **kwargs):
+    """
+    """
+    try:
+        otp_entry = get_user_otp(user_id)
+    except ResourceNotFoundError:
+        return False
+
+    db.DBSession.delete(otp_entry)
+    db.DBSession.flush()
+
+    return True
+
+def user_has_otp(user_id, **kwargs):
+    try:
+        _ = db.DBSession.query(OTPSecret).filter(OTPSecret.id==user_id).one()
+    except NoResultFound:
+        return False
+
+    return True
 
 def reset_user_otp(user, **kwargs):
     otp_info = make_user_secret_bundle(user.username)
