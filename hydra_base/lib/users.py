@@ -625,6 +625,7 @@ def activate_user_otp(user_id, **kwargs):
 
 def deactivate_user_otp(user_id, **kwargs):
     """
+        Removes the OTP entry for the specified <user_id> arg
     """
     try:
         otp_entry = get_user_otp(user_id)
@@ -636,7 +637,10 @@ def deactivate_user_otp(user_id, **kwargs):
 
     return True
 
-def user_has_otp(user_id, **kwargs):
+def user_has_otp(user_id, **kwargs) -> bool:
+    """
+        Does am OTP entry exist for the specified <user_id> arg?
+    """
     try:
         _ = db.DBSession.query(OTPSecret).filter(OTPSecret.id==user_id).one()
     except NoResultFound:
@@ -644,12 +648,23 @@ def user_has_otp(user_id, **kwargs):
 
     return True
 
-def reset_user_otp(user, **kwargs):
+def reset_user_otp(user, do_create=True, **kwargs) -> dict:
+    """
+        Regenerates the OTP secret for the specified user.
+        If the user does not have an OTP entry, one is created
+        if the <do_create> arg is True.
+    """
     otp_info = make_user_secret_bundle(user.username)
     try:
         otp = db.DBSession.query(OTPSecret).filter(OTPSecret.id==user.id).one()
     except NoResultFound:
-        otp = OTPSecret(user.id, otp_info["secret"])
+        if do_create:
+            otp = OTPSecret(user.id, otp_info["secret"])
+        else:
+            return {}
+    else:
+        otp.secret = otp_info["secret"]
+        otp.sequence += 1
 
     db.DBSession.add(otp)
     db.DBSession.flush()

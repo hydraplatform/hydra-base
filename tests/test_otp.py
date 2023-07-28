@@ -18,6 +18,7 @@ from hydra_base.lib.otp.otp import (
     totp,
     SECRET_BYTE_LENGTH
 )
+from hydra_base.exceptions import HydraLoginInvalidOTP
 
 min_lib_versions = {
 #    "qrcode": version.parse("7.4.2")  # Current qrcode does not define a __version__
@@ -83,7 +84,6 @@ class TestTOP():
         assert len(otp.secret) == SECRET_B32_LENGTH  # Secret must be 20bytes*8bits/5bits long
         assert isinstance(otp.secret, str)  # Secret must be str
         sec_bytes = base64.b32decode(otp.secret)  # Secret must be valid B32
-        assert isinstance(sec_bytes, bytes)
 
     def test_generate_otp_bundle(self, user_json_object):
         """
@@ -109,7 +109,39 @@ class TestTOP():
         user_id, _ = client.login(user_json_object["username"], user_json_object["password"])
         otp = client.get_user_otp()
         local_code = totp(otp.secret)
-        verify_otp(user_id, local_code)
+        """
+            A code can fail for two reasons here:
+             1. It's an invalid code
+             2. The time window has changed between totp() above
+                and verify_otp() below
+            To identify the latter case, we retry the verification
+            after a first failure; both totp and verify_otp will
+            then be called in the subsequent time window.
+        """
+        try:
+            verify_otp(user_id, local_code)
+        except HydraLoginInvalidOTP:
+            local_code = totp(otp.secret)
+            verify_otp(user_id, local_code)
+
+    def test_incorrect_code_fails(self, client, user_json_object):
+        """
+            Does an incorrect code result in verification failure?
+        """
+        client.logout()
+        user_id, _ = client.login(user_json_object["username"], user_json_object["password"])
+        otp = client.get_user_otp()
+        local_code = totp(otp.secret)
+        bad_code = str(int(local_code) + 1)
+        try:
+            verify_otp(user_id, bad_code)
+        except HydraLoginInvalidOTP:
+            # Avoid window race...
+            local_code = totp(otp.secret)
+            bad_code = str(int(local_code) + 1)
+            # Expect genuine failure...
+            with pytest.raises(HydraLoginInvalidOTP):
+                verify_otp(user_id, bad_code)
 
     def test_default_otp_not_activated(self, client, temp_user_json_object):
         """
@@ -140,3 +172,20 @@ class TestTOP():
         deactivate_user_otp(user.id)
         assert user_has_otp(user.id) == False
         client.delete_user(user.id)
+
+    def test_regen_otp_secret(self, client):
+        """
+            Does regenerating a secret result in a valid new secret?
+        """
+        otp_orig = client.get_user_otp()
+        orig_secret = otp_orig.secret
+        user = client.get_user(client.user_id)
+        otp_info = client.reset_user_otp(user)
+        otp_new = client.get_user_otp()
+        new_secret = otp_new.secret
+
+        assert orig_secret != new_secret  # Secret has changed
+        assert len(new_secret) == SECRET_B32_LENGTH  # New secret has correct length...
+        assert isinstance(new_secret, str)  # ...and is a str...
+        new_sec_bytes = base64.b32decode(new_secret)  # ...which b32 encodes something.
+        assert otp_new.sequence == otp_orig.sequence + 1  #  The sequence has been incremented

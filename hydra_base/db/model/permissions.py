@@ -162,13 +162,23 @@ class User(Base, Inspect):
 
 
 class OTPSecret(Base, Inspect):
+    """
+        Defines an OTP secret and associated information
+            - id: the user_id of the associated user
+            - _secret: the encrypted secret as bytes
+            - sequence: the number of times this secret has been regenerated
+            - last_generated: the time of the last secret regeneration
+
+        The attr "secret" is a property which encrypts the secret to bytes
+        on write and decrypts the bytes to plaintext on read.
+    """
 
     __tablename__ = "tOTPSecret"
 
     id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
     _secret = Column(LargeBinary(), nullable=False, unique=False)
-    sequence = Column(Integer(), nullable=True, unique=False, autoincrement=True)
-    last_generated = Column(TIMESTAMP(), onupdate=func.now())
+    sequence = Column(Integer(), nullable=False, unique=False, server_default=text("0"))
+    last_generated = Column(TIMESTAMP(), onupdate=func.now(), server_default=text("CURRENT_TIMESTAMP"))
 
     @hybrid_property
     def secret(self):
@@ -183,3 +193,4 @@ class OTPSecret(Base, Inspect):
     def __init__(self, user_id, secret):
         self.id = user_id
         self.secret = secret
+        self.sequence = 0
