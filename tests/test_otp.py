@@ -53,6 +53,7 @@ def secret_b32():
 
 SECRET_B32_LENGTH = SECRET_BYTE_LENGTH*8/5
 
+
 class TestTOP():
 
     def test_lib_versions(self):
