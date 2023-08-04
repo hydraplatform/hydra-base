@@ -65,10 +65,6 @@ def gen_secret(sec_len: int=SECRET_BYTE_LENGTH) -> str:
     return base64.b32encode(sec).decode()
 
 
-def get_user_secret(username: str) -> str:
-    pass
-
-
 def make_user_secret_bundle(username: str) -> Dict[str, str]:
     secret = gen_secret()
     uri = make_uri("totp", f"waterstrategy.org:{username}", secret, {"issuer": "hydra.org"})
@@ -80,6 +76,3 @@ def make_user_secret_bundle(username: str) -> Dict[str, str]:
         "img": img_url
     }
 
-
-if __name__ == "__main__":
-    breakpoint()
