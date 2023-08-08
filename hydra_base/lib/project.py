@@ -38,15 +38,15 @@ log = logging.getLogger(__name__)
 
 def _get_project(project_id, user_id, check_write=False):
     try:
-        project = db.DBSession.query(Project).filter(Project.id == project_id).options(noload(Project.children)).one()
+        project_i = db.DBSession.query(Project).filter(Project.id == project_id).options(noload(Project.children)).one()
 
         if check_write is True:
-            project.check_write_permission(user_id)
+            project_i.check_write_permission(user_id)
         else:
             ## to avoid doing 2 checks, only check this if the check write is not set
-            project.check_read_permission(user_id)
+            project_i.check_read_permission(user_id)
 
-        return project
+        return project_i
     except NoResultFound:
         raise ResourceNotFoundError("Project %s not found"%(project_id))
 
@@ -161,6 +161,22 @@ def move_project(project_id, target_project_id, **kwargs):
     db.DBSession.flush()
 
     return proj_i
+
+@required_perms('get_project')
+def check_project_write_permission(project_id, user_id):
+    """
+        get a project complexmodel
+    """
+    proj_i = _get_project(project_id, user_id)
+    return proj_i.check_write_permission(user_id)
+
+@required_perms('get_project')
+def check_project_read_permission(project_id, user_id):
+    """
+        get a project complexmodel
+    """
+    proj_i = _get_project(project_id, user_id)
+    return proj_i.check_read_permission(user_id)
 
 @required_perms('get_project')
 def get_project(project_id, include_deleted_networks=False, **kwargs):
@@ -552,3 +568,22 @@ def clone_project(project_id,
     db.DBSession.flush()
 
     return new_project.id
+
+
+def _get_project_hierarchy(project_id, user_id):
+
+    proj = JSONObject(_get_project(project_id, user_id=user_id))
+
+    project_hierarchy = [proj]
+    if proj.parent_id:
+        project_hierarchy = project_hierarchy + _get_project_hierarchy(proj.parent_id, user_id)
+    
+    return project_hierarchy
+
+def get_project_hierarchy(project_id, user_id):
+    """
+        Return a list of project-ids which represent the links in the chain up to the root project
+        [project_id, parent_id, parent_parent_id ...etc]
+        If the project has no parent, return [project_id]
+    """
+    return _get_project_hierarchy(project_id, user_id)
