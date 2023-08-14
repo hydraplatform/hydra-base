@@ -125,19 +125,34 @@ def update_project(project, **kwargs):
 
     proj_i = _get_project(project.id, user_id, check_write=True)
 
-    proj_i.name = project.name
-    proj_i.description = project.description
+    if project.name:
+        proj_i.name = project.name
+
+    if project.description:
+        proj_i.description = project.description
+    
+
+    if project.appdata is not None:
+        if proj_i.appdata is None:
+            proj_i.appdata = dict(project.appdata)
+        else:
+            newdict = dict(proj_i.appdata)
+            for k, v in project.appdata.items():
+                newdict[k] = v
+            proj_i.appdata = newdict
 
     #A project can only be moved to another if the user has write access on both,
     #so we need to check the permissions on the target project if it is specified
-    if project.parent_id != proj_i.parent_id:
+    if project.parent_id is not None and project.parent_id != proj_i.parent_id:
         #check the user has the correct permission to write to the target project
         _get_project(project.parent_id, user_id, check_write=True)
-        proj_i.parent_id = project.parent_id
+        proj_i.parent_id = project.parent_id    
+    
+    if project.attributes:
+        attr_map = hdb.add_resource_attributes(proj_i, project.attributes)
+        proj_data = _add_project_attribute_data(proj_i, attr_map, project.attribute_data)
+        proj_i.attribute_data = proj_data
 
-    attr_map = hdb.add_resource_attributes(proj_i, project.attributes)
-    proj_data = _add_project_attribute_data(proj_i, attr_map, project.attribute_data)
-    proj_i.attribute_data = proj_data
     db.DBSession.flush()
 
     return proj_i
