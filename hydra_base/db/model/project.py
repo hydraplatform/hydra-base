@@ -51,7 +51,7 @@ class Project(Base, Inspect, PermissionControlled):
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     created_by = Column(Integer(), ForeignKey('tUser.id'), nullable=False)
-
+    appdata = Column(JSON)
     user = relationship('User', backref=backref("projects", order_by=id))
 
     parent_id = Column(Integer(), ForeignKey('tProject.id'), nullable=True)
