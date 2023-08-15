@@ -81,6 +81,7 @@ class TestProject:
         project.name = 'SOAP test %s'%(datetime.datetime.now())
         project.description = \
             'A project created through the SOAP interface.'
+        project.appdata = {'test':'metadata'}
         project = self.add_attributes(client, project)
         project = self.add_data(client, project)
 
@@ -88,12 +89,19 @@ class TestProject:
 
         project_j = client.get_project(new_project_i.id)
 
+        assert project_j.appdata['test'] == 'metadata'
+
         new_project = copy.deepcopy(project_j)
 
         new_project.description = \
             'An updated project created through the Hydra Base interface.'
+        
+        new_project.appdata['test1'] = 'metadata1'
 
         updated_project = client.update_project(new_project)
+
+        updated_project.appdata['test'] == 'metadata'
+        updated_project.appdata['test1'] == 'metadata1'
 
         assert project_j.id == updated_project.id, \
             "project_id changed on update."
