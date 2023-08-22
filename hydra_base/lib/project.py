@@ -102,10 +102,10 @@ def add_project(project, **kwargs):
 
     #A project can only be added to another if the user has write access to the target,
     #so we need to check the permissions on the target project if it is specified
-    if project.parent_id is not None:
+    if parent_id := getattr(project, 'parent_id', None):
         #check the user has the correct permission to write to the target project
-        _get_project(project.parent_id, user_id, check_write=True)
-        proj_i.parent_id = project.parent_id
+        _get_project(parent_id, user_id, check_write=True)
+        proj_i.parent_id = parent_id
 
     attr_map = hdb.add_resource_attributes(proj_i, project.attributes)
 
@@ -148,10 +148,11 @@ def update_project(project, **kwargs):
 
     #A project can only be moved to another if the user has write access on both,
     #so we need to check the permissions on the target project if it is specified
-    if project.parent_id is not None and project.parent_id != proj_i.parent_id:
-        #check the user has the correct permission to write to the target project
-        _get_project(project.parent_id, user_id, check_write=True)
-        proj_i.parent_id = project.parent_id    
+    if parent_id := getattr(project, "parent_id", None):
+        if parent_id != proj_i.parent_id:
+            #check the user has the correct permission to write to the target project
+            _get_project(project.parent_id, user_id, check_write=True)
+            proj_i.parent_id = project.parent_id    
     
     if project.attributes:
         attr_map = hdb.add_resource_attributes(proj_i, project.attributes)
