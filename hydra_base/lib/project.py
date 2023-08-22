@@ -185,7 +185,13 @@ def move_project(project_id, target_project_id, **kwargs):
 @required_perms('get_project')
 def check_project_write_permission(project_id, user_id):
     """
-        get a project complexmodel
+        Check whether a user has write permission on a project
+        Args:
+            project_id (int): ID of the project
+            user_id (int): ID of the user
+        Returns:
+            True if the user has write permission
+            False if the user does not have write permission
     """
     proj_i = _get_project(project_id, user_id)
     return proj_i.check_write_permission(user_id)
@@ -193,7 +199,13 @@ def check_project_write_permission(project_id, user_id):
 @required_perms('get_project')
 def check_project_read_permission(project_id, user_id):
     """
-        get a project complexmodel
+        Check whether a user has read permission on a project
+        Args:
+            project_id (int): ID of the project
+            user_id (int): ID of the user
+        Returns:
+            True if the user has read permission
+            False if the user does not have read permission
     """
     proj_i = _get_project(project_id, user_id)
     return proj_i.check_read_permission(user_id)
@@ -201,7 +213,12 @@ def check_project_read_permission(project_id, user_id):
 @required_perms('get_project')
 def get_project(project_id, include_deleted_networks=False, **kwargs):
     """
-        get a project complexmodel
+        Get a project object
+        Args:
+            project_id (int): The ID of the project
+            include_deleted_networks (bool): Include networks with the status 'X'. False by default
+        returns:
+            JSONObject of the project
     """
     user_id = kwargs.get('user_id')
     log.info("Getting project %s", project_id)
@@ -243,7 +260,7 @@ def get_project(project_id, include_deleted_networks=False, **kwargs):
 @required_perms('get_project')
 def get_project_by_network_id(network_id, **kwargs):
     """
-        get a project complexmodel by a network_id
+        get a project object by a network_id
     """
     user_id = kwargs.get('user_id')
 
