@@ -142,12 +142,9 @@ def update_project(project, **kwargs):
     #Rather than replace the column
     if appdata := getattr(project, 'appdata', None):
         if proj_i.appdata is None:
-            proj_i.appdata = dict(project.appdata)
+            proj_i.appdata = project.appdata
         else:
-            newdict = dict(proj_i.appdata)
-            for k, v in project.appdata.items():
-                newdict[k] = v
-            proj_i.appdata = newdict
+            proj_i.appdata.update(project.appdata)
 
     #A project can only be moved to another if the user has write access on both,
     #so we need to check the permissions on the target project if it is specified
