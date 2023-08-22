@@ -144,7 +144,9 @@ def update_project(project, **kwargs):
         if proj_i.appdata is None:
             proj_i.appdata = project.appdata
         else:
-            proj_i.appdata.update(project.appdata)
+            newdict = proj_i.appdata.copy()
+            newdict.update(project.appdata)
+            proj_i.appdata = newdict
 
     #A project can only be moved to another if the user has write access on both,
     #so we need to check the permissions on the target project if it is specified
