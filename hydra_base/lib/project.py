@@ -95,7 +95,7 @@ def add_project(project, **kwargs):
     
     #'appdata' is a metadata column. It's not called 'metadata' because
     #'metadata' is a reserved sqlalchemy keyword.
-    if hasattr(project, 'appdata') or project.appdata is not None:
+    if project.appdata is not None:
         proj_i.appdata = project.appdata
 
     #A project can only be added to another if the user has write access to the target,

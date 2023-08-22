@@ -100,8 +100,8 @@ class TestProject:
 
         updated_project = client.update_project(new_project)
 
-        updated_project.appdata['test'] == 'metadata'
-        updated_project.appdata['test1'] == 'metadata1'
+        assert updated_project.appdata['test'] == 'metadata'
+        assert updated_project.appdata['test1'] == 'metadata1'
 
         assert project_j.id == updated_project.id, \
             "project_id changed on update."
