@@ -43,6 +43,8 @@ class Project(Base, Inspect, PermissionControlled):
         UniqueConstraint('name', 'created_by', 'status', name="unique proj name"),
     )
 
+    core_columns = ['name', 'description', 'status']
+
     attribute_data = []
 
     id = Column(Integer(), primary_key=True, nullable=False)

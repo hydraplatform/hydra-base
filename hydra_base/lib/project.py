@@ -89,14 +89,16 @@ def add_project(project, **kwargs):
             raise HydraError(f'A Project with the name "{project.name}" already exists')
 
     proj_i = Project()
-    proj_i.name = project.name
-    proj_i.description = project.description
-    proj_i.created_by = user_id
-    
+
     #'appdata' is a metadata column. It's not called 'metadata' because
     #'metadata' is a reserved sqlalchemy keyword.
-    if project.appdata is not None:
-        proj_i.appdata = project.appdata
+    #Add appdata to the core columns for insertion done like this because
+    #updating is done differently (where the contents are updated, not the whole column)
+    for columnname in Project.core_columns + ['appdata']:
+        if column := getattr(project, columnname, None):
+            setattr(proj_i, columnname, column)
+
+    proj_i.created_by = user_id
 
     #A project can only be added to another if the user has write access to the target,
     #so we need to check the permissions on the target project if it is specified
@@ -131,14 +133,14 @@ def update_project(project, **kwargs):
 
     proj_i = _get_project(project.id, user_id, check_write=True)
 
-    if project.name:
-        proj_i.name = project.name
+    for columnname in Project.core_columns:
+        if column := getattr(project, columnname, None):
+            setattr(proj_i, columnname, column)
 
-    if project.description:
-        proj_i.description = project.description
-    
-
-    if project.appdata is not None:
+    #'appdata' is a metadata column. It's not called 'metadata' because
+    #'metadata' is a reserved sqlalchemy keyword.
+    #Rather than replace the column
+    if appdata := getattr(project, 'appdata', None):
         if proj_i.appdata is None:
             proj_i.appdata = dict(project.appdata)
         else:
