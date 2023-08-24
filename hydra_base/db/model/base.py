@@ -146,7 +146,7 @@ class PermissionControlled(object):
 
     def check_read_permission(self, user_id, do_raise=True, is_admin=None):
         """
-            Check whether this user can read this dataset
+            Check whether this user can read this object
         """
         if str(user_id) == str(self.created_by):
             return True
@@ -157,8 +157,11 @@ class PermissionControlled(object):
         if is_admin is True:
             return True
 
+        # Check if the user is in a UserGroup which can read this object
+        if self.check_usergroup_read_permission(user_id):
+            return True
 
-        #Check if this entity is publicly open, therefore no need to check permissions.
+        # Check if this object is publicly open, therefore no need to check permissions.
         if self._is_open() == True:
             return True
 
@@ -173,16 +176,17 @@ class PermissionControlled(object):
                              (user_id, self.__class__.__name__, self.name, self.id))
             else:
                 return False
-        #Check that the user is in a group which can read this network
-        self.check_group_read_permission(user_id)
 
         return True
 
-    def check_group_read_permission(self, user_id):
+    def check_usergroup_read_permission(self, user_id):
         """
             1: Find which user groups a user is if
             2: Check if any of these groups has permission to read the object
         """
+        from hydra_base.lib.usergroups import usergroups_with_member_user, any_usergroup_can_read
+        groups = usergroups_with_member_user(user_id)
+        return any_usergroup_can_read(groups, resource=self.ref_key, resource_id=self.id)
 
     def check_write_permission(self, user_id, do_raise=True, is_admin=None):
         """
@@ -195,6 +199,9 @@ class PermissionControlled(object):
             is_admin = _is_admin(user_id)
 
         if is_admin is True:
+            return True
+
+        if self.check_usergroup_write_permission(user_id):
             return True
 
         for owner in self.owners:
@@ -211,6 +218,12 @@ class PermissionControlled(object):
 
         return True
 
+    def check_usergroup_write_permission(self, user_id):
+        from hydra_base.lib.usergroups import usergroups_with_member_user, any_usergroup_can_write
+        groups = usergroups_with_member_user(user_id)
+        return any_usergroup_can_write(groups, resource=self.ref_key, resource_id=self.id)
+
+
     def check_share_permission(self, user_id, is_admin=None):
         """
             Check whether this user can write this dataset
@@ -225,6 +238,9 @@ class PermissionControlled(object):
         if is_admin is True:
             return True
 
+        if self.check_usergroup_share_permission(user_id):
+            return True
+
         for owner in self.owners:
             if owner.user_id == int(user_id):
                 if owner.view == 'Y' and owner.share == 'Y':
@@ -234,4 +250,9 @@ class PermissionControlled(object):
                              " access on %s '%s' (id=%s)" %
                              (user_id, self.__class__.__name__, self.name, self.id))
 
+
+    def check_usergroup_share_permission(self, user_id):
+        from hydra_base.lib.usergroups import usergroups_with_member_user, any_usergroup_can_share
+        groups = usergroups_with_member_user(user_id)
+        return any_usergroup_can_share(groups, resource=self.ref_key, resource_id=self.id)
 
