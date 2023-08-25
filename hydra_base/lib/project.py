@@ -38,15 +38,15 @@ log = logging.getLogger(__name__)
 
 def _get_project(project_id, user_id, check_write=False):
     try:
-        project = db.DBSession.query(Project).filter(Project.id == project_id).options(noload(Project.children)).one()
+        project_i = db.DBSession.query(Project).filter(Project.id == project_id).options(noload(Project.children)).one()
 
         if check_write is True:
-            project.check_write_permission(user_id)
+            project_i.check_write_permission(user_id)
         else:
             ## to avoid doing 2 checks, only check this if the check write is not set
-            project.check_read_permission(user_id)
+            project_i.check_read_permission(user_id)
 
-        return project
+        return project_i
     except NoResultFound:
         raise ResourceNotFoundError("Project %s not found"%(project_id))
 
@@ -89,15 +89,23 @@ def add_project(project, **kwargs):
             raise HydraError(f'A Project with the name "{project.name}" already exists')
 
     proj_i = Project()
-    proj_i.name = project.name
-    proj_i.description = project.description
+
+    #'appdata' is a metadata column. It's not called 'metadata' because
+    #'metadata' is a reserved sqlalchemy keyword.
+    #Add appdata to the core columns for insertion done like this because
+    #updating is done differently (where the contents are updated, not the whole column)
+    for columnname in Project.core_columns + ['appdata']:
+        if column := getattr(project, columnname, None):
+            setattr(proj_i, columnname, column)
+
     proj_i.created_by = user_id
+
     #A project can only be added to another if the user has write access to the target,
     #so we need to check the permissions on the target project if it is specified
-    if project.parent_id is not None:
+    if parent_id := getattr(project, 'parent_id', None):
         #check the user has the correct permission to write to the target project
-        _get_project(project.parent_id, user_id, check_write=True)
-        proj_i.parent_id = project.parent_id
+        _get_project(parent_id, user_id, check_write=True)
+        proj_i.parent_id = parent_id
 
     attr_map = hdb.add_resource_attributes(proj_i, project.attributes)
 
@@ -125,19 +133,34 @@ def update_project(project, **kwargs):
 
     proj_i = _get_project(project.id, user_id, check_write=True)
 
-    proj_i.name = project.name
-    proj_i.description = project.description
+    for columnname in Project.core_columns:
+        if column := getattr(project, columnname, None):
+            setattr(proj_i, columnname, column)
+
+    #'appdata' is a metadata column. It's not called 'metadata' because
+    #'metadata' is a reserved sqlalchemy keyword.
+    #Rather than replace the column
+    if appdata := getattr(project, 'appdata', None):
+        if proj_i.appdata is None:
+            proj_i.appdata = project.appdata
+        else:
+            newdict = proj_i.appdata.copy()
+            newdict.update(project.appdata)
+            proj_i.appdata = newdict
 
     #A project can only be moved to another if the user has write access on both,
     #so we need to check the permissions on the target project if it is specified
-    if project.parent_id != proj_i.parent_id:
-        #check the user has the correct permission to write to the target project
-        _get_project(project.parent_id, user_id, check_write=True)
-        proj_i.parent_id = project.parent_id
+    if parent_id := getattr(project, "parent_id", None):
+        if parent_id != proj_i.parent_id:
+            #check the user has the correct permission to write to the target project
+            _get_project(project.parent_id, user_id, check_write=True)
+            proj_i.parent_id = project.parent_id    
+    
+    if project.attributes:
+        attr_map = hdb.add_resource_attributes(proj_i, project.attributes)
+        proj_data = _add_project_attribute_data(proj_i, attr_map, project.attribute_data)
+        proj_i.attribute_data = proj_data
 
-    attr_map = hdb.add_resource_attributes(proj_i, project.attributes)
-    proj_data = _add_project_attribute_data(proj_i, attr_map, project.attribute_data)
-    proj_i.attribute_data = proj_data
     db.DBSession.flush()
 
     return proj_i
@@ -163,9 +186,42 @@ def move_project(project_id, target_project_id, **kwargs):
     return proj_i
 
 @required_perms('get_project')
+def check_project_write_permission(project_id, user_id):
+    """
+        Check whether a user has write permission on a project
+        Args:
+            project_id (int): ID of the project
+            user_id (int): ID of the user
+        Returns:
+            True if the user has write permission
+            False if the user does not have write permission
+    """
+    proj_i = _get_project(project_id, user_id)
+    return proj_i.check_write_permission(user_id)
+
+@required_perms('get_project')
+def check_project_read_permission(project_id, user_id):
+    """
+        Check whether a user has read permission on a project
+        Args:
+            project_id (int): ID of the project
+            user_id (int): ID of the user
+        Returns:
+            True if the user has read permission
+            False if the user does not have read permission
+    """
+    proj_i = _get_project(project_id, user_id)
+    return proj_i.check_read_permission(user_id)
+
+@required_perms('get_project')
 def get_project(project_id, include_deleted_networks=False, **kwargs):
     """
-        get a project complexmodel
+        Get a project object
+        Args:
+            project_id (int): The ID of the project
+            include_deleted_networks (bool): Include networks with the status 'X'. False by default
+        returns:
+            JSONObject of the project
     """
     user_id = kwargs.get('user_id')
     log.info("Getting project %s", project_id)
@@ -207,7 +263,7 @@ def get_project(project_id, include_deleted_networks=False, **kwargs):
 @required_perms('get_project')
 def get_project_by_network_id(network_id, **kwargs):
     """
-        get a project complexmodel by a network_id
+        get a project object by a network_id
     """
     user_id = kwargs.get('user_id')
 
@@ -552,3 +608,22 @@ def clone_project(project_id,
     db.DBSession.flush()
 
     return new_project.id
+
+
+def _get_project_hierarchy(project_id, user_id):
+
+    proj = JSONObject(_get_project(project_id, user_id=user_id))
+
+    project_hierarchy = [proj]
+    if proj.parent_id:
+        project_hierarchy = project_hierarchy + _get_project_hierarchy(proj.parent_id, user_id)
+    
+    return project_hierarchy
+
+def get_project_hierarchy(project_id, user_id):
+    """
+        Return a list of project-ids which represent the links in the chain up to the root project
+        [project_id, parent_id, parent_parent_id ...etc]
+        If the project has no parent, return [project_id]
+    """
+    return _get_project_hierarchy(project_id, user_id)
