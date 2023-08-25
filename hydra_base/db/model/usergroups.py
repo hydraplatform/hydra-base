@@ -71,6 +71,9 @@ class Organisation(Base, Inspect):
 
     __tablename__ = "tOrganisation"
 
+    # Default UserGroup to which all member Users are automatically added
+    everyone = "Everyone"
+
     id = Column(Integer(), primary_key=True, nullable=False)
     name = Column(String(group_name_max_length), nullable=False)
 
@@ -89,12 +92,6 @@ class OrganisationMembers(Base, Inspect):
     members = relationship("Organisation", backref=backref("_members", uselist=True, cascade="all, delete-orphan"))
     organisations = relationship("User", backref=backref("organisations", uselist=True, cascade="all, delete-orphan"))
 
-
-"""
-class Holder(enum.Enum):
-    UserGroup = 0x1
-    Organisation = 0x2
-"""
 
 class Perm(enum.IntEnum):
     Read  = 0x1

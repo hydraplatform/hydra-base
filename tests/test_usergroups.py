@@ -3,7 +3,7 @@ import sys
 
 import pytest
 
-from hydra_base.lib.objects import JSONObject
+from hydra_base.exceptions import HydraError
 
 
 @pytest.fixture
@@ -34,6 +34,8 @@ class TestUserGroups():
 
         assert org.name == "Main organisation"
         assert isinstance(org.id, int)
+        everyone = client.get_default_organisation_usergroup_name()  # Org has default UserGroup
+        assert isinstance(everyone, str)
         client.delete_organisation(org_id=org.id)
 
     def test_group_instance(self, client):
@@ -103,12 +105,32 @@ class TestUserGroups():
         # Test the reverse relationship: is the UG among those of which the user is a member?
         assert client.is_usergroup_member(uid=user_id, group_id=usergroup.id)
 
+    def test_disallow_repeat_addition(self, client, usergroup):
+        user_id = client.user_id
+        client.add_user_to_usergroup(uid=user_id, group_id=usergroup.id)
+        # Repeat addition of same User...
+        with pytest.raises(HydraError):
+            client.add_user_to_usergroup(uid=user_id, group_id=usergroup.id)
+
     def test_remove_group_member(self, client, usergroup):
         user_id = client.user_id
         client.add_user_to_usergroup(uid=user_id, group_id=usergroup.id)
         client.remove_user_from_usergroup(uid=user_id, group_id=usergroup.id)
 
         assert not client.is_usergroup_member(uid=user_id, group_id=usergroup.id)
+
+    def test_transfer_member_between_groups(self, client, usergroup):
+        user_id = client.user_id
+        from_group = usergroup
+        to_group = client.add_usergroup("Destination group")
+
+        client.add_user_to_usergroup(uid=user_id, group_id=from_group.id)
+        assert client.is_usergroup_member(uid=user_id, group_id=from_group.id)
+        assert not client.is_usergroup_member(uid=user_id, group_id=to_group.id)
+
+        client.transfer_user_between_usergroups(uid=user_id, from_gid=from_group.id, to_gid=to_group.id)
+        assert not client.is_usergroup_member(uid=user_id, group_id=from_group.id)
+        assert client.is_usergroup_member(uid=user_id, group_id=to_group.id)
 
     def test_add_group_administrator(self, client, usergroup):
         user_id = client.user_id
@@ -149,7 +171,7 @@ class TestUserGroups():
 
     def test_check_resource_access_mask(self, client, usergroup, network_with_data):
         ref_key = "NETWORK"
-        ra = client.set_resource_access(res=ref_key, usergroup_id=usergroup.id, res_id=network_with_data.id, access=Perm.Read)
+        _ = client.set_resource_access(res=ref_key, usergroup_id=usergroup.id, res_id=network_with_data.id, access=Perm.Read)
         mask = client.get_resource_access_mask(res=ref_key, usergroup_id=usergroup.id, res_id=network_with_data.id)
 
         assert mask & Perm.Read
@@ -158,7 +180,7 @@ class TestUserGroups():
     def test_check_resource_access_helpers(self, client, usergroup, network_with_data):
         ref_key = "NETWORK"
         set_permission = Perm.Read | Perm.Share
-        ra = client.set_resource_access(res=ref_key, usergroup_id=usergroup.id, res_id=network_with_data.id, access=set_permission)
+        _ = client.set_resource_access(res=ref_key, usergroup_id=usergroup.id, res_id=network_with_data.id, access=set_permission)
         assert client.usergroup_can_read(usergroup_id=usergroup.id, resource=ref_key, resource_id=network_with_data.id)
         assert client.usergroup_can_share(usergroup_id=usergroup.id, resource=ref_key, resource_id=network_with_data.id)
         assert not client.usergroup_can_write(usergroup_id=usergroup.id, resource=ref_key, resource_id=network_with_data.id)
@@ -168,12 +190,22 @@ class TestUserGroups():
         before_permission = Perm.Read | Perm.Share | Perm.Write
         after_permission = Perm.Read
 
-        ra = client.set_resource_access(res=ref_key, usergroup_id=usergroup.id, res_id=network_with_data.id, access=before_permission)
+        _ = client.set_resource_access(res=ref_key, usergroup_id=usergroup.id, res_id=network_with_data.id, access=before_permission)
         assert client.usergroup_can_read(usergroup_id=usergroup.id, resource=ref_key, resource_id=network_with_data.id)
         assert client.usergroup_can_share(usergroup_id=usergroup.id, resource=ref_key, resource_id=network_with_data.id)
         assert client.usergroup_can_write(usergroup_id=usergroup.id, resource=ref_key, resource_id=network_with_data.id)
 
-        ra = client.set_resource_access(res=ref_key, usergroup_id=usergroup.id, res_id=network_with_data.id, access=after_permission)
+        _ = client.set_resource_access(res=ref_key, usergroup_id=usergroup.id, res_id=network_with_data.id, access=after_permission)
         assert client.usergroup_can_read(usergroup_id=usergroup.id, resource=ref_key, resource_id=network_with_data.id)
         assert not client.usergroup_can_share(usergroup_id=usergroup.id, resource=ref_key, resource_id=network_with_data.id)
         assert not client.usergroup_can_write(usergroup_id=usergroup.id, resource=ref_key, resource_id=network_with_data.id)
+
+    def test_get_all_usergroup_projects(self, client, usergroup):
+        perm0 = Perm.Read | Perm.Write
+        perm1 = Perm.Share
+        client.set_resource_access(res="project", usergroup_id=usergroup.id, res_id=1234, access=perm0)
+        client.set_resource_access(res="project", usergroup_id=usergroup.id, res_id=5678, access=perm1)
+        visible = client.get_all_usergroup_projects(usergroup.id)
+
+        assert len(visible) == 1
+        # check ids, etc...
