@@ -1,9 +1,11 @@
 import enum
+import random
 import sys
 
 import pytest
 
 from hydra_base.exceptions import HydraError
+from hydra_base.lib.objects import JSONObject
 
 
 @pytest.fixture
@@ -200,7 +202,7 @@ class TestUserGroups():
         assert not client.usergroup_can_share(usergroup_id=usergroup.id, resource=ref_key, resource_id=network_with_data.id)
         assert not client.usergroup_can_write(usergroup_id=usergroup.id, resource=ref_key, resource_id=network_with_data.id)
 
-    def test_get_all_usergroup_projects(self, client, usergroup):
+    def test_get_all_usergroup_projects_direct(self, client, usergroup):
         perm0 = Perm.Read | Perm.Write
         perm1 = Perm.Share
         client.set_resource_access(res="project", usergroup_id=usergroup.id, res_id=1234, access=perm0)
@@ -208,4 +210,64 @@ class TestUserGroups():
         visible = client.get_all_usergroup_projects(usergroup.id)
 
         assert len(visible) == 1
-        # check ids, etc...
+        assert visible[0] == 1234
+
+    def test_get_all_usergroup_projects_children(self, client, usergroup):
+        parent_proj = JSONObject({})
+        parent_proj.name = "Parent"
+        pproj = client.add_project(parent_proj)
+
+        child_1 = JSONObject({})
+        child_1.name = "Child Project 01"
+        child_1.parent_id = pproj.id  # Parent -> child_1
+        c1proj = client.add_project(child_1)
+
+        child_2 = JSONObject({})
+        child_2.name = "Child Project 02"
+        child_2.parent_id = c1proj.id  # Parent -> child_1 -> child_2
+        c2proj = client.add_project(child_2)
+
+        child_3 = JSONObject({})
+        child_3.name = "Child Project 03"
+        child_3.parent_id = c2proj.id  # Parent -> child_1 -> child_2 -> child_3
+        c3proj = client.add_project(child_3)
+
+        child_4 = JSONObject({})
+        child_4.name = "Parent Leaf Child Project"
+        child_4.parent_id = pproj.id  # Parent -> child_4
+        c4proj = client.add_project(child_4)
+
+        child_5 = JSONObject({})
+        child_5.name = "Floating Leaf Child Project"
+        # Randomly associate a child with either a Child&Parent or Child&Leaf project
+        floatleaf_parent = random.choice((c1proj, c2proj, c4proj))
+        child_5.parent_id = floatleaf_parent.id  # <floatleaf_parent> -> child_5
+        c5proj = client.add_project(child_5)
+
+        # Set a permission including Read on the Parent only, should be inherited by all Children
+        perm0 = Perm.Read | Perm.Write
+        client.set_resource_access(res="project", usergroup_id=usergroup.id, res_id=pproj.id, access=perm0)
+        visible = client.get_all_usergroup_projects(usergroup.id, include_children=True)
+
+        for proj in (pproj, c1proj, c2proj, c3proj, c4proj, c5proj):
+            assert proj.id in visible
+
+    def test_get_all_usergroup_networks(self, client, usergroup, networkmaker):
+        parent_proj = JSONObject({})
+        parent_proj.name = f"Parent {id(parent_proj)}"
+        pproj = client.add_project(parent_proj)
+
+        child_1 = JSONObject({})
+        child_1.name = f"Child Project 01 {id(child_1)}"
+        child_1.parent_id = pproj.id  # Parent -> child_1
+        c1proj = client.add_project(child_1)
+
+        net1 = networkmaker.create(project_id=pproj.id)  # Parent -> net_1
+        net2 = networkmaker.create(project_id=c1proj.id) # Parent -> child_1 -> net_2
+
+        perm0 = Perm.Read | Perm.Write
+        client.set_resource_access(res="project", usergroup_id=usergroup.id, res_id=pproj.id, access=perm0)
+
+        nets = client.get_all_usergroup_networks(group_id=usergroup.id)
+        for net in (net1, net2):
+            assert net.id in nets

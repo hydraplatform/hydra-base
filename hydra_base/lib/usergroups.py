@@ -16,8 +16,11 @@ from hydra_base.db.model.usergroups import (
 )
 
 from hydra_base.db.model import (
-    User
+    User,
+    Project
 )
+
+from hydra_base.lib.project import get_networks
 
 from hydra_base.exceptions import (
     HydraError,
@@ -26,6 +29,9 @@ from hydra_base.exceptions import (
 
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import IntegrityError
+
+project_max_nest_depth = int(config.get("limits", "project_max_nest_depth", 32))
+
 
 __all__ = (
     "add_organisation",
@@ -63,7 +69,8 @@ __all__ = (
     "get_default_organisation_usergroup_name",
     "user_has_permission_by_membership",
     "transfer_user_between_usergroups",
-    "get_all_usergroup_projects"
+    "get_all_usergroup_projects",
+    "get_all_usergroup_networks"
 )
 
 
@@ -413,7 +420,15 @@ def get_permissions_map(**kwargs):
 def get_default_organisation_usergroup_name(**kwargs):
     return Organisation.everyone
 
-def get_all_usergroup_projects(group_id, **kwargs):
+def _flatten_children(p):
+    hier = [p.id]
+    if getattr(p, "projects", None):  # null if empty or not present
+        for pp in p.projects:
+            hier += _flatten_children(pp)
+
+    return hier
+
+def get_all_usergroup_projects(group_id, include_children=False, **kwargs):
     group = get_usergroup_by_id(group_id)
     qfilter = (
         ResourceAccess.resource == "PROJECT",
@@ -421,7 +436,28 @@ def get_all_usergroup_projects(group_id, **kwargs):
     )
 
     projs = db.DBSession.query(ResourceAccess.resource_id, ResourceAccess.access).filter(*qfilter).all()
-    return {proj_id for proj_id, mask in projs if mask & Perm.Read}
+    visible_ids = {proj_id for proj_id, mask in projs if mask & Perm.Read}
+    if include_children:
+        projects = db.DBSession.query(Project).filter(Project.id.in_(visible_ids)).all()
+        child_ids = []
+        for project in projects:
+            children = project.get_child_projects(user_id=kwargs["user_id"], levels=project_max_nest_depth)
+            for child in children:
+                child_ids += _flatten_children(child)
+
+        return visible_ids | set(child_ids)
+    else:
+        return visible_ids
+
+def get_all_usergroup_networks(group_id, **kwargs):
+    visible_projects = get_all_usergroup_projects(group_id, include_children=True, user_id=kwargs["user_id"])
+
+    net_ids = set()
+    for project_id in visible_projects:
+        networks = get_networks(project_id, user_id=kwargs["user_id"])
+        net_ids.update({net.id for net in networks})
+
+    return net_ids
 
 
 if __name__ == "__main__":
