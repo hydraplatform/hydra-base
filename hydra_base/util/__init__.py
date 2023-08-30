@@ -25,6 +25,7 @@ import pandas as pd
 
 import json
 import six
+import sys
 from .. import config
 
 from collections import namedtuple
@@ -282,3 +283,16 @@ class NullAdapter(metaclass=NullAdapterType):
 
     def __next__(self):
         raise StopIteration
+
+
+def export(func):
+    """
+      This defines a decorator which passes through the target
+      function without modification, but appends its name to
+      the calling module's '__all__' variable so that it is
+      exported when using 'from <mod> import *' syntax.
+    """
+    if not hasattr(sys.modules[func.__module__], "__all__"):
+        setattr(sys.modules[func.__module__], "__all__", tuple())
+    sys.modules[func.__module__].__all__ += (func.__code__.co_name,)
+    return func

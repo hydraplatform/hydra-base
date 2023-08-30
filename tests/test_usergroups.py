@@ -251,6 +251,8 @@ class TestUserGroups():
 
         for proj in (pproj, c1proj, c2proj, c3proj, c4proj, c5proj):
             assert proj.id in visible
+        for proj in reversed((pproj, c1proj, c2proj, c3proj, c4proj, c5proj)):
+            client.delete_project(proj.id)
 
     def test_get_all_usergroup_networks(self, client, usergroup, networkmaker):
         parent_proj = JSONObject({})
@@ -271,3 +273,29 @@ class TestUserGroups():
         nets = client.get_all_usergroup_networks(group_id=usergroup.id)
         for net in (net1, net2):
             assert net.id in nets
+
+        client.delete_project(c1proj.id)
+        client.delete_project(pproj.id)
+
+    def test_get_user_projects(self, client, usergroup):
+        user_id = client.user_id
+        client.add_user_to_usergroup(uid=user_id, group_id=usergroup.id)
+
+        parent_proj = JSONObject({})
+        parent_proj.name = "Parent"
+        pproj = client.add_project(parent_proj)
+
+        child_1 = JSONObject({})
+        child_1.name = "Child Project 01"
+        child_1.parent_id = pproj.id  # Parent -> child_1
+        c1proj = client.add_project(child_1)
+
+        perm0 = Perm.Read | Perm.Write
+        client.set_resource_access(res="project", usergroup_id=usergroup.id, res_id=pproj.id, access=perm0)
+
+        user_projects = client.get_all_user_projects(uid=user_id)
+        for proj in (pproj, c1proj):
+            assert proj.id in user_projects
+
+        client.delete_project(c1proj.id)
+        client.delete_project(pproj.id)

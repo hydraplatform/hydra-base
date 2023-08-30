@@ -1,4 +1,11 @@
+import inspect
 import time
+
+from typing import (
+    Set,
+    List,
+    Sequence
+)
 
 from hydra_base import (
     db,
@@ -21,6 +28,7 @@ from hydra_base.db.model import (
 )
 
 from hydra_base.lib.project import get_networks
+from hydra_base.util import export
 
 from hydra_base.exceptions import (
     HydraError,
@@ -33,48 +41,8 @@ from sqlalchemy.exc import IntegrityError
 project_max_nest_depth = int(config.get("limits", "project_max_nest_depth", 32))
 
 
-__all__ = (
-    "add_organisation",
-    "add_usergroup",
-    "delete_organisation",
-    "delete_usergroup",
-    "get_groups_by_organisation",
-    "get_groups_by_organisation_id",
-    "get_usergroup_by_id",
-    "add_user_to_organisation",
-    "add_user_to_usergroup",
-    "remove_user_from_usergroup",
-    "add_users_to_usergroup",
-    "get_usergroup_members",
-    "add_usergroup_administrator",
-    "remove_usergroup_administrator",
-    "get_usergroup_administrators",
-    "is_usergroup_administrator",
-    "is_usergroup_member",
-    "usergroups_administered_by_user",
-    "usergroups_with_member_user",
-    "is_organisation_member",
-    "get_all_organisations",
-    "get_all_organisation_members",
-    "set_resource_access",
-    "get_resource_access_mask",
-    "get_organisation_group",
-    "usergroup_can_read",
-    "usergroup_can_write",
-    "usergroup_can_share",
-    "get_permissions_map",
-    "any_usergroup_can_read",
-    "any_usergroup_can_write",
-    "any_usergroup_can_share",
-    "get_default_organisation_usergroup_name",
-    "user_has_permission_by_membership",
-    "transfer_user_between_usergroups",
-    "get_all_usergroup_projects",
-    "get_all_usergroup_networks"
-)
-
-
-def add_organisation(name, **kwargs):
+@export
+def add_organisation(name: str, **kwargs) -> Organisation:
     org = Organisation(name=name)
     db.DBSession.add(org)
     db.DBSession.flush()
@@ -83,7 +51,8 @@ def add_organisation(name, **kwargs):
     return org
 
 
-def add_usergroup(name, organisation=None, **kwargs):
+@export
+def add_usergroup(name: str, organisation: Organisation=None, **kwargs) -> UserGroup:
     oid = getattr(organisation, "id", None)
     group = UserGroup(name=name, organisation_id=oid)
     db.DBSession.add(group)
@@ -92,7 +61,7 @@ def add_usergroup(name, organisation=None, **kwargs):
     return group
 
 
-def _purge_usergroup(group_id, **kwargs):
+def _purge_usergroup(group_id: int, **kwargs) -> None:
     """
       Remove Administrators
       Remove Members
@@ -109,7 +78,8 @@ def _purge_usergroup(group_id, **kwargs):
         remove_user_from_usergroup(uid=member_id, group_id=group_id)
 
 
-def delete_usergroup(group_id, purge=True, **kwargs):
+@export
+def delete_usergroup(group_id: int, purge: bool=True, **kwargs) -> None:
     if purge:
         _purge_usergroup(group_id)
 
@@ -118,7 +88,8 @@ def delete_usergroup(group_id, purge=True, **kwargs):
     db.DBSession.flush()
 
 
-def delete_organisation(org_id, **kwargs):
+@export
+def delete_organisation(org_id: int, **kwargs) -> None:
     try:
         org = db.DBSession.query(Organisation).filter(Organisation.id == org_id).one()
     except NoResultFound:
@@ -131,16 +102,19 @@ def delete_organisation(org_id, **kwargs):
     db.DBSession.flush()
 
 
-def get_groups_by_organisation(organisation, **kwargs):
+@export
+def get_groups_by_organisation(organisation: Organisation, **kwargs) -> List[UserGroup]:
     return get_groups_by_organisation_id(organisation.id)
 
 
-def get_groups_by_organisation_id(organisation_id, **kwargs):
+@export
+def get_groups_by_organisation_id(organisation_id: int, **kwargs) -> List[UserGroup]:
     groups = db.DBSession.query(UserGroup).filter(UserGroup.organisation_id == organisation_id).all()
     return groups
 
 
-def get_organisation_group(organisation_id, groupname, **kwargs):
+@export
+def get_organisation_group(organisation_id: int, groupname: str, **kwargs) -> UserGroup:
     qfilter = (
         UserGroup.organisation_id == organisation_id,
         UserGroup.name == groupname
@@ -154,12 +128,14 @@ def get_organisation_group(organisation_id, groupname, **kwargs):
     return group
 
 
-def get_all_organisations(**kwargs):
+@export
+def get_all_organisations(**kwargs) -> List[Organisation]:
     orgs = db.DBSession.query(Organisation).all()
     return orgs
 
 
-def add_user_to_organisation(uid, org_id, **kwargs):
+@export
+def add_user_to_organisation(uid: int, org_id: int, **kwargs) -> None:
     try:
         org = db.DBSession.query(Organisation).filter(Organisation.id == org_id).one()
     except NoResultFound:
@@ -173,7 +149,8 @@ def add_user_to_organisation(uid, org_id, **kwargs):
     add_user_to_usergroup(uid, eo.id)
 
 
-def get_usergroup_by_id(group_id, **kwargs):
+@export
+def get_usergroup_by_id(group_id: int, **kwargs) -> UserGroup:
     try:
         group = db.DBSession.query(UserGroup).filter(UserGroup.id == group_id).one()
     except NoResultFound:
@@ -181,7 +158,8 @@ def get_usergroup_by_id(group_id, **kwargs):
     return group
 
 
-def add_user_to_usergroup(uid, group_id, **kwargs):
+@export
+def add_user_to_usergroup(uid: int, group_id: int, **kwargs) -> None:
     try:
         group = db.DBSession.query(UserGroup).filter(UserGroup.id == group_id).one()
     except NoResultFound:
@@ -195,7 +173,8 @@ def add_user_to_usergroup(uid, group_id, **kwargs):
     db.DBSession.flush()
 
 
-def remove_user_from_usergroup(uid, group_id, **kwargs):
+@export
+def remove_user_from_usergroup(uid: int, group_id: int, **kwargs) -> None:
     qfilter = (
         GroupMembers.group_id == group_id,
         GroupMembers.user_id == uid
@@ -208,7 +187,8 @@ def remove_user_from_usergroup(uid, group_id, **kwargs):
     db.DBSession.flush()
 
 
-def add_users_to_usergroup(user_ids, group_id, **kwargs):
+@export
+def add_users_to_usergroup(user_ids: Sequence[int], group_id: int, **kwargs) -> None:
     try:
         group = db.DBSession.query(UserGroup).filter(UserGroup.id == group_id).one()
     except NoResultFound:
@@ -221,7 +201,8 @@ def add_users_to_usergroup(user_ids, group_id, **kwargs):
     db.DBSession.flush()
 
 
-def transfer_user_between_usergroups(uid, from_gid, to_gid, **kwargs):
+@export
+def transfer_user_between_usergroups(uid: int, from_gid: int, to_gid: int, **kwargs) -> None:
     if not is_usergroup_member(uid, from_gid):
         raise HydraError(f"User {uid=} is not a member of UserGroup {from_gid=}")
 
@@ -232,7 +213,8 @@ def transfer_user_between_usergroups(uid, from_gid, to_gid, **kwargs):
     add_user_to_usergroup(uid, to_gid)
 
 
-def get_usergroup_members(group_id, **kwargs):
+@export
+def get_usergroup_members(group_id: int, **kwargs) -> List[User]:
     try:
         group = db.DBSession.query(UserGroup).filter(UserGroup.id == group_id).one()
     except NoResultFound:
@@ -241,14 +223,16 @@ def get_usergroup_members(group_id, **kwargs):
     return members
 
 
-def add_usergroup_administrator(uid, group_id, **kwargs):
+@export
+def add_usergroup_administrator(uid: int, group_id: int, **kwargs) -> None:
     group = db.DBSession.query(UserGroup).filter(UserGroup.id == group_id).one()
     ga = GroupAdmins(user_id=uid, group_id=group_id)
     group._admins.append(ga)
     db.DBSession.flush()
 
 
-def remove_usergroup_administrator(uid, group_id, **kwargs):
+@export
+def remove_usergroup_administrator(uid: int, group_id: int, **kwargs) -> None:
     qfilter = (
         GroupAdmins.group_id == group_id,
         GroupAdmins.user_id == uid
@@ -262,7 +246,8 @@ def remove_usergroup_administrator(uid, group_id, **kwargs):
     db.DBSession.flush()
 
 
-def get_usergroup_administrators(group_id, **kwargs):
+@export
+def get_usergroup_administrators(group_id: int, **kwargs) -> List[User]:
     try:
         group = db.DBSession.query(UserGroup).filter(UserGroup.id == group_id).one()
     except NoResultFound:
@@ -271,15 +256,18 @@ def get_usergroup_administrators(group_id, **kwargs):
     return admins
 
 
-def is_usergroup_administrator(uid, group_id, **kwargs):
+@export
+def is_usergroup_administrator(uid: int, group_id: int, **kwargs) -> bool:
     return group_id in usergroups_administered_by_user(uid=uid)
 
 
-def is_usergroup_member(uid, group_id, **kwargs):
+@export
+def is_usergroup_member(uid: int, group_id: int, **kwargs) -> bool:
     return group_id in usergroups_with_member_user(uid=uid)
 
 
-def usergroups_administered_by_user(uid, **kwargs):
+@export
+def usergroups_administered_by_user(uid: int, **kwargs) -> Set[int]:
     try:
         user = db.DBSession.query(User).filter(User.id == uid).one()
     except NoResultFound:
@@ -287,6 +275,7 @@ def usergroups_administered_by_user(uid, **kwargs):
     return {g.group_id for g in user.administers}
 
 
+@export
 def usergroups_with_member_user(uid, **kwargs):
     try:
         user = db.DBSession.query(User).filter(User.id == uid).one()
@@ -295,6 +284,7 @@ def usergroups_with_member_user(uid, **kwargs):
     return {g.group_id for g in user.groups}
 
 
+@export
 def is_organisation_member(uid, org_id, **kwargs):
     try:
         user = db.DBSession.query(User).filter(User.id == uid).one()
@@ -303,6 +293,7 @@ def is_organisation_member(uid, org_id, **kwargs):
     return org_id in {o.organisation_id for o in user.organisations}
 
 
+@export
 def get_all_organisation_members(org_id, **kwargs):
     try:
         org = db.DBSession.query(Organisation).filter(Organisation.id == org_id).one()
@@ -321,6 +312,7 @@ def _add_resource_access(res, usergroup_id, res_id, access, **kwargs):
     return ra.access
 
 
+@export
 def set_resource_access(res, usergroup_id, res_id, access, **kwargs):
     qfilter = (
         ResourceAccess.resource == res.upper(),
@@ -338,6 +330,7 @@ def set_resource_access(res, usergroup_id, res_id, access, **kwargs):
     return current
 
 
+@export
 def get_resource_access_mask(res, usergroup_id, res_id, **kwargs):
     qfilter = (
         #ResourceAccess.holder == holder,
@@ -373,18 +366,22 @@ def _usergroup_has_perm(perm, usergroup_id, resource, resource_id, **kwargs):
     mask = get_resource_access_mask(resource, usergroup_id, resource_id)
     return perm & mask
 
+@export
 def usergroup_can_read(usergroup_id, resource, resource_id, **kwargs):
     mask = get_resource_access_mask(resource, usergroup_id, resource_id)
     return mask & Perm.Read
 
+@export
 def usergroup_can_write(usergroup_id, resource, resource_id, **kwargs):
     mask = get_resource_access_mask(resource, usergroup_id, resource_id)
     return mask & Perm.Write
 
+@export
 def usergroup_can_share(usergroup_id, resource, resource_id, **kwargs):
     mask = get_resource_access_mask(resource, usergroup_id, resource_id)
     return mask & Perm.Share
 
+@export
 def any_usergroup_can_read(usergroup_ids, resource, resource_id, **kwargs):
     for ugid in usergroup_ids:
         if _usergroup_has_perm(Perm.Read, ugid, resource, resource_id):
@@ -392,6 +389,7 @@ def any_usergroup_can_read(usergroup_ids, resource, resource_id, **kwargs):
 
     return False
 
+@export
 def any_usergroup_can_write(usergroup_ids, resource, resource_id, **kwargs):
     for ugid in usergroup_ids:
         if _usergroup_has_perm(Perm.Write, ugid, resource, resource_id):
@@ -399,6 +397,7 @@ def any_usergroup_can_write(usergroup_ids, resource, resource_id, **kwargs):
 
     return False
 
+@export
 def any_usergroup_can_share(usergroup_ids, resource, resource_id, **kwargs):
     for ugid in usergroup_ids:
         if _usergroup_has_perm(Perm.Share, ugid, resource, resource_id):
@@ -406,6 +405,7 @@ def any_usergroup_can_share(usergroup_ids, resource, resource_id, **kwargs):
 
     return False
 
+@export
 def user_has_permission_by_membership(uid, perm, resource, resource_id, **kwargs):
     groups = usergroups_with_member_user(uid)
     for group in groups:
@@ -414,9 +414,11 @@ def user_has_permission_by_membership(uid, perm, resource, resource_id, **kwargs
 
     return False
 
+@export
 def get_permissions_map(**kwargs):
     return {p.name: p.value for p in Perm}
 
+@export
 def get_default_organisation_usergroup_name(**kwargs):
     return Organisation.everyone
 
@@ -428,6 +430,7 @@ def _flatten_children(p):
 
     return hier
 
+@export
 def get_all_usergroup_projects(group_id, include_children=False, **kwargs):
     group = get_usergroup_by_id(group_id)
     qfilter = (
@@ -449,6 +452,7 @@ def get_all_usergroup_projects(group_id, include_children=False, **kwargs):
     else:
         return visible_ids
 
+@export
 def get_all_usergroup_networks(group_id, **kwargs):
     visible_projects = get_all_usergroup_projects(group_id, include_children=True, user_id=kwargs["user_id"])
 
@@ -458,6 +462,15 @@ def get_all_usergroup_networks(group_id, **kwargs):
         net_ids.update({net.id for net in networks})
 
     return net_ids
+
+@export
+def get_all_user_projects(uid, **kwargs):
+    groups = usergroups_with_member_user(uid)
+    user_projects = set()
+    for group in groups:
+        user_projects.update(get_all_usergroup_projects(group, include_children=True, user_id=kwargs["user_id"]))
+
+    return user_projects
 
 
 if __name__ == "__main__":
