@@ -21,6 +21,17 @@ def usergroup(client):
     yield group
     client.delete_usergroup(group_id=group.id, purge=True)
 
+@pytest.fixture
+def non_admin_user(client):
+    user_data = JSONObject({
+        "username": "non_admin_user",
+        "password": "password",
+        "display_name": "PyTest fixture non_admin_user"
+    })
+    user = client.add_user(user_data)
+    yield user
+    client.delete_user(user.id)
+
 
 @pytest.fixture(scope="module", autouse=True)
 def Permissions_Map(client):
@@ -50,8 +61,8 @@ class TestUserGroups():
         group = client.add_usergroup("PyTest group")
         client.delete_usergroup(group.id, purge=False)
 
-    def test_delete_populated_group(self, client):
-        user_id = client.user_id
+    def test_delete_populated_group(self, client, non_admin_user):
+        user_id = non_admin_user.id
         group = client.add_usergroup("PyTest group")
         client.add_user_to_usergroup(uid=user_id, group_id=group.id)
         client.add_usergroup_administrator(uid=user_id, group_id=group.id)
@@ -86,12 +97,12 @@ class TestUserGroups():
     def test_organisation_user_membership(self, client, organisation):
         user_id = client.user_id
         assert not client.is_organisation_member(uid=user_id, org_id=organisation.id)
-        client.add_user_to_organisation(uid=user_id, org_id=organisation.id)
+        client.add_user_to_organisation(uid=user_id, organisation_id=organisation.id)
         assert client.is_organisation_member(uid=user_id, org_id=organisation.id)
 
     def test_get_all_organisation_members(self, client, organisation):
         user_id = client.user_id
-        client.add_user_to_organisation(uid=user_id, org_id=organisation.id)
+        client.add_user_to_organisation(uid=user_id, organisation_id=organisation.id)
         members = client.get_all_organisation_members(org_id=organisation.id)
         assert len(members) == 1
 
@@ -146,8 +157,8 @@ class TestUserGroups():
         # Test the reverse relationship: is the UG among those the user administers?
         assert client.is_usergroup_administrator(uid=user_id, group_id=usergroup.id)
 
-    def test_remove_group_administrator(self, client, usergroup):
-        user_id = client.user_id
+    def test_remove_group_administrator(self, client, usergroup, non_admin_user):
+        user_id = non_admin_user.id
         client.add_user_to_usergroup(uid=user_id, group_id=usergroup.id)
         client.add_usergroup_administrator(uid=user_id, group_id=usergroup.id)
         assert client.is_usergroup_administrator(uid=user_id, group_id=usergroup.id)
@@ -157,7 +168,7 @@ class TestUserGroups():
 
     def test_everyone(self, client, usergroup, organisation):
         user_id = client.user_id
-        client.add_user_to_organisation(uid=user_id, org_id=organisation.id)
+        client.add_user_to_organisation(uid=user_id, organisation_id=organisation.id)
         eo = client.get_organisation_group(organisation_id=organisation.id, groupname="Everyone")
         eom = client.get_usergroup_members(group_id=eo.id)
 
@@ -299,3 +310,14 @@ class TestUserGroups():
 
         client.delete_project(c1proj.id)
         client.delete_project(pproj.id)
+
+    def test_organisation_administrator(self, client, organisation, non_admin_user):
+        user_id = non_admin_user.id
+        assert not client.is_organisation_administrator(uid=user_id, org_id=organisation.id)
+        client.add_organisation_administrator(uid=user_id, organisation_id=organisation.id)
+        assert client.is_organisation_administrator(uid=user_id, org_id=organisation.id)
+
+        # Converse: Organisation 'Everyone' group should appear in groups administered by User...
+        eo = client.get_organisation_group(organisation_id=organisation.id, groupname="Everyone")
+        admin_groups = client.usergroups_administered_by_user(uid=user_id)
+        assert eo.id in admin_groups
