@@ -4,7 +4,7 @@ import sys
 
 import pytest
 
-from hydra_base.exceptions import HydraError
+from hydra_base.exceptions import HydraError, PermissionError
 from hydra_base.lib.objects import JSONObject
 
 
@@ -29,6 +29,7 @@ def non_admin_user(client):
         "display_name": "PyTest fixture non_admin_user"
     })
     user = client.add_user(user_data)
+    user.plaintext_passwd = user_data.password  # Used to client.login this user
     yield user
     client.delete_user(user.id)
 
@@ -43,6 +44,9 @@ def Permissions_Map(client):
 class TestUserGroups():
 
     def test_organisation_instance(self, client):
+        """
+          Can an Organisation be created and have the expected properties?
+        """
         org = client.add_organisation("Main organisation")
 
         assert org.name == "Main organisation"
@@ -52,16 +56,25 @@ class TestUserGroups():
         client.delete_organisation(org_id=org.id)
 
     def test_group_instance(self, client):
+        """
+          Can a UserGroup be created and have the expected properties?
+        """
         group = client.add_usergroup("PyTest group")
 
         assert group.name == "PyTest group"
         assert isinstance(group.id, int)
 
     def test_delete_empty_group(self, client):
+        """
+          Can a UserGroup without members be deleted?
+        """
         group = client.add_usergroup("PyTest group")
         client.delete_usergroup(group.id, purge=False)
 
     def test_delete_populated_group(self, client, non_admin_user):
+        """
+          Can a UserGroup with members and an administrator be deleted?
+        """
         user_id = non_admin_user.id
         group = client.add_usergroup("PyTest group")
         client.add_user_to_usergroup(uid=user_id, group_id=group.id)
@@ -74,6 +87,9 @@ class TestUserGroups():
         assert not client.is_usergroup_member(uid=user_id, group_id=group.id)
 
     def test_get_organisations(self, client):
+        """
+          Can the set of all defined Organisations be retrieved?
+        """
         before_orgs = client.get_all_organisations()
         orgnames = ("First", "Second", "Third")
         for orgname in orgnames:
@@ -87,6 +103,9 @@ class TestUserGroups():
             client.delete_organisation(org.id)
 
     def test_organisation_groups(self, client, organisation):
+        """
+          Are UserGroups created correctly within the specified Organisation?
+        """
         group = client.add_usergroup("PyTest group", organisation)
         org_groups = client.get_groups_by_organisation_id(organisation_id=organisation.id)
 
@@ -95,30 +114,46 @@ class TestUserGroups():
         assert org_groups[0].organisation_id == organisation.id  # ...and has the correct parent org.
 
     def test_organisation_user_membership(self, client, organisation):
+        """
+          Can Users be added to Organisations?
+        """
         user_id = client.user_id
         assert not client.is_organisation_member(uid=user_id, org_id=organisation.id)
         client.add_user_to_organisation(uid=user_id, organisation_id=organisation.id)
         assert client.is_organisation_member(uid=user_id, org_id=organisation.id)
 
-    def test_get_all_organisation_members(self, client, organisation):
+    def test_get_all_organisation_members(self, client, organisation, non_admin_user):
+        """
+          Can the set of Users who are members of an Organisation be retrieved?
+        """
         user_id = client.user_id
         client.add_user_to_organisation(uid=user_id, organisation_id=organisation.id)
+        client.add_user_to_organisation(uid=non_admin_user.id, organisation_id=organisation.id)
         members = client.get_all_organisation_members(org_id=organisation.id)
-        assert len(members) == 1
+        assert len(members) == 2
 
-    def test_add_group_member(self, client, usergroup):
+    def test_add_group_member(self, client, usergroup, non_admin_user):
+        """
+          Can Users be added to an Organisation?
+        """
         user_id = client.user_id
         client.add_user_to_usergroup(uid=user_id, group_id=usergroup.id)
+        client.add_user_to_usergroup(uid=non_admin_user.id, group_id=usergroup.id)
         members = client.get_usergroup_members(group_id=usergroup.id)
 
         # Does the UG now have that user as a member?
-        assert len(members) == 1
-        assert members[0].id == user_id
+        assert len(members) == 2
+        assert members[0].id == user_id  # Should preserve addition order
+        assert members[1].id == non_admin_user.id
 
         # Test the reverse relationship: is the UG among those of which the user is a member?
         assert client.is_usergroup_member(uid=user_id, group_id=usergroup.id)
+        assert client.is_usergroup_member(uid=non_admin_user.id, group_id=usergroup.id)
 
     def test_disallow_repeat_addition(self, client, usergroup):
+        """
+          A User cannot be added more than once to the same UserGroup
+        """
         user_id = client.user_id
         client.add_user_to_usergroup(uid=user_id, group_id=usergroup.id)
         # Repeat addition of same User...
@@ -126,6 +161,9 @@ class TestUserGroups():
             client.add_user_to_usergroup(uid=user_id, group_id=usergroup.id)
 
     def test_remove_group_member(self, client, usergroup):
+        """
+          Can a User be removed from a UserGroup?
+        """
         user_id = client.user_id
         client.add_user_to_usergroup(uid=user_id, group_id=usergroup.id)
         client.remove_user_from_usergroup(uid=user_id, group_id=usergroup.id)
@@ -224,6 +262,14 @@ class TestUserGroups():
         assert visible[0] == 1234
 
     def test_get_all_usergroup_projects_children(self, client, usergroup):
+        """
+          Does the Project visibility lookup produce the correct results for
+          an arbitrarily-structured hierarchy?
+
+          Permissions set on the root Project should be inherited by every
+          child Project, irrespective of it being a direct child or indirect
+          child and being a leaf or parent.
+        """
         parent_proj = JSONObject({})
         parent_proj.name = "Parent"
         pproj = client.add_project(parent_proj)
@@ -321,3 +367,33 @@ class TestUserGroups():
         eo = client.get_organisation_group(organisation_id=organisation.id, groupname="Everyone")
         admin_groups = client.usergroups_administered_by_user(uid=user_id)
         assert eo.id in admin_groups
+
+    def test_usergroup_operations_require_permissions(self, client, usergroup, non_admin_user):
+        user_id = non_admin_user.id
+        assert not client.is_usergroup_administrator(uid=user_id, group_id=usergroup.id)
+
+        uid, sid = client.login(non_admin_user.username, non_admin_user.plaintext_passwd)
+
+        with pytest.raises(PermissionError):
+            client.add_usergroup_administrator(uid=user_id, group_id=usergroup.id)
+
+        with pytest.raises(PermissionError):
+            client.remove_usergroup_administrator(uid=user_id, group_id=usergroup.id)
+
+        with pytest.raises(PermissionError):
+            client.add_user_to_usergroup(uid=user_id, group_id=usergroup.id)
+
+        with pytest.raises(PermissionError):
+            client.remove_user_from_usergroup(uid=user_id, group_id=usergroup.id)
+
+    def test_organisation_operations_require_permissions(self, client, organisation, non_admin_user):
+        user_id = non_admin_user.id
+        assert not client.is_organisation_administrator(uid=user_id, org_id=organisation.id)
+
+        uid, sid = client.login(non_admin_user.username, non_admin_user.plaintext_passwd)
+
+        with pytest.raises(PermissionError):
+            client.add_user_to_organisation(uid=user_id, organisation_id=organisation.id)
+
+        with pytest.raises(PermissionError):
+            client.add_organisation_administrator(uid=user_id, organisation_id=organisation.id)

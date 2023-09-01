@@ -28,9 +28,11 @@ import inspect
 import json
 import six
 import sys
-from .. import config
 
 from collections import namedtuple
+
+from hydra_base import config
+from hydra_base.exceptions import PermissionError
 
 
 
@@ -322,7 +324,7 @@ def organisation_admin(func):
         if is_organisation_administrator(uid=uid, org_id=org_id):
             return func(*args, **kwargs)
         else:
-            raise Exception("warui")
+            raise PermissionError(f"User {uid} does not have permission to call {func.__name__}")
 
     return wrapper
 
@@ -347,6 +349,6 @@ def usergroup_admin(func):
         if is_usergroup_administrator(uid=uid, group_id=group_id):
             return func(*args, **kwargs)
         else:
-            raise Exception("warui")
+            raise PermissionError(f"User {uid} does not have permission to call {func.__name__}")
 
     return wrapper

@@ -1,7 +1,5 @@
-import inspect
-import time
-
 from typing import (
+    Dict,
     Set,
     List,
     Sequence
@@ -41,7 +39,6 @@ from hydra_base.exceptions import (
 )
 
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.exc import IntegrityError
 
 project_max_nest_depth = int(config.get("limits", "project_max_nest_depth", 32))
 
@@ -145,14 +142,14 @@ def add_user_to_organisation(uid: int, organisation_id: int, **kwargs) -> None:
     try:
         org = db.DBSession.query(Organisation).filter(Organisation.id == organisation_id).one()
     except NoResultFound:
-        raise ResourceNotFoundError(f"No Organisation found with id: {org_id}")
+        raise ResourceNotFoundError(f"No Organisation found with id: {organisation_id}")
 
     om = OrganisationMembers(user_id=uid, organisation_id=organisation_id)
     org._members.append(om)
     db.DBSession.flush()
     # Add User to org's Everyone...
     eo = get_organisation_group(organisation_id, Organisation.everyone)
-    add_user_to_usergroup(uid, eo.id)
+    add_user_to_usergroup(uid, group_id=eo.id, **kwargs)
 
 
 @export
@@ -165,6 +162,7 @@ def get_usergroup_by_id(group_id: int, **kwargs) -> UserGroup:
 
 
 @export
+@usergroup_admin
 def add_user_to_usergroup(uid: int, group_id: int, **kwargs) -> None:
     try:
         group = db.DBSession.query(UserGroup).filter(UserGroup.id == group_id).one()
@@ -218,7 +216,7 @@ def transfer_user_between_usergroups(uid: int, from_gid: int, to_gid: int, **kwa
         raise HydraError(f"User {uid=} is already a member of UserGroup {to_gid=}")
 
     remove_user_from_usergroup(uid, group_id=from_gid, **kwargs)
-    add_user_to_usergroup(uid, to_gid)
+    add_user_to_usergroup(uid, group_id=to_gid, **kwargs)
 
 
 @export
@@ -241,6 +239,7 @@ def add_usergroup_administrator(uid: int, group_id: int, **kwargs) -> None:
 
 
 @export
+@usergroup_admin
 def remove_usergroup_administrator(uid: int, group_id: int, **kwargs) -> None:
     qfilter = (
         GroupAdmins.group_id == group_id,
@@ -332,7 +331,7 @@ def get_all_organisation_members(org_id: int, **kwargs) -> List[User]:
     return members
 
 
-def _add_resource_access(res, usergroup_id, res_id, access, **kwargs):
+def _add_resource_access(res: str, usergroup_id: int, res_id: int, access: Perm, **kwargs) -> Perm:
     ra = ResourceAccess(resource=res.upper(), usergroup_id=usergroup_id, resource_id=res_id, access=int(access))
     db.DBSession.add(ra)
     db.DBSession.flush()
@@ -341,7 +340,7 @@ def _add_resource_access(res, usergroup_id, res_id, access, **kwargs):
 
 
 @export
-def set_resource_access(res, usergroup_id, res_id, access, **kwargs):
+def set_resource_access(res: str, usergroup_id: int, res_id: int, access: Perm, **kwargs) -> ResourceAccess:
     qfilter = (
         ResourceAccess.resource == res.upper(),
         ResourceAccess.usergroup_id == usergroup_id,
@@ -359,7 +358,7 @@ def set_resource_access(res, usergroup_id, res_id, access, **kwargs):
 
 
 @export
-def get_resource_access_mask(res, usergroup_id, res_id, **kwargs):
+def get_resource_access_mask(res: str, usergroup_id: int, res_id: int, **kwargs) -> Perm:
     qfilter = (
         #ResourceAccess.holder == holder,
         ResourceAccess.resource == res.upper(),
@@ -390,27 +389,27 @@ def get_resource_access_mask(res, usergroup_id, res_id, **kwargs):
     return mask
 
 
-def _usergroup_has_perm(perm, usergroup_id, resource, resource_id, **kwargs):
+def _usergroup_has_perm(perm: Perm, usergroup_id: int, resource: str, resource_id: int, **kwargs) -> bool:
     mask = get_resource_access_mask(resource, usergroup_id, resource_id)
     return perm & mask
 
 @export
-def usergroup_can_read(usergroup_id, resource, resource_id, **kwargs):
+def usergroup_can_read(usergroup_id: int, resource: str, resource_id: int, **kwargs) -> bool:
     mask = get_resource_access_mask(resource, usergroup_id, resource_id)
     return mask & Perm.Read
 
 @export
-def usergroup_can_write(usergroup_id, resource, resource_id, **kwargs):
+def usergroup_can_write(usergroup_id: int, resource: str, resource_id: int, **kwargs) -> bool:
     mask = get_resource_access_mask(resource, usergroup_id, resource_id)
     return mask & Perm.Write
 
 @export
-def usergroup_can_share(usergroup_id, resource, resource_id, **kwargs):
+def usergroup_can_share(usergroup_id: int, resource: str, resource_id: int, **kwargs) -> bool:
     mask = get_resource_access_mask(resource, usergroup_id, resource_id)
     return mask & Perm.Share
 
 @export
-def any_usergroup_can_read(usergroup_ids, resource, resource_id, **kwargs):
+def any_usergroup_can_read(usergroup_ids: Sequence[int], resource: str, resource_id: int, **kwargs) -> bool:
     for ugid in usergroup_ids:
         if _usergroup_has_perm(Perm.Read, ugid, resource, resource_id):
             return True
@@ -418,7 +417,7 @@ def any_usergroup_can_read(usergroup_ids, resource, resource_id, **kwargs):
     return False
 
 @export
-def any_usergroup_can_write(usergroup_ids, resource, resource_id, **kwargs):
+def any_usergroup_can_write(usergroup_ids: Sequence[int], resource: str, resource_id: int, **kwargs) -> bool:
     for ugid in usergroup_ids:
         if _usergroup_has_perm(Perm.Write, ugid, resource, resource_id):
             return True
@@ -426,7 +425,7 @@ def any_usergroup_can_write(usergroup_ids, resource, resource_id, **kwargs):
     return False
 
 @export
-def any_usergroup_can_share(usergroup_ids, resource, resource_id, **kwargs):
+def any_usergroup_can_share(usergroup_ids: Sequence[int], resource: str, resource_id: int, **kwargs) -> bool:
     for ugid in usergroup_ids:
         if _usergroup_has_perm(Perm.Share, ugid, resource, resource_id):
             return True
@@ -434,7 +433,7 @@ def any_usergroup_can_share(usergroup_ids, resource, resource_id, **kwargs):
     return False
 
 @export
-def user_has_permission_by_membership(uid, perm, resource, resource_id, **kwargs):
+def user_has_permission_by_membership(uid: int, perm: Perm, resource: str, resource_id: int, **kwargs) -> bool:
     groups = usergroups_with_member_user(uid)
     for group in groups:
         if _usergroup_has_perm(perm, group.id, resource, resource_id):
@@ -443,14 +442,14 @@ def user_has_permission_by_membership(uid, perm, resource, resource_id, **kwargs
     return False
 
 @export
-def get_permissions_map(**kwargs):
+def get_permissions_map(**kwargs) -> Dict[str, int]:
     return {p.name: p.value for p in Perm}
 
 @export
-def get_default_organisation_usergroup_name(**kwargs):
+def get_default_organisation_usergroup_name(**kwargs) -> str:
     return Organisation.everyone
 
-def _flatten_children(p):
+def _flatten_children(p) -> List[int]:
     hier = [p.id]
     if getattr(p, "projects", None):  # null if empty or not present
         for pp in p.projects:
@@ -459,7 +458,7 @@ def _flatten_children(p):
     return hier
 
 @export
-def get_all_usergroup_projects(group_id, include_children=False, **kwargs):
+def get_all_usergroup_projects(group_id: int, include_children: bool=False, **kwargs) -> Set[int]:
     group = get_usergroup_by_id(group_id)
     qfilter = (
         ResourceAccess.resource == "PROJECT",
@@ -481,7 +480,7 @@ def get_all_usergroup_projects(group_id, include_children=False, **kwargs):
         return visible_ids
 
 @export
-def get_all_usergroup_networks(group_id, **kwargs):
+def get_all_usergroup_networks(group_id: int, **kwargs) -> Set[int]:
     visible_projects = get_all_usergroup_projects(group_id, include_children=True, user_id=kwargs["user_id"])
 
     net_ids = set()
@@ -492,7 +491,7 @@ def get_all_usergroup_networks(group_id, **kwargs):
     return net_ids
 
 @export
-def get_all_user_projects(uid, **kwargs):
+def get_all_user_projects(uid: int, **kwargs) -> Set[int]:
     groups = usergroups_with_member_user(uid)
     user_projects = set()
     for group in groups:
