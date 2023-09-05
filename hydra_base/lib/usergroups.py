@@ -1,3 +1,6 @@
+"""
+  Functions for management of UserGroups and Organisations
+"""
 from typing import (
     Dict,
     Set,
@@ -35,7 +38,8 @@ from hydra_base.util import (
 
 from hydra_base.exceptions import (
     HydraError,
-    ResourceNotFoundError
+    ResourceNotFoundError,
+    PermissionError
 )
 
 from sqlalchemy.orm.exc import NoResultFound
@@ -45,18 +49,29 @@ project_max_nest_depth = int(config.get("limits", "project_max_nest_depth", 32))
 
 @export
 def add_organisation(name: str, **kwargs) -> Organisation:
+    """
+      Create an Organisation and its Everyone UserGroup
+      Requires Hydra admin permission on caller.
+    """
+    user = get_user(kwargs["user_id"])
+    if not user.is_admin():
+        raise PermissionError(f"Only Hydra admins may create an Organisation {name=}")
+
     org = Organisation(name=name)
     db.DBSession.add(org)
     db.DBSession.flush()
-    add_usergroup(name=Organisation.everyone, organisation=org)
+    add_usergroup(name=Organisation.everyone, organisation_id=org.id, **kwargs)
 
     return org
 
 
 @export
-def add_usergroup(name: str, organisation: Organisation=None, **kwargs) -> UserGroup:
-    oid = getattr(organisation, "id", None)
-    group = UserGroup(name=name, organisation_id=oid)
+@organisation_admin
+def add_usergroup(name: str, organisation_id: int, **kwargs) -> UserGroup:
+    """
+      Create a UserGroup within an Organisation
+    """
+    group = UserGroup(name=name, organisation_id=organisation_id)
     db.DBSession.add(group)
     db.DBSession.flush()
 
@@ -65,23 +80,24 @@ def add_usergroup(name: str, organisation: Organisation=None, **kwargs) -> UserG
 
 def _purge_usergroup(group_id: int, **kwargs) -> None:
     """
-      Remove Administrators
-      Remove Members
+      Empty a UserGroup by removing all members and administrators
     """
     try:
         group = db.DBSession.query(UserGroup).filter(UserGroup.id == group_id).one()
     except NoResultFound:
         raise ResourceNotFoundError(f"No UserGroup found with id: {group_id}")
 
-    for admin_id in group.admins:
-        remove_usergroup_administrator(uid=admin_id, group_id=group_id, **kwargs)
-
     for member_id in group.members:
         remove_user_from_usergroup(uid=member_id, group_id=group_id, **kwargs)
 
+    for admin_id in group.admins:
+        remove_usergroup_administrator(uid=admin_id, group_id=group_id, **kwargs)
 
 @export
 def delete_usergroup(group_id: int, purge: bool=True, **kwargs) -> None:
+    """
+      Delete a UserGroup
+    """
     if purge:
         _purge_usergroup(group_id, **kwargs)
 
@@ -92,10 +108,18 @@ def delete_usergroup(group_id: int, purge: bool=True, **kwargs) -> None:
 
 @export
 def delete_organisation(org_id: int, **kwargs) -> None:
+    """
+      Delete an Organisation and all its UserGroups
+      Requires Hydra admin permission on caller.
+    """
     try:
         org = db.DBSession.query(Organisation).filter(Organisation.id == org_id).one()
     except NoResultFound:
         raise ResourceNotFoundError(f"No Organisation found with id: {org_id}")
+
+    user = get_user(kwargs["user_id"])
+    if not user.is_admin():
+        raise PermissionError(f"Only Hydra admins may delete an Organisation {org_id=}")
 
     groups = get_groups_by_organisation_id(org.id)
     for group in groups:
@@ -106,17 +130,27 @@ def delete_organisation(org_id: int, **kwargs) -> None:
 
 @export
 def get_groups_by_organisation(organisation: Organisation, **kwargs) -> List[UserGroup]:
+    """
+      Retrieve all UserGroups within an Organisation
+    """
     return get_groups_by_organisation_id(organisation.id)
 
 
 @export
 def get_groups_by_organisation_id(organisation_id: int, **kwargs) -> List[UserGroup]:
+    """
+      Retrieve all UserGroups in the Organisation with <organisation_id> argument
+    """
     groups = db.DBSession.query(UserGroup).filter(UserGroup.organisation_id == organisation_id).all()
     return groups
 
 
 @export
 def get_organisation_group(organisation_id: int, groupname: str, **kwargs) -> UserGroup:
+    """
+      Retrieve the UserGroup with name <groupname> from the Organisation with
+      id <organisation_id>
+    """
     qfilter = (
         UserGroup.organisation_id == organisation_id,
         UserGroup.name == groupname
@@ -132,6 +166,9 @@ def get_organisation_group(organisation_id: int, groupname: str, **kwargs) -> Us
 
 @export
 def get_all_organisations(**kwargs) -> List[Organisation]:
+    """
+      Retrieve all defined Organisations
+    """
     orgs = db.DBSession.query(Organisation).all()
     return orgs
 
@@ -139,6 +176,9 @@ def get_all_organisations(**kwargs) -> List[Organisation]:
 @export
 @organisation_admin
 def add_user_to_organisation(uid: int, organisation_id: int, **kwargs) -> None:
+    """
+      Add the User with id <uid> to the Organisation with id <organisation_id>
+    """
     try:
         org = db.DBSession.query(Organisation).filter(Organisation.id == organisation_id).one()
     except NoResultFound:
@@ -154,12 +194,30 @@ def add_user_to_organisation(uid: int, organisation_id: int, **kwargs) -> None:
 
 @export
 def get_usergroup_by_id(group_id: int, **kwargs) -> UserGroup:
+    """
+      Retrieve the UserGroup with the <group_id> argument
+    """
     try:
         group = db.DBSession.query(UserGroup).filter(UserGroup.id == group_id).one()
     except NoResultFound:
         raise ResourceNotFoundError(f"No UserGroup found with id: {group_id}")
     return group
 
+@export
+def get_organisation_by_id(organisation_id: int, **kwargs) -> Organisation:
+    try:
+        org = db.DBSession.query(Organisation).filter(Organisation.id == organisation_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError(f"No Organisation found with id: {organisation_id}")
+    return org
+
+@export
+def get_organisation_by_name(organisation_name: str, **kwargs) -> Organisation:
+    try:
+        org = db.DBSession.query(Organisation).filter(Organisation.name == organisation_name).one()
+    except NoResultFound:
+        raise ResourceNotFoundError(f"No Organisation found with name: {organisation_name}")
+    return org
 
 @export
 @usergroup_admin
@@ -209,11 +267,22 @@ def add_users_to_usergroup(user_ids: Sequence[int], group_id: int, **kwargs) -> 
 
 @export
 def transfer_user_between_usergroups(uid: int, from_gid: int, to_gid: int, **kwargs) -> None:
+    """
+      Move a User from one UserGroup to another. Requires that both
+      UserGroups exist within the same Organisation
+    """
     if not is_usergroup_member(uid, from_gid):
         raise HydraError(f"User {uid=} is not a member of UserGroup {from_gid=}")
 
     if is_usergroup_member(uid, to_gid):
         raise HydraError(f"User {uid=} is already a member of UserGroup {to_gid=}")
+
+    from_group = get_usergroup_by_id(from_gid)
+    to_group = get_usergroup_by_id(to_gid)
+
+    if not from_group.organisation_id == to_group.organisation_id:
+        raise HydraError("From and To UserGroups must exist within the same Organisation "
+                f"{from_group.organisation_id=} {to_group.organisation_id=}")
 
     remove_user_from_usergroup(uid, group_id=from_gid, **kwargs)
     add_user_to_usergroup(uid, group_id=to_gid, **kwargs)
@@ -442,6 +511,16 @@ def user_has_permission_by_membership(uid: int, perm: Perm, resource: str, resou
     return False
 
 @export
+def make_project_visible_to_usergroup(group_id: int, project_id: int, **kwargs):
+    group = get_usergroup_by_id(group_id)
+    return set_resource_access("PROJECT", group.id, project_id, Perm.Read)
+
+@export
+def make_project_visible_to_organisation(organisation_id: int, project_id: int, **kwargs):
+    eo = get_organisation_group(organisation_id, Organisation.everyone)
+    return set_resource_access("PROJECT", eo.id, project_id, Perm.Read)
+
+@export
 def get_permissions_map(**kwargs) -> Dict[str, int]:
     return {p.name: p.value for p in Perm}
 
@@ -450,6 +529,10 @@ def get_default_organisation_usergroup_name(**kwargs) -> str:
     return Organisation.everyone
 
 def _flatten_children(p) -> List[int]:
+    """
+      Flattens a nested list of projects of the form returned by
+      Project.get_child_projects() into a simple list.
+    """
     hier = [p.id]
     if getattr(p, "projects", None):  # null if empty or not present
         for pp in p.projects:
@@ -481,7 +564,7 @@ def get_all_usergroup_projects(group_id: int, include_children: bool=False, **kw
 
 @export
 def get_all_usergroup_networks(group_id: int, **kwargs) -> Set[int]:
-    visible_projects = get_all_usergroup_projects(group_id, include_children=True, user_id=kwargs["user_id"])
+    visible_projects = get_all_usergroup_projects(group_id, include_children=True, **kwargs)
 
     net_ids = set()
     for project_id in visible_projects:
@@ -495,10 +578,19 @@ def get_all_user_projects(uid: int, **kwargs) -> Set[int]:
     groups = usergroups_with_member_user(uid)
     user_projects = set()
     for group in groups:
-        user_projects.update(get_all_usergroup_projects(group, include_children=True, user_id=kwargs["user_id"]))
+        user_projects.update(get_all_usergroup_projects(group, include_children=True, **kwargs))
 
     return user_projects
 
+@export
+def get_all_organisation_projects(organisation_id: int, **kwargs) -> Set[int]:
+    eo = get_organisation_group(organisation_id, Organisation.everyone)
+    return get_all_usergroup_projects(eo.id, include_children=True, **kwargs)
+
+
 
 if __name__ == "__main__":
-    pass
+    # Display the names of functions exported
+    # via __all__ by the @export decorator
+    [*(print(f) for f in sorted(__all__))]
+    print(f"{len(__all__)=}")

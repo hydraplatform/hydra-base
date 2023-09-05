@@ -1,9 +1,10 @@
+"""
+Types and definitions used by UserGroups and Organisations
+"""
 import enum
 
 from hydra_base.db.model.base import *
 from hydra_base import db
-
-from sqlalchemy import Enum
 
 
 group_name_max_length = 200
@@ -13,6 +14,9 @@ __all__ = ("UserGroup", "Organisation")
 
 
 class UserGroup(Base, Inspect):
+    """
+      The mapped type of a UserGroup
+    """
 
     __tablename__ = "tUserGroup"
 
@@ -38,6 +42,9 @@ class UserGroup(Base, Inspect):
 
 
 class GroupMembers(Base, Inspect):
+    """
+      Relational type mapping Users to UserGroups
+    """
 
     __tablename__ = "tGroupMembers"
 
@@ -53,6 +60,9 @@ class GroupMembers(Base, Inspect):
 
 
 class GroupAdmins(Base, Inspect):
+    """
+      Relational type mapping UserGroups to their Administrators
+    """
 
     __tablename__ = "tGroupAdmins"
 
@@ -68,6 +78,9 @@ class GroupAdmins(Base, Inspect):
 
 
 class Organisation(Base, Inspect):
+    """
+      The mapped type of an Organisation
+    """
 
     __tablename__ = "tOrganisation"
 
@@ -83,6 +96,9 @@ class Organisation(Base, Inspect):
 
 
 class OrganisationMembers(Base, Inspect):
+    """
+      Relational type mapping Users to Organisations of which they are members
+    """
 
     __tablename__ = "tOrganisationMembers"
 
@@ -94,29 +110,31 @@ class OrganisationMembers(Base, Inspect):
 
 
 class Perm(enum.IntEnum):
+    """
+      An Integer Enum which represents components of the access
+      Permission mask applied to a resource.
+    """
     Read  = 0x1
     Write = 0x2
     Share = 0x4
 
 
 class ResourceAccess(Base, Inspect):
+    """
+      Relational type which maps Resource-Type-and-Resource-id combinations
+      to UserGroup-and-access-bitmask pairs.
+    """
 
     __tablename__ = "tResourceAccess"
 
     """
-      XXX - enum holder type     "UserGroup", "Organisation"
-      - enum resource type   "Network", "Project"
+      - str resource type    "Network", "Project"
       - int holder_id        "{UserGroup.id}"
       - int resource_id      "{Network.id}"
-      - access bitmask       "PERM.READ | PERM.WRITE"
+      - Perm access bitmask  "PERM.READ | PERM.WRITE"
     """
 
-    #holder = Column(String(typename_max_length), primary_key=True, nullable=False)
     usergroup_id = Column(Integer(), primary_key=True, nullable=False)
     resource = Column(String(typename_max_length), primary_key=True, nullable=False)
     resource_id = Column(Integer(), primary_key=True, nullable=False)
     access = Column(Integer(), nullable=False)
-
-
-if __name__ == "__main__":
-    pass
