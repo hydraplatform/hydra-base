@@ -171,7 +171,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
         if resource.attributes is not None:
             for ra in resource.attributes:
                 if attr_lookup.get(ra.attr_id) is None:
-                    raise Exception(f"Unable to process attribute {ra.attr_id} on resource {resource.name} as it does not exist")
+                    raise HydraError(f"Unable to process attribute {ra.attr_id} on resource {resource.name} as it does not exist")
                 resource_attrs[resource.id].append({
                     'ref_key'     : ref_key,
                     'node_id'     : resource_i.id if ref_key == 'NODE' else None,
