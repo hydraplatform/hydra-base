@@ -159,8 +159,11 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
     defaults = {}
 
     attr_lookup = {}
+    all_attrs = db.DBSession.query(Attr).all()
+    for a in all_attrs:
+        attr_lookup[a.id] = a
     #First get all the attributes assigned from the csv files.
-    t0 = time.time()
+    t0 = datetime.datetime.now()
     for resource in resources:
         #cast name as string here in case the name is a number
         resource_i = resource_name_map[str(resource.name)]
@@ -168,10 +171,8 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
         if resource.attributes is not None:
             for ra in resource.attributes:
                 if attr_lookup.get(ra.attr_id) is None:
-                    attr = db.DBSession.query(Attr).filter(Attr.id == ra.attr_id).first()
                     if attr is None:
                         raise Exception(f"Unable to process attribute {ra.attr_id} on resource {resource.name} as it does not exist")
-                    attr_lookup[ra.attr_id] = attr
                 resource_attrs[resource.id].append({
                     'ref_key'     : ref_key,
                     'node_id'     : resource_i.id if ref_key == 'NODE' else None,
@@ -182,6 +183,8 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
                     'attr_is_var' : ra.attr_is_var,
                 })
 
+    logging.info("Resource attributes from resources added in %s",
+                 (datetime.datetime.now() - t0))
     #Now get all the attributes supposed to be on the resources based on the types.
     t0 = time.time()
 
@@ -200,6 +203,8 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
     #type
     resource_resource_types = []
     resource_id_name_map = {}
+    network_child_template_id = None
+    checked_for_child_template = False
     for resource in resources:
         #cast name as string here in case the name is a number
         resource_i = resource_name_map[str(resource.name)]
@@ -212,8 +217,9 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
                 resource_type_id = resource_type.id
                 if resource_type.child_template_id is None:
                     if type_child_template_id_lookup.get(resource_type_id) is None:
-                        network_child_template_id = template.get_network_template(network_id, resource_type.id)#TODO this should be type_id
-
+                        if network_child_template_id is None and checked_for_child_template == False:
+                            network_child_template_id = template.get_network_template(network_id, resource_type.id)#TODO this should be type_id
+                            checked_for_child_template = True
                         #ok, so no child ID found. We need to just use the template
                         #ID of the type which was given
                         if network_child_template_id is None:
@@ -2749,7 +2755,7 @@ def clone_network(network_id,
 
      Otherwise create a new project with the specified name and put it in there.
 
-     creator_is_owner (Bool) : The user who creates the network isn't added as an owner 
+     creator_is_owner (Bool) : The user who creates the network isn't added as an owner
         (won't have an entry in tNetworkOwner and therefore won't see the network in 'get_project')
 
     """
@@ -2827,7 +2833,7 @@ def clone_network(network_id,
         newnet.set_owner(user_id)
 
     #set the owner to the recipient. THis can be either the requesting user id (user_id)
-    #or an explicitly defined user. 
+    #or an explicitly defined user.
     newnet.set_owner(recipient_user_id)
 
     db.DBSession.add(newnet)
@@ -3350,3 +3356,4 @@ def apply_unit_to_network_rs(network_id, unit_id, attr_id, scenario_id=None, **k
     #set the unit ID for each of the resource scenarios
     for network_rs in network_rs_list:
         network_rs.dataset.unit_id = unit_id
+
