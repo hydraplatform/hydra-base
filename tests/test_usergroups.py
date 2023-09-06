@@ -135,12 +135,17 @@ class TestUserGroups():
 
     def test_organisation_user_membership(self, client, organisation):
         """
-          Can Users be added to Organisations?
+          Can Users be added to and removed from Organisations?
         """
         user_id = client.user_id
+        # Verify addition...
         assert not client.is_organisation_member(uid=user_id, org_id=organisation.id)
         client.add_user_to_organisation(uid=user_id, organisation_id=organisation.id)
         assert client.is_organisation_member(uid=user_id, org_id=organisation.id)
+
+        # ..and removal.
+        client.remove_user_from_organisation(uid=user_id, organisation_id=organisation.id)
+        assert not client.is_organisation_member(uid=user_id, org_id=organisation.id)
 
     def test_get_all_organisation_members(self, client, organisation, non_admin_user):
         """
@@ -152,6 +157,17 @@ class TestUserGroups():
         members = client.get_all_organisation_members(org_id=organisation.id)
         assert len(members) == 2
 
+    def test_get_organisation_administrators(self, client, organisation, non_admin_user):
+        """
+          Can the administrators for a particular Organisation be correctly retrieved?
+        """
+        client.add_user_to_organisation(uid=non_admin_user.id, organisation_id=organisation.id)
+        before_admins = client.get_organisation_administrators(organisation_id=organisation.id)
+        assert len(before_admins) == 0
+        client.add_organisation_administrator(uid=non_admin_user.id, organisation_id=organisation.id)
+        after_admins = client.get_organisation_administrators(organisation_id=organisation.id)
+        assert len(after_admins) == 1
+
     def test_add_group_member(self, client, usergroup, non_admin_user):
         """
           Can Users be added to an Organisation?
@@ -159,7 +175,7 @@ class TestUserGroups():
         user_id = client.user_id
         client.add_user_to_usergroup(uid=user_id, group_id=usergroup.id)
         client.add_user_to_usergroup(uid=non_admin_user.id, group_id=usergroup.id)
-        members = client.get_usergroup_members(group_id=usergroup.id)
+        members = client.get_all_usergroup_members(group_id=usergroup.id)
 
         # Does the UG now have that user as a member?
         assert len(members) == 2
@@ -225,7 +241,7 @@ class TestUserGroups():
         user_id = client.user_id
         client.add_user_to_organisation(uid=user_id, organisation_id=organisation.id)
         eo = client.get_organisation_group(organisation_id=organisation.id, groupname="Everyone")
-        eom = client.get_usergroup_members(group_id=eo.id)
+        eom = client.get_all_usergroup_members(group_id=eo.id)
 
         assert len(eom) == 1  # User automatically in Everyone
         assert eom[0].id == user_id
@@ -481,6 +497,10 @@ class TestUserGroups():
             assert p.id in project_ids
 
     def test_transfer_user_between_usergroups(self, client, organisation):
+        """
+          Does the transfer_user_between_usergroups convenience function behave
+          correctly?
+        """
         from_group = client.add_usergroup("From UserGroup", organisation_id=organisation.id)
         to_group = client.add_usergroup("To UserGroup", organisation_id=organisation.id)
         user_id = client.user_id
@@ -493,7 +513,60 @@ class TestUserGroups():
         client.transfer_user_between_usergroups(uid=user_id, from_gid=from_group.id, to_gid=to_group.id)
         assert client.is_usergroup_member(uid=user_id, group_id=to_group.id)
 
+        # Now re-add User to original UserGroup and reattempt transfer to same destination...
+        client.add_user_to_usergroup(uid=user_id, group_id=from_group.id)
+        # ...which should not be permitted...
+        with pytest.raises(HydraError):
+            client.transfer_user_between_usergroups(uid=user_id, from_gid=from_group.id, to_gid=to_group.id)
+
+        # Nor should it be possible to transfer a non-member...
+        client.remove_user_from_usergroup(uid=user_id, group_id=from_group.id)
+        client.remove_user_from_usergroup(uid=user_id, group_id=to_group.id)
+        with pytest.raises(HydraError):
+            client.transfer_user_between_usergroups(uid=user_id, from_gid=from_group.id, to_gid=to_group.id)
+
+
     def test_delete_organisation_requires_hydra_admin(self, client, organisation, non_admin_user):
+        """
+          Can only Hydra admins delete an Organisation?
+        """
         uid, sid = client.login(non_admin_user.username, non_admin_user.plaintext_passwd)
         with pytest.raises(PermissionError):
             client.delete_organisation(org_id=organisation.id)
+
+    def test_organisation_report(self, client, organisation, non_admin_user):
+        """
+          Does the Organisation report have the expected format and values?
+        """
+        group1 = client.add_usergroup("Report group 1", organisation_id=organisation.id)
+        group2 = client.add_usergroup("Report group 2", organisation_id=organisation.id)
+
+        client.add_user_to_organisation(uid=client.user_id, organisation_id=organisation.id)
+        client.add_user_to_organisation(uid=non_admin_user.id, organisation_id=organisation.id)
+
+        client.add_usergroup_administrator(uid=client.user_id, group_id=group1.id)
+        client.add_organisation_administrator(uid=non_admin_user.id, organisation_id=organisation.id)
+
+        client.add_user_to_usergroup(uid=non_admin_user.id, group_id=group1.id)
+        client.add_user_to_usergroup(uid=non_admin_user.id, group_id=group2.id)
+
+        report = client.organisation_report(organisation_id=organisation.id)
+        assert report == {
+            'members': 2,
+            'admins': ['non_admin_user'],
+            'groups': [
+                {'name': 'Report group 1',
+                 'members': 2,
+                 'admins': 1},
+                {'name': 'Report group 2',
+                 'members': 1,
+                 'admins': 0}
+            ]
+        }
+
+    def test_new_org_members(self, client, organisation, non_admin_user):
+        client.add_user_to_organisation(uid=client.user_id, organisation_id=organisation.id)
+        client.add_user_to_organisation(uid=non_admin_user.id, organisation_id=organisation.id)
+
+        members = client.get_all_organisation_members(org_id=organisation.id)
+

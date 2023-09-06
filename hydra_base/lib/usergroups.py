@@ -18,7 +18,7 @@ from hydra_base.db.model.usergroups import (
     Organisation,
     GroupMembers,
     GroupAdmins,
-    OrganisationMembers,
+    #OrganisationMembers,
     ResourceAccess,
     Perm
 )
@@ -184,13 +184,57 @@ def add_user_to_organisation(uid: int, organisation_id: int, **kwargs) -> None:
     except NoResultFound:
         raise ResourceNotFoundError(f"No Organisation found with id: {organisation_id}")
 
-    om = OrganisationMembers(user_id=uid, organisation_id=organisation_id)
-    org._members.append(om)
-    db.DBSession.flush()
+    #om = OrganisationMembers(user_id=uid, organisation_id=organisation_id)
+    #org._members.append(om)
+    #db.DBSession.flush()
     # Add User to org's Everyone...
     eo = get_organisation_group(organisation_id, Organisation.everyone)
     add_user_to_usergroup(uid, group_id=eo.id, **kwargs)
 
+
+@export
+@organisation_admin
+def remove_user_from_organisation(uid: int, organisation_id: int, **kwargs) -> None:
+    """
+      Removes the User with id <uid> from the Organisation with id <organisation_id>
+    """
+    eo = get_organisation_group(organisation_id, Organisation.everyone)
+    remove_user_from_usergroup(uid, group_id=eo.id, **kwargs)
+
+@export
+@organisation_admin
+def add_guest_to_organisation(uid: int, organisation_id: int, **kwargs) -> None:
+    try:
+        org = db.DBSession.query(Organisation).filter(Organisation.id == organisation_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError(f"No Organisation found with id: {organisation_id}")
+
+    if is_organisation_member(uid=uid, organisation_id=organisation_id):
+        raise HydraError(f"User {uid=} is a member of Organisation {organisation_id=} "
+                f"and so may not be added as a Guest")
+
+    org_guests = get_organisation_group(organisation_id, Organisation.guests)
+    add_user_to_usergroup(uid, group_id=org_guests.id, **kwargs)
+
+@export
+@organisation_admin
+def remove_guest_from_organisation(uid: int, organisation_id: int, **kwargs) -> None:
+    pass
+
+@export
+def is_user_guest_of_organisation(uid: int, organisation_id: int, **kwargs) -> None:
+    pass
+
+
+@export
+def get_organisation_administrators(organisation_id: int, **kwargs) -> Set[int]:
+    #try:
+    #    org = db.DBSession.query(Organisation).filter(Organisation.id == organisation_id).one()
+    #except NoResultFound:
+    #    raise ResourceNotFoundError(f"No Organisation found with id: {organisation_id}")
+    eo = get_organisation_group(organisation_id=organisation_id, groupname=Organisation.everyone)
+    admins = db.DBSession.query(User.id, User.username, User.display_name).filter(User.id.in_(eo.admins)).all()
+    return admins
 
 @export
 def get_usergroup_by_id(group_id: int, **kwargs) -> UserGroup:
@@ -205,6 +249,9 @@ def get_usergroup_by_id(group_id: int, **kwargs) -> UserGroup:
 
 @export
 def get_organisation_by_id(organisation_id: int, **kwargs) -> Organisation:
+    """
+      Returns the Organisation with id specified by the <organisation_id> argument
+    """
     try:
         org = db.DBSession.query(Organisation).filter(Organisation.id == organisation_id).one()
     except NoResultFound:
@@ -213,6 +260,9 @@ def get_organisation_by_id(organisation_id: int, **kwargs) -> Organisation:
 
 @export
 def get_organisation_by_name(organisation_name: str, **kwargs) -> Organisation:
+    """
+      Returns the Organisation with name specified by the <organisation_name> argument
+    """
     try:
         org = db.DBSession.query(Organisation).filter(Organisation.name == organisation_name).one()
     except NoResultFound:
@@ -222,6 +272,10 @@ def get_organisation_by_name(organisation_name: str, **kwargs) -> Organisation:
 @export
 @usergroup_admin
 def add_user_to_usergroup(uid: int, group_id: int, **kwargs) -> None:
+    """
+      Adds the User with id specified by the <uid> argument to the UserGroup
+      with id specified by the <group_id> argument.
+    """
     try:
         group = db.DBSession.query(UserGroup).filter(UserGroup.id == group_id).one()
     except NoResultFound:
@@ -238,6 +292,10 @@ def add_user_to_usergroup(uid: int, group_id: int, **kwargs) -> None:
 @export
 @usergroup_admin
 def remove_user_from_usergroup(uid: int, group_id: int, **kwargs) -> None:
+    """
+      Removes the User with id specified by the <uid> argument from the UserGroup
+      with id specified by the <group_id> argument.
+    """
     qfilter = (
         GroupMembers.group_id == group_id,
         GroupMembers.user_id == uid
@@ -253,6 +311,10 @@ def remove_user_from_usergroup(uid: int, group_id: int, **kwargs) -> None:
 @export
 @usergroup_admin
 def add_users_to_usergroup(user_ids: Sequence[int], group_id: int, **kwargs) -> None:
+    """
+      Adds every User identified by a user_id in the container <user_ids> to
+      the UserGroup with id specified by <group_id>
+    """
     try:
         group = db.DBSession.query(UserGroup).filter(UserGroup.id == group_id).one()
     except NoResultFound:
@@ -269,7 +331,9 @@ def add_users_to_usergroup(user_ids: Sequence[int], group_id: int, **kwargs) -> 
 def transfer_user_between_usergroups(uid: int, from_gid: int, to_gid: int, **kwargs) -> None:
     """
       Move a User from one UserGroup to another. Requires that both
-      UserGroups exist within the same Organisation
+      UserGroups exist within the same Organisation.
+
+      Note that any administrator privileges are not transferred with Users.
     """
     if not is_usergroup_member(uid, from_gid):
         raise HydraError(f"User {uid=} is not a member of UserGroup {from_gid=}")
@@ -289,7 +353,11 @@ def transfer_user_between_usergroups(uid: int, from_gid: int, to_gid: int, **kwa
 
 
 @export
-def get_usergroup_members(group_id: int, **kwargs) -> List[User]:
+def get_all_usergroup_members(group_id: int, **kwargs) -> List[User]:
+    """
+      Returns a list of all Users who are members of the UserGroup with id
+      specified by the <group_id> argument.
+    """
     try:
         group = db.DBSession.query(UserGroup).filter(UserGroup.id == group_id).one()
     except NoResultFound:
@@ -386,7 +454,7 @@ def is_organisation_member(uid: int, org_id: int, **kwargs) -> bool:
         user = db.DBSession.query(User).filter(User.id == uid).one()
     except NoResultFound:
         raise ResourceNotFoundError(f"No User found with id: {uid}")
-    return org_id in {o.organisation_id for o in user.organisations}
+    return org_id in {o.id for o in user.organisations}
 
 
 @export
@@ -396,6 +464,7 @@ def get_all_organisation_members(org_id: int, **kwargs) -> List[User]:
     except NoResultFound:
         raise ResourceNotFoundError(f"No Organisation found with id: {org_id}")
 
+    #members = db.DBSession.query(User.id, User.username, User.display_name).filter(User.id.in_(org.members)).all()
     members = db.DBSession.query(User.id, User.username, User.display_name).filter(User.id.in_(org.members)).all()
     return members
 
@@ -587,6 +656,27 @@ def get_all_organisation_projects(organisation_id: int, **kwargs) -> Set[int]:
     eo = get_organisation_group(organisation_id, Organisation.everyone)
     return get_all_usergroup_projects(eo.id, include_children=True, **kwargs)
 
+@export
+@organisation_admin
+def organisation_report(organisation_id: int, **kwargs) -> Dict:
+    org_members = get_all_organisation_members(organisation_id)
+    org_admins = get_organisation_administrators(organisation_id)
+    report = {
+        "members": len(org_members),
+        "admins": [a.username for a in org_admins],
+        "groups": []
+    }
+
+    groups = get_groups_by_organisation_id(organisation_id)
+    for group in groups:
+        if group.name == Organisation.everyone:
+            continue
+        report["groups"].append({
+            "name": group.name,
+            "members": len(group.members|group.admins),
+            "admins": len(group.admins)
+        })
+    return report
 
 
 if __name__ == "__main__":

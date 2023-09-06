@@ -86,27 +86,48 @@ class Organisation(Base, Inspect):
 
     # Default UserGroup to which all member Users are automatically added
     everyone = "Everyone"
+    # UserGroup for non-member guests
+    guests = "Guests"
 
     id = Column(Integer(), primary_key=True, nullable=False)
     name = Column(String(group_name_max_length), nullable=False)
 
+    #@property
+    #def members(self):
+    #    return {m.user_id for m in self._members}
+
     @property
     def members(self):
-        return {m.user_id for m in self._members}
+        qfilter = (
+            UserGroup.name == Organisation.everyone,
+            UserGroup.organisation_id == self.id
+        )
+        everyone = db.DBSession.query(UserGroup).filter(*qfilter).one()
+        return everyone.members
+
+    @property
+    def guests(self):
+        qfilter = (
+            UserGroup.name == Organisation.guests,
+            UserGroup.organisation_id == self.id
+        )
+        guests = db.DBSession.query(UserGroup).filter(*qfilter).one()
+        return guests.members
 
 
-class OrganisationMembers(Base, Inspect):
-    """
-      Relational type mapping Users to Organisations of which they are members
-    """
 
-    __tablename__ = "tOrganisationMembers"
-
-    organisation_id = Column(Integer(), ForeignKey("tOrganisation.id"), primary_key=True, nullable=False)
-    user_id = Column(Integer(), ForeignKey("tUser.id"), primary_key=True, nullable=False)
-
-    members = relationship("Organisation", backref=backref("_members", uselist=True, cascade="all, delete-orphan"))
-    organisations = relationship("User", backref=backref("organisations", uselist=True, cascade="all, delete-orphan"))
+#class OrganisationMembers(Base, Inspect):
+#    """
+#      Relational type mapping Users to Organisations of which they are members
+#    """
+#
+#    __tablename__ = "tOrganisationMembers"
+#
+#    organisation_id = Column(Integer(), ForeignKey("tOrganisation.id"), primary_key=True, nullable=False)
+#    user_id = Column(Integer(), ForeignKey("tUser.id"), primary_key=True, nullable=False)
+#
+#    members = relationship("Organisation", backref=backref("_members", uselist=True, cascade="all, delete-orphan"))
+#    organisations = relationship("User", backref=backref("organisations", uselist=True, cascade="all, delete-orphan"))
 
 
 class Perm(enum.IntEnum):
