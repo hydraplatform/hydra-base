@@ -321,7 +321,7 @@ def organisation_admin(func):
         av = inspect.getargvalues(inspect.currentframe())
         org_id = av.locals[av.keywords][org_id_arg]
         uid = av.locals[av.keywords][uid_arg]
-        if is_organisation_administrator(uid=uid, org_id=org_id):
+        if is_organisation_administrator(uid=uid, organisation_id=org_id):
             return func(*args, **kwargs)
         else:
             raise PermissionError(f"User {uid} does not have permission to call {func.__name__}")

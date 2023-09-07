@@ -12,7 +12,7 @@ from hydra_base.lib.objects import JSONObject
 def organisation(client):
     org =  client.add_organisation("PyTest fixture organisation")
     yield org
-    client.delete_organisation(org_id=org.id)
+    client.delete_organisation(organisation_id=org.id)
 
 
 @pytest.fixture
@@ -54,7 +54,7 @@ class TestUserGroups():
         assert isinstance(org.id, int)
         everyone = client.get_default_organisation_usergroup_name()  # Org has default UserGroup
         assert isinstance(everyone, str)
-        client.delete_organisation(org_id=org.id)
+        client.delete_organisation(organisation_id=org.id)
 
     def test_group_instance(self, client, organisation):
         """
@@ -130,7 +130,7 @@ class TestUserGroups():
         org_groups = client.get_groups_by_organisation_id(organisation_id=organisation.id)
 
         assert isinstance(org_groups, list)  # Return is a list...
-        assert len(org_groups) == 2  # ...containing two elements (Everyone + group)...
+        assert len(org_groups) == 3  # ...containing three elements (Everyone + guests +group)...
         assert org_groups[0].organisation_id == organisation.id  # ...and has the correct parent org.
 
     def test_organisation_user_membership(self, client, organisation):
@@ -139,13 +139,13 @@ class TestUserGroups():
         """
         user_id = client.user_id
         # Verify addition...
-        assert not client.is_organisation_member(uid=user_id, org_id=organisation.id)
+        assert not client.is_organisation_member(uid=user_id, organisation_id=organisation.id)
         client.add_user_to_organisation(uid=user_id, organisation_id=organisation.id)
-        assert client.is_organisation_member(uid=user_id, org_id=organisation.id)
+        assert client.is_organisation_member(uid=user_id, organisation_id=organisation.id)
 
         # ..and removal.
         client.remove_user_from_organisation(uid=user_id, organisation_id=organisation.id)
-        assert not client.is_organisation_member(uid=user_id, org_id=organisation.id)
+        assert not client.is_organisation_member(uid=user_id, organisation_id=organisation.id)
 
     def test_get_all_organisation_members(self, client, organisation, non_admin_user):
         """
@@ -154,7 +154,7 @@ class TestUserGroups():
         user_id = client.user_id
         client.add_user_to_organisation(uid=user_id, organisation_id=organisation.id)
         client.add_user_to_organisation(uid=non_admin_user.id, organisation_id=organisation.id)
-        members = client.get_all_organisation_members(org_id=organisation.id)
+        members = client.get_all_organisation_members(organisation_id=organisation.id)
         assert len(members) == 2
 
     def test_get_organisation_administrators(self, client, organisation, non_admin_user):
@@ -425,9 +425,9 @@ class TestUserGroups():
           automatically confer Organisation.everyone UesrGroup admin status?
         """
         user_id = non_admin_user.id
-        assert not client.is_organisation_administrator(uid=user_id, org_id=organisation.id)
+        assert not client.is_organisation_administrator(uid=user_id, organisation_id=organisation.id)
         client.add_organisation_administrator(uid=user_id, organisation_id=organisation.id)
-        assert client.is_organisation_administrator(uid=user_id, org_id=organisation.id)
+        assert client.is_organisation_administrator(uid=user_id, organisation_id=organisation.id)
 
         # Converse: Organisation 'Everyone' group should appear in groups administered by User...
         eo = client.get_organisation_group(organisation_id=organisation.id, groupname="Everyone")
@@ -462,7 +462,7 @@ class TestUserGroups():
           require Organisation administrator privilege.
         """
         user_id = non_admin_user.id
-        assert not client.is_organisation_administrator(uid=user_id, org_id=organisation.id)
+        assert not client.is_organisation_administrator(uid=user_id, organisation_id=organisation.id)
 
         uid, sid = client.login(non_admin_user.username, non_admin_user.plaintext_passwd)
 
@@ -525,14 +525,13 @@ class TestUserGroups():
         with pytest.raises(HydraError):
             client.transfer_user_between_usergroups(uid=user_id, from_gid=from_group.id, to_gid=to_group.id)
 
-
     def test_delete_organisation_requires_hydra_admin(self, client, organisation, non_admin_user):
         """
           Can only Hydra admins delete an Organisation?
         """
         uid, sid = client.login(non_admin_user.username, non_admin_user.plaintext_passwd)
         with pytest.raises(PermissionError):
-            client.delete_organisation(org_id=organisation.id)
+            client.delete_organisation(organisation_id=organisation.id)
 
     def test_organisation_report(self, client, organisation, non_admin_user):
         """
@@ -554,6 +553,7 @@ class TestUserGroups():
         assert report == {
             'members': 2,
             'admins': ['non_admin_user'],
+            'guests': [],
             'groups': [
                 {'name': 'Report group 1',
                  'members': 2,
@@ -564,9 +564,41 @@ class TestUserGroups():
             ]
         }
 
-    def test_new_org_members(self, client, organisation, non_admin_user):
-        client.add_user_to_organisation(uid=client.user_id, organisation_id=organisation.id)
+    def test_organisation_guests(self, client, organisation, non_admin_user):
+        """
+          Can Users be added, retrieved, and removed as Guests of an Organisation?
+          Are duplicates and non-external Guests correctly disallowed?
+        """
         client.add_user_to_organisation(uid=non_admin_user.id, organisation_id=organisation.id)
+        other_org = client.add_organisation("Other organisation")
 
-        members = client.get_all_organisation_members(org_id=organisation.id)
+        # Add User as a Guest in an Organisation
+        assert not client.is_user_guest_of_organisation(uid=non_admin_user.id, organisation_id=other_org.id)
+        client.add_guest_to_organisation(uid=non_admin_user.id, organisation_id=other_org.id)
+        assert client.is_user_guest_of_organisation(uid=non_admin_user.id, organisation_id=other_org.id)
 
+        # May not be added twice
+        with pytest.raises(HydraError):
+            client.add_guest_to_organisation(uid=non_admin_user.id, organisation_id=other_org.id)
+
+        # User who is Organisation member may not be added as Guest
+        client.add_user_to_organisation(uid=client.user_id, organisation_id=other_org.id)
+        with pytest.raises(HydraError):
+            client.add_guest_to_organisation(uid=client.user_id, organisation_id=other_org.id)
+
+        # User appears on guest list...
+        guests = client.get_all_guests(organisation_id=other_org.id)
+        assert len(guests) == 1
+        assert guests[0].id == non_admin_user.id
+
+        # ...and guest usergroup appears on User's group list...
+        groups = client.usergroups_with_member_user(uid=non_admin_user.id)
+        guest_group_name = client.get_guest_organisation_usergroup_name()
+        guest_group = client.get_organisation_group(organisation_id=other_org.id, groupname=guest_group_name)
+        assert guest_group.id in groups
+
+        # Removal resets status to initial
+        client.remove_guest_from_organisation(uid=non_admin_user.id, organisation_id=other_org.id)
+        assert not client.is_user_guest_of_organisation(uid=non_admin_user.id, organisation_id=other_org.id)
+        guests_absent = client.get_all_guests(organisation_id=other_org.id)
+        assert len(guests_absent) == 0

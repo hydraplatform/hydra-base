@@ -1,5 +1,5 @@
 """
-Types and definitions used by UserGroups and Organisations
+  Types and definitions used by UserGroups and Organisations
 """
 import enum
 
@@ -87,14 +87,10 @@ class Organisation(Base, Inspect):
     # Default UserGroup to which all member Users are automatically added
     everyone = "Everyone"
     # UserGroup for non-member guests
-    guests = "Guests"
+    guests_group = "Guests"
 
     id = Column(Integer(), primary_key=True, nullable=False)
     name = Column(String(group_name_max_length), nullable=False)
-
-    #@property
-    #def members(self):
-    #    return {m.user_id for m in self._members}
 
     @property
     def members(self):
@@ -113,21 +109,6 @@ class Organisation(Base, Inspect):
         )
         guests = db.DBSession.query(UserGroup).filter(*qfilter).one()
         return guests.members
-
-
-
-#class OrganisationMembers(Base, Inspect):
-#    """
-#      Relational type mapping Users to Organisations of which they are members
-#    """
-#
-#    __tablename__ = "tOrganisationMembers"
-#
-#    organisation_id = Column(Integer(), ForeignKey("tOrganisation.id"), primary_key=True, nullable=False)
-#    user_id = Column(Integer(), ForeignKey("tUser.id"), primary_key=True, nullable=False)
-#
-#    members = relationship("Organisation", backref=backref("_members", uselist=True, cascade="all, delete-orphan"))
-#    organisations = relationship("User", backref=backref("organisations", uselist=True, cascade="all, delete-orphan"))
 
 
 class Perm(enum.IntEnum):
@@ -149,10 +130,10 @@ class ResourceAccess(Base, Inspect):
     __tablename__ = "tResourceAccess"
 
     """
-      - str resource type    "Network", "Project"
-      - int holder_id        "{UserGroup.id}"
-      - int resource_id      "{Network.id}"
-      - Perm access bitmask  "PERM.READ | PERM.WRITE"
+      - int usergroup_id     e.g "{UserGroup.id}"
+      - str resource         e.g "Network", "Project"
+      - int resource_id      e.g "{Network.id}"
+      - Perm access bitmask  e.g "PERM.READ | PERM.WRITE"
     """
 
     usergroup_id = Column(Integer(), primary_key=True, nullable=False)
