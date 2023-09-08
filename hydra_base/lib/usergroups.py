@@ -180,10 +180,7 @@ def add_user_to_organisation(uid: int, organisation_id: int, **kwargs) -> None:
     """
       Add the User with id <uid> to the Organisation with id <organisation_id>
     """
-    try:
-        org = db.DBSession.query(Organisation).filter(Organisation.id == organisation_id).one()
-    except NoResultFound:
-        raise ResourceNotFoundError(f"No Organisation found with id: {organisation_id}")
+    _ = get_organisation_by_id(organisation_id)  # Confirm org existence
 
     # Add User to org's Everyone...
     eo = get_organisation_group(organisation_id, Organisation.everyone)
@@ -207,7 +204,7 @@ def add_guest_to_organisation(uid: int, organisation_id: int, **kwargs) -> None:
       Adds the User with id <uid> to the Guests group of Organisation
       with id <organisation_id>
     """
-    org = get_organisation_by_id(organisation_id)
+    _ = get_organisation_by_id(organisation_id)  # Confirm org existence
 
     if is_organisation_member(uid=uid, organisation_id=organisation_id):
         raise HydraError(f"User {uid=} is a member of Organisation {organisation_id=} "
@@ -537,6 +534,10 @@ def get_all_organisation_members(organisation_id: int, **kwargs) -> List[User]:
 
 
 def _add_resource_access(res: str, usergroup_id: int, res_id: int, access: Perm, **kwargs) -> Perm:
+    """
+      Sets the resource access mask specified by <access> for the UserGroup with id <usergroup_id>
+      on the resource identified by the <res>+<res_id> combination.
+    """
     ra = ResourceAccess(resource=res.upper(), usergroup_id=usergroup_id, resource_id=res_id, access=int(access))
     db.DBSession.add(ra)
     db.DBSession.flush()
@@ -546,6 +547,12 @@ def _add_resource_access(res: str, usergroup_id: int, res_id: int, access: Perm,
 
 @export
 def set_resource_access(res: str, usergroup_id: int, res_id: int, access: Perm, **kwargs) -> ResourceAccess:
+    """
+      Sets the resource access mask specified by <access> for the UserGroup with id <usergroup_id>
+      on the resource identified by the <res>+<res_id> combination.
+
+      Existing permissions on a resource are overwritten.
+    """
     qfilter = (
         ResourceAccess.resource == res.upper(),
         ResourceAccess.usergroup_id == usergroup_id,
@@ -564,6 +571,10 @@ def set_resource_access(res: str, usergroup_id: int, res_id: int, access: Perm, 
 
 @export
 def get_resource_access_mask(res: str, usergroup_id: int, res_id: int, do_raise: bool=True, **kwargs) -> Perm:
+    """
+      Retrieves the access mask for the User with id <usergroup_id> on the resource
+      with <res>+<res_id> pair.
+    """
     qfilter = (
         ResourceAccess.resource == res.upper(),
         ResourceAccess.usergroup_id == usergroup_id,
@@ -580,30 +591,51 @@ def get_resource_access_mask(res: str, usergroup_id: int, res_id: int, do_raise:
 
 
 def _usergroup_has_perm(perm: Perm, usergroup_id: int, resource: str, resource_id: int, **kwargs) -> bool:
+    """
+      Tests whether the access mask for the UserGroup with id <usergroup_id> on the
+      resource with identified by <res>+<res_id> pair includes the Permissions
+      in <perm>.
+    """
     mask = get_resource_access_mask(resource, usergroup_id, resource_id)
     return perm & mask
 
 
 @export
 def usergroup_can_read(usergroup_id: int, resource: str, resource_id: int, **kwargs) -> bool:
+    """
+      Does the UserGroup with id <usergroup_id> have the Perm.Read permission
+      on the resource with <res>+<res_id> pair?
+    """
     mask = get_resource_access_mask(resource, usergroup_id, resource_id)
     return mask & Perm.Read
 
 
 @export
 def usergroup_can_write(usergroup_id: int, resource: str, resource_id: int, **kwargs) -> bool:
+    """
+      Does the UserGroup with id <usergroup_id> have the Perm.Write permission
+      on the resource with <res>+<res_id> pair?
+    """
     mask = get_resource_access_mask(resource, usergroup_id, resource_id)
     return mask & Perm.Write
 
 
 @export
 def usergroup_can_share(usergroup_id: int, resource: str, resource_id: int, **kwargs) -> bool:
+    """
+      Does the UserGroup with id <usergroup_id> have the Perm.Share permission
+      on the resource with <res>+<res_id> pair?
+    """
     mask = get_resource_access_mask(resource, usergroup_id, resource_id)
     return mask & Perm.Share
 
 
 @export
 def any_usergroup_can_read(usergroup_ids: Sequence[int], resource: str, resource_id: int, **kwargs) -> bool:
+    """
+      Do any of the UserGroups with id in <usergroup_ids> have Perm.Read permission
+      on the resource with <res>+<res_id> pair?
+    """
     for ugid in usergroup_ids:
         if _usergroup_has_perm(Perm.Read, ugid, resource, resource_id):
             return True
@@ -613,6 +645,10 @@ def any_usergroup_can_read(usergroup_ids: Sequence[int], resource: str, resource
 
 @export
 def any_usergroup_can_write(usergroup_ids: Sequence[int], resource: str, resource_id: int, **kwargs) -> bool:
+    """
+      Do any of the UserGroups with id in <usergroup_ids> have Perm.Write permission
+      on the resource with <res>+<res_id> pair?
+    """
     for ugid in usergroup_ids:
         if _usergroup_has_perm(Perm.Write, ugid, resource, resource_id):
             return True
@@ -622,6 +658,10 @@ def any_usergroup_can_write(usergroup_ids: Sequence[int], resource: str, resourc
 
 @export
 def any_usergroup_can_share(usergroup_ids: Sequence[int], resource: str, resource_id: int, **kwargs) -> bool:
+    """
+      Do any of the UserGroups with id in <usergroup_ids> have Perm.Share permission
+      on the resource with <res>+<res_id> pair?
+    """
     for ugid in usergroup_ids:
         if _usergroup_has_perm(Perm.Share, ugid, resource, resource_id):
             return True
@@ -631,6 +671,10 @@ def any_usergroup_can_share(usergroup_ids: Sequence[int], resource: str, resourc
 
 @export
 def user_has_permission_by_membership(uid: int, perm: Perm, resource: str, resource_id: int, **kwargs) -> bool:
+    """
+      Is the User with is <iud> a member of any UserGroup which confers the permission
+      <perm> on the resource with <res>+<res_id> pair?
+    """
     groups = usergroups_with_member_user(uid)
     for group in groups:
         if _usergroup_has_perm(perm, group.id, resource, resource_id):
@@ -641,28 +685,54 @@ def user_has_permission_by_membership(uid: int, perm: Perm, resource: str, resou
 
 @export
 def make_project_visible_to_usergroup(group_id: int, project_id: int, **kwargs):
+    """
+      Make the project with id <project_id> readable for the UserGroup
+      with id <group_id>
+    """
     group = get_usergroup_by_id(group_id)
     return set_resource_access("PROJECT", group.id, project_id, Perm.Read)
 
 
 @export
 def make_project_visible_to_organisation(organisation_id: int, project_id: int, **kwargs):
+    """
+      Make the project with id <project_id> readable for the Organisation
+      with id <organisation_id>
+    """
     eo = get_organisation_group(organisation_id, Organisation.everyone)
     return set_resource_access("PROJECT", eo.id, project_id, Perm.Read)
 
 
 @export
 def get_permissions_map(**kwargs) -> Dict[str, int]:
+    """
+      Return a serialised representation of the Perm enum type.
+
+      This allows remote clients to recreate the server's permission
+      map and test access masks directly.
+    """
     return {p.name: p.value for p in Perm}
 
 
 @export
 def get_default_organisation_usergroup_name(**kwargs) -> str:
+    """
+      Return the name of the Organisation type's default UserGroup
+      of which all Organisation members are a member.
+
+      Default is "Everyone"
+    """
     return Organisation.everyone
 
 
 @export
 def get_guest_organisation_usergroup_name(**kwargs) -> str:
+    """
+      Return the name of the Organisation type's guest UserGroup
+      to which all Organisation guests are added.
+
+      Default is "Guests"
+    """
     return Organisation.guests_group
 
 
@@ -681,6 +751,12 @@ def _flatten_children(p) -> List[int]:
 
 @export
 def get_all_usergroup_projects(group_id: int, include_children: bool=False, **kwargs) -> Set[int]:
+    """
+      Returns the ids of all Projects which are visible to the UserGroup with id <group_id>
+
+      The optional <include_children> argument allows this to include the full hierarchy of
+      Projects which have inherited visibility from a visible parent Project.
+    """
     group = get_usergroup_by_id(group_id)
     qfilter = (
         ResourceAccess.resource == "PROJECT",
@@ -704,6 +780,10 @@ def get_all_usergroup_projects(group_id: int, include_children: bool=False, **kw
 
 @export
 def get_all_usergroup_networks(group_id: int, **kwargs) -> Set[int]:
+    """
+      Retrieve the ids of all networks in Projects visible to the UserGroup
+      with id <group_id>
+    """
     visible_projects = get_all_usergroup_projects(group_id, include_children=True, **kwargs)
 
     net_ids = set()
@@ -716,6 +796,10 @@ def get_all_usergroup_networks(group_id: int, **kwargs) -> Set[int]:
 
 @export
 def get_all_user_projects(uid: int, **kwargs) -> Set[int]:
+    """
+      Retrieve the ids of all Projects visible to any UserGroup of which
+      the User with id <uid> is a member.
+    """
     groups = usergroups_with_member_user(uid)
     user_projects = set()
     for group in groups:
@@ -726,6 +810,10 @@ def get_all_user_projects(uid: int, **kwargs) -> Set[int]:
 
 @export
 def get_all_organisation_projects(organisation_id: int, **kwargs) -> Set[int]:
+    """
+      Return the ids of all Projects visible to all members of the
+      Organisation with id <organisation_id>
+    """
     eo = get_organisation_group(organisation_id, Organisation.everyone)
     return get_all_usergroup_projects(eo.id, include_children=True, **kwargs)
 

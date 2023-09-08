@@ -126,7 +126,7 @@ class TestUserGroups():
         """
           Are UserGroups created correctly within the specified Organisation?
         """
-        group = client.add_usergroup("PyTest group", organisation_id=organisation.id)
+        client.add_usergroup("PyTest group", organisation_id=organisation.id)
         org_groups = client.get_groups_by_organisation_id(organisation_id=organisation.id)
 
         assert isinstance(org_groups, list)  # Return is a list...
