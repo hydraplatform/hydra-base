@@ -1,11 +1,9 @@
 import base64
-import datetime
 import os
 import pytest
 
 from packaging import version
 
-import hydra_base
 from hydra_base.lib.objects import JSONObject
 from hydra_base.lib.users import (
     activate_user_otp,
@@ -137,7 +135,12 @@ class TestTOP():
         try:
             verify_otp(user_id, bad_code)
         except HydraLoginInvalidOTP:
-            # Avoid window race...
+            # Avoid window race: an initial failure may occur
+            # due to a code being generated in one window and
+            # tested in the next.  Retrying the test here
+            # within <window_length> seconds of a failure
+            # ensures that a subsequent failure is due to a
+            # genuine mismatch.
             local_code = totp(otp.secret)
             bad_code = str(int(local_code) + 1)
             # Expect genuine failure...
@@ -149,7 +152,7 @@ class TestTOP():
             Verify user accounts do not have OTP active by default
         """
         user = client.add_user(temp_user_json_object)
-        assert user_has_otp(user.id) == False
+        assert not user_has_otp(user.id)
         client.delete_user(user.id)
 
     def test_activate_user_otp(self, client, temp_user_json_object):
@@ -157,9 +160,9 @@ class TestTOP():
             Can OTP be activated for a user?
         """
         user = client.add_user(temp_user_json_object)
-        assert user_has_otp(user.id) == False
+        assert not user_has_otp(user.id)
         otp = activate_user_otp(user.id)
-        assert user_has_otp(user.id) == True
+        assert user_has_otp(user.id)
         client.delete_user(user.id)
 
     def test_deactivate_user_otp(self, client, temp_user_json_object):
@@ -167,11 +170,11 @@ class TestTOP():
             Can OTP be deactivated for a user?
         """
         user = client.add_user(temp_user_json_object)
-        assert user_has_otp(user.id) == False
+        assert not user_has_otp(user.id)
         otp = activate_user_otp(user.id)
-        assert user_has_otp(user.id) == True
+        assert user_has_otp(user.id)
         deactivate_user_otp(user.id)
-        assert user_has_otp(user.id) == False
+        assert not user_has_otp(user.id)
         client.delete_user(user.id)
 
     def test_regen_otp_secret(self, client):

@@ -30,12 +30,21 @@ def hotp(secret: str, counter: int, digits: int=6, hash: str="sha1") -> str:
 
 def totp(secret: str, window: int=30, digits: int=6, hash: str="sha1") -> str:
     """
-      RFC6238 TOTP
+      RFC6238 TOTP, passing the current <window>-size period to hotp() as the
+      counter.
     """
     return hotp(secret, int(time.time()/window), digits, hash)
 
 
 def make_uri(otp_type: str, label: str, secret: str, parameters: Dict[str, str]) -> str:
+    """
+      Returns a uri in "otpauth://" format commonly used by authenticators, e.g.
+      "otpauth://totp/waterstrategy.org:otp_user?secret=<b32_secret>&issuer=hydra.org"
+
+      This typically includes the <otp_type> (here 'totp') a <label> for client-side
+      display including the user to whom the secret was issued and the Base32-encoded
+      <secret>.
+    """
     params = {"secret": secret, **parameters}
     qs = urllib.parse.urlencode(params)
     return urllib.parse.urlunparse(("otpauth", otp_type, label, None, qs, None))
@@ -61,18 +70,27 @@ def make_data_image_url(uri: str) -> str:
 
 
 def gen_secret(sec_len: int=SECRET_BYTE_LENGTH) -> str:
+    """
+      Returns a Base32-encoded string which represents a TOTP secret.
+
+      This is derived from <sec_len> pseudo-random bytes ultimately retrieved
+      from /dev/urandom.
+    """
     sec = os.urandom(sec_len)
     return base64.b32encode(sec).decode()
 
 
 def make_user_secret_bundle(username: str) -> Dict[str, str]:
+    """
+      Returns a convenient dict containing all of the information required
+      for a user to configure their Authenticator of choice to generate codes.
+    """
     secret = gen_secret()
     uri = make_uri("totp", f"waterstrategy.org:{username}", secret, {"issuer": "hydra.org"})
     img_url = make_data_image_url(uri)
 
     return {
-        "secret": secret,
-        "uri": uri,
-        "img": img_url
+        "secret": secret,  # Base32-encoded TOTP secret
+        "uri": uri,        # otpauth:// string
+        "img": img_url     # QR code in data:image/png form
     }
-

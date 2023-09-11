@@ -30,6 +30,8 @@ from ..util.permissions import required_perms
 import bcrypt
 import logging
 
+from typing import Dict
+
 from hydra_base.lib.otp.otp import (
     make_user_secret_bundle
 )
@@ -597,7 +599,7 @@ def get_perm_by_code(perm_code,**kwargs):
     except NoResultFound:
         raise ResourceNotFoundError("Permission not found (perm_code={})".format(perm_code))
 
-def get_user_otp(user_id, **kwargs):
+def get_user_otp(user_id: int, **kwargs) -> OTPSecret:
     """
         Retrieves OTP information for the specified <user_id> argument
     """
@@ -608,9 +610,9 @@ def get_user_otp(user_id, **kwargs):
 
     return otp_entry
 
-def activate_user_otp(user_id, **kwargs):
+def activate_user_otp(user_id: int, **kwargs) -> Dict[str, str]:
     """
-        Generates a OTP information for the specified <user> argument.
+        Generates TOTP information for the specified <user_id> argument.
         Returns a dict consisting of the otp secret, otpauth:// string,
         and a base64 encoded qr code.
     """
@@ -623,7 +625,7 @@ def activate_user_otp(user_id, **kwargs):
 
     return otp_info
 
-def deactivate_user_otp(user_id, **kwargs):
+def deactivate_user_otp(user_id: int, **kwargs) -> bool:
     """
         Removes the OTP entry for the specified <user_id> arg
     """
@@ -637,9 +639,9 @@ def deactivate_user_otp(user_id, **kwargs):
 
     return True
 
-def user_has_otp(user_id, **kwargs) -> bool:
+def user_has_otp(user_id: int, **kwargs) -> bool:
     """
-        Does am OTP entry exist for the specified <user_id> arg?
+        Does an OTP entry exist for the specified <user_id> arg?
     """
     try:
         _ = db.DBSession.query(OTPSecret).filter(OTPSecret.id==user_id).one()
@@ -648,9 +650,10 @@ def user_has_otp(user_id, **kwargs) -> bool:
 
     return True
 
-def reset_user_otp(user, do_create=True, **kwargs) -> dict:
+def reset_user_otp(user: User, do_create: bool=True, **kwargs) -> dict:
     """
-        Regenerates the OTP secret for the specified user.
+        Regenerates any OTP secret for the specified user, incrementing
+        the entry's 'sequence' counter on each regeneration.
         If the user does not have an OTP entry, one is created
         if the <do_create> arg is True.
     """

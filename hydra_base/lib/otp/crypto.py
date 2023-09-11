@@ -1,11 +1,5 @@
 import base64
-import codecs
-import getpass
 import hashlib
-import io
-import json
-import os
-import sys
 
 from typing import Tuple
 
@@ -29,6 +23,9 @@ def gen_iv_key(iv_seed: bytes, key_seed: bytes) -> Tuple[bytes, bytes]:
         Note that the 16 byte iv is also used as the salt for Scrypt key
         derivation. The (n,r,p) args to Scrypt represent a reasonable
         compromise between security and key-generation time.
+
+        Note that identical (n,r,p) args are required for repeatable
+        key generation.
     """
     md5 = hashlib.md5()
     md5.update(iv_seed)
