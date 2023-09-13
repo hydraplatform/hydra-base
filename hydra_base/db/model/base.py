@@ -33,6 +33,7 @@ BIGINT,\
 SMALLINT,\
 Float,\
 Text, \
+JSON, \
 DateTime,\
 Unicode
 
