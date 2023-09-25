@@ -102,6 +102,8 @@ class Project(Base, Inspect, PermissionControlled):
         for owner in all_owners:
             owners_by_network[owner.network_id].append(owner)
 
+        project_owners = self.get_owners()
+
         #for efficiency, get all the scenarios in 1 query and sort them by network
         all_scenarios = get_session().query(Scenario)\
             .filter(Scenario.network_id.in_(all_network_ids)).all()
@@ -117,6 +119,12 @@ class Project(Base, Inspect, PermissionControlled):
 
             net_j = JSONObject(net_i)
             net_j.owners = owners_by_network[net_j.id]
+            owner_ids = [no.user_id for no in owners_by_network[net_j.id]]
+            #include inherited owners from the project ownership for this project
+            for proj_owner in project_owners:
+                if proj_owner.user_id not in owner_ids:
+                    proj_owner.source = f'Inherited from: {self.name} (ID:{self.id})'
+                    net_j.owners.append(proj_owner)
             net_j.scenarios = scenarios_by_network[net_j.id]
             networks.append(net_j)
 
