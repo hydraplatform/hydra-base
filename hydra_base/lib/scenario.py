@@ -1337,26 +1337,70 @@ def get_attribute_data(attr_ids, node_ids, **kwargs):
     return node_attrs, resource_scenarios
 
 @required_perms("get_data", "get_network")
-def get_resource_data(ref_key, ref_id, scenario_id, type_id=None, expunge_session=True, get_parent_data=False, **kwargs):
+def get_resource_data(ref_key,
+                      ref_id,
+                      scenario_id,
+                      type_id=None,
+                      expunge_session=True,
+                      get_parent_data=False,
+                      include_inputs=True,
+                      include_outputs=True,
+                      include_data_types=None,
+                      exclude_data_types=None,
+                      include_values=True,
+                      include_data_type_values=None,
+                      exclude_data_type_values=None,
+                      **kwargs):
     """
         Get all the resource scenarios for a given resource
         in a given scenario. If type_id is specified, only
         return the resource scenarios for the attributes
         within the type.
+        args:
+            ref_key (string): 'NETWORK', 'NODE', 'LINK', 'GROUP'
+            ref_id (int): The ID of the network / node / link / group
+            scenario_id (int): The ID of the scenario from which to get the resource scenarios
+            type_id (int): A filter which limits the resource scenarios to just the attributes defined by the resource type
+            expunge_session (bool): Expunge the DB session -- means that modifying the results will not update the database. Default True
+            get_parent_data (bool): Return the data of the parent scenario of the requestsed scenario in addition to the specified scenario. Default False.
+            include_inputs (bool) : Return resource scenarios which relate to resource attribtues where the attr_is_var=N. Default True
+            include_outputs (bool): Return resource scenarios which relate to resource attribtues where the attr_is_var=Y. Default True
+            include_data_types (list(string)): Return only resource scenarios with a dataset that has the type of one of these specified data types. Default None, meaning no filter is applied.
+            exclude_data_types (list(string)): Return resource scenarios with a dataset that do NOT have the type of one of these specified data types. Default None, meaning no filter is applied.
+            include_values (bool): Return the 'value' column of tDataset. Default True. Setting this to False can increase performance substantaally due to the size of some dataset values.
+            include_data_type_values (list(string)): When include_values is True, specify which dataset types should return with the value column included.
+            exclude_data_type_values (list(string)): When include_values is True, specify which dataset types should return with the value column NOT included.
+
+        returns:
+            A list of JSONObjects representing Resource Scenarios, with a 'dataset' attribute and 'attribute' attribute.
     """
 
     user_id = kwargs.get('user_id')
 
     resource_i = get_resource(ref_key, ref_id)
 
-    resource_attributes = resource_i.get_attributes(
-        include_inputs = kwargs.get('include_inputs', True),
-        include_outputs = kwargs.get('include_outputs', True)
-    )
+    resource_attributes = resource_i.attributes
+
+    if include_inputs is True and include_outputs is False:
+        resource_attributes = list(filter(lambda x:x.attr_is_var=='N', resource_attributes))
+    
+    if include_outputs is True and include_inputs is False:
+        resource_attributes = list(filter(lambda x:x.attr_is_var=='Y', resource_attributes))
+
     ra_ids = [ra.id for ra in resource_attributes]
 
+    ra_map = dict((ra.id, ra) for ra in resource_attributes)
+
     scenario_i = _get_scenario(scenario_id, user_id)
-    requested_rs = scenario_i.get_data(user_id, get_parent_data=get_parent_data, ra_ids=ra_ids)
+
+    requested_rs = scenario_i.get_data(user_id,
+                                       get_parent_data=get_parent_data,
+                                       ra_ids=ra_ids,
+                                       include_data_types=include_data_types,
+                                       exclude_data_types=exclude_data_types,
+                                       include_values=include_values,
+                                       include_data_type_values=include_data_type_values,
+                                       exclude_data_type_values=exclude_data_type_values)
 
     #map an raID to an rs for uses later
     ra_rs_map = {}
@@ -1365,7 +1409,7 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id=None, expunge_sessio
 
     #make a lookup table between an attr ID and an RS for filtering by types later.
     attr_rs_lookup = {} # Used later to remove results if they're not required
-    for ra in resource_i.attributes:
+    for ra in resource_attributes:
         #Is there data for this RA?
         if ra_rs_map.get(ra.id) is not None:
             attr_rs_lookup[ra.attr_id] = ra_rs_map[ra.id]
@@ -1394,7 +1438,7 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id=None, expunge_sessio
         rs.dataset.metadata
 
         #lazy load the dataset's resourceattr object
-        rs.resourceattr
+        rs.resourceattr = ra_map[rs.resource_attr_id]
 
     if expunge_session is True:
         db.DBSession.expunge_all()

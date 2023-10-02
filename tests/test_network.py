@@ -884,7 +884,7 @@ class TestNetwork:
             assert ra.resourcescenario is not None
             assert ra.id in group_ras
 
-    def test_get_resource_data(self, client, network_with_data):
+    def test_get_all_resource_data(self, client, network_with_data):
         net = network_with_data
         s = net.scenarios[0]
 
@@ -901,17 +901,78 @@ class TestNetwork:
             for ra in group.attributes:
                 all_ras.append(ra.id)
 
+        all_resource_data = client.get_all_resource_data(s.id, include_values='N')
+        for rd in all_resource_data:
+            assert rd.value is None
+            assert int(rd.resource_attr_id) in all_ras
 
         all_resource_data = client.get_all_resource_data(s.id, include_values='Y')
-        log.info(all_resource_data[0])
         for rd in all_resource_data:
+            assert rd.value is not None
             assert int(rd.resource_attr_id) in all_ras
+
 
         truncated_resource_data = client.get_all_resource_data(s.id, include_values='Y', include_metadata='Y', page_start=0, page_end=1)
         assert len(truncated_resource_data) == 1
 
+    def test_get_resource_data(self, client, network_with_data):
+        net = network_with_data
+        s = net.scenarios[0]
+        node = net.nodes[0]
 
+        node_ras = [a.id for a in node.attributes]
 
+        all_resource_data = client.get_resource_data('NODE', node.id, s.id, include_values=False)
+        all_node_types = []
+        for rd in all_resource_data:
+            assert rd.dataset.value is None
+            assert int(rd.resource_attr_id) in node_ras
+            all_node_types.append(rd.dataset.type)
+
+        all_node_types = list(set(all_node_types))
+
+        all_resource_data = client.get_resource_data('NODE', node.id,s.id, include_values=True)
+        for rd in all_resource_data:
+            assert rd.dataset.value is not None
+            assert int(rd.resource_attr_id) in node_ras
+
+        all_resource_data = client.get_resource_data('NODE', node.id,s.id,
+                                                     exclude_data_types=[all_node_types[0]],
+                                                     include_values=True)
+        for rd in all_resource_data:
+            # there should be no values returned with this type
+            assert rd.dataset.type != all_node_types[0] 
+            assert rd.dataset.value is not None
+            assert int(rd.resource_attr_id) in node_ras
+
+        all_resource_data = client.get_resource_data('NODE', node.id,s.id,
+                                                     include_data_types=[all_node_types[0]],
+                                                     include_values=True)
+        for rd in all_resource_data:
+            # there should be no values returned with this type
+            assert rd.dataset.type == all_node_types[0] 
+            assert rd.dataset.value is not None
+            assert int(rd.resource_attr_id) in node_ras
+
+        all_resource_data = client.get_resource_data('NODE', node.id,s.id,
+                                                     include_data_type_values=[all_node_types[0]],
+                                                     include_values=True)
+        for rd in all_resource_data:
+            if rd.dataset.type == all_node_types[0]:
+                assert rd.dataset.value is not None
+            else:
+                assert rd.dataset.value is None
+            assert int(rd.resource_attr_id) in node_ras
+
+        all_resource_data = client.get_resource_data('NODE', node.id,s.id,
+                                                     exclude_data_type_values=[all_node_types[0]],
+                                                     include_values=True)
+        for rd in all_resource_data:
+            if rd.dataset.type == all_node_types[0]:
+                assert rd.dataset.value is None
+            else:
+                assert rd.dataset.value is not None
+            assert int(rd.resource_attr_id) in node_ras
 
     def test_delete_node(self, client, network_with_data):
         net = network_with_data

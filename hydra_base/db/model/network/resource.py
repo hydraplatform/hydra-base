@@ -35,14 +35,22 @@ class Resource:
         """
 
         ra_qry = get_session().query(ResourceAttr).filter(
-            ResourceAttr.ref_id == self.id,
             ResourceAttr.ref_key == self.ref_key
         )
 
-        if include_inputs is not True:
+        if self.ref_key == 'NETWORK':
+            ra_qry = ra_qry.filter(ResourceAttr.network_id==self.id)
+        elif self.ref_key == 'NODE':
+            ra_qry = ra_qry.filter(ResourceAttr.node_id==self.id)
+        elif self.ref_key == 'LINK':
+            ra_qry = ra_qry.filter(ResourceAttr.link_id==self.id)
+        elif self.ref_key == 'GROUP':
+            ra_qry = ra_qry.filter(ResourceAttr.group_id==self.id)
+
+        if include_inputs is True and include_outputs is False:
             ra_qry = ra_qry.filter(ResourceAttr.attr_is_var == 'N')
         
-        if include_outputs is not True:
+        if include_outputs is True and include_inputs is False:
             ra_qry = ra_qry.filter(ResourceAttr.attr_is_var == 'Y')
 
         resource_attribtes = ra_qry.all()
