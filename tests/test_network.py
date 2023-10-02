@@ -901,18 +901,18 @@ class TestNetwork:
             for ra in group.attributes:
                 all_ras.append(ra.id)
 
-        all_resource_data = client.get_all_resource_data(s.id, include_values='N')
+        all_resource_data = client.get_all_resource_data(s.id, include_values=False)
         for rd in all_resource_data:
             assert rd.value is None
             assert int(rd.resource_attr_id) in all_ras
 
-        all_resource_data = client.get_all_resource_data(s.id, include_values='Y')
+        all_resource_data = client.get_all_resource_data(s.id, include_values=True)
         for rd in all_resource_data:
             assert rd.value is not None
             assert int(rd.resource_attr_id) in all_ras
 
 
-        truncated_resource_data = client.get_all_resource_data(s.id, include_values='Y', include_metadata='Y', page_start=0, page_end=1)
+        truncated_resource_data = client.get_all_resource_data(s.id, include_values=True, include_metadata=True, page_start=0, page_end=1)
         assert len(truncated_resource_data) == 1
 
     def test_get_resource_data(self, client, network_with_data):

@@ -2638,7 +2638,13 @@ def get_all_resource_attributes_in_network(attr_id, network_id, include_resource
     return json_ra
 
 
-def get_all_resource_data(scenario_id, include_metadata=False, page_start=None, page_end=None, **kwargs):
+def get_all_resource_data(
+        scenario_id,
+        include_metadata=False,
+        page_start=None,
+        page_end=None,
+        include_values=True,
+        **kwargs):    
     """
         A function which returns the data for all resources in a network.
         -
@@ -2659,7 +2665,6 @@ def get_all_resource_data(scenario_id, include_metadata=False, page_start=None, 
                ResourceScenario.source,
                Dataset.id.label('dataset_id'),
                Dataset.name.label('dataset_name'),
-               Dataset.value,
                Dataset.unit_id,
                Dataset.hidden,
                Dataset.type,
@@ -2678,6 +2683,9 @@ def get_all_resource_data(scenario_id, include_metadata=False, page_start=None, 
                 outerjoin(ResourceGroup, ResourceAttr.group_id==ResourceGroup.id).\
                 outerjoin(Network, ResourceAttr.network_id==Network.id).\
             filter(ResourceScenario.scenario_id==scenario_id)
+
+    if include_values is True:
+        rs_qry = rs_qry.add_columns(Dataset.value)
 
     all_resource_data = rs_qry.all()
 
