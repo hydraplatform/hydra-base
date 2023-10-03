@@ -288,6 +288,7 @@ class Scenario(Base, Inspect):
                 'created_by':rs.created_by,
                 'hidden':rs.hidden,
                 'value':rs.value if hasattr(rs, 'value') else None,
+                'value': getattr(rs, 'value', None)
                 'metadata':{},
             })
             rs_obj.resourceattr = rs_attr

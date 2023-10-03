@@ -56,6 +56,4 @@ class Resource:
                 #only include inputs
                 ra_qry = ra_qry.filter(ResourceAttr.attr_is_var == 'N')
 
-        resource_attribtes = ra_qry.all()
-
-        return resource_attribtes
+        return ra_qry.all()

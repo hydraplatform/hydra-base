@@ -1363,11 +1363,11 @@ def get_resource_data(ref_key,
             type_id (int): A filter which limits the resource scenarios to just the attributes defined by the resource type
             expunge_session (bool): Expunge the DB session -- means that modifying the results will not update the database. Default True
             get_parent_data (bool): Return the data of the parent scenario of the requestsed scenario in addition to the specified scenario. Default False.
-            include_inputs (bool) : Return resource scenarios which relate to resource attribtues where the attr_is_var=N. Default True
-            include_outputs (bool): Return resource scenarios which relate to resource attribtues where the attr_is_var=Y. Default True
+            include_inputs (bool) : Return resource scenarios which relate to resource attributes where the attr_is_var=N. Default True
+            include_outputs (bool): Return resource scenarios which relate to resource attributes where the attr_is_var=Y. Default True
             include_data_types (list(string)): Return only resource scenarios with a dataset that has the type of one of these specified data types. Default None, meaning no filter is applied.
             exclude_data_types (list(string)): Return resource scenarios with a dataset that do NOT have the type of one of these specified data types. Default None, meaning no filter is applied.
-            include_values (bool): Return the 'value' column of tDataset. Default True. Setting this to False can increase performance substantaally due to the size of some dataset values.
+            include_values (bool): Return the 'value' column of tDataset. Default True. Setting this to False can increase performance substantially due to the size of some dataset values.
             include_data_type_values (list(string)): When include_values is True, specify which dataset types should return with the value column included.
             exclude_data_type_values (list(string)): When include_values is True, specify which dataset types should return with the value column NOT included.
 
