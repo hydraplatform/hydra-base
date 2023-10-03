@@ -355,6 +355,7 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
     nav_projects = []
     for nav_project_i in nav_projects_i:
         nav_project_j = JSONObject(nav_project_i)
+        nav_project_j.nav_only = True
         nav_project_j.owners = []
         nav_project_j.networks = []
         nav_projects.append(nav_project_j)

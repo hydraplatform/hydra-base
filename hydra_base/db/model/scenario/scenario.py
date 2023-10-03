@@ -127,6 +127,11 @@ class Scenario(Base, Inspect):
         ra_ids=None,
         include_results=True,
         include_only_results=False,
+        include_data_types=None,
+        exclude_data_types=None,
+        include_values=True,
+        include_data_type_values=None,
+        exclude_data_type_values=None,
         include_metadata=True):
         """
             Return all the resourcescenarios relevant to this scenario.
@@ -154,7 +159,13 @@ class Scenario(Base, Inspect):
             ra_ids=ra_ids,
             include_results=include_results,
             include_only_results=include_only_results,
-            include_metadata=include_metadata)
+            include_metadata=include_metadata,
+            include_data_types=include_data_types,
+            exclude_data_types=exclude_data_types,
+            include_values=include_values,
+            include_data_type_values=include_data_type_values,
+            exclude_data_type_values=exclude_data_type_values
+            )
 
         for this_rs in resourcescenarios:
             if this_rs.resource_attr_id not in childrens_ras:
@@ -171,11 +182,17 @@ class Scenario(Base, Inspect):
         ra_ids=None,
         include_results=True,
         include_only_results=False,
+        include_data_types=None,
+        exclude_data_types=None,
+        include_values=True,
+        include_data_type_values=None,
+        exclude_data_type_values=None,
         include_metadata=True):
         """
             Get all the resource scenarios in a network, across all scenarios
             returns a dictionary of dict objects, keyed on scenario_id
         """
+        log.debug("Starting dataset query")
 
         rs_qry = get_session().query(
                     Dataset.type,
@@ -185,7 +202,6 @@ class Scenario(Base, Inspect):
                     Dataset.cr_date,
                     Dataset.created_by,
                     Dataset.hidden,
-                    Dataset.value,
                     ResourceScenario.dataset_id,
                     ResourceScenario.scenario_id,
                     ResourceScenario.resource_attr_id,
@@ -215,9 +231,30 @@ class Scenario(Base, Inspect):
 
         if ra_ids is not None:
             rs_qry = rs_qry.filter(ResourceScenario.resource_attr_id.in_(ra_ids))
+        
+        if include_data_types is not None:
+            rs_qry = rs_qry.filter(func.upper(Dataset.type).in_([t.upper() for t in include_data_types]))
+        
+        if exclude_data_types is not None:
+            rs_qry = rs_qry.filter(func.upper(Dataset.type).not_in([t.upper() for t in exclude_data_types]))
 
-        all_rs = rs_qry.all()
+        excl_values_rs = []
+        if include_values is True:
+            if include_data_type_values is not None:
+                rs_qry = rs_qry.filter(func.upper(Dataset.type).in_([t.upper() for t in include_data_type_values]))
 
+            if exclude_data_type_values is not None:
+                excl_values_qry = rs_qry.filter(func.upper(Dataset.type).in_([t.upper() for t in exclude_data_type_values]))
+                rs_qry = rs_qry.filter(func.upper(Dataset.type).not_in([t.upper() for t in exclude_data_type_values]))
+                excl_values_rs = excl_values_qry.all()
+
+            rs_qry = rs_qry.add_columns(Dataset.value)
+
+        non_dataframe_rs = rs_qry.all()
+        
+        all_rs = non_dataframe_rs + excl_values_rs
+
+        log.info(f"Ending dataset query -- {len(all_rs)} results")
         processed_rs = []
         for rs in all_rs:
             rs_obj = JSONObject({
@@ -250,7 +287,7 @@ class Scenario(Base, Inspect):
                 'cr_date':rs.cr_date,
                 'created_by':rs.created_by,
                 'hidden':rs.hidden,
-                'value':rs.value,
+                'value': getattr(rs, 'value', None),
                 'metadata':{},
             })
             rs_obj.resourceattr = rs_attr

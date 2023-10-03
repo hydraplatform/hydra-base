@@ -147,9 +147,9 @@ class Project(Base, Inspect, PermissionControlled):
             if child_proj_i.check_read_permission(user_id, do_raise=False) is True:
                 projects_with_access.append(child_proj_i)
 
-        owners = get_session().query(ProjectOwner).filter(ProjectOwner.project_id.in_([p.id for p in child_projects_i])).all()
-        creators = get_session().query(User.id, User.username, User.display_name).filter(User.id.in_([p.created_by for p in child_projects_i])).all()
-        creator_lookup = {u.id:JSONObject(u)  for u in creators}
+        owners = get_session().query(User.id.label('user_id'), User.display_name, ProjectOwner.project_id).filter(User.id==ProjectOwner.user_id).filter(ProjectOwner.project_id.in_([p.id for p in child_projects_i])).all()
+        creators = get_session().query(User.id.label('user_id'), User.display_name).filter(User.id.in_([p.created_by for p in child_projects_i])).all()
+        creator_lookup = {u.user_id:JSONObject(u)  for u in creators}
         owner_lookup = defaultdict(list)
         for p in child_projects_i:
             owner_lookup[p.id] = [creator_lookup[p.created_by]]

@@ -28,12 +28,13 @@ from ..attributes import Attr
 from . import Link
 from . import Node
 from . import ResourceGroup
+from .resource import Resource
 
 __all__ = ['Network']
 
 
 
-class Network(Base, Inspect, PermissionControlled):
+class Network(Base, Inspect, PermissionControlled, Resource):
     """
     """
 
