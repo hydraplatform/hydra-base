@@ -227,7 +227,7 @@ class Scenario(Base, Inspect):
             rs_qry = rs_qry.filter(ResourceAttr.attr_is_var=='N')
 
         if include_only_results is True:
-            rs_qry = rs_qry.filter(ResourceAttr.attr_is_var=='N')
+            rs_qry = rs_qry.filter(ResourceAttr.attr_is_var=='Y')
 
         if ra_ids is not None:
             rs_qry = rs_qry.filter(ResourceScenario.resource_attr_id.in_(ra_ids))
