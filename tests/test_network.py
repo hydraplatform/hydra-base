@@ -931,48 +931,49 @@ class TestNetwork:
 
         all_node_types = list(set(all_node_types))
 
-        all_resource_data = client.get_resource_data('NODE', node.id,s.id, include_values=True)
-        for rd in all_resource_data:
-            assert rd.dataset.value is not None
-            assert int(rd.resource_attr_id) in node_ras
+        for datatype in all_node_types:
 
-        all_resource_data = client.get_resource_data('NODE', node.id,s.id,
-                                                     exclude_data_types=[all_node_types[0]],
-                                                     include_values=True)
-        for rd in all_resource_data:
-            # there should be no values returned with this type
-            assert rd.dataset.type != all_node_types[0] 
-            assert rd.dataset.value is not None
-            assert int(rd.resource_attr_id) in node_ras
-
-        all_resource_data = client.get_resource_data('NODE', node.id,s.id,
-                                                     include_data_types=[all_node_types[0]],
-                                                     include_values=True)
-        for rd in all_resource_data:
-            # there should be no values returned with this type
-            assert rd.dataset.type == all_node_types[0] 
-            assert rd.dataset.value is not None
-            assert int(rd.resource_attr_id) in node_ras
-
-        all_resource_data = client.get_resource_data('NODE', node.id,s.id,
-                                                     include_data_type_values=[all_node_types[0]],
-                                                     include_values=True)
-        for rd in all_resource_data:
-            if rd.dataset.type == all_node_types[0]:
+            all_resource_data = client.get_resource_data('NODE', node.id,s.id, include_values=True)
+            for rd in all_resource_data:
                 assert rd.dataset.value is not None
-            else:
-                assert rd.dataset.value is None
-            assert int(rd.resource_attr_id) in node_ras
+                assert int(rd.resource_attr_id) in node_ras
 
-        all_resource_data = client.get_resource_data('NODE', node.id,s.id,
-                                                     exclude_data_type_values=[all_node_types[0]],
-                                                     include_values=True)
-        for rd in all_resource_data:
-            if rd.dataset.type == all_node_types[0]:
-                assert rd.dataset.value is None
-            else:
+            all_resource_data = client.get_resource_data('NODE', node.id,s.id,
+                                                        exclude_data_types=[datatype],
+                                                        include_values=True)
+            for rd in all_resource_data:
+                assert rd.dataset.type != datatype 
                 assert rd.dataset.value is not None
-            assert int(rd.resource_attr_id) in node_ras
+                assert int(rd.resource_attr_id) in node_ras
+
+            all_resource_data = client.get_resource_data('NODE', node.id,s.id,
+                                                        include_data_types=[datatype],
+                                                        include_values=True)
+            for rd in all_resource_data:
+                assert rd.dataset.type == datatype 
+                assert rd.dataset.value is not None
+                assert int(rd.resource_attr_id) in node_ras
+
+            all_resource_data = client.get_resource_data('NODE', node.id,s.id,
+                                                        include_data_type_values=[datatype],
+                                                        include_values=True)
+            for rd in all_resource_data:
+                if rd.dataset.type == datatype:
+                    assert rd.dataset.value is not None
+                else:
+                    assert rd.dataset.value is None
+                assert int(rd.resource_attr_id) in node_ras
+
+            all_resource_data = client.get_resource_data('NODE', node.id,s.id,
+                                                        exclude_data_type_values=[datatype],
+                                                        include_values=True)
+            for rd in all_resource_data:
+                if rd.dataset.type == datatype:
+                    # there should be no values returned with this type
+                    assert rd.dataset.value is None
+                else:
+                    assert rd.dataset.value is not None
+                assert int(rd.resource_attr_id) in node_ras
 
     def test_delete_node(self, client, network_with_data):
         net = network_with_data

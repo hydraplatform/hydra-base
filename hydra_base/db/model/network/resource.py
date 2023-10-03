@@ -47,11 +47,14 @@ class Resource:
         elif self.ref_key == 'GROUP':
             ra_qry = ra_qry.filter(ResourceAttr.group_id==self.id)
 
-        if include_inputs is True:
-            ra_qry = ra_qry.filter(ResourceAttr.attr_is_var == 'N')
-        
-        if include_outputs is True:
-            ra_qry = ra_qry.filter(ResourceAttr.attr_is_var == 'Y')
+        if include_inputs is False or include_outputs is False:
+            if include_inputs is False:
+                #only include outputs
+                ra_qry = ra_qry.filter(ResourceAttr.attr_is_var == 'Y')
+            
+            if include_outputs is False:
+                #only include inputs
+                ra_qry = ra_qry.filter(ResourceAttr.attr_is_var == 'N')
 
         resource_attribtes = ra_qry.all()
 

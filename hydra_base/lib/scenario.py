@@ -1381,11 +1381,14 @@ def get_resource_data(ref_key,
 
     resource_attributes = resource_i.attributes
 
-    if include_inputs is True:
-        resource_attributes = list(filter(lambda x:x.attr_is_var=='N', resource_attributes))
-    
-    if include_outputs is True:
-        resource_attributes = list(filter(lambda x:x.attr_is_var=='Y', resource_attributes))
+    if include_inputs is False or include_outputs is False:
+        if include_inputs is False:
+            #only include outputs
+            resource_attributes = list(filter(lambda x:x.attr_is_var=='Y', resource_attributes))
+        
+        if include_outputs is False:
+            #only include inputs
+            resource_attributes = list(filter(lambda x:x.attr_is_var=='N', resource_attributes))
 
     ra_ids = [ra.id for ra in resource_attributes]
 
