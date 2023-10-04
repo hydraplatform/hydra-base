@@ -100,7 +100,7 @@ class Project(Base, Inspect, PermissionControlled):
 
         owners_by_network = defaultdict(list)
         for owner in all_owners:
-            owners_by_network[owner.network_id].append(owner)
+            owners_by_network[owner.network_id].append(JSONObject(owner))
 
         project_owners = self.get_owners()
 
@@ -156,7 +156,7 @@ class Project(Base, Inspect, PermissionControlled):
         for o in owners:
             if o.user_id == p.created_by:
                 continue
-            owner_lookup[o.project_id].append(o)
+            owner_lookup[o.project_id].append(JSONObject(o))
 
         child_projects = []
         for child_proj_i in projects_with_access:
