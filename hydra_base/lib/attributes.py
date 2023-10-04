@@ -149,7 +149,7 @@ def get_attribute_by_name_and_dimension(name, dimension_id=None, network_id=None
             list: JSONObjects derived from the Sqlalchemy rows.
     """
 
-    log.info("Retrieving all attributes with name %s and dimension %s", name, dimension_id)
+    log.info("Retrieving all attributes with name %s and dimension %s (network_id=%s) (project_id=%s)", name, dimension_id, network_id, project_id)
     try:
         attr_qry = db.DBSession.query(Attr).filter(
             and_(
@@ -310,7 +310,7 @@ def _reassign_scoped_attributes(attr_id, user_id):
         #attribute with the same name and dimension
         assert matching_attrs[0].id == attr_id
         return
-
+        
     #Reassign all resource attributes which point to scoped attirbutes, and then delete
     #the scoped attributes.
     scoped_resource_attrs_qry = db.DBSession.query(ResourceAttr).join(Attr).filter(
@@ -320,6 +320,7 @@ def _reassign_scoped_attributes(attr_id, user_id):
         Attr.id != attr_id
     )
 
+    
     """
       If this is a project scoped attribute then we only want to change the scope
       of attributes scoped to networks contained within this project, and leave
@@ -333,16 +334,24 @@ def _reassign_scoped_attributes(attr_id, user_id):
             and any nested projects. This represents the scope within which matching
             network and project attrs will be rescoped to the current attr.
         """
+        
+        #first look up the hierarchy to see if there is an attribute scoped at a higher level.
+
+
         max_levels = int(config.get("limits", "project_max_nest_depth", 32))
         attr_proj = db.DBSession.query(Project).filter(Project.id == attr_i.project_id).one()
         child_projects = attr_proj.get_child_projects(user_id=user_id, levels=max_levels)
         project_scope = {p["id"] for p in child_projects} | {attr_i.project_id}
-        scoped_resource_attrs_qry = scoped_resource_attrs_qry.join(Network).filter(
+        network_scoped_resource_attrs_qry = scoped_resource_attrs_qry.join(Network).filter(
             Attr.network_id == Network.id,
             Network.project_id.in_(project_scope)
         )
 
-    scoped_resource_attrs = scoped_resource_attrs_qry.all()
+        project_scoped_resource_attrs_qry = scoped_resource_attrs_qry.join(Project).filter(
+            Attr.project_id.in_(project_scope)
+        )
+
+    scoped_resource_attrs = network_scoped_resource_attrs_qry.all() + project_scoped_resource_attrs_qry.all()
 
     if len(scoped_resource_attrs) > 0:
         log.info(f"{len(scoped_resource_attrs)} scoped attributes found with same name & dimension. Reassigning.")
@@ -595,7 +604,11 @@ def add_attributes(attrs, **kwargs):
 
     return [JSONObject(a) for a in new_attrs]
 
-def get_attributes(network_id=None, project_id=None, include_global=False, include_network_attributes=False, include_hierarchy=False, **kwargs):
+def get_attributes(network_id=None,
+                   project_id=None,
+                   include_global=False,
+                   include_network_attributes=False,
+                   include_hierarchy=False, **kwargs):
     """
         Get all attributes.
         args:
@@ -614,7 +627,7 @@ def get_attributes(network_id=None, project_id=None, include_global=False, inclu
     if (network_id is None and project_id is None) or include_global is True:
         #First get all global attributes
         attrs = base_qry.filter(
-            and_(
+            and_( 
                 Attr.network_id == None,
                 Attr.project_id == None
             )
