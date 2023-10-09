@@ -627,7 +627,7 @@ def get_attributes(network_id=None,
     if (network_id is None and project_id is None) or include_global is True:
         #First get all global attributes
         attrs = base_qry.filter(
-            and_( 
+            and_(
                 Attr.network_id == None,
                 Attr.project_id == None
             )
