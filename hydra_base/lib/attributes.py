@@ -310,7 +310,7 @@ def _reassign_scoped_attributes(attr_id, user_id):
         #attribute with the same name and dimension
         assert matching_attrs[0].id == attr_id
         return
-        
+ 
     #Reassign all resource attributes which point to scoped attirbutes, and then delete
     #the scoped attributes.
     scoped_resource_attrs_qry = db.DBSession.query(ResourceAttr).join(Attr).filter(
