@@ -132,11 +132,11 @@ def share_project(project_id, usernames, read_only=False, share=False, flush=Tru
 
     user_id = int(user_id)
 
-    for owner in proj_i.owners:
-        if user_id == owner.user_id:
-            break
-    else:
-        raise HydraError("Permission Denied. Cannot share project.")
+    # for owner in proj_i.owners:
+    #     if user_id == owner.user_id:
+    #         break
+    # else:
+    #     raise HydraError("Permission Denied. Cannot share project.")
 
     if read_only in ('Y', True):
         write = 'N'
@@ -151,10 +151,10 @@ def share_project(project_id, usernames, read_only=False, share=False, flush=Tru
     if share in ('N', False):
         share = 'N'
 
-    if proj_i.created_by != user_id and share == 'Y':
-        raise HydraError("Cannot share the 'sharing' ability as user %s is not"
-                     " the owner of project %s"%
-                     (user_id, project_id))
+    # if proj_i.created_by != user_id and share == 'Y':
+    #     raise HydraError("Cannot share the 'sharing' ability as user %s is not"
+    #                  " the owner of project %s"%
+    #                  (user_id, project_id))
 
     for username in usernames:
         user_i = _get_user(username)
