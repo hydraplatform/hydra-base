@@ -421,7 +421,7 @@ class TestScopedAttribute:
             client.get_attribute_by_id(attr_id=net_scoped_attr.id)
 
         with pytest.raises(HydraError):
-            client.get_attribute_by_id(attr_id=childproj_scoped_attr.id)
+            _ = client.get_attribute_by_id(attr_id=childproj_scoped_attr.id)
 
         #check it has been rescoped
         assert newly_scoped_attr.project_id == proj1.id
