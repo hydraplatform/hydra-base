@@ -1415,9 +1415,12 @@ def get_resource_data(ref_key,
     if ref_key is not None and ref_id is not None:
         resource_i = get_resource(ref_key, ref_id)
         resource_attributes = resource_i.attributes
-    else:
+    elif ref_key is None and ref_id is None:
         scenario = _get_scenario(scenario_id, user_id)
         resource_attributes = _get_all_network_resource_attributes(scenario.network_id)
+    elif None in (ref_key, ref_id): # Both are None
+        raise HydraError("Unable to get data. Must specify a resource type (ref_key) and resource id (ref_id)")
+    
 
     if include_inputs is False or include_outputs is False:
         if include_inputs is False:
