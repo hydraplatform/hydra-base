@@ -18,7 +18,6 @@
 #
 
 import logging
-import six
 import time
 from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
 from .. import db
