@@ -18,7 +18,7 @@
 #
 
 import logging
-import six
+import time
 from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
 from .. import db
 from ..util.permissions import required_perms
@@ -1336,6 +1336,40 @@ def get_attribute_data(attr_ids, node_ids, **kwargs):
 
     return node_attrs, resource_scenarios
 
+def _get_all_network_resource_attributes(network_id):
+    """
+        Get all the attributes for the nodes, links and groups of a network.
+        Return these attributes as a dictionary, keyed on type (NODE, LINK, GROUP)
+        then by ID of the node or link.
+
+        args:
+            network_id (int) The ID of the network from which to retrieve the attributes
+        returns:
+            A list of sqlalchemy result proxy objects
+    """
+    base_qry = db.DBSession.query(ResourceAttr).filter(Attr.id==ResourceAttr.attr_id)
+
+    all_node_attribute_qry = base_qry.join(Node).filter(Node.network_id == network_id)
+
+    all_link_attribute_qry = base_qry.join(Link).filter(Link.network_id == network_id)
+
+    all_group_attribute_qry = base_qry.join(ResourceGroup)\
+            .filter(ResourceGroup.network_id == network_id)
+
+    network_attribute_qry = base_qry.filter(ResourceAttr.network_id == network_id)
+
+
+    x = time.time()
+    logging.info("Getting all attributes using execute")
+    attribute_qry = all_node_attribute_qry.union(all_link_attribute_qry,
+                                                 all_group_attribute_qry,
+                                                 network_attribute_qry)
+    all_resource_attributes = attribute_qry.all()
+
+    log.info("%s attrs retrieved in %s", len(all_resource_attributes), round(time.time()-x, 2))
+
+    return all_resource_attributes
+
 @required_perms("get_data", "get_network")
 def get_resource_data(ref_key,
                       ref_id,
@@ -1377,9 +1411,15 @@ def get_resource_data(ref_key,
 
     user_id = kwargs.get('user_id')
 
-    resource_i = get_resource(ref_key, ref_id)
-
-    resource_attributes = resource_i.attributes
+    if ref_key is not None and ref_id is not None:
+        resource_i = get_resource(ref_key, ref_id)
+        resource_attributes = resource_i.attributes
+    elif ref_key is None and ref_id is None:
+        scenario = _get_scenario(scenario_id, user_id)
+        resource_attributes = _get_all_network_resource_attributes(scenario.network_id)
+    elif None in (ref_key, ref_id): # One of them is None
+        raise HydraError("Unable to get data. Must specify a resource type (ref_key) and resource id (ref_id)")
+    
 
     if include_inputs is False or include_outputs is False:
         if include_inputs is False:
@@ -1427,21 +1467,6 @@ def get_resource_data(ref_key,
             type_limited_rs.append(attr_rs_lookup[r.attr_id])
 
         requested_rs = type_limited_rs
-
-    for rs in requested_rs:
-        #TODO: Design a mechanism to read the value of the dataset if it's stored externally
-        if rs.dataset.hidden == 'Y':
-            try:
-                rs.dataset.check_read_permission(user_id)
-            except:
-                rs.dataset.value = None
-
-        #lazy load the dataset's unit and metadata
-        rs.dataset.unit
-        rs.dataset.metadata
-
-        #lazy load the dataset's resourceattr object
-        rs.resourceattr = ra_map[rs.resource_attr_id]
 
     if expunge_session is True:
         db.DBSession.expunge_all()

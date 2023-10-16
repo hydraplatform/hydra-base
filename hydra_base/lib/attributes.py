@@ -328,6 +328,8 @@ def _reassign_scoped_attributes(attr_id, user_id):
       If it's global, we want to stipulate that we want all attributes which
       are project-scoped also.
     """
+    scoped_resource_attrs = []
+    project_scope = []
     if attr_i.project_id is not None:
         """
             A `project_scope` is defined here which includes the ids of the current
@@ -351,7 +353,7 @@ def _reassign_scoped_attributes(attr_id, user_id):
             Attr.project_id.in_(project_scope)
         )
 
-    scoped_resource_attrs = network_scoped_resource_attrs_qry.all() + project_scoped_resource_attrs_qry.all()
+        scoped_resource_attrs = network_scoped_resource_attrs_qry.all() + project_scoped_resource_attrs_qry.all()
 
     if len(scoped_resource_attrs) > 0:
         log.info(f"{len(scoped_resource_attrs)} scoped attributes found with same name & dimension. Reassigning.")
@@ -447,10 +449,10 @@ def add_attribute(attr, check_existing=True, **kwargs):
         attr_qry = db.DBSession.query(Attr).filter(func.lower(Attr.name) == attr.name.lower(),
                                                    Attr.dimension_id == attr.dimension_id)
 
-        if attr.network_id is not None:
-            attr_qry = attr_qry.filter(Attr.network_id == attr.network_id)
-        if attr.project_id is not None:
-            attr_qry = attr_qry.filter(Attr.project_id == attr.project_id)
+
+        attr_qry = attr_qry.filter(Attr.network_id == attr.network_id)
+
+        attr_qry = attr_qry.filter(Attr.project_id == attr.project_id)
 
         attr_i = attr_qry.one()
 
