@@ -1367,7 +1367,7 @@ def _get_all_network_resource_attributes(network_id):
                                                  network_attribute_qry)
     all_resource_attributes = attribute_qry.all()
 
-    log.info("%s attrs retrieved in %s", len(all_resource_attributes), time.time()-x)
+    log.info("%s attrs retrieved in %s", len(all_resource_attributes), round(time.time()-x, 2))
 
     return all_resource_attributes
 
