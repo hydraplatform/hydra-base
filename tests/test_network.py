@@ -33,6 +33,37 @@ class TestNetwork:
         Test for network-based functionality
     """
 
+    def test_add_network_unknown_attribute(self, client, projectmaker):
+        project = projectmaker.create('test')
+        project_id = project.id
+
+        net_ra_bad_attr_id = dict(
+            ref_id = None,
+            ref_key = 'NETWORK',
+            attr_is_var = 'N',
+            attr_id = 999, # an unknown attribute ID~
+            id = -1
+        )
+
+        network = dict(
+            name = 'Network @ %s'%datetime.datetime.now(),
+            description = 'Test network with 2 nodes and 1 link',
+            project_id = project_id,
+            links = [],
+            nodes = [],
+            layout = {},
+            scenarios = [],
+            resourcegroups = [],
+            projection = None,
+            attributes = [net_ra_bad_attr_id],
+        )
+
+
+        with pytest.raises(hb.exceptions.HydraError):
+            client.add_network(network)
+
+
+
     def test_get_network_with_template(self, client, network_with_data):
         """
 
@@ -1135,7 +1166,7 @@ class TestNetwork:
         #the attribute has been re-scoped to the project, so now there are 2 on the project. one
         #is the project's original scoped attribute, and the other is the one which has been rescoped.
         assert len(project_scoped_attributes) == 2
-        
+
 
     def test_clone_network_into_new_project(self, client, network_with_data):
         net = network_with_data
