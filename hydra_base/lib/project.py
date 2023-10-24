@@ -621,10 +621,11 @@ def _get_project_hierarchy(project_id, user_id):
     
     return project_hierarchy
 
-def get_project_hierarchy(project_id, user_id):
+def get_project_hierarchy(project_id, **kwargs):
     """
         Return a list of project-ids which represent the links in the chain up to the root project
         [project_id, parent_id, parent_parent_id ...etc]
         If the project has no parent, return [project_id]
     """
+    user_id = kwargs.get('user_id')
     return _get_project_hierarchy(project_id, user_id)
