@@ -1267,3 +1267,28 @@ class TestNetwork:
         assert cloned_node_3.name == name
         assert cloned_node_3.x == x
         assert cloned_node_3.y == y
+
+
+
+    def test_clone_nodes(self, client, network_with_data):
+
+        nodes_to_clone = network_with_data.nodes[0:1]
+
+        cloned_node_ids = client.clone_nodes([n.id for n in nodes_to_clone])
+
+        for i, cloned_node_id in enumerate(cloned_node_ids):
+            cloned_node = client.get_node(cloned_node_id)
+            node_to_clone = nodes_to_clone[i]
+
+            assert cloned_node.name == f"{node_to_clone.name} (1)"
+
+            assert len(cloned_node.attributes) == len(node_to_clone.attributes)
+
+            scenario = client.get_scenario(network_with_data.scenarios[0].id)
+            original_node_data = list(filter(lambda x: x.resource_attr_id in [a.id for a in node_to_clone.attributes],
+                                            scenario.resourcescenarios))
+
+            cloned_node_data = list(filter(lambda x: x.resource_attr_id in [a.id for a in cloned_node.attributes],
+                                        scenario.resourcescenarios))
+
+            assert len(cloned_node_data) == len(original_node_data)-1 #has no outputs, so has one less dataset

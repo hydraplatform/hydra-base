@@ -2922,7 +2922,64 @@ def clone_node(node_id,
     node_net = db.DBSession.query(Network).filter(Network.id==Node.network_id, Node.id==node_id).one()
 
     node_net.check_write_permission(user_id)
+
+    return _clone_node(node_id,
+                       node_net,
+                       user_id,
+                       include_outputs=include_outputs,
+                       name=name,
+                       new_x = new_x,
+                       new_y = new_y)
+
+
+
+def clone_nodes(
+        node_ids,
+        include_outputs=False,
+        names=None,
+        new_x_list = None,
+        new_y_list = None,
+        **kwargs):
+    """
+     Create an exact clone of the specified nodes, including attributes and data
+     Args:
+        node_id: The ID of the node to clone
+        include_outputs (bool): Flag to indicate whether output attributes and data should be cloned
+        names (str): The names of the new node. Defaults to the name of the old node plus (x) after, like "The Node (1)". 
+                    If this is not null, there MUST be a name specified for each new node.
+        new_x_list (float): The X-coordinates of the new nodes.
+                            If this is not null, there MUST be an X coordinate for every new node
+        new_y_list (float): The Y-coordinates of the new nodes.
+                            If this is not null, there MUST be an Y coordinate for every new node
+    """
+
+    user_id = kwargs['user_id']
+
+    node_net = db.DBSession.query(Network).filter(Network.id==Node.network_id, Node.id==node_ids[0]).one()
+
+    node_net.check_write_permission(user_id)
+    cloned_ids = []
+    for i, node_id in enumerate(node_ids):
+        cloned_id = _clone_node(node_id,
+                node_net,
+                user_id,
+                include_outputs=include_outputs,
+                name  = names[i] if names else None,
+                new_x = new_x_list[i] if new_x_list else None,
+                new_y = new_y_list[i] if new_y_list else None)
+        cloned_ids.append(cloned_id)
     
+    return cloned_ids
+
+def _clone_node(
+        node_id,
+        node_net,
+        user_id,
+        include_outputs=False,
+        name=None,
+        new_x = None,
+        new_y = None):
+
     node_to_clone = db.DBSession.query(Node).filter(Node.id==node_id).one()
 
     log.info('Cloning Network...')
