@@ -334,6 +334,10 @@ class TestUtil:
             'layout'      : None,
             'x' : 10 * coord,
             'y' : 10 * coord -1,
+            #alt_ coordinates are not necessary. 
+            # they can be used for alternative coordinate systems
+            'alt_x' : 100 * coord,
+            'alt_y' : 100 * coord -1,
             'attributes' : attributes,
         })
 
@@ -765,6 +769,8 @@ class TestUtil:
         for n in response_net.nodes:
             assert n.x is not None
             assert n.y is not None
+            assert n.alt_x is not None
+            assert n.alt_y is not None
             assert len(n.attributes) > 0
 
         before_times = []

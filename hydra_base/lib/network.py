@@ -369,6 +369,8 @@ def _add_nodes_to_database(net_i, nodes):
                      'layout'     : node.get_layout(),
                      'x'     : node.x,
                      'y'     : node.y,
+                     'alt_x' : node.alt_x,
+                     'alt_y' : node.alt_y,
                     }
         node_list.append(node_dict)
     t0 = time.time()
@@ -1491,6 +1493,8 @@ def update_network(network,
                 n.description = node.description
                 n.x           = node.x
                 n.y           = node.y
+                n.alt_x       = node.alt_x
+                n.alt_y       = node.alt_y
                 n.status      = node.status
                 n.layout      = node.get_layout()
             else:
@@ -1499,7 +1503,9 @@ def update_network(network,
                                    node.description,
                                    node.get_layout(),
                                    node.x,
-                                   node.y)
+                                   node.y,
+                                   node.alt_x,
+                                   node.alt_y)
                 net_i.nodes.append(n)
                 node_id_map[n.id] = n
 
@@ -1670,7 +1676,7 @@ def get_network_extents(network_id,**kwargs):
 
     @returns NetworkExtents object
     """
-    rs = db.DBSession.query(Node.x, Node.y).filter(Node.network_id==network_id).all()
+    rs = db.DBSession.query(Node.x, Node.y, Node.alt_x, Node.alt_y).filter(Node.network_id==network_id).all()
     if len(rs) == 0:
         return dict(
             network_id = network_id,
@@ -1678,6 +1684,10 @@ def get_network_extents(network_id,**kwargs):
             max_x=None,
             min_y=None,
             max_y=None,
+            min_alt_x=None,
+            max_alt_x=None,
+            min_alt_y=None,
+            max_alt_y=None
         )
 
     # Compute min/max extent of the network.
@@ -1697,12 +1707,33 @@ def get_network_extents(network_id,**kwargs):
         # Default y extent if all None values
         y_min, y_max = 0, 1
 
+    # Compute min/max extent of the network.
+    lat = [r.alt_x for r in rs if r.alt_x is not None]
+    if len(lat) > 0:
+        min_alt_x = min(lat)
+        max_alt_x = max(lat)
+    else:
+        # Default x extent if all None values
+        min_alt_x, max_alt_x = 0, 1
+
+    lon = [r.alt_y for r in rs if r.alt_y is not None]
+    if len(lon) > 0:
+        min_alt_y = min(lon)
+        max_alt_y = max(lon)
+    else:
+        # Default y extent if all None values
+        min_alt_y, max_alt_y = 0, 1
+
     ne = JSONObject(dict(
         network_id = network_id,
         min_x=x_min,
         max_x=x_max,
         min_y=y_min,
         max_y=y_max,
+        min_alt_x=min_alt_x,
+        max_alt_x=max_alt_x,
+        min_alt_y=min_alt_y,
+        max_alt_y=max_alt_y
     ))
     return ne
 
@@ -1797,7 +1828,7 @@ def add_node(network_id, node, **kwargs):
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id))
 
-    new_node = net_i.add_node(node.name, node.description, node.layout, node.x, node.y)
+    new_node = net_i.add_node(node.name, node.description, node.layout, node.x, node.y, node.alt_x, node.alt_y)
 
     hdb.add_resource_attributes(new_node, node.attributes)
 
@@ -1866,6 +1897,8 @@ def update_node(node, flush=True, **kwargs):
     node_i.name = node.name if node.name is not None else node_i.name
     node_i.x    = node.x if node.x is not None else node_i.x
     node_i.y    = node.y if node.y is not None else node_i.y
+    node_i.alt_x = node.alt_x if node.alt_x is not None else node_i.alt_x
+    node_i.alt_y = node.alt_y if node.alt_y is not None else node_i.alt_y
     node_i.description = node.description if node.description is not None else node_i.description
     node_i.layout      = node.get_layout() if node.layout is not None else node_i.layout
 
@@ -2951,6 +2984,8 @@ def _clone_nodes(old_network_id, new_network_id, user_id):
             description = ex_n.description,
             x = ex_n.x,
             y = ex_n.y,
+            alt_x = ex_n.alt_x,
+            alt_y = ex_n.alt_y,
             layout = ex_n.layout,
             status = ex_n.status,
         )
