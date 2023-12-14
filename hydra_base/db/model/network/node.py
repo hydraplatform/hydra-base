@@ -21,7 +21,7 @@ from .resourceattr import ResourceAttr
 
 __all__ = ['Node']
 
-class Node(Base, Inspect):
+class Node(Base, Inspect, AuditMixin):
     """
     """
 

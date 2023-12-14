@@ -84,7 +84,7 @@ class TestUtil:
         template = self.client.update_template(template)
 
 
-    def create_template(self):
+    def create_template(self, name=None):
 
         net_attr1 = self.create_attribute("net_attr_a", dimension='Volume')
         net_attr2 = self.create_attribute("net_attr_c", dimension=None)
@@ -99,7 +99,9 @@ class TestUtil:
         group_attr_2 = self.create_attribute("grp_attr_2", dimension=None)
 
         template = JSONObject()
-        template['name'] = 'Default Template ' + str(datetime.datetime.now())
+        if name is None:
+            name = 'Default Template ' + str(datetime.datetime.now())
+        template['name'] = name
 
 
         types = []
@@ -225,7 +227,7 @@ class TestUtil:
 
         return new_template
 
-    def create_templatetype(self, template_id):
+    def create_templatetype(self, template_id, project_id=None):
         """
             Create a template type object (but don't add it to the DB)
             Args:
@@ -243,6 +245,7 @@ class TestUtil:
         templatetype.resource_type = 'LINK'
         templatetype.template_id = template_id
         templatetype.layout = {"color": "red", "shapefile": "blah.shp"}
+        templatetype.project_id = project_id
 
         templatetype.typeattrs = []
 
@@ -263,6 +266,85 @@ class TestUtil:
 
         return templatetype
 
+    def create_scoped_templatetype(self, template_id, type_id=None, project_id=None, network_id=None,
+                                  layout={"color": "red", "shapefile": "blah.shp"},
+                                  description="added type description 1",
+                                  properties={"add_type_test_property": "property value"}):
+        """
+            Create a template type object (but don't add it to the DB)
+            Args:
+                template_id: The ID of the template to which to add this type
+            Returns:
+                JSONObject with some default values and the correct template ID
+        """
+        attr_1 = self.create_attribute("node_attr_scoped", dimension='Pressure')
+
+        templatetype = JSONObject()
+        templatetype.template_id=template_id
+        templatetype.parent_id=type_id
+        templatetype.layout = layout
+        templatetype.project_id = project_id
+        templatetype.network_id = network_id
+        templatetype.resource_type = 'NODE'
+
+        templatetype.typeattrs = []
+
+        tattr_1 = JSONObject()
+        tattr_1.attr_id = attr_1.id
+        tattr_1.description = description
+        tattr_1.properties = properties
+        tattr_1.project_id = project_id
+        tattr_1.network_id = network_id
+        templatetype.typeattrs.append(tattr_1)
+
+        scoped_templatetype_j = self.client.add_templatetype(templatetype)
+
+        return scoped_templatetype_j
+
+    def create_typeattr(self, type_id, typeattr_id=None, project_id=None, network_id=None):
+        """
+            Add a typeattr to a template type
+            Args:
+                type_id: The ID of the  type to add the typeattr to
+                typeattr_id: The typeattr to extend, if for example a unit is to be set on an existing typeattr.
+                             If None, a new typeattr will be created that is not the child of another.
+                project_id: The project to which the typeattr will be scoped (if any)
+                network_id: The network to which the typeattr will be scoped (if any)
+            Returns:
+                JSONObject of the newly created typeattr.
+        """
+        if typeattr_id is None:
+            #make a new typeattr that's not the child of another.
+            attr = self.create_attribute("node_attr_scoped_1", dimension='Pressure')
+            parent_id = None
+            tattr = JSONObject()
+            tattr.parent_id = parent_id
+            tattr.type_id = type_id
+            tattr.attr_id = attr.id
+            tattr.description = "added scoped type description 1"
+            tattr.properties = {"add_scoped_type_test_property": "property value"}
+            tattr.project_id = project_id
+            tattr.network_id = network_id
+
+        else:
+            #make a child typeattr, swith the unit_id set to something else
+            ta_to_extend = self.client.get_typeattr(typeattr_id)
+            parent_id = ta_to_extend.id
+            attr = self.client.get_attribute_by_id(attr_id=ta_to_extend.attr_id)
+            #find the first unit in the dimenion required by the attribute
+            unit_id = self.client.get_dimension(attr.dimension_id).units[0].id
+            tattr = JSONObject()
+            tattr.parent_id = parent_id
+            tattr.type_id = type_id
+            tattr.attr_id = attr.id
+            tattr.unit_id = unit_id
+            tattr.project_id = project_id
+            tattr.network_id = network_id
+
+        scoped_typeattr_j = self.client.add_typeattr(tattr)
+
+        return scoped_typeattr_j
+
     def create_child_template(self, parent_id):
         """
             Make a template which is a child of a parent template.
@@ -279,7 +361,7 @@ class TestUtil:
 
         return child_template_j
 
-    def create_project(self, name=None, share=True, parent_id=None):
+    def create_project(self, name=None, share=True, parent_id=None, template_id=None):
 
         if name is None:
             name = "Unittest Project"
@@ -291,6 +373,8 @@ class TestUtil:
             project.name = name
             project.description = "Project which contains all unit test networks"
             project.parent_id = parent_id
+            if template_id is not None:
+                project.template = JSONObject({'id': template_id})
             project = JSONObject(self.client.add_project(project))
             if share is True:
                 self.client.share_project(
@@ -298,7 +382,6 @@ class TestUtil:
                     ["UserA", "UserB", "UserC"], 'N', 'Y')
 
             proj_scoped_attr = self.create_attribute("Project Scoped Attr", dimension=None, project_id=project.id)
-
 
             return project
         else:
@@ -339,7 +422,7 @@ class TestUtil:
 
         return node
 
-    def build_network(self, project_id=None, num_nodes=10, new_proj=True, map_projection='EPSG:4326'):
+    def build_network(self, project_id=None, num_nodes=10, new_proj=True, map_projection='EPSG:4326', template=None):
         start = datetime.datetime.now()
         if project_id is None:
             proj_name = None
@@ -353,7 +436,8 @@ class TestUtil:
         LOG.debug("Project creation took: %s"%(datetime.datetime.now()-start))
         start = datetime.datetime.now()
 
-        template = self.create_template()
+        if template is None:
+            template = self.create_template()
 
         LOG.debug("Attribute creation took: %s"%(datetime.datetime.now()-start))
         start = datetime.datetime.now()
@@ -375,49 +459,37 @@ class TestUtil:
         ra_index = 2
 
         network_type = template.templatetypes[0]
-        node_type = template.templatetypes[1]
         link_type = template.templatetypes[2]
-        for n in range(num_nodes):
-            node = self.create_node(n*-1, node_name="Node %s"%(n))
+        nodetypes = list(filter(lambda x:x.resource_type=='NODE', template.templatetypes))
+        linktypes = list(filter(lambda x:x.resource_type=='LINK', template.templatetypes))
+        numnodetypes= len(nodetypes)
+        numlinktypes = len(linktypes)
+        nodetypedict = {}
+        linkindex = 0
+        for nodeindex in range(num_nodes):
+            #iterate through all the node types.    
+            node_type = nodetypes[(numnodetypes - nodeindex % numnodetypes) - 1]
+            nodetypedict[node_type.id] = node_type
+            node = self.create_node(nodeindex*-1, node_name="Node %s"%(nodeindex))
 
-            #From our attributes, create a resource attr for our node
+            #From our attributes, create a resource attr for our node based on all the type attributes
+            #on the current node type
             #We don't assign data directly to these resource attributes. This
-            #is done when creating the scenario -- a scenario is just a set of
+            #is done when creating the scenario -- a scenario is a set of
             #data for a given list of resource attributes.
-            node_ra1 = JSONObject(dict(
-                ref_key = 'NODE',
-                ref_id = None,
-                attr_id = node_type.typeattrs[0].attr_id,
-                id = ra_index * -1,
-                attr_is_var = 'N',
-            ))
-            ra_index = ra_index + 1
-            node_ra2 = JSONObject(dict(
-                ref_key = 'NODE',
-                ref_id = None,
-                attr_id = node_type.typeattrs[1].attr_id,
-                id = ra_index * -1,
-                attr_is_var = 'Y',
-            ))
-            ra_index = ra_index + 1
-            node_ra3 = JSONObject(dict(
-                ref_key = 'NODE',
-                ref_id = None,
-                attr_id = node_type.typeattrs[2].attr_id,
-                id = ra_index * -1,
-                attr_is_var = 'N',
-            ))
-            ra_index = ra_index + 1
-            node_ra4 = JSONObject(dict(
-                ref_key = 'NODE',
-                ref_id = None,
-                attr_id = node_type.typeattrs[3].attr_id,
-                id = ra_index * -1,
-                attr_is_var = 'N',
-            ))
-            ra_index = ra_index + 1
+            nodeattributes = []
+            for i, typeattr in enumerate(node_type.typeattrs):
+                node_ra = JSONObject(dict(
+                    ref_key = 'NODE',
+                    ref_id = None,
+                    attr_id = typeattr.attr_id,
+                    id = ra_index * -1,
+                    attr_is_var = 'Y' if i%2 == 0 else 'N', # alternate
+                ))
+                nodeattributes.append(node_ra)
+                ra_index = ra_index + 1
 
-            node.attributes = [node_ra1, node_ra2, node_ra3, node_ra4]
+            node.attributes = nodeattributes
 
             type_summary = JSONObject(dict(
                 template_id = template.id,
@@ -435,50 +507,37 @@ class TestUtil:
             if prev_node is not None:
                 #Connect the two nodes with a link
                 link = self.create_link(
-                    n*-1,
+                    nodeindex*-1,
                     node['name'],
                     prev_node['name'],
                     node['id'],
                     prev_node['id'])
+                
+                link_type = linktypes[(numlinktypes - linkindex % numlinktypes) - 1]
+                
+                linkattributes = []
+                for typeattr in link_type.typeattrs:
+                    link_ra = JSONObject(dict(
+                        ref_id = None,
+                        ref_key = 'LINK',
+                        id = ra_index * -1,
+                        attr_id = typeattr.attr_id,
+                        attr_is_var = 'N',
+                    ))
+                    ra_index = ra_index + 1
+                    linkattributes.append(link_ra)
 
-                link_ra1 = JSONObject(dict(
-                    ref_id = None,
-                    ref_key = 'LINK',
-                    id = ra_index * -1,
-                    attr_id = link_type.typeattrs[0].attr_id,
-                    attr_is_var = 'N',
-                ))
-                ra_index = ra_index + 1
-                link_ra2 = JSONObject(dict(
-                    ref_id = None,
-                    ref_key = 'LINK',
-                    attr_id = link_type.typeattrs[1].attr_id,
-                    id = ra_index * -1,
-                    attr_is_var = 'N',
-                ))
-                ra_index = ra_index + 1
-                link_ra3 = JSONObject(dict(
-                    ref_id = None,
-                    ref_key = 'LINK',
-                    attr_id = link_type.typeattrs[2].attr_id,
-                    id = ra_index * -1,
-                    attr_is_var = 'N',
-                ))
-                ra_index = ra_index + 1
+                link.attributes = linkattributes
 
-                link.attributes = [link_ra1, link_ra2, link_ra3]
-                if link['id'] % 2 == 0:
-                    type_summary_arr = []
-                    type_summary = JSONObject()
-                    type_summary.template_id = template.id
-                    type_summary.template_name = template.name
-                    type_summary.id = link_type.id
-                    type_summary.name = link_type.name
+                link.types = [JSONObject(dict(
+                    template_id = template.id,
+                    template_name = template.name,
+                    id = link_type.id,
+                    name = link_type.name
+                ))]
 
-                    type_summary_arr.append(type_summary)
-
-                    link.types = type_summary_arr
                 links.append(link)
+                linkindex = linkindex+1
 
             prev_node = node
 
@@ -537,21 +596,24 @@ class TestUtil:
 
         nodes[0].attributes
         for n in nodes:
+            node_type = nodetypedict[n.types[0].id]
             for na in n.attributes:
                 if na.get('attr_is_var', 'N') == 'N':
                     if na['attr_id'] == node_type.typeattrs[0].attr_id:
                         #less than 10 and with 1 decimal place,
                         #as per the restriction in the template
                         dataset = self.create_scalar(na, 1.1, unit='cm^3')
-                    elif na['attr_id'] == node_type.typeattrs[2].attr_id:
+                    elif len(node_type.typeattrs) > 1 and na['attr_id'] == node_type.typeattrs[1].attr_id:
                         #incorrect unit to test the validation
                         dataset = self.create_timeseries(na, 'cm^3')
-                    elif na['attr_id'] == node_type.typeattrs[3].attr_id:
+                    else:
                         dataset = self.create_dataframe(na, unit='m^3 s^-1')
                 elif na.get('attr_is_var', 'Y') == 'Y':
-                    if na['attr_id'] == node_type.typeattrs[1].attr_id:
+                    if len(node_type.typeattrs) > 1 and na['attr_id'] == node_type.typeattrs[1].attr_id:
                         # correct unit (speed)
                         dataset = self.create_scalar(na, unit='m s^-1')
+                    else:
+                        dataset = self.create_dataframe(na, unit='m^3 s^-1')
                 scenario_data.append(dataset)
         count = 0
         for l in links:
@@ -635,7 +697,8 @@ class TestUtil:
 
     def create_network_with_data(self, project_id=None, num_nodes=10,
                                  ret_full_net=True, new_proj=False,
-                                 map_projection='EPSG:4326'):
+                                 map_projection='EPSG:4326',
+                                 template=None):
         """
             Test adding data to a network through a scenario.
             This test adds attributes to one node and then assigns data to them.
@@ -644,7 +707,7 @@ class TestUtil:
         """
 
         network = self.build_network(project_id, num_nodes, new_proj=new_proj,
-                                   map_projection=map_projection)
+                                   map_projection=map_projection, template=template)
 
         #LOG.debug(network)
         start = datetime.datetime.now()

@@ -26,7 +26,7 @@ from .resourcegroupitem import ResourceGroupItem
 
 __all__ = ['Scenario', 'ResourceScenario']
 
-class ResourceScenario(Base, Inspect):
+class ResourceScenario(Base, Inspect, AuditMixin):
     """
     """
 

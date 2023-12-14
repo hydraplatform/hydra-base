@@ -33,7 +33,7 @@ __all__ = ['Network']
 
 
 
-class Network(Base, Inspect, PermissionControlled):
+class Network(Base, Inspect, PermissionControlled, AuditMixin):
     """
     """
 

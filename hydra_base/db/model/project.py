@@ -22,6 +22,7 @@ from .ownership import NetworkOwner, ProjectOwner
 from .scenario import Scenario, ResourceScenario
 from .permissions import User
 from .network import Network, ResourceAttr
+from .template import Template, ProjectTemplate
 from .attributes import Attr
 
 global project_cache_key
@@ -30,7 +31,7 @@ project_cache_key = config.get('cache', 'projectkey', 'userprojects')
 __all__ = ['Project']
 
 
-class Project(Base, Inspect, PermissionControlled):
+class Project(Base, Inspect, PermissionControlled, AuditMixin):
     """
     """
 
@@ -54,11 +55,13 @@ class Project(Base, Inspect, PermissionControlled):
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     created_by = Column(Integer(), ForeignKey('tUser.id'), nullable=False)
     appdata = Column(JSON)
-    user = relationship('User', backref=backref("projects", order_by=id))
+    user = relationship('User', backref=backref("projects", order_by=id), foreign_keys=created_by)
 
     parent_id = Column(Integer(), ForeignKey('tProject.id'), nullable=True)
     parent = relationship('Project', remote_side=[id],
         backref=backref("children", order_by=id))
+    
+    template = relationship("ProjectTemplate")
 
     _parents  = []
     _children = ['tNetwork']
@@ -313,7 +316,7 @@ class Project(Base, Inspect, PermissionControlled):
                 parent_project_ids.append(p.parent_id)
 
         cls._build_user_cache_up_tree(uid, parent_project_ids, project_user_cache)
-
+    
     def get_attribute_data(self):
         attribute_data_rs = get_session().query(ResourceScenario).join(ResourceAttr).filter(
             ResourceAttr.project_id==self.id).all()
@@ -441,3 +444,29 @@ class Project(Base, Inspect, PermissionControlled):
             return scoped_attrs_j
         else:
             return scoped_attrs
+
+    def add_template(self, template_id):
+        """
+            Associate this project with a template
+        """
+
+        self.template = [ProjectTemplate(template_id=template_id,
+                                        project_id=self.id)]
+
+
+    def get_template(self):
+        """
+            Get the templates associated to this project
+        """
+
+        project_template_i = get_session().query(ProjectTemplate).filter(
+            ProjectTemplate.project_id == self.id).first()
+        
+        if project_template_i is None:
+            return None
+
+        template_name = get_session().query(Template.name).filter(
+                Template.id==project_template_i.template_id).one()
+        
+        return JSONObject({'id': project_template_i.template_id, 
+                           'name': template_name.name})

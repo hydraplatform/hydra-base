@@ -577,3 +577,756 @@ class TestTemplateInheritance:
         assert len(parent_template_j.templatetypes) == len(child_template_j.templatetypes) == len(child_template_2_j.templatetypes)
 
 
+    def test_add_scoped_child_type_to_project(self, client):
+        """
+            This tests that a child templatetype can be added to a template type but in
+            the same template. THis is for when a template can be expanded, but in the context
+            of a project, so when accessing a template through the context of a project, it can be
+            extended without creating a whole new child template. Instead scoped child attributes
+            within the child template are used, so changes from the main template are
+            only applied in this project.
+        """
+
+        template_j = client.testutils.create_template()
+
+        project = client.testutils.create_project()
+
+        templatetype_to_scope = template_j.templatetypes[0]
+
+        #Add a type to the child
+        templatetype_j = client.testutils.create_scoped_templatetype(
+            template_j.id,
+            templatetype_to_scope.id,
+            project.id)
+
+        template_no_scoping = client.get_template(template_j.id)
+        for templatetype in template_no_scoping.templatetypes:
+            if templatetype.id == templatetype_to_scope.id:
+                assert templatetype.layout == templatetype_to_scope.layout
+                break
+        else:
+            raise Exception(f"Unable to find templatetype {templatetype_to_scope.id}")
+
+        template_project_scoped = client.get_template(template_j.id, project.id)
+        for templatetype in template_project_scoped.templatetypes:
+            if templatetype.name == templatetype_to_scope.name:
+                #Check that the scoped temoplate data takes precdence over
+                #the higher level parent data.
+                assert templatetype.layout == {"color": "red", "shapefile": "blah.shp"}
+                break
+        else:
+            raise Exception(f"Unable to find templatetype {templatetype_to_scope.id}")
+
+    def test_add_scope_type_to_project(self, client):
+        """
+            This tests that a project-specific non-child templatetype can be added to a
+            template.
+        """
+
+        template_j = client.testutils.create_template()
+
+        project = client.testutils.create_project()
+
+        #Add a type to the child
+        templatetype_j = client.testutils.create_scoped_templatetype(
+            template_j.id,
+            None,
+            project.id)
+
+        template_no_scoping = client.get_template(template_j.id)
+        assert templatetype_j.id not in [t.id for t in  template_no_scoping.templatetypes]
+
+        template_project_scoped = client.get_template(template_j.id, project_id=project.id)
+        assert templatetype_j.id in [t.id for t in  template_project_scoped.templatetypes]
+
+    def test_add_scope_type_to_network(self, client):
+        """
+            This tests that a project-specific non-child templatetype can be added to a
+            template.
+        """
+
+        template_j = client.testutils.create_template()
+        network = client.testutils.create_network_with_data(new_proj=True)
+
+        #Add a type to the child
+        templatetype_j = client.testutils.create_scoped_templatetype(
+            template_j.id,
+            None,
+            network_id=network.id)
+
+        template_no_scoping = client.get_template(template_j.id)
+        assert templatetype_j.id not in [t.id for t in  template_no_scoping.templatetypes]
+
+        template_project_scoped = client.get_template(template_j.id, network_id=network.id)
+        assert templatetype_j.id in [t.id for t in  template_project_scoped.templatetypes]
+
+
+    def test_scope_type_to_network(self, client):
+        """
+            This tests that a child templatetype can be added to a template type but in
+            the same template. THis is for when a template can be expanded, but in the context
+            of a network, so when accessing a template through the context of a network, it can be
+            extended without creating a whole new child template. Instead scoped child attributes
+            within the child template are used, so changes from the main template are
+            only applied in this network.
+        """
+
+        template_j = client.testutils.create_template()
+
+        network = client.testutils.create_network_with_data(new_proj=True)
+
+        templatetype_to_scope = template_j.templatetypes[0]
+
+        #Add a type to the child
+        templatetype_j = client.testutils.create_scoped_templatetype(
+            template_j.id,
+            templatetype_to_scope.id,
+            network.id)
+
+        template_no_scoping = client.get_template(template_j.id)
+        for templatetype in template_no_scoping.templatetypes:
+            if templatetype.id == templatetype_to_scope.id:
+                assert templatetype.layout == templatetype_to_scope.layout
+                break
+        else:
+            raise Exception(f"Unable to find templatetype {templatetype_to_scope.id}")
+
+        template_network_scoped = client.get_template(template_j.id, network.id)
+        for templatetype in template_network_scoped.templatetypes:
+            if templatetype.id == templatetype_to_scope.id:
+                #Check that the scoped template data takes precdence over
+                #the higher level parent data.
+                assert templatetype.layout == {"color": "red", "shapefile": "blah.shp"}
+                break
+        else:
+            raise Exception(f"Unable to find templatetype {templatetype_to_scope.id}")
+
+    def test_scope_type_to_project_and_network(self, client):
+        """
+            This tests that a child templatetype can be added to a template type but in
+            the same template.
+            This tests that the inheritance works correctly for a tempaltetype which is
+            scoped first to a project, then to a network, which should prioritise changes
+            as the scope becomes closer to the network.
+        """
+
+        template_j = client.testutils.create_template()
+
+        project = client.testutils.create_project()
+
+        network = client.testutils.create_network_with_data(project_id=project.id)
+
+        templatetype_to_scope = template_j.templatetypes[0]
+
+        with pytest.raises(HydraError):
+            client.testutils.create_scoped_templatetype(
+                template_j.id,
+                templatetype_to_scope.id,
+                project_id=project.id, #can't scope to both a project and network
+                network_id=network.id)
+
+
+        #Add a type to the child
+        project_scoped_templatetype_j = client.testutils.create_scoped_templatetype(
+            template_j.id,
+            templatetype_to_scope.id,
+            project_id=project.id,
+            layout={"color": "blue", "shapefile": "blah.shp"})
+
+        #Add a type to the child
+        network_scoped_templatetype_j = client.testutils.create_scoped_templatetype(
+            template_j.id,
+            templatetype_to_scope.id,
+            network_id=network.id,
+            layout={"color": "green"})
+
+        template_no_scoping = client.get_template(template_j.id)
+        for templatetype in template_no_scoping.templatetypes:
+            if templatetype.name == templatetype_to_scope.name:
+                assert templatetype.layout == templatetype_to_scope.layout
+                break
+        else:
+            raise Exception(f"Unable to find templatetype {templatetype_to_scope.id}")
+
+        template_project_scoped = client.get_template(template_j.id, project_id=project.id)
+        for templatetype in template_project_scoped.templatetypes:
+            if templatetype.id == project_scoped_templatetype_j.parent_id:
+                #Check that the scoped temoplate data takes precdence over
+                #the higher level parent data.
+                assert templatetype.layout == {"color": "blue", "shapefile": "blah.shp"}
+                break
+        else:
+            raise Exception(f"Unable to find project scoped templatetype {project_scoped_templatetype_j.id}")
+
+        template_network_scoped = client.get_template(template_j.id, network_id=network.id)
+        for templatetype in template_network_scoped.templatetypes:
+            if templatetype.id == network_scoped_templatetype_j.parent_id:
+                #Check that the scoped temoplate data takes precdence over
+                #the higher level parent data.
+                assert templatetype.layout == {"color": "green"}
+                break
+        else:
+            raise Exception(f"Unable to find network scoped templatetype {network_scoped_templatetype_j.id}")
+
+    def test_add_new_scope_type_to_project_and_network(self, client):
+        """
+            This tests that a new templatetype can be added to a template in the scope of a project,
+            and a network in that project, and that the template will contain both the project scoped
+            type and the network scoped type.
+        """
+
+        template_j = client.testutils.create_template()
+
+        project = client.testutils.create_project()
+
+        network = client.testutils.create_network_with_data(project_id=project.id)
+
+        #Add a type to the child
+        project_scoped_templatetype_j = client.testutils.create_scoped_templatetype(
+            template_j.id,
+            None,
+            project_id=project.id,
+            layout={"color": "blue", "shapefile": "blah.shp"})
+
+        #Add a type to the child
+        network_scoped_templatetype_j = client.testutils.create_scoped_templatetype(
+            template_j.id,
+            None,
+            network_id=network.id,
+            layout={"color": "green"})
+
+        template_no_scoping = client.get_template(template_j.id)
+        assert project_scoped_templatetype_j.id not in [t.id for t in template_no_scoping.templatetypes]
+        assert network_scoped_templatetype_j.id not in [t.id for t in template_no_scoping.templatetypes]
+
+        template_project_scoped = client.get_template(template_j.id, project_id=project.id)
+        assert project_scoped_templatetype_j.id in [t.id for t in template_project_scoped.templatetypes]
+        assert network_scoped_templatetype_j.id not in [t.id for t in template_project_scoped.templatetypes]
+
+        template_network_scoped = client.get_template(template_j.id, project_id=project.id, network_id=network.id)
+        assert project_scoped_templatetype_j.id in [t.id for t in template_network_scoped.templatetypes]
+        assert network_scoped_templatetype_j.id in [t.id for t in template_network_scoped.templatetypes]
+
+    def test_add_new_scope_type_with_typeattrs_to_project_and_network(self, client):
+        """
+            This tests that a new templatetype can be added to a template in the scope of a project,
+            and a network in that project, and that the template will contain both the project scoped
+            type and the network scoped type.
+        """
+
+        template_j = client.testutils.create_template()
+
+        project = client.testutils.create_project()
+
+        network = client.testutils.create_network_with_data(project_id=project.id)
+
+        #Add a type to the child
+        project_scoped_templatetype_j = client.testutils.create_scoped_templatetype(
+            template_j.id,
+            None,
+            project_id=project.id,
+            layout={"color": "blue", "shapefile": "blah.shp"})
+
+        #Add a type to the child
+        project_scoped_typeattr_j = client.testutils.create_typeattr(
+            project_scoped_templatetype_j.id,
+            typeattr_id=None, # we're creating a new typeattr, not extending an existing one.
+            project_id=project.id)
+
+        #Add a type attribute to the child
+        network_scoped_typeattr_on_project_type_j = client.testutils.create_typeattr(
+            project_scoped_templatetype_j.id,
+            typeattr_id=None, # we're creating a new typeattr, not extending an existing one.
+            network_id=network.id)
+
+        #Add a new type, scoped to the network
+        network_scoped_templatetype_j = client.testutils.create_scoped_templatetype(
+            template_j.id,
+            None,
+            network_id=network.id,
+            layout={"color": "green"})
+
+        #Add a typeattribute to the new network-scoped type
+        network_scoped_typeattr_j = client.testutils.create_typeattr(
+            network_scoped_templatetype_j.id,
+            typeattr_id=None, # we're creating a new typeattr, not extending an existing one.
+            network_id=network.id)
+        
+        #The scoped template type shoul dhave the typeattr
+        network_scoped_templatetype_j = client.get_templatetype(type_id=network_scoped_templatetype_j.id,
+                                                                project_id=project.id,
+                                                                network_id=network.id)
+
+        template_no_scoping = client.get_template(template_j.id)
+        assert project_scoped_templatetype_j.id not in [t.id for t in template_no_scoping.templatetypes]
+        assert network_scoped_templatetype_j.id not in [t.id for t in template_no_scoping.templatetypes]
+
+        template_project_scoped = client.get_template(template_j.id, project_id=project.id)
+        assert project_scoped_templatetype_j.id in [t.id for t in template_project_scoped.templatetypes]
+        assert network_scoped_templatetype_j.id not in [t.id for t in template_project_scoped.templatetypes]
+        assert project_scoped_typeattr_j.id in  [ta.id for ta in list(filter(lambda x:x.id==project_scoped_templatetype_j.id, template_project_scoped.templatetypes))[0].typeattrs]
+        assert network_scoped_typeattr_on_project_type_j.id not in [ta.id for ta in list(filter(lambda x:x.id==project_scoped_templatetype_j.id, template_project_scoped.templatetypes))[0].typeattrs]
+
+        template_network_scoped = client.get_template(template_j.id, project_id=project.id, network_id=network.id)
+        assert project_scoped_templatetype_j.id in [t.id for t in template_network_scoped.templatetypes]
+        assert network_scoped_templatetype_j.id in [t.id for t in template_network_scoped.templatetypes]
+        assert project_scoped_typeattr_j.id in  [ta.id for ta in list(filter(lambda x:x.id==project_scoped_templatetype_j.id, template_network_scoped.templatetypes))[0].typeattrs]
+        assert network_scoped_typeattr_j.id in  [ta.id for ta in list(filter(lambda x:x.id==network_scoped_templatetype_j.id, template_network_scoped.templatetypes))[0].typeattrs]
+        assert network_scoped_typeattr_j.id in [ta.id for ta in network_scoped_templatetype_j.typeattrs]
+
+    def test_add_child_type_with_typeattrs_to_project_child_project_and_network(self, client):
+        """
+            This tests that a child templatetype can be added to a template in the scope of a project,
+            a child project in that project and a network in that child project, and that the template returned for a network
+            will contain the correct type modifications from that hierarchy.
+        """
+
+        template_j = client.testutils.create_template()
+
+        project = client.testutils.create_project()
+        child_project = client.testutils.create_project(name="child project", parent_id=project.id)
+
+        network = client.testutils.create_network_with_data(project_id=child_project.id)
+
+        type_to_scope = template_j.templatetypes[0].id
+
+        #Add a type scoped to the project
+        project_scoped_templatetype_j = client.testutils.create_scoped_templatetype(
+            template_j.id,
+            type_id=type_to_scope, # we're creating the child of an existing type scoped to the project
+            project_id=project.id,
+            layout={"color": "magenta", "shapefile": "parenscoped.shp", "scope": "1"})
+
+        #Add a typeattr scopedto the project type
+        project_scoped_typeattr_j = client.testutils.create_typeattr(
+            project_scoped_templatetype_j.id,
+            typeattr_id=None, # we're creating a new typeattr, not extending an existing one.
+            project_id=project.id)
+
+        #add type scoped to the child project
+        child_project_scoped_templatetype_j = client.testutils.create_scoped_templatetype(
+            template_j.id,
+            type_id=type_to_scope,# we're creating the child of an existing type scoped to the child project
+            project_id=child_project.id,
+            layout={"color": "purple", "shapefile": "scopedshapefile.shp"})
+
+        #Add a type attr to the child-project-scoped type
+        child_project_scoped_typeattr_j = client.testutils.create_typeattr(
+            child_project_scoped_templatetype_j.id,
+            typeattr_id=None, # we're creating a new typeattr, not extending an existing one.
+            project_id=child_project.id)
+
+        #Add a type scoped to the network
+        network_scoped_templatetype_j = client.testutils.create_scoped_templatetype(
+            template_j.id,
+            type_id=type_to_scope,# we're creating the child of an existing type scoped to the network
+            network_id=network.id,
+            layout={"color": "green"})
+
+        #Add a typeattr to the network-scoped type
+        network_scoped_typeattr_j = client.testutils.create_typeattr(
+            network_scoped_templatetype_j.id,
+            typeattr_id=None, # we're creating a new typeattr, not extending an existing one.
+            network_id=network.id)
+
+        template_no_scoping = client.get_template(template_j.id)
+        assert project_scoped_templatetype_j.id not in [t.id for t in template_no_scoping.templatetypes]
+        assert network_scoped_templatetype_j.id not in [t.id for t in template_no_scoping.templatetypes]
+
+        template_project_scoped = client.get_template(template_j.id, project_id=project.id)
+        scoped_type = list(filter(lambda x : x.id==type_to_scope, template_project_scoped.templatetypes))[0]
+        assert scoped_type.layout['color'] == 'magenta'
+        assert child_project_scoped_templatetype_j.id not in [t.id for t in template_project_scoped.templatetypes]
+        assert network_scoped_templatetype_j.id not in [t.id for t in template_project_scoped.templatetypes]
+        assert project_scoped_typeattr_j.id in  [ta.id for ta in scoped_type.typeattrs]
+
+        template_child_project_scoped = client.get_template(template_j.id, project_id=child_project.id)
+        scoped_type = list(filter(lambda x : x.id==type_to_scope, template_child_project_scoped.templatetypes))[0]
+        assert scoped_type.layout['color'] == 'purple'
+        assert scoped_type.layout.get('scope') is None
+        assert project_scoped_templatetype_j.id not in [t.id for t in template_child_project_scoped.templatetypes]
+        assert child_project_scoped_templatetype_j.id not in [t.id for t in template_child_project_scoped.templatetypes]
+        assert network_scoped_templatetype_j.id not in [t.id for t in template_child_project_scoped.templatetypes]
+        assert child_project_scoped_typeattr_j.id in  [ta.id for ta in scoped_type.typeattrs]
+
+        template_network_scoped = client.get_template(template_j.id, project_id=child_project.id, network_id=network.id)
+        scoped_type = list(filter(lambda x : x.id==type_to_scope, template_network_scoped.templatetypes))[0]
+        assert scoped_type.layout['color'] == 'green'
+        assert scoped_type.layout.get('shapefile') is None
+        assert project_scoped_typeattr_j.id in  [ta.id for ta in scoped_type.typeattrs]
+        assert network_scoped_typeattr_j.id in  [ta.id for ta in scoped_type.typeattrs]
+        assert child_project_scoped_typeattr_j.id in  [ta.id for ta in scoped_type.typeattrs]
+
+    def test_add_new_scope_type_with_typeattrs_to_project_child_project_and_network(self, client):
+        """
+            This tests that a new templatetype can be added to a template in the scope of a project,
+            and a network in that project, and that the template will contain both the project scoped
+            type and the network scoped type.
+        """
+
+        template_j = client.testutils.create_template()
+
+        project = client.testutils.create_project()
+        child_project = client.testutils.create_project(name="child project", parent_id=project.id)
+
+        network = client.testutils.create_network_with_data(project_id=child_project.id)
+
+        #Add a type scoped to the project
+        project_scoped_templatetype_j = client.testutils.create_scoped_templatetype(
+            template_j.id,
+            None,
+            project_id=project.id,
+            layout={"color": "blue", "shapefile": "blah.shp"})
+
+        #Add a typeattr scopedto the project type
+        project_scoped_typeattr_j = client.testutils.create_typeattr(
+            project_scoped_templatetype_j.id,
+            typeattr_id=None, # we're creating a new typeattr, not extending an existing one.
+            project_id=project.id)
+
+        #add type scoped to the child project
+        child_project_scoped_templatetype_j = client.testutils.create_scoped_templatetype(
+            template_j.id,
+            None,
+            project_id=child_project.id,
+            layout={"color": "purple", "shapefile": "blah.shp"})
+
+        #Add a type attr to the child-project-scoped type
+        child_project_scoped_typeattr_j = client.testutils.create_typeattr(
+            child_project_scoped_templatetype_j.id,
+            typeattr_id=None, # we're creating a new typeattr, not extending an existing one.
+            project_id=child_project.id)
+
+        #Add a type scoped to the network
+        network_scoped_templatetype_j = client.testutils.create_scoped_templatetype(
+            template_j.id,
+            None,
+            network_id=network.id,
+            layout={"color": "green"})
+
+        #Add a typeattr to the network-scoped type
+        network_scoped_typeattr_j = client.testutils.create_typeattr(
+            network_scoped_templatetype_j.id,
+            typeattr_id=None, # we're creating a new typeattr, not extending an existing one.
+            network_id=network.id)
+
+        template_no_scoping = client.get_template(template_j.id)
+        assert project_scoped_templatetype_j.id not in [t.id for t in template_no_scoping.templatetypes]
+        assert network_scoped_templatetype_j.id not in [t.id for t in template_no_scoping.templatetypes]
+
+        template_project_scoped = client.get_template(template_j.id, project_id=project.id)
+        assert project_scoped_templatetype_j.id in [t.id for t in template_project_scoped.templatetypes]
+        assert child_project_scoped_templatetype_j.id not in [t.id for t in template_project_scoped.templatetypes]
+        assert network_scoped_templatetype_j.id not in [t.id for t in template_project_scoped.templatetypes]
+        assert project_scoped_typeattr_j.id in  [ta.id for ta in list(filter(lambda x:x.id==project_scoped_templatetype_j.id, template_project_scoped.templatetypes))[0].typeattrs]
+
+
+        template_child_project_scoped = client.get_template(template_j.id, project_id=child_project.id)
+        assert project_scoped_templatetype_j.id in [t.id for t in template_child_project_scoped.templatetypes]
+        assert child_project_scoped_templatetype_j.id in [t.id for t in template_child_project_scoped.templatetypes]
+        assert network_scoped_templatetype_j.id not in [t.id for t in template_child_project_scoped.templatetypes]
+        assert child_project_scoped_typeattr_j.id in  [ta.id for ta in list(filter(lambda x:x.id==child_project_scoped_templatetype_j.id, template_child_project_scoped.templatetypes))[0].typeattrs]
+
+        template_network_scoped = client.get_template(template_j.id, project_id=project.id, network_id=network.id)
+        assert project_scoped_templatetype_j.id in [t.id for t in template_network_scoped.templatetypes]
+        assert network_scoped_templatetype_j.id in [t.id for t in template_network_scoped.templatetypes]
+        assert project_scoped_typeattr_j.id in  [ta.id for ta in list(filter(lambda x:x.id==project_scoped_templatetype_j.id, template_network_scoped.templatetypes))[0].typeattrs]
+        assert network_scoped_typeattr_j.id in  [ta.id for ta in list(filter(lambda x:x.id==network_scoped_templatetype_j.id, template_network_scoped.templatetypes))[0].typeattrs]
+
+    def test_add_scoped_typeattr_to_project(self, client):
+        """
+            This tests that a child type attribute can be added to a template type but in
+            the same template. This is for when a template can be expanded, but in the context
+            of a project, so when accessing a template through the context of a project, it can be
+            extended without creating a whole new child template. Instead scoped child attributes
+            within the child template are used, so changes from the main template are
+            only applied in this project.
+        """
+
+        template_j = client.testutils.create_template()
+
+        project = client.testutils.create_project()
+
+        templatetype_to_scope = template_j.templatetypes[0]
+
+        #Add a type to the child
+        scoped_typeattr_j = client.testutils.create_typeattr(
+            templatetype_to_scope.id,
+            typeattr_id=None, # we're creating a new typeattr, not extending an existing one.
+            project_id=project.id)
+
+        template_no_scoping = client.get_template(template_j.id)
+        for templatetype in template_no_scoping.templatetypes:
+            if templatetype.id == templatetype_to_scope.id:
+                assert scoped_typeattr_j.id not in [ta.id for ta in templatetype.typeattrs]
+                break
+        else:
+            raise Exception(f"Unable to find templatetype {templatetype_to_scope.id}")
+
+        template_project_scoped = client.get_template(template_j.id, project_id=project.id)
+        for templatetype in template_project_scoped.templatetypes:
+            if templatetype.id == templatetype_to_scope.id:
+                assert scoped_typeattr_j.id in [ta.id for ta in templatetype.typeattrs]
+                break
+        else:
+            raise Exception(f"Unable to find templatetype {templatetype_to_scope.id}")
+
+    def test_scope_typeattr_to_project(self, client):
+        """
+            This tests that a child type attribute can be added to a template type as the child of another type attribute
+            but in the same template. This is for when a template can be expanded, but in the context
+            of a project, so when accessing a template through the context of a project, it can be
+            extended without creating a whole new child template. Instead scoped child attributes
+            within the child template are used, so changes from the main template are
+            only applied in this project.
+        """
+
+        template_j = client.testutils.create_template()
+
+        project = client.testutils.create_project()
+
+        templatetype_to_scope = template_j.templatetypes[0]
+        typeattr_to_scope = templatetype_to_scope.typeattrs[0]
+
+        #Add a child type type, scoped to the project
+        scoped_typeattr_j = client.testutils.create_typeattr(
+            templatetype_to_scope.id,
+            typeattr_to_scope.id,
+            project.id)
+
+        template_no_scoping = client.get_template(template_j.id)
+        for templatetype in template_no_scoping.templatetypes:
+            if templatetype.id == templatetype_to_scope.id:
+                for ta in templatetype.typeattrs:
+                    if ta.id == typeattr_to_scope.id:
+                        assert ta.unit_id == typeattr_to_scope.unit_id
+                        break
+                else:
+                    raise Exception(f"Unable to find typeattr {typeattr_to_scope.id}")
+
+                break
+        else:
+            raise Exception(f"Unable to find templatetype {templatetype_to_scope.id}")
+
+        #find the scoped typeattr and verify that it's got a unit ID
+        template_project_scoped = client.get_template(template_j.id, project_id=project.id)
+        for templatetype in template_project_scoped.templatetypes:
+            if templatetype.id == templatetype_to_scope.id:
+                for ta in templatetype.typeattrs:
+                    if ta.id == typeattr_to_scope.id:
+                        assert ta.unit_id == scoped_typeattr_j.unit_id
+                        break
+                else:
+                    raise Exception(f"Unable to find scoped typeattr {typeattr_to_scope.id}")
+
+                break
+        else:
+            raise Exception(f"Unable to find templatetype {templatetype_to_scope.id}")
+
+    def test_move_network_to_compatible_project(self, client):
+        """
+            Test that a network created in a project which contains
+            custom node types or custom attributes can be moved
+            to another project so long as the target project has
+            access ot the same custom types and attributes.
+        """
+        #create template A
+        template_a = client.testutils.create_template(name="Template A")
+
+        #create project A
+        project_a = client.testutils.create_project(name="Project A")
+
+        #create project B -- child of A
+        project_b = client.testutils.create_project(name="Project B", parent_id=project_a.id)
+        #create project C -- child of A
+        project_c = client.testutils.create_project(name="Project C", parent_id=project_a.id)
+        """
+        CHECK TYPE COMPATIBILITY
+        """
+        #create a custom node type from template A in project A
+        scoped_templatetype = client.testutils.create_scoped_templatetype(template_a.id, project_id=project_a.id)
+
+        #Create a network in project B using the custom node type
+        scoped_template = client.get_template(template_a.id, project_id=project_b.id)
+        network_with_scoped_type = client.testutils.create_network_with_data(project_id=project_b.id, template=scoped_template)
+
+        network_with_scoped_type = client.get_network(network_with_scoped_type.id)
+
+        found_node_with_scoped_type = False
+        for node in network_with_scoped_type.nodes:
+            if scoped_templatetype.id == node.types[0].id:
+                found_node_with_scoped_type = True
+        assert found_node_with_scoped_type == True
+        #Move the network to project C. This is allowed as they both
+
+        client.move_network(network_with_scoped_type.id, project_c.id)
+        #have access to the same types.
+
+        """
+        CHECK TYPE ATTRIBUTE COMPATIBILITY
+        """
+        node_type = list(filter(lambda x:x.resource_type=='NODE', template_a.templatetypes))[0]
+        #create a new type attribute from template A in project A
+        scopedtypeattr = client.testutils.create_typeattr(type_id=node_type.id, project_id=project_a.id)
+        #Create a network in project B using the custom node type
+        scoped_template = client.get_template(template_a.id, project_id=project_b.id)
+        network_with_scoped_typeattr = client.testutils.create_network_with_data(project_id=project_b.id, template=scoped_template)
+
+        network_with_scoped_typeattr = client.get_network(network_with_scoped_typeattr.id)
+        found_node_with_scoped_typeattr = False
+        for node in network_with_scoped_typeattr.nodes:
+            if node_type.id == node.types[0].id:
+                if scopedtypeattr.attr_id in [ra.attr_id for ra in node.attributes]:
+                    found_node_with_scoped_typeattr = True
+        assert found_node_with_scoped_typeattr == True
+
+        #Move thhe network to project C. This is allowed as they both
+        #have access to the same types.
+        client.move_network(network_with_scoped_typeattr.id, project_c.id)
+
+    def test_move_network_to_incompatible_project(self, client):
+        """
+            Test that a network created in a project which contains
+            custom node types or custom attributes cannot be moved
+            to another project which does not contain them.
+        """
+
+        #create template A
+        template_a = client.testutils.create_template(name="Template For network Incompatibiltiy Testing")
+        #create project A
+        project_a = client.testutils.create_project(name="Project A for network incompatibility testing")
+        #create project B
+        project_b = client.testutils.create_project(name="Project B for network incompatibility testing")
+
+        """
+        CHECK TYPE INCOMPATIBILITY
+        """
+
+        #create a custom node type from template A in project A
+        scoped_templatetype = client.testutils.create_scoped_templatetype(template_a.id, project_id=project_a.id)
+
+        #Create a network in project A using the custom node type
+        scoped_template = client.get_template(template_a.id, project_id=project_a.id)
+        network_with_scoped_type = client.testutils.create_network_with_data(project_id=project_a.id, template=scoped_template)
+        network_with_scoped_type = client.get_network(network_with_scoped_type.id)
+
+        #Move the network to project B. This should fail as they both
+        #have access to the same types.
+        with pytest.raises(HydraError):
+            client.move_network(network_with_scoped_type.id, project_b.id)
+
+        """
+        CHECK TYPE ATTRIBUTE INCOMPATIBILITY
+        """
+        node_type = list(filter(lambda x:x.resource_type=='NODE', template_a.templatetypes))[0]
+        #create a custom type attribute from template A in project A
+        scopedtypeattr = client.testutils.create_typeattr(type_id=node_type.id, project_id=project_a.id)
+
+        #Create a network in project A using the custom node type
+        scoped_template = client.get_template(template_a.id, project_id=project_a.id)
+        network_with_scoped_typeattr = client.testutils.create_network_with_data(project_id=project_a.id, template=scoped_template)
+        network_with_scoped_typeattr = client.get_network(network_with_scoped_typeattr.id)
+
+        #Move thhe network to project B. This should fail as they both
+        #have access to the same types.
+        with pytest.raises(HydraError):
+            client.move_network(network_with_scoped_typeattr.id, project_b.id)
+
+    def test_move_project_to_compatible_project(self, client):
+        """
+            Test that a project created in a project which contains
+            custom node types or custom attributes can be moved
+            to another project so long as the target project has
+            access ot the same custom types and attributes.
+        """
+
+        #create template A
+        template_a = client.testutils.create_template(name="Template For project compatibiltiy Testing")
+        #create project A
+        project_a = client.testutils.create_project(name="Project A for project compatibility testing")
+        #create project B -- child of A
+        project_b = client.testutils.create_project(name="Project B for project compatibility testing", parent_id=project_a.id)
+        #create project C -- child of A
+        project_c = client.testutils.create_project(name="Project C for project compatibility testing", parent_id=project_a.id)
+
+        """
+        CHECK TYPE COMPATIBILITY
+        """
+
+        #create a custom node type from template A in project A
+        parent_scoped_templatetype = client.testutils.create_scoped_templatetype(template_a.id, project_id=project_a.id)
+
+        #Create a network in project B using the custom node type
+        projb_network = client.testutils.create_network_with_data(project_id=project_b.id, template=template_a)
+
+        #Move project B to project C. This is allowed as they both
+        #have access to the same types.
+        client.move_network(projb_network.id, project_c.id)
+
+        """
+        CHECK TYPE ATTRIBUTE COMPATIBILITY
+        """
+        type_to_scope = template_a.templatetypes[0]
+        #create a custom type attribute from template A in project A
+        parent_scoped_typeattr = client.testutils.create_typeattr(
+            type_id=type_to_scope.id,
+            project_id=project_a.id
+        )
+
+        #Create a network in project B using the custom node type
+        projb_network2 = client.testutils.create_network_with_data(project_id=project_b.id, template=template_a)
+
+
+        #Move project B to project C. This is allowed as they both
+        #have access to the same types.
+        client.move_network(projb_network2.id, project_c.id)
+
+    def test_move_project_to_incompatible_project(self, client):
+        """
+            Test that a project created in a project which contains
+            custom node types or custom attributes cannot be moved
+            to another project which does not contain them.
+        """
+
+
+        #create template A
+        template_a = client.testutils.create_template(name="Template For project Incompatibiltiy Testing")
+        #create project A
+        project_a = client.testutils.create_project(name="Project A for project incompatibility testing")
+        #create project B -- child of A
+        project_b = client.testutils.create_project(name="Project B for project incompatibility testing", parent_id=project_a.id)
+        #create project C -- not a child of A
+        project_c = client.testutils.create_project(name="Project C for project incompatibility testing")
+
+        """
+        CHECK TYPE INCOMPATIBILITY
+        """
+
+        #create a custom node type from template A in project A
+        parent_scoped_templatetype = client.testutils.create_scoped_templatetype(template_a.id, project_id=project_a.id)
+
+        #Create a network in project B using the custom node type
+        projb_network = client.testutils.create_network_with_data(project_id=project_b.id, template=template_a)
+
+        #Move project B to project C. This is not allowed
+        # as project C does not have access to the same types.
+        with pytest.raises(HydraError):
+            client.move_network(projb_network.id, project_c.id)
+
+        """
+        CHECK TYPE ATTRIBUTE INCOMPATIBILITY
+        """
+        type_to_scope = template_a.templatetypes[0]
+        #create a custom type attribute from template A in project A
+        parent_scoped_typeattr = client.testutils.create_typeattr(
+            type_id=type_to_scope.id,
+            project_id=project_a.id
+        )
+
+        #Create a network in project B using the custom type attribute
+        projb_network2 = client.testutils.create_network_with_data(project_id=project_b.id, template=template_a)
+
+        #Move project B to project C. This is not allowed
+        # as they both have access to the same types.
+        with pytest.raises(HydraError):
+            client.move_network(projb_network2.id, project_c.id)

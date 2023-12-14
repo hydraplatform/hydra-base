@@ -40,6 +40,8 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import aliased
 from ..util import hdb
 
+from .template.project import check_can_move_network
+
 from sqlalchemy import case
 from sqlalchemy.sql import null
 
@@ -1148,12 +1150,12 @@ def get_network(network_id,
         log.info("Setting types")
         all_types = _get_all_templates(network_id, template_id)
         net.types = all_types['NETWORK'].get(network_id, [])
-        for node_i in net.nodes:
-            node_i.types = all_types['NODE'].get(node_i.id, [])
-        for link_i in net.links:
-            link_i.types = all_types['LINK'].get(link_i.id, [])
-        for group_i in net.resourcegroups:
-            group_i.types = all_types['GROUP'].get(group_i.id, [])
+        for node_j in net.nodes:
+            node_j.types = all_types['NODE'].get(node_j.id, [])
+        for link_j in net.links:
+            link_j.types = all_types['LINK'].get(link_j.id, [])
+        for group_j in net.resourcegroups:
+            group_j.types = all_types['GROUP'].get(group_j.id, [])
 
         log.info("Getting scenarios")
 
@@ -1609,6 +1611,8 @@ def move_network(network_id, target_project_id, **kwargs):
         raise ResourceNotFoundError("Network with id %s not found"%(network_id))
 
     net_i.check_write_permission(user_id)
+
+    check_can_move_network(network_id, target_project_id)
 
     net_i.project_id = target_project_id
 

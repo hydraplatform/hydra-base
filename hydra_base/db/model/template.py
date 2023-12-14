@@ -18,12 +18,12 @@
 #
 from .base import *
 
-__all__ = ['Template', 'TemplateType', 'TypeAttr', 'ResourceType']
+__all__ = ['Template', 'TemplateType', 'TypeAttr', 'ResourceType', 'ProjectTemplate']
 
 from .attributes import Attr
 from .units import Unit
 
-class Template(Base, Inspect):
+class Template(Base, Inspect, AuditMixin):
     """
     Template
     """
@@ -39,6 +39,8 @@ class Template(Base, Inspect):
     layout = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'))
 
     parent = relationship('Template', remote_side=[id], backref=backref("children", order_by=id))
+
+    projects = relationship("ProjectTemplate")
 
     _parents = []
     _children = ['tTemplateType']
@@ -70,6 +72,7 @@ class Template(Base, Inspect):
                 inherited_columns.append(colname)
                 setattr(child, colname, newval)
 
+        #keep track of which columns have been inherited from the parent
         if hasattr(child, 'inherited_columns') and child.inherited_columns is not None:
             for c in inherited_columns:
                 if c not in child.inherited_columns:
@@ -78,6 +81,44 @@ class Template(Base, Inspect):
             child.inherited_columns = inherited_columns
 
         return child
+
+    def set_modified_columns(self, parent, child, table):
+        """
+            Set the value on the column of a target parent.
+            This checks if the value is null on the child, and sets it from
+            the parent if not
+        """
+        modified_columns = []
+        for column in table.__table__.columns:
+
+            colname = column.name
+
+            if hasattr(table, '_protected_columns')\
+               and colname in table._protected_columns:
+                # as a child, you can't change stuff like IDs, cr dates etc.
+                continue
+
+            refval = getattr(parent, colname)
+
+            if colname == 'layout':
+                refval = get_json_as_string(refval)
+
+            newval = getattr(child, colname)
+
+            #this checks that the CHILD value is not null. If not, it sets it on the parent
+            if newval is not None:
+                modified_columns.append(colname)
+                setattr(parent, colname, newval)
+
+        #keep track of which columns have been modified
+        if hasattr(parent, 'modified_columns') and parent.modified_columns is not None:
+            for c in modified_columns:
+                if c not in parent.modified_columns:
+                    parent.modified_columns.append(c)
+        else:
+            parent.modified_columns = modified_columns
+
+        return parent
 
     def get_typeattr(self, typeattr_id, child_typeattr=None, get_parent_types=True):
         """
@@ -97,7 +138,7 @@ class Template(Base, Inspect):
         if child_typeattr is None:
             child_typeattr = this_typeattr
         else:
-            child_typeattr = self.set_inherited_columns(this_typeattr, child_typeattr, this_typeattr_i)
+            child_typeattr = self.set_inherited_columns(this_typeattr, child_typeattr, TypeAttr)
 
         if this_typeattr.parent_id is not None and get_parent_types is True:
             return self.parent.get_typeattr(this_typeattr.parent_id,
@@ -130,6 +171,8 @@ class Template(Base, Inspect):
         #get all the type attrs for this type, and add any which are missing
         typeattrs_i = get_session().query(TypeAttr)\
             .filter(TypeAttr.type_id == type_id)\
+            .filter(TypeAttr.project_id==None)\
+            .filter(TypeAttr.network_id==None)\
             .options(joinedload(TypeAttr.attr))\
             .options(joinedload(TypeAttr.unit))\
             .options(joinedload(TypeAttr.default_dataset)).all()
@@ -139,7 +182,7 @@ class Template(Base, Inspect):
         #Is this type the parent of a type. If so, we don't want to add a new type
         #we want to update an existing one with any data that it's missing
         if child_type is not None:
-            child_type = self.set_inherited_columns(this_type, child_type, this_type_i)
+            child_type = self.set_inherited_columns(this_type, child_type, TemplateType)
             #check the child's typeattrs. If a typeattr exists on the parent, with the
             #same attr_id, then it should be ignore. THis can happen when adding a typeattr
             #to the child first, then the parent
@@ -161,7 +204,7 @@ class Template(Base, Inspect):
                         child_type.ta_tree[typeattr.parent_id] = typeattr
                     child_type.typeattrs.append(typeattr)
                 else:
-                    child_typeattr = self.set_inherited_columns(typeattr, child_typeattr, typeattrs_i[i])
+                    child_typeattr = self.set_inherited_columns(typeattr, child_typeattr, TypeAttr)
 
         else:
             if not hasattr(this_type, 'typeattrs'):
@@ -171,14 +214,24 @@ class Template(Base, Inspect):
             child_type = this_type
 
         if this_type.parent_id is not None and get_parent_types is True:
-            return self.parent.get_type(this_type.parent_id,
+            if this_type.template_id == self.id:
+                return self.get_type(this_type.parent_id,
                                          child_type=child_type,
                                          get_parent_types=get_parent_types)
+            else:
+                return self.parent.get_type(this_type.parent_id,
+                                         child_type=child_type,
+                                         get_parent_types=get_parent_types)
+
         child_type.ta_tree = None
         return child_type
 
 
-    def get_types(self, type_tree={}, child_types=None, get_parent_types=True, child_template_id=None):
+    def get_types(self,
+                  type_tree={},
+                  child_types=None,
+                  get_parent_types=True,
+                  child_template_id=None):
         """
             Return all the templatetypes relevant to this template.
             If this template inherits from another, look up the tree to compile
@@ -195,9 +248,14 @@ class Template(Base, Inspect):
             child_types = []
             type_tree = {}
 
-        #Add resource attributes which are not defined already
+        #Add resource attributes which are not defined already, and which are unscopped to a
+        #network or project.
         types_i = get_session().query(TemplateType).filter(
-            TemplateType.template_id == self.id).options(noload(TemplateType.typeattrs)).all()
+            TemplateType.template_id == self.id,
+            TemplateType.project_id == None,
+            TemplateType.network_id == None)\
+                .options(noload(TemplateType.typeattrs)).all()
+
         types = [JSONObject(t) for t in types_i]
 
         if child_template_id is None:
@@ -206,6 +264,7 @@ class Template(Base, Inspect):
         #TODO need to check here to see if there is a parent / child type
         #and then add or not add as approprioate
         for i, this_type in enumerate(types):
+
             this_type.child_template_id = child_template_id
 
             #This keeps track of which type attributes are currently associated
@@ -216,7 +275,9 @@ class Template(Base, Inspect):
 
             #get all the type attrs for this type, and add any which are missing
             typeattrs_i = get_session().query(TypeAttr)\
-                .filter(TypeAttr.type_id == this_type.id)\
+                .filter(TypeAttr.type_id == this_type.id,
+                       TypeAttr.project_id == None,
+                       TypeAttr.network_id == None)\
                 .options(joinedload(TypeAttr.attr))\
                 .options(joinedload(TypeAttr.default_dataset)).all()
 
@@ -232,7 +293,7 @@ class Template(Base, Inspect):
                 #Find the child type and update it.
                 child_type = type_tree[this_type.id]
 
-                child_type = self.set_inherited_columns(this_type, child_type, types_i[i])
+                child_type = self.set_inherited_columns(this_type, child_type, TemplateType)
 
                 #check the child's typeattrs. If a typeattr exists on the parent, with the
                 #same attr_id, then it should be ignore. THis can happen when adding a typeattr
@@ -257,7 +318,7 @@ class Template(Base, Inspect):
                             type_tree[this_type.id].ta_tree[typeattr.parent_id] = typeattr
                         child_type.typeattrs.append(typeattr)
                     else:
-                        child_typeattr = self.set_inherited_columns(typeattr, child_typeattr, types_i[i])
+                        child_typeattr = self.set_inherited_columns(typeattr, child_typeattr, TypeAttr)
 
 
                 if this_type.parent_id is not None:
@@ -277,12 +338,11 @@ class Template(Base, Inspect):
                 if this_type.parent_id is not None:
                     type_tree[this_type.parent_id] = this_type
 
-
         if self.parent is not None and get_parent_types is True:
             return self.parent.get_types(type_tree=type_tree,
                                          child_types=child_types,
                                          get_parent_types=get_parent_types,
-                                        child_template_id=child_template_id)
+                                         child_template_id=child_template_id)
 
         #clean up
         for child_type in child_types:
@@ -290,9 +350,126 @@ class Template(Base, Inspect):
 
         return child_types
 
-class TemplateType(Base, Inspect):
+    def get_scoped_types(self, template_types, project_id=None, network_id=None):
+        """
+            given a json template, add in new types or update template types which have been scoped
+            to the project or network in question
+        """
+        log.info("Getting scoped Template Types..")
+
+        if project_id is not None or network_id is not None:
+            _type_lookup = {t.id:t for t in template_types}
+            _typeattr_lookup = {}
+            for t in template_types:
+                for ta in t.typeattrs:
+                    _typeattr_lookup[ta.id] = ta
+
+
+        #find all template types scoped to this project, both those which are new in this project
+        #and those which extend existing types in the scope of this project
+        if project_id is not None:
+            #starting from the root project, keep applying any template changes which have
+            #been applied down the chain of projects
+            from hydra_base.lib.project import get_project_hierarchy
+            project_hierarchy =get_project_hierarchy(project_id, user_id=1)
+            project_hierarchy.reverse() # default is bottom up. start from the top down
+            for project_j in project_hierarchy:
+                project_types_i = get_session().query(TemplateType).filter(
+                    TemplateType.template_id == self.id).filter(
+                        TemplateType.project_id==project_j.id).options(
+                            noload(TemplateType.typeattrs)).all()
+
+                for project_type_j in [JSONObject(t) for t in project_types_i]:
+
+                    if project_type_j.id in _type_lookup:
+                        continue
+
+                    if project_type_j.parent_id is None:
+                        template_types.append(project_type_j)
+                        _type_lookup[project_type_j.id] = project_type_j
+                    else:
+                        self.set_modified_columns(_type_lookup[project_type_j.parent_id], project_type_j, TemplateType)
+
+                project_typeattrs_i = get_session().query(TypeAttr)\
+                .filter(TypeAttr.type_id == TemplateType.id)\
+                .filter(TemplateType.template_id == self.id)\
+                .filter(TypeAttr.project_id==project_j.id)\
+                .options(joinedload(TypeAttr.attr))\
+                .options(joinedload(TypeAttr.default_dataset)).all()
+
+                for project_typeattr_j in [JSONObject(t) for t in project_typeattrs_i]:
+                    if project_typeattr_j.type_id not in _type_lookup:
+                        #Check whether this typeattr has been scoped to a type higher up the hierarchy 
+                        type = get_session().query(TemplateType).filter(TemplateType.id==project_typeattr_j.type_id).one()
+                        if type.parent_id in _type_lookup:
+                            #a scoped type ID is the type ID which is being scoped to the project. This needs to be set
+                            #explicitly so that any scoped type attributes can be added against the correct type ID
+                            project_typeattr_j.scoped_type_id = type.parent_id
+                        else:
+                            continue
+                    if project_typeattr_j.scoped_type_id is not None:
+                        t = _type_lookup[project_typeattr_j.scoped_type_id].typeattrs.append(project_typeattr_j)
+                        _typeattr_lookup[project_typeattr_j.id] = project_typeattr_j
+                    elif project_typeattr_j.parent_id is None:
+                        t = _type_lookup[project_typeattr_j.type_id].typeattrs.append(project_typeattr_j)
+                        _typeattr_lookup[project_typeattr_j.id] = project_typeattr_j
+                    else:
+                        for tt in template_types:
+                            for ta in tt.typeattrs:
+                                if ta.id == project_typeattr_j.parent_id:
+                                    self.set_modified_columns(ta, project_typeattr_j, TypeAttr)
+                                    break
+
+        #find all template types scoped to this network, both those which are new in this network
+        #and those which extend existing types in the scope of this network
+        if network_id is not None:
+            network_types_i = get_session().query(TemplateType).filter(
+                TemplateType.template_id == self.id)\
+            .filter(TemplateType.network_id==network_id)\
+            .options(noload(TemplateType.typeattrs)).all()
+
+            for network_type_j in [JSONObject(t) for t in network_types_i]:
+                #In case the scoped type has been included in the list of incoming types, avoid adding
+                #it twice.
+                if network_type_j.id in _type_lookup:
+                    continue
+
+                if network_type_j.parent_id is None:
+                    template_types.append(network_type_j)
+                    _type_lookup[network_type_j.id] = network_type_j
+                else:
+                    self.set_modified_columns(_type_lookup[network_type_j.parent_id], network_type_j, TemplateType)
+
+            network_typeattrs_i = get_session().query(TypeAttr)\
+                .filter(TypeAttr.type_id == TemplateType.id)\
+                .filter(TemplateType.template_id==self.id)\
+                .filter(TypeAttr.network_id==network_id)\
+                .options(joinedload(TypeAttr.attr))\
+                .options(joinedload(TypeAttr.default_dataset)).all()
+            for network_typeattr_j in [JSONObject(t) for t in network_typeattrs_i]:
+                if network_typeattr_j.type_id not in _type_lookup:
+                    #Check whether this typeattr has been scoped to a type higher up the hierarchy 
+                    type = get_session().query(TemplateType).filter(TemplateType.id==network_typeattr_j.type_id).one()
+                    if type.parent_id in _type_lookup:
+                        #a scoped type ID is the type ID which is being scoped to the network. This needs to be set
+                        #explicitly so that any scoped type attributes can be added against the correct type ID
+                        network_typeattr_j.scoped_type_id = type.parent_id
+                    else:
+                        continue
+                if network_typeattr_j.scoped_type_id is not None:
+                    t = _type_lookup[network_typeattr_j.scoped_type_id].typeattrs.append(network_typeattr_j)
+                    _typeattr_lookup[network_typeattr_j.id] = network_typeattr_j
+                elif network_typeattr_j.parent_id is None:
+                    t = _type_lookup[network_typeattr_j.type_id].typeattrs.append(network_typeattr_j)
+                    _typeattr_lookup[network_typeattr_j.id] = network_typeattr_j
+                else:
+                    self.set_modified_columns(_typeattr_lookup[network_typeattr_j.parent_id], network_typeattr_j, TypeAttr)
+
+        return template_types
+
+class TemplateType(Base, Inspect, AuditMixin):
     """
-    Template Type
+        Template Type
     """
 
     __tablename__ = 'tTemplateType'
@@ -315,6 +492,9 @@ class TemplateType(Base, Inspect):
     layout = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'))
     cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
+    project_id = Column(Integer(), ForeignKey('tProject.id'), nullable=True)
+    network_id = Column(Integer(), ForeignKey('tNetwork.id'), nullable=True)
+
     parent = relationship('TemplateType', remote_side=[id],
                           backref=backref("children", order_by=id))
 
@@ -322,6 +502,9 @@ class TemplateType(Base, Inspect):
                             backref=backref("templatetypes",
                                             order_by=id,
                                             cascade="all, delete-orphan"))
+
+    project = relationship('Project', backref=backref('customtypes', order_by=id))
+    network = relationship('Network', backref=backref('customtypes', order_by=id))
 
     _parents = ['tTemplate']
     _children = ['tTypeAttr']
@@ -338,13 +521,13 @@ class TemplateType(Base, Inspect):
 
         #get all the type attrs for this type, and add any which are missing
         typeattrs_i = get_session().query(TypeAttr)\
-            .filter(TypeAttr.type_id == self.id)\
+            .filter(TypeAttr.type_id == self.id,
+                   TypeAttr.network_id==None,
+                   TypeAttr.project_id==None)\
             .options(joinedload(TypeAttr.default_dataset)).all()
+
         typeattrs = [JSONObject(ta) for ta in typeattrs_i]
-
-
-        for i, typeattr in enumerate(typeattrs):
-
+        for typeattr in typeattrs:
             #Does this typeattr have a child?
             child_typeattr = ta_tree.get(typeattr.id)
             if child_typeattr is None:
@@ -355,10 +538,8 @@ class TemplateType(Base, Inspect):
                     ta_tree[typeattr.parent_id] = typeattr
 
             else:
-                child_typeattr = self.template.set_inherited_columns(typeattr, child_typeattr, typeattrs_i[i])
+                child_typeattr = self.template.set_inherited_columns(typeattr, child_typeattr, TypeAttr)
                 child_typeattrs.append(typeattr)
-
-
 
         if self.parent is not None and get_parent_types is True:
             return self.parent.get_typeattrs(ta_tree=ta_tree,
@@ -431,15 +612,17 @@ class TemplateType(Base, Inspect):
         for resource_type in type_rs:
             get_session().delete(resource_type)
 
-class TypeAttr(Base, Inspect):
+class TypeAttr(Base, Inspect, AuditMixin):
     """
         Type Attribute
     """
 
     __tablename__ = 'tTypeAttr'
 
+    _protected_columns = ['id', 'type_id', 'parent_id', 'cr_date', 'updated_at']
+
     __table_args__ = (
-        UniqueConstraint('type_id', 'attr_id', name='type_attr_1'),
+        UniqueConstraint('type_id', 'attr_id', 'network_id', 'project_id', name='type_attr_1'),
     )
 
     id = Column(Integer(), primary_key=True, nullable=False)
@@ -457,6 +640,8 @@ class TypeAttr(Base, Inspect):
     status = Column(String(1),  nullable=True)
     cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
+    project_id = Column(Integer(), ForeignKey('tProject.id'), nullable=True)
+    network_id = Column(Integer(), ForeignKey('tNetwork.id'), nullable=True)
 
     parent = relationship('TypeAttr', remote_side=[id], backref=backref("children", order_by=id))
 
@@ -524,7 +709,7 @@ class TypeAttr(Base, Inspect):
         """
         return self.properties
 
-class ResourceType(Base, Inspect):
+class ResourceType(Base, Inspect, AuditMixin):
     """
     """
 
@@ -613,3 +798,18 @@ class ResourceType(Base, Inspect):
         type_i = template_i.get_type(self.type_id)
 
         return JSONObject(type_i)
+
+
+class ProjectTemplate(Base, Inspect, AuditMixin):
+    """
+        ProjectTemplate. A table which defines which templates are available within a given project.
+    """
+
+    __tablename__ = 'tProjectTemplate'
+
+    id = Column(Integer(), primary_key=True, nullable=False)
+    template_id = Column(Integer(), ForeignKey('tTemplate.id'))
+    project_id = Column(Integer(), ForeignKey('tProject.id'))
+
+    _parents = []
+    _children = []

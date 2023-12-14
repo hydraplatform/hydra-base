@@ -22,7 +22,7 @@ from .resourceattr import ResourceAttr
 
 __all__ = ['Link']
 
-class Link(Base, Inspect):
+class Link(Base, Inspect, AuditMixin):
     """
     """
 

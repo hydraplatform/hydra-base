@@ -1101,7 +1101,7 @@ class TestTemplates:
 
         assert len(errors2) > 0
         # every node should have an associated error, plus the network error from above
-        assert len(errors2) == len(network['nodes'] * 2)+1
+        assert len(errors2) == len(network['nodes'] * 4)+1
         for err in errors2[1:]:
             try:
                 assert err.startswith("Unit mismatch")

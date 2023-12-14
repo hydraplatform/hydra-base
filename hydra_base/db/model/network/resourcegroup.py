@@ -22,7 +22,7 @@ from .resourceattr import ResourceAttr
 
 __all__ = ['ResourceGroup']
 
-class ResourceGroup(Base, Inspect):
+class ResourceGroup(Base, Inspect, AuditMixin):
     """
     """
 

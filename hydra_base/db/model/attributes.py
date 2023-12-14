@@ -21,7 +21,7 @@ from . import *
 
 __all__ = ['Attr', 'AttrMap', 'AttrGroup', 'AttrGroupItem']
 
-class Attr(Base, Inspect):
+class Attr(Base, Inspect, AuditMixin):
     """
     An Attribute Definition
     """

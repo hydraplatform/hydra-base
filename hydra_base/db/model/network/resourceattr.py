@@ -20,7 +20,7 @@ from ..base import *
 
 __all__ = ['ResourceAttr', 'ResourceAttrMap']
 
-class ResourceAttr(Base, Inspect):
+class ResourceAttr(Base, Inspect, AuditMixin):
     """
     """
 

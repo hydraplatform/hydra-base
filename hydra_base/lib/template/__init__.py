@@ -61,6 +61,12 @@ from hydra_base.lib.template.resource import (get_types_by_attr,
     validate_resourcescenario,
     validate_network)
 
+from hydra_base.lib.template.project import(
+    get_project_template,
+    add_project_template,
+    delete_project_template
+)
+
 log = logging.getLogger(__name__)
 
 #A mapping from template ID to a template object
@@ -782,7 +788,7 @@ def remove_attr_from_type(type_id, attr_id, **kwargs):
     db.DBSession.delete(typeattr_i)
 
 @required_perms("get_template")
-def get_template(template_id, **kwargs):
+def get_template(template_id, project_id=None, network_id=None, **kwargs):
     """
         Get a specific resource template, by ID.
     """
@@ -799,10 +805,12 @@ def get_template(template_id, **kwargs):
 
         tmpl_j = JSONObject(tmpl_i)
 
-        tmpl_j.templatetypes = tmpl_i.get_types()
+        unscoped_templatetypes = tmpl_i.get_types()
+        all_templatetypes = tmpl_i.get_scoped_types(unscoped_templatetypes,
+                                                    project_id=project_id,
+                                                    network_id=network_id)
 
-        #ignore the messing around we've been doing to the ORM objects
-        #db.DBSession.expunge(tmpl_i)
+        tmpl_j.templatetypes = all_templatetypes
 
         return tmpl_j
     except NoResultFound:
@@ -957,11 +965,20 @@ def _set_typeattr(typeattr, existing_ta=None):
         may be added, None are removed or replaced. To remove other type attrs, do it
         manually using delete_typeattr
     """
+
+
+    if typeattr.project_id is not None and typeattr.network_id is not None:
+        raise HydraError(f"Cannot add Type Attribute {typeattr.attr_id}."
+                         " A type attribute cannot be scoped to both a project and network.")
+
     if existing_ta is None:
 
-        #check for an existing TA
+        #check for an existing TA in the scope of the incoming TA
         check_existing_ta = db.DBSession.query(TypeAttr)\
-            .filter(TypeAttr.attr_id == typeattr.attr_id, TypeAttr.type_id == typeattr.type_id).first()
+            .filter(TypeAttr.attr_id == typeattr.attr_id,
+                    TypeAttr.type_id == typeattr.type_id,
+                    TypeAttr.project_id == typeattr.project_id,
+                    TypeAttr.network_id == typeattr.network_id).first()
 
         #There's already a TA with this attr_id in this type
         if check_existing_ta is not None:
@@ -979,8 +996,11 @@ def _set_typeattr(typeattr, existing_ta=None):
             ta = existing_ta
 
     ta.attr_id = typeattr.attr_id
+    ta.parent_id = typeattr.parent_id
     ta.unit_id = typeattr.unit_id
     ta.type_id = typeattr.type_id
+    ta.project_id = typeattr.project_id
+    ta.network_id = typeattr.network_id
     ta.data_type = typeattr.data_type
     ta.status = typeattr.status if typeattr.status is not None else 'A'
 
@@ -1100,6 +1120,10 @@ def _update_templatetype(templatetype, existing_tt=None, auto_delete=False, **kw
     #flag to indicate if this update results in an insert
     is_new = False
 
+    if templatetype.project_id is not None and templatetype.network_id is not None:
+        raise HydraError(f"Cannot add Template Type {templatetype.name}."
+                         " A template type cannot be scoped to both a project and network.")
+
     if existing_tt is None:
         if "id" in templatetype and templatetype.id is not None:
             tmpltype_i = db.DBSession.query(TemplateType).filter(
@@ -1126,6 +1150,12 @@ def _update_templatetype(templatetype, existing_tt=None, auto_delete=False, **kw
 
     if templatetype.typeattrs is not None:
         for typeattr in templatetype.typeattrs:
+            #scope the types correctly if the parent is scoped.
+            if templatetype.project_id is not None:
+                typeattr.project_id = templatetype.project_id
+            if templatetype.network_id is not None:
+                typeattr.network_id = templatetype.network_id
+
             if typeattr.attr_id in ta_dict:
                 #this belongs to a parent. Ignore.
                 if typeattr.type_id is not None and typeattr.type_id != tmpltype_i.id:
@@ -1189,7 +1219,7 @@ def delete_templatetype(type_id, template_i=None, delete_resourcetypes=False, fl
         db.DBSession.flush()
 
 @required_perms("get_template")
-def get_templatetype(type_id, include_parent_data=True, **kwargs):
+def get_templatetype(type_id, project_id=None, network_id=None, include_parent_data=True, **kwargs):
     """
         Get a specific template type by ID. As types can be inherited, this
         type may contain data from its parent. If the 'include_parent_type' is false,
@@ -1199,21 +1229,30 @@ def get_templatetype(type_id, include_parent_data=True, **kwargs):
     #First get the DB entry
     templatetype = db.DBSession.query(TemplateType).filter(
         TemplateType.id == type_id).options(noload(TemplateType.typeattrs)).one()
+    templatetype_j = JSONObject(templatetype)
+    
+    typeattrs_i = db.DBSession.query(TypeAttr).filter(TypeAttr.type_id == type_id).all()
+    templatetype_j.typeattrs = [JSONObject(ta) for ta in typeattrs_i]
 
     if include_parent_data is False:
-        return templatetype
+        return templatetype_j
 
     #then get the template
-    template = db.DBSession.query(Template).filter(
+    template_i = db.DBSession.query(Template).filter(
         Template.id == templatetype.template_id).one()
 
     #then get the type, but this time with inherited data.
-    inherited_templatetype = template.get_type(type_id)
+    inherited_templatetype = template_i.get_type(type_id)
+    
+    #piggy-back on the code that gets the scoping data for all scoped types
+    scoped_templatetypes = template_i.get_scoped_types([inherited_templatetype],
+                                            project_id=project_id,
+                                            network_id=network_id)
 
-    #ignore the messing around we've been doing to the ORM objects
-#    db.DBSession.expunge(inherited_templatetype)
+    #having applied the scoping changes to all scoped types, extract the one we want and return it.
+    scoped_inherited_templatetype = list(filter(lambda x:x.id==inherited_templatetype.id, scoped_templatetypes))[0]
 
-    return inherited_templatetype
+    return scoped_inherited_templatetype
 
 @required_perms("get_template")
 def get_typeattr(typeattr_id, include_parent_data=True, **kwargs):
