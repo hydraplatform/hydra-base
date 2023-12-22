@@ -595,25 +595,45 @@ class TestUtil:
         #A time series, where the value may be a 1-D array
 
         nodes[0].attributes
+        dimensionlookup = {}
+        attr_lookup = {}
         for n in nodes:
             node_type = nodetypedict[n.types[0].id]
             for na in n.attributes:
+                if na['attr_id'] in attr_lookup:
+                    attr = attr_lookup[na['attr_id']]
+                else:
+                    attr = self.client.get_attribute_by_id(na['attr_id'])
+                    attr_lookup[attr.id] = attr
+
+                if attr.dimension_id is not None:
+                    if attr.dimension_id in dimensionlookup:
+                        dimension = dimensionlookup[attr.dimension_id]
+                    else:
+                        dimension = self.client.get_dimension(attr.dimension_id)
+                        dimensionlookup[dimension.id] = dimension
+
+                    unit = dimension['units'][0].abbreviation
+                else:
+                    unit = 'cm^3'
                 if na.get('attr_is_var', 'N') == 'N':
                     if na['attr_id'] == node_type.typeattrs[0].attr_id:
                         #less than 10 and with 1 decimal place,
                         #as per the restriction in the template
-                        dataset = self.create_scalar(na, 1.1, unit='cm^3')
+
+                        dataset = self.create_scalar(na, 1.1, unit=unit)
                     elif len(node_type.typeattrs) > 1 and na['attr_id'] == node_type.typeattrs[1].attr_id:
                         #incorrect unit to test the validation
-                        dataset = self.create_timeseries(na, 'cm^3')
+                        dataset = self.create_timeseries(na, unit)
                     else:
-                        dataset = self.create_dataframe(na, unit='m^3 s^-1')
+                        dataset = self.create_dataframe(na, unit=unit)
                 elif na.get('attr_is_var', 'Y') == 'Y':
                     if len(node_type.typeattrs) > 1 and na['attr_id'] == node_type.typeattrs[1].attr_id:
                         # correct unit (speed)
-                        dataset = self.create_scalar(na, unit='m s^-1')
+                        dataset = self.create_scalar(na, unit=unit)
                     else:
-                        dataset = self.create_dataframe(na, unit='m^3 s^-1')
+                        dataset = self.create_dataframe(na, unit=unit)
+
                 scenario_data.append(dataset)
         count = 0
         for l in links:

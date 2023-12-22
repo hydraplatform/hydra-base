@@ -102,10 +102,10 @@ class TestNetwork:
         #ones which should be returned.
         for n in filtered_net.nodes:
             assert len(n.attributes) == 4
-        #only 4 of the links in the network have a type, so only these
-        #4 should be returned.
+        #All the links in the network have a type so return them all
         logging.info("%s links after", len(filtered_net.links))
-        assert len(filtered_net.links) == 4
+
+        assert len(filtered_net.links) == 9
         #of the 4 links returned, ensure the two attributes are on each one.
         for l in filtered_net.links:
             assert len(l.attributes) == 3
@@ -142,7 +142,7 @@ class TestNetwork:
 
         #this returns a tuple of the node, link and group types. Link types are at
         #index 1 of this tuple
-        assert len(resources_of_type) == 4
+        assert len(resources_of_type) == 9
         for r in list(resources_of_type):
             assert r.ref_key == 'LINK'
             assert r.id in link_ids
@@ -200,7 +200,7 @@ class TestNetwork:
 
         sample_rs= network_with_results.scenarios[0].resourcescenarios[0]
         #there should be one more result in the
-        assert len(network_with_results.scenarios[0].resourcescenarios) == len(network_no_results.scenarios[0].resourcescenarios) + 10
+        assert len(network_with_results.scenarios[0].resourcescenarios) == len(network_no_results.scenarios[0].resourcescenarios) + 20
         metadata = json.loads(sample_rs.dataset.metadata) if isinstance(sample_rs.dataset.metadata, str) else sample_rs.dataset.metadata
         assert len(metadata) == 0
 
@@ -1062,7 +1062,7 @@ class TestNetwork:
         assert len(net.links) == len(cloned_network.links)
         assert len(net.resourcegroups) == len(cloned_network.resourcegroups)
         assert len(net.scenarios) == len(cloned_network.scenarios)
-        assert len(net.scenarios[0].resourcescenarios) == len(cloned_network.scenarios[0].resourcescenarios) + 10 #this ignores results
+        assert len(net.scenarios[0].resourcescenarios) == len(cloned_network.scenarios[0].resourcescenarios) + 20 #this ignores results
         assert len(net.scenarios[0].resourcegroupitems) == len(cloned_network.scenarios[0].resourcegroupitems)
 
 

@@ -433,7 +433,7 @@ class TestUnits():
         unit = client.get_unit(unit_to_change)
         dimension = client.get_dimension(unit.dimension_id)
 
-        new_unit = dimension.units[0].id
+        new_unit = list(filter(lambda x: x.id != unit_to_change, dimension.units))[0].id
         client.apply_unit_to_network_rs(network_id, new_unit, attr_id)
 
         #now try to apply an incompatible unit. Just go grab another dimension, ensuring it's not accidenally

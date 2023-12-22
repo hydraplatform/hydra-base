@@ -324,6 +324,7 @@ class TestHdf():
             path = request.getfixturevalue(pathname)
         except:
             pass
+
         with pytest.raises(ValueError):
             client.purge_local_file(os.path.join(fsp, path))
 

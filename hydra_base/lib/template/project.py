@@ -294,7 +294,7 @@ def check_can_move_project(project_id, target_project_id):
 
     #Identify the template associated to the source project
     source_project_i = db.DBSession.query(Project).filter(
-        Project.id==moved_project_i.project_id).one()
+        Project.id==moved_project_i.id).one()
     source_project_hierarchy = get_project_hierarchy(source_project_i.id, 1)
     source_project_hierarchy_ids = [p.id for p in source_project_hierarchy]
     source_project_scoped_types = db.DBSession.query(TemplateType).filter(

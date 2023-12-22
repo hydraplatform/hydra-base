@@ -4,6 +4,7 @@ import inspect
 import logging
 import os
 import s3fs
+import tempfile
 
 from botocore.exceptions import ClientError
 from urllib.parse import urlparse
@@ -56,7 +57,7 @@ class HdfStorageAdapter():
         self.config = self.__class__.get_hdf_config()
         self.filestore_path = self.config.get("hdf_filestore")
         if self.filestore_path and not os.path.exists(self.filestore_path):
-            self.filestore_path = None
+            self.filestore_path = tempfile.gettempdir()
 
     @staticmethod
     def get_hdf_config(config_key="storage_hdf", **kwargs):

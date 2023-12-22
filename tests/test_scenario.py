@@ -224,7 +224,7 @@ class TestScenario:
         assert len(dataset_scenarios) >= 1
         assert scenario.id in [s.id for s in dataset_scenarios]
 
-        clone = client.clone_scenario(scenario.id)
+        clone = client.clone_scenario(scenario.id, retain_results=True)
         new_scenario = client.get_scenario(clone.id)
 
         dataset_scenarios = [JSONObject(s) for s in client.get_dataset_scenarios(dataset_id_to_check)]
@@ -347,7 +347,7 @@ class TestScenario:
         network = network_with_data
 
         scenario_1 = client.testutils.get_by_name("Scenario 1", network.scenarios)
-        scenario_2 = client.clone_scenario(scenario_1.id)
+        scenario_2 = client.clone_scenario(scenario_id=scenario_1.id, retain_results=True)
         scenario_2 = client.get_scenario(scenario_2.id)
 
         #Identify 2 nodes to play around with -- the first and last in the list.
@@ -377,7 +377,7 @@ class TestScenario:
                     break
 
         scalar = client.testutils.create_descriptor(client.testutils.get_by_name('node_attr_a', node1.attributes), 200)
-
+        scenario_2 = client.get_scenario(scenario_2.id)
         rs_to_update = self._get_rs_to_update(scenario_2, scalar)
 
         new_resourcescenarios = client.update_resourcedata(scenario_2.id,
@@ -412,6 +412,7 @@ class TestScenario:
                 updated_dataset_id = resourcescenario.dataset.id
                 resourcescenario.dataset = rs.dataset
                 rs_to_update.append(resourcescenario)
+                break
 
         assert updated_dataset_id is not None
 
@@ -431,12 +432,14 @@ class TestScenario:
 
         updated_val = None
 
+        updated_name = 'I am an updated dataset name'
+
         rs_to_update = []
         for resourcescenario in scenario.resourcescenarios:
             ra_id = resourcescenario.resource_attr_id
             if ra_id == ra_to_update:
                 updated_val = resourcescenario.dataset.value
-                resourcescenario.dataset.name = 'I am an updated dataset name'
+                resourcescenario.dataset.name = updated_name
                 rs_to_update.append(resourcescenario)
 
         client.get_attributes_for_resource(network.id, scenario.id, 'NODE', [node1.id])
@@ -445,9 +448,8 @@ class TestScenario:
 
         new_node_data = [JSONObject(d) for d in client.get_attributes_for_resource(network.id, scenario.id, 'NODE', [node1.id])]
 
-        for new_val in new_node_data:
-            if new_val.dataset.value == updated_val:
-                assert new_val.dataset.name == 'I am an updated dataset name'
+        #check that the updated name is on one of the datasets returned.
+        assert updated_name in [rs.dataset.name for rs in new_node_data]
 
     def test_bulk_update_resourcedata(self, client, network_with_data):
         """
@@ -458,7 +460,7 @@ class TestScenario:
         """
         network1 = network_with_data
         scenario1_to_update = network1.scenarios[0]
-        clone = client.clone_scenario(network1.scenarios[0].id)
+        clone = client.clone_scenario(scenario_id=network1.scenarios[0].id, retain_results=True)
         scenario2_to_update = client.get_scenario(clone.id)
 
         #Identify 2 nodes to play around with -- the first and last in the list.
@@ -486,9 +488,7 @@ class TestScenario:
 
         assert updated_dataset_id is not None
 
-        scenario_ids = []
-        scenario_ids.append(scenario1_to_update.id)
-        scenario_ids.append(scenario2_to_update.id)
+        scenario_ids = [scenario1_to_update.id, scenario2_to_update.id]
 
         result = client.bulk_update_resourcedata(scenario_ids, rs_to_update)
 
@@ -790,6 +790,7 @@ class TestScenario:
 
         #Set the new value to 999
         rs_to_update.dataset.value = 999
+        rs_to_update.dataset.type = "scalar"
 
         client.update_resourcedata(child.id,
                                         [rs_to_update])
@@ -866,6 +867,7 @@ class TestScenario:
         previous_rs_value = rs_to_update.dataset.value
 
         rs_to_update.dataset.value = 999
+        rs_to_update.dataset.type = "scalar"
 
         client.update_resourcedata(child.id, [rs_to_update])
 
@@ -980,7 +982,7 @@ class TestScenario:
             else:
                 scenario_2 = s
 
-        scenario_diff = JSONObject(client.compare_scenarios(scenario_1.id, scenario_2.id))
+        scenario_diff = JSONObject(client.compare_scenarios(scenario_1.id, scenario_2.id, include_results=True))
 
         #print "Comparison result: %s"%(scenario_diff)
 
@@ -1270,7 +1272,7 @@ class TestScenario:
 
         client.add_data_to_attribute(source_scenario_id, resource_attr_id, dataset)
 
-        scenario_diff = JSONObject(client.compare_scenarios(source_scenario_id, cloned_scenario.id))
+        scenario_diff = JSONObject(client.compare_scenarios(source_scenario_id, cloned_scenario.id, include_results=True))
 
         assert len(scenario_diff.resourcescenarios) == 1, "Data comparison was not successful!"
 
