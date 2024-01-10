@@ -1,0 +1,142 @@
+"""
+  Types and definitions used by UserGroups and Organisations
+"""
+import enum
+
+from hydra_base.db.model.base import *
+from hydra_base import db
+
+
+group_name_max_length = 200
+typename_max_length = 60
+
+__all__ = ("UserGroup", "Organisation")
+
+
+class UserGroup(Base, Inspect):
+    """
+      The mapped type of a UserGroup
+    """
+
+    __tablename__ = "tUserGroup"
+
+    id = Column(Integer(), primary_key=True, nullable=False)
+    name = Column(String(group_name_max_length), nullable=False)
+    organisation_id = Column(Integer(), ForeignKey('tOrganisation.id', ondelete="CASCADE"), nullable=True)
+
+    @property
+    def admins(self):
+        return {a.user_id for a in self._admins}
+
+    @property
+    def members(self):
+        return {m.user_id for m in self._members}
+
+    @property
+    def organisation(self):
+        if not self.organisation_id:
+            return None
+
+        org = db.DBSession.query(Organisation).filter(Organisation.id == self.organisation_id).one()
+        return org
+
+
+class GroupMembers(Base, Inspect):
+    """
+      Relational type mapping Users to UserGroups
+    """
+
+    __tablename__ = "tGroupMembers"
+
+    __mapper_args__ = {
+        "confirm_deleted_rows": False
+    }
+
+    group_id = Column(Integer(), ForeignKey("tUserGroup.id"), primary_key=True, nullable=False)
+    user_id = Column(Integer(), ForeignKey("tUser.id"), primary_key=True, nullable=False)
+
+    group = relationship("UserGroup", backref=backref("_members", uselist=True, cascade="all, delete-orphan"))
+    user = relationship("User", backref=backref("groups", uselist=True, cascade="all, delete-orphan"))
+
+
+class GroupAdmins(Base, Inspect):
+    """
+      Relational type mapping UserGroups to their Administrators
+    """
+
+    __tablename__ = "tGroupAdmins"
+
+    __mapper_args__ = {
+        "confirm_deleted_rows": False
+    }
+
+    group_id = Column(Integer(), ForeignKey("tUserGroup.id"), primary_key=True, nullable=False)
+    user_id = Column(Integer(), ForeignKey("tUser.id"), primary_key=True, nullable=False)
+
+    group = relationship("UserGroup", backref=backref("_admins", uselist=True, cascade="all, delete-orphan"))
+    user = relationship("User", backref=backref("administers", uselist=True, cascade="all, delete-orphan"))
+
+
+class Organisation(Base, Inspect):
+    """
+      The mapped type of an Organisation
+    """
+
+    __tablename__ = "tOrganisation"
+
+    # Default UserGroup to which all member Users are automatically added
+    everyone = "Everyone"
+    # UserGroup for non-member guests
+    guests_group = "Guests"
+
+    id = Column(Integer(), primary_key=True, nullable=False)
+    name = Column(String(group_name_max_length), nullable=False)
+
+    @property
+    def members(self):
+        qfilter = (
+            UserGroup.name == Organisation.everyone,
+            UserGroup.organisation_id == self.id
+        )
+        everyone = db.DBSession.query(UserGroup).filter(*qfilter).one()
+        return everyone.members
+
+    @property
+    def guests(self):
+        qfilter = (
+            UserGroup.name == Organisation.guests,
+            UserGroup.organisation_id == self.id
+        )
+        guests = db.DBSession.query(UserGroup).filter(*qfilter).one()
+        return guests.members
+
+
+class Perm(enum.IntEnum):
+    """
+      An Integer Enum which represents components of the access
+      Permission mask applied to a resource.
+    """
+    Read  = 0x1
+    Write = 0x2
+    Share = 0x4
+
+
+class ResourceAccess(Base, Inspect):
+    """
+      Relational type which maps Resource-Type-and-Resource-id combinations
+      to UserGroup-and-access-bitmask pairs.
+    """
+
+    __tablename__ = "tResourceAccess"
+
+    """
+      - int usergroup_id     e.g "{UserGroup.id}"
+      - str resource         e.g "Network", "Project"
+      - int resource_id      e.g "{Network.id}"
+      - Perm access bitmask  e.g "PERM.READ | PERM.WRITE"
+    """
+
+    usergroup_id = Column(Integer(), primary_key=True, nullable=False)
+    resource = Column(String(typename_max_length), primary_key=True, nullable=False)
+    resource_id = Column(Integer(), primary_key=True, nullable=False)
+    access = Column(Integer(), nullable=False)
