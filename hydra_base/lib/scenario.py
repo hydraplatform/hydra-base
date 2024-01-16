@@ -425,12 +425,12 @@ def update_scenario(scenario, update_data=True, update_groups=True, flush=True, 
         datasets = [rs.dataset for rs in scenario.resourcescenarios]
         updated_datasets = data._bulk_insert_data(datasets, user_id, kwargs.get('app_name'))
         for i, r_scen in enumerate(scenario.resourcescenarios):
-            log.info("updating resource scenario...")
+            log.debug("updating resource scenario...")
 
             rscen_i = rsmap.get(r_scen.resource_attr_id)
             _update_resourcescenario(scen, r_scen, r_scen_i=rscen_i, dataset=updated_datasets[i], user_id=user_id, source=kwargs.get('app_name'))
 
-    log.info('Resource Scenarios Updated')
+    log.info('%s Resource Scenarios Updated', len(scenario.resourcescenarios))
 
     #lazy load resource grou items from the DB
     scen.resourcegroupitems
@@ -970,9 +970,21 @@ def bulk_update_resourcedata(scenario_ids, resource_scenarios, **kwargs):
         #this is cast as a string so it can be read into a JSONObject
         res[str(scenario_id)] = []
 
+        #make a lookup dict of all the resource scenarios that already exist from the
+        #ones that have been passed in to avoid querying for every one individually.
+        ra_ids = [rs.resource_attr_id for rs in resource_scenarios]
+        r_scens_i = db.DBSession.query(ResourceScenario).filter(
+                ResourceScenario.scenario_id == scenario_id,
+                ResourceScenario.resource_attr_id.in_(ra_ids)).all()
+        r_scen_dict = dict((rs.resource_attr_id, rs) for rs in r_scens_i)
+
         for rs in resource_scenarios:
             if rs.dataset is not None:
-                updated_rs = _update_resourcescenario(scen_i, rs, user_id=user_id, source=kwargs.get('app_name'))
+                updated_rs = _update_resourcescenario(scen_i,
+                                                      rs,
+                                                      r_scen_i=r_scen_dict.get(rs.resource_attr_id),
+                                                      user_id=user_id,
+                                                      source=kwargs.get('app_name'))
                 #this is cast as a string so it can be read into a JSONObject
                 res[str(scenario_id)].append(updated_rs)
             else:
@@ -1186,7 +1198,7 @@ def assign_value(rs, data_type, val,
 
         #Has this dataset changed?
         if rs.dataset.hash == data_hash:
-            log.debug("Dataset has not changed. Returning.")
+            log.info("Dataset has not changed. Returning.")
             return rs
 
         connected_rs = db.DBSession.query(ResourceScenario).filter(ResourceScenario.dataset_id == rs.dataset.id).all()
@@ -1206,6 +1218,7 @@ def assign_value(rs, data_type, val,
     if update_dataset is True:
         log.info("Updating dataset '%s'", name)
         dataset = data.update_dataset(rs.dataset.id, name, data_type, val, unit_id, metadata, flush=False, **dict(user_id=user_id))
+        log.info("Updated dataset '%s'", name)
         rs.dataset = dataset
         rs.dataset_id = dataset.id
         log.info("Set RS dataset id to %s"%dataset.id)
@@ -1225,12 +1238,7 @@ def assign_value(rs, data_type, val,
 
     db.DBSession.flush()
 
-    newrs = db.DBSession.query(ResourceScenario).filter(
-        ResourceScenario.scenario_id==rs.scenario_id,
-        ResourceScenario.resource_attr_id==rs.resource_attr_id,
-        ResourceScenario.dataset_id==rs.dataset_id).options(joinedload(ResourceScenario.dataset)).one()
-
-    return newrs
+    return rs
 
 @required_perms("edit_data", "edit_network")
 def add_data_to_attribute(scenario_id, resource_attr_id, dataset,**kwargs):
@@ -1419,13 +1427,13 @@ def get_resource_data(ref_key,
         resource_attributes = _get_all_network_resource_attributes(scenario.network_id)
     elif None in (ref_key, ref_id): # One of them is None
         raise HydraError("Unable to get data. Must specify a resource type (ref_key) and resource id (ref_id)")
-    
+
 
     if include_inputs is False or include_outputs is False:
         if include_inputs is False:
             #only include outputs
             resource_attributes = list(filter(lambda x:x.attr_is_var=='Y', resource_attributes))
-        
+
         if include_outputs is False:
             #only include inputs
             resource_attributes = list(filter(lambda x:x.attr_is_var=='N', resource_attributes))

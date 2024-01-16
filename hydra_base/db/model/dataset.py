@@ -149,11 +149,10 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
         if metadata is None:
             metadata = self.get_metadata_as_dict()
 
-        dataset_dict = dict(name      = self.name,
-                           unit_id    = self.unit_id,
-                           type       = self.type,
-                           value      = self.value_ref,
-                           metadata   = metadata)
+        dataset_dict = {'unit_id'   : self.unit_id,
+                        'type'      : self.type,
+                        'value'     : self.value_ref,
+                        'metadata'  : metadata}
 
         data_hash = generate_data_hash(dataset_dict)
 
@@ -163,7 +162,8 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
 
     def get_metadata_as_dict(self):
         metadata = {}
-        for r in self.metadata:
+        sortedmeta = sorted(self.metadata, key=lambda x:x.key)
+        for r in sortedmeta:
             val = str(r.value)
 
             metadata[str(r.key)] = val

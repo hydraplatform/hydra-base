@@ -346,14 +346,9 @@ class Dataset(JSONObject):
         metadata_dict = self.metadata if isinstance(self.metadata, dict) else json.loads(self.metadata)
 
         # These should be set on all datasets by default, but we don't enforce this rigidly
-        metadata_keys = [m.lower() for m in metadata_dict]
-        if user_id is not None and 'user_id' not in metadata_keys:
-            metadata_dict['user_id'] = six.text_type(user_id)
+        metadata_keys = sorted([m for m in metadata_dict])
 
-        if source is not None and 'source' not in metadata_keys:
-            metadata_dict['source'] = six.text_type(source)
-
-        return { k : six.text_type(v) for k, v in metadata_dict.items() }
+        return { k : str(metadata_dict[k]) for k in metadata_keys }
 
 
     def get_hash(self, val, metadata):
@@ -366,11 +361,10 @@ class Dataset(JSONObject):
         else:
             value = val
 
-        dataset_dict = {'name'     : self.name,
-                        'unit_id'     : self.unit_id,
-                        'type'     : self.type.lower(),
+        dataset_dict = {'unit_id'  : self.unit_id,
+                        'type'     : self.type,
                         'value'    : value,
-                        'metadata' : metadata,}
+                        'metadata' : metadata}
 
         data_hash = generate_data_hash(dataset_dict)
 
