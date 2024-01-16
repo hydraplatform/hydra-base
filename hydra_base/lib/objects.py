@@ -346,7 +346,7 @@ class Dataset(JSONObject):
         metadata_dict = self.metadata if isinstance(self.metadata, dict) else json.loads(self.metadata)
 
         # These should be set on all datasets by default, but we don't enforce this rigidly
-        metadata_keys = sorted([m for m in metadata_dict])
+        metadata_keys = sorted([m for m in metadata_dict], key=lambda x:x.lower())
 
         return { k : str(metadata_dict[k]) for k in metadata_keys }
 

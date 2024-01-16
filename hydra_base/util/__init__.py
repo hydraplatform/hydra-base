@@ -26,8 +26,6 @@ import pandas as pd
 import json
 import six
 from .. import config
-import binascii
-import hashlib
 
 from collections import namedtuple
 

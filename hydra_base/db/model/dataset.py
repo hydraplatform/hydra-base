@@ -162,7 +162,7 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
 
     def get_metadata_as_dict(self):
         metadata = {}
-        sortedmeta = sorted(self.metadata, key=lambda x:x.key)
+        sortedmeta = sorted(self.metadata, key=lambda x:x.key.lower())
         for r in sortedmeta:
             val = str(r.value)
 

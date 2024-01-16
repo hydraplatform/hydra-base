@@ -154,7 +154,7 @@ class Project(Base, Inspect, PermissionControlled):
             ProjectOwner.project_id).filter(
                 User.id==ProjectOwner.user_id).filter(
                     ProjectOwner.project_id.in_([p.id for p in child_projects_i])).all()
-        
+
         creators = get_session().query(User.id.label('user_id'), User.display_name).filter(User.id.in_([p.created_by for p in child_projects_i])).all()
         creator_lookup = {u.user_id:JSONObject(u)  for u in creators}
 
@@ -167,8 +167,8 @@ class Project(Base, Inspect, PermissionControlled):
             owner_lookup[o.project_id].append(JSONObject(o))
 
         #Get the inherited owners of the child projects
-        parentowners = []#self.get_owners()
-        
+        parentowners = self.get_owners()
+
         child_projects = []
         for child_proj_i in projects_with_access:
             project = JSONObject(child_proj_i)
