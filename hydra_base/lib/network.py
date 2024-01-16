@@ -1083,6 +1083,7 @@ def get_network(network_id,
                 template_id=None,
                 include_non_template_attributes=False,
                 include_metadata=False,
+                include_topology=True,
                 **kwargs):
     """
         Return a whole network as a dictionary.
@@ -1101,6 +1102,7 @@ def get_network(network_id,
         include_non_template_attribute: Return attributes which are not associated to any template.
         include_metadata (bool): If data is included, then this flag indicates whether to include metadata.
                           Setting this to True may have performance implications
+        include_topology (bool): If true, return the network's nodes, links and groups.
     """
     log.debug("getting network %s"%network_id)
 
@@ -1122,10 +1124,10 @@ def get_network(network_id,
         net_i.check_read_permission(user_id)
 
         net = JSONObject(net_i)
-
-        net.nodes = _get_nodes(network_id, template_id=template_id)
-        net.links = _get_links(network_id, template_id=template_id)
-        net.resourcegroups = _get_groups(network_id, template_id=template_id)
+        if include_topology is True:
+            net.nodes = _get_nodes(network_id, template_id=template_id)
+            net.links = _get_links(network_id, template_id=template_id)
+            net.resourcegroups = _get_groups(network_id, template_id=template_id)
         net.owners = net_i.get_owners()
 
         if include_attributes in ('Y', True):
@@ -1143,7 +1145,6 @@ def get_network(network_id,
             for group_i in net.resourcegroups:
                 group_i.attributes = all_attributes['GROUP'].get(group_i.id, [])
             log.info("Group attributes set")
-
 
         log.info("Setting types")
         all_types = _get_all_templates(network_id, template_id)

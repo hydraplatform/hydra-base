@@ -154,8 +154,8 @@ def update_project(project, **kwargs):
         if parent_id != proj_i.parent_id:
             #check the user has the correct permission to write to the target project
             _get_project(project.parent_id, user_id, check_write=True)
-            proj_i.parent_id = project.parent_id    
-    
+            proj_i.parent_id = project.parent_id
+
     if project.attributes:
         attr_map = hdb.add_resource_attributes(proj_i, project.attributes)
         proj_data = _add_project_attribute_data(proj_i, attr_map, project.attribute_data)
@@ -533,9 +533,9 @@ def clone_project(project_id,
             recipient_user_id (int): The ID of the user who will be granted ownership of the project after cloning.
                 If None, ownership will be granted to the requesting user.
             new_project_name (str): The name of the cloned project. If None, then the project's name will be postfixed with ('Cloned by XXX')
-            new_project_description (str): The description of the cloned project. 
+            new_project_description (str): The description of the cloned project.
                 If None, the current project's description will be used.
-            creator_is_owner (Bool) : The user who creates the network isn't added as an owner 
+            creator_is_owner (Bool) : The user who creates the network isn't added as an owner
                 (won't have an entry in tNetworkOwner and therefore won't see the network in 'get_project')
         returns:
             (int): The ID of the newly created project
@@ -557,8 +557,8 @@ def clone_project(project_id,
     #check a project with this name doesn't already exist:
     project_with_name =  db.DBSession.query(Project).filter(
         Project.name == new_project_name,
-        Project.created_by == user_id).first()
-    
+        Project.created_by == recipient_user_id).first()
+
     if project_with_name is not None:
         if project_with_name.status == 'X':
             now = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -575,7 +575,7 @@ def clone_project(project_id,
     else:
         new_project.description = project.description
 
-    new_project.created_by = user_id
+    new_project.created_by = recipient_user_id
 
     if recipient_user_id is not None and recipient_user_id != user_id:
         project.check_share_permission(user_id)
@@ -618,7 +618,7 @@ def _get_project_hierarchy(project_id, user_id):
     project_hierarchy = [proj]
     if proj.parent_id:
         project_hierarchy = project_hierarchy + _get_project_hierarchy(proj.parent_id, user_id)
-    
+
     return project_hierarchy
 
 def get_project_hierarchy(project_id, **kwargs):
