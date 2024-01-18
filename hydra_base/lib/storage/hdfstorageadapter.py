@@ -56,7 +56,7 @@ class HdfStorageAdapter():
         self.config = self.__class__.get_hdf_config()
         self.filestore_path = self.config.get("hdf_filestore")
         if self.filestore_path and not os.path.exists(self.filestore_path):
-            self.filestore_path = None
+            os.makedirs(self.filestore_path, exist_ok=True)
 
     @staticmethod
     def get_hdf_config(config_key="storage_hdf", **kwargs):

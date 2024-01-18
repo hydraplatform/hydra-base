@@ -310,7 +310,7 @@ def _reassign_scoped_attributes(attr_id, user_id):
         #attribute with the same name and dimension
         assert matching_attrs[0].id == attr_id
         return
- 
+
     #Reassign all resource attributes which point to scoped attirbutes, and then delete
     #the scoped attributes.
     scoped_resource_attrs_qry = db.DBSession.query(ResourceAttr).join(Attr).filter(
@@ -320,7 +320,7 @@ def _reassign_scoped_attributes(attr_id, user_id):
         Attr.id != attr_id
     )
 
-    
+
     """
       If this is a project scoped attribute then we only want to change the scope
       of attributes scoped to networks contained within this project, and leave
@@ -336,7 +336,7 @@ def _reassign_scoped_attributes(attr_id, user_id):
             and any nested projects. This represents the scope within which matching
             network and project attrs will be rescoped to the current attr.
         """
-        
+
         #first look up the hierarchy to see if there is an attribute scoped at a higher level.
 
 
@@ -449,10 +449,27 @@ def add_attribute(attr, check_existing=True, **kwargs):
         attr_qry = db.DBSession.query(Attr).filter(func.lower(Attr.name) == attr.name.lower(),
                                                    Attr.dimension_id == attr.dimension_id)
 
+        #We onluy need these 2 clauses, as the network ID is the lowest possible level
+        #so there is no need for a clause cjhecking for the project id additionallhy,
+        #as the project ID must be the parent of the network ID, so it is redundant
+        #to check explicitly
+        if attr.network_id is not None and attr.project_id is None:
+            #don't just check for attributs scoped to this network but to attributes
+            #scoped to it and all parent projects
+            network_project_ids = _get_projects_referenced_by_network_id(
+                attr.network_id, **kwargs)
 
-        attr_qry = attr_qry.filter(Attr.network_id == attr.network_id)
+            attr_qry = attr_qry.filter(or_(Attr.network_id == attr.network_id,
+                                           Attr.project_id.in_(network_project_ids)
+                                          ))
+        elif attr.project_id is not None:
+            #don't just check for attribtues scoped to this project, but to all
+            #projects in its hierarchy
+            project_project_ids = _get_projects_referenced_by_project_id(
+                attr.project_id, **kwargs)
 
-        attr_qry = attr_qry.filter(Attr.project_id == attr.project_id)
+            attr_qry = attr_qry.filter(or_(Attr.project_id.in_(project_project_ids)))
+
 
         attr_i = attr_qry.one()
 
@@ -530,6 +547,48 @@ def delete_attribute(attr_id, **kwargs):
         raise HydraError("Unable to delete this attribute as it is in use in a Network")
 
 
+def _get_projects_referenced_by_network_id(network_id, **kwargs):
+    """
+        Given a list of network IDS, return the project IDS in which they reside.
+        This is used to determine whether there are attributes defined at the project
+        level, when trying to add an attribute at the network level.
+    """
+    #projects in which the networks reside
+    project_id_rs = db.DBSession.query(Network.project_id).filter(
+        Network.id==network_id).one()
+    project_id = project_id_rs.project_id
+
+    network_project_ids = []
+    #imported here to avoid a circular import
+    from . import project as projectlib
+    #we can't just get the project ID. we need to get the whole hierarchy.
+    hier = projectlib.get_project_hierarchy(project_id, **kwargs)
+    for p in reversed(hier):
+        if p.id not in network_project_ids:
+            network_project_ids.append(p.id)
+
+    return network_project_ids
+
+def _get_projects_referenced_by_project_id(project_id, **kwargs):
+    """
+        Given a list of project IDS, return the project IDS in which they reside.
+        This is used to determine whether there are attributes defined at the project
+        level, when trying to add an attribute at the network level.
+    """
+    #projects in which the networks reside
+
+    #imported here to avoid a circular import
+    from . import project as projectlib
+    #we can't just get the project ID. we need to get the whole hierarchy.
+    parent_project_ids = []
+    hier = projectlib.get_project_hierarchy(project_id, **kwargs)
+    for p in reversed(hier):
+        if p.id not in parent_project_ids:
+            parent_project_ids.append(p.id)
+
+    return parent_project_ids
+
+
 def add_attributes(attrs, **kwargs):
     """
     Add a list of generic attributes, which can then be used in creating
@@ -538,10 +597,14 @@ def add_attributes(attrs, **kwargs):
     .. code-block:: python
 
         (Attr){
-            id = 1020
             name = "Test Attr"
-            dimen = "very big"
+            dimension_id (optional) = 123 # the ID of the relevant dimension. Defaults to None.
+            project_id (optional) = 123,
+            network_id (optional) = 456
         }
+
+    Attributes can only be added to one network / project a a time. Raises a
+    Hydra Error if it finds differet networks or project IDs in the request.
 
     """
 
@@ -556,21 +619,57 @@ def add_attributes(attrs, **kwargs):
 
     #project-scoped attributes
     project_attrs = []
-    project_ids = set([a.project_id for a in filter(lambda x:x.project_id is not None, attrs)])
-    if len(project_ids) > 0:
-        project_attrs = db.DBSession.query(Attr).filter(Attr.project_id.in_(project_ids)).all()
+
+    network_ids = list(set([a.network_id for a in filter(lambda x:x.network_id is not None and x.project_id is None, attrs)]))
+
+    if len(network_ids) > 1:
+        raise HydraError("Cannot bulk add attributes to different networks.")
+
+    #if the attributes are specified with a network ID but not a project ID, then find the
+    #project IDS for those network so we can check if there are
+    #matching attributes scoped to the container projects
+    network_project_ids = []
+    if len(network_ids) > 0:
+        network_project_ids = _get_projects_referenced_by_network_id(network_ids[0], **kwargs)
+
+    #Get all the project IDs specified in the incoming attributes.
+    #Attributes can only ne added to one project at a time
+
+    direct_project_ids = list(set([a.project_id for a in filter(lambda x:x.project_id is not None, attrs)]))
+
+    if len(direct_project_ids) > 1:
+        raise HydraError("Cannot bulk add attributes to different networks.")
+
+    project_ids = []
+    if len(direct_project_ids) > 0:
+        project_ids = _get_projects_referenced_by_project_id(direct_project_ids[0], **kwargs)
+
+    #go top down, saving the attributes, and overwriting the duplicates as we
+    #go down the tree.
+    project_attr_dict = {}
+    seen = []
+    for project_id in project_ids + network_project_ids:
+        #avoid duploicates. Can't use a set nere because order is important
+        if project_id in seen:
+            continue
+        else:
+            seen.append(project_id)
+        project_attrs= db.DBSession.query(Attr).filter(Attr.project_id == project_id).all()
+        for project_attr in project_attrs:
+            project_attr_dict[(project_attr.name, project_attr.dimension)] = project_attr
 
     #network scoped attributes
     network_attrs = []
-    network_ids = set([a.network_id for a in filter(lambda x:x.network_id is not None, attrs)])
     if len(network_ids) > 0:
         network_attrs = db.DBSession.query(Attr).filter(Attr.network_id.in_(network_ids)).all()
 
-    all_attrs = global_attrs + project_attrs + network_attrs
+    all_attrs = global_attrs + list(project_attr_dict.values()) + network_attrs
 
+    #this iterates from the highest scope to the lowst, thus overwriting higher-level
+    #attributes with lower level ones.
     attr_dict = {}
     for attr in all_attrs:
-        attr_dict[(attr.name.lower(), attr.dimension_id, attr.network_id, attr.project_id)] = JSONObject(attr)
+        attr_dict[(attr.name.lower(), attr.dimension_id)] = JSONObject(attr)
 
     attrs_to_add = []
     existing_attrs = []
@@ -578,20 +677,9 @@ def add_attributes(attrs, **kwargs):
         if potential_new_attr is not None:
             # If the attrinute is None we cannot manage it
             log.debug("Adding attribute: %s", potential_new_attr)
-            key = (potential_new_attr.name.lower(), potential_new_attr.dimension_id, potential_new_attr.network_id, potential_new_attr.project_id)
-            projkey = (potential_new_attr.name.lower(), potential_new_attr.dimension_id, None, potential_new_attr.project_id)
-            globalkey = (potential_new_attr.name.lower(), potential_new_attr.dimension_id, None, None)
-
-            #look for the attribute first at the network level
+            key = (potential_new_attr.name.lower(), potential_new_attr.dimension_id)
             if attr_dict.get(key) is not None:
                 existing_attrs.append(attr_dict.get(key))
-                #try at a higher level...
-                #then at project level
-            elif attr_dict.get(projkey) is not None:
-                existing_attrs.append(attr_dict.get(projkey))
-            #then at the global level
-            elif attr_dict.get(globalkey) is not None:
-                existing_attrs.append(attr_dict.get(globalkey))
             else:
                 attrs_to_add.append(JSONObject(potential_new_attr))
 
