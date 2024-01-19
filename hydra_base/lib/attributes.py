@@ -468,7 +468,7 @@ def add_attribute(attr, check_existing=True, **kwargs):
             project_project_ids = _get_projects_referenced_by_project_id(
                 attr.project_id, **kwargs)
 
-            attr_qry = attr_qry.filter(or_(Attr.project_id.in_(project_project_ids)))
+            attr_qry = attr_qry.filter(Attr.project_id.in_(project_project_ids))
 
 
         attr_i = attr_qry.one()
@@ -549,7 +549,7 @@ def delete_attribute(attr_id, **kwargs):
 
 def _get_projects_referenced_by_network_id(network_id, **kwargs):
     """
-        Given a list of network IDS, return the project IDS in which they reside.
+        Given a network ID, return the project IDS in which it resides.
         This is used to determine whether there are attributes defined at the project
         level, when trying to add an attribute at the network level.
     """
@@ -571,7 +571,7 @@ def _get_projects_referenced_by_network_id(network_id, **kwargs):
 
 def _get_projects_referenced_by_project_id(project_id, **kwargs):
     """
-        Given a list of project IDS, return the project IDS in which they reside.
+        Given a project ID, return the project IDS in which it resides.
         This is used to determine whether there are attributes defined at the project
         level, when trying to add an attribute at the network level.
     """
@@ -654,7 +654,7 @@ def add_attributes(attrs, **kwargs):
             continue
         else:
             seen.append(project_id)
-        project_attrs= db.DBSession.query(Attr).filter(Attr.project_id == project_id).all()
+        project_attrs = db.DBSession.query(Attr).filter(Attr.project_id == project_id).all()
         for project_attr in project_attrs:
             project_attr_dict[(project_attr.name, project_attr.dimension)] = project_attr
 

@@ -620,6 +620,8 @@ class TestScopedAttribute:
 
         new_attributes = client.add_attributes([global_attr, network_scoped_attr, project_scoped_attr])
 
+        new_project_attr = list(filter(lambda x:x.project_id==network_with_data.project_id, new_attributes))[0]
+
         scoped_ids = [a.id for a in new_attributes]
 
         #Now add the attribute which is scoped to the project, to the network
@@ -633,9 +635,5 @@ class TestScopedAttribute:
         new_attributes = client.add_attributes([duplicate_network_scoped_attr])
 
         #should return an existing scoped attribute (the project one)
-        assert new_attributes[0].id in scoped_ids
-
-        new_attribute = client.add_attribute(duplicate_network_scoped_attr)
-
-        #should return an existing scoped attribute (the project one)
-        assert new_attribute.id in scoped_ids
+        assert len(new_attributes) == 1
+        assert new_attributes[0].id == new_project_attr.id
