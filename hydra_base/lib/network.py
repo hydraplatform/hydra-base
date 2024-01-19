@@ -2983,7 +2983,7 @@ def _clone_node(
 
     node_to_clone = db.DBSession.query(Node).filter(Node.id==node_id).one()
 
-    log.info('Cloning Network...')
+    log.info('Cloning Node...')
 
     newnode = Node()
 
