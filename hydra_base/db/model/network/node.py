@@ -22,7 +22,6 @@ from .resource import Resource
 
 __all__ = ['Node']
 
-<<<<<<< HEAD
 class Node(Base, Inspect, Resource, AuditMixin):
     """
     """
