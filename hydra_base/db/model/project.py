@@ -60,7 +60,7 @@ class Project(Base, Inspect, PermissionControlled, AuditMixin):
     parent_id = Column(Integer(), ForeignKey('tProject.id'), nullable=True)
     parent = relationship('Project', remote_side=[id],
         backref=backref("children", order_by=id))
-    
+
     template = relationship("ProjectTemplate")
 
     _parents  = []
@@ -342,7 +342,7 @@ class Project(Base, Inspect, PermissionControlled, AuditMixin):
                 parent_project_ids.append(p.parent_id)
 
         cls._build_user_cache_up_tree(uid, parent_project_ids, project_user_cache)
-    
+
     def get_attribute_data(self):
         attribute_data_rs = get_session().query(ResourceScenario).join(ResourceAttr).filter(
             ResourceAttr.project_id==self.id).all()
@@ -476,8 +476,8 @@ class Project(Base, Inspect, PermissionControlled, AuditMixin):
             Associate this project with a template
         """
 
-        self.template = [ProjectTemplate(template_id=template_id,
-                                        project_id=self.id)]
+        self.template = ProjectTemplate(template_id=template_id,
+                                        project_id=self.id)
 
 
     def get_template(self):
@@ -487,12 +487,12 @@ class Project(Base, Inspect, PermissionControlled, AuditMixin):
 
         project_template_i = get_session().query(ProjectTemplate).filter(
             ProjectTemplate.project_id == self.id).first()
-        
+
         if project_template_i is None:
             return None
 
         template_name = get_session().query(Template.name).filter(
                 Template.id==project_template_i.template_id).one()
-        
-        return JSONObject({'id': project_template_i.template_id, 
+
+        return JSONObject({'id': project_template_i.template_id,
                            'name': template_name.name})
