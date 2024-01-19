@@ -449,10 +449,10 @@ def add_attribute(attr, check_existing=True, **kwargs):
         attr_qry = db.DBSession.query(Attr).filter(func.lower(Attr.name) == attr.name.lower(),
                                                    Attr.dimension_id == attr.dimension_id)
 
-        #We onluy need these 2 clauses, as the network ID is the lowest possible level
-        #so there is no need for a clause cjhecking for the project id additionallhy,
-        #as the project ID must be the parent of the network ID, so it is redundant
-        #to check explicitly
+        # We only need these 2 clauses, as the network ID is the lowest possible level
+        # so there is no need for a clause checking for the project id additionally,
+        # as the project ID must be the parent of the network ID, so it is redundant
+        # to check explicitly
         if attr.network_id is not None and attr.project_id is None:
             #don't just check for attributs scoped to this network but to attributes
             #scoped to it and all parent projects
