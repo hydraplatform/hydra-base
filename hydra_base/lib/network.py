@@ -2945,7 +2945,7 @@ def clone_nodes(
     """
      Create an exact clone of the specified nodes, including attributes and data
      Args:
-        node_id: The ID of the node to clone
+        node_ids: An iterable of node ids to clone
         include_outputs (bool): Flag to indicate whether output attributes and data should be cloned
         names (str): The names of the new nodes. Defaults to the names of the old nodes plus (x) after, like "The Node (1)".
                     If this is not null, there MUST be a name specified for each new node.
@@ -3041,7 +3041,7 @@ def _clone_node(
 
     node_to_clone = db.DBSession.query(Node).filter(Node.id==node_id).one()
 
-    log.info('Cloning Network...')
+    log.info('Cloning Node...')
 
     newnode = Node()
 
