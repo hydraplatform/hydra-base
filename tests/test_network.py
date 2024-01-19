@@ -1252,7 +1252,7 @@ class TestNetwork:
         cloned_node_data = list(filter(lambda x: x.resource_attr_id in [a.id for a in cloned_node_2.attributes],
                                        scenario.resourcescenarios))
 
-        assert len(cloned_node_data) == len(original_node_data) #has no outputs, so has one less dataset
+        assert len(cloned_node_data) == len(original_node_data)
 
         with pytest.raises(hb.exceptions.HydraError):
             cloned_node_id_3 = client.clone_node(node_to_clone.id, name=network_with_data.nodes[1].name)
