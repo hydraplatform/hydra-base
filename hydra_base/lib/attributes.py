@@ -463,8 +463,8 @@ def add_attribute(attr, check_existing=True, **kwargs):
                                            Attr.project_id.in_(network_project_ids)
                                           ))
         elif attr.project_id is not None:
-            #don't just check for attribtues scoped to this project, but to all
-            #projects in its hierarchy
+            # don't just check for attributes scoped to this project, but to all
+            # projects in its hierarchy
             project_project_ids = _get_projects_referenced_by_project_id(
                 attr.project_id, **kwargs)
 
