@@ -604,7 +604,7 @@ def add_attributes(attrs, **kwargs):
         }
 
     Attributes can only be added to one network / project a a time. Raises a
-    Hydra Error if it finds differet networks or project IDs in the request.
+    Hydra Error if it finds different networks or project IDs in the request.
 
     """
 
