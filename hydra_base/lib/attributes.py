@@ -638,7 +638,7 @@ def add_attributes(attrs, **kwargs):
     direct_project_ids = list(set([a.project_id for a in filter(lambda x:x.project_id is not None, attrs)]))
 
     if len(direct_project_ids) > 1:
-        raise HydraError("Cannot bulk add attributes to different networks.")
+        raise HydraError("Cannot bulk add attributes to different projects.")
 
     project_ids = []
     if len(direct_project_ids) > 0:
