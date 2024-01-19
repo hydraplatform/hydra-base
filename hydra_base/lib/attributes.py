@@ -649,7 +649,7 @@ def add_attributes(attrs, **kwargs):
     project_attr_dict = {}
     seen = []
     for project_id in project_ids + network_project_ids:
-        #avoid duploicates. Can't use a set nere because order is important
+        #  avoid duplicates. Can't use a set here because order is important
         if project_id in seen:
             continue
         else:
