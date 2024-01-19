@@ -637,3 +637,7 @@ class TestScopedAttribute:
         #should return an existing scoped attribute (the project one)
         assert len(new_attributes) == 1
         assert new_attributes[0].id == new_project_attr.id
+
+        new_attribute = client.add_attribute(duplicate_network_scoped_attr)
+
+        assert new_attribute.id == new_project_attr.id
