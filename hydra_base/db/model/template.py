@@ -248,7 +248,7 @@ class Template(Base, Inspect, AuditMixin):
             child_types = []
             type_tree = {}
 
-        #Add resource attributes which are not defined already, and which are unscopped to a
+        #Add resource attributes which are not defined already, and which are unscoped to a
         #network or project.
         types_i = get_session().query(TemplateType).filter(
             TemplateType.template_id == self.id,
