@@ -19,10 +19,11 @@
 from ..base import *
 
 from .resourceattr import ResourceAttr
+from .resource import Resource
 
 __all__ = ['Link']
 
-class Link(Base, Inspect, AuditMixin):
+class Link(Base, Inspect, Resource, AuditMixin):
     """
     """
 

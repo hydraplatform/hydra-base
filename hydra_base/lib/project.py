@@ -183,7 +183,7 @@ def move_project(project_id, target_project_id, **kwargs):
 
     #check the user has the correct permission to write to the target project
     _get_project(target_project_id, user_id, check_write=True)
-    
+
     check_can_move_project(project_id, target_project_id)
 
     proj_i.parent_id = target_project_id
@@ -273,7 +273,7 @@ def get_project(project_id, include_deleted_networks=False, **kwargs):
 @required_perms('get_project')
 def get_all_networks(project_id, include_deleted_networks=False, **kwargs):
     """
-        Get all the networks in the project, in all its sub-projects 
+        Get all the networks in the project, in all its sub-projects
         Args:
             project_id (int): The ID of the project
             include_deleted_networks (bool): Include networks with the status 'X'. False by default
@@ -282,7 +282,7 @@ def get_all_networks(project_id, include_deleted_networks=False, **kwargs):
     """
     user_id = kwargs.get('user_id')
     log.info("Getting project %s", project_id)
-    
+
     proj_i = _get_project(project_id, user_id)
 
     networks = proj_i.get_networks(
@@ -396,6 +396,7 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
     nav_projects = []
     for nav_project_i in nav_projects_i:
         nav_project_j = JSONObject(nav_project_i)
+        nav_project_j.nav_only = True
         nav_project_j.owners = []
         nav_project_j.networks = []
         nav_projects.append(nav_project_j)
@@ -597,7 +598,7 @@ def clone_project(project_id,
     #check a project with this name doesn't already exist:
     project_with_name =  db.DBSession.query(Project).filter(
         Project.name == new_project_name,
-        Project.created_by == user_id).first()
+        Project.created_by == recipient_user_id).first()
 
     if project_with_name is not None:
         if project_with_name.status == 'X':
@@ -615,7 +616,7 @@ def clone_project(project_id,
     else:
         new_project.description = project.description
 
-    new_project.created_by = user_id
+    new_project.created_by = recipient_user_id
 
     if recipient_user_id is not None and recipient_user_id != user_id:
         project.check_share_permission(user_id)
@@ -651,21 +652,17 @@ def clone_project(project_id,
     return new_project.id
 
 
-def get_project_hierarchy(project_id, user_id):
+def get_project_hierarchy(project_id, **kwargs):
     """
         Return a list of project-ids which represent the links in the chain up to the root project
         [project_id, parent_id, parent_parent_id ...etc]
         If the project has no parent, return [project_id]
     """
+    user_id = kwargs.get('user_id')
     proj = JSONObject(_get_project(project_id, user_id=user_id))
 
     project_hierarchy = [proj]
     if proj.parent_id:
-        project_hierarchy = project_hierarchy + get_project_hierarchy(proj.parent_id, user_id)
+        project_hierarchy = project_hierarchy + get_project_hierarchy(proj.parent_id, **kwargs)
 
     return project_hierarchy
-
-@required_perms("get_project")
-def get_all_networks(project_id, user_id):
-    """
-    """

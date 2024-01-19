@@ -387,16 +387,31 @@ class TestScopedAttribute:
         proj_user = client.user_id
         proj1 = projectmaker.create(share=False)
 
-        net1 = networkmaker.create(project_id=proj1.id)
-        net2 = networkmaker.create(project_id=proj1.id)
+        proj1net1 = networkmaker.create(project_id=proj1.id)
+        proj1net2 = networkmaker.create(project_id=proj1.id)
 
-        net_scoped_attr = client.add_attribute({'network_id': net1.id,'name': 'test_scoped_attr'})
+        #Add a child project which is at the same level as proj1net1/
+        childproj = projectmaker.create(share=False, parent_id=proj1.id)
+        childprojnet1 = networkmaker.create(project_id=childproj.id)
+
+
+        proj2 = projectmaker.create(share=False)
+
+        proj2net1 = networkmaker.create(project_id=proj2.id)
+
+        net_scoped_attr = client.add_attribute({'network_id': proj1net1.id,'name': 'test_scoped_attr'})
+        childproj_scoped_attr = client.add_attribute({'project_id': childproj.id,'name': 'test_scoped_attr'})
         #safety net to make sure it's been added properly
         net_scoped_attr = client.get_attribute_by_id(attr_id=net_scoped_attr.id)
+        childproj_scoped_attr = client.get_attribute_by_id(attr_id=childproj_scoped_attr.id)
 
-        new_ra = client.add_resource_attribute('NODE', net1.nodes[0].id, net_scoped_attr.id, is_var=False)
+        #Make sure they've been addded properly
+        assert  net_scoped_attr.network_id == proj1net1.id
+        assert  childproj_scoped_attr.project_id == childproj.id
 
-        assert  net_scoped_attr.network_id == net1.id
+        #Add a resource attribute to both the child network and child project
+        new_network_ra = client.add_resource_attribute('NODE', proj1net1.nodes[0].id, net_scoped_attr.id, is_var=False)
+        new_child_project_ra = client.add_resource_attribute('NODE', childprojnet1.nodes[0].id, childproj_scoped_attr.id, is_var=False)
 
         #now add an attribute with the same name at the project level, thus creating a potential
         #duplication
@@ -405,14 +420,19 @@ class TestScopedAttribute:
         with pytest.raises(HydraError):
             client.get_attribute_by_id(attr_id=net_scoped_attr.id)
 
+        with pytest.raises(HydraError):
+            _ = client.get_attribute_by_id(attr_id=childproj_scoped_attr.id)
+
         #check it has been rescoped
         assert newly_scoped_attr.project_id == proj1.id
 
-        updated_ra = client.get_resource_attribute(new_ra.id)
+        updated_network_ra = client.get_resource_attribute(new_network_ra.id)
+        updated_child_project_ra = client.get_resource_attribute(new_child_project_ra.id)
 
-        assert updated_ra.attr_id == newly_scoped_attr.id
+        assert updated_network_ra.attr_id == newly_scoped_attr.id
+        assert updated_child_project_ra.attr_id == newly_scoped_attr.id
 
-        matching_attributes = client.search_attributes('test_scoped', network_id=net1.id)
+        matching_attributes = client.search_attributes('test_scoped', network_id=proj1net1.id)
 
         assert len(matching_attributes) == 1 # the default scoped attrs plus this one.
 
@@ -420,6 +440,24 @@ class TestScopedAttribute:
 
         assert matching_attributes[0].id == newly_scoped_attr.id
 
+        proj2_net_scoped_attr_ = client.add_attribute({'network_id': proj2net1.id,'name': 'test_scoped_attr'})
+        #safety net to make sure it's been added properly
+        proj2_net_scoped_attr = client.get_attribute_by_id(attr_id=proj2_net_scoped_attr_.id)
+        new_ra = client.add_resource_attribute('NODE', proj2net1.nodes[0].id, proj2_net_scoped_attr.id, is_var=False)
+        assert  proj2_net_scoped_attr.network_id == proj2net1.id
+
+        #now add an attribute with the same name at the project level, thus creating a potential
+        #duplication
+        proj2_newly_scoped_attr = client.add_attribute({'project_id': proj2.id,'name': 'test_scoped_attr'})
+
+        with pytest.raises(HydraError):
+            _ = client.get_attribute_by_id(attr_id=proj2_net_scoped_attr.id)
+
+        #check it has been rescoped
+        assert proj2_newly_scoped_attr.project_id == proj2.id
+
+        proj2_scoped_attr = client.get_attribute_by_id(attr_id=proj2_newly_scoped_attr.id)
+        assert proj2_scoped_attr != newly_scoped_attr
 
     def test_different_projects_same_name_attributes(self, client, projectmaker, networkmaker):
         """

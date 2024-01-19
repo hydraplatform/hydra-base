@@ -28,12 +28,13 @@ from ..attributes import Attr
 from . import Link
 from . import Node
 from . import ResourceGroup
+from .resource import Resource
 
 __all__ = ['Network']
 
 
 
-class Network(Base, Inspect, PermissionControlled, AuditMixin):
+class Network(Base, Inspect, PermissionControlled, Resource, AuditMixin):
     """
     """
 
@@ -191,12 +192,13 @@ class Network(Base, Inspect, PermissionControlled, AuditMixin):
         """
             Check whether this user can read this network
         """
-        can_read = super(Network, self).check_read_permission(user_id, do_raise=do_raise, is_admin=is_admin)
+
+        can_read = super(Network, self).check_read_permission(user_id, do_raise=False, is_admin=is_admin)
 
         if can_read is True:
             return True
 
-        can_read = self.project.check_read_permission(user_id)
+        can_read = self.project.check_read_permission(user_id, do_raise=False)
 
         if can_read is False and do_raise is True:
             raise PermissionError("Permission denied. User %s does not have read"
@@ -209,7 +211,7 @@ class Network(Base, Inspect, PermissionControlled, AuditMixin):
         """
             Check whether this user can write this project
         """
-        can_write = super(Network, self).check_write_permission(user_id, do_raise=do_raise, is_admin=is_admin)
+        can_write = super(Network, self).check_write_permission(user_id, do_raise=False, is_admin=is_admin)
 
         if can_write is True:
             return True
@@ -244,7 +246,7 @@ class Network(Base, Inspect, PermissionControlled, AuditMixin):
             Get all the attributes scoped to this project, and to all projects above
             it in the project hierarchy (including global attributes if requested)
             args:
-                include_hierarchy (Bool): Include attribtues from projects higher up in the 
+                include_hierarchy (Bool): Include attribtues from projects higher up in the
                     project hierarchy
         """
 
@@ -262,7 +264,7 @@ class Network(Base, Inspect, PermissionControlled, AuditMixin):
                 include_hierarchy=True, name_match=name_match))
 
         if return_json is True:
-            
+
             scoped_attrs_j = [JSONObject(a) for a in scoped_attrs]
             #This is for convenience to avoid having to do extra calls to get the network name
             for a in scoped_attrs_j:

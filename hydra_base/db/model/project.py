@@ -103,7 +103,9 @@ class Project(Base, Inspect, PermissionControlled, AuditMixin):
 
         owners_by_network = defaultdict(list)
         for owner in all_owners:
-            owners_by_network[owner.network_id].append(owner)
+            owners_by_network[owner.network_id].append(JSONObject(owner))
+
+        project_owners = self.get_owners()
 
         #for efficiency, get all the scenarios in 1 query and sort them by network
         all_scenarios = get_session().query(Scenario)\
@@ -120,6 +122,12 @@ class Project(Base, Inspect, PermissionControlled, AuditMixin):
 
             net_j = JSONObject(net_i)
             net_j.owners = owners_by_network[net_j.id]
+            owner_ids = [no.user_id for no in owners_by_network[net_j.id]]
+            #include inherited owners from the project ownership for this project
+            for proj_owner in project_owners:
+                if proj_owner.user_id not in owner_ids:
+                    proj_owner.source = f'Inherited from: {self.name} (ID:{self.id})'
+                    net_j.owners.append(proj_owner)
             net_j.scenarios = scenarios_by_network[net_j.id]
             networks.append(net_j)
 
@@ -142,21 +150,39 @@ class Project(Base, Inspect, PermissionControlled, AuditMixin):
             if child_proj_i.check_read_permission(user_id, do_raise=False) is True:
                 projects_with_access.append(child_proj_i)
 
-        owners = get_session().query(ProjectOwner).filter(ProjectOwner.project_id.in_([p.id for p in child_projects_i])).all()
-        creators = get_session().query(User.id, User.username, User.display_name).filter(User.id.in_([p.created_by for p in child_projects_i])).all()
-        creator_lookup = {u.id:JSONObject(u)  for u in creators}
+        project_lookup = {p.id:p for p in child_projects_i}
+
+        owners = get_session().query(
+            User.id.label('user_id'), User.display_name,
+            ProjectOwner.project_id).filter(
+                User.id==ProjectOwner.user_id).filter(
+                    ProjectOwner.project_id.in_([p.id for p in child_projects_i])).all()
+
+        creators = get_session().query(User.id.label('user_id'), User.display_name).filter(User.id.in_([p.created_by for p in child_projects_i])).all()
+        creator_lookup = {u.user_id:JSONObject(u)  for u in creators}
+
         owner_lookup = defaultdict(list)
         for p in child_projects_i:
             owner_lookup[p.id] = [creator_lookup[p.created_by]]
         for o in owners:
-            if o.user_id == p.created_by:
+            if o.user_id == project_lookup[o.project_id].created_by:
                 continue
-            owner_lookup[o.project_id].append(o)
+            owner_lookup[o.project_id].append(JSONObject(o))
+
+        #Get the inherited owners of the child projects
+        parentowners = self.get_owners()
 
         child_projects = []
         for child_proj_i in projects_with_access:
             project = JSONObject(child_proj_i)
             project.owners = owner_lookup.get(project.id, [])
+            owner_ids = [o.user_id for o in project.owners]
+            #add any inherited owners to the child projects.
+            for parentowner in parentowners:
+                if parentowner.user_id not in owner_ids:
+                    parentowner.source = f"Inherited from {parentowner.project_name} (ID:{parentowner.project_id})"
+                    project.owners.append(parentowner)
+
             project.networks = child_proj_i.get_networks(
                 user_id,
                 include_deleted_networks=include_deleted_networks)
