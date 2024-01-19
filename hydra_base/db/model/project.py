@@ -342,7 +342,6 @@ class Project(Base, Inspect, PermissionControlled, AuditMixin):
                 parent_project_ids.append(p.parent_id)
 
         cls._build_user_cache_up_tree(uid, parent_project_ids, project_user_cache)
-    
     def get_attribute_data(self):
         attribute_data_rs = get_session().query(ResourceScenario).join(ResourceAttr).filter(
             ResourceAttr.project_id==self.id).all()
