@@ -454,8 +454,8 @@ def add_attribute(attr, check_existing=True, **kwargs):
         # as the project ID must be the parent of the network ID, so it is redundant
         # to check explicitly
         if attr.network_id is not None and attr.project_id is None:
-            #don't just check for attributs scoped to this network but to attributes
-            #scoped to it and all parent projects
+            # don't just check for attributes scoped to this network but to attributes
+            # scoped to it and all parent projects
             network_project_ids = _get_projects_referenced_by_network_id(
                 attr.network_id, **kwargs)
 
