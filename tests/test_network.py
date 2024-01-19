@@ -973,7 +973,7 @@ class TestNetwork:
                                                         exclude_data_types=[datatype],
                                                         include_values=True)
             for rd in all_resource_data:
-                assert rd.dataset.type != datatype 
+                assert rd.dataset.type != datatype
                 assert rd.dataset.value is not None
                 assert int(rd.resource_attr_id) in node_ras
 
@@ -981,7 +981,7 @@ class TestNetwork:
                                                         include_data_types=[datatype],
                                                         include_values=True)
             for rd in all_resource_data:
-                assert rd.dataset.type == datatype 
+                assert rd.dataset.type == datatype
                 assert rd.dataset.value is not None
                 assert int(rd.resource_attr_id) in node_ras
 
@@ -1256,7 +1256,7 @@ class TestNetwork:
 
         with pytest.raises(hb.exceptions.HydraError):
             cloned_node_id_3 = client.clone_node(node_to_clone.id, name=network_with_data.nodes[1].name)
-        
+
         name = "Cloned node"
         x = 100
         y = -100
@@ -1292,3 +1292,25 @@ class TestNetwork:
                                         scenario.resourcescenarios))
 
             assert len(cloned_node_data) == len(original_node_data)-1 #has no outputs, so has one less dataset
+
+
+    def test_cloned_node_name_similarity(self, client, network_with_data):
+
+        node_to_clone = network_with_data.nodes[0]
+
+        updated_similar_name = node_to_clone.name + ' extratext'
+
+        update_node = network_with_data.nodes[1]
+        update_node.name = updated_similar_name
+
+        client.update_node(update_node)
+
+        cloned_node_ids = client.clone_nodes([node_to_clone.id])
+
+        changed_name_node = client.get_node(update_node.id)
+
+        assert changed_name_node.name ==  updated_similar_name
+
+        cloned_node = client.get_node(cloned_node_ids[0])
+
+        assert cloned_node.name == f"{node_to_clone.name} (1)"

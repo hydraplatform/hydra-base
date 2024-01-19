@@ -21,6 +21,7 @@ import datetime
 import time
 import json
 import six
+import re
 
 from ..exceptions import HydraError, ResourceNotFoundError
 from . import scenario, rules
@@ -2650,7 +2651,7 @@ def get_all_resource_data(
         page_start=None,
         page_end=None,
         include_values=True,
-        **kwargs):    
+        **kwargs):
     """
         A function which returns the data for all resources in a network.
         -
@@ -2915,7 +2916,7 @@ def clone_node(node_id,
         name (str): The name of the new node. Defaults to the name of the old node plus (x) after, like "The Node (1)"
         newx (float): The X-coordinate of the new node. Defaults to the coordinate of the node being cloned.
         newy (float): The Y-coordinate of the new node. Defaults to the coordinate of the node being cloned.
-        
+
     """
 
     user_id = kwargs['user_id']
@@ -2946,7 +2947,7 @@ def clone_nodes(
      Args:
         node_id: The ID of the node to clone
         include_outputs (bool): Flag to indicate whether output attributes and data should be cloned
-        names (str): The names of the new node. Defaults to the name of the old node plus (x) after, like "The Node (1)". 
+        names (str): The names of the new nodes. Defaults to the names of the old nodes plus (x) after, like "The Node (1)".
                     If this is not null, there MUST be a name specified for each new node.
         new_x_list (float): The X-coordinates of the new nodes.
                             If this is not null, there MUST be an X coordinate for every new node
@@ -2957,6 +2958,14 @@ def clone_nodes(
     user_id = kwargs['user_id']
 
     node_net = db.DBSession.query(Network).filter(Network.id==Node.network_id, Node.id==node_ids[0]).one()
+
+    #verify that the lengths of the lists are equal
+    if None not in (new_x_list, new_y_list) and len(new_x_list) != len(new_y_list):
+        raise HydraError("Unable to clone nodes. The list of x coordinates must match the length of y coordinates")
+
+    if names is not None and len(names) != len(new_x_list):
+        raise HydraError("Unable to clone nodes. A name must be specified for each cloned node, or the names argument must be None. ")
+
 
     node_net.check_write_permission(user_id)
     cloned_ids = []
@@ -2969,8 +2978,57 @@ def clone_nodes(
                 new_x = new_x_list[i] if new_x_list else None,
                 new_y = new_y_list[i] if new_y_list else None)
         cloned_ids.append(cloned_id)
-    
+
     return cloned_ids
+
+def _make_cloned_node_name(network_id, node_name):
+    """
+    Get the closest node name in the spoecified network to the node specified.
+    For example:
+        "Bury_wtw" would be similar to "Bury_wtw_East", "Bury_wtw_South", etc,
+        so this would return 'Bury_wtw', as it is the closest match.
+        Additionally, "Bury_wtw (1) would be closer than "Bury_wtw (10)"
+
+
+    If node name ends in ([0-9]+) then increment any match to be the next free number
+    If node to clone doesn't end in ([0-9]+) then add the next free number in this format
+
+    """
+    #if the node to clone ends with '(number)' like 'Bury_wtw (1)'
+    pattern = r'\((\d+)\)'
+    node_base_name = node_name
+    match = re.search(pattern, node_name)
+    if match:
+        node_base_name = node_name.replace(match.group(0))
+
+    #get all the nodes which match either 'Bury_wrw' or 'Bury_wtw (X)'
+    similar_names = db.DBSession.query(Node.name).filter(
+        Node.network_id==network_id,
+        or_(Node.name == node_base_name,
+        Node.name.regexp_match(f'{node_base_name} \((\d+)\)'))
+    ).all()
+
+
+    #the node name is already unique so just use it
+    if len(similar_names) == 0:
+        return node_name
+
+    #go through all the matching names and find the one with the highest
+    #number in parentheses. ex of 'Bury_wtw (1)' and 'Bury_wtw (10), return 11.
+    highest_num = 0
+    for n in similar_names:
+        name = n.name
+        match = re.search(f"\((\d+)\)", name)
+        if match:
+            if int(match.group(1)) > highest_num:
+                highest_num = int(match.group(1))
+
+    next_num = highest_num + 1
+
+    new_node_name = f"{node_base_name} ({next_num})"
+
+    return new_node_name
+
 
 def _clone_node(
         node_id,
@@ -3002,20 +3060,20 @@ def _clone_node(
             raise HydraError(f"A node with name {name} already exists in this network.")
         newnode.name = name
     else:
-        oldname = node_to_clone.name
-        num_similar_names = db.DBSession.query(Node).filter(
-            Node.network_id==node_net.id,
-            Node.name.like(f"{node_to_clone.name}%")
-        ).all()
+        newnode.name = _make_cloned_node_name(node_net.id, node_to_clone.name)
 
-        newname = f"{oldname} ({len(num_similar_names)})"
-        newnode.name = newname
 
     if new_x is not None:
-        newnode.x = new_x
+        try:
+            newnode.x = float(new_x)
+        except TypeError:
+            raise HydraError(f"Unable to clone node {name}. Coordinate {new_x} must be numeric.")
 
     if new_y is not None:
-        newnode.y = new_y
+        try:
+            newnode.y = float(new_y)
+        except TypeError:
+            raise HydraError(f"Unable to clone node {name}. Coordinate {new_y} must be numeric.")
 
     db.DBSession.add(newnode)
     db.DBSession.flush()
@@ -3060,7 +3118,7 @@ def _clone_node(
     db.DBSession.bulk_insert_mappings(ResourceType, new_resourcetypes)
     db.DBSession.flush()
 
-    log.info('Cloning Data')    
+    log.info('Cloning Data')
     rscen_to_clone_qry = db.DBSession.query(ResourceScenario).filter(
         ResourceScenario.scenario_id == Scenario.id,
         ResourceScenario.resource_attr_id == ResourceAttr.id,
@@ -3081,7 +3139,7 @@ def _clone_node(
 
     log.info("Inserting new resource scenarios")
     db.DBSession.bulk_insert_mappings(ResourceScenario, new_rscens)
-    
+
     log.info("Cloning rules")
     node_rules = db.DBSession.query(Rule).join(Node).filter(
         Node.id==node_id).all()
