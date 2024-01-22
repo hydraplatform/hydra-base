@@ -1314,3 +1314,15 @@ class TestNetwork:
         cloned_node = client.get_node(cloned_node_ids[0])
 
         assert cloned_node.name == f"{node_to_clone.name} (1)"
+
+        second_cloned_node_ids = client.clone_nodes([node_to_clone.id])
+
+        second_cloned_node = client.get_node(second_cloned_node_ids[0])
+
+        assert second_cloned_node.name == f"{node_to_clone.name} (2)"
+
+        third_cloned_node_ids = client.clone_nodes([node_to_clone.id])
+
+        third_cloned_node = client.get_node(third_cloned_node_ids[0])
+
+        assert third_cloned_node.name == f"{node_to_clone.name} (3)"
