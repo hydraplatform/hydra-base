@@ -2995,9 +2995,9 @@ def _make_cloned_node_name(network_id, node_name):
 
     """
     #if the node to clone ends with '(number)' like 'Bury_wtw (1)'
-    pattern = r'\((\d+)\)'
+    pattern = re.compile(r'\((\d+)\)$')
     node_base_name = node_name
-    match = re.search(pattern, node_name)
+    match = pattern.search(node_name)
     if match:
         node_base_name = node_name.replace(match.group(0))
 
@@ -3005,7 +3005,7 @@ def _make_cloned_node_name(network_id, node_name):
     similar_names = db.DBSession.query(Node.name).filter(
         Node.network_id==network_id,
         or_(Node.name == node_base_name,
-        Node.name.regexp_match(f'{node_base_name} \((\d+)\)'))
+        Node.name.regexp_match(f'{node_base_name} {pattern.pattern}'))
     ).all()
 
 
@@ -3018,7 +3018,7 @@ def _make_cloned_node_name(network_id, node_name):
     highest_num = 0
     for n in similar_names:
         name = n.name
-        match = re.search(f"\((\d+)\)", name)
+        match = pattern.search(name)
         if match:
             if int(match.group(1)) > highest_num:
                 highest_num = int(match.group(1))
