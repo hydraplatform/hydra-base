@@ -16,14 +16,11 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
-import logging
 import json
 import pytest
+from datetime import datetime
 from hydra_base.lib.objects import JSONObject
 from hydra_base.exceptions import HydraError
-
-LOG = logging.getLogger(__name__)
-
 
 class TestProjectTemplates:
     """
@@ -70,7 +67,7 @@ class TestProjectTemplates:
         p = client.get_project(project_id=project_j.id)
 
         assert p.template == None
-        
+
 
     def test_remove_template_from_project_with_network(self, client):
         """
@@ -80,7 +77,7 @@ class TestProjectTemplates:
         """
 
         template_j = client.testutils.create_template()
-        project_j = client.testutils.create_project()
+        project_j = client.testutils.create_project(f"Test project {datetime.now()}")
 
         client.add_project_template(project_id=project_j.id,
                                     template_id=template_j.id)
@@ -92,14 +89,14 @@ class TestProjectTemplates:
 
         #add a network using this type
         client.testutils.create_network_with_data(project_id=project_j.id,
-                                                  template=template_j)        
+                                                  template=template_j)
 
         #Can not delete the template - project association because there is a network
         #in the project using that type.
         with pytest.raises(HydraError):
             client.delete_project_template(project_id=project_j.id,
                                            template_id=template_j.id)
-            
+
 
     def test_add_project_template_in_add_project(self, client):
         """

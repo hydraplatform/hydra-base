@@ -61,7 +61,7 @@ class Project(Base, Inspect, PermissionControlled, AuditMixin):
     parent = relationship('Project', remote_side=[id],
         backref=backref("children", order_by=id))
 
-    template = relationship("ProjectTemplate")
+    template = relationship("ProjectTemplate", uselist=False)
 
     _parents  = []
     _children = ['tNetwork']
@@ -476,8 +476,8 @@ class Project(Base, Inspect, PermissionControlled, AuditMixin):
             Associate this project with a template
         """
 
-        self.template = ProjectTemplate(template_id=template_id,
-                                        project_id=self.id)
+        self.template = ProjectTemplate(template_id = template_id,
+                                        project_id = self.id)
 
 
     def get_template(self):
@@ -496,3 +496,51 @@ class Project(Base, Inspect, PermissionControlled, AuditMixin):
 
         return JSONObject({'id': project_template_i.template_id,
                            'name': template_name.name})
+
+    def get_hierarchy(self):
+        """
+            Return a list of project-ids which represent the links in the chain up to the root project
+            [project_id, parent_id, parent_parent_id ...etc]
+            If the project has no parent, return [project_id]
+        """
+
+        hierarchy = [self]
+
+        if self.parent_id:
+            hierarchy = hierarchy + self.parent.get_hierarchy()
+
+        return hierarchy
+
+
+    def get_all_networks(self, user_id, levels=10, include_deleted_networks=False):
+        """
+            Get all the networks in the project, in all its sub-projects
+            Args:
+                project_id (int): The ID of the project
+                include_deleted_networks (bool): Include networks with the status 'X'. False by default
+                levels: How many levels deep do we look? Defaults to 10, but it highly recommended to
+                        use fewer levels.
+            returns:
+                (list)JSONObjects of the networks contained in the project and its sub-projects.
+        """
+        networks = self.get_networks(
+            user_id,
+            include_deleted_networks=include_deleted_networks)
+
+        for child_project in self.get_child_projects(
+            user_id,
+            include_deleted_networks = include_deleted_networks,
+            levels=levels):
+
+            childproj_networks = child_project.get_all_networks(
+                                    child_project.id,
+                                    include_deleted_networks=include_deleted_networks)
+
+            networks = network + childproj_networks
+
+
+        log.info("%s networks retrieved", len(networks))
+
+        return networks
+
+

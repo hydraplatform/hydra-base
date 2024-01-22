@@ -182,9 +182,9 @@ def move_project(project_id, target_project_id, **kwargs):
     proj_i = _get_project(project_id, user_id, check_write=True)
 
     #check the user has the correct permission to write to the target project
-    _get_project(target_project_id, user_id, check_write=True)
+    target_project_i = _get_project(target_project_id, user_id, check_write=True)
 
-    check_can_move_project(project_id, target_project_id)
+    check_can_move_project(project_id, target_project_i)
 
     proj_i.parent_id = target_project_id
 
@@ -271,12 +271,14 @@ def get_project(project_id, include_deleted_networks=False, **kwargs):
 
 
 @required_perms('get_project')
-def get_all_networks(project_id, include_deleted_networks=False, **kwargs):
+def get_all_networks(project_id, include_deleted_networks=False, levels=10, **kwargs):
     """
         Get all the networks in the project, in all its sub-projects
         Args:
             project_id (int): The ID of the project
             include_deleted_networks (bool): Include networks with the status 'X'. False by default
+            levels: How many levels deep do we look? Defaults to 10, but it highly recommended to
+                    use fewer levels.
         returns:
             (list)JSONObjects of the networks contained in the project and its sub-projects.
     """
@@ -285,21 +287,13 @@ def get_all_networks(project_id, include_deleted_networks=False, **kwargs):
 
     proj_i = _get_project(project_id, user_id)
 
-    networks = proj_i.get_networks(
-        user_id,
-        include_deleted_networks=include_deleted_networks)
-
-    for child_project in proj_i.get_child_projects(
-        user_id,
-        include_deleted_networks=include_deleted_networks):
-        childproj_networks  = child_project.get_all_networks(child_project.id,
-                                                             include_deleted_networks=include_deleted_networks)
-        networks = network + childproj_networks
-
+    networks = proj_i.get_all_networks(user_id,
+                                       levels=levels,
+                                       include_deleted_networks=include_deleted_networks)
 
     log.info("%s networks retrieved", len(networks))
 
-    return networks
+    return [JSONObject(n) for n in networks]
 
 @required_perms('get_project')
 def get_project_by_network_id(network_id, **kwargs):
@@ -659,10 +653,8 @@ def get_project_hierarchy(project_id, **kwargs):
         If the project has no parent, return [project_id]
     """
     user_id = kwargs.get('user_id')
-    proj = JSONObject(_get_project(project_id, user_id=user_id))
+    proj_i = _get_project(project_id, user_id=user_id)
 
-    project_hierarchy = [proj]
-    if proj.parent_id:
-        project_hierarchy = project_hierarchy + get_project_hierarchy(proj.parent_id, **kwargs)
+    project_hierarchy = proj_i.get_hierarchy()
 
-    return project_hierarchy
+    return [JSONObject(p) for p in project_hierarchy]

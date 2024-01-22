@@ -1153,7 +1153,7 @@ def _update_templatetype(templatetype, existing_tt=None, auto_delete=False, **kw
             #scope the types correctly if the parent is scoped.
             if templatetype.project_id is not None:
                 typeattr.project_id = templatetype.project_id
-            if templatetype.network_id is not None:
+            elif templatetype.network_id is not None:
                 typeattr.network_id = templatetype.network_id
 
             if typeattr.attr_id in ta_dict:
@@ -1230,7 +1230,7 @@ def get_templatetype(type_id, project_id=None, network_id=None, include_parent_d
     templatetype = db.DBSession.query(TemplateType).filter(
         TemplateType.id == type_id).options(noload(TemplateType.typeattrs)).one()
     templatetype_j = JSONObject(templatetype)
-    
+
     typeattrs_i = db.DBSession.query(TypeAttr).filter(TypeAttr.type_id == type_id).all()
     templatetype_j.typeattrs = [JSONObject(ta) for ta in typeattrs_i]
 
@@ -1243,7 +1243,7 @@ def get_templatetype(type_id, project_id=None, network_id=None, include_parent_d
 
     #then get the type, but this time with inherited data.
     inherited_templatetype = template_i.get_type(type_id)
-    
+
     #piggy-back on the code that gets the scoping data for all scoped types
     scoped_templatetypes = template_i.get_scoped_types([inherited_templatetype],
                                             project_id=project_id,

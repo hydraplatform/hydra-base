@@ -85,7 +85,7 @@ class Template(Base, Inspect, AuditMixin):
     def set_modified_columns(self, parent, child, table):
         """
             Set the value on the column of a target parent.
-            This checks if the value is null on the child, and sets it from
+            This checks if the value is null on the child, and sets it onto
             the parent if not
         """
         modified_columns = []
@@ -350,6 +350,120 @@ class Template(Base, Inspect, AuditMixin):
 
         return child_types
 
+
+    def _get_project_scoped_types(self, project_id):
+
+        if project_id is None:
+            return []
+
+        #starting from the root project, keep applying any template changes which have
+        #been applied down the chain of projects
+        from hydra_base.lib.project import get_project_hierarchy
+        project_hierarchy = get_project_hierarchy(project_id, user_id=1)
+        project_hierarchy.reverse() # default is bottom up. start from the top down
+
+        project_scoped_types = []
+
+        for project_j in project_hierarchy:
+            #get all the project-scoped type template types
+            project_types_i = self.scoped_type_qry.filter(
+                    TemplateType.project_id==project_j.id).all()
+
+            for project_type_j in [JSONObject(t) for t in project_types_i]:
+
+                if project_type_j.id in self._type_lookup:
+                    continue
+
+                if project_type_j.parent_id is None:
+                    project_scoped_types.append(project_type_j)
+                    self._type_lookup[project_type_j.id] = project_type_j
+                else:
+                    self.set_modified_columns(self._type_lookup[project_type_j.parent_id], project_type_j, TemplateType)
+
+
+            project_typeattrs_i = self.scoped_typeattrs_qry.filter(TypeAttr.project_id==project_j.id).all()
+
+            for project_typeattr_j in [JSONObject(t) for t in project_typeattrs_i]:
+                if project_typeattr_j.type_id not in self._type_lookup:
+                    #Check whether this typeattr has been scoped to a type higher up the hierarchy
+                    scoped_type = get_session().query(TemplateType).filter(TemplateType.id==project_typeattr_j.type_id).one()
+                    if scoped_type.parent_id in self._type_lookup:
+                        #a scoped type ID is the type ID which is being scoped to the project. This needs to be set
+                        #explicitly so that any scoped type attributes can be added against the correct type ID
+                        project_typeattr_j.scoped_type_id = scoped_type.parent_id
+                    else:
+                        continue
+
+                #If a typeattr scoped type ID has been set, it means the typeattr has been added
+                #to a scoped type rather than a global type
+                if project_typeattr_j.scoped_type_id is not None:
+                    self._type_lookup[project_typeattr_j.scoped_type_id].typeattrs.append(project_typeattr_j)
+                    self._typeattr_lookup[project_typeattr_j.id] = project_typeattr_j
+                elif project_typeattr_j.parent_id is None:
+                    #if this is not a child typeattribute (it has no a parent), then add it to the typeattrs
+                    #of the project type
+                    self._type_lookup[project_typeattr_j.type_id].typeattrs.append(project_typeattr_j)
+                    self._typeattr_lookup[project_typeattr_j.id] = project_typeattr_j
+                else:
+                    #this is a child type, so find its parent typeattribute and modify it
+                    #to reflect the changes made in the child
+                    self.set_modified_columns(self._typeattr_lookup[project_typeattr_j.parent_id], project_typeattr_j, TypeAttr)
+
+        return project_scoped_types
+
+    def _get_network_scoped_types(self, network_id):
+
+        if network_id is None:
+            return []
+
+        network_scoped_types = []
+
+        #get all template types scoped to the network
+        network_types_i = self.scoped_type_qry.filter(TemplateType.network_id==network_id).all()
+
+        for network_type_j in [JSONObject(t) for t in network_types_i]:
+            #In case the scoped type has been included in the list of incoming types, avoid adding
+            #it twice.
+            if network_type_j.id in self._type_lookup:
+                continue
+
+            if network_type_j.parent_id is None:
+                network_scoped_types.append(network_type_j)
+                self._type_lookup[network_type_j.id] = network_type_j
+            else:
+                self.set_modified_columns(self._type_lookup[network_type_j.parent_id], network_type_j, TemplateType)
+
+        network_typeattrs_i = self.scoped_typeattrs_qry.filter(TypeAttr.network_id==network_id).all()
+
+
+        for network_typeattr_j in [JSONObject(t) for t in network_typeattrs_i]:
+            if network_typeattr_j.type_id not in self._type_lookup:
+                #Check whether this typeattr has been scoped to a type higher up the hierarchy
+                scoped_type = get_session().query(TemplateType).filter(TemplateType.id==network_typeattr_j.type_id).one()
+                if scoped_type.parent_id in self._type_lookup:
+                    #a scoped type ID is the type ID which is being scoped to the network. This needs to be set
+                    #explicitly so that any scoped type attributes can be added against the correct type ID
+                    network_typeattr_j.scoped_type_id = scoped_type.parent_id
+                else:
+                    continue
+
+            if network_typeattr_j.scoped_type_id is not None:
+                #If a typeattr scoped type ID has been set, it means the typeattr has been added
+                #to a scoped type rather than a global type
+                t = self._type_lookup[network_typeattr_j.scoped_type_id].typeattrs.append(network_typeattr_j)
+                self._typeattr_lookup[network_typeattr_j.id] = network_typeattr_j
+            elif network_typeattr_j.parent_id is None:
+                #if this is not a child typeattribute (it has no a parent), then add it to the typeattrs
+                #of the network type
+                t = self._type_lookup[network_typeattr_j.type_id].typeattrs.append(network_typeattr_j)
+                self._typeattr_lookup[network_typeattr_j.id] = network_typeattr_j
+            else:
+                #this is a child type, so find its parent typeattribute and modify it
+                #to reflect the changes made in the child
+                self.set_modified_columns(self._typeattr_lookup[network_typeattr_j.parent_id], network_typeattr_j, TypeAttr)
+
+        return network_scoped_types
+
     def get_scoped_types(self, template_types, project_id=None, network_id=None):
         """
             given a json template, add in new types or update template types which have been scoped
@@ -358,114 +472,34 @@ class Template(Base, Inspect, AuditMixin):
         log.info("Getting scoped Template Types..")
 
         if project_id is not None or network_id is not None:
-            _type_lookup = {t.id:t for t in template_types}
-            _typeattr_lookup = {}
+            self._type_lookup = {t.id:t for t in template_types}
+            self._typeattr_lookup = {}
             for t in template_types:
                 for ta in t.typeattrs:
-                    _typeattr_lookup[ta.id] = ta
+                    self._typeattr_lookup[ta.id] = ta
 
 
-        #find all template types scoped to this project, both those which are new in this project
-        #and those which extend existing types in the scope of this project
-        if project_id is not None:
-            #starting from the root project, keep applying any template changes which have
-            #been applied down the chain of projects
-            from hydra_base.lib.project import get_project_hierarchy
-            project_hierarchy =get_project_hierarchy(project_id, user_id=1)
-            project_hierarchy.reverse() # default is bottom up. start from the top down
-            for project_j in project_hierarchy:
-                project_types_i = get_session().query(TemplateType).filter(
-                    TemplateType.template_id == self.id).filter(
-                        TemplateType.project_id==project_j.id).options(
-                            noload(TemplateType.typeattrs)).all()
+        self.scoped_type_qry =  get_session().query(TemplateType).filter(
+                    TemplateType.template_id == self.id).options(
+                    noload(TemplateType.typeattrs))
 
-                for project_type_j in [JSONObject(t) for t in project_types_i]:
-
-                    if project_type_j.id in _type_lookup:
-                        continue
-
-                    if project_type_j.parent_id is None:
-                        template_types.append(project_type_j)
-                        _type_lookup[project_type_j.id] = project_type_j
-                    else:
-                        self.set_modified_columns(_type_lookup[project_type_j.parent_id], project_type_j, TemplateType)
-
-                project_typeattrs_i = get_session().query(TypeAttr)\
+        self.scoped_typeattrs_qry =  get_session().query(TypeAttr)\
                 .filter(TypeAttr.type_id == TemplateType.id)\
                 .filter(TemplateType.template_id == self.id)\
-                .filter(TypeAttr.project_id==project_j.id)\
                 .options(joinedload(TypeAttr.attr))\
-                .options(joinedload(TypeAttr.default_dataset)).all()
+                .options(joinedload(TypeAttr.default_dataset))
 
-                for project_typeattr_j in [JSONObject(t) for t in project_typeattrs_i]:
-                    if project_typeattr_j.type_id not in _type_lookup:
-                        #Check whether this typeattr has been scoped to a type higher up the hierarchy 
-                        type = get_session().query(TemplateType).filter(TemplateType.id==project_typeattr_j.type_id).one()
-                        if type.parent_id in _type_lookup:
-                            #a scoped type ID is the type ID which is being scoped to the project. This needs to be set
-                            #explicitly so that any scoped type attributes can be added against the correct type ID
-                            project_typeattr_j.scoped_type_id = type.parent_id
-                        else:
-                            continue
-                    if project_typeattr_j.scoped_type_id is not None:
-                        t = _type_lookup[project_typeattr_j.scoped_type_id].typeattrs.append(project_typeattr_j)
-                        _typeattr_lookup[project_typeattr_j.id] = project_typeattr_j
-                    elif project_typeattr_j.parent_id is None:
-                        t = _type_lookup[project_typeattr_j.type_id].typeattrs.append(project_typeattr_j)
-                        _typeattr_lookup[project_typeattr_j.id] = project_typeattr_j
-                    else:
-                        for tt in template_types:
-                            for ta in tt.typeattrs:
-                                if ta.id == project_typeattr_j.parent_id:
-                                    self.set_modified_columns(ta, project_typeattr_j, TypeAttr)
-                                    break
+        #find all template types scoped to this project, both those which are
+        #new in this project
+        #and those which extend existing types in the scope of this project
+        #find all template types scoped to this network, both those
+        #which are new in this network
+        project_scoped_types = self._get_project_scoped_types(project_id)
 
-        #find all template types scoped to this network, both those which are new in this network
         #and those which extend existing types in the scope of this network
-        if network_id is not None:
-            network_types_i = get_session().query(TemplateType).filter(
-                TemplateType.template_id == self.id)\
-            .filter(TemplateType.network_id==network_id)\
-            .options(noload(TemplateType.typeattrs)).all()
+        network_scoped_types = self._get_network_scoped_types(network_id)
 
-            for network_type_j in [JSONObject(t) for t in network_types_i]:
-                #In case the scoped type has been included in the list of incoming types, avoid adding
-                #it twice.
-                if network_type_j.id in _type_lookup:
-                    continue
-
-                if network_type_j.parent_id is None:
-                    template_types.append(network_type_j)
-                    _type_lookup[network_type_j.id] = network_type_j
-                else:
-                    self.set_modified_columns(_type_lookup[network_type_j.parent_id], network_type_j, TemplateType)
-
-            network_typeattrs_i = get_session().query(TypeAttr)\
-                .filter(TypeAttr.type_id == TemplateType.id)\
-                .filter(TemplateType.template_id==self.id)\
-                .filter(TypeAttr.network_id==network_id)\
-                .options(joinedload(TypeAttr.attr))\
-                .options(joinedload(TypeAttr.default_dataset)).all()
-            for network_typeattr_j in [JSONObject(t) for t in network_typeattrs_i]:
-                if network_typeattr_j.type_id not in _type_lookup:
-                    #Check whether this typeattr has been scoped to a type higher up the hierarchy 
-                    type = get_session().query(TemplateType).filter(TemplateType.id==network_typeattr_j.type_id).one()
-                    if type.parent_id in _type_lookup:
-                        #a scoped type ID is the type ID which is being scoped to the network. This needs to be set
-                        #explicitly so that any scoped type attributes can be added against the correct type ID
-                        network_typeattr_j.scoped_type_id = type.parent_id
-                    else:
-                        continue
-                if network_typeattr_j.scoped_type_id is not None:
-                    t = _type_lookup[network_typeattr_j.scoped_type_id].typeattrs.append(network_typeattr_j)
-                    _typeattr_lookup[network_typeattr_j.id] = network_typeattr_j
-                elif network_typeattr_j.parent_id is None:
-                    t = _type_lookup[network_typeattr_j.type_id].typeattrs.append(network_typeattr_j)
-                    _typeattr_lookup[network_typeattr_j.id] = network_typeattr_j
-                else:
-                    self.set_modified_columns(_typeattr_lookup[network_typeattr_j.parent_id], network_typeattr_j, TypeAttr)
-
-        return template_types
+        return template_types + project_scoped_types + network_scoped_types
 
 class TemplateType(Base, Inspect, AuditMixin):
     """
