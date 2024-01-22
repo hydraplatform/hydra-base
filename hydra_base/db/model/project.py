@@ -482,7 +482,7 @@ class Project(Base, Inspect, PermissionControlled, AuditMixin):
 
     def get_template(self):
         """
-            Get the templates associated to this project
+            Get the template associated to this project
         """
 
         project_template_i = get_session().query(ProjectTemplate).filter(

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # (c) Copyright 2013 to 2020 University of Manchester
 #
 # HydraPlatform is free software: you can redistribute it and/or modify
