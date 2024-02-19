@@ -399,7 +399,7 @@ class Template(Base, Inspect, AuditMixin):
 
                 for project_typeattr_j in [JSONObject(t) for t in project_typeattrs_i]:
                     if project_typeattr_j.type_id not in _type_lookup:
-                        #Check whether this typeattr has been scoped to a type higher up the hierarchy 
+                        #Check whether this typeattr has been scoped to a type higher up the hierarchy
                         type = get_session().query(TemplateType).filter(TemplateType.id==project_typeattr_j.type_id).one()
                         if type.parent_id in _type_lookup:
                             #a scoped type ID is the type ID which is being scoped to the project. This needs to be set
@@ -448,7 +448,7 @@ class Template(Base, Inspect, AuditMixin):
                 .options(joinedload(TypeAttr.default_dataset)).all()
             for network_typeattr_j in [JSONObject(t) for t in network_typeattrs_i]:
                 if network_typeattr_j.type_id not in _type_lookup:
-                    #Check whether this typeattr has been scoped to a type higher up the hierarchy 
+                    #Check whether this typeattr has been scoped to a type higher up the hierarchy
                     type = get_session().query(TemplateType).filter(TemplateType.id==network_typeattr_j.type_id).one()
                     if type.parent_id in _type_lookup:
                         #a scoped type ID is the type ID which is being scoped to the network. This needs to be set
@@ -802,7 +802,8 @@ class ResourceType(Base, Inspect, AuditMixin):
 
 class ProjectTemplate(Base, Inspect, AuditMixin):
     """
-        ProjectTemplate. A table which defines which templates are available within a given project.
+        ProjectTemplate. A table which defines which templates are
+        available within a given project.
     """
 
     __tablename__ = 'tProjectTemplate'
@@ -810,6 +811,8 @@ class ProjectTemplate(Base, Inspect, AuditMixin):
     id = Column(Integer(), primary_key=True, nullable=False)
     template_id = Column(Integer(), ForeignKey('tTemplate.id'))
     project_id = Column(Integer(), ForeignKey('tProject.id'))
+
+    project = relationship("Project", backref=backref("templates", uselist=True))
 
     _parents = []
     _children = []

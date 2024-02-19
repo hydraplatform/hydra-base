@@ -374,7 +374,7 @@ class TestUtil:
             project.description = "Project which contains all unit test networks"
             project.parent_id = parent_id
             if template_id is not None:
-                project.template = JSONObject({'id': template_id})
+                project.templates = [JSONObject({'template_id': template_id})]
             project = JSONObject(self.client.add_project(project))
             if share is True:
                 self.client.share_project(
@@ -467,7 +467,7 @@ class TestUtil:
         nodetypedict = {}
         linkindex = 0
         for nodeindex in range(num_nodes):
-            #iterate through all the node types.    
+            #iterate through all the node types.
             node_type = nodetypes[(numnodetypes - nodeindex % numnodetypes) - 1]
             nodetypedict[node_type.id] = node_type
             node = self.create_node(nodeindex*-1, node_name="Node %s"%(nodeindex))
@@ -512,9 +512,9 @@ class TestUtil:
                     prev_node['name'],
                     node['id'],
                     prev_node['id'])
-                
+
                 link_type = linktypes[(numlinktypes - linkindex % numlinktypes) - 1]
-                
+
                 linkattributes = []
                 for typeattr in link_type.typeattrs:
                     link_ra = JSONObject(dict(

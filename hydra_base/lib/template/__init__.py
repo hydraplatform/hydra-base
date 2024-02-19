@@ -62,7 +62,7 @@ from hydra_base.lib.template.resource import (get_types_by_attr,
     validate_network)
 
 from hydra_base.lib.template.project import(
-    get_project_template,
+    get_project_templates,
     add_project_template,
     delete_project_template
 )
@@ -1230,7 +1230,7 @@ def get_templatetype(type_id, project_id=None, network_id=None, include_parent_d
     templatetype = db.DBSession.query(TemplateType).filter(
         TemplateType.id == type_id).options(noload(TemplateType.typeattrs)).one()
     templatetype_j = JSONObject(templatetype)
-    
+
     typeattrs_i = db.DBSession.query(TypeAttr).filter(TypeAttr.type_id == type_id).all()
     templatetype_j.typeattrs = [JSONObject(ta) for ta in typeattrs_i]
 
@@ -1243,7 +1243,7 @@ def get_templatetype(type_id, project_id=None, network_id=None, include_parent_d
 
     #then get the type, but this time with inherited data.
     inherited_templatetype = template_i.get_type(type_id)
-    
+
     #piggy-back on the code that gets the scoping data for all scoped types
     scoped_templatetypes = template_i.get_scoped_types([inherited_templatetype],
                                             project_id=project_id,

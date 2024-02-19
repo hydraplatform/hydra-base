@@ -60,8 +60,7 @@ class Project(Base, Inspect, PermissionControlled, AuditMixin):
     parent_id = Column(Integer(), ForeignKey('tProject.id'), nullable=True)
     parent = relationship('Project', remote_side=[id],
         backref=backref("children", order_by=id))
-    
-    template = relationship("ProjectTemplate")
+
 
     _parents  = []
     _children = ['tNetwork']
@@ -316,7 +315,7 @@ class Project(Base, Inspect, PermissionControlled, AuditMixin):
                 parent_project_ids.append(p.parent_id)
 
         cls._build_user_cache_up_tree(uid, parent_project_ids, project_user_cache)
-    
+
     def get_attribute_data(self):
         attribute_data_rs = get_session().query(ResourceScenario).join(ResourceAttr).filter(
             ResourceAttr.project_id==self.id).all()
@@ -450,23 +449,28 @@ class Project(Base, Inspect, PermissionControlled, AuditMixin):
             Associate this project with a template
         """
 
-        self.template = [ProjectTemplate(template_id=template_id,
-                                        project_id=self.id)]
+        project_template = ProjectTemplate(
+            project_id=self.id,
+            template_id=template_id)
 
+        self.templates.append(project_template)
 
-    def get_template(self):
+        get_session().add(project_template)
+
+    def get_templates(self):
         """
             Get the templates associated to this project
         """
 
-        project_template_i = get_session().query(ProjectTemplate).filter(
-            ProjectTemplate.project_id == self.id).first()
-        
-        if project_template_i is None:
-            return None
+        project_templates_i = get_session().query(ProjectTemplate).filter(
+            ProjectTemplate.project_id == self.id).all()
 
-        template_name = get_session().query(Template.name).filter(
-                Template.id==project_template_i.template_id).one()
-        
-        return JSONObject({'id': project_template_i.template_id, 
-                           'name': template_name.name})
+        project_templates_j = []
+        for project_template_i in project_templates_i:
+            template_name = get_session().query(Template.name).filter(
+                    Template.id==project_template_i.template_id).one()
+
+            project_templates_j.append(JSONObject({'id': project_template_i.template_id,
+                           'name': template_name.name}))
+
+        return project_templates_j

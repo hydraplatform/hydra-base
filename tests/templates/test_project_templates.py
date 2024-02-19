@@ -40,13 +40,13 @@ class TestProjectTemplates:
 
         client.add_project_template(project_id=project_j.id, template_id=template_j.id)
 
-        pt = client.get_project_template(project_id=project_j.id, template_id=template_j.id)
+        pts = client.get_project_templates(project_id=project_j.id, template_id=template_j.id)
 
-        assert pt.project_id == project_j.id
+        assert pts[0].project_id == project_j.id
 
         p = client.get_project(project_id=project_j.id)
 
-        assert p.template.id == template_j.id
+        assert p.templates[0].id == template_j.id
 
     def test_remove_project_template(self, client):
         """
@@ -58,19 +58,20 @@ class TestProjectTemplates:
 
         client.add_project_template(project_id=project_j.id, template_id=template_j.id)
 
-        pt = client.get_project_template(project_id=project_j.id, template_id=template_j.id)
+        pts = client.get_project_templates(project_id=project_j.id, template_id=template_j.id)
 
-        assert pt.project_id == project_j.id
+        assert pts[0].project_id == project_j.id
 
         client.delete_project_template(project_id=project_j.id, template_id=template_j.id)
 
-        with pytest.raises(HydraError):
-            client.get_project_template(project_id=project_j.id, template_id=template_j.id)
+        pts = client.get_project_templates(project_id=project_j.id, template_id=template_j.id)
+
+        assert len(pts) == 0
 
         p = client.get_project(project_id=project_j.id)
 
-        assert p.template == None
-        
+        assert p.templates == []
+
 
     def test_remove_template_from_project_with_network(self, client):
         """
@@ -85,21 +86,21 @@ class TestProjectTemplates:
         client.add_project_template(project_id=project_j.id,
                                     template_id=template_j.id)
 
-        pt = client.get_project_template(project_id=project_j.id,
+        pts = client.get_project_templates(project_id=project_j.id,
                                          template_id=template_j.id)
 
-        assert pt.project_id == project_j.id
+        assert pts[0].project_id == project_j.id
 
         #add a network using this type
         client.testutils.create_network_with_data(project_id=project_j.id,
-                                                  template=template_j)        
+                                                  template=template_j)
 
         #Can not delete the template - project association because there is a network
         #in the project using that type.
         with pytest.raises(HydraError):
             client.delete_project_template(project_id=project_j.id,
                                            template_id=template_j.id)
-            
+
 
     def test_add_project_template_in_add_project(self, client):
         """
@@ -111,11 +112,11 @@ class TestProjectTemplates:
         project_j = client.testutils.create_project(name="Unittest Project with template",
                                                     template_id=template_j.id)
 
-        pt = client.get_project_template(project_id=project_j.id,
+        pts = client.get_project_templates(project_id=project_j.id,
                                          template_id=template_j.id)
 
-        assert pt.project_id == project_j.id
+        assert pts[0].project_id == project_j.id
 
         p = client.get_project(project_id=project_j.id)
 
-        assert p.template.id == template_j.id
+        assert p.templates[0].id == template_j.id

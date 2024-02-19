@@ -118,9 +118,9 @@ def add_project(project, **kwargs):
 
     proj_i.set_owner(user_id)
 
-    if project.template is not None:
-        proj_i.add_template(project.template.id)
-
+    if project.templates is not None:
+        for proj_template in project.templates:
+            proj_i.add_template(proj_template.template_id)
 
     db.DBSession.add(proj_i)
     db.DBSession.flush()
@@ -183,7 +183,7 @@ def move_project(project_id, target_project_id, **kwargs):
 
     #check the user has the correct permission to write to the target project
     _get_project(target_project_id, user_id, check_write=True)
-    
+
     check_can_move_project(project_id, target_project_id)
 
     proj_i.parent_id = target_project_id
@@ -250,7 +250,7 @@ def get_project(project_id, include_deleted_networks=False, **kwargs):
 
     proj_j.owners = proj_i.get_owners()
 
-    proj_j.template = proj_i.get_template()
+    proj_j.templates = proj_i.get_templates()
 
     proj_j.nav_only = nav_only
 
@@ -273,7 +273,7 @@ def get_project(project_id, include_deleted_networks=False, **kwargs):
 @required_perms('get_project')
 def get_all_networks(project_id, include_deleted_networks=False, **kwargs):
     """
-        Get all the networks in the project, in all its sub-projects 
+        Get all the networks in the project, in all its sub-projects
         Args:
             project_id (int): The ID of the project
             include_deleted_networks (bool): Include networks with the status 'X'. False by default
@@ -282,7 +282,7 @@ def get_all_networks(project_id, include_deleted_networks=False, **kwargs):
     """
     user_id = kwargs.get('user_id')
     log.info("Getting project %s", project_id)
-    
+
     proj_i = _get_project(project_id, user_id)
 
     networks = proj_i.get_networks(
