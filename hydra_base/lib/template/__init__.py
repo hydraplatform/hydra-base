@@ -1153,7 +1153,7 @@ def _update_templatetype(templatetype, existing_tt=None, auto_delete=False, **kw
             #scope the types correctly if the parent is scoped.
             if templatetype.project_id is not None:
                 typeattr.project_id = templatetype.project_id
-            if templatetype.network_id is not None:
+            elif templatetype.network_id is not None:
                 typeattr.network_id = templatetype.network_id
 
             if typeattr.attr_id in ta_dict:
@@ -1250,7 +1250,7 @@ def get_templatetype(type_id, project_id=None, network_id=None, include_parent_d
                                             network_id=network_id)
 
     #having applied the scoping changes to all scoped types, extract the one we want and return it.
-    scoped_inherited_templatetype = list(filter(lambda x:x.id==inherited_templatetype.id, scoped_templatetypes))[0]
+    scoped_inherited_templatetype = next(filter(lambda x:x.id==inherited_templatetype.id, scoped_templatetypes))
 
     return scoped_inherited_templatetype
 

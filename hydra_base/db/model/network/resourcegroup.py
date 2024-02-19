@@ -19,10 +19,11 @@
 from ..base import *
 
 from .resourceattr import ResourceAttr
+from .resource import Resource
 
 __all__ = ['ResourceGroup']
 
-class ResourceGroup(Base, Inspect, AuditMixin):
+class ResourceGroup(Base, Inspect, Resource, AuditMixin):
     """
     """
 

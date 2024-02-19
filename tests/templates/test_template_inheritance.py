@@ -594,7 +594,7 @@ class TestTemplateInheritance:
         templatetype_to_scope = template_j.templatetypes[0]
 
         #Add a type to the child
-        templatetype_j = client.testutils.create_scoped_templatetype(
+        _ = client.testutils.create_scoped_templatetype(
             template_j.id,
             templatetype_to_scope.id,
             project.id)
@@ -610,7 +610,7 @@ class TestTemplateInheritance:
         template_project_scoped = client.get_template(template_j.id, project.id)
         for templatetype in template_project_scoped.templatetypes:
             if templatetype.name == templatetype_to_scope.name:
-                #Check that the scoped temoplate data takes precdence over
+                #Check that the scoped temoplate data takes precedence over
                 #the higher level parent data.
                 assert templatetype.layout == {"color": "red", "shapefile": "blah.shp"}
                 break
@@ -851,7 +851,7 @@ class TestTemplateInheritance:
             network_scoped_templatetype_j.id,
             typeattr_id=None, # we're creating a new typeattr, not extending an existing one.
             network_id=network.id)
-        
+
         #The scoped template type shoul dhave the typeattr
         network_scoped_templatetype_j = client.get_templatetype(type_id=network_scoped_templatetype_j.id,
                                                                 project_id=project.id,

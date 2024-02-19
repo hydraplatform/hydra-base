@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # (c) Copyright 2013 to 2020 University of Manchester
 #
 # HydraPlatform is free software: you can redistribute it and/or modify
@@ -16,14 +14,11 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
-import logging
 import json
 import pytest
+from datetime import datetime
 from hydra_base.lib.objects import JSONObject
 from hydra_base.exceptions import HydraError
-
-LOG = logging.getLogger(__name__)
-
 
 class TestProjectTemplates:
     """
@@ -81,7 +76,7 @@ class TestProjectTemplates:
         """
 
         template_j = client.testutils.create_template()
-        project_j = client.testutils.create_project()
+        project_j = client.testutils.create_project(f"Test project {datetime.now()}")
 
         client.add_project_template(project_id=project_j.id,
                                     template_id=template_j.id)
