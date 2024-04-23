@@ -58,6 +58,24 @@ class HdfStorageAdapter():
         if self.filestore_path and not os.path.exists(self.filestore_path):
             os.makedirs(self.filestore_path, exist_ok=True)
 
+    def _get_anon(self):
+        """
+            If there are AWS credentials present in the environment, 
+            then assume that this user will be not anonymous
+        """
+
+        self.accesskeyid = os.getenv('AWS_ACCESS_KEY_ID')
+        self.secretaccesskey = os.getenv('AWS_SECRET_ACCESS_KEY')
+        if self.accesskeyid is not None and self.secretaccesskey is not None:
+            return False
+
+        home = os.getenv('HOME')
+        #If there is a credentials file, then assume the user is not anonymous
+        if os.path.exists(os.path.join(home, '.aws', 'credentials')):
+            return False
+
+        return True
+
     @staticmethod
     def get_hdf_config(config_key="storage_hdf", **kwargs):
         numeric = ()
@@ -74,7 +92,7 @@ class HdfStorageAdapter():
     @filestore_url("url")
     def open_hdf_url(self, url, **kwargs):
         try:
-            with fsspec.open(url, mode='rb', anon=True, default_fill_cache=True) as fp:
+            with fsspec.open(url, mode='rb', anon=self._get_anon(), default_fill_cache=True) as fp:
                 return h5py.File(fp.fs.open(url), mode='r')
         except (ClientError, FileNotFoundError, PermissionError) as e:
             raise ValueError(f"Unable to access url: {url}") from e
@@ -96,7 +114,7 @@ class HdfStorageAdapter():
     def file_exists_at_url(self, url, **kwargs):
         try:
             url = self.url_to_filestore_path(url)
-            with fsspec.open(url, mode='rb', anon=True, default_fill_cache=False) as fp:
+            with fsspec.open(url, mode='rb', anon=self._get_anon(), default_fill_cache=False) as fp:
                 return fp.fs.exists(url)
         except (ValueError, FileNotFoundError, PermissionError):
             return False
@@ -149,7 +167,7 @@ class HdfStorageAdapter():
 
     @filestore_url("url")
     def file_size(self, url, **kwargs):
-        with fsspec.open(url, mode='rb', anon=True, default_fill_cache=False) as fp:
+        with fsspec.open(url, mode='rb', anon=self._get_anon(), default_fill_cache=False) as fp:
             size_bytes = fp.fs.size(fp.path)
         return size_bytes
 
@@ -220,7 +238,7 @@ class HdfStorageAdapter():
                 raise OSError(f"Unable to create local path at {destdir}: {err}")
 
         destfile = os.path.join(destdir, filename)
-        fs = s3fs.S3FileSystem(anon=True)
+        fs = s3fs.S3FileSystem(anon=self._get_anon())
         log.info(f"Retrieving {url} to {destfile} ...")
         fs.get(filesrc, destfile)
         file_sz = os.stat(destfile).st_size
