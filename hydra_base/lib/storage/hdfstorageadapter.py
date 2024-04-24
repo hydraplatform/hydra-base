@@ -70,8 +70,10 @@ class HdfStorageAdapter():
             return False
 
         home = os.getenv('HOME')
+        default_credentials_path = os.path.join(home, '.aws', 'credentials')
+        credentials_path = os.getenv('AWS_SHARED_CREDENTIALS_FILE', default_credentials_path)
         #If there is a credentials file, then assume the user is not anonymous
-        if os.path.exists(os.path.join(home, '.aws', 'credentials')):
+        if os.path.exists(credentials_path):
             return False
 
         return True
