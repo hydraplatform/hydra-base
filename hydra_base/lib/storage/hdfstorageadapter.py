@@ -53,6 +53,11 @@ class HdfStorageAdapter():
     """
 
     def __init__(self):
+        self.fsspec_args = dict(
+            mode='rb',
+            anon=self._get_anon(),
+            default_fill_cache=True
+        )
         self.config = self.__class__.get_hdf_config()
         self.filestore_path = self.config.get("hdf_filestore")
         if self.filestore_path and not os.path.exists(self.filestore_path):
@@ -94,7 +99,7 @@ class HdfStorageAdapter():
     @filestore_url("url")
     def open_hdf_url(self, url, **kwargs):
         try:
-            with fsspec.open(url, mode='rb', anon=self._get_anon(), default_fill_cache=True) as fp:
+            with fsspec.open(url, **self.fsspec_args) as fp:
                 return h5py.File(fp.fs.open(url), mode='r')
         except (ClientError, FileNotFoundError, PermissionError) as e:
             raise ValueError(f"Unable to access url: {url}") from e
@@ -116,7 +121,7 @@ class HdfStorageAdapter():
     def file_exists_at_url(self, url, **kwargs):
         try:
             url = self.url_to_filestore_path(url)
-            with fsspec.open(url, mode='rb', anon=self._get_anon(), default_fill_cache=False) as fp:
+            with fsspec.open(url, **self.fsspec_args) as fp:
                 return fp.fs.exists(url)
         except (ValueError, FileNotFoundError, PermissionError):
             return False
@@ -169,7 +174,7 @@ class HdfStorageAdapter():
 
     @filestore_url("url")
     def file_size(self, url, **kwargs):
-        with fsspec.open(url, mode='rb', anon=self._get_anon(), default_fill_cache=False) as fp:
+        with fsspec.open(url, **self.fsspec_args) as fp:
             size_bytes = fp.fs.size(fp.path)
         return size_bytes
 
