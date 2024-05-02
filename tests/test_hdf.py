@@ -34,8 +34,8 @@ def public_aws_file():
         "series_type": "float64"
     }
 
-IAM_ACCESS_KEY = "AKIAYEZ2DBMT4LG567JM"
-IAM_SECRET_KEY = "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"
+IAM_ACCESS_KEY = os.getenv("TEST_AWS_ACCESS_KEY_ID")
+IAM_SECRET_KEY = os.getenv("TEST_AWS_SECRET_ACCESS_KEY")
 
 @pytest.fixture
 def private_aws_file():
