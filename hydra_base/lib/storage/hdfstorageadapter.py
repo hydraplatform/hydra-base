@@ -71,7 +71,7 @@ class HdfStorageAdapter():
 
         self.accesskeyid = os.getenv('AWS_ACCESS_KEY_ID')
         self.secretaccesskey = os.getenv('AWS_SECRET_ACCESS_KEY')
-        if self.accesskeyid is not None and self.secretaccesskey is not None:
+        if self.accesskeyid not in ('' , None) and self.secretaccesskey not in ('', None):
             return False
 
         home = os.getenv('HOME')

@@ -125,18 +125,23 @@ def connect(db_url=None):
 
     global engine
 
-    # Let's use at least 10 for size and 20 for overflow (hydra.ini file)
-    # To test the timeout: pool_size:1, max_overflow: 0, pool_timeout: 5 or any low value
-    db_pool_size = int(config.get('mysqld', 'pool_size',10)) # 10
-    db_pool_recycle = int(config.get('mysqld', 'pool_recycle', 300)) # 300
-    db_max_overflow = int(config.get('mysqld', 'max_overflow', 20)) # 10 -> 30
-    db_pool_timeout = int(config.get('mysqld', 'pool_timeout', 10))
-
-    log.warning(f"db_pool_size: {db_pool_size} - pool_recycle: {db_pool_recycle} - max_overflow: {db_max_overflow} - pool_timeout: {db_pool_timeout}")
-
     if db_url.startswith('sqlite'):
         engine = create_engine(db_url)
     else:
+
+        # Let's use at least 10 for size and 20 for overflow (hydra.ini file)
+        # To test the timeout: pool_size:1, max_overflow: 0, pool_timeout: 5 or any low value
+        #These values MUST be smaller than the pool timeouts of the DB, otherwise the connection
+        #will remain open on the client while it has been closed on the server, resulting in
+        #an error
+        db_pool_size = int(config.get('mysqld', 'pool_size',10)) # 10
+        db_pool_recycle = int(config.get('mysqld', 'pool_recycle', 300)) # 300
+        db_max_overflow = int(config.get('mysqld', 'max_overflow', 20)) # 10 -> 30
+        db_pool_timeout = int(config.get('mysqld', 'pool_timeout', 10))
+        db_pool_pre_ping = True if config.get('mysqld', 'pool_pre_ping', 'Y').upper() == 'Y' else False
+
+        log.warning(f"db_pool_size: {db_pool_size} - pool_recycle: {db_pool_recycle} - max_overflow: {db_max_overflow} - pool_timeout: {db_pool_timeout} - pool_pre_ping: {db_pool_pre_ping}")
+
         engine = create_engine(db_url,
                                pool_recycle=db_pool_recycle,
                                pool_size=db_pool_size,
