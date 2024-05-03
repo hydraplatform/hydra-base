@@ -146,7 +146,8 @@ def connect(db_url=None):
                                pool_recycle=db_pool_recycle,
                                pool_size=db_pool_size,
                                pool_timeout=db_pool_timeout,
-                               max_overflow=db_max_overflow)
+                               max_overflow=db_max_overflow,
+                               pool_pre_ping=db_pool_pre_ping)
 
     global hydra_db_url
     hydra_db_url=db_url
