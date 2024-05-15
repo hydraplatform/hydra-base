@@ -2836,6 +2836,7 @@ def clone_network(network_id,
     newnet.status = ex_net.status
     newnet.projection = ex_net.projection
     newnet.created_by = user_id
+    newnet.appdata = ex_net.appdata
 
     #if true, the the creator will see this network in their project.networks.
     if creator_is_owner is True and user_id != recipient_user_id:

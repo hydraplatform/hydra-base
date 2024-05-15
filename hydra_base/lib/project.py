@@ -575,6 +575,8 @@ def clone_project(project_id,
     else:
         new_project.description = project.description
 
+    new_project.appdata = project.appdata
+
     new_project.created_by = recipient_user_id
 
     if recipient_user_id is not None and recipient_user_id != user_id:
