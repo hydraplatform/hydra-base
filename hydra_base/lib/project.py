@@ -519,7 +519,6 @@ def get_network_project(network_id, **kwargs):
 
     return net_proj
 
-
 @required_perms('get_project', 'add_project')
 def clone_project(project_id,
     recipient_user_id=None,
@@ -549,10 +548,11 @@ def clone_project(project_id,
     if recipient_user_id is None:
         recipient_user_id = user_id
 
-    user = db.DBSession.query(User).filter(User.id == user_id).one()
+    recipient_user = db.DBSession.query(User).filter(User.id == recipient_user_id).one()
+    cloning_user = db.DBSession.query(User).filter(User.id == user_id).one()
 
     if new_project_name is None:
-        new_project_name = project.name + ' Cloned By {}'.format(user.display_name)
+        new_project_name = project.name + ' Cloned By {}'.format(cloning_user.display_name)
 
     #check a project with this name doesn't already exist:
     project_with_name =  db.DBSession.query(Project).filter(
@@ -560,13 +560,15 @@ def clone_project(project_id,
         Project.created_by == recipient_user_id).first()
 
     if project_with_name is not None:
+        now = datetime.now().strftime("%Y%m%d%H%M%S")
         if project_with_name.status == 'X':
-            now = datetime.now().strftime("%Y%m%d%H%M%S")
             project_with_name.name = f"{new_project_name} {now}"
             log.info("Updating an existing deleted project %s with new project anme to avoid naming clash %s",
                       project_with_name.id, project_with_name.name)
         else:
-            raise HydraError(f"A project with the name {new_project_name} already exists for user {user.display_name}")
+            #If there is a naming clash, then add a timestamp to the name of the new project to make it unique for
+            #this user.
+            new_project_name = f"{new_project_name} ({now})"
 
     new_project = Project()
     new_project.name = new_project_name
@@ -586,17 +588,17 @@ def clone_project(project_id,
     if creator_is_owner is True:
         new_project.set_owner(user_id)
 
-
     db.DBSession.add(new_project)
     db.DBSession.flush()
 
     network_ids = db.DBSession.query(Network.id).filter(
                                         Network.project_id==project_id).all()
+
     for n in network_ids:
         network.clone_network(n.id,
                               recipient_user_id=recipient_user_id,
                               project_id=new_project.id,
-                             user_id=user_id)
+                              user_id=user_id)
 
     project_attributes = db.DBSession.query(Attr).filter(Attr.project_id==project_id).all()
 
