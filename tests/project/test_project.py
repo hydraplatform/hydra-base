@@ -383,6 +383,18 @@ class TestProject:
         cloned_networks = client.get_networks(cloned_project.id)
         assert len(cloned_networks) == 2
 
+        #Check that the resource attribute references have been updated correctly 
+        #by comparing the attr_id on the original network and the cloned network for the same attribute name,
+        #ensuring they are not the same.
+        for n in cloned_project.networks:
+            net = client.get_network(network_id=n.id)
+            for ra in net.attributes:
+                a = client.get_attribute_by_id(attr_id=ra.attr_id)
+                if a.network_id is not None:
+                    for ra1 in net1.attributes:
+                        if ra1.name == a.name:
+                            assert ra1.network_id is not None
+                            assert ra.attr_id != ra1.attr_id
 
     def test_rename_of_status_x_projects_in_clone(self, client, projectmaker, networkmaker):
         sender_user_id = client.user_id
