@@ -160,9 +160,17 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
     defaults = {}
 
     attr_lookup = {}
-    all_attrs = db.DBSession.query(Attr).all()
+    log.info("Getting attributes")
+    attribute_ids = []
+    for resource in resources:
+        #cast name as string here in case the name is a number
+        if resource.attributes is not None and isinstance(resource.attributes, list):
+            for ra in resource.attributes:
+                attribute_ids.append(ra.attr_id)
+    all_attrs = db.DBSession.query(Attr).filter(Attr.id.in_(attribute_ids)).all()
     for a in all_attrs:
         attr_lookup[a.id] = a
+    log.info("Attributes retrieved")
     #First get all the attributes assigned from the csv files.
     t0 = datetime.datetime.now()
     for resource in resources:
@@ -570,7 +578,7 @@ def add_network(network, **kwargs):
 
     if existing_net is not None:
         raise HydraError(f"A network with the name {network.name} is already"
-                         " in project {network.project_id}")
+                         f" in project {network.project_id}")
 
     user_id = kwargs.get('user_id')
     proj_i.check_write_permission(user_id)
