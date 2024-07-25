@@ -163,7 +163,6 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
     log.info("Getting attributes")
     attribute_ids = []
     for resource in resources:
-        #cast name as string here in case the name is a number
         if resource.attributes is not None and isinstance(resource.attributes, list):
             for ra in resource.attributes:
                 attribute_ids.append(ra.attr_id)
@@ -3305,7 +3304,7 @@ def _clone_attributes(network_id, newnetworkid, exnet_project_id, newnet_project
     """
         Clone the attributes scoped to a network nad its project when cloning a network
         @returns:
-            A lookup from the original scoped attr ID to any newly created scoped attribute. 
+            A lookup from the original scoped attr ID to any newly created scoped attribute.
             This is so that resource-attribute attr_id references can be updated to refer to the
             new scoped attribute ID
     """
