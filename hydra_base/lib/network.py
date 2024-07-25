@@ -160,9 +160,16 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
     defaults = {}
 
     attr_lookup = {}
-    all_attrs = db.DBSession.query(Attr).all()
+    log.info("Getting attributes")
+    attribute_ids = []
+    for resource in resources:
+        if resource.attributes is not None and isinstance(resource.attributes, list):
+            for ra in resource.attributes:
+                attribute_ids.append(ra.attr_id)
+    all_attrs = db.DBSession.query(Attr).filter(Attr.id.in_(attribute_ids)).all()
     for a in all_attrs:
         attr_lookup[a.id] = a
+    log.info("Attributes retrieved")
     #First get all the attributes assigned from the csv files.
     t0 = datetime.datetime.now()
     for resource in resources:
@@ -570,7 +577,7 @@ def add_network(network, **kwargs):
 
     if existing_net is not None:
         raise HydraError(f"A network with the name {network.name} is already"
-                         " in project {network.project_id}")
+                         f" in project {network.project_id}")
 
     user_id = kwargs.get('user_id')
     proj_i.check_write_permission(user_id)
@@ -3297,7 +3304,7 @@ def _clone_attributes(network_id, newnetworkid, exnet_project_id, newnet_project
     """
         Clone the attributes scoped to a network nad its project when cloning a network
         @returns:
-            A lookup from the original scoped attr ID to any newly created scoped attribute. 
+            A lookup from the original scoped attr ID to any newly created scoped attribute.
             This is so that resource-attribute attr_id references can be updated to refer to the
             new scoped attribute ID
     """
