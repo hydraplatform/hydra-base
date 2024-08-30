@@ -19,8 +19,8 @@
 import logging
 from sqlalchemy.orm.exc import NoResultFound
 from hydra_base.lib.objects import JSONObject
-from ..db.model import Rule, RuleTypeDefinition, RuleTypeLink, RuleOwner,\
-                       Node, Link, ResourceGroup, Network
+from ..db.model import Rule, RuleTypeDefinition, RuleTypeLink, NetworkOwner, \
+                       Network, Template
 from .. import db
 from ..exceptions import HydraError, ResourceNotFoundError
 
@@ -69,46 +69,32 @@ def get_network_rules(network_id, scenario_id=None, summary=True, **kwargs):
 
     #just in case
     network_id = int(network_id)
+    network = db.DBSession.query(Network).filter(Network.id==network_id).one()
+    network.check_read_permission(user_id)
 
     rule_qry = db.DBSession.query(Rule).filter(Rule.status != 'X')
-    rule_qry = rule_qry.join(RuleOwner).filter(RuleOwner.user_id == int(user_id))
 
+    #Go through the template hierarchy for all types defined on this network and extract
+    #all rules associated to them.
+    all_template_rules = []
+    for type in network.types:
+        template = db.DBSession.query(Template).filter(Template.id==type.template_id).one()
+        #need this to go top-bottom to apply rules from the top level down
+        template_hierarchy = template.get_hierarchy().reverse()
+        for current_template in template_hierarchy:
+            this_template_rules = rule_qry.filter(Rule.template_id == current_template.id).all()
+            all_template_rules = all_template_rules + this_template_rules
+
+
+    all_project_rules = []
+    project_hierarchy = network.project.get_hierarchy(user_id)
+    for project in project_hierarchy:
+        current_project_rules = rule_qry.filter(Rule.project_id == project.id).all()
+        all_project_rules = all_project_rules + current_project_rules
     #Network rules
-    network_rule_qry = rule_qry.filter(Rule.network_id == network_id)
+    network_rules = rule_qry.filter(Rule.network_id == network_id).all()
 
-    if scenario_id is not None:
-        network_rule_qry = network_rule_qry.filter(Rule.scenario_id == scenario_id)
-
-    network_rules = network_rule_qry.all()
-
-    #get node rules
-    node_rule_qry = rule_qry.filter(Rule.node_id == Node.id,
-                                    Node.network_id == Network.id,
-                                    Network.id == network_id)
-    if scenario_id is not None:
-        node_rule_qry = node_rule_qry.filter(Rule.scenario_id == scenario_id)
-
-    node_rules = node_rule_qry.all()
-
-    #Link Rules
-    link_rule_qry = rule_qry.filter(Link.id == Rule.link_id,
-                                    Link.network_id == Network.id,
-                                    Network.id == network_id)
-    if scenario_id is not None:
-        link_rule_qry = link_rule_qry.filter(Rule.scenario_id == scenario_id)
-
-    link_rules = link_rule_qry.all()
-
-    #ResourceGroup Rules
-    group_rule_qry = rule_qry.filter(ResourceGroup.id == Rule.group_id,
-                                     ResourceGroup.network_id == Network.id,
-                                     Network.id == network_id)
-    if scenario_id is not None:
-        group_rule_qry = group_rule_qry.filter(Rule.scenario_id == scenario_id)
-
-    group_rules = group_rule_qry.all()
-
-    all_network_rules = network_rules + node_rules + link_rules + group_rules
+    all_network_rules = all_template_rules + all_project_rules + network_rules
 
     #lazy load types
     if summary is False:
@@ -147,7 +133,7 @@ def get_resource_rules(ref_key, ref_id, scenario_id=None, **kwargs):
     else:
         raise HydraError("Ref Key {0} not recognised.".format(ref_key))
 
-    rule_qry = rule_qry.join(RuleOwner).filter(RuleOwner.user_id == int(user_id))
+    rule_qry = rule_qry.join(NetworkOwner, NetworkOwner.network_id==Rule.network_id).filter(NetworkOwner.user_id == int(user_id))
 
     if scenario_id is not None:
         rule_qry = rule_qry.filter(Rule.scenario_id == scenario_id)
@@ -178,7 +164,7 @@ def get_rules_of_type(typecode, scenario_id=None, **kwargs):
                                         .join(RuleTypeLink)\
                                         .filter(RuleTypeLink.code == typecode)
 
-    rule_qry = rule_qry.join(RuleOwner).filter(RuleOwner.user_id == int(user_id))
+    rule_qry = rule_qry.join(NetworkOwner, Rule.network_id==NetworkOwner.network_id).filter(NetworkOwner.user_id == int(user_id))
 
     if scenario_id is not None:
         rule_qry = rule_qry.filter(Rule.scenario_id == scenario_id)

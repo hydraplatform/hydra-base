@@ -3166,34 +3166,6 @@ def _clone_rules(old_network_id, new_network_id, node_id_map, link_id_map, group
                                scenario_id_map=scenario_id_map,
                                user_id=user_id)
 
-    node_rules = db.DBSession.query(Rule).join(Node).filter(Node.network_id==old_network_id).all()
-    for node_rule in node_rules:
-        rules.clone_rule(node_rule.id,
-                         target_ref_key='NODE',
-                         target_ref_id=node_id_map[node_rule.node_id],
-                         scenario_id_map=scenario_id_map,
-                         user_id=user_id)
-
-    link_rules = db.DBSession.query(Rule).join(Link).filter(Link.network_id==old_network_id).all()
-
-    for link_rule in link_rules:
-        rules.clone_rule(link_rule.id,
-                         target_ref_key='LINK',
-                         target_ref_id=link_id_map[link_rule.link_id],
-                         scenario_id_map=scenario_id_map,
-                         user_id=user_id)
-
-    group_rules = db.DBSession.query(Rule).join(ResourceGroup).filter(ResourceGroup.network_id==old_network_id).all()
-
-    for group_rule in group_rules:
-        rules.clone_rule(group_rule.id,
-                         group_rule.node_id,
-                         target_ref_key='GROUP',
-                         target_ref_id=group_id_map[group_rule.group_id],
-                         scenario_id_map=scenario_id_map,
-                         user_id=user_id)
-
-
 def _clone_nodes(old_network_id, new_network_id, user_id):
 
     nodes = db.DBSession.query(Node).filter(Node.network_id==old_network_id).all()

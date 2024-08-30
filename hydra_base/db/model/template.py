@@ -290,6 +290,13 @@ class Template(Base, Inspect):
 
         return child_types
 
+    def get_hierarchy(self, user_id):
+
+        hierarchy = [JSONObject(self)]
+        if self.parent_id:
+            hierarchy = hierarchy + self.parent.get_hierarchy(user_id)
+        return hierarchy
+
 class TemplateType(Base, Inspect):
     """
     Template Type
