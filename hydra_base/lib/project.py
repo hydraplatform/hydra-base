@@ -625,5 +625,5 @@ def get_project_hierarchy(project_id, **kwargs):
         If the project has no parent, return [project_j]
     """
     user_id = kwargs.get('user_id')
-    hierarchy = _get_project(project_id, user_id).get_hierarchy()
+    hierarchy = _get_project(project_id, user_id).get_hierarchy(user_id)
     return hierarchy
