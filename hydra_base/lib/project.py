@@ -120,6 +120,8 @@ def add_project(project, **kwargs):
     db.DBSession.add(proj_i)
     db.DBSession.flush()
 
+    Project.clear_cache(user_id)
+
     return proj_i
 
 @required_perms('edit_project')
@@ -178,6 +180,8 @@ def move_project(project_id, target_project_id, **kwargs):
 
     #check the user has the correct permission to write to the target project
     _get_project(target_project_id, user_id, check_write=True)
+    
+    Project.clear_cache(user_id)
 
     proj_i.parent_id = target_project_id
 
@@ -614,22 +618,12 @@ def clone_project(project_id,
 
     return new_project.id
 
-
-def _get_project_hierarchy(project_id, user_id):
-
-    proj = JSONObject(_get_project(project_id, user_id=user_id))
-
-    project_hierarchy = [proj]
-    if proj.parent_id:
-        project_hierarchy = project_hierarchy + _get_project_hierarchy(proj.parent_id, user_id)
-
-    return project_hierarchy
-
 def get_project_hierarchy(project_id, **kwargs):
     """
-        Return a list of project-ids which represent the links in the chain up to the root project
-        [project_id, parent_id, parent_parent_id ...etc]
-        If the project has no parent, return [project_id]
+        Return a list of project JSONObjects which represent the links in the chain up to the root project
+        [project_j, parent_j, parent_parent_j ...etc]
+        If the project has no parent, return [project_j]
     """
     user_id = kwargs.get('user_id')
-    return _get_project_hierarchy(project_id, user_id)
+    hierarchy = _get_project(user_id).get_hierarchy()
+    return hierarchy
