@@ -17,43 +17,43 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
+
 class HydraError(Exception):
     __error_code__ = None
 
     def __init__(self, message="A hydra error has occurred"):
         # Call the base class constructor with the parameters it needs
-        self.code = error_codes.get(self.__error_code__, '0000')
-        self.message = message # Added for Py3
+        self.code = error_codes.get(self.__error_code__, "0000")
+        self.message = message  # Added for Py3
         super(HydraError, self).__init__({"message": message, "code": self.code})
 
 
-
 class HydraDBError(HydraError):
-    __error_code__ = 'HYDRADB'
+    __error_code__ = "HYDRADB"
 
 
 class HydraPluginError(HydraError):
-    __error_code__ = 'HYDRAPLUGIN'
+    __error_code__ = "HYDRAPLUGIN"
 
 
 class ResourceNotFoundError(HydraError):
-    __error_code__ = 'HYDRARESOURCE'
+    __error_code__ = "HYDRARESOURCE"
 
 
 class HydraAttributeError(HydraError):
-    __error_code__ = 'HYDRAATTR'
+    __error_code__ = "HYDRAATTR"
 
 
 class PermissionError(HydraError):
-    __error_code__ = 'HYDRAPERM'
+    __error_code__ = "HYDRAPERM"
 
 
 class OwnershipError(HydraError):
-    __error_code__ = 'HYDRAOWNER'
+    __error_code__ = "HYDRAOWNER"
 
 
 class DataError(HydraError):
-    __error_code__ = 'HYDRADATA'
+    __error_code__ = "HYDRADATA"
 
 
 class ValidationError(HydraError):
@@ -61,35 +61,38 @@ class ValidationError(HydraError):
 
 
 class HydraLoginUserNotFound(HydraError):
-    __error_code__ = 'HYDRA_LOGIN_USER_NOT_FOUND'
+    __error_code__ = "HYDRA_LOGIN_USER_NOT_FOUND"
+
 
 class HydraLoginUserMaxAttemptsExceeded(HydraError):
-    __error_code__ = 'HYDRA_LOGIN_USER_MAX_ATTEMPTS_EXCEEDED'
+    __error_code__ = "HYDRA_LOGIN_USER_MAX_ATTEMPTS_EXCEEDED"
+
 
 class HydraLoginUserPasswordWrong(HydraError):
-    __error_code__ = 'HYDRA_LOGIN_USER_PASSWORD_WRONG'
+    __error_code__ = "HYDRA_LOGIN_USER_PASSWORD_WRONG"
+
 
 #
-#ERROR CODES FOR HYDRA
-#Categories are:
-#DB Errors:         100 - 199
-#Plugin Errors:     200 - 299
-#ResourceErrors:    300 - 399
-#Attribute Errors:  400 - 499
-#Permission Errors: 500 - 599
-#Data Errors        600 - 699
-#Ownership Errors   700 - 799
-#Login Errors       800 - 899
+# ERROR CODES FOR HYDRA
+# Categories are:
+# DB Errors:         100 - 199
+# Plugin Errors:     200 - 299
+# ResourceErrors:    300 - 399
+# Attribute Errors:  400 - 499
+# Permission Errors: 500 - 599
+# Data Errors        600 - 699
+# Ownership Errors   700 - 799
+# Login Errors       800 - 899
 #
 error_codes = {
-    'HYDRADB'               : "100",
-    'HYDRAPLUGIN'           : "200",
-    'HYDRARESOURCE'         : "300",
-    'HYDRAATTR'             : "400",
-    'HYDRAPERM'             : "500",
-    'HYDRADATA'             : "600",
-    'HYDRAOWNER'            : "700",
-    'HYDRA_LOGIN_USER_NOT_FOUND'  : "800",
-    'HYDRA_LOGIN_USER_MAX_ATTEMPTS_EXCEEDED'  : "801",
-    'HYDRA_LOGIN_USER_PASSWORD_WRONG'  : "802"
+    "HYDRADB": "100",
+    "HYDRAPLUGIN": "200",
+    "HYDRARESOURCE": "300",
+    "HYDRAATTR": "400",
+    "HYDRAPERM": "500",
+    "HYDRADATA": "600",
+    "HYDRAOWNER": "700",
+    "HYDRA_LOGIN_USER_NOT_FOUND": "800",
+    "HYDRA_LOGIN_USER_MAX_ATTEMPTS_EXCEEDED": "801",
+    "HYDRA_LOGIN_USER_PASSWORD_WRONG": "802",
 }

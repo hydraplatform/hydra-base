@@ -18,6 +18,7 @@
 #
 
 import logging
+
 log = logging.getLogger(__name__)
 
 from decimal import Decimal
@@ -35,37 +36,39 @@ try:
 except NameError:
     basestring = str
 
+
 def count_levels(value):
     """
-        Count how many levels are in a dict:
-        scalar, list etc = 0
-        {} = 0
-        {'a':1} = 1
-        {'a' : {'b' : 1}} = 2
-        etc...
+    Count how many levels are in a dict:
+    scalar, list etc = 0
+    {} = 0
+    {'a':1} = 1
+    {'a' : {'b' : 1}} = 2
+    etc...
     """
     if not isinstance(value, dict) or len(value) == 0:
         return 0
     elif len(value) == 0:
-        return 0 #An emptu dict has 0
+        return 0  # An emptu dict has 0
     else:
         nextval = list(value.values())[0]
         return 1 + count_levels(nextval)
 
+
 def flatten_dict(value, target_depth=1, depth=None):
     """
-        Take a hashtable with multiple nested dicts and return a
-        dict where the keys are a concatenation of each sub-key.
+    Take a hashtable with multiple nested dicts and return a
+    dict where the keys are a concatenation of each sub-key.
 
-        The depth of the returned array is dictated by target_depth, defaulting to 1
+    The depth of the returned array is dictated by target_depth, defaulting to 1
 
-        ex: {'a' : {'b':1, 'c': 2}} ==> {'a_b': 1, 'a_c': 2}
+    ex: {'a' : {'b':1, 'c': 2}} ==> {'a_b': 1, 'a_c': 2}
 
-        Assumes a constant structure actoss all sub-dicts. i.e. there isn't
-        one sub-dict with values that are both numbers and sub-dicts.
+    Assumes a constant structure actoss all sub-dicts. i.e. there isn't
+    one sub-dict with values that are both numbers and sub-dicts.
     """
 
-    #failsafe in case someone specified null
+    # failsafe in case someone specified null
     if target_depth is None:
         target_depth = 1
 
@@ -78,7 +81,7 @@ def flatten_dict(value, target_depth=1, depth=None):
 
         if isinstance(values[0], dict) and len(values[0]) > 0:
             subval = list(values[0].values())[0]
-            if not isinstance(subval, dict) != 'object':
+            if not isinstance(subval, dict) != "object":
                 return value
 
             if target_depth >= depth:
@@ -86,24 +89,26 @@ def flatten_dict(value, target_depth=1, depth=None):
 
             flatval = {}
             for k in value.keys():
-                subval = flatten_dict(value[k], target_depth, depth-1)
+                subval = flatten_dict(value[k], target_depth, depth - 1)
                 for k1 in subval.keys():
-                    flatval[str(k)+"_"+str(k1)] = subval[k1];
+                    flatval[str(k) + "_" + str(k1)] = subval[k1]
             return flatval
         else:
             return value
 
+
 def generate_data_hash(dataset_dict):
 
     d = dataset_dict
-    if d.get('metadata') is None:
-        d['metadata'] = {}
+    if d.get("metadata") is None:
+        d["metadata"] = {}
 
-    hash_string = "%s %s %s %s"%(
-                                str(d['unit_id']),
-                                str(d['type']).lower(),
-                                d['value'],
-                                d['metadata'])
+    hash_string = "%s %s %s %s" % (
+        str(d["unit_id"]),
+        str(d["type"]).lower(),
+        d["value"],
+        d["metadata"],
+    )
 
     log.debug("Generating data hash from: %s", hash_string)
 
@@ -113,64 +118,64 @@ def generate_data_hash(dataset_dict):
 
     return hash_data
 
+
 def get_val(dataset, timestamp=None):
     """
-        Turn the string value of a dataset into an appropriate
-        value, be it a decimal value, array or time series.
+    Turn the string value of a dataset into an appropriate
+    value, be it a decimal value, array or time series.
 
-        If a timestamp is passed to this function,
-        return the values appropriate to the requested times.
+    If a timestamp is passed to this function,
+    return the values appropriate to the requested times.
 
-        If the timestamp is *before* the start of the timeseries data, return None
-        If the timestamp is *after* the end of the timeseries data, return the last
-        value.
+    If the timestamp is *before* the start of the timeseries data, return None
+    If the timestamp is *after* the end of the timeseries data, return the last
+    value.
 
-        The raw flag indicates whether timeseries should be returned raw -- exactly
-        as they are in the DB (a timeseries being a list of timeseries data objects,
-        for example) or as a single python dictionary
+    The raw flag indicates whether timeseries should be returned raw -- exactly
+    as they are in the DB (a timeseries being a list of timeseries data objects,
+    for example) or as a single python dictionary
 
     """
 
     val = dataset.get_value()
 
-    if dataset.type == 'array':
-        #TODO: design a mechansim to retrieve this data if it's stored externally
+    if dataset.type == "array":
+        # TODO: design a mechansim to retrieve this data if it's stored externally
         return json.loads(val)
 
-    elif dataset.type == 'descriptor':
+    elif dataset.type == "descriptor":
         return str(val)
-    elif dataset.type == 'scalar':
+    elif dataset.type == "scalar":
         return Decimal(str(val))
-    elif dataset.type == 'timeseries':
-        #TODO: design a mechansim to retrieve this data if it's stored externally
+    elif dataset.type == "timeseries":
+        # TODO: design a mechansim to retrieve this data if it's stored externally
 
-        seasonal_year = config.get('DEFAULT','seasonal_year', '1678')
-        seasonal_key = config.get('DEFAULT', 'seasonal_key', '9999')
+        seasonal_year = config.get("DEFAULT", "seasonal_year", "1678")
+        seasonal_key = config.get("DEFAULT", "seasonal_key", "9999")
         val = val.replace(seasonal_key, seasonal_year)
 
         timeseries = pd.read_json(val, convert_axes=True)
 
         if isinstance(timeseries.index, pd.DatetimeIndex):
             if timeseries.index.tz is None:
-                timeseries = timeseries.tz_localize('UTC')
+                timeseries = timeseries.tz_localize("UTC")
             else:
-                timeseries = timeseries.tz_convert('UTC')
-
+                timeseries = timeseries.tz_convert("UTC")
 
         if timestamp is None:
             return timeseries
         else:
             try:
                 idx = timeseries.index
-                #Seasonal timeseries are stored in the year
-                #1678 (the lowest year pandas allows for valid times).
-                #Therefore if the timeseries is seasonal,
-                #the request must be a seasonal request, not a
-                #standard request
+                # Seasonal timeseries are stored in the year
+                # 1678 (the lowest year pandas allows for valid times).
+                # Therefore if the timeseries is seasonal,
+                # the request must be a seasonal request, not a
+                # standard request
 
                 if type(idx) == pd.DatetimeIndex:
                     if set(idx.year) == set([int(seasonal_year)]):
-                        if isinstance(timestamp,  list):
+                        if isinstance(timestamp, list):
                             seasonal_timestamp = []
                             for t in timestamp:
                                 t_1900 = t.replace(year=int(seasonal_year))
@@ -179,13 +184,13 @@ def get_val(dataset, timestamp=None):
                         else:
                             timestamp = [timestamp.replace(year=int(seasonal_year))]
 
-                pandas_ts = timeseries.reindex(timestamp, method='ffill')
+                pandas_ts = timeseries.reindex(timestamp, method="ffill")
 
-                #If there are no values at all, just return None
+                # If there are no values at all, just return None
                 if len(pandas_ts.dropna()) == 0:
                     return None
 
-                #Replace all numpy NAN values with None
+                # Replace all numpy NAN values with None
                 pandas_ts = pandas_ts.where(pandas_ts.notnull(), None)
 
                 val_is_array = False
@@ -210,36 +215,38 @@ def get_val(dataset, timestamp=None):
                 log.critical("Unable to retrive data. Check timestamps.")
                 log.critical(e)
 
+
 def get_json_as_string(json_string_or_dict):
     """
-        Take a dict or string and return a string.
-        The dict will be json dumped.
-        The string will json parsed to check for json validity. In order to deal
-        with strings which have been json encoded multiple times, keep json decoding
-        until a dict is retrieved or until a non-json structure is identified.
+    Take a dict or string and return a string.
+    The dict will be json dumped.
+    The string will json parsed to check for json validity. In order to deal
+    with strings which have been json encoded multiple times, keep json decoding
+    until a dict is retrieved or until a non-json structure is identified.
     """
 
     if isinstance(json_string_or_dict, dict):
         return json.dumps(json_string_or_dict)
 
-    if(isinstance(json_string_or_dict, six.string_types)):
+    if isinstance(json_string_or_dict, six.string_types):
         try:
             return get_json_as_string(json.loads(json_string_or_dict))
         except:
             return json_string_or_dict
 
+
 def get_json_as_dict(json_string_or_dict):
     """
-        Take a dict or string and return a dict if the data is json-encoded.
-        The string will json parsed to check for json validity. In order to deal
-        with strings which have been json encoded multiple times, keep json decoding
-        until a dict is retrieved or until a non-json structure is identified.
+    Take a dict or string and return a dict if the data is json-encoded.
+    The string will json parsed to check for json validity. In order to deal
+    with strings which have been json encoded multiple times, keep json decoding
+    until a dict is retrieved or until a non-json structure is identified.
     """
 
     if isinstance(json_string_or_dict, dict):
         return json_string_or_dict
 
-    if(isinstance(json_string_or_dict, six.string_types)):
+    if isinstance(json_string_or_dict, six.string_types):
         try:
             return get_json_as_dict(json.loads(json_string_or_dict))
         except:
@@ -248,22 +255,24 @@ def get_json_as_dict(json_string_or_dict):
 
 class NullAdapterType(type):
     """
-      Metaclass for NullAdapter. Overriding __getattr__ here
-      enables class and static attrs to be simulated.
+    Metaclass for NullAdapter. Overriding __getattr__ here
+    enables class and static attrs to be simulated.
     """
+
     def __getattr__(self, *args, **kwargs):
         return self
 
 
 class NullAdapter(metaclass=NullAdapterType):
     """
-      A class that does nothing.
-      This may be used in place of any adapter in order to disable
-      the functionality of that adapter type without requiring other
-      code to be changed.
-      From the caller's perspective, all attributes exist on this class,
-      including nested attributes, and all are callable.
+    A class that does nothing.
+    This may be used in place of any adapter in order to disable
+    the functionality of that adapter type without requiring other
+    code to be changed.
+    From the caller's perspective, all attributes exist on this class,
+    including nested attributes, and all are callable.
     """
+
     def __init__(self, *args, **kwargs):
         pass
 

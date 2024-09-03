@@ -22,20 +22,22 @@ import bcrypt
 from collections import defaultdict
 import logging
 
-from sqlalchemy import Column,\
-ForeignKey,\
-text,\
-Integer,\
-String,\
-LargeBinary,\
-TIMESTAMP,\
-BIGINT,\
-SMALLINT,\
-Float,\
-Text, \
-JSON, \
-DateTime,\
-Unicode
+from sqlalchemy import (
+    Column,
+    ForeignKey,
+    text,
+    Integer,
+    String,
+    LargeBinary,
+    TIMESTAMP,
+    BIGINT,
+    SMALLINT,
+    Float,
+    Text,
+    JSON,
+    DateTime,
+    Unicode,
+)
 
 from sqlalchemy.orm import relationship, backref, noload, joinedload
 from sqlalchemy import inspect, func
@@ -62,27 +64,30 @@ try:
 except NameError:
     basestring = str
 
+
 def get_user_id_from_engine(ctx):
     """
-        The session will have a user ID bound to it when checking for the permission.
+    The session will have a user ID bound to it when checking for the permission.
     """
-    if hasattr(get_session(), 'user_id'):
+    if hasattr(get_session(), "user_id"):
         return get_session().user_id
     else:
         return None
 
+
 def _is_admin(user_id):
     """
-        Is the specified user an admin
+    Is the specified user an admin
     """
     from .permissions import User
 
-    user = get_session().query(User).filter(User.id==user_id).one()
+    user = get_session().query(User).filter(User.id == user_id).one()
 
     if user.is_admin():
         return True
     else:
         return False
+
 
 class Inspect(object):
     _parents = []
@@ -91,22 +96,31 @@ class Inspect(object):
     def get_columns_and_relationships(self):
         return inspect(self).attrs.keys()
 
+
 class AuditMixin(object):
 
-    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(
+        TIMESTAMP(), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
 
     @declared_attr
     def created_by(cls):
-        return Column(Integer, ForeignKey('tUser.id'), default=get_user_id_from_engine)
+        return Column(Integer, ForeignKey("tUser.id"), default=get_user_id_from_engine)
 
     @declared_attr
     def updated_by(cls):
-        return Column(Integer, ForeignKey('tUser.id'), onupdate=get_user_id_from_engine)
+        return Column(Integer, ForeignKey("tUser.id"), onupdate=get_user_id_from_engine)
 
-    updated_at = Column(DateTime, nullable=False, server_default=text(u'CURRENT_TIMESTAMP'), onupdate=func.current_timestamp())
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+        onupdate=func.current_timestamp(),
+    )
+
 
 class PermissionControlled(object):
-    def set_owner(self, user_id, read='Y', write='Y', share='Y'):
+    def set_owner(self, user_id, read="Y", write="Y", share="Y"):
         owner = None
         for o in self.owners:
             if user_id == o.user_id:
@@ -130,7 +144,9 @@ class PermissionControlled(object):
     def unset_owner(self, user_id):
         owner = None
         if str(user_id) == str(self.created_by):
-            log.warning("Cannot unset %s as owner, as they created the dataset", user_id)
+            log.warning(
+                "Cannot unset %s as owner, as they created the dataset", user_id
+            )
             return
         for o in self.owners:
             if user_id == o.user_id:
@@ -140,14 +156,14 @@ class PermissionControlled(object):
 
     def _is_open(self):
         """
-            Check to see whether this entity is visible globally, without any
-            need for permission checking
+        Check to see whether this entity is visible globally, without any
+        need for permission checking
         """
         pass
 
     def check_read_permission(self, user_id, do_raise=True, is_admin=None):
         """
-            Check whether this user can read this dataset
+        Check whether this user can read this dataset
         """
         if str(user_id) == str(self.created_by):
             return True
@@ -158,36 +174,37 @@ class PermissionControlled(object):
         if is_admin is True:
             return True
 
-
-        #Check if this entity is publicly open, therefore no need to check permissions.
+        # Check if this entity is publicly open, therefore no need to check permissions.
         if self._is_open() == True:
             return True
 
         for owner in self.owners:
             if int(owner.user_id) == int(user_id):
-                if owner.view == 'Y':
+                if owner.view == "Y":
                     break
         else:
             if do_raise is True:
-                raise PermissionError("Permission denied. User %s does not have read"
-                             " access on %s '%s' (id=%s)" %
-                             (user_id, self.__class__.__name__, self.name, self.id))
+                raise PermissionError(
+                    "Permission denied. User %s does not have read"
+                    " access on %s '%s' (id=%s)"
+                    % (user_id, self.__class__.__name__, self.name, self.id)
+                )
             else:
                 return False
-        #Check that the user is in a group which can read this network
+        # Check that the user is in a group which can read this network
         self.check_group_read_permission(user_id)
 
         return True
 
     def check_group_read_permission(self, user_id):
         """
-            1: Find which user groups a user is if
-            2: Check if any of these groups has permission to read the object
+        1: Find which user groups a user is if
+        2: Check if any of these groups has permission to read the object
         """
 
     def check_write_permission(self, user_id, do_raise=True, is_admin=None):
         """
-            Check whether this user can write this dataset
+        Check whether this user can write this dataset
         """
         if str(user_id) == str(self.created_by):
             return True
@@ -200,13 +217,15 @@ class PermissionControlled(object):
 
         for owner in self.owners:
             if owner.user_id == int(user_id):
-                if owner.view == 'Y' and owner.edit == 'Y':
+                if owner.view == "Y" and owner.edit == "Y":
                     break
         else:
             if do_raise is True:
-                raise PermissionError("Permission denied. User %s does not have edit"
-                             " access on %s '%s' (id=%s)" %
-                             (user_id, self.__class__.__name__, self.name, self.id))
+                raise PermissionError(
+                    "Permission denied. User %s does not have edit"
+                    " access on %s '%s' (id=%s)"
+                    % (user_id, self.__class__.__name__, self.name, self.id)
+                )
             else:
                 return False
 
@@ -214,7 +233,7 @@ class PermissionControlled(object):
 
     def check_share_permission(self, user_id, is_admin=None):
         """
-            Check whether this user can write this dataset
+        Check whether this user can write this dataset
         """
 
         if str(user_id) == str(self.created_by):
@@ -228,10 +247,11 @@ class PermissionControlled(object):
 
         for owner in self.owners:
             if owner.user_id == int(user_id):
-                if owner.view == 'Y' and owner.share == 'Y':
+                if owner.view == "Y" and owner.share == "Y":
                     return True
         else:
-            raise PermissionError("Permission denied. User %s does not have share"
-                             " access on %s '%s' (id=%s)" %
-                             (user_id, self.__class__.__name__, self.name, self.id))
-
+            raise PermissionError(
+                "Permission denied. User %s does not have share"
+                " access on %s '%s' (id=%s)"
+                % (user_id, self.__class__.__name__, self.name, self.id)
+            )

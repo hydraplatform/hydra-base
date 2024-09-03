@@ -19,20 +19,18 @@
 from .base import *
 
 
-__all__ = ['Unit', 'Dimension']
+__all__ = ["Unit", "Dimension"]
+
 
 class Unit(Base, Inspect):
-    """
-    """
+    """ """
 
-    __tablename__='tUnit'
+    __tablename__ = "tUnit"
 
-    __table_args__ = (
-        UniqueConstraint('abbreviation', name="unique abbreviation"),
-    )
+    __table_args__ = (UniqueConstraint("abbreviation", name="unique abbreviation"),)
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    dimension_id = Column(Integer(), ForeignKey('tDimension.id'), nullable=False)
+    dimension_id = Column(Integer(), ForeignKey("tDimension.id"), nullable=False)
 
     # These lines are commented because sqllite seem not accepting utf8_bin. Find a solution
     #     name = Column(Unicode(60, collation='utf8_bin'),  nullable=False)
@@ -40,29 +38,41 @@ class Unit(Base, Inspect):
     #     lf = Column(Unicode(60, collation='utf8_bin'),  nullable=True)
     #     cf = Column(Unicode(60, collation='utf8_bin'),  nullable=True)
     #     description = Column(Unicode(1000, collation='utf8_bin'))
-    name = Column(Unicode(60),  nullable=False)
-    abbreviation = Column(Unicode(60).with_variant(mysql.VARCHAR(60, collation='utf8_bin'), 'mysql'),  nullable=False)
-    lf = Column(Unicode(60),  nullable=True)
-    cf = Column(Unicode(60),  nullable=True)
+    name = Column(Unicode(60), nullable=False)
+    abbreviation = Column(
+        Unicode(60).with_variant(mysql.VARCHAR(60, collation="utf8_bin"), "mysql"),
+        nullable=False,
+    )
+    lf = Column(Unicode(60), nullable=True)
+    cf = Column(Unicode(60), nullable=True)
     description = Column(Unicode(1000))
 
-    project_id = Column(Integer(), ForeignKey('tProject.id'), index=True, nullable=True)
+    project_id = Column(Integer(), ForeignKey("tProject.id"), index=True, nullable=True)
 
-    dimension = relationship('Dimension', backref=backref("units", uselist=True, order_by=dimension_id, cascade="all, delete-orphan"), lazy='joined')
-    project   = relationship('Project', backref=backref("units", order_by=dimension_id, cascade="all, delete-orphan"), lazy='joined')
+    dimension = relationship(
+        "Dimension",
+        backref=backref(
+            "units", uselist=True, order_by=dimension_id, cascade="all, delete-orphan"
+        ),
+        lazy="joined",
+    )
+    project = relationship(
+        "Project",
+        backref=backref("units", order_by=dimension_id, cascade="all, delete-orphan"),
+        lazy="joined",
+    )
 
-    _parents  = ['tDimension', 'tProject']
-    _children = ['tDataset', 'tTypeAttr']
+    _parents = ["tDimension", "tProject"]
+    _children = ["tDataset", "tTypeAttr"]
 
     def __repr__(self):
         return "{0}".format(self.abbreviation)
 
 
 class Dimension(Base, Inspect):
-    """
-    """
+    """ """
 
-    __tablename__='tDimension'
+    __tablename__ = "tDimension"
 
     id = Column(Integer(), primary_key=True, nullable=False)
 
@@ -70,22 +80,24 @@ class Dimension(Base, Inspect):
     # name = Column(Unicode(60, collation='utf8_bin'),  nullable=False, unique=True)
     # description = Column(Unicode(1000, collation='utf8_bin'))
 
-    name = Column(Unicode(60),  nullable=False, unique=True)
+    name = Column(Unicode(60), nullable=False, unique=True)
     description = Column(Unicode(1000))
 
-    project_id = Column(Integer(), ForeignKey('tProject.id'), index=True, nullable=True)
+    project_id = Column(Integer(), ForeignKey("tProject.id"), index=True, nullable=True)
 
-    _parents  = ['tProject']
-    _children = ['tUnit', 'tAttr']
+    _parents = ["tProject"]
+    _children = ["tUnit", "tAttr"]
 
     def __repr__(self):
         return "{0}".format(self.name)
+
 
 def create_resourcedata_view():
     from .network import ResourceAttr, ResourceScenario
     from .dataset import Dataset
     from .attributes import Attr
-    #These are for creating the resource data view (see bottom of page)
+
+    # These are for creating the resource data view (see bottom of page)
     from sqlalchemy import select
     from sqlalchemy.schema import DDLElement
     from sqlalchemy.sql import table
@@ -102,7 +114,10 @@ def create_resourcedata_view():
 
     @compiler.compiles(CreateView)
     def compile(element, compiler, **kw):
-        return "CREATE VIEW %s AS %s" % (element.name, compiler.sql_compiler.process(element.selectable))
+        return "CREATE VIEW %s AS %s" % (
+            element.name,
+            compiler.sql_compiler.process(element.selectable),
+        )
 
     @compiler.compiles(DropView)
     def compile(element, compiler, **kw):
@@ -114,27 +129,36 @@ def create_resourcedata_view():
         for c in selectable.c:
             c._make_proxy(t)
 
-        CreateView(name, selectable).execute_at('after-create', metadata)
-        DropView(name).execute_at('before-drop', metadata)
+        CreateView(name, selectable).execute_at("after-create", metadata)
+        DropView(name).execute_at("before-drop", metadata)
         return t
 
-
-    view_qry = select([
-        ResourceAttr.id,
-        ResourceAttr.attr_id,
-        Attr.name,
-        ResourceAttr.id,
-        ResourceAttr.network_id,
-        ResourceAttr.node_id,
-        ResourceAttr.link_id,
-        ResourceAttr.group_id,
-        ResourceScenario.scenario_id,
-        ResourceScenario.dataset_id,
-        Dataset.unit_id,
-        Dataset.name,
-        Dataset.type,
-        Dataset.value]).where(ResourceScenario.resource_attr_id==ResourceAttr.attr_id).where(ResourceAttr.attr_id==Attr.id).where(ResourceScenario.dataset_id==Dataset.id)
+    view_qry = (
+        select(
+            [
+                ResourceAttr.id,
+                ResourceAttr.attr_id,
+                Attr.name,
+                ResourceAttr.id,
+                ResourceAttr.network_id,
+                ResourceAttr.node_id,
+                ResourceAttr.link_id,
+                ResourceAttr.group_id,
+                ResourceScenario.scenario_id,
+                ResourceScenario.dataset_id,
+                Dataset.unit_id,
+                Dataset.name,
+                Dataset.type,
+                Dataset.value,
+            ]
+        )
+        .where(ResourceScenario.resource_attr_id == ResourceAttr.attr_id)
+        .where(ResourceAttr.attr_id == Attr.id)
+        .where(ResourceScenario.dataset_id == Dataset.id)
+    )
 
     stuff_view = view("vResourceData", Base.metadata, view_qry)
-#TODO: Understand why this view is not being created.
-#create_resourcedata_view()
+
+
+# TODO: Understand why this view is not being created.
+# create_resourcedata_view()

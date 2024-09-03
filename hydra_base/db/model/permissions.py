@@ -18,41 +18,45 @@
 #
 from .base import *
 
-#***************************************************
-#Ownership & Permissions
-#***************************************************
-__all__ = ['Perm', 'Role', 'RolePerm', 'RoleUser', 'User']
+# ***************************************************
+# Ownership & Permissions
+# ***************************************************
+__all__ = ["Perm", "Role", "RolePerm", "RoleUser", "User"]
+
 
 class Perm(Base, Inspect):
-    """
-    """
+    """ """
 
-    __tablename__='tPerm'
+    __tablename__ = "tPerm"
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    code = Column(String(60),  nullable=False)
-    name = Column(String(200),  nullable=False)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    code = Column(String(60), nullable=False)
+    name = Column(String(200), nullable=False)
+    cr_date = Column(
+        TIMESTAMP(), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
 
-    _parents  = ['tRole', 'tPerm']
+    _parents = ["tRole", "tPerm"]
     _children = []
 
     def __repr__(self):
         return "{0} ({1})".format(self.name, self.code)
 
-class Role(Base, Inspect):
-    """
-    """
 
-    __tablename__='tRole'
+class Role(Base, Inspect):
+    """ """
+
+    __tablename__ = "tRole"
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    code = Column(String(60),  nullable=False)
-    name = Column(String(200),  nullable=False)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    code = Column(String(60), nullable=False)
+    name = Column(String(200), nullable=False)
+    cr_date = Column(
+        TIMESTAMP(), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
 
-    _parents  = []
-    _children = ['tRolePerm', 'tRoleUser']
+    _parents = []
+    _children = ["tRolePerm", "tRoleUser"]
 
     @property
     def permissions(self):
@@ -63,36 +67,51 @@ class Role(Base, Inspect):
 
 
 class RolePerm(Base, Inspect):
-    """
-    """
+    """ """
 
-    __tablename__ = 'tRolePerm'
+    __tablename__ = "tRolePerm"
 
-    perm_id = Column(Integer(), ForeignKey('tPerm.id'), primary_key=True, nullable=False)
-    role_id = Column(Integer(), ForeignKey('tRole.id'), primary_key=True, nullable=False)
-    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    perm = relationship('Perm', backref=backref('roleperms', uselist=True, lazy='joined'), lazy='joined')
-    role = relationship('Role', backref=backref('roleperms', uselist=True, lazy='joined'), lazy='joined')
+    perm_id = Column(
+        Integer(), ForeignKey("tPerm.id"), primary_key=True, nullable=False
+    )
+    role_id = Column(
+        Integer(), ForeignKey("tRole.id"), primary_key=True, nullable=False
+    )
+    cr_date = Column(
+        TIMESTAMP(), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
+    perm = relationship(
+        "Perm", backref=backref("roleperms", uselist=True, lazy="joined"), lazy="joined"
+    )
+    role = relationship(
+        "Role", backref=backref("roleperms", uselist=True, lazy="joined"), lazy="joined"
+    )
 
-    _parents = ['tRole', 'tPerm']
+    _parents = ["tRole", "tPerm"]
     _children = []
 
     def __repr__(self):
         return "{0}".format(self.perm)
 
+
 class RoleUser(Base, Inspect):
-    """
-    """
+    """ """
 
-    __tablename__='tRoleUser'
+    __tablename__ = "tRoleUser"
 
-    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
-    role_id = Column(Integer(), ForeignKey('tRole.id'), primary_key=True, nullable=False)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    role = relationship('Role', backref=backref('roleusers', uselist=True))
-    user = relationship('User', backref=backref('roleusers', uselist=True))
+    user_id = Column(
+        Integer(), ForeignKey("tUser.id"), primary_key=True, nullable=False
+    )
+    role_id = Column(
+        Integer(), ForeignKey("tRole.id"), primary_key=True, nullable=False
+    )
+    cr_date = Column(
+        TIMESTAMP(), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
+    role = relationship("Role", backref=backref("roleusers", uselist=True))
+    user = relationship("User", backref=backref("roleusers", uselist=True))
 
-    _parents  = ['tRole', 'tUser']
+    _parents = ["tRole", "tUser"]
     _children = []
 
     def __repr__(self):
@@ -100,25 +119,28 @@ class RoleUser(Base, Inspect):
 
 
 class User(Base, Inspect):
-    """
-    """
+    """ """
 
-    __tablename__='tUser'
+    __tablename__ = "tUser"
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    username = Column(String(60),  nullable=False, unique=True)
-    password = Column(LargeBinary(),  nullable=False)
-    display_name = Column(String(200),  nullable=False, server_default=text(u"''"))
+    username = Column(String(60), nullable=False, unique=True)
+    password = Column(LargeBinary(), nullable=False)
+    display_name = Column(String(200), nullable=False, server_default=text("''"))
     last_login = Column(TIMESTAMP())
     last_edit = Column(TIMESTAMP())
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(
+        TIMESTAMP(), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
     failed_logins = Column(SMALLINT, nullable=True, default=0)
 
-    _parents  = []
-    _children = ['tRoleUser']
+    _parents = []
+    _children = ["tRoleUser"]
 
     def validate_password(self, password):
-        if bcrypt.hashpw(password.encode('utf-8'), self.password.encode('utf-8')) == self.password.encode('utf-8'):
+        if bcrypt.hashpw(
+            password.encode("utf-8"), self.password.encode("utf-8")
+        ) == self.password.encode("utf-8"):
             return True
         return False
 
@@ -140,10 +162,10 @@ class User(Base, Inspect):
 
     def is_admin(self):
         """
-            Check that the user has a role with the code 'admin'
+        Check that the user has a role with the code 'admin'
         """
         for ur in self.roleusers:
-            if ur.role.code == 'admin':
+            if ur.role.code == "admin":
                 return True
 
         return False

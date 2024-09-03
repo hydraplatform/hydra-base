@@ -18,87 +18,131 @@
 #
 from .base import *
 
-__all__ = ['ProjectOwner', 'NetworkOwner', 'RuleOwner', 'DatasetOwner']
+__all__ = ["ProjectOwner", "NetworkOwner", "RuleOwner", "DatasetOwner"]
+
 
 class ProjectOwner(Base, Inspect):
-    """
-    """
+    """ """
 
-    __tablename__='tProjectOwner'
+    __tablename__ = "tProjectOwner"
 
-    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
-    project_id = Column(Integer(), ForeignKey('tProject.id'), primary_key=True, nullable=False)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    view = Column(String(1),  nullable=False, default='Y')
-    edit = Column(String(1),  nullable=False, default='N')
-    share = Column(String(1),  nullable=False, default='N')
+    user_id = Column(
+        Integer(), ForeignKey("tUser.id"), primary_key=True, nullable=False
+    )
+    project_id = Column(
+        Integer(), ForeignKey("tProject.id"), primary_key=True, nullable=False
+    )
+    cr_date = Column(
+        TIMESTAMP(), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
+    view = Column(String(1), nullable=False, default="Y")
+    edit = Column(String(1), nullable=False, default="N")
+    share = Column(String(1), nullable=False, default="N")
 
-    user = relationship('User')
-    project = relationship('Project', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
+    user = relationship("User")
+    project = relationship(
+        "Project",
+        backref=backref(
+            "owners", order_by=user_id, uselist=True, cascade="all, delete-orphan"
+        ),
+    )
 
-    _parents  = ['tProject', 'tUser']
+    _parents = ["tProject", "tUser"]
     _children = []
 
     @property
     def read(self):
         return self.view
 
+
 class NetworkOwner(Base, Inspect):
-    """
-    """
+    """ """
 
-    __tablename__='tNetworkOwner'
+    __tablename__ = "tNetworkOwner"
 
-    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
-    network_id = Column(Integer(), ForeignKey('tNetwork.id'), primary_key=True, nullable=False)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    view = Column(String(1),  nullable=False, default='Y')
-    edit = Column(String(1),  nullable=False, default='N')
-    share = Column(String(1),  nullable=False, default='N')
+    user_id = Column(
+        Integer(), ForeignKey("tUser.id"), primary_key=True, nullable=False
+    )
+    network_id = Column(
+        Integer(), ForeignKey("tNetwork.id"), primary_key=True, nullable=False
+    )
+    cr_date = Column(
+        TIMESTAMP(), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
+    view = Column(String(1), nullable=False, default="Y")
+    edit = Column(String(1), nullable=False, default="N")
+    share = Column(String(1), nullable=False, default="N")
 
-    user = relationship('User')
-    network = relationship('Network', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
+    user = relationship("User")
+    network = relationship(
+        "Network",
+        backref=backref(
+            "owners", order_by=user_id, uselist=True, cascade="all, delete-orphan"
+        ),
+    )
 
-    _parents  = ['tNetwork', 'tUser']
+    _parents = ["tNetwork", "tUser"]
     _children = []
+
 
 class RuleOwner(AuditMixin, Base, Inspect):
     """
-        This table tracks the owners of rules, to ensure rules which contain confidential logic
-        can be kept hidden
+    This table tracks the owners of rules, to ensure rules which contain confidential logic
+    can be kept hidden
     """
 
-    __tablename__='tRuleOwner'
+    __tablename__ = "tRuleOwner"
 
-    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
-    rule_id = Column(Integer(), ForeignKey('tRule.id'), primary_key=True, nullable=False)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    view = Column(String(1),  nullable=False, default='Y')
-    edit = Column(String(1),  nullable=False, default='N')
-    share = Column(String(1),  nullable=False, default='N')
+    user_id = Column(
+        Integer(), ForeignKey("tUser.id"), primary_key=True, nullable=False
+    )
+    rule_id = Column(
+        Integer(), ForeignKey("tRule.id"), primary_key=True, nullable=False
+    )
+    cr_date = Column(
+        TIMESTAMP(), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
+    view = Column(String(1), nullable=False, default="Y")
+    edit = Column(String(1), nullable=False, default="N")
+    share = Column(String(1), nullable=False, default="N")
 
-    user = relationship('User', foreign_keys=[user_id])
-    rule = relationship('Rule', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
+    user = relationship("User", foreign_keys=[user_id])
+    rule = relationship(
+        "Rule",
+        backref=backref(
+            "owners", order_by=user_id, uselist=True, cascade="all, delete-orphan"
+        ),
+    )
 
-    _parents  = ['tRule', 'tUser']
+    _parents = ["tRule", "tUser"]
     _children = []
 
 
 class DatasetOwner(Base, Inspect):
-    """
-    """
+    """ """
 
-    __tablename__='tDatasetOwner'
+    __tablename__ = "tDatasetOwner"
 
-    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
-    dataset_id = Column(Integer(), ForeignKey('tDataset.id'), primary_key=True, nullable=False)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    view = Column(String(1),  nullable=False, default='Y')
-    edit = Column(String(1),  nullable=False, default='N')
-    share = Column(String(1),  nullable=False, default='N')
+    user_id = Column(
+        Integer(), ForeignKey("tUser.id"), primary_key=True, nullable=False
+    )
+    dataset_id = Column(
+        Integer(), ForeignKey("tDataset.id"), primary_key=True, nullable=False
+    )
+    cr_date = Column(
+        TIMESTAMP(), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
+    view = Column(String(1), nullable=False, default="Y")
+    edit = Column(String(1), nullable=False, default="N")
+    share = Column(String(1), nullable=False, default="N")
 
-    user = relationship('User')
-    dataset = relationship('Dataset', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
+    user = relationship("User")
+    dataset = relationship(
+        "Dataset",
+        backref=backref(
+            "owners", order_by=user_id, uselist=True, cascade="all, delete-orphan"
+        ),
+    )
 
-    _parents  = ['tDataset', 'tUser']
+    _parents = ["tDataset", "tUser"]
     _children = []

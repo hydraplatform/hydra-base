@@ -18,58 +18,83 @@
 #
 from ..base import *
 
-__all__ = ['ResourceGroupItem']
+__all__ = ["ResourceGroupItem"]
+
 
 class ResourceGroupItem(Base, Inspect):
-    """
-    """
+    """ """
 
-    __tablename__='tResourceGroupItem'
+    __tablename__ = "tResourceGroupItem"
 
     __table_args__ = (
-        UniqueConstraint('group_id', 'node_id', 'scenario_id', name='node_group_1'),
-        UniqueConstraint('group_id', 'link_id', 'scenario_id',  name = 'link_group_1'),
-        UniqueConstraint('group_id', 'subgroup_id', 'scenario_id', name = 'subgroup_group_1'),
+        UniqueConstraint("group_id", "node_id", "scenario_id", name="node_group_1"),
+        UniqueConstraint("group_id", "link_id", "scenario_id", name="link_group_1"),
+        UniqueConstraint(
+            "group_id", "subgroup_id", "scenario_id", name="subgroup_group_1"
+        ),
     )
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    ref_key = Column(String(60),  nullable=False)
+    ref_key = Column(String(60), nullable=False)
 
-    node_id     = Column(Integer(),  ForeignKey('tNode.id'))
-    link_id     = Column(Integer(),  ForeignKey('tLink.id'))
-    subgroup_id = Column(Integer(),  ForeignKey('tResourceGroup.id'))
+    node_id = Column(Integer(), ForeignKey("tNode.id"))
+    link_id = Column(Integer(), ForeignKey("tLink.id"))
+    subgroup_id = Column(Integer(), ForeignKey("tResourceGroup.id"))
 
-    group_id = Column(Integer(), ForeignKey('tResourceGroup.id'))
-    scenario_id = Column(Integer(), ForeignKey('tScenario.id'),  nullable=False, index=True)
+    group_id = Column(Integer(), ForeignKey("tResourceGroup.id"))
+    scenario_id = Column(
+        Integer(), ForeignKey("tScenario.id"), nullable=False, index=True
+    )
 
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    cr_date = Column(
+        TIMESTAMP(), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
 
-    group = relationship('ResourceGroup', foreign_keys=[group_id], backref=backref("items", order_by=group_id))
-    scenario = relationship('Scenario', backref=backref("resourcegroupitems", order_by=id, cascade="all, delete-orphan"))
+    group = relationship(
+        "ResourceGroup",
+        foreign_keys=[group_id],
+        backref=backref("items", order_by=group_id),
+    )
+    scenario = relationship(
+        "Scenario",
+        backref=backref(
+            "resourcegroupitems", order_by=id, cascade="all, delete-orphan"
+        ),
+    )
 
-    #These need to have backrefs to allow the deletion of networks & projects
-    #--There needs to be a connection between the items & the resources to allow it
-    node = relationship('Node', backref=backref("resourcegroupitems", order_by=id, cascade="all, delete-orphan"))
-    link = relationship('Link', backref=backref("resourcegroupitems", order_by=id, cascade="all, delete-orphan"))
-    subgroup = relationship('ResourceGroup', foreign_keys=[subgroup_id])
+    # These need to have backrefs to allow the deletion of networks & projects
+    # --There needs to be a connection between the items & the resources to allow it
+    node = relationship(
+        "Node",
+        backref=backref(
+            "resourcegroupitems", order_by=id, cascade="all, delete-orphan"
+        ),
+    )
+    link = relationship(
+        "Link",
+        backref=backref(
+            "resourcegroupitems", order_by=id, cascade="all, delete-orphan"
+        ),
+    )
+    subgroup = relationship("ResourceGroup", foreign_keys=[subgroup_id])
 
-    _parents  = ['tResourceGroup', 'tScenario']
+    _parents = ["tResourceGroup", "tScenario"]
     _children = []
 
     def get_resource(self):
         ref_key = self.ref_key
-        if ref_key == 'NODE':
+        if ref_key == "NODE":
             return self.node
-        elif ref_key == 'LINK':
+        elif ref_key == "LINK":
             return self.link
-        elif ref_key == 'GROUP':
+        elif ref_key == "GROUP":
             return self.subgroup
 
     def get_resource_id(self):
         ref_key = self.ref_key
-        if ref_key == 'NODE':
+        if ref_key == "NODE":
             return self.node_id
-        elif ref_key == 'LINK':
+        elif ref_key == "LINK":
             return self.link_id
-        elif ref_key == 'GROUP':
+        elif ref_key == "GROUP":
             return self.subgroup_id

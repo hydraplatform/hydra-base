@@ -18,9 +18,10 @@ log = logging.getLogger(__name__)
 
 def filestore_url(argname, rewrite_func="url_to_filestore_path"):
     """
-      Decorator which rewrites the <argname> argument to the decorated function
-      to include the appropriate path according to the <rewrite_func> argument.
+    Decorator which rewrites the <argname> argument to the decorated function
+    to include the appropriate path according to the <rewrite_func> argument.
     """
+
     def dfunc(func):
         @wraps(func)
         def wrapper(self, *args, **kwargs):
@@ -37,26 +38,27 @@ def filestore_url(argname, rewrite_func="url_to_filestore_path"):
             try:
                 rw_func = getattr(self, rewrite_func)
             except AttributeError as ae:
-                raise ValueError(f"Invalid rewrite_func '{rewrite_func}' for @filestore_url") from ae
+                raise ValueError(
+                    f"Invalid rewrite_func '{rewrite_func}' for @filestore_url"
+                ) from ae
             # rw_func is a bound method so may be called directly
             post_arg = rw_func(pre_arg)
-            insert = (*av.locals["args"][:idx], post_arg, *av.locals["args"][idx+1:])
+            insert = (*av.locals["args"][:idx], post_arg, *av.locals["args"][idx + 1 :])
             return func(self, *insert, **kwargs)
 
         return wrapper
+
     return dfunc
 
 
-class HdfStorageAdapter():
+class HdfStorageAdapter:
     """
-       Utilities to describe and retrieve data from HDF storage
+    Utilities to describe and retrieve data from HDF storage
     """
 
     def __init__(self):
         self.fsspec_args = dict(
-            mode='rb',
-            anon=self._get_anon(),
-            default_fill_cache=True
+            mode="rb", anon=self._get_anon(), default_fill_cache=True
         )
         self.config = self.__class__.get_hdf_config()
         self.filestore_path = self.config.get("hdf_filestore")
@@ -65,19 +67,24 @@ class HdfStorageAdapter():
 
     def _get_anon(self):
         """
-            If there are AWS credentials present in the environment, 
-            then assume that this user will be not anonymous
+        If there are AWS credentials present in the environment,
+        then assume that this user will be not anonymous
         """
 
-        self.accesskeyid = os.getenv('AWS_ACCESS_KEY_ID')
-        self.secretaccesskey = os.getenv('AWS_SECRET_ACCESS_KEY')
-        if self.accesskeyid not in ('' , None) and self.secretaccesskey not in ('', None):
+        self.accesskeyid = os.getenv("AWS_ACCESS_KEY_ID")
+        self.secretaccesskey = os.getenv("AWS_SECRET_ACCESS_KEY")
+        if self.accesskeyid not in ("", None) and self.secretaccesskey not in (
+            "",
+            None,
+        ):
             return False
 
-        home = os.getenv('HOME')
-        default_credentials_path = os.path.join(home, '.aws', 'credentials')
-        credentials_path = os.getenv('AWS_SHARED_CREDENTIALS_FILE', default_credentials_path)
-        #If there is a credentials file, then assume the user is not anonymous
+        home = os.getenv("HOME")
+        default_credentials_path = os.path.join(home, ".aws", "credentials")
+        credentials_path = os.getenv(
+            "AWS_SHARED_CREDENTIALS_FILE", default_credentials_path
+        )
+        # If there is a credentials file, then assume the user is not anonymous
         if os.path.exists(credentials_path):
             return False
 
@@ -86,8 +93,12 @@ class HdfStorageAdapter():
     @staticmethod
     def get_hdf_config(config_key="storage_hdf", **kwargs):
         numeric = ()
-        boolean = ("disable_hdf", )
-        hdf_keys = [k for k in config.CONFIG.options(config_key) if k not in config.CONFIG.defaults()]
+        boolean = ("disable_hdf",)
+        hdf_keys = [
+            k
+            for k in config.CONFIG.options(config_key)
+            if k not in config.CONFIG.defaults()
+        ]
         hdf_items = {k: config.CONFIG.get(config_key, k) for k in hdf_keys}
         for k in numeric:
             hdf_items[k] = int(hdf_items[k])
@@ -100,7 +111,7 @@ class HdfStorageAdapter():
     def open_hdf_url(self, url, **kwargs):
         try:
             with fsspec.open(url, **self.fsspec_args) as fp:
-                return h5py.File(fp.fs.open(url), mode='r')
+                return h5py.File(fp.fs.open(url), mode="r")
         except (ClientError, FileNotFoundError, PermissionError) as e:
             raise ValueError(f"Unable to access url: {url}") from e
 
@@ -129,22 +140,19 @@ class HdfStorageAdapter():
     @filestore_url("url")
     def get_group_info(self, url, groupname):
         """
-          Returns a dict containing two keys:
-            - index: a dict of 'name', 'length', 'dtype' for
-                     the index of the <group> arg
-            - series: an array of dicts, each containing 'name',
-                      'length', 'dtype' for each column of the
-                      <group> arg
+        Returns a dict containing two keys:
+          - index: a dict of 'name', 'length', 'dtype' for
+                   the index of the <group> arg
+          - series: an array of dicts, each containing 'name',
+                    'length', 'dtype' for each column of the
+                    <group> arg
         """
         reader = self.make_group_reader(url, groupname)
         index_info = reader.get_index_info()
         columns = reader.get_columns_of_group()
         series_info = [reader.get_series_info(c) for c in columns]
 
-        return {
-          "index": index_info,
-          "series": series_info
-        }
+        return {"index": index_info, "series": series_info}
 
     @filestore_url("url")
     def get_index_info(self, url, groupname):
@@ -161,11 +169,11 @@ class HdfStorageAdapter():
         reader = self.make_group_reader(url, groupname)
         if isinstance(columns, str):
             """
-              Assume any str arg represents a single column
-              name which should have been passed as a single-
-              element Sequence, *unless that string is empty*
-              in which case it is equivalent to an empty
-              container and represents *all* columns
+            Assume any str arg represents a single column
+            name which should have been passed as a single-
+            element Sequence, *unless that string is empty*
+            in which case it is equivalent to an empty
+            container and represents *all* columns
             """
             columns = (columns,) if len(columns) > 0 else None
         if not columns:
@@ -198,17 +206,19 @@ class HdfStorageAdapter():
         reader = self.make_group_reader(url, groupname)
         return reader.get_group_shape()
 
-    def get_columns_as_dataframe(self, url, groupname=None, columns=None, start=None, end=None, **kwargs):
+    def get_columns_as_dataframe(
+        self, url, groupname=None, columns=None, start=None, end=None, **kwargs
+    ):
         json_opts = {"date_format": "iso"}
 
         reader = self.make_group_reader(url, groupname)
         if isinstance(columns, str):
             """
-              Assume any str arg represents a single column
-              name which should have been passed as a single-
-              element Sequence, *unless that string is empty*
-              in which case it is equivalent to an empty
-              container and represents *all* columns
+            Assume any str arg represents a single column
+            name which should have been passed as a single-
+            element Sequence, *unless that string is empty*
+            in which case it is equivalent to an empty
+            container and represents *all* columns
             """
             columns = (columns,) if len(columns) > 0 else None
         if not columns:
@@ -226,7 +236,7 @@ class HdfStorageAdapter():
         filedir = os.path.dirname(filesrc)
 
         if self.filestore_path is not None:
-            destdir = os.path.join(self.filestore_path, filedir.strip('/'))
+            destdir = os.path.join(self.filestore_path, filedir.strip("/"))
         else:
             destdir = filedir
         return destdir, os.path.basename(filesrc)
@@ -254,6 +264,7 @@ class HdfStorageAdapter():
 
     def list_local_files(self):
         import glob
+
         files = {}
         pattern = os.path.join(self.filestore_path, "**")
         for p in glob.iglob(pattern, recursive=True):
@@ -264,49 +275,59 @@ class HdfStorageAdapter():
 
     def purge_local_file(self, filename):
         """
-          This prevents directory traversal by:
-            - relative path components
-            - ~user path components
-            - $ENV_VAR components
-            - paths containing hard or symbolic links
+        This prevents directory traversal by:
+          - relative path components
+          - ~user path components
+          - $ENV_VAR components
+          - paths containing hard or symbolic links
 
-          A valid target file must be all of:
-            - a real absolute filesystem path
-            - a subtree of the filestore
-            - not a directory
-            - not a link
-            - not a device file or pipe
-            - owned by the Hydra user
+        A valid target file must be all of:
+          - a real absolute filesystem path
+          - a subtree of the filestore
+          - not a directory
+          - not a link
+          - not a device file or pipe
+          - owned by the Hydra user
 
-          In addition, the filestore_path may not be:
-            - undefined
-            - the root filesystem
-            - the root of any mount point
+        In addition, the filestore_path may not be:
+          - undefined
+          - the root filesystem
+          - the root of any mount point
 
-          ValueError is raised if any of these conditions
-          are not met.
+        ValueError is raised if any of these conditions
+        are not met.
         """
         real_fsp = os.path.realpath(self.filestore_path)
-        if not self.filestore_path or real_fsp == '/' or os.path.ismount(real_fsp):
-            raise ValueError(f"Invalid filestore configuration value '{self.filestore_path}'")
+        if not self.filestore_path or real_fsp == "/" or os.path.ismount(real_fsp):
+            raise ValueError(
+                f"Invalid filestore configuration value '{self.filestore_path}'"
+            )
 
         expanded = os.path.expandvars(filename)
         if expanded != filename:
-            raise ValueError(f"Invalid path '{filename}': Arguments may not contain variables")
+            raise ValueError(
+                f"Invalid path '{filename}': Arguments may not contain variables"
+            )
         target = os.path.realpath(expanded)
         if os.path.commonprefix([target, self.filestore_path]) != self.filestore_path:
-            raise ValueError(f"Invalid path '{filename}': Only filestore files may be purged")
+            raise ValueError(
+                f"Invalid path '{filename}': Only filestore files may be purged"
+            )
 
         if not os.path.exists(target):
             raise ValueError(f"Invalid path '{filename}': File does not exist")
 
         # Tests for directories, device files and pipes, and existence again
         if not os.path.isfile(target):
-            raise ValueError(f"Invalid path '{filename}': Only regular files may be purged")
+            raise ValueError(
+                f"Invalid path '{filename}': Only regular files may be purged"
+            )
 
         if os.getuid() != os.stat(target).st_uid:
-            raise ValueError(f"Invalid path '{filename}': File is not owned by "
-                             f"user {os.getlogin()} ({os.getuid()})")
+            raise ValueError(
+                f"Invalid path '{filename}': File is not owned by "
+                f"user {os.getlogin()} ({os.getuid()})"
+            )
         try:
             os.unlink(target)
         except OSError as oe:

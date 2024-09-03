@@ -16,15 +16,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from sqlalchemy import create_engine,\
-        MetaData,\
-        Table,\
-        Column,\
-        Integer,\
-        String,\
-        TIMESTAMP,\
-        text,\
-        DDL
+from sqlalchemy import (
+    create_engine,
+    MetaData,
+    Table,
+    Column,
+    Integer,
+    String,
+    TIMESTAMP,
+    text,
+    DDL,
+)
 from sqlalchemy.engine import reflection
 import logging
 from hydra_base import config
@@ -34,39 +36,41 @@ from sqlalchemy.dialects.mysql.base import DOUBLE
 from decimal import Decimal
 import os
 
-engine_name = config.get('mysqld', 'url')
-sqlite_engine = "sqlite:///%s"%(config.get('sqlite', 'backup_url'))
+engine_name = config.get("mysqld", "url")
+sqlite_engine = "sqlite:///%s" % (config.get("sqlite", "backup_url"))
+
 
 def connect():
     """
-        return an inspector object
+    return an inspector object
     """
     db = create_engine(engine_name, echo=True)
     db.connect()
 
     return db
 
+
 def create_sqlite_backup_db(audit_tables):
     """
-        return an inspector object
+    return an inspector object
     """
-    #we always want to create a whole new DB, so delete the old one first
-    #if it exists.
+    # we always want to create a whole new DB, so delete the old one first
+    # if it exists.
     try:
-        Popen("rm %s"%(config.get('sqlite', 'backup_url')), shell=True)
+        Popen("rm %s" % (config.get("sqlite", "backup_url")), shell=True)
         logging.warn("Old sqlite backup DB removed")
     except Exception as e:
         logging.warn(e)
 
     try:
-        aux_dir = config.get('DEFAULT', 'hydra_aux_dir')
+        aux_dir = config.get("DEFAULT", "hydra_aux_dir")
         os.mkdir(aux_dir)
         logging.warn("%s created", aux_dir)
     except Exception as e:
         logging.warn(e)
 
     try:
-        backup_dir = config.get('db', 'export_target')
+        backup_dir = config.get("db", "export_target")
         os.mkdir(backup_dir)
         logging.warn("%s created", backup_dir)
     except Exception as e:
@@ -88,6 +92,7 @@ def create_sqlite_backup_db(audit_tables):
 
     metadata.create_all(db)
 
+
 def run():
     db = create_engine(engine_name, echo=True)
     db = connect()
@@ -96,7 +101,7 @@ def run():
     tables = []
     for table_name in insp.get_table_names():
         table = Table(table_name, metadata, autoload=True, autoload_with=db)
-        if not table_name.endswith('_aud'):
+        if not table_name.endswith("_aud"):
             tables.append(table)
         else:
             table.drop(db)
@@ -107,53 +112,57 @@ def run():
         audit_table = create_audit_table(t)
         audit_tables.append(audit_table)
 
-    #create_sqlite_backup_db(audit_tables)
+    # create_sqlite_backup_db(audit_tables)
     create_triggers(db, tables)
     metadata.create_all()
 
-def create_triggers(db, tables):
 
+def create_triggers(db, tables):
 
     db = create_engine(engine_name)
     db.echo = True
     db.connect()
     metadata = MetaData(db)
 
-
     insp = reflection.Inspector.from_engine(db)
 
     tables = []
     for table_name in insp.get_table_names():
-        if not table_name.endswith('_aud'):
+        if not table_name.endswith("_aud"):
             table = Table(table_name, metadata, autoload=True, autoload_with=db)
             tables.append(table)
-            #print("TABLE: %s"%table)
-            #print table.__repr__
+            # print("TABLE: %s"%table)
+            # print table.__repr__
         else:
             table = Table(table_name, metadata, autoload=True, autoload_with=db)
             table.drop(db)
             metadata.remove(table)
-
 
     drop_trigger_text = """DROP TRIGGER IF EXISTS %(trigger_name)s;"""
     for table in tables:
         pk_cols = [c.name for c in table.primary_key]
         for pk_col in pk_cols:
             try:
-                db.execute(drop_trigger_text % {
-                    'trigger_name' : table.name + "_ins_trig",
-                })
+                db.execute(
+                    drop_trigger_text
+                    % {
+                        "trigger_name": table.name + "_ins_trig",
+                    }
+                )
             except:
                 pass
 
         for pk_col in pk_cols:
             try:
-                db.execute(drop_trigger_text % {
-                    'trigger_name' : table.name + "_upd_trig",
-                })
+                db.execute(
+                    drop_trigger_text
+                    % {
+                        "trigger_name": table.name + "_upd_trig",
+                    }
+                )
             except:
                 pass
-    #metadata.create_all()
+    # metadata.create_all()
 
     trigger_text = """
                     CREATE TRIGGER
@@ -178,50 +187,51 @@ def create_triggers(db, tables):
 
     for table in tables:
 
-
         pk_cols = [c.name for c in table.primary_key]
         pkd = []
 
         for pk_col in pk_cols:
-            pkd.append("d.%s = NEW.%s"%(pk_col, pk_col))
+            pkd.append("d.%s = NEW.%s" % (pk_col, pk_col))
 
         text_dict = {
-            'action'       : 'INSERT',
-            'trigger_name' : table.name + "_ins_trig",
-            'table_name'   : table.name,
-            'pkd'           : ' and '.join(pkd),
+            "action": "INSERT",
+            "trigger_name": table.name + "_ins_trig",
+            "table_name": table.name,
+            "pkd": " and ".join(pkd),
         }
 
         logging.info(trigger_text % text_dict)
         trig_ddl = DDL(trigger_text % text_dict)
-        trig_ddl.execute_at('after-create', table.metadata)
+        trig_ddl.execute_at("after-create", table.metadata)
 
-        text_dict['action'] = 'UPDATE'
-        text_dict['trigger_name'] = table.name + "_upd_trig"
+        text_dict["action"] = "UPDATE"
+        text_dict["trigger_name"] = table.name + "_upd_trig"
         trig_ddl = DDL(trigger_text % text_dict)
-        trig_ddl.execute_at('after-create', table.metadata)
+        trig_ddl.execute_at("after-create", table.metadata)
 
     metadata.create_all()
+
 
 def create_audit_table(table):
     args = []
     for c in table.columns:
         col = c.copy()
-        #if col.name == 'cr_date':
+        # if col.name == 'cr_date':
         #    continue
-        col.primary_key=False
+        col.primary_key = False
         col.foreign_keys = set([])
-        col.server_default=None
-        col.default=None
-        col.nullable=True
+        col.server_default = None
+        col.default = None
+        col.nullable = True
         args.append(col)
-    args.append(Column('action', String(12)))
-    args.append(Column('aud_id', Integer, primary_key=True))
-#    args.append(Column('aud_user_id', Integer, ForeignKey('tUser.id')))
-    args.append(Column('aud_time', TIMESTAMP, server_default=text('LOCALTIMESTAMP')))
-    return Table(table.name+"_aud", table.metadata, *args, extend_existing=True)
+    args.append(Column("action", String(12)))
+    args.append(Column("aud_id", Integer, primary_key=True))
+    #    args.append(Column('aud_user_id', Integer, ForeignKey('tUser.id')))
+    args.append(Column("aud_time", TIMESTAMP, server_default=text("LOCALTIMESTAMP")))
+    return Table(table.name + "_aud", table.metadata, *args, extend_existing=True)
 
-if __name__ == '__main__':
-    logging.basicConfig(level='INFO')
+
+if __name__ == "__main__":
+    logging.basicConfig(level="INFO")
     run()
-   # create_triggers()
+# create_triggers()

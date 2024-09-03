@@ -19,13 +19,15 @@
 
 import os
 from ..exceptions import HydraError
-from ..import config
+from .. import config
 import base64
 import logging
+
 log = logging.getLogger(__name__)
 
-def add_image(name, file,**kwargs):
-    path = config.get('filesys', 'img_src')
+
+def add_image(name, file, **kwargs):
+    path = config.get("filesys", "img_src")
     try:
         os.makedirs(path)
     except OSError:
@@ -33,21 +35,20 @@ def add_image(name, file,**kwargs):
 
     path = os.path.join(path, name)
 
-    #The safest way to check if a file exists is to try to open
-    #it. If the open succeeds, then throw an exception to this effect.
+    # The safest way to check if a file exists is to try to open
+    # it. If the open succeeds, then throw an exception to this effect.
     try:
         f = open(path)
-        raise HydraError("A file with this name (%s) already exists!"%(name))
+        raise HydraError("A file with this name (%s) already exists!" % (name))
     except IOError:
         pass
 
-
     log.info("Path: %r" % path)
     if not path.startswith(path):
-        log.critical("Could not open file: %s"%name)
+        log.critical("Could not open file: %s" % name)
         return False
 
-    f = open(path, 'wb') # if this fails, the client will see an
+    f = open(path, "wb")  # if this fails, the client will see an
     # # internal error.
 
     try:
@@ -66,40 +67,42 @@ def add_image(name, file,**kwargs):
 
     return True
 
-def get_image(name,**kwargs):
-    path = config.get('filesys', 'img_src')
+
+def get_image(name, **kwargs):
+    path = config.get("filesys", "img_src")
 
     path = os.path.join(path, name)
 
-    #The safest way to check if a file exists is to try to open
-    #it. If the open succeeds, then throw an exception to this effect.
+    # The safest way to check if a file exists is to try to open
+    # it. If the open succeeds, then throw an exception to this effect.
     try:
-        f = open(path, 'rb')
+        f = open(path, "rb")
     except IOError:
-        raise HydraError("File with name (%s) does not exist!"%(name))
+        raise HydraError("File with name (%s) does not exist!" % (name))
 
-    #read the contents of the file
+    # read the contents of the file
     imageFile = f.read()
 
-    #encode the contents of the file as a byte array
-    #encodedFile = base64.b64encode(imageFile)
+    # encode the contents of the file as a byte array
+    # encodedFile = base64.b64encode(imageFile)
 
     return imageFile
 
-def remove_image(name,**kwargs):
-    path = config.get('filesys', 'img_src')
+
+def remove_image(name, **kwargs):
+    path = config.get("filesys", "img_src")
 
     path = os.path.join(path, name)
-    if(os.path.exists(path)):
+    if os.path.exists(path):
         os.remove(path)
     else:
-        raise HydraError("File with name (%s) does not exist!"%(name))
+        raise HydraError("File with name (%s) does not exist!" % (name))
 
     return True
 
 
-def add_file(resource_type, resource_id, name, file,**kwargs):
-    path = config.get('filesys', 'file_src')
+def add_file(resource_type, resource_id, name, file, **kwargs):
+    path = config.get("filesys", "file_src")
     path = os.path.join(path, resource_type)
     try:
         os.makedirs(path)
@@ -114,21 +117,20 @@ def add_file(resource_type, resource_id, name, file,**kwargs):
 
     path = os.path.join(path, name)
 
-    #The safest way to check if a file exists is to try to open
-    #it. If the open succeeds, then throw an exception to this effect.
+    # The safest way to check if a file exists is to try to open
+    # it. If the open succeeds, then throw an exception to this effect.
     try:
         f = open(path)
-        raise HydraError("A file with this name (%s) already exists!"%(name))
+        raise HydraError("A file with this name (%s) already exists!" % (name))
     except IOError:
         pass
 
-
     log.info("Path: %r" % path)
     if not path.startswith(path):
-        log.critical("Could not open file: %s"%name)
+        log.critical("Could not open file: %s" % name)
         return False
 
-    f = open(path, 'wb') # if this fails, the client will see an
+    f = open(path, "wb")  # if this fails, the client will see an
     # # internal error.
 
     try:
@@ -147,37 +149,38 @@ def add_file(resource_type, resource_id, name, file,**kwargs):
 
     return True
 
-def get_file(resource_type, resource_id, name,**kwargs):
-    path = config.get('filesys', 'file_src')
+
+def get_file(resource_type, resource_id, name, **kwargs):
+    path = config.get("filesys", "file_src")
 
     path = os.path.join(path, resource_type, str(resource_id), name)
 
-    #The safest way to check if a file exists is to try to open
-    #it. If the open succeeds, then throw an exception to this effect.
+    # The safest way to check if a file exists is to try to open
+    # it. If the open succeeds, then throw an exception to this effect.
     try:
-        f = open(path, 'rb')
+        f = open(path, "rb")
     except IOError:
-        raise HydraError("File with name (%s) does not exist!"%(name))
+        raise HydraError("File with name (%s) does not exist!" % (name))
 
-    #read the contents of the file
+    # read the contents of the file
     file_to_send = f.read()
     f.close()
 
-    #encode the contents of the file as a byte array
+    # encode the contents of the file as a byte array
 
-    #encodedFile = base64.b64encode(file_to_send)
+    # encodedFile = base64.b64encode(file_to_send)
 
     return file_to_send
 
-def remove_file(resource_type, resource_id, name,**kwargs):
-    path = config.get('filesys', 'file_src')
+
+def remove_file(resource_type, resource_id, name, **kwargs):
+    path = config.get("filesys", "file_src")
 
     path = os.path.join(path, resource_type, str(resource_id), name)
 
-    if(os.path.exists(path)):
+    if os.path.exists(path):
         os.remove(path)
     else:
-        raise HydraError("File with name (%s) does not exist!"%(name))
+        raise HydraError("File with name (%s) does not exist!" % (name))
 
     return True
-

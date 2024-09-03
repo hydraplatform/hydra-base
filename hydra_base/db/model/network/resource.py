@@ -19,41 +19,40 @@
 from ..base import *
 from .resourceattr import ResourceAttr
 
-__all__ = ['Resource']
+__all__ = ["Resource"]
+
 
 class Resource:
-    def get_attributes(
-            self,
-            include_outputs=True,
-            include_inputs=True
-    ):
+    def get_attributes(self, include_outputs=True, include_inputs=True):
         """
-        Get the resource attributes for this resource, with 
+        Get the resource attributes for this resource, with
         args:
             include_outputs (bool): Include Resource Attributes tagged with attr_is_var='Y'
             include_inputs (bool): Include Resource Attributes tagged with attr_is_var='N'
         """
 
-        ra_qry = get_session().query(ResourceAttr).filter(
-            ResourceAttr.ref_key == self.ref_key
+        ra_qry = (
+            get_session()
+            .query(ResourceAttr)
+            .filter(ResourceAttr.ref_key == self.ref_key)
         )
 
-        if self.ref_key == 'NETWORK':
-            ra_qry = ra_qry.filter(ResourceAttr.network_id==self.id)
-        elif self.ref_key == 'NODE':
-            ra_qry = ra_qry.filter(ResourceAttr.node_id==self.id)
-        elif self.ref_key == 'LINK':
-            ra_qry = ra_qry.filter(ResourceAttr.link_id==self.id)
-        elif self.ref_key == 'GROUP':
-            ra_qry = ra_qry.filter(ResourceAttr.group_id==self.id)
+        if self.ref_key == "NETWORK":
+            ra_qry = ra_qry.filter(ResourceAttr.network_id == self.id)
+        elif self.ref_key == "NODE":
+            ra_qry = ra_qry.filter(ResourceAttr.node_id == self.id)
+        elif self.ref_key == "LINK":
+            ra_qry = ra_qry.filter(ResourceAttr.link_id == self.id)
+        elif self.ref_key == "GROUP":
+            ra_qry = ra_qry.filter(ResourceAttr.group_id == self.id)
 
         if include_inputs is False or include_outputs is False:
             if include_inputs is False:
-                #only include outputs
-                ra_qry = ra_qry.filter(ResourceAttr.attr_is_var == 'Y')
-            
+                # only include outputs
+                ra_qry = ra_qry.filter(ResourceAttr.attr_is_var == "Y")
+
             if include_outputs is False:
-                #only include inputs
-                ra_qry = ra_qry.filter(ResourceAttr.attr_is_var == 'N')
+                # only include inputs
+                ra_qry = ra_qry.filter(ResourceAttr.attr_is_var == "N")
 
         return ra_qry.all()

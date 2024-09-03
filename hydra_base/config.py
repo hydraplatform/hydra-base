@@ -21,7 +21,7 @@ import glob
 import sys
 
 PYTHONVERSION = sys.version_info
-if PYTHONVERSION >= (3,2):
+if PYTHONVERSION >= (3, 2):
     import configparser as ConfigParser
 else:
     import ConfigParser
@@ -38,6 +38,7 @@ global userfile
 global userfiles
 global sysfile
 global sysfiles
+
 
 def load_config():
     """Load a config file. This function looks for a config (*.ini) file in the
@@ -63,84 +64,85 @@ def load_config():
     global sysfile
     global sysfiles
     global CONFIG
-    logging.basicConfig(level='INFO')
+    logging.basicConfig(level="INFO")
 
     config = ConfigParser.ConfigParser(allow_no_value=True)
 
     modulepath = os.path.dirname(os.path.abspath(__file__))
 
-    localfile = os.path.join(os.getcwd(), 'hydra.ini')
+    localfile = os.path.join(os.getcwd(), "hydra.ini")
     localfiles = glob.glob(localfile)
 
-    repofile = os.path.join(modulepath, 'hydra.ini')
+    repofile = os.path.join(modulepath, "hydra.ini")
     repofiles = glob.glob(repofile)
 
-    if os.name == 'nt':
+    if os.name == "nt":
         import winpath
-        userfile = os.path.join(os.path.expanduser('~'),'AppData','Local','hydra.ini')
+
+        userfile = os.path.join(
+            os.path.expanduser("~"), "AppData", "Local", "hydra.ini"
+        )
         userfiles = glob.glob(userfile)
 
-        sysfile = os.path.join(winpath.get_common_documents(), 'Hydra','hydra.ini')
+        sysfile = os.path.join(winpath.get_common_documents(), "Hydra", "hydra.ini")
         sysfiles = glob.glob(sysfile)
     else:
-        userfile = os.path.join(os.path.expanduser('~'), '.hydra', 'hydra.ini')
+        userfile = os.path.join(os.path.expanduser("~"), ".hydra", "hydra.ini")
         userfiles = glob.glob(userfile)
 
-        sysfile = os.path.join('etc','hydra','hydra.ini')
+        sysfile = os.path.join("etc", "hydra", "hydra.ini")
         sysfiles = glob.glob(sysfile)
 
-
     for ini_file in repofiles:
-        logging.debug("Repofile: %s"%ini_file)
+        logging.debug("Repofile: %s" % ini_file)
         config.read(ini_file)
     for ini_file in sysfiles:
-        logging.debug("Sysfile: %s"%ini_file)
+        logging.debug("Sysfile: %s" % ini_file)
         config.read(ini_file)
     for ini_file in userfiles:
-        logging.debug("Userfile: %s"%ini_file)
+        logging.debug("Userfile: %s" % ini_file)
         config.read(ini_file)
     for ini_file in localfiles:
-        logging.info("Localfile: %s"%ini_file)
+        logging.info("Localfile: %s" % ini_file)
         config.read(ini_file)
 
-    env_value = os.environ.get('HYDRA_CONFIG')
+    env_value = os.environ.get("HYDRA_CONFIG")
     if env_value is not None:
         if os.path.exists(env_value):
             config.read(env_value)
         else:
-            logging.warning('HYDRA_CONFIG set as %s but file does not exist', env_value)
+            logging.warning("HYDRA_CONFIG set as %s but file does not exist", env_value)
 
-
-    if os.name == 'nt':
+    if os.name == "nt":
         set_windows_env_variables(config)
 
     try:
-        home_dir = config.get('DEFAULT', 'home_dir')
+        home_dir = config.get("DEFAULT", "home_dir")
     except:
-        home_dir = os.environ.get('HYDRA_HOME_DIR', '~')
-    config.set('DEFAULT', 'home_dir', os.path.expanduser(home_dir))
+        home_dir = os.environ.get("HYDRA_HOME_DIR", "~")
+    config.set("DEFAULT", "home_dir", os.path.expanduser(home_dir))
 
     try:
-        hydra_base = config.get('DEFAULT', 'hydra_base_dir')
+        hydra_base = config.get("DEFAULT", "hydra_base_dir")
     except:
-        hydra_base = os.environ.get('HYDRA_BASE_DIR', modulepath)
-    config.set('DEFAULT', 'hydra_base_dir', os.path.expanduser(hydra_base))
+        hydra_base = os.environ.get("HYDRA_BASE_DIR", modulepath)
+    config.set("DEFAULT", "hydra_base_dir", os.path.expanduser(hydra_base))
 
-    read_values_from_environment(config, 'mysqld', 'server_name')
-
+    read_values_from_environment(config, "mysqld", "server_name")
 
     CONFIG = config
 
     return config
 
+
 def read_values_from_environment(config, section_key, options_key):
     #####################################
     # Settings for docker ENV variables #
     #####################################
-    env_var_name='HYDRA_DOCKER__' + section_key + '__' + options_key
+    env_var_name = "HYDRA_DOCKER__" + section_key + "__" + options_key
 
-    env_value = os.environ.get(env_var_name, '-')
-    if (env_value != '-'):
+    env_value = os.environ.get(env_var_name, "-")
+    if env_value != "-":
         # Substitute the server_name with the end variable
         # print("Presente")
         config.set(section_key, options_key, env_value)
@@ -148,25 +150,29 @@ def read_values_from_environment(config, section_key, options_key):
 
 def set_windows_env_variables(config):
     import winpath
-    config.set('DEFAULT', 'common_app_data_folder', winpath.get_common_appdata())
-    config.set('DEFAULT', 'win_local_appdata', winpath.get_local_appdata())
-    config.set('DEFAULT', 'win_appdata', winpath.get_appdata())
-    config.set('DEFAULT', 'win_desktop', winpath.get_desktop())
-    config.set('DEFAULT', 'win_programs', winpath.get_programs())
-    config.set('DEFAULT', 'win_common_admin_tools', winpath.get_common_admin_tools())
-    config.set('DEFAULT', 'win_common_documents', winpath.get_common_documents())
-    config.set('DEFAULT', 'win_cookies', winpath.get_cookies())
-    config.set('DEFAULT', 'win_history', winpath.get_history())
-    config.set('DEFAULT', 'win_internet_cache', winpath.get_internet_cache())
-    config.set('DEFAULT', 'win_my_pictures', winpath.get_my_pictures())
-    config.set('DEFAULT', 'win_personal', winpath.get_personal())
-    config.set('DEFAULT', 'win_my_documents', winpath.get_my_documents())
-    config.set('DEFAULT', 'win_program_files', winpath.get_program_files())
-    config.set('DEFAULT', 'win_program_files_common', winpath.get_program_files_common())
-    config.set('DEFAULT', 'win_system', winpath.get_system())
-    config.set('DEFAULT', 'win_windows', winpath.get_windows())
-    config.set('DEFAULT', 'win_startup', winpath.get_startup())
-    config.set('DEFAULT', 'win_recent', winpath.get_recent())
+
+    config.set("DEFAULT", "common_app_data_folder", winpath.get_common_appdata())
+    config.set("DEFAULT", "win_local_appdata", winpath.get_local_appdata())
+    config.set("DEFAULT", "win_appdata", winpath.get_appdata())
+    config.set("DEFAULT", "win_desktop", winpath.get_desktop())
+    config.set("DEFAULT", "win_programs", winpath.get_programs())
+    config.set("DEFAULT", "win_common_admin_tools", winpath.get_common_admin_tools())
+    config.set("DEFAULT", "win_common_documents", winpath.get_common_documents())
+    config.set("DEFAULT", "win_cookies", winpath.get_cookies())
+    config.set("DEFAULT", "win_history", winpath.get_history())
+    config.set("DEFAULT", "win_internet_cache", winpath.get_internet_cache())
+    config.set("DEFAULT", "win_my_pictures", winpath.get_my_pictures())
+    config.set("DEFAULT", "win_personal", winpath.get_personal())
+    config.set("DEFAULT", "win_my_documents", winpath.get_my_documents())
+    config.set("DEFAULT", "win_program_files", winpath.get_program_files())
+    config.set(
+        "DEFAULT", "win_program_files_common", winpath.get_program_files_common()
+    )
+    config.set("DEFAULT", "win_system", winpath.get_system())
+    config.set("DEFAULT", "win_windows", winpath.get_windows())
+    config.set("DEFAULT", "win_startup", winpath.get_startup())
+    config.set("DEFAULT", "win_recent", winpath.get_recent())
+
 
 def get(section, option, default=None):
 
@@ -177,6 +183,7 @@ def get(section, option, default=None):
         return CONFIG.get(section, option)
     except:
         return default
+
 
 def getint(section, option, default=None):
 

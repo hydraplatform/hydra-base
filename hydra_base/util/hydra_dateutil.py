@@ -26,11 +26,11 @@ import six
 import pytz
 
 
-
 import logging
+
 log = logging.getLogger(__name__)
 
-#"2013-08-13 15:55:43.468886Z"
+# "2013-08-13 15:55:43.468886Z"
 FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
 """
@@ -42,23 +42,24 @@ from .time_map import time_map
 
 def get_time_period(period_name):
     """
-        Given a time period name, fetch the hydra-compatible time
-        abbreviation.
+    Given a time period name, fetch the hydra-compatible time
+    abbreviation.
     """
     time_abbreviation = time_map.get(period_name.lower())
 
     if time_abbreviation is None:
-        raise Exception("Symbol %s not recognised as a time period"%period_name)
+        raise Exception("Symbol %s not recognised as a time period" % period_name)
 
     return time_abbreviation
 
+
 def get_datetime(timestamp):
     """
-        Turn a string timestamp into a date time. First tries to use dateutil.
-        Failing that it tries to guess the time format and converts it manually
-        using stfptime.
+    Turn a string timestamp into a date time. First tries to use dateutil.
+    Failing that it tries to guess the time format and converts it manually
+    using stfptime.
 
-        @returns: A timezone unaware timestamp.
+    @returns: A timezone unaware timestamp.
     """
     timestamp_is_float = False
     try:
@@ -68,9 +69,9 @@ def get_datetime(timestamp):
         pass
 
     if timestamp_is_float == True:
-        raise ValueError("Timestamp %s is a float"%(timestamp,))
+        raise ValueError("Timestamp %s is a float" % (timestamp,))
 
-    #First try to use date util. Failing that, continue
+    # First try to use date util. Failing that, continue
     try:
         parsed_dt = parse(timestamp, dayfirst=False)
         return parsed_dt.astimezone(pytz.utc)
@@ -88,13 +89,12 @@ def get_datetime(timestamp):
     try:
         ts_time = datetime.strptime(timestamp, fmt)
     except ValueError as e:
-        if e.message.split(' ', 1)[0].strip() == 'unconverted':
+        if e.message.split(" ", 1)[0].strip() == "unconverted":
             utcoffset = e.message.split()[3].strip()
-            timestamp = timestamp.replace(utcoffset, '')
+            timestamp = timestamp.replace(utcoffset, "")
             ts_time = datetime.strptime(timestamp, fmt)
             # Apply offset
-            tzoffset = timedelta(hours=int(utcoffset[0:3]),
-                                          minutes=int(utcoffset[3:5]))
+            tzoffset = timedelta(hours=int(utcoffset[0:3]), minutes=int(utcoffset[3:5]))
             ts_time -= tzoffset
         else:
             raise e
@@ -113,13 +113,13 @@ def timestamp_to_ordinal(timestamp):
     ts_time = get_datetime(timestamp)
     # Convert time to Gregorian ordinal (1 = January 1st, year 1)
     ordinal_ts_time = Decimal(ts_time.toordinal())
-    total_seconds = (ts_time -
-                     datetime(ts_time.year,
-                                       ts_time.month,
-                                       ts_time.day,
-                                       0, 0, 0)).total_seconds()
+    total_seconds = (
+        ts_time - datetime(ts_time.year, ts_time.month, ts_time.day, 0, 0, 0)
+    ).total_seconds()
 
-    fraction = (Decimal(repr(total_seconds)) / Decimal(86400)).quantize(Decimal('.00000000000000000001'),rounding=ROUND_HALF_UP)
+    fraction = (Decimal(repr(total_seconds)) / Decimal(86400)).quantize(
+        Decimal(".00000000000000000001"), rounding=ROUND_HALF_UP
+    )
     ordinal_ts_time += fraction
     log.debug("%s converted to %s", timestamp, ordinal_ts_time)
 
@@ -139,8 +139,9 @@ def ordinal_to_timestamp(date):
 
     day = int(date)
     time = Decimal(str(date - day))
-    time_in_secs_ms = (time * Decimal(86400)).quantize(Decimal('.000001'),
-                                                       rounding=ROUND_HALF_UP)
+    time_in_secs_ms = (time * Decimal(86400)).quantize(
+        Decimal(".000001"), rounding=ROUND_HALF_UP
+    )
 
     time_in_secs = int(time_in_secs_ms)
     time_in_ms = int((time_in_secs_ms - time_in_secs) * 1000000)
@@ -150,6 +151,7 @@ def ordinal_to_timestamp(date):
     log.debug("%s converted to %s", date, d)
 
     return get_datetime(d)
+
 
 def date_to_string(date, seasonal=False):
     """Convert a date to a standard string used by Hydra. The resulting string
@@ -162,11 +164,11 @@ def date_to_string(date, seasonal=False):
     recognised by Hydra as seasonal time stamp.
     """
 
-    seasonal_key = config.get('DEFAULT', 'seasonal_key', '9999')
+    seasonal_key = config.get("DEFAULT", "seasonal_key", "9999")
     if seasonal:
-        FORMAT = seasonal_key+'-%m-%dT%H:%M:%S.%f'
+        FORMAT = seasonal_key + "-%m-%dT%H:%M:%S.%f"
     else:
-        FORMAT = '%Y-%m-%dT%H:%M:%S.%f'
+        FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
     return date.strftime(FORMAT)
 
 
@@ -219,26 +221,34 @@ def guess_timefmt(datestr):
     if isinstance(datestr, float) or isinstance(datestr, int):
         return None
 
-    seasonal_key = str(config.get('DEFAULT', 'seasonal_key', '9999'))
+    seasonal_key = str(config.get("DEFAULT", "seasonal_key", "9999"))
 
-    #replace 'T' with space to handle ISO times.
-    if datestr.find('T') > 0:
-        dt_delim = 'T'
+    # replace 'T' with space to handle ISO times.
+    if datestr.find("T") > 0:
+        dt_delim = "T"
     else:
-        dt_delim = ' '
+        dt_delim = " "
 
-    delimiters = ['-', '.', ' ', '/']
-    formatstrings = [['%Y', '%m', '%d'],
-                     ['%d', '%m', '%Y'],
-                     ['%d', '%b', '%Y'],
-                     ['XXXX', '%m', '%d'],
-                     ['%d', '%m', 'XXXX'],
-                     ['%d', '%b', 'XXXX'],
-                     [seasonal_key, '%m', '%d'],
-                     ['%d', '%m', seasonal_key],
-                     ['%d', '%b', seasonal_key]]
+    delimiters = ["-", ".", " ", "/"]
+    formatstrings = [
+        ["%Y", "%m", "%d"],
+        ["%d", "%m", "%Y"],
+        ["%d", "%b", "%Y"],
+        ["XXXX", "%m", "%d"],
+        ["%d", "%m", "XXXX"],
+        ["%d", "%b", "XXXX"],
+        [seasonal_key, "%m", "%d"],
+        ["%d", "%m", seasonal_key],
+        ["%d", "%b", seasonal_key],
+    ]
 
-    timeformats = ['%H:%M:%S.%f', '%H:%M:%S', '%H:%M', '%H:%M:%S.%f000Z', '%H:%M:%S.%fZ']
+    timeformats = [
+        "%H:%M:%S.%f",
+        "%H:%M:%S",
+        "%H:%M",
+        "%H:%M:%S.%f000Z",
+        "%H:%M:%S.%fZ",
+    ]
 
     # Check if a time is indicated or not
     for timefmt in timeformats:
@@ -269,7 +279,13 @@ def guess_timefmt(datestr):
                     pass
 
     # Check for other formats:
-    custom_formats = ['%d/%m/%Y', '%b %d %Y', '%B %d %Y','%d/%m/XXXX', '%d/%m/'+seasonal_key]
+    custom_formats = [
+        "%d/%m/%Y",
+        "%b %d %Y",
+        "%B %d %Y",
+        "%d/%m/XXXX",
+        "%d/%m/" + seasonal_key,
+    ]
 
     for fmt in custom_formats:
         if usetime:
@@ -290,29 +306,30 @@ def guess_timefmt(datestr):
 
     return None
 
+
 def reindex_timeseries(ts_string, new_timestamps):
     """
-        get data for timesamp
+    get data for timesamp
 
-        :param a JSON string, in pandas-friendly format
-        :param a timestamp or list of timestamps (datetimes)
-        :returns a pandas data frame, reindexed with the supplied timestamos or None if no data is found
+    :param a JSON string, in pandas-friendly format
+    :param a timestamp or list of timestamps (datetimes)
+    :returns a pandas data frame, reindexed with the supplied timestamos or None if no data is found
     """
-    #If a single timestamp is passed in, turn it into a list
-    #Reindexing can't work if it's not a list
+    # If a single timestamp is passed in, turn it into a list
+    # Reindexing can't work if it's not a list
     if not isinstance(new_timestamps, list):
         new_timestamps = [new_timestamps]
 
-    #Convert the incoming timestamps to datetimes
-    #if they are not datetimes.
+    # Convert the incoming timestamps to datetimes
+    # if they are not datetimes.
     new_timestamps_converted = []
     for t in new_timestamps:
         new_timestamps_converted.append(get_datetime(t))
 
     new_timestamps = new_timestamps_converted
 
-    seasonal_year = config.get('DEFAULT','seasonal_year', '1678')
-    seasonal_key = config.get('DEFAULT', 'seasonal_key', '9999')
+    seasonal_year = config.get("DEFAULT", "seasonal_year", "1678")
+    seasonal_key = config.get("DEFAULT", "seasonal_key", "9999")
 
     ts = ts_string.replace(seasonal_key, seasonal_year)
 
@@ -325,42 +342,46 @@ def reindex_timeseries(ts_string, new_timestamps):
     #'Fix' the incoming timestamp in case it's a seasonal value
     if type(idx) == pd.DatetimeIndex:
         if set(idx.year) == set([int(seasonal_year)]):
-            if isinstance(new_timestamps,  list):
+            if isinstance(new_timestamps, list):
                 seasonal_timestamp = []
                 for t in ts_timestamps:
                     t_1900 = t.replace(year=int(seasonal_year))
                     seasonal_timestamp.append(t_1900)
                 ts_timestamps = seasonal_timestamp
 
-    #Reindex the timeseries to reflect the requested timestamps
-    reindexed_ts = timeseries.reindex(ts_timestamps, method='ffill')
+    # Reindex the timeseries to reflect the requested timestamps
+    reindexed_ts = timeseries.reindex(ts_timestamps, method="ffill")
 
     i = reindexed_ts.index
 
     reindexed_ts.index = pd.Index(new_timestamps, names=i.names)
 
-    #If there are no values at all, just return None
+    # If there are no values at all, just return None
     if len(reindexed_ts.dropna()) == 0:
         return None
 
-    #Replace all numpy NAN values with None
+    # Replace all numpy NAN values with None
     pandas_ts = reindexed_ts.where(reindexed_ts.notnull(), None)
 
     return pandas_ts
 
-def parse_time_step(time_step, target='s', units_ref=None):
+
+def parse_time_step(time_step, target="s", units_ref=None):
     """
-        Read in the time step and convert it to seconds.
+    Read in the time step and convert it to seconds.
     """
     log.info("Parsing time step %s", time_step)
     # export numerical value from string using regex
-    value = re.findall(r'\d+', time_step)[0]
+    value = re.findall(r"\d+", time_step)[0]
     valuelen = len(value)
 
     try:
         value = float(value)
     except:
-        HydraPluginError("Unable to extract number of time steps (%s) from time step %s" % (value, time_step))
+        HydraPluginError(
+            "Unable to extract number of time steps (%s) from time step %s"
+            % (value, time_step)
+        )
 
     unit = time_step[valuelen:].strip()
 
@@ -374,26 +395,27 @@ def parse_time_step(time_step, target='s', units_ref=None):
 
     return float(converted_time_step), value, period
 
+
 def get_time_axis(start_time, end_time, time_step, time_axis=None):
     """
-        Create a list of datetimes based on an start time, end time and
-        time step.  If such a list is already passed in, then this is not
-        necessary.
+    Create a list of datetimes based on an start time, end time and
+    time step.  If such a list is already passed in, then this is not
+    necessary.
 
-        Often either the start_time, end_time, time_step is passed into an
-        app or the time_axis is passed in directly. This function returns a
-        time_axis in both situations.
+    Often either the start_time, end_time, time_step is passed into an
+    app or the time_axis is passed in directly. This function returns a
+    time_axis in both situations.
     """
 
-    #Do this import here to avoid a circular dependency
+    # Do this import here to avoid a circular dependency
     from ..lib import units
 
     if time_axis is not None:
         actual_dates_axis = []
         for t in time_axis:
-            #If the user has entered the time_axis with commas, remove them.
-            t = t.replace(',', '').strip()
-            if t == '':
+            # If the user has entered the time_axis with commas, remove them.
+            t = t.replace(",", "").strip()
+            if t == "":
                 continue
             actual_dates_axis.append(get_datetime(t))
         return actual_dates_axis
@@ -414,10 +436,10 @@ def get_time_axis(start_time, end_time, time_step, time_axis=None):
 
         value = int(value)
         while start_date < end_date:
-            #Months and years are a special case, so treat them differently
-            if(output_units.lower() == "mon"):
+            # Months and years are a special case, so treat them differently
+            if output_units.lower() == "mon":
                 start_date = start_date + relativedelta(months=value)
-            elif (output_units.lower() == "yr"):
+            elif output_units.lower() == "yr":
                 start_date = start_date + relativedelta(years=value)
             else:
                 start_date += timedelta(seconds=delta_t)

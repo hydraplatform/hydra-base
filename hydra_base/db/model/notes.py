@@ -18,93 +18,132 @@
 #
 from .base import *
 
-__all__ = ['Note']
+__all__ = ["Note"]
+
 
 class Note(Base, Inspect, PermissionControlled):
     """
-        A note is an arbitrary piece of text which can be applied
-        to any resource. A note is NOT scenario dependent. It is applied
-        directly to resources. A note can be applied to a scenario.
+    A note is an arbitrary piece of text which can be applied
+    to any resource. A note is NOT scenario dependent. It is applied
+    directly to resources. A note can be applied to a scenario.
     """
 
-    __tablename__='tNote'
+    __tablename__ = "tNote"
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    ref_key = Column(String(60),  nullable=False, index=True)
-    value = Column(LargeBinary(),  nullable=True)
-    created_by = Column(Integer(), ForeignKey('tUser.id'))
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    scenario_id = Column(Integer(), ForeignKey('tScenario.id'),  index=True, nullable=True)
-    project_id = Column(Integer(), ForeignKey('tProject.id'),  index=True, nullable=True)
-    network_id  = Column(Integer(),  ForeignKey('tNetwork.id'), index=True, nullable=True,)
-    node_id     = Column(Integer(),  ForeignKey('tNode.id'), index=True, nullable=True)
-    link_id     = Column(Integer(),  ForeignKey('tLink.id'), index=True, nullable=True)
-    group_id    = Column(Integer(),  ForeignKey('tResourceGroup.id'), index=True, nullable=True)
+    ref_key = Column(String(60), nullable=False, index=True)
+    value = Column(LargeBinary(), nullable=True)
+    created_by = Column(Integer(), ForeignKey("tUser.id"))
+    cr_date = Column(
+        TIMESTAMP(), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
+    scenario_id = Column(
+        Integer(), ForeignKey("tScenario.id"), index=True, nullable=True
+    )
+    project_id = Column(Integer(), ForeignKey("tProject.id"), index=True, nullable=True)
+    network_id = Column(
+        Integer(),
+        ForeignKey("tNetwork.id"),
+        index=True,
+        nullable=True,
+    )
+    node_id = Column(Integer(), ForeignKey("tNode.id"), index=True, nullable=True)
+    link_id = Column(Integer(), ForeignKey("tLink.id"), index=True, nullable=True)
+    group_id = Column(
+        Integer(), ForeignKey("tResourceGroup.id"), index=True, nullable=True
+    )
 
-    scenario = relationship('Scenario', backref=backref('notes', uselist=True, cascade="all, delete-orphan"), uselist=True, lazy='joined')
-    node = relationship('Node', backref=backref('notes', uselist=True, cascade="all, delete-orphan"), uselist=True, lazy='joined')
-    link = relationship('Link', backref=backref('notes', uselist=True, cascade="all, delete-orphan"), uselist=True, lazy='joined')
-    group = relationship('ResourceGroup', backref=backref('notes', uselist=True, cascade="all, delete-orphan"), uselist=True, lazy='joined')
-    network = relationship('Network', backref=backref('notes', uselist=True, cascade="all, delete-orphan"), uselist=True, lazy='joined')
-    project = relationship('Project', backref=backref('notes', uselist=True, cascade="all, delete-orphan"), uselist=True, lazy='joined')
+    scenario = relationship(
+        "Scenario",
+        backref=backref("notes", uselist=True, cascade="all, delete-orphan"),
+        uselist=True,
+        lazy="joined",
+    )
+    node = relationship(
+        "Node",
+        backref=backref("notes", uselist=True, cascade="all, delete-orphan"),
+        uselist=True,
+        lazy="joined",
+    )
+    link = relationship(
+        "Link",
+        backref=backref("notes", uselist=True, cascade="all, delete-orphan"),
+        uselist=True,
+        lazy="joined",
+    )
+    group = relationship(
+        "ResourceGroup",
+        backref=backref("notes", uselist=True, cascade="all, delete-orphan"),
+        uselist=True,
+        lazy="joined",
+    )
+    network = relationship(
+        "Network",
+        backref=backref("notes", uselist=True, cascade="all, delete-orphan"),
+        uselist=True,
+        lazy="joined",
+    )
+    project = relationship(
+        "Project",
+        backref=backref("notes", uselist=True, cascade="all, delete-orphan"),
+        uselist=True,
+        lazy="joined",
+    )
 
-    _parents  = ['tScenario', 'tNode', 'tLink', 'tProject', 'tNetwork', 'tResourceGroup']
+    _parents = ["tScenario", "tNode", "tLink", "tProject", "tNetwork", "tResourceGroup"]
     _children = []
 
     def set_ref(self, ref_key, ref_id):
         """
-            Using a ref key and ref id set the
-            reference to the appropriate resource type.
+        Using a ref key and ref id set the
+        reference to the appropriate resource type.
         """
-        if ref_key == 'NETWORK':
+        if ref_key == "NETWORK":
             self.network_id = ref_id
-        elif ref_key == 'NODE':
+        elif ref_key == "NODE":
             self.node_id = ref_id
-        elif ref_key == 'LINK':
+        elif ref_key == "LINK":
             self.link_id = ref_id
-        elif ref_key == 'GROUP':
+        elif ref_key == "GROUP":
             self.group_id = ref_id
-        elif ref_key == 'SCENARIO':
+        elif ref_key == "SCENARIO":
             self.scenario_id = ref_id
-        elif ref_key == 'PROJECT':
+        elif ref_key == "PROJECT":
             self.project_id = ref_id
 
         else:
-            raise HydraError("Ref Key %s not recognised."%ref_key)
+            raise HydraError("Ref Key %s not recognised." % ref_key)
 
     def get_ref_id(self):
-
         """
-            Return the ID of the resource to which this not is attached
+        Return the ID of the resource to which this not is attached
         """
-        if self.ref_key == 'NETWORK':
+        if self.ref_key == "NETWORK":
             return self.network_id
-        elif self.ref_key == 'NODE':
+        elif self.ref_key == "NODE":
             return self.node_id
-        elif self.ref_key == 'LINK':
+        elif self.ref_key == "LINK":
             return self.link_id
-        elif self.ref_key == 'GROUP':
+        elif self.ref_key == "GROUP":
             return self.group_id
-        elif self.ref_key == 'SCENARIO':
+        elif self.ref_key == "SCENARIO":
             return self.scenario_id
-        elif self.ref_key == 'PROJECT':
+        elif self.ref_key == "PROJECT":
             return self.project_id
 
     def get_ref(self):
         """
-            Return the ID of the resource to which this not is attached
+        Return the ID of the resource to which this not is attached
         """
-        if self.ref_key == 'NETWORK':
+        if self.ref_key == "NETWORK":
             return self.network
-        elif self.ref_key == 'NODE':
+        elif self.ref_key == "NODE":
             return self.node
-        elif self.ref_key == 'LINK':
+        elif self.ref_key == "LINK":
             return self.link
-        elif self.ref_key == 'GROUP':
+        elif self.ref_key == "GROUP":
             return self.group
-        elif self.ref_key == 'SCENARIO':
+        elif self.ref_key == "SCENARIO":
             return self.scenario
-        elif self.ref_key == 'PROJECT':
+        elif self.ref_key == "PROJECT":
             return self.project
-
-

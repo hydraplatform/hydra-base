@@ -17,14 +17,15 @@ def mongo():
     mongo = MongoStorageAdapter()
     return mongo
 
+
 @pytest.fixture
 def mongo_config():
-    """ This can be parametrized to allow different config sources to be tested """
+    """This can be parametrized to allow different config sources to be tested"""
     return MongoStorageAdapter.get_mongo_config()
 
 
 @pytest.mark.externaldb
-class TestMongo():
+class TestMongo:
     def generate_datasets(self, client, mongo_config, num_datasets=12, large_step=3):
         """
         Returns `num_datasets` Datasets containing an array of random floats.
@@ -48,14 +49,12 @@ class TestMongo():
 
         return datasets
 
-
     def test_server_status(self, mongo):
         """
         Is the server available and can return the getBuildInfo() dict?
         """
         status = mongo.client.server_info()
         assert isinstance(status, dict)
-
 
     def test_mongo_version(self, mongo):
         """
@@ -67,14 +66,12 @@ class TestMongo():
         vp = version.parse(semver)
         assert vp >= mongo_min_version
 
-
     def test_mongo_config(self, mongo):
         required = ("threshold", "value_location_key", "direct_location_token")
         mongo_config = MongoStorageAdapter.get_mongo_config()
 
         for key in required:
             assert key in mongo_config, f"Mongo config missing `{key}` definition"
-
 
     def test_bulk_add_mongo_data(self, client, mongo_config, mongo):
         """
@@ -98,11 +95,12 @@ class TestMongo():
             datasets.append(ds)
 
         inserted = mongo.bulk_insert_values([d.value for d in datasets])
-        assert len(inserted.inserted_ids) == num_datasets, "Datasets insertion count mismatch"
+        assert (
+            len(inserted.inserted_ids) == num_datasets
+        ), "Datasets insertion count mismatch"
         """ Remove data from test collection """
         for _id in inserted.inserted_ids:
             mongo.delete_document_by_object_id(_id)
-
 
     def test_add_datasets(self, client, mongo_config, mongo):
         """
@@ -121,7 +119,11 @@ class TestMongo():
         datasets = self.generate_datasets(client, mongo_config)
         added = []
         for ds in datasets:
-            added.append(client.add_dataset(ds.type, ds.value, ds.unit_id, {}, ds.name, flush=True))
+            added.append(
+                client.add_dataset(
+                    ds.type, ds.value, ds.unit_id, {}, ds.name, flush=True
+                )
+            )
 
         metadatas = client.get_metadata([ds.id for ds in added])
 
@@ -130,9 +132,13 @@ class TestMongo():
             if len(ds.value) > mongo_threshold:
                 m = lookup_dataset_metadata(ds.id)
                 key = m.get("key")
-                assert key == mongo_location_key, "Location key missing from large dataset"
+                assert (
+                    key == mongo_location_key
+                ), "Location key missing from large dataset"
                 location = m.get("value")
-                assert location == mongo_location_external, "Invalid location metadata value"
+                assert (
+                    location == mongo_location_external
+                ), "Invalid location metadata value"
             else:
                 m = lookup_dataset_metadata(ds.id)
                 assert not m
@@ -140,7 +146,6 @@ class TestMongo():
         """ Are the added values transparently retrieved for every dataset? """
         for local_ds, added_ds in zip(datasets, added):
             assert local_ds.value == added_ds.value, "Dataset value mismatch"
-
 
     def test_shrink_dataset(self, client, mongo_config, mongo):
         """
@@ -159,7 +164,9 @@ class TestMongo():
         data_sz = mongo_threshold * random.randint(1, 3) + 1
         ds.value = [random.uniform(1, 100) for _ in range(data_sz)]
 
-        server_ds = client.add_dataset(ds.type, ds.value, ds.unit_id, {}, ds.name, flush=True)
+        server_ds = client.add_dataset(
+            ds.type, ds.value, ds.unit_id, {}, ds.name, flush=True
+        )
         metadata = client.get_metadata([server_ds.id])
 
         key = metadata[0].get("key")
@@ -169,10 +176,16 @@ class TestMongo():
 
         """ Shrink the dataset and confirm it has been relocated """
         server_ds.value = [random.uniform(1, 100) for _ in range(10)]
-        shrunk_ds = client.update_dataset(server_ds.id, server_ds.name, server_ds.type, json.dumps(server_ds.value), server_ds.unit_id, {})
+        shrunk_ds = client.update_dataset(
+            server_ds.id,
+            server_ds.name,
+            server_ds.type,
+            json.dumps(server_ds.value),
+            server_ds.unit_id,
+            {},
+        )
         shrunk_metadata = client.get_metadata([shrunk_ds.id])
         assert not shrunk_metadata
-
 
     def test_grow_dataset(self, client, mongo_config, mongo):
         """
@@ -190,7 +203,9 @@ class TestMongo():
         ds.unit_id = unit_id
         ds.value = [random.uniform(1, 100) for _ in range(10)]
 
-        server_ds = client.add_dataset(ds.type, ds.value, ds.unit_id, {}, ds.name, flush=True)
+        server_ds = client.add_dataset(
+            ds.type, ds.value, ds.unit_id, {}, ds.name, flush=True
+        )
         metadata = client.get_metadata([server_ds.id])
         """ No storage location, therefore SQL db """
         assert not metadata
@@ -198,7 +213,14 @@ class TestMongo():
         """ Grow the dataset and confirm it has been relocated """
         data_sz = mongo_threshold * random.randint(1, 3) + 1
         server_ds.value = [random.uniform(1, 100) for _ in range(data_sz)]
-        grown_ds = client.update_dataset(server_ds.id, server_ds.name, server_ds.type, json.dumps(server_ds.value), server_ds.unit_id, {})
+        grown_ds = client.update_dataset(
+            server_ds.id,
+            server_ds.name,
+            server_ds.type,
+            json.dumps(server_ds.value),
+            server_ds.unit_id,
+            {},
+        )
 
         grown_metadata = client.get_metadata([grown_ds.id])
         key = grown_metadata[0].get("key")

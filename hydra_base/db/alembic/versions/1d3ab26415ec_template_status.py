@@ -14,24 +14,32 @@ log = logging.getLogger(__name__)
 
 
 # revision identifiers, used by Alembic.
-revision = '1d3ab26415ec'
-down_revision = 'b04cb2e57cb0'
+revision = "1d3ab26415ec"
+down_revision = "b04cb2e57cb0"
 branch_labels = None
 depends_on = None
 
 
 def upgrade():
-    if op.get_bind().dialect.name == 'mysql':
+    if op.get_bind().dialect.name == "mysql":
 
         try:
-            op.add_column('tTemplate', sa.Column('status', sa.String(1), nullable=False, server_default=sa.text(u"'A'")))
+            op.add_column(
+                "tTemplate",
+                sa.Column(
+                    "status",
+                    sa.String(1),
+                    nullable=False,
+                    server_default=sa.text("'A'"),
+                ),
+            )
         except Exception as e:
             log.critical(e)
 
 
 def downgrade():
-    if op.get_bind().dialect.name == 'mysql':
+    if op.get_bind().dialect.name == "mysql":
         try:
-            op.drop_column('tTemplate', 'status')
+            op.drop_column("tTemplate", "status")
         except Exception as e:
             log.critical(e)

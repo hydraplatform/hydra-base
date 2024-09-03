@@ -21,40 +21,52 @@ from ..base import *
 from .resourceattr import ResourceAttr
 from .resource import Resource
 
-__all__ = ['Link']
+__all__ = ["Link"]
+
 
 class Link(Base, Inspect, Resource):
-    """
-    """
+    """ """
 
-    __tablename__='tLink'
+    __tablename__ = "tLink"
 
-    __table_args__ = (
-        UniqueConstraint('network_id', 'name', name="unique link name"),
-    )
-    ref_key = 'LINK'
+    __table_args__ = (UniqueConstraint("network_id", "name", name="unique link name"),)
+    ref_key = "LINK"
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    network_id = Column(Integer(), ForeignKey('tNetwork.id'), nullable=False)
-    status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
-    node_1_id = Column(Integer(), ForeignKey('tNode.id'), nullable=False)
-    node_2_id = Column(Integer(), ForeignKey('tNode.id'), nullable=False)
+    network_id = Column(Integer(), ForeignKey("tNetwork.id"), nullable=False)
+    status = Column(String(1), nullable=False, server_default=text("'A'"))
+    node_1_id = Column(Integer(), ForeignKey("tNode.id"), nullable=False)
+    node_2_id = Column(Integer(), ForeignKey("tNode.id"), nullable=False)
     name = Column(String(200))
     description = Column(String(1000))
-    layout  = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    layout = Column(Text().with_variant(mysql.LONGTEXT, "mysql"), nullable=True)
+    cr_date = Column(
+        TIMESTAMP(), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
 
-    network = relationship('Network', backref=backref("links", order_by=network_id, cascade="all, delete-orphan"), lazy='joined')
-    node_a = relationship('Node', foreign_keys=[node_1_id], backref=backref("links_to", order_by=id, cascade="all, delete-orphan"))
-    node_b = relationship('Node', foreign_keys=[node_2_id], backref=backref("links_from", order_by=id, cascade="all, delete-orphan"))
+    network = relationship(
+        "Network",
+        backref=backref("links", order_by=network_id, cascade="all, delete-orphan"),
+        lazy="joined",
+    )
+    node_a = relationship(
+        "Node",
+        foreign_keys=[node_1_id],
+        backref=backref("links_to", order_by=id, cascade="all, delete-orphan"),
+    )
+    node_b = relationship(
+        "Node",
+        foreign_keys=[node_2_id],
+        backref=backref("links_from", order_by=id, cascade="all, delete-orphan"),
+    )
 
-    _parents  = ['tNetwork']
-    _children = ['tResourceAttr', 'tResourceType']
+    _parents = ["tNetwork"]
+    _children = ["tResourceAttr", "tResourceType"]
 
     def get_name(self):
         return self.name
 
-    #For backward compatibility
+    # For backward compatibility
     @property
     def link_id(self):
         return self.id
@@ -75,26 +87,29 @@ class Link(Base, Inspect, Resource):
     def link_description_setter(self):
         self.description = self.link_description
 
-    def add_attribute(self, attr_id, attr_is_var='N'):
+    def add_attribute(self, attr_id, attr_is_var="N"):
         res_attr = ResourceAttr()
         res_attr.attr_id = attr_id
         res_attr.attr_is_var = attr_is_var
         res_attr.ref_key = self.ref_key
-        res_attr.link_id  = self.id
+        res_attr.link_id = self.id
         self.attributes.append(res_attr)
 
         return res_attr
 
     def check_read_permission(self, user_id, do_raise=True, is_admin=None):
         """
-            Check whether this user can read this link
+        Check whether this user can read this link
         """
-        return self.network.check_read_permission(user_id, do_raise=do_raise, is_admin=is_admin)
+        return self.network.check_read_permission(
+            user_id, do_raise=do_raise, is_admin=is_admin
+        )
 
     def check_write_permission(self, user_id, do_raise=True, is_admin=None):
         """
-            Check whether this user can write this link
+        Check whether this user can write this link
         """
 
-        return self.network.check_write_permission(user_id, do_raise=do_raise, is_admin=is_admin)
-
+        return self.network.check_write_permission(
+            user_id, do_raise=do_raise, is_admin=is_admin
+        )

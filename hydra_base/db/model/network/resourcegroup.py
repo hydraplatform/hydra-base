@@ -21,34 +21,40 @@ from ..base import *
 from .resourceattr import ResourceAttr
 from .resource import Resource
 
-__all__ = ['ResourceGroup']
+__all__ = ["ResourceGroup"]
+
 
 class ResourceGroup(Base, Inspect, Resource):
-    """
-    """
+    """ """
 
-    __tablename__='tResourceGroup'
+    __tablename__ = "tResourceGroup"
     __table_args__ = (
-        UniqueConstraint('network_id', 'name', name="unique resourcegroup name"),
+        UniqueConstraint("network_id", "name", name="unique resourcegroup name"),
     )
 
-    ref_key = 'GROUP'
+    ref_key = "GROUP"
     id = Column(Integer(), primary_key=True, nullable=False)
-    name = Column(String(200),  nullable=False)
+    name = Column(String(200), nullable=False)
     description = Column(String(1000))
-    status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    network_id = Column(Integer(), ForeignKey('tNetwork.id'),  nullable=False)
+    status = Column(String(1), nullable=False, server_default=text("'A'"))
+    cr_date = Column(
+        TIMESTAMP(), nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
+    network_id = Column(Integer(), ForeignKey("tNetwork.id"), nullable=False)
 
-    network = relationship('Network', backref=backref("resourcegroups", order_by=id, cascade="all, delete-orphan"), lazy='joined')
+    network = relationship(
+        "Network",
+        backref=backref("resourcegroups", order_by=id, cascade="all, delete-orphan"),
+        lazy="joined",
+    )
 
-    _parents  = ['tNetwork']
-    _children = ['tResourceAttr', 'tResourceType']
+    _parents = ["tNetwork"]
+    _children = ["tResourceAttr", "tResourceType"]
 
     def get_name(self):
         return self.group_name
 
-    #For backward compatibility
+    # For backward compatibility
     @property
     def group_id(self):
         return self.id
@@ -69,36 +75,43 @@ class ResourceGroup(Base, Inspect, Resource):
     def group_description_setter(self):
         self.description = self.group_description
 
-    def add_attribute(self, attr_id, attr_is_var='N'):
+    def add_attribute(self, attr_id, attr_is_var="N"):
         res_attr = ResourceAttr()
         res_attr.attr_id = attr_id
         res_attr.attr_is_var = attr_is_var
         res_attr.ref_key = self.ref_key
-        res_attr.group_id  = self.id
+        res_attr.group_id = self.id
         self.attributes.append(res_attr)
 
         return res_attr
 
     def get_items(self, scenario_id):
         """
-            Get all the items in this group, in the given scenario
+        Get all the items in this group, in the given scenario
         """
-        items = get_session().query(ResourceGroupItem)\
-                .filter(ResourceGroupItem.group_id==self.id).\
-                filter(ResourceGroupItem.scenario_id==scenario_id).all()
+        items = (
+            get_session()
+            .query(ResourceGroupItem)
+            .filter(ResourceGroupItem.group_id == self.id)
+            .filter(ResourceGroupItem.scenario_id == scenario_id)
+            .all()
+        )
 
         return items
 
     def check_read_permission(self, user_id, do_raise=True, is_admin=None):
         """
-            Check whether this user can read this group
+        Check whether this user can read this group
         """
-        return self.network.check_read_permission(user_id, do_raise=do_raise, is_admin=is_admin)
+        return self.network.check_read_permission(
+            user_id, do_raise=do_raise, is_admin=is_admin
+        )
 
     def check_write_permission(self, user_id, do_raise=True, is_admin=None):
         """
-            Check whether this user can write this group
+        Check whether this user can write this group
         """
 
-        return self.network.check_write_permission(user_id, do_raise=do_raise, is_admin=is_admin)
-
+        return self.network.check_write_permission(
+            user_id, do_raise=do_raise, is_admin=is_admin
+        )

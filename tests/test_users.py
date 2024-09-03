@@ -27,49 +27,52 @@ import pytest
 
 @pytest.fixture
 def user_json_object():
-    user = JSONObject(dict(
-        username="test_user @ %s" % (datetime.datetime.now()),
-        password="test_user_password",
-        display_name="Tom"
-    ))
+    user = JSONObject(
+        dict(
+            username="test_user @ %s" % (datetime.datetime.now()),
+            password="test_user_password",
+            display_name="Tom",
+        )
+    )
     return user
 
 
 @pytest.fixture
 def role_json_object():
-    role = JSONObject(dict(
-        name="Test Role",
-        code="test_role @ %s" % (datetime.datetime.now())
-    ))
+    role = JSONObject(
+        dict(name="Test Role", code="test_role @ %s" % (datetime.datetime.now()))
+    )
     return role
 
 
 @pytest.fixture
 def perm_json_object():
-    perm = JSONObject(dict(
-        name="Test Perm",
-        code="test_perm @ %s" % (datetime.datetime.now())
-    ))
+    perm = JSONObject(
+        dict(name="Test Perm", code="test_perm @ %s" % (datetime.datetime.now()))
+    )
     return perm
 
 
 class TestUser:
-    """ A collection of tests of the User part of the DB.
-    """
+    """A collection of tests of the User part of the DB."""
 
     def test_add_user(self, client, user_json_object):
-        """ Test adding a new user to the DB """
+        """Test adding a new user to the DB"""
         user = user_json_object  # Convenience renaming
 
         new_user = client.add_user(user)
         assert new_user.username == user.username, "Usernames are not the same!"
-        #convert pwd to bytes if it's not bytes
-        #Add user returns the password *hash*, not the plain-text password
-        pwd_hash = new_user.password if isinstance(new_user.password, bytes) else new_user.password.encode('utf-8')
-        assert bcrypt.checkpw(user.password.encode('utf-8'), pwd_hash)
+        # convert pwd to bytes if it's not bytes
+        # Add user returns the password *hash*, not the plain-text password
+        pwd_hash = (
+            new_user.password
+            if isinstance(new_user.password, bytes)
+            else new_user.password.encode("utf-8")
+        )
+        assert bcrypt.checkpw(user.password.encode("utf-8"), pwd_hash)
         assert new_user.display_name == user.display_name
 
-        new_user.display_name = 'Tom Update'
+        new_user.display_name = "Tom Update"
 
         updated_user = client.update_user_display_name(new_user)
 
@@ -77,24 +80,24 @@ class TestUser:
 
         delete_result = client.delete_user(new_user.id)
 
-        assert delete_result == 'OK', "User was not removed!"
+        assert delete_result == "OK", "User was not removed!"
 
     def test_update_user_password(self, client, user_json_object):
-        """ Test changing a user's password """
+        """Test changing a user's password"""
         user = user_json_object
 
         new_user = client.add_user(user)
 
         # TODO create a new session here
-        new_password = 'new_test_user_password'
+        new_password = "new_test_user_password"
         new_user = client.update_user_password(new_user.id, new_password)
         pwd = new_user.password
-        pwd_hash = pwd if isinstance(pwd, bytes) else pwd.encode('utf-8')
+        pwd_hash = pwd if isinstance(pwd, bytes) else pwd.encode("utf-8")
 
-        assert bcrypt.checkpw(new_password.encode('utf-8'), pwd_hash)
+        assert bcrypt.checkpw(new_password.encode("utf-8"), pwd_hash)
 
     def test_add_role(self, client, role_json_object):
-        """ Test adding a new role """
+        """Test adding a new role"""
         role = role_json_object
         new_role = client.add_role(role)
 
@@ -103,10 +106,10 @@ class TestUser:
 
         delete_result = client.delete_role(new_role.id)
 
-        assert delete_result == 'OK', "Role was not removed!"
+        assert delete_result == "OK", "Role was not removed!"
 
     def test_add_perm(self, client, perm_json_object):
-        """ Test adding a new permission """
+        """Test adding a new permission"""
         perm = perm_json_object
 
         new_perm = client.add_perm(perm)
@@ -116,10 +119,10 @@ class TestUser:
 
         delete_result = client.delete_perm(new_perm.id)
 
-        assert delete_result == 'OK', "perm was not removed!"
+        assert delete_result == "OK", "perm was not removed!"
 
     def test_set_user_role(self, client, user_json_object, role_json_object):
-        """ Test assigning a role to a user """
+        """Test assigning a role to a user"""
         # Rename for convenience during test
         user = user_json_object
         role = role_json_object
@@ -133,18 +136,20 @@ class TestUser:
         role_with_users = client.set_user_role(new_user.id, new_role.id)
 
         assert role_with_users is not None, "Role user was not set correctly"
-        assert role_with_users.roleusers[0].user_id == new_user.id, "User was not added to role correctly."
+        assert (
+            role_with_users.roleusers[0].user_id == new_user.id
+        ), "User was not added to role correctly."
 
         delete_result = client.delete_user_role(new_user.id, new_role.id)
 
-        assert delete_result == 'OK', "Role User was not removed!"
+        assert delete_result == "OK", "Role User was not removed!"
 
         delete_result = client.delete_user(new_user.id)
 
-        assert delete_result == 'OK', "Role User was not removed!"
+        assert delete_result == "OK", "Role User was not removed!"
 
     def test_set_role_perm(self, client, role_json_object, perm_json_object):
-        """ Test assigning a perm to a user """
+        """Test assigning a perm to a user"""
         # Rename for convenience during testing
         role = role_json_object
         perm = perm_json_object
@@ -156,21 +161,23 @@ class TestUser:
         role_with_perms = client.set_role_perm(new_role.id, new_perm.id)
 
         assert role_with_perms is not None, "Role perm was not set correctly"
-        assert role_with_perms.roleperms[0].perm_id == new_perm.id, "Perm was not added to role correctly."
+        assert (
+            role_with_perms.roleperms[0].perm_id == new_perm.id
+        ), "Perm was not added to role correctly."
 
         delete_result = client.delete_role_perm(new_role.id, new_perm.id)
 
-        assert delete_result == 'OK', "Role Perm was not removed!"
+        assert delete_result == "OK", "Role Perm was not removed!"
 
         delete_result = client.delete_perm(new_perm.id)
 
-        assert delete_result == 'OK', "Role Perm was not removed!"
+        assert delete_result == "OK", "Role Perm was not removed!"
 
     def test_get_users(self, client, user_json_object):
-        """ Test fetching all the users """
+        """Test fetching all the users"""
 
         # These are the users added for the tests.
-        existing_users = {1: 'root', 2: 'UserA', 3: 'UserB', 4: 'UserC'}
+        existing_users = {1: "root", 2: "UserA", 3: "UserB", 4: "UserC"}
 
         # Add one user
         client.add_user(user_json_object)
@@ -180,14 +187,14 @@ class TestUser:
         assert set(existing_users.values()).issubset(set([u.username for u in users]))
 
     def test_get_username(self, client, user_json_object):
-        """ Test retrieving a username """
+        """Test retrieving a username"""
         # Add one user
         client.add_user(user_json_object)
         username = client.get_username(1)
-        assert username == 'root'
+        assert username == "root"
 
     def test_get_perms(self, client):
-        """ Test fetching all the perms """
+        """Test fetching all the perms"""
         perms = client.get_all_perms()
         assert len(perms) >= 19
 
@@ -208,10 +215,10 @@ class TestUser:
         assert len(roles) >= 6
 
         role_codes = set([r.code for r in roles])
-        core_set = set(['admin', 'dev', 'modeller', 'manager', 'grad', 'decision'])
+        core_set = set(["admin", "dev", "modeller", "manager", "grad", "decision"])
         assert core_set.issubset(role_codes)
         for r in roles:
-            if r.code == 'admin':
+            if r.code == "admin":
                 assert len(r.roleperms) >= 10
                 check_role = r
 
@@ -228,12 +235,12 @@ class TestUser:
     def test_get_user_roles(self, client):
         roles = client.get_user_roles(1)
         assert len(roles) == 1
-        assert roles[0].code == 'admin'
+        assert roles[0].code == "admin"
 
     def test_get_user_permissions(self, client):
         permissions = client.get_user_permissions(1)
 
-        role = client.get_role_by_code('admin')
+        role = client.get_role_by_code("admin")
 
         assert len(permissions) == len(role.roleperms)
 

@@ -12,14 +12,14 @@ group_reader_map = {}
 
 class GroupReader(ABC):
     """
-      ABC for all HDF Group Reader types.
-      Each subclass must define a class attribute of <subclass_type_key>
-      which contains a string identifying the Group type handled by that
-      reader.
-      These attributes then automatically populate the group_reader_map
-      when a subclass is defined.  This map is then used by the adapter
-      to instantiate the correct reader for the intercal format of a
-      given group.
+    ABC for all HDF Group Reader types.
+    Each subclass must define a class attribute of <subclass_type_key>
+    which contains a string identifying the Group type handled by that
+    reader.
+    These attributes then automatically populate the group_reader_map
+    when a subclass is defined.  This map is then used by the adapter
+    to instantiate the correct reader for the intercal format of a
+    given group.
     """
 
     subclass_type_key = "pandas_type"
@@ -29,33 +29,31 @@ class GroupReader(ABC):
         keyattr = __class__.subclass_type_key
         reader_type = getattr(cls, keyattr, None)
         if not reader_type or not isinstance(reader_type, str):
-            raise NotImplementedError(f"Reader subclass {cls.__name__} does not define a '{keyattr}' attribute")
+            raise NotImplementedError(
+                f"Reader subclass {cls.__name__} does not define a '{keyattr}' attribute"
+            )
         group_reader_map[reader_type] = cls
-        log.debug(f"Registered HDF Group reader '{cls.__name__}' for type '{reader_type}'")
+        log.debug(
+            f"Registered HDF Group reader '{cls.__name__}' for type '{reader_type}'"
+        )
 
     @abstractmethod
-    def get_group_shape(self):
-        ...
+    def get_group_shape(self): ...
 
     @abstractmethod
-    def get_columns_of_group(self):
-        ...
+    def get_columns_of_group(self): ...
 
     @abstractmethod
-    def get_index_info(self):
-        ...
+    def get_index_info(self): ...
 
     @abstractmethod
-    def get_series_info(self, series):
-        ...
+    def get_series_info(self, series): ...
 
     @abstractmethod
-    def get_index_range(self, start=0, end=None):
-        ...
+    def get_index_range(self, start=0, end=None): ...
 
     @abstractmethod
-    def get_columns_as_dataframe(self, columns, start=0, end=None):
-        ...
+    def get_columns_as_dataframe(self, columns, start=0, end=None): ...
 
 
 class FrameGroupReader(GroupReader):
@@ -67,6 +65,7 @@ class FrameGroupReader(GroupReader):
     The base class abstract methods are overridden in this class to provide
     implementations which deal specifically with groups of this format.
     """
+
     pandas_type = "frame"
 
     def __init__(self, hf, groupname):
@@ -74,7 +73,9 @@ class FrameGroupReader(GroupReader):
         try:
             self.group = hf[groupname]
         except KeyError as ke:
-            raise ValueError(f"Error: file {hf.filename} contains no group {groupname}") from ke
+            raise ValueError(
+                f"Error: file {hf.filename} contains no group {groupname}"
+            ) from ke
 
     def get_columns_of_group(self):
         try:
@@ -112,16 +113,20 @@ class FrameGroupReader(GroupReader):
         row_sz, _ = self.get_group_shape()
 
         start = start or 0
-        end = end or row_sz-1
+        end = end or row_sz - 1
         if start < 0 or start >= row_sz or start >= end or end < 0 or end >= row_sz:
-            raise ValueError(f"Invalid bounds ({start=}, {end=} for series of length {row_sz}")
+            raise ValueError(
+                f"Invalid bounds ({start=}, {end=} for series of length {row_sz}"
+            )
 
         column_series = {}
         for column_name in column_names:
             try:
                 block_idx, col_idx = named_map[column_name]
             except KeyError as ke:
-                raise ValueError(f"Group {self.group.name} contains no series '{column_name}'") from ke
+                raise ValueError(
+                    f"Group {self.group.name} contains no series '{column_name}'"
+                ) from ke
             block_values_name = f"block{block_idx}_values"
             block_values = self.group[block_values_name]
             section = np.array([row[col_idx] for row in block_values[start:end]])
@@ -137,8 +142,9 @@ class FrameGroupReader(GroupReader):
             except KeyError:
                 continue
 
-        raise ValueError(f"Group {self.group.name} of pandas_type "
-                          "'frame' contains no index axis")
+        raise ValueError(
+            f"Group {self.group.name} of pandas_type " "'frame' contains no index axis"
+        )
 
     def get_index_range(self, start=None, end=None):
         index_axis = self.find_index_axis_index()
@@ -149,9 +155,17 @@ class FrameGroupReader(GroupReader):
             index_class = ""
 
         start = start or 0
-        end = end or len(index)-1
-        if start < 0 or start >= len(index) or start >= end or end < 0 or end >= len(index):
-            raise ValueError(f"Invalid bounds ({start=}, {end=} for index of length {len(index)}")
+        end = end or len(index) - 1
+        if (
+            start < 0
+            or start >= len(index)
+            or start >= end
+            or end < 0
+            or end >= len(index)
+        ):
+            raise ValueError(
+                f"Invalid bounds ({start=}, {end=} for index of length {len(index)}"
+            )
 
         if index_class.lower() == "datetime":
             return [str(nscale(row)) for row in index[start:end]]
@@ -181,11 +195,7 @@ class FrameGroupReader(GroupReader):
         except KeyError:
             name = ""
 
-        return {
-            "name": name,
-            "length": len(index),
-            "dtype": dtype
-        }
+        return {"name": name, "length": len(index), "dtype": dtype}
 
     def get_series_info(self, column_name):
         columns = self.get_columns_of_group()
@@ -201,7 +211,7 @@ class FrameGroupReader(GroupReader):
         return {
             "name": column_name,
             "length": block_values.shape[0],
-            "dtype": str(block_values.dtype)
+            "dtype": str(block_values.dtype),
         }
 
 
@@ -216,6 +226,7 @@ class FrameTableGroupReader(GroupReader):
     The base class abstract methods are overridden in this class to provide
     implementations which deal specifically with groups of this format.
     """
+
     pandas_type = "frame_table"
 
     def __init__(self, hf, groupname):
@@ -223,16 +234,20 @@ class FrameTableGroupReader(GroupReader):
         try:
             self.group = hf[groupname]
         except KeyError as ke:
-            raise ValueError(f"Error: file {hf.filename} contains no group {groupname}") from ke
+            raise ValueError(
+                f"Error: file {hf.filename} contains no group {groupname}"
+            ) from ke
         try:
             self.table = self.group["table"]
         except KeyError as ke:
-            raise ValueError(f"Error: file {hf.filename} has invalid format, no 'table'") from ke
+            raise ValueError(
+                f"Error: file {hf.filename} has invalid format, no 'table'"
+            ) from ke
 
     def get_index_column_index(self):
         max_index_depth = 128
         try:
-            index_cols_raw = self.group.attrs["index_cols"].decode().split('\n')[2:-2:2]
+            index_cols_raw = self.group.attrs["index_cols"].decode().split("\n")[2:-2:2]
         except KeyError:
             # No index columns present
             return None
@@ -251,7 +266,9 @@ class FrameTableGroupReader(GroupReader):
     def get_values_start_block_index(self):
         max_value_depth = 128
         try:
-            value_cols_raw = self.group.attrs["values_cols"].decode().split('\n')[1:-1:2]
+            value_cols_raw = (
+                self.group.attrs["values_cols"].decode().split("\n")[1:-1:2]
+            )
         except KeyError:
             # Group contains no value columns
             return None
@@ -269,9 +286,17 @@ class FrameTableGroupReader(GroupReader):
 
     def get_index_range(self, start=None, end=None):
         start = start or 0
-        end = end or len(self.table)-1
-        if start < 0 or start >= len(self.table) or start >= end or end < 0 or end >= len(self.table):
-            raise ValueError(f"Invalid bounds ({start=}, {end=} for series of length {len(self.table)}")
+        end = end or len(self.table) - 1
+        if (
+            start < 0
+            or start >= len(self.table)
+            or start >= end
+            or end < 0
+            or end >= len(self.table)
+        ):
+            raise ValueError(
+                f"Invalid bounds ({start=}, {end=} for series of length {len(self.table)}"
+            )
 
         index_idx = self.get_index_column_index()
         try:
@@ -288,13 +313,13 @@ class FrameTableGroupReader(GroupReader):
             return [row[index_idx] for row in self.table[start:send]]
 
     def get_columns_by_block(self):
-        value_cols_raw = self.group.attrs["values_cols"].decode().split('\n')[1:-1:2]
+        value_cols_raw = self.group.attrs["values_cols"].decode().split("\n")[1:-1:2]
         value_cols = trim_x_first_y_rest(1, 2, value_cols_raw)
 
         block_columns = []
         for field_idx, field_name in enumerate(value_cols, start=1):
             kind = self.table.attrs[f"{field_name}_kind"]
-            kind_cols_raw = kind.decode().split('\n')[1:-1:2]
+            kind_cols_raw = kind.decode().split("\n")[1:-1:2]
             kind_cols = trim_x_first_y_rest(1, 2, kind_cols_raw)
             block_columns.append(kind_cols)
 
@@ -315,14 +340,27 @@ class FrameTableGroupReader(GroupReader):
         first_value_block_idx = self.get_values_start_block_index()
 
         start = start or 0
-        end = end or len(self.table)-1
-        if start < 0 or start >= len(self.table) or start >= end or end < 0 or end >= len(self.table):
-            raise ValueError(f"Invalid bounds ({start=}, {end=} for series of length {len(self.table)}")
+        end = end or len(self.table) - 1
+        if (
+            start < 0
+            or start >= len(self.table)
+            or start >= end
+            or end < 0
+            or end >= len(self.table)
+        ):
+            raise ValueError(
+                f"Invalid bounds ({start=}, {end=} for series of length {len(self.table)}"
+            )
 
         column_series = {}
         for column_name in column_names:
             block_idx, col_idx = named_map[column_name]
-            block_rows = np.array([row[block_idx+first_value_block_idx] for row in self.table[start:end]])
+            block_rows = np.array(
+                [
+                    row[block_idx + first_value_block_idx]
+                    for row in self.table[start:end]
+                ]
+            )
             section = block_rows[:, col_idx]
             column_series[column_name] = section
 
@@ -338,7 +376,9 @@ class FrameTableGroupReader(GroupReader):
         return [column_to_block_coord(column, blocks) for column in non_index_cols]
 
     def get_columns_of_group(self):
-        non_index_cols_raw = self.group.attrs["non_index_axes"].decode().split("\n")[3:-3:2]
+        non_index_cols_raw = (
+            self.group.attrs["non_index_axes"].decode().split("\n")[3:-3:2]
+        )
         return trim_x_first_y_rest(1, 2, non_index_cols_raw)
 
     def get_group_shape(self):
@@ -352,11 +392,7 @@ class FrameTableGroupReader(GroupReader):
         index_kind = self.table.attrs[f"{index_name}_kind"].decode()
         index_rows = self.table.attrs["NROWS"]
 
-        return {
-            "name": index_name,
-            "length": index_rows,
-            "dtype": index_kind
-        }
+        return {"name": index_name, "length": index_rows, "dtype": index_kind}
 
     def get_series_info(self, column_name):
         columns = self.get_columns_of_group()
@@ -368,26 +404,25 @@ class FrameTableGroupReader(GroupReader):
         block_idx, col_idx = named_map[column_name]
         dtype = self.table.attrs[f"values_block_{block_idx}_dtype"]
 
-        return {
-            "name": column_name,
-            "length": len(self.table),
-            "dtype": dtype.decode()
-        }
+        return {"name": column_name, "length": len(self.table), "dtype": dtype.decode()}
 
 
 """
   Auxiliary Functions
 """
 
+
 def nscale(ts):
     """
-      Transforms integers representing nanoseconds past the epoch
-      into instances of datetime.timestamp
+    Transforms integers representing nanoseconds past the epoch
+    into instances of datetime.timestamp
     """
-    return datetime.fromtimestamp(ts/1e9)
+    return datetime.fromtimestamp(ts / 1e9)
+
 
 def trim_x_first_y_rest(x, y, names):
-    return [names[0][x:], *[name[y:] for name in names[1:]] ]
+    return [names[0][x:], *[name[y:] for name in names[1:]]]
+
 
 def column_to_block_coord(column, blocks):
     for block_idx, block in enumerate(blocks):
@@ -398,8 +433,8 @@ def column_to_block_coord(column, blocks):
         return (block_idx, col_idx)
     raise ValueError(f"Column {column} not found in any block")
 
+
 def make_pandas_dataframe(index, series):
     return pd.DataFrame(
-        {name: values for name, values in series.items()},
-        index=pd.DatetimeIndex(index)
+        {name: values for name, values in series.items()}, index=pd.DatetimeIndex(index)
     )

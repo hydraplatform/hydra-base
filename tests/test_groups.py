@@ -24,12 +24,15 @@ from hydra_base.exceptions import HydraError
 
 
 import logging
+
 log = logging.getLogger(__name__)
+
 
 class TestGroup:
     """
-        Test for network-based functionality
+    Test for network-based functionality
     """
+
     def test_get_resourcegroup(self, client, network_with_data):
         network = network_with_data
         group = network.resourcegroups[0]
@@ -38,13 +41,13 @@ class TestGroup:
         resourcegroup_without_data = client.get_resourcegroup(group.id)
 
         for ra in resourcegroup_without_data.attributes:
-            assert not hasattr(ra, 'resourcescenario') or ra.resourcescenario is None
+            assert not hasattr(ra, "resourcescenario") or ra.resourcescenario is None
 
         resourcegroup_with_data = client.get_resourcegroup(group.id, s.id)
 
         attrs_with_data = []
         for ra in resourcegroup_with_data.attributes:
-            if hasattr(ra, 'resourcescenario') and ra.resourcescenario is not None:
+            if hasattr(ra, "resourcescenario") and ra.resourcescenario is not None:
                 if ra.resourcescenario:
                     attrs_with_data.append(ra.id)
         assert len(attrs_with_data) > 0
@@ -57,20 +60,20 @@ class TestGroup:
         network = network_with_data
 
         group = JSONObject({})
-        group.network_id=network.id
+        group.network_id = network.id
         group.id = -1
-        group.name = 'test new group'
-        group.description = 'test new group'
+        group.name = "test new group"
+        group.description = "test new group"
 
         template_id = network.types[0].template_id
         template = JSONObject(client.get_template(template_id))
 
         type_summary_arr = []
 
-        type_summary      = JSONObject({})
-        type_summary.id   = template.id
+        type_summary = JSONObject({})
+        type_summary.id = template.id
         type_summary.name = template.name
-        type_summary.id   = template.templatetypes[2].id
+        type_summary.id = template.templatetypes[2].id
         type_summary.name = template.templatetypes[2].name
 
         type_summary_arr.append(type_summary)
@@ -88,7 +91,8 @@ class TestGroup:
 
         new_network = client.get_network(network.id)
 
-        assert len(new_network.resourcegroups) == len(network.resourcegroups)+1; "new resource group was not added correctly"
+        assert len(new_network.resourcegroups) == len(network.resourcegroups) + 1
+        "new resource group was not added correctly"
 
     def test_add_resourcegroupitem(self, client, network_with_extra_group):
 
@@ -96,25 +100,24 @@ class TestGroup:
 
         scenario = network.scenarios[0]
 
-        group    = network.resourcegroups[-1]
+        group = network.resourcegroups[-1]
         node_id = network.nodes[0].id
 
         item = JSONObject({})
-        item.ref_key = 'NODE'
-        item.ref_id  = node_id
+        item.ref_key = "NODE"
+        item.ref_id = node_id
         item.group_id = group.id
 
         new_item = client.add_resourcegroupitem(item, scenario.id)
 
         assert new_item.node_id == node_id
 
-
     def test_set_group_status(self, client, network_with_extra_group):
         net = network_with_extra_group
 
         group_to_delete = net.resourcegroups[0]
 
-        client.set_group_status(group_to_delete.id, 'X')
+        client.set_group_status(group_to_delete.id, "X")
 
         updated_net = client.get_network(net.id)
 
@@ -124,7 +127,7 @@ class TestGroup:
 
         assert group_to_delete.id not in group_ids
 
-        client.set_group_status(group_to_delete.id, 'A')
+        client.set_group_status(group_to_delete.id, "A")
 
         updated_net = client.get_network(net.id)
 
@@ -134,27 +137,28 @@ class TestGroup:
 
         assert group_to_delete.id in group_ids
 
-
     def test_purge_group(self, client, network_with_extra_group):
         net = network_with_extra_group
         scenario_id = net.scenarios[0].id
         group_id_to_delete = net.resourcegroups[-1].id
         group_id_to_keep = net.resourcegroups[0].id
 
-        group_datasets = client.get_resource_data('GROUP', group_id_to_delete, scenario_id)
+        group_datasets = client.get_resource_data(
+            "GROUP", group_id_to_delete, scenario_id
+        )
         log.info("Deleting group %s", group_id_to_delete)
 
-        client.delete_resourcegroup(group_id_to_delete, 'Y')
+        client.delete_resourcegroup(group_id_to_delete, "Y")
 
-        updated_net = JSONObject(client.get_network(net.id, 'Y'))
+        updated_net = JSONObject(client.get_network(net.id, "Y"))
         assert len(updated_net.resourcegroups) == 1
         assert updated_net.resourcegroups[0].id == group_id_to_keep
 
         for rs in group_datasets:
-            #In these tests, all timeseries are unique to their resources,
-            #so after removing the group no timeseries to which it was attached
-            #should still exist.
+            # In these tests, all timeseries are unique to their resources,
+            # so after removing the group no timeseries to which it was attached
+            # should still exist.
             d = rs.dataset
-            if d.type == 'timeseries':
+            if d.type == "timeseries":
                 with pytest.raises(HydraError):
                     client.get_dataset(d.id)

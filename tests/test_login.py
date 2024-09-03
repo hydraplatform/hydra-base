@@ -21,15 +21,15 @@ import pytest
 import hydra_base
 import hydra_base.exceptions
 
+
 @pytest.mark.order("last")
 class TestLogin:
-    """ A collection of tests of the User part of the DB.
-    """
+    """A collection of tests of the User part of the DB."""
 
     def test_login(self, client):
-        """ Test adding a new user to the DB """
+        """Test adding a new user to the DB"""
 
-        user_id, session_id = client.login('root', '')
+        user_id, session_id = client.login("root", "")
 
         assert user_id == 1
 
@@ -38,7 +38,7 @@ class TestLogin:
 
     def test_logout(self, client):
 
-        user_id, session_id = client.login('root', '')
+        user_id, session_id = client.login("root", "")
 
         assert user_id == 1
 
@@ -46,22 +46,22 @@ class TestLogin:
 
         logout_result = client.logout()
 
-        assert logout_result == 'OK'
+        assert logout_result == "OK"
 
     def test_get_session_user(self, client):
 
-        #only run this for local clients, as the remote client doesn't
+        # only run this for local clients, as the remote client doesn't
         # user sessions (in the test suite)
         if client.test_server is not None:
             return
 
-        user_id, session_id = client.login('root', '')
+        user_id, session_id = client.login("root", "")
 
         assert user_id == 1
 
         assert session_id is not None
 
-        retrieved_user_id = client.get_session_user(session_id='i_am_not_a_session')
+        retrieved_user_id = client.get_session_user(session_id="i_am_not_a_session")
 
         assert retrieved_user_id is None
 
@@ -73,13 +73,12 @@ class TestLogin:
     def test_login_wrong_user(self, client):
 
         with pytest.raises(hydra_base.exceptions.HydraError):
-            user_id, session_id = client.login('wrong-user!', '')
+            user_id, session_id = client.login("wrong-user!", "")
 
     def test_login_wrong_password(self, client):
 
         with pytest.raises(hydra_base.exceptions.HydraError):
-            user_id, session_id = client.login('root', 'wrong-password!')
-
+            user_id, session_id = client.login("root", "wrong-password!")
 
     def test_login_too_many_attempts(self, client):
         from hydra_base.lib.users import reset_failed_logins, get_failed_login_count
@@ -87,10 +86,12 @@ class TestLogin:
         for i in range(8):
             if i < 7:
                 with pytest.raises(hydra_base.exceptions.HydraError):
-                    user_id, session_id = client.login('root', 'wrong-password!')
+                    user_id, session_id = client.login("root", "wrong-password!")
             if i == 7:
-                with pytest.raises(hydra_base.exceptions.HydraLoginUserMaxAttemptsExceeded):
-                    user_id, session_id = client.login('root', 'wrong-password!')
+                with pytest.raises(
+                    hydra_base.exceptions.HydraLoginUserMaxAttemptsExceeded
+                ):
+                    user_id, session_id = client.login("root", "wrong-password!")
 
         reset_failed_logins("root", flush=True)
         assert get_failed_login_count("root") == 0

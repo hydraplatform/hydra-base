@@ -1,7 +1,5 @@
-from abc import (
-    ABC,
-    abstractmethod
-)
+from abc import ABC, abstractmethod
+
 
 class DatasetManager(ABC):
     """
@@ -10,6 +8,7 @@ class DatasetManager(ABC):
     subclasses must implement xxx_storage_location() methods
     in addition to the __get__/__set__ descriptor protocol
     """
+
     @abstractmethod
     def __get__(self, dataset, dtype):
         pass

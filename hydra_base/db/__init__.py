@@ -21,7 +21,7 @@ import sqlalchemy
 from sqlalchemy.orm import scoped_session
 from sqlalchemy import create_engine
 
-#Import these as a test for foreign key checking in
+# Import these as a test for foreign key checking in
 from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
 
@@ -34,6 +34,7 @@ import transaction
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 import logging
+
 log = logging.getLogger(__name__)
 
 global DeclarativeBase
@@ -46,13 +47,13 @@ global engine
 engine = None
 
 global hydra_db_url
-hydra_db_url=None
+hydra_db_url = None
 
 global restart_counter
 restart_counter = 0
 
-#logger_sqlalchemy = logging.getLogger('sqlalchemy')
-#logger_sqlalchemy.setLevel(logging.DEBUG)
+# logger_sqlalchemy = logging.getLogger('sqlalchemy')
+# logger_sqlalchemy.setLevel(logging.DEBUG)
 
 # @event.listens_for(Engine, "connect")
 # def set_sqlite_pragma(dbapi_connection, connection_record):
@@ -60,64 +61,65 @@ restart_counter = 0
 #     cursor.execute("PRAGMA foreign_keys=ON")
 #     cursor.close()
 
+
 def create_mysql_db(db_url):
     """
-        To simplify deployment, create the mysql DB if it's not there.
-        Accepts a URL with or without a DB name stated, and returns a db url
-        containing the db name for use in the main sqlalchemy engine.
+    To simplify deployment, create the mysql DB if it's not there.
+    Accepts a URL with or without a DB name stated, and returns a db url
+    containing the db name for use in the main sqlalchemy engine.
 
-        THe formats can take the following form:
+    THe formats can take the following form:
 
-        mysql+driver://username:password@hostname
-        mysql+driver://username:password@hostname/dbname
+    mysql+driver://username:password@hostname
+    mysql+driver://username:password@hostname/dbname
 
-        if no DB name is specified, it is retrieved from config
+    if no DB name is specified, it is retrieved from config
     """
 
-    #add a special case for a memory-based sqlite session
-    if db_url == 'sqlite://':
+    # add a special case for a memory-based sqlite session
+    if db_url == "sqlite://":
         return db_url
 
-    #Remove trailing whitespace and forwardslashes
-    db_url = db_url.strip().strip('/')
+    # Remove trailing whitespace and forwardslashes
+    db_url = db_url.strip().strip("/")
 
+    # Check this is a mysql URL
+    if db_url.find("mysql") >= 0:
 
-    #Check this is a mysql URL
-    if db_url.find('mysql') >= 0:
-
-        #Get the DB name from config and check if it's in the URL
-        db_name = config.get('mysqld', 'db_name', 'hydradb')
+        # Get the DB name from config and check if it's in the URL
+        db_name = config.get("mysqld", "db_name", "hydradb")
         if db_url.find(db_name) >= 0:
             no_db_url = db_url.rsplit("/", 1)[0]
         else:
-            #Check that there is a hostname specified, as we'll be using the '@' symbol soon..
-            if db_url.find('@') == -1:
+            # Check that there is a hostname specified, as we'll be using the '@' symbol soon..
+            if db_url.find("@") == -1:
                 raise HydraError("No Hostname specified in DB url")
 
-            #Check if there's a DB name specified that's different to the one in config.
-            host_and_db_name = db_url.split('@')[1]
-            if host_and_db_name.find('/') >= 0:
+            # Check if there's a DB name specified that's different to the one in config.
+            host_and_db_name = db_url.split("@")[1]
+            if host_and_db_name.find("/") >= 0:
                 no_db_url, db_name = db_url.rsplit("/", 1)
             else:
                 no_db_url = db_url
                 db_url = no_db_url + "/" + db_name
-        if db_url.find('charset') == -1:
+        if db_url.find("charset") == -1:
             db_url = "{}?charset=utf8&use_unicode=1".format(db_url)
 
-        if config.get('mysqld', 'auto_create', 'Y') == 'Y':
+        if config.get("mysqld", "auto_create", "Y") == "Y":
             tmp_engine = create_engine(no_db_url)
             log.debug("Creating database {0} as it does not exist.".format(db_name))
             with tmp_engine.connect() as conn:
                 conn.execute(text("CREATE DATABASE IF NOT EXISTS {0}".format(db_name)))
     return db_url
 
+
 def connect(db_url=None):
     if db_url is None:
-        db_url = config.get('mysqld', 'url')
+        db_url = config.get("mysqld", "url")
 
     log.info("Connecting to database")
-    if db_url.find('@') >= 0:
-        log.info("DB URL: %s", db_url.split('@')[1])
+    if db_url.find("@") >= 0:
+        log.info("DB URL: %s", db_url.split("@")[1])
     else:
         log.info("DB URL: %s", db_url)
 
@@ -125,33 +127,38 @@ def connect(db_url=None):
 
     global engine
 
-    if db_url.startswith('sqlite'):
+    if db_url.startswith("sqlite"):
         engine = create_engine(db_url)
     else:
 
         # Let's use at least 10 for size and 20 for overflow (hydra.ini file)
         # To test the timeout: pool_size:1, max_overflow: 0, pool_timeout: 5 or any low value
-        #These values MUST be smaller than the pool timeouts of the DB, otherwise the connection
-        #will remain open on the client while it has been closed on the server, resulting in
-        #an error
-        db_pool_size = int(config.get('mysqld', 'pool_size',10)) # 10
-        db_pool_recycle = int(config.get('mysqld', 'pool_recycle', 300)) # 300
-        db_max_overflow = int(config.get('mysqld', 'max_overflow', 20)) # 10 -> 30
-        db_pool_timeout = int(config.get('mysqld', 'pool_timeout', 10))
-        db_pool_pre_ping = True if config.get('mysqld', 'pool_pre_ping', 'Y').upper() == 'Y' else False
+        # These values MUST be smaller than the pool timeouts of the DB, otherwise the connection
+        # will remain open on the client while it has been closed on the server, resulting in
+        # an error
+        db_pool_size = int(config.get("mysqld", "pool_size", 10))  # 10
+        db_pool_recycle = int(config.get("mysqld", "pool_recycle", 300))  # 300
+        db_max_overflow = int(config.get("mysqld", "max_overflow", 20))  # 10 -> 30
+        db_pool_timeout = int(config.get("mysqld", "pool_timeout", 10))
+        db_pool_pre_ping = (
+            True if config.get("mysqld", "pool_pre_ping", "Y").upper() == "Y" else False
+        )
 
-        log.warning(f"db_pool_size: {db_pool_size} - pool_recycle: {db_pool_recycle} - max_overflow: {db_max_overflow} - pool_timeout: {db_pool_timeout} - pool_pre_ping: {db_pool_pre_ping}")
+        log.warning(
+            f"db_pool_size: {db_pool_size} - pool_recycle: {db_pool_recycle} - max_overflow: {db_max_overflow} - pool_timeout: {db_pool_timeout} - pool_pre_ping: {db_pool_pre_ping}"
+        )
 
-        engine = create_engine(db_url,
-                               pool_recycle=db_pool_recycle,
-                               pool_size=db_pool_size,
-                               pool_timeout=db_pool_timeout,
-                               max_overflow=db_max_overflow,
-                               pool_pre_ping=db_pool_pre_ping)
+        engine = create_engine(
+            db_url,
+            pool_recycle=db_pool_recycle,
+            pool_size=db_pool_size,
+            pool_timeout=db_pool_timeout,
+            max_overflow=db_max_overflow,
+            pool_pre_ping=db_pool_pre_ping,
+        )
 
     global hydra_db_url
-    hydra_db_url=db_url
-
+    hydra_db_url = db_url
 
     global DBSession
 
@@ -167,9 +174,11 @@ def connect(db_url=None):
 
     return db_url
 
+
 def get_session():
     global DBSession
     return DBSession
+
 
 def commit_transaction():
     try:
@@ -178,12 +187,14 @@ def commit_transaction():
         log.critical(e)
         transaction.abort()
 
+
 def open_session():
     log.debug("OPENING SESSION")
 
     global DBSession
 
     from .model import User
+
     session = DBSession()
     session.query(User).all()
 
@@ -192,23 +203,27 @@ def open_session():
 
     DBSession()
 
+
 def close_session():
     log.debug("CLOSING SESSION")
     DBSession.remove()
 
 
 def rollback_transaction():
-    #import pudb; pudb.set_trace()
+    # import pudb; pudb.set_trace()
     transaction.abort()
 
-def restart_session(caller='-- not specified --'):
+
+def restart_session(caller="-- not specified --"):
     """
-        WILL RESTART THE SESSION
+    WILL RESTART THE SESSION
     """
     global DBSession
     global restart_counter
     restart_counter = restart_counter + 1
-    log.warning(f"[# Restarts: {restart_counter}] [{caller}] Restarting the DB Session!")
+    log.warning(
+        f"[# Restarts: {restart_counter}] [{caller}] Restarting the DB Session!"
+    )
     close_session()
     global hydra_db_url
     connect(hydra_db_url)
