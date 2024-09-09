@@ -210,6 +210,18 @@ class TestProject:
 
         assert len(projectowners) == 4
 
+        assert projectowners[0].created_by == pytest.root_user_id
+        assert projectowners[0].user_id == pytest.root_user_id
+
+        assert projectowners[1].created_by == pytest.root_user_id
+        assert projectowners[1].user_id == pytest.user_a.id
+
+        assert projectowners[2].created_by == pytest.root_user_id
+        assert projectowners[2].user_id == pytest.user_b.id
+
+        assert projectowners[3].created_by == pytest.root_user_id
+        assert projectowners[3].user_id == pytest.user_c.id
+
         with pytest.raises(hb.exceptions.HydraError):
             # check for non-admin users
             client.user_id = 5
