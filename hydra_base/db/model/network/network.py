@@ -30,35 +30,46 @@ from . import Node
 from . import ResourceGroup
 from .resource import Resource
 
-__all__ = ['Network']
+__all__ = ['Network', 'NetworkInterface']
 
 
-
-class Network(Base, Inspect, PermissionControlled, Resource):
+class NetworkInterface(Base, Inspect, PermissionControlled, Resource, AuditMixin):
     """
     """
-
-    __tablename__ = 'tNetwork'
+    __tablename__ = 'tNetworkInterface'
     __table_args__ = (
         UniqueConstraint('name', 'project_id', name="unique net name"),
     )
-    ref_key = 'NETWORK'
 
     id = Column(Integer(), primary_key=True, nullable=False)
     name = Column(String(200), nullable=False)
-    description = Column(String(1000))
-    layout = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'), nullable=True)
-    appdata = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'), nullable=True)
-    project_id = Column(Integer(), ForeignKey('tProject.id'), nullable=False)
     status = Column(String(1), nullable=False, server_default=text(u"'A'"))
-    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+    project_id = Column(Integer(), ForeignKey('tProject.id'), nullable=False)
     projection = Column(String(200))
-    created_by = Column(Integer(), ForeignKey('tUser.id'), nullable=False)
 
     project = relationship('Project',
                            backref=backref("networks",
                                            order_by="asc(Network.cr_date)",
                                            cascade="all, delete-orphan"))
+
+class Network(Base, Inspect, PermissionControlled, Resource, AuditMixin):
+    """
+        This represents one version of a network, as represented by a network interface.
+        This could equeally be called 'NetworkVersion' but is called Network to simplify
+        compatibiltiy with other entities in the system which already refer to it as a 'Network'
+    """
+
+    __tablename__ = 'tNetwork'
+
+    ref_key = 'NETWORK'
+
+    id = Column(Integer(), primary_key=True, nullable=False, default=0)
+    interface_id = Column(Integer(), ForeignKey('tNetworkInterface.id'), primary_key=True, nullable=False)
+    name = Column(String(200), nullable=False, default="Default")
+    description = Column(String(1000))
+    layout = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'), nullable=True)
+    appdata = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'), nullable=True)
+    status = Column(String(1), nullable=False, server_default=text(u"'A'"))
 
     _parents = ['tNode', 'tLink', 'tResourceGroup']
     _children = ['tProject']
@@ -71,7 +82,6 @@ class Network(Base, Inspect, PermissionControlled, Resource):
 
         if self.check_read_permission(user_id, do_raise=False) is True:
             return True
-
         else:
             return self.project.is_owner(user_id)
 
