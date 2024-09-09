@@ -60,7 +60,7 @@ class ProjectOwner(Base, Inspect, AuditMixin, OwnerMixin):
         "Project",
         backref=backref(
             "owners",
-            order_by=OwnerMixin.user_id,
+            order_by="ProjectOwner.user_id",
             uselist=True,
             cascade="all, delete-orphan",
         ),
@@ -87,7 +87,7 @@ class NetworkOwner(Base, Inspect, AuditMixin, OwnerMixin):
         "Network",
         backref=backref(
             "owners",
-            order_by=OwnerMixin.user_id,
+            order_by="NetworkOwner.user_id",
             uselist=True,
             cascade="all, delete-orphan",
         ),
@@ -113,7 +113,7 @@ class RuleOwner(Base, Inspect, AuditMixin, OwnerMixin):
         "Rule",
         backref=backref(
             "owners",
-            order_by=OwnerMixin.user_id,
+            order_by="RuleOwner.user_id",
             uselist=True,
             cascade="all, delete-orphan",
         ),
@@ -136,7 +136,7 @@ class DatasetOwner(Base, Inspect, AuditMixin, OwnerMixin):
         "Dataset",
         backref=backref(
             "owners",
-            order_by=OwnerMixin.user_id,
+            order_by="DatasetOwner.user_id",
             uselist=True,
             cascade="all, delete-orphan",
         ),

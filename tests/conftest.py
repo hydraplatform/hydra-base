@@ -311,7 +311,7 @@ def projectmaker(client):
                 name=name, share=share, parent_id=parent_id
             )
 
-    return ProjectMaker
+    return ProjectMaker()
 
 
 @pytest.fixture()
