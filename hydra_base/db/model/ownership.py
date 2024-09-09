@@ -20,20 +20,25 @@ from .base import *
 
 __all__ = ["ProjectOwner", "NetworkOwner", "RuleOwner", "DatasetOwner"]
 
+
 class OwnerMixin(object):
 
     user_id = Column(
-        Integer(), ForeignKey("tUser.id"), primary_key=True, nullable=False, name="user_id"
+        Integer(),
+        ForeignKey("tUser.id"),
+        primary_key=True,
+        nullable=False,
+        name="user_id",
     )
 
     @declared_attr
     def view(cls):
         return Column(String(1), nullable=False, default="Y")
-    
+
     @declared_attr
     def edit(cls):
         return Column(String(1), nullable=False, default="N")
-    
+
     @declared_attr
     def share(cls):
         return Column(String(1), nullable=False, default="N")
@@ -44,10 +49,9 @@ class OwnerMixin(object):
 
 
 class ProjectOwner(Base, Inspect, AuditMixin, OwnerMixin):
-    """
-    """
+    """ """
 
-    __tablename__='tProjectOwner'
+    __tablename__ = "tProjectOwner"
     project_id = Column(
         Integer(), ForeignKey("tProject.id"), primary_key=True, nullable=False
     )
@@ -69,9 +73,11 @@ class ProjectOwner(Base, Inspect, AuditMixin, OwnerMixin):
     def read(self):
         return self.view
 
+
 class NetworkOwner(Base, Inspect, AuditMixin, OwnerMixin):
     """ """
-    __tablename__='tNetworkOwner'
+
+    __tablename__ = "tNetworkOwner"
 
     network_id = Column(
         Integer(), ForeignKey("tNetwork.id"), primary_key=True, nullable=False
@@ -89,6 +95,7 @@ class NetworkOwner(Base, Inspect, AuditMixin, OwnerMixin):
 
     _parents = ["tNetwork", "tUser"]
     _children = []
+
 
 class RuleOwner(Base, Inspect, AuditMixin, OwnerMixin):
     """
