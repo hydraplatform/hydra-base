@@ -52,6 +52,8 @@ class Network(Base, Inspect, PermissionControlled, Resource):
     )
     projection = Column(String(200))
     created_by = Column(Integer(), ForeignKey("tUser.id"), nullable=False)
+    origin_network_id = Column(Integer(), ForeignKey("tNetwork.id"), nullable=True)
+    history_enabled = Column(Boolean(), default=False, nullable=True)
 
     project = relationship(
         "Project",

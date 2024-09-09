@@ -695,6 +695,7 @@ def add_network(network, **kwargs):
     net_i.projection = network.projection
     net_i.layout = network.get_json("layout")
     net_i.appdata = network.get_json("appdata")
+    net_i.history_enabled = True
 
     network.id = net_i.id
     db.DBSession.add(net_i)
@@ -3283,6 +3284,8 @@ def clone_network(
     newnet.projection = ex_net.projection
     newnet.created_by = user_id
     newnet.appdata = ex_net.appdata
+    newnet.origin_network_id = network_id
+    newnet.history_enabled = True
 
     # if true, the the creator will see this network in their project.networks.
     if creator_is_owner is True and user_id != recipient_user_id:

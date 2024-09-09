@@ -37,6 +37,7 @@ from sqlalchemy import (
     JSON,
     DateTime,
     Unicode,
+    Boolean
 )
 
 from sqlalchemy.orm import relationship, backref, noload, joinedload
