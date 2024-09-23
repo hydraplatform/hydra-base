@@ -471,10 +471,18 @@ class TestProject:
             client.get_project(proj.id)
 
     def test_remove_project_parent(self, client, projectmaker, networkmaker):
+        """
+          Test two actions which should result in a project's parent_id
+          being set to None:
+            - Calling update_project() where the existing version has a not-None
+              parent_id while the argument's parent_id has been set to None
+            - Calling move_project() with a target parent project of None
+        """
         orig_parent_proj = projectmaker.create()
-        child_proj = projectmaker.create(parent_id=orig_parent_proj.id)
+        child_proj_update = projectmaker.create(parent_id=orig_parent_proj.id)
+        child_proj_move = projectmaker.create(parent_id=orig_parent_proj.id)
 
-        proj_i = client.get_project(child_proj.id)
+        proj_i = client.get_project(child_proj_update.id)
         assert proj_i.parent_id == orig_parent_proj.id
 
         # Remove parent of child_proj
@@ -482,5 +490,14 @@ class TestProject:
         client.update_project(proj_i)
 
         # Verify retrieved project now has no parent
-        proj_i = client.get_project(child_proj.id)
+        proj_i = client.get_project(child_proj_update.id)
+        assert proj_i.parent_id is None
+
+        proj_i = client.get_project(child_proj_move.id)
+        assert proj_i.parent_id == orig_parent_proj.id
+
+        client.move_project(child_proj_move.id, None)
+
+        # Verify moved project now has no parent
+        proj_i = client.get_project(child_proj_move.id)
         assert proj_i.parent_id is None
