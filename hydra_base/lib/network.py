@@ -1405,7 +1405,7 @@ def get_node_by_name(network_id, node_name,**kwargs):
     try:
         n = db.DBSession.query(Node).filter(Node.name==node_name,
                                          Node.network_id==network_id).\
-                                         options(joinedload(Node.attributes).joinedload(ResourceAttr.Attr)).one()
+                                         options(joinedload(Node.attributes).joinedload(ResourceAttr.attr)).one()
         return n
     except NoResultFound:
         raise ResourceNotFoundError("Node %s not found in network %s"%(node_name, network_id,))
