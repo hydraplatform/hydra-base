@@ -157,6 +157,10 @@ def update_project(project, **kwargs):
             #check the user has the correct permission to write to the target project
             _get_project(project.parent_id, user_id, check_write=True)
             proj_i.parent_id = project.parent_id
+    else:
+        # parent_id has changed to None
+        if proj_i.parent_id is not None:
+            proj_i.parent_id = None
 
     if project.attributes:
         attr_map = hdb.add_resource_attributes(proj_i, project.attributes)
@@ -178,13 +182,30 @@ def move_project(project_id, target_project_id, **kwargs):
     #Check the user has access to write to the project
     proj_i = _get_project(project_id, user_id, check_write=True)
 
+    if target_project_id is None:
+        return remove_project_parent(project_id, **kwargs)
+
     #check the user has the correct permission to write to the target project
     _get_project(target_project_id, user_id, check_write=True)
-    
+
     Project.clear_cache(user_id)
 
     proj_i.parent_id = target_project_id
 
+    db.DBSession.flush()
+
+    return proj_i
+
+@required_perms('edit_project')
+def remove_project_parent(project_id, **kwargs):
+    """
+        Removes the parent of the <project_id> argument
+        by setting the parent_id attr to None
+    """
+    user_id = kwargs.get('user_id')
+    proj_i = _get_project(project_id, user_id, check_write=True)
+    Project.clear_cache(user_id)
+    proj_i.parent_id = None
     db.DBSession.flush()
 
     return proj_i
