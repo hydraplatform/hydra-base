@@ -167,6 +167,8 @@ def update_project(project, **kwargs):
         proj_data = _add_project_attribute_data(proj_i, attr_map, project.attribute_data)
         proj_i.attribute_data = proj_data
 
+    Project.clear_cache(user_id)
+
     db.DBSession.flush()
 
     return proj_i
@@ -376,7 +378,7 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
     #Now get projects which the user must have access to in order to navigate
     #to projects further down the tree which they are owners of.
     nav_project_ids = set(Project.get_cache(uid).get(project_id, [])) - scoped_project_ids
-    nav_projects_i = db.DBSession.query(Project).filter(Project.id.in_(nav_project_ids)).all()
+    nav_projects_i = db.DBSession.query(Project).filter(Project.id.in_(nav_project_ids)).filter(Project.id==project_id).all()
     nav_projects = []
     for nav_project_i in nav_projects_i:
         nav_project_j = JSONObject(nav_project_i)
