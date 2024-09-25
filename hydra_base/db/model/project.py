@@ -467,3 +467,11 @@ class Project(Base, Inspect, PermissionControlled):
             return scoped_attrs_j
         else:
             return scoped_attrs
+
+    def get_hierarchy(self, user_id):
+
+        project_hierarchy = [JSONObject(self)]
+        if self.parent_id:
+            project_hierarchy = project_hierarchy + self.parent.get_hierarchy(user_id)
+
+        return project_hierarchy
