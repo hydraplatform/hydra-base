@@ -22,27 +22,23 @@ import bcrypt
 from collections import defaultdict
 import logging
 
-from sqlalchemy import (
-    Column,
-    ForeignKey,
-    text,
-    column,
-    inspect,
-    func,
-    Integer,
-    String,
-    LargeBinary,
-    TIMESTAMP,
-    BIGINT,
-    SMALLINT,
-    Float,
-    Text,
-    JSON,
-    DateTime,
-    Unicode,
-    event
-)
-from sqlalchemy.orm import relationship, backref, noload, joinedload, validates, mapped_column, Session
+from sqlalchemy import Column,\
+ForeignKey,\
+text,\
+Integer,\
+String,\
+LargeBinary,\
+TIMESTAMP,\
+BIGINT,\
+SMALLINT,\
+Float,\
+Text, \
+JSON, \
+DateTime,\
+Unicode
+
+from sqlalchemy.orm import relationship, backref, noload, joinedload
+from sqlalchemy import inspect, func
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm.exc import NoResultFound

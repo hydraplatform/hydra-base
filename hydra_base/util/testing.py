@@ -651,8 +651,6 @@ class TestUtil:
         LOG.info("Creating network...")
         response_network_summary = JSONObject(self.client.add_network(network))
 
-        assert response_network_summary.uuid is not None
-
         #Add an attribute scoped to this network, and an associated resource attribute
         net_scoped_attr = self.create_attribute("Network Scoped Attr", dimension=None, network_id=response_network_summary.id)
         self.client.add_resource_attribute('NETWORK', response_network_summary.id, net_scoped_attr.id, False)

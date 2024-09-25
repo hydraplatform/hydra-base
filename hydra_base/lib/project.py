@@ -149,15 +149,12 @@ def update_project(project, **kwargs):
             proj_i.appdata = newdict
 
     #A project can only be moved to another if the user has write access on both,
-    #so we need to check the permissions on the target project if it is secified
+    #so we need to check the permissions on the target project if it is specified
     if parent_id := getattr(project, "parent_id", None):
         if parent_id != proj_i.parent_id:
-            if parent_id is None:
-                proj_i.parent_id  = None
-            else:
-                #check the user has the correct permission to write to the target project
-                _get_project(project.parent_id, user_id, check_write=True)
-                proj_i.parent_id = project.parent_id
+            #check the user has the correct permission to write to the target project
+            _get_project(project.parent_id, user_id, check_write=True)
+            proj_i.parent_id = project.parent_id
 
     if project.attributes:
         attr_map = hdb.add_resource_attributes(proj_i, project.attributes)
@@ -354,7 +351,7 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
     #Now get projects which the user must have access to in order to navigate
     #to projects further down the tree which they are owners of.
     nav_project_ids = set(Project.get_cache(uid).get(project_id, [])) - scoped_project_ids
-    nav_projects_i = db.DBSession.query(Project).filter(Project.id.in_(nav_project_ids)).filter(Project.id==project_id).all()
+    nav_projects_i = db.DBSession.query(Project).filter(Project.id.in_(nav_project_ids)).all()
     nav_projects = []
     for nav_project_i in nav_projects_i:
         nav_project_j = JSONObject(nav_project_i)
