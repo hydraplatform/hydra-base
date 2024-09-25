@@ -18,6 +18,8 @@
 #
 from .base import *
 
+import uuid
+
 from .ownership import NetworkOwner, ProjectOwner
 from .scenario import Scenario, ResourceScenario
 from .permissions import User
@@ -28,7 +30,6 @@ global project_cache_key
 project_cache_key = config.get('cache', 'projectkey', 'userprojects')
 
 __all__ = ['Project']
-
 
 class Project(Base, Inspect, PermissionControlled):
     """
@@ -54,8 +55,10 @@ class Project(Base, Inspect, PermissionControlled):
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     created_by = Column(Integer(), ForeignKey('tUser.id'), nullable=False)
     appdata = Column(JSON)
-    user = relationship('User', backref=backref("projects", order_by=id))
+    uuid = Column(String(36), nullable=True)
 
+    user = relationship('User', backref=backref("projects", order_by=id))
+    
     parent_id = Column(Integer(), ForeignKey('tProject.id'), nullable=True)
     parent = relationship('Project', remote_side=[id],
         backref=backref("children", order_by=id))
@@ -467,3 +470,34 @@ class Project(Base, Inspect, PermissionControlled):
             return scoped_attrs_j
         else:
             return scoped_attrs
+
+    def generate_uuid(self):
+        """Generates a UUID if not already set."""
+        if not self.uuid:
+            self.uuid = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{self.name}_{self.created_by}"))
+
+def set_uuid_on_flush(session, flush_context, instances):
+    """Check if existing objects need UUIDs set before flush."""
+    for obj in session.dirty:
+        if isinstance(obj, Network) and not obj.uuid:
+            obj.generate_uuid()
+
+# Helper function to add UUID logic for new and existing objects
+def set_uuid_on_insert(mapper, connection, target):
+    """Set UUID for new objects before insert."""
+    target.generate_uuid()
+
+# Function to be called when the instance is loaded
+def set_uuid_on_lod(target, context):
+    """
+    Event handler triggered after an instance is loaded.
+    """
+    # Example: You could also validate or modify attributes here
+    if not target.uuid:
+        target.generate_uuid()
+        get_session().flush()
+
+# Attach event listeners to ensure UUID generation
+event.listen(Project, 'before_insert', set_uuid_on_insert)  # For new objects
+event.listen(Session, 'before_flush', set_uuid_on_flush)    # For existing objects without UUID
+event.listen(Project, 'load', set_uuid_on_lod)    # For existing objects without UUID

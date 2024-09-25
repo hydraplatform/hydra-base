@@ -17,6 +17,8 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
+import uuid
+
 from ..base import *
 
 from ..template import Template, TemplateType
@@ -32,6 +34,9 @@ from .resource import Resource
 
 __all__ = ['Network']
 
+def get_uuid_default(context):
+    if get_session().connection().dialect.name == 'mysql':
+        return 'MD5(CONCAT(\'uuid-\', name, created_by, status))'
 
 
 class Network(Base, Inspect, PermissionControlled, Resource):
@@ -54,6 +59,7 @@ class Network(Base, Inspect, PermissionControlled, Resource):
     cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     projection = Column(String(200))
     created_by = Column(Integer(), ForeignKey('tUser.id'), nullable=False)
+    uuid = mapped_column(String(36), unique=True)
 
     project = relationship('Project',
                            backref=backref("networks",
@@ -272,3 +278,34 @@ class Network(Base, Inspect, PermissionControlled, Resource):
             return scoped_attrs_j
         else:
             return scoped_attrs
+        
+    def generate_uuid(self):
+        """Generates a UUID if not already set."""
+        if not self.uuid:
+            self.uuid = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{self.name}_{self.project_id}_{self.created_by}"))
+
+# Helper function to add UUID logic for new and existing objects
+def set_uuid_on_insert(mapper, connection, target):
+    """Set UUID for new objects before insert."""
+    target.generate_uuid()
+
+def set_uuid_on_flush(session, flush_context, instances):
+    """Check if existing objects need UUIDs set before flush."""
+    for obj in session.dirty:
+        if isinstance(obj, Network) and not obj.uuid:
+            obj.generate_uuid()
+
+# Function to be called when the instance is loaded
+def set_uuid_on_lod(target, context):
+    """
+    Event handler triggered after an instance is loaded.
+    """
+    # Example: You could also validate or modify attributes here
+    if not target.uuid:
+        target.generate_uuid()
+        get_session().flush()
+
+# Attach event listeners to ensure UUID generation
+event.listen(Network, 'before_insert', set_uuid_on_insert)  # For new objects
+event.listen(Session, 'before_flush', set_uuid_on_flush)    # For existing objects without UUID
+event.listen(Network, 'load', set_uuid_on_lod)    # For existing objects without UUID
