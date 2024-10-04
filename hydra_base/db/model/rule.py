@@ -18,11 +18,9 @@
 #
 from .base import *
 
-from .ownership import RuleOwner
-
 __all__ = ['Rule', 'RuleTypeDefinition', 'RuleTypeLink']
 
-class Rule(AuditMixin, Base, Inspect, PermissionControlled):
+class Rule(AuditMixin, Base, Inspect):
     """
         A rule is an arbitrary piece of text applied to resources
         within a scenario. A scenario itself cannot have a rule applied
@@ -31,10 +29,9 @@ class Rule(AuditMixin, Base, Inspect, PermissionControlled):
 
     __tablename__ = 'tRule'
     __table_args__ = (
-        UniqueConstraint('scenario_id', 'name', name="unique rule name"),
+        UniqueConstraint('network_id', 'name', name="unique rule name"),
     )
 
-    __ownerclass__ = RuleOwner
     __ownerfk__ = 'rule_id'
 
     id = Column(Integer(), primary_key=True, nullable=False)
@@ -49,44 +46,28 @@ class Rule(AuditMixin, Base, Inspect, PermissionControlled):
     value = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'), nullable=True)
 
     status = Column(String(1), nullable=False, server_default=text(u"'A'"))
-    scenario_id = Column(Integer(), ForeignKey('tScenario.id'), nullable=True)
 
     network_id = Column(Integer(), ForeignKey('tNetwork.id'), index=True, nullable=True)
-    node_id = Column(Integer(), ForeignKey('tNode.id'), index=True, nullable=True)
-    link_id = Column(Integer(), ForeignKey('tLink.id'), index=True, nullable=True)
-    group_id = Column(Integer(), ForeignKey('tResourceGroup.id'), index=True, nullable=True)
+    project_id = Column(Integer(), ForeignKey('tProject.id'), index=True, nullable=True)
+    template_id = Column(Integer(), ForeignKey('tTemplate.id'), index=True, nullable=True)
 
-    scenario = relationship('Scenario',
-                            backref=backref('rules',
-                                            uselist=True,
-                                            cascade="all, delete-orphan"),
-                            lazy='joined')
-    network = relationship('Network',
-                           backref=backref("rules",
+    network = relationship('Network', backref=backref("rules",
                                            order_by=network_id,
                                            cascade="all, delete-orphan"),
                            lazy='joined')
-    node = relationship('Node',
-                        backref=backref("rules",
-                                        order_by=node_id,
-                                        uselist=True,
-                                        cascade="all, delete-orphan"),
 
-                        lazy='joined')
-    link = relationship('Link',
-                        backref=backref("rules",
-                                        order_by=link_id,
-                                        uselist=True,
+    project = relationship('Project', backref=backref("rules",
+                                           order_by=project_id,
+                                           cascade="all, delete-orphan"),
+                           lazy='joined')
+    
+    template = relationship('Template', backref=backref("templates",
+                                        order_by=project_id,
                                         cascade="all, delete-orphan"),
                         lazy='joined')
-    group = relationship('ResourceGroup',
-                         backref=backref("rules",
-                                         order_by=group_id,#
-                                         uselist=True,
-                                         cascade="all, delete-orphan"),
-                         lazy='joined')
+    
 
-    _parents = ['tScenario', 'tNode', 'tLink', 'tProject', 'tNetwork', 'tResourceGroup']
+    _parents = ['tProject', 'tNetwork', 'tTemplate']
     _children = []
 
 
