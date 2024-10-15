@@ -33,7 +33,7 @@ from ..util.permissions import required_perms
 from hydra_base.lib import template, attributes
 from ..db.model import Project, Network, Scenario, Node, Link, ResourceGroup,\
         ResourceAttr, Attr, ResourceType, ResourceGroupItem, Dataset, Metadata, DatasetOwner,\
-        ResourceScenario, TemplateType, TypeAttr, Template, NetworkOwner, User, Rule
+        ResourceScenario, TemplateType, TypeAttr, Template, NetworkOwner, User
 from sqlalchemy.orm import noload, joinedload
 from .. import db
 from sqlalchemy import func, and_, or_, distinct
@@ -2889,13 +2889,9 @@ def clone_network(network_id,
                                        include_outputs=include_outputs,
                                        scenario_ids=scenario_ids)
 
-    _clone_rules(
+    _clone_network_rules(
         network_id,
         newnetworkid,
-        node_id_map,
-        link_id_map,
-        group_id_map,
-        scenario_id_map,
         user_id)
 
 
@@ -3140,30 +3136,19 @@ def _clone_node(
 
     log.info("Inserting new resource scenarios")
     db.DBSession.bulk_insert_mappings(ResourceScenario, new_rscens)
-
-    log.info("Cloning rules")
-    node_rules = db.DBSession.query(Rule).join(Node).filter(
-        Node.id==node_id).all()
-    for node_rule in node_rules:
-        rules.clone_rule(node_rule.id,
-                         target_ref_key='NODE',
-                         target_ref_id=newnode.id,
-                         user_id=user_id)
-
     db.DBSession.flush()
 
     log.info("Node clone complete. New node ID is %s", newnode.id)
 
     return newnode.id
 
-def _clone_rules(old_network_id, new_network_id, node_id_map, link_id_map, group_id_map, scenario_id_map, user_id):
+def _clone_network_rules(old_network_id, new_network_id, user_id):
     """
     """
     rules.clone_resource_rules('NETWORK',
                                old_network_id,
                                target_ref_key='NETWORK',
                                target_ref_id=new_network_id,
-                               scenario_id_map=scenario_id_map,
                                user_id=user_id)
 
 def _clone_nodes(old_network_id, new_network_id, user_id):
@@ -3193,7 +3178,6 @@ def _clone_nodes(old_network_id, new_network_id, user_id):
     #map old IDS to new IDS
 
     nodes = db.DBSession.query(Node).filter(Node.network_id==new_network_id).all()
-
 
     for n in nodes:
         old_node_id = old_node_name_map[n.name]

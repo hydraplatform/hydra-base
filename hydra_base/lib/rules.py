@@ -92,7 +92,7 @@ def get_network_rules(network_id, summary=True, **kwargs):
     return all_network_rules
 
 
-@required_perms("get_network", "get_rules")
+@required_perms("get_rules")
 def get_resource_rules(ref_key, ref_id, scenario_id=None, **kwargs):
     """
         Get all the rules for a given resource.
@@ -132,7 +132,7 @@ def get_resource_rules(ref_key, ref_id, scenario_id=None, **kwargs):
 
     return rules
 
-@required_perms("get_network", "get_rules")
+@required_perms("get_rules")
 def get_rules_of_type(typecode, scenario_id=None, **kwargs):
     """
         Get all the rules for a given resource.
@@ -159,7 +159,7 @@ def get_rules_of_type(typecode, scenario_id=None, **kwargs):
 
     return rules
 
-@required_perms("get_network", "get_rules")
+@required_perms("get_rules")
 def get_rule(rule_id, **kwargs):
     """
         Get a rule by its ID
@@ -172,16 +172,16 @@ def get_rule(rule_id, **kwargs):
     rule = _get_rule(rule_id, user_id)
     return rule
 
-@required_perms("edit_network", "add_rules")
-def add_rules(rules, include_network_users=True, **kwargs):
+@required_perms("add_rules")
+def add_rules(rules, **kwargs):
     LOG.info("Adding %s rules."%len(rules))
     for rule in rules:
-        add_rule(rule, include_network_users=include_network_users, **kwargs)
+        add_rule(rule, **kwargs)
 
     LOG.info("Rules Added")
 
-@required_perms("edit_network", "add_rules")
-def add_rule(rule, include_network_users=True, **kwargs):
+@required_perms("add_rules")
+def add_rule(rule, **kwargs):
     """
         Add a new rule.
         Args:
@@ -216,7 +216,7 @@ def add_rule(rule, include_network_users=True, **kwargs):
 
     return rule_i
 
-@required_perms("edit_network", "update_rules")
+@required_perms("update_rules")
 def update_rule(rule, **kwargs):
     """
         Add a new rule.
@@ -252,7 +252,7 @@ def update_rule(rule, **kwargs):
 
     return rule_i
 
-@required_perms("edit_network", "update_rules")
+@required_perms("update_rules")
 def set_rule_type(rule_id, typecode, **kwargs):
     """
         Assign a rule type to a rule
@@ -277,7 +277,7 @@ def set_rule_type(rule_id, typecode, **kwargs):
     return rule_i
 
 @required_perms("edit_network", "get_rules", "add_rules")
-def clone_resource_rules(ref_key, ref_id, target_ref_key=None, target_ref_id=None, scenario_id_map={}, **kwargs):
+def clone_resource_rules(ref_key, ref_id, target_ref_key=None, target_ref_id=None, **kwargs):
     """
         Clone a rule
         args:
@@ -287,9 +287,6 @@ def clone_resource_rules(ref_key, ref_id, target_ref_key=None, target_ref_id=Non
                                      different resource, specify the new resources type
             target_ref_id (int): If the rule is to be cloned into a different
                                  resources, specify the resource ID.
-            scenario_id_map (dict): If the old rule is specified in a scenario,
-                                    then provide a dictionary mapping from the
-                                    old scenario ID to the new one, like {123 : 456}
 
         Cloning will only occur into a different resource if both
         ref_key AND ref_id are provided. Otherwise it will maintain its
@@ -310,7 +307,6 @@ def clone_resource_rules(ref_key, ref_id, target_ref_key=None, target_ref_id=Non
                                        target_ref_key=target_ref_key,
                                        target_ref_id=target_ref_id,
                                        user_id=user_id))
-
 
     return cloned_rules
 
@@ -360,7 +356,7 @@ def clone_rule(rule_id, target_ref_key=None, target_ref_id=None, **kwargs):
 
     return cloned_rule
 
-@required_perms("edit_network", "update_rules")
+@required_perms("update_rules")
 def delete_rule(rule_id, **kwargs):
     """
         Set the status of a rule to 'X'
@@ -377,7 +373,7 @@ def delete_rule(rule_id, **kwargs):
 
     db.DBSession.flush()
 
-@required_perms("edit_network", "update_rules")
+@required_perms("update_rules")
 def activate_rule(rule_id, **kwargs):
     """
         Set the status of a rule to 'A'
@@ -394,7 +390,7 @@ def activate_rule(rule_id, **kwargs):
 
     db.DBSession.flush()
 
-@required_perms("edit_network", "delete_rules")
+@required_perms("delete_rules")
 def purge_rule(rule_id, **kwargs):
     """
         Remove a rule from the DB permanently
@@ -410,7 +406,7 @@ def purge_rule(rule_id, **kwargs):
     db.DBSession.delete(rule_i)
     db.DBSession.flush()
 
-@required_perms("edit_network", "update_rules")
+@required_perms("update_rules")
 def add_rule_type_definition(ruletypedefinition, **kwargs):
     """
         Add a rule type definition
@@ -440,7 +436,7 @@ def add_rule_type_definition(ruletypedefinition, **kwargs):
     else:
         return existing_rtd
 
-@required_perms("edit_network", "get_rules")
+@required_perms("get_rules")
 def get_rule_type_definitions(**kwargs):
     """
         Get all rule types
@@ -453,7 +449,7 @@ def get_rule_type_definitions(**kwargs):
 
     return all_rule_type_definitions_i
 
-@required_perms("edit_network", "get_rules")
+@required_perms("get_rules")
 def get_rule_type_definition(typecode, **kwargs):
     """
         Get a Type with the given typecode
@@ -472,7 +468,7 @@ def get_rule_type_definition(typecode, **kwargs):
 
     return rule_type_definition_i
 
-@required_perms("edit_network", "update_rules")
+@required_perms("update_rules")
 def purge_rule_type_definition(typecode, **kwargs):
     """
         Delete a rule type from the DB. Doing this will revert all existing rules to
