@@ -45,23 +45,11 @@ def _get_rule(rule_id, user_id, check_write=False):
     return rule_i
 
 @required_perms("get_network", "get_rules")
-def get_scenario_rules(scenario_id, **kwargs):
+def get_network_rules(network_id, summary=True, **kwargs):
     """
-        Get all the rules for a given scenario.
-    """
-    rules = db.DBSession.query(Rule).filter(Rule.scenario_id == scenario_id,
-                                            Rule.status == 'A').all()
-
-    return rules
-
-@required_perms("get_network", "get_rules")
-def get_network_rules(network_id, scenario_id=None, summary=True, **kwargs):
-    """
-        Get all the rules within a network -- including rules associated to
-        all nodes, links and group=s.
+        Get all the rules within a network
         Args:
             network_id (int): ID of the resource
-            scenario_id (int): Optional which filters on scenario ID also
         Returns:
             List of Rule SQLAlchemy objects
     """
@@ -109,7 +97,7 @@ def get_resource_rules(ref_key, ref_id, scenario_id=None, **kwargs):
     """
         Get all the rules for a given resource.
         Args:
-            ref_key (string): NETWORK, NODE, LINK, GROUP
+            ref_key (string): NETWORK, PROJECT, TEMPLATE
             ref_id (int): ID of the resource
             scenario_id (int): Optional which filters on scenario ID also
         Returns:
@@ -124,12 +112,10 @@ def get_resource_rules(ref_key, ref_id, scenario_id=None, **kwargs):
 
     if ref_key.upper() == 'NETWORK':
         rule_qry = rule_qry.filter(Rule.network_id == ref_id)
-    elif ref_key.upper() == 'NODE':
-        rule_qry = rule_qry.filter(Rule.node_id == ref_id)
-    elif ref_key.upper() == 'LINK':
-        rule_qry = rule_qry.filter(Rule.link_id == ref_id)
-    elif ref_key.upper() == 'GROUP':
-        rule_qry = rule_qry.filter(Rule.group_id == ref_id)
+    elif ref_key.upper() == 'PROJECT':
+        rule_qry = rule_qry.filter(Rule.project_id == ref_id)
+    elif ref_key.upper() == 'TEMPLATE':
+        rule_qry = rule_qry.filter(Rule.template_id == ref_id)
     else:
         raise HydraError("Ref Key {0} not recognised.".format(ref_key))
 
@@ -151,7 +137,7 @@ def get_rules_of_type(typecode, scenario_id=None, **kwargs):
     """
         Get all the rules for a given resource.
         Args:
-            ref_key (string): NETWORK, NODE, LINK, GROUP
+            ref_key (string): NETWORK, PROJECT, TEMPLATE
             ref_id (int): ID of the resource
             scenario_id (int): Optional which filters on scenario ID also
         Returns:
@@ -172,51 +158,6 @@ def get_rules_of_type(typecode, scenario_id=None, **kwargs):
     rules = rule_qry.all()
 
     return rules
-
-@required_perms("edit_network", "update_rules")
-def add_rule_owner(rule_id, new_rule_user_id, read='Y', write='Y', share='Y', **kwargs):
-    """
-        Make a user a rule owner. This will mean the rule can be read and will be inclduded
-        when queried, for example in get_resource_rules
-
-        args:
-            rule_id: THe rule to be updated
-            rule_user_id: The user who will lose permission of this rule
-            read (char): Y or N if the new owner can read the rule
-            write(char): Y or N if the new owner can update the rule
-            share(char): Y or N if the new owner can share the rule (usally
-                         done while sharing a network)
-        returns:
-            None
-    """
-    user_id = kwargs.get('user_id')
-
-    rule_i = _get_rule(rule_id, user_id)
-
-    rule_i.check_write_permissions(user_id)
-
-    rule_i.set_owner(new_rule_user_id, read, write, share)
-
-@required_perms("edit_network", "update_rules")
-def remove_rule_owner(rule_id, rule_user_id, **kwargs):
-    """
-        Remove someone from being a rule owner. This will mean the rule
-        cannot be read and will not be included when queried
-
-        args:
-            rule_id: THe rule to be updated
-            rule_user_id: The user who will lose permission of this rule
-        returns:
-            None
-    """
-
-    user_id = kwargs.get('user_id')
-
-    rule_i = _get_rule(rule_id, user_id, check_write=True)
-
-    rule_i.check_write_permissions(user_id)
-
-    rule_i.unset_owner(rule_user_id)
 
 @required_perms("get_network", "get_rules")
 def get_rule(rule_id, **kwargs):
@@ -255,16 +196,13 @@ def add_rule(rule, include_network_users=True, **kwargs):
     rule_i.ref_key = rule.ref_key
     if rule.ref_key.upper() == 'NETWORK':
         rule_i.network_id = rule.network_id if rule.network_id else rule.ref_id
-    elif rule.ref_key.upper() == 'NODE':
-        rule_i.node_id = rule.node_id if rule.node_id else rule.ref_id
-    elif rule.ref_key.upper() == 'LINK':
-        rule_i.link_id = rule.link_id if rule.link_id else rule.ref_id
-    elif rule.ref_key.upper() == 'GROUP':
-        rule_i.group_id = rule.group_id if rule.group_id else rule.ref_id
+    elif rule.ref_key.upper() == 'PROJECT':
+        rule_i.project_id = rule.project_id if rule.project_id else rule.ref_id
+    elif rule.ref_key.upper() == 'TEMPLATE':
+        rule_i.template_id = rule.template_id if rule.template_id else rule.ref_id
     else:
         raise HydraError("Ref Key {0} not recognised.".format(rule.ref_key))
 
-    rule_i.scenario_id = rule.scenario_id
     rule_i.name = rule.name
     rule_i.description = rule.description
     rule_i.value = rule.value
@@ -275,17 +213,6 @@ def add_rule(rule, include_network_users=True, **kwargs):
     db.DBSession.add(rule_i)
 
     db.DBSession.flush()
-
-    #Set the owner of this rule to be the creator, and also allow access
-    #to all other users of the network in which it resides.
-    rule_i.set_owner(user_id)
-
-    if include_network_users is True:
-        for owner in rule_i.get_network().get_owners():
-            #apply ownership with the same conditions as on the parent network
-            rule_i.set_owner(owner.user_id, owner.view, owner.edit, owner.share)
-
-        db.DBSession.flush()
 
     return rule_i
 
@@ -306,16 +233,13 @@ def update_rule(rule, **kwargs):
     rule_i.ref_key = rule.ref_key
     if rule.ref_key.upper() == 'NETWORK':
         rule_i.network_id = rule.network_id if rule.network_id else rule.ref_id
-    elif rule.ref_key.upper() == 'NODE':
-        rule_i.node_id = rule.node_id if rule.node_id else rule.ref_id
-    elif rule.ref_key.upper() == 'LINK':
-        rule_i.link_id = rule.link_id if rule.link_id else rule.ref_id
-    elif rule.ref_key.upper() == 'GROUP':
-        rule_i.group_id = rule.group_id if rule.group_id else rule.ref_id
+    elif rule.ref_key.upper() == 'PROJECT':
+        rule_i.network_id = rule.project_id if rule.project_id else rule.ref_id
+    elif rule.ref_key.upper() == 'TEMPLATE':
+        rule_i.network_id = rule.template_id if rule.template_id else rule.ref_id
     else:
         raise HydraError("Ref Key {0} not recognised.".format(rule.ref_key))
 
-    rule_i.scenario_id = rule.scenario_id
     rule_i.name = rule.name
     rule_i.description = rule.description
     rule_i.format = rule.format
@@ -357,7 +281,7 @@ def clone_resource_rules(ref_key, ref_id, target_ref_key=None, target_ref_id=Non
     """
         Clone a rule
         args:
-            ref_key (int): NODE, LINK, GROUP, NETWORK
+            ref_key (int): NETWORK, PROJECT, TEMPLATE
             ref_id (int): The ID of the relevant resource
             target_ref_key (string): If the rule is to be cloned into a
                                      different resource, specify the new resources type
@@ -385,14 +309,13 @@ def clone_resource_rules(ref_key, ref_id, target_ref_key=None, target_ref_id=Non
         cloned_rules.append(clone_rule(rule.id,
                                        target_ref_key=target_ref_key,
                                        target_ref_id=target_ref_id,
-                                       scenario_id_map = scenario_id_map,
                                        user_id=user_id))
 
 
     return cloned_rules
 
 @required_perms("edit_network", "get_rules", "add_rules")
-def clone_rule(rule_id, target_ref_key=None, target_ref_id=None, scenario_id_map={}, **kwargs):
+def clone_rule(rule_id, target_ref_key=None, target_ref_id=None, **kwargs):
     """
         Clone a rule
         args:
@@ -401,9 +324,6 @@ def clone_rule(rule_id, target_ref_key=None, target_ref_id=None, scenario_id_map
                                      resource, specify the new resources type
             target_ref_id (int): If the rule is to be cloned into a
                                  different resources, specify the resource ID.
-            scenario_id_map (dict): If the old rule is specified in a scenario,
-                                    then provide a dictionary mapping from the
-                                    old scenario ID to the new one, like {123 : 456}
         Cloning will only occur into a different resource if both ref_key AND
         ref_id are provided. Otherwise it will maintain its original ref_key and ref_id.
 
@@ -426,29 +346,15 @@ def clone_rule(rule_id, target_ref_key=None, target_ref_id=None, scenario_id_map
     #has changed, then apply the new ref_key and ref_id
     if target_ref_key is not None and target_ref_id is not None:
         rule_j.network_id = None
-        rule_j.node_id = None
-        rule_j.link_id = None
-        rule_j.group_id = None
+        rule_j.project_id = None
+        rule_j.template_id = None
         rule_j.ref_key = target_ref_key
-        if target_ref_key == 'NODE':
-            rule_j.node_id = target_ref_id
-        elif target_ref_key == 'LINK':
-            rule_j.link_id = target_ref_id
-        elif target_ref_key == 'GROUP':
-            rule_j.group_id = target_ref_id
-        elif target_ref_key == 'NETWORK':
+        if target_ref_key == 'NETWORK':
             rule_j.network_id = target_ref_id
-
-        #this should only be done if theres a possibility that this is being cloned
-        #to a new network -- the most likely scenario.
-        rule_j.scenario_id = scenario_id_map.get(rule_i.scenario_id)
-
-    #This is a blunt way of dealing with a situation where a rule is being cloned
-    #into a new network, but it has a scenario ID pointing to the original. We must
-    #ensure that there is no cross-network inconsistency, so simply make the
-    #rule non-scenario specific.
-    if len(scenario_id_map) == 0 and rule_i.scenario_id is not None:
-        rule_i.scenario_id = None
+        elif target_ref_key == 'PROJECT':
+            rule_j.project_id = target_ref_id
+        elif target_ref_key == 'TEMPLATE':
+            rule_j.template_id = target_ref_id
 
     cloned_rule = add_rule(rule_j, **kwargs)
 

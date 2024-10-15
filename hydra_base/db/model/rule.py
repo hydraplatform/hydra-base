@@ -18,6 +18,8 @@
 #
 from .base import *
 
+from hydra_base.exceptions import PermissionError
+
 __all__ = ['Rule', 'RuleTypeDefinition', 'RuleTypeLink']
 
 class Rule(AuditMixin, Base, Inspect):
@@ -52,20 +54,19 @@ class Rule(AuditMixin, Base, Inspect):
     template_id = Column(Integer(), ForeignKey('tTemplate.id'), index=True, nullable=True)
 
     network = relationship('Network', backref=backref("rules",
-                                           order_by=network_id,
-                                           cascade="all, delete-orphan"),
+                           order_by=network_id,
+                           cascade="all, delete-orphan"),
                            lazy='joined')
 
     project = relationship('Project', backref=backref("rules",
-                                           order_by=project_id,
-                                           cascade="all, delete-orphan"),
+                           order_by=project_id,
+                           cascade="all, delete-orphan"),
                            lazy='joined')
-    
+
     template = relationship('Template', backref=backref("templates",
-                                        order_by=project_id,
-                                        cascade="all, delete-orphan"),
-                        lazy='joined')
-    
+                            order_by=project_id,
+                            cascade="all, delete-orphan"),
+                            lazy='joined')
 
     _parents = ['tProject', 'tNetwork', 'tTemplate']
     _children = []
@@ -122,31 +123,68 @@ class Rule(AuditMixin, Base, Inspect):
         rule_network = None
         if self.ref_key.upper() == 'NETWORK':
             rule_network = self.network
-        elif self.ref_key.upper() == 'NODE':
-            rule_network = self.node.network
-        elif self.ref_key.upper() == 'LINK':
-            rule_network = self.link.network
-        elif self.ref_key.upper() == 'GROUP':
-            rule_network = self.group.network
 
         return rule_network
+
+
+    @property
+    def owners(self):
+        rule_owners = []
+        if self.network:
+            rule_owners += self.network.get_owners()
+
+        if self.project:
+            rule_owners += self.project.get_owners()
+
+        if self.template:
+            rule_owners += self.template.get_owners()
+
+        user_ids = set(o.user_id for o in rule_owners)
+        return [{"user_id": user_id} for user_id in user_ids]
+
+
+    def check_read_permission(self, user_id, do_raise=True):
+        if user_id in set(o["user_id"] for o in self.owners):
+            return True
+        else:
+            if do_raise:
+                raise PermissionError(f"user {user_id} does not have access to rule {self.id}")
+            return False
+
+
+    def check_write_permission(self, user_id, do_raise=True):
+        if self.network:
+            return self.network.check_write_permission(user_id, do_raise=do_raise)
+
+        if self.project:
+            return self.project.check_write_permission(user_id, do_raise=do_raise)
+
+        if self.template:
+            return self.template.check_write_permission(user_id, do_raise=do_raise)
+
+        return False
+
+
+    def asdict(self):
+        """
+         Dataclass-style dict representation for conversion to JSONObject
+        """
+        return {
+          "id": self.id,
+          "name": self.name,
+          "value": self.value,
+          "description": self.description,
+          "status": self.status,
+          "owners": self.owners
+        }
+
 
     def get_owners(self):
         """
             Get all the owners of a rule, both those which are applied directly
             to this rule, but also who have been granted access via a project / network
         """
-
-        owners = [JSONObject(o) for o in self.owners]
-        owner_ids = [o.user_id for o in owners]
-
-        network = self.get_network()
-        network_owners = list(filter(lambda x:x.user_id not in owner_ids, network.get_owners()))
-
-        for no in network_owners:
-            no.source = f'Inherited from: {no.network_name} (ID:{no.network_id})'
-
-        return owners + network_owners;
+        return self.owners
 
 
 
