@@ -20,7 +20,7 @@ import logging
 from sqlalchemy.orm.exc import NoResultFound
 from hydra_base.lib.objects import JSONObject
 from ..db.model import Rule, RuleTypeDefinition, RuleTypeLink, NetworkOwner, \
-                       Network, Template
+                       Network, Template, Project
 from .. import db
 from ..exceptions import HydraError, ResourceNotFoundError
 
@@ -90,6 +90,34 @@ def get_network_rules(network_id, summary=True, **kwargs):
             rule.types
 
     return all_network_rules
+
+
+@required_perms("get_project", "get_rules")
+def get_project_rules(project_id, summary=True, **kwargs):
+    """
+       Retrieve all Rules defined in a project
+       args:
+         <project_id>: integer (or castable) identifying a project
+         <summary>: bool specifying whether type-ploading should be
+                    omitted
+       return:
+         list of Rule SQLAlchemy objects
+    """
+    user_id = kwargs.get("user_id")
+
+    project_id = int(project_id)
+    project = db.DBSession.query(Project).filter(Project.id==project_id).one()
+    project.check_read_permission(user_id)
+
+    rule_qry = db.DBSession.query(Rule).filter(Rule.status != 'X')
+
+    project_rules = rule_qry.filter(Rule.project_id == project.id).all()
+
+    if summary is False:
+        for rule in project_rules:
+            rule.types
+
+    return project_rules
 
 
 @required_perms("get_rules")

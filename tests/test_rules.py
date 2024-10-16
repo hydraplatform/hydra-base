@@ -248,6 +248,30 @@ class TestRules:
         assert len(proj_cloned_rule.types) == 1
 
 
+    def test_project_rule(self, client, projectmaker):
+        project = projectmaker.create("Rule Parent Project")
+        ruletype_A_j = client.add_rule_type_definition(JSONObject({'name':'A new Rule', 'code':'a_new_rule'}))
+        rulename = "Rule 001"
+        ruletext = "int(1)"
+        new_rule_j = self.add_rule(client,
+                                   target=project,
+                                   ref_key="PROJECT",
+                                   ref_id=project.id,
+                                   name=rulename,
+                                   text=ruletext,
+                                   types=[ruletype_A_j.code])
+
+        assert new_rule_j.id is not None
+        assert new_rule_j.name == rulename
+        assert new_rule_j.value == ruletext
+
+        ret_rules = client.get_project_rules(project.id)
+
+        for rule in ret_rules:
+            assert rule.id == new_rule_j.id
+            assert rule.name == new_rule_j.name
+            assert rule.value == new_rule_j.value
+
 
     def test_update_rule(self, client, network_with_data):
 
