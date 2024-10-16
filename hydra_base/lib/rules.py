@@ -65,8 +65,10 @@ def get_network_rules(network_id, summary=True, **kwargs):
     #Go through the template hierarchy for all types defined on this network and extract
     #all rules associated to them.
     all_template_rules = []
-    for type in network.types:
-        template = db.DBSession.query(Template).filter(Template.id==type.template_id).one()
+    for rtype in network.types:
+        if not hasattr(rtype, "template_id"):
+            continue
+        template = db.DBSession.query(Template).filter(Template.id==rtype.template_id).one()
         #need this to go top-bottom to apply rules from the top level down
         template_hierarchy = template.get_hierarchy().reverse()
         for current_template in template_hierarchy:
@@ -74,15 +76,8 @@ def get_network_rules(network_id, summary=True, **kwargs):
             all_template_rules = all_template_rules + this_template_rules
 
 
-    all_project_rules = []
-    project_hierarchy = network.project.get_hierarchy(user_id)
-    for project in project_hierarchy:
-        current_project_rules = rule_qry.filter(Rule.project_id == project.id).all()
-        all_project_rules = all_project_rules + current_project_rules
-    #Network rules
     network_rules = rule_qry.filter(Rule.network_id == network_id).all()
-
-    all_network_rules = all_template_rules + all_project_rules + network_rules
+    all_network_rules = network_rules + all_template_rules
 
     #lazy load types
     if summary is False:
@@ -92,13 +87,41 @@ def get_network_rules(network_id, summary=True, **kwargs):
     return all_network_rules
 
 
+@required_perms("get_template", "get_rules")
+def get_template_rules(template_id, summary=True, **kwargs):
+    """
+       Retrieve all Rules defined in a template
+       args:
+         <template_id>: integer (or castable) identifying a template
+         <summary>: bool specifying whether type-loading should be
+                    omitted
+       return:
+         list of Rule SQLAlchemy objects
+    """
+    template_id = int(template_id)
+    template = db.DBSession.query(Template).filter(Template.id==template_id).one()
+    rule_qry = db.DBSession.query(Rule).filter(Rule.status != 'X')
+
+    all_template_rules = []
+    template_hierarchy = template.get_hierarchy().reverse()
+    for current_template in template_hierarchy:
+        this_template_rules = rule_qry.filter(Rule.template_id == current_template.id).all()
+        all_template_rules = all_template_rules + this_template_rules
+
+    if summary is False:
+        for rule in all_template_rules:
+            rule.types
+
+    return all_template_rules
+
+
 @required_perms("get_project", "get_rules")
 def get_project_rules(project_id, summary=True, **kwargs):
     """
        Retrieve all Rules defined in a project
        args:
          <project_id>: integer (or castable) identifying a project
-         <summary>: bool specifying whether type-ploading should be
+         <summary>: bool specifying whether type-loading should be
                     omitted
        return:
          list of Rule SQLAlchemy objects
@@ -121,44 +144,35 @@ def get_project_rules(project_id, summary=True, **kwargs):
 
 
 @required_perms("get_rules")
-def get_resource_rules(ref_key, ref_id, scenario_id=None, **kwargs):
+def get_resource_rules(ref_key, ref_id, summary=True, **kwargs):
     """
         Get all the rules for a given resource.
         Args:
             ref_key (string): NETWORK, PROJECT, TEMPLATE
             ref_id (int): ID of the resource
-            scenario_id (int): Optional which filters on scenario ID also
         Returns:
             List of Rule SQLAlchemy objects
     """
-    user_id = kwargs.get('user_id')
-
-    ref_key == ref_key.upper() # turn 'network' into 'NETWORK'
-
-    rule_qry = db.DBSession.query(Rule).filter(Rule.ref_key == ref_key,
-                                               Rule.status != 'X')
+    ref_key == ref_key.upper()
 
     if ref_key.upper() == 'NETWORK':
-        rule_qry = rule_qry.filter(Rule.network_id == ref_id)
+        ret_func = get_network_rules
     elif ref_key.upper() == 'PROJECT':
-        rule_qry = rule_qry.filter(Rule.project_id == ref_id)
+        ret_func = get_project_rules
     elif ref_key.upper() == 'TEMPLATE':
-        rule_qry = rule_qry.filter(Rule.template_id == ref_id)
+        ret_func = get_template_rules
     else:
         raise HydraError("Ref Key {0} not recognised.".format(ref_key))
 
-    rule_qry = rule_qry.join(NetworkOwner, NetworkOwner.network_id==Rule.network_id).filter(NetworkOwner.user_id == int(user_id))
+    rules = ret_func(ref_id, summary=summary, **kwargs)
 
-    if scenario_id is not None:
-        rule_qry = rule_qry.filter(Rule.scenario_id == scenario_id)
-
-    rules = rule_qry.all()
-
-    #lazy load types
-    for rule in rules:
-        rule.types
+    if summary is False:
+        #lazy load types
+        for rule in rules:
+            rule.types
 
     return rules
+
 
 @required_perms("get_rules")
 def get_rules_of_type(typecode, scenario_id=None, **kwargs):

@@ -267,11 +267,15 @@ class TestRules:
 
         ret_rules = client.get_project_rules(project.id)
 
-        for rule in ret_rules:
-            assert rule.id == new_rule_j.id
-            assert rule.name == new_rule_j.name
-            assert rule.value == new_rule_j.value
+        assert ret_rules[0].id == new_rule_j.id
+        assert ret_rules[0].name == new_rule_j.name
+        assert ret_rules[0].value == new_rule_j.value
 
+        res_ret_rules = client.get_resource_rules("PROJECT", project.id)
+
+        assert res_ret_rules[0].id == new_rule_j.id
+        assert res_ret_rules[0].name == new_rule_j.name
+        assert res_ret_rules[0].value == new_rule_j.value
 
     def test_update_rule(self, client, network_with_data):
 
