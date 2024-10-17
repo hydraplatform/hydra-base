@@ -136,9 +136,6 @@ class Rule(AuditMixin, Base, Inspect):
         if self.project:
             rule_owners += self.project.get_owners()
 
-        if self.template:
-            rule_owners += self.template.get_owners()
-
         user_ids = set(o.user_id for o in rule_owners)
         return [{"user_id": user_id} for user_id in user_ids]
 

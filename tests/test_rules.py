@@ -26,6 +26,8 @@ from hydra_base.exceptions import HydraError, PermissionError
 from hydra_base.lib.objects import JSONObject, Dataset
 from hydra_base.util.hydra_dateutil import timestamp_to_ordinal
 
+from .templates.test_templates import template, template_json_object
+
 import logging
 log = logging.getLogger(__name__)
 
@@ -401,3 +403,26 @@ class TestRules:
 
         #check all the rules are still there
         assert len(client.get_resource_rules('NETWORK', network_with_data.id)) == 3
+
+    def test_template_rules(self, client, template_json_object):
+        rulename = "Rule 001"
+        ruletext = "int(1)"
+        new_rule = self.add_rule(client,
+                                   target=template_json_object,
+                                   ref_key="TEMPLATE",
+                                   ref_id=template_json_object.id,
+                                   name=rulename,
+                                   text=ruletext)
+
+        # Has Rule been added and returned correctly?
+        assert new_rule.id is not None
+        assert new_rule.name == rulename
+        assert new_rule.value == ruletext
+
+        # Is Rule added to and retrievable from correct Template?
+        ret_rules = client.get_template_rules(template_json_object.id)
+
+        assert len(ret_rules) == 1
+        assert ret_rules[0].id == new_rule.id
+        assert ret_rules[0].name == new_rule.name
+        assert ret_rules[0].value == new_rule.value

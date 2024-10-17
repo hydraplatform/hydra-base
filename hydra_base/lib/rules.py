@@ -102,11 +102,12 @@ def get_template_rules(template_id, summary=True, **kwargs):
     template = db.DBSession.query(Template).filter(Template.id==template_id).one()
     rule_qry = db.DBSession.query(Rule).filter(Rule.status != 'X')
 
-    all_template_rules = []
-    template_hierarchy = template.get_hierarchy().reverse()
-    for current_template in template_hierarchy:
-        this_template_rules = rule_qry.filter(Rule.template_id == current_template.id).all()
-        all_template_rules = all_template_rules + this_template_rules
+    all_template_rules = rule_qry.filter(Rule.template_id == template_id).all()
+    template_hierarchy = template.get_hierarchy(**kwargs).reverse()
+    if template_hierarchy is not None:
+        for current_template in template_hierarchy:
+            this_template_rules = rule_qry.filter(Rule.template_id == current_template.id).all()
+            all_template_rules = all_template_rules + this_template_rules
 
     if summary is False:
         for rule in all_template_rules:
