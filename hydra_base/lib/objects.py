@@ -50,6 +50,11 @@ class JSONObject(dict):
     """
     def __init__(self, obj_dict={}, parent=None, extras={}):
 
+        if hasattr(obj_dict, "asdict") and obj_dict.asdict is not None:
+            rd = obj_dict.asdict()
+            for k, v in rd.items():
+                setattr(self, k, v)
+
         if isinstance(obj_dict, six.string_types):
             try:
                 obj = json.loads(obj_dict)
