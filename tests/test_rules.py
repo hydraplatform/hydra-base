@@ -16,12 +16,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import datetime
 import copy
+import datetime
 import json
+import pytest
+
+from sqlalchemy.exc import IntegrityError
+
 import hydra_base
 from hydra_base.exceptions import ResourceNotFoundError
-import pytest
 from hydra_base.exceptions import HydraError, PermissionError
 from hydra_base.lib.objects import JSONObject, Dataset
 from hydra_base.util.hydra_dateutil import timestamp_to_ordinal
@@ -183,6 +186,10 @@ class TestRules:
         assert new_rule_j.name == rulename
         assert new_rule_j.value == ruletext
 
+        # Rule names must be unique within a Network
+        with pytest.raises(IntegrityError):
+            duplicate_rule = self.add_rule(client, network_with_data, name=rulename, text=ruletext)
+
         #sanity check to ensure we're actually testing that the ownership functionality
         #is testing correctly
         rule_network = client.get_network(network_with_data.id)
@@ -266,6 +273,16 @@ class TestRules:
         assert new_rule_j.id is not None
         assert new_rule_j.name == rulename
         assert new_rule_j.value == ruletext
+
+        # Rule names must be unique within a Project
+        with pytest.raises(IntegrityError):
+            duplicate_rule = self.add_rule(client,
+                                           target=project,
+                                           ref_key="PROJECT",
+                                           ref_id=project.id,
+                                           name=rulename,
+                                           text=ruletext,
+                                           types=[ruletype_A_j.code])
 
         ret_rules = client.get_project_rules(project.id)
 
@@ -408,16 +425,25 @@ class TestRules:
         rulename = "Rule 001"
         ruletext = "int(1)"
         new_rule = self.add_rule(client,
-                                   target=template_json_object,
-                                   ref_key="TEMPLATE",
-                                   ref_id=template_json_object.id,
-                                   name=rulename,
-                                   text=ruletext)
+                                 target=template_json_object,
+                                 ref_key="TEMPLATE",
+                                 ref_id=template_json_object.id,
+                                 name=rulename,
+                                 text=ruletext)
 
         # Has Rule been added and returned correctly?
         assert new_rule.id is not None
         assert new_rule.name == rulename
         assert new_rule.value == ruletext
+
+        # Rule names must be unique within a Template
+        with pytest.raises(IntegrityError):
+            duplicate_rule = self.add_rule(client,
+                                           target=template_json_object,
+                                           ref_key="TEMPLATE",
+                                           ref_id=template_json_object.id,
+                                           name=rulename,
+                                           text=ruletext)
 
         # Is Rule added to and retrievable from correct Template?
         ret_rules = client.get_template_rules(template_json_object.id)
@@ -426,3 +452,28 @@ class TestRules:
         assert ret_rules[0].id == new_rule.id
         assert ret_rules[0].name == new_rule.name
         assert ret_rules[0].value == new_rule.value
+
+    def test_rule_permissions(self, client, network_with_data):
+        non_admin_user_id = 5
+        admin_user_id = 1
+        rule = self.add_rule(client, network_with_data)
+
+        # Rule can be retrieved by admin
+        ret_rule = client.get_rule(rule.id)
+
+        # But not by non-admin user
+        client.user_id = non_admin_user_id
+        roles = client.get_user_roles(non_admin_user_id)
+        for role in roles:
+            assert role.code != "admin"
+        with pytest.raises((PermissionError, HydraError)):
+            no_read_rule = client.get_rule(rule.id)
+
+        non_admin_rule = self.add_rule(client, network_with_data, name="non_admin_rule")
+
+        # However admin user can read non-admin rule
+        client.user_id = admin_user_id
+        roles = client.get_user_roles(admin_user_id)
+        rolecode_set = set(r.code for r in roles)
+        assert "admin" in rolecode_set
+        admin_read_rule = client.get_rule(non_admin_rule.id)

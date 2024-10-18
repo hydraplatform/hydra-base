@@ -17,6 +17,7 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 from .base import *
+from .permissions import User
 
 from hydra_base.exceptions import PermissionError
 
@@ -24,14 +25,15 @@ __all__ = ['Rule', 'RuleTypeDefinition', 'RuleTypeLink']
 
 class Rule(AuditMixin, Base, Inspect):
     """
-        A rule is an arbitrary piece of text applied to resources
-        within a scenario. A scenario itself cannot have a rule applied
-        to it.
+        A rule is an arbitrary piece of text applied to either
+        a Network, Project or Template.
     """
 
     __tablename__ = 'tRule'
     __table_args__ = (
-        UniqueConstraint('network_id', 'name', name="unique rule name"),
+        UniqueConstraint('network_id', 'name', name="unique network rule name"),
+        UniqueConstraint('project_id', 'name', name="unique project rule name"),
+        UniqueConstraint('template_id', 'name', name="unique template rule name")
     )
 
     __ownerfk__ = 'rule_id'
@@ -141,6 +143,10 @@ class Rule(AuditMixin, Base, Inspect):
 
 
     def check_read_permission(self, user_id, do_raise=True):
+        user = get_session().query(User).filter(User.id==user_id).one()
+        if user.is_admin():
+            return True
+
         if user_id in set(o["user_id"] for o in self.owners):
             return True
         else:
