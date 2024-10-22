@@ -5,7 +5,6 @@ pandas
 numpy
 bcrypt
 lxml
-mysql-client
 pymongo
 mysqlclient
 pudb
