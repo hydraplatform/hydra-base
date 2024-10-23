@@ -380,3 +380,43 @@ class TestProjectInheritance:
         # Verify moved project now has no parent
         proj_i = client.get_project(child_proj_move.id)
         assert proj_i.parent_id is None
+
+
+    def test_clone_network_in_shared_project(self, client, projectmaker, networkmaker):
+        """
+            Test sharing a network contained in a sub-project. This should result in the sharee having
+            access to the full tree of projects until the shared projects, but not
+            the projects which are siblings of any projects in that path through the tree
+            For example, upon sharing p4, the sharee should not have access to p3
+                                 p1
+                                /  \
+                               p2   p3
+                              /
+                             n1
+        """
+        client.user_id = 1 # force current user to be 1 to avoid potential inconsistencies
+        proj_user = client.user_id
+        proj1 = projectmaker.create(share=False)
+        proj2 = projectmaker.create(share=False, parent_id=proj1.id)
+
+        net1 = networkmaker.create(project_id=proj2.id)
+
+        client.user_id = pytest.user_c.id
+        with pytest.raises(HydraError):
+            client.get_project(proj2.id)
+
+        with pytest.raises(HydraError):
+            client.get_network(net1.id)
+
+        #Now, as the main user, share P4 with user C
+        client.user_id = proj_user
+        client.share_network(net1.id, ['UserC'], False, False)
+
+        #Now as the sharee, try to get project c
+        client.user_id = pytest.user_c.id
+
+        cloned_net = client.clone_network(net1.id, project_id=proj2.id)
+
+        updated_project = client.get_project(proj2.id)
+
+        assert cloned_net in [n.id for n in updated_project.networks]

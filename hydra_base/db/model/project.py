@@ -76,23 +76,21 @@ class Project(Base, Inspect, PermissionControlled):
 
         log.debug("Getting networks for project %s", self.id)
 
+        visible_networks = []
         networks = []
-        networks_not_creator = []
 
         if self.is_owner(user_id):
             #all networks in the project, as the user owns the project
-            networks_not_creator = get_session().query(Network)\
+            visible_networks = get_session().query(Network)\
                 .filter(Network.project_id == self.id).all()
         else:
-            #all networks created by someone else, but which this user is an owner,
-            #and this user can read this network
-            networks_not_creator = get_session().query(Network).join(NetworkOwner)\
+            #all the network in the project, which the requesting user is the owner of.
+            visible_networks = get_session().query(Network).join(NetworkOwner)\
                 .filter(Network.project_id == self.id)\
-                .filter(Network.created_by != user_id)\
                 .filter(NetworkOwner.user_id == user_id)\
                 .filter(NetworkOwner.view == 'Y').all()
 
-        all_network_ids = [n.id for n in networks_not_creator]
+        all_network_ids = [n.id for n in visible_networks]
 
         #for efficiency, get all the owners in 1 query and sort them by network
         all_owners = get_session().query(NetworkOwner)\
@@ -112,7 +110,7 @@ class Project(Base, Inspect, PermissionControlled):
         for netscenario in all_scenarios:
             scenarios_by_network[netscenario.network_id].append(netscenario)
 
-        for net_i in networks_not_creator:
+        for net_i in visible_networks:
 
             if include_deleted_networks is False and net_i.status.lower() == 'x':
                 continue
