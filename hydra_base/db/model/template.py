@@ -203,9 +203,20 @@ class Template(Base, Inspect):
         if child_template_id is None:
             child_template_id = self.id
 
-        #TODO need to check here to see if there is a parent / child type
-        #and then add or not add as approprioate
         for i, this_type in enumerate(types):
+            if this_type.parent_id is not None:
+                if this_type.parent_ids is None:
+                    this_type.parent_ids = []
+                this_type.parent_ids.insert(0, this_type.parent_id)
+
+                # Ascend parent_id chain and record these in parent_ids attr
+                parent_type_id = this_type.parent_id
+                while(parent_type_id):
+                    ptype = get_session().query(TemplateType).filter(TemplateType.id == parent_type_id).one()
+                    if ptype.parent_id:
+                        this_type.parent_ids.insert(0, ptype.parent_id)
+                    parent_type_id = ptype.parent_id
+
             this_type.child_template_id = child_template_id
 
             #This keeps track of which type attributes are currently associated
