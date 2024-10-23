@@ -178,6 +178,19 @@ class Template(Base, Inspect):
         return child_type
 
 
+    def get_type_parent_ids(self, ttype_id):
+        ttype = get_session().query(TemplateType).filter(
+                TemplateType.id == ttype_id).options(
+                        noload(TemplateType.typeattrs)).one()
+
+        parent_ids = []
+
+        while ttype.parent_id:
+            parent_ids.insert(0, ttype.parent_id)
+            ttype = get_session().query(TemplateType).filter(TemplateType.id == ttype.parent_id).one()
+
+        return parent_ids
+
     def get_types(self, type_tree={}, child_types=None, get_parent_types=True, child_template_id=None):
         """
             Return all the templatetypes relevant to this template.
@@ -205,17 +218,7 @@ class Template(Base, Inspect):
 
         for i, this_type in enumerate(types):
             if this_type.parent_id is not None:
-                if this_type.parent_ids is None:
-                    this_type.parent_ids = []
-                this_type.parent_ids.insert(0, this_type.parent_id)
-
-                # Ascend parent_id chain and record these in parent_ids attr
-                parent_type_id = this_type.parent_id
-                while(parent_type_id):
-                    ptype = get_session().query(TemplateType).filter(TemplateType.id == parent_type_id).one()
-                    if ptype.parent_id:
-                        this_type.parent_ids.insert(0, ptype.parent_id)
-                    parent_type_id = ptype.parent_id
+                this_type.parent_ids = self.get_type_parent_ids(this_type.id)
 
             this_type.child_template_id = child_template_id
 

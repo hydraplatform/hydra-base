@@ -642,6 +642,8 @@ class TestTemplateInheritance:
         ret_grandchild_template = client.get_template(grandchild_template.id)
         assert ret_orig_node.types[0].type_id in ret_grandchild_template.templatetypes[1].parent_ids
         assert ret_child_node.types[0].type_id in ret_grandchild_template.templatetypes[1].parent_ids
+        # ...and no others...
+        assert len(ret_grandchild_template.templatetypes[1].parent_ids) == 2
 
 
     def test_delete_parent_type(self, client):
