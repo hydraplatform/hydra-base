@@ -23,6 +23,7 @@ __all__ = ['Template', 'TemplateType', 'TypeAttr', 'ResourceType']
 from .attributes import Attr
 from .units import Unit
 
+
 class Template(Base, Inspect):
     """
     Template
@@ -178,10 +179,20 @@ class Template(Base, Inspect):
         return child_type
 
 
-    def get_type_parent_ids(self, ttype_id):
-        ttype = get_session().query(TemplateType).filter(
-                TemplateType.id == ttype_id).options(
-                        noload(TemplateType.typeattrs)).one()
+    @staticmethod
+    def get_type_parent_ids(ttype_id):
+        """
+            Returns a list of the ids of TemplateTypes which
+            are parents of the TemplateType specified in the
+            <ttype_id> argument.
+        """
+        q = get_session().query(TemplateType)
+        q = q.filter(TemplateType.id == ttype_id)
+        q = q.options(noload(TemplateType.typeattrs))
+        try:
+            ttype = q.one()
+        except sqlalchemy.exc.NoResultFound:
+            raise HydraError(f"No TemplateType found with id {ttype_id}")
 
         parent_ids = []
 
@@ -190,6 +201,7 @@ class Template(Base, Inspect):
             ttype = get_session().query(TemplateType).filter(TemplateType.id == ttype.parent_id).one()
 
         return parent_ids
+
 
     def get_types(self, type_tree={}, child_types=None, get_parent_types=True, child_template_id=None):
         """
@@ -218,7 +230,7 @@ class Template(Base, Inspect):
 
         for i, this_type in enumerate(types):
             if this_type.parent_id is not None:
-                this_type.parent_ids = self.get_type_parent_ids(this_type.id)
+                this_type.parent_ids = Template.get_type_parent_ids(this_type.id)
 
             this_type.child_template_id = child_template_id
 

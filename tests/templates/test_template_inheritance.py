@@ -533,6 +533,8 @@ class TestTemplateInheritance:
           7. Create a Grandchild Template Node Type with parent type 'Child Template Node Type'
           8. Retrieve type information and verify the parent_ids attr contains both
              'Child Template Node Type' and 'Parent Node Type'
+          9. Verify that the get_all_parent_types(ttype_id) lib function returns the
+             correct Parent and GrandParent TemplateTypes
 
         """
         # Create Parent Template
@@ -644,6 +646,13 @@ class TestTemplateInheritance:
         assert ret_child_node.types[0].type_id in ret_grandchild_template.templatetypes[1].parent_ids
         # ...and no others...
         assert len(ret_grandchild_template.templatetypes[1].parent_ids) == 2
+
+        # Verify that get_all_parent_types(ttype_id) returns the expected TemplateTypes...
+        parents = client.get_all_parent_types(ret_grandchild_template.templatetypes[1].id)
+        assert parents[0].id == ret_orig_node.types[0].type_id
+        assert parents[1].id == ret_child_node.types[0].type_id
+        # ...and no others...
+        assert len(parents) == 2
 
 
     def test_delete_parent_type(self, client):
