@@ -120,6 +120,8 @@ def add_project(project, **kwargs):
     db.DBSession.add(proj_i)
     db.DBSession.flush()
 
+    Project.clear_cache(user_id)
+
     return proj_i
 
 @required_perms('edit_project')
@@ -154,12 +156,18 @@ def update_project(project, **kwargs):
         if parent_id != proj_i.parent_id:
             #check the user has the correct permission to write to the target project
             _get_project(project.parent_id, user_id, check_write=True)
-            proj_i.parent_id = project.parent_id    
-    
+            proj_i.parent_id = project.parent_id
+    else:
+        # parent_id has changed to None
+        if proj_i.parent_id is not None:
+            proj_i.parent_id = None
+
     if project.attributes:
         attr_map = hdb.add_resource_attributes(proj_i, project.attributes)
         proj_data = _add_project_attribute_data(proj_i, attr_map, project.attribute_data)
         proj_i.attribute_data = proj_data
+
+    Project.clear_cache(user_id)
 
     db.DBSession.flush()
 
@@ -176,11 +184,30 @@ def move_project(project_id, target_project_id, **kwargs):
     #Check the user has access to write to the project
     proj_i = _get_project(project_id, user_id, check_write=True)
 
+    if target_project_id is None:
+        return remove_project_parent(project_id, **kwargs)
+
     #check the user has the correct permission to write to the target project
     _get_project(target_project_id, user_id, check_write=True)
 
+    Project.clear_cache(user_id)
+
     proj_i.parent_id = target_project_id
 
+    db.DBSession.flush()
+
+    return proj_i
+
+@required_perms('edit_project')
+def remove_project_parent(project_id, **kwargs):
+    """
+        Removes the parent of the <project_id> argument
+        by setting the parent_id attr to None
+    """
+    user_id = kwargs.get('user_id')
+    proj_i = _get_project(project_id, user_id, check_write=True)
+    Project.clear_cache(user_id)
+    proj_i.parent_id = None
     db.DBSession.flush()
 
     return proj_i
@@ -351,10 +378,11 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
     #Now get projects which the user must have access to in order to navigate
     #to projects further down the tree which they are owners of.
     nav_project_ids = set(Project.get_cache(uid).get(project_id, [])) - scoped_project_ids
-    nav_projects_i = db.DBSession.query(Project).filter(Project.id.in_(nav_project_ids)).all()
+    nav_projects_i = db.DBSession.query(Project).filter(Project.id.in_(nav_project_ids)).filter(Project.parent_id==project_id).all()
     nav_projects = []
     for nav_project_i in nav_projects_i:
         nav_project_j = JSONObject(nav_project_i)
+        nav_project_j.nav_only = True
         nav_project_j.owners = []
         nav_project_j.networks = []
         nav_projects.append(nav_project_j)
@@ -518,7 +546,6 @@ def get_network_project(network_id, **kwargs):
 
     return net_proj
 
-
 @required_perms('get_project', 'add_project')
 def clone_project(project_id,
     recipient_user_id=None,
@@ -532,9 +559,9 @@ def clone_project(project_id,
             recipient_user_id (int): The ID of the user who will be granted ownership of the project after cloning.
                 If None, ownership will be granted to the requesting user.
             new_project_name (str): The name of the cloned project. If None, then the project's name will be postfixed with ('Cloned by XXX')
-            new_project_description (str): The description of the cloned project. 
+            new_project_description (str): The description of the cloned project.
                 If None, the current project's description will be used.
-            creator_is_owner (Bool) : The user who creates the network isn't added as an owner 
+            creator_is_owner (Bool) : The user who creates the network isn't added as an owner
                 (won't have an entry in tNetworkOwner and therefore won't see the network in 'get_project')
         returns:
             (int): The ID of the newly created project
@@ -548,24 +575,27 @@ def clone_project(project_id,
     if recipient_user_id is None:
         recipient_user_id = user_id
 
-    user = db.DBSession.query(User).filter(User.id == user_id).one()
+    recipient_user = db.DBSession.query(User).filter(User.id == recipient_user_id).one()
+    cloning_user = db.DBSession.query(User).filter(User.id == user_id).one()
 
     if new_project_name is None:
-        new_project_name = project.name + ' Cloned By {}'.format(user.display_name)
+        new_project_name = project.name + ' Cloned By {}'.format(cloning_user.display_name)
 
     #check a project with this name doesn't already exist:
     project_with_name =  db.DBSession.query(Project).filter(
         Project.name == new_project_name,
-        Project.created_by == user_id).first()
-    
+        Project.created_by == recipient_user_id).first()
+
     if project_with_name is not None:
+        now = datetime.now().strftime("%Y%m%d%H%M%S")
         if project_with_name.status == 'X':
-            now = datetime.now().strftime("%Y%m%d%H%M%S")
             project_with_name.name = f"{new_project_name} {now}"
             log.info("Updating an existing deleted project %s with new project anme to avoid naming clash %s",
                       project_with_name.id, project_with_name.name)
         else:
-            raise HydraError(f"A project with the name {new_project_name} already exists for user {user.display_name}")
+            #If there is a naming clash, then add a timestamp to the name of the new project to make it unique for
+            #this user.
+            new_project_name = f"{new_project_name} ({now})"
 
     new_project = Project()
     new_project.name = new_project_name
@@ -574,7 +604,9 @@ def clone_project(project_id,
     else:
         new_project.description = project.description
 
-    new_project.created_by = user_id
+    new_project.appdata = project.appdata
+
+    new_project.created_by = recipient_user_id
 
     if recipient_user_id is not None and recipient_user_id != user_id:
         project.check_share_permission(user_id)
@@ -583,17 +615,17 @@ def clone_project(project_id,
     if creator_is_owner is True:
         new_project.set_owner(user_id)
 
-
     db.DBSession.add(new_project)
     db.DBSession.flush()
 
     network_ids = db.DBSession.query(Network.id).filter(
                                         Network.project_id==project_id).all()
+
     for n in network_ids:
         network.clone_network(n.id,
                               recipient_user_id=recipient_user_id,
                               project_id=new_project.id,
-                             user_id=user_id)
+                              user_id=user_id)
 
     project_attributes = db.DBSession.query(Attr).filter(Attr.project_id==project_id).all()
 
@@ -609,21 +641,12 @@ def clone_project(project_id,
 
     return new_project.id
 
-
-def _get_project_hierarchy(project_id, user_id):
-
-    proj = JSONObject(_get_project(project_id, user_id=user_id))
-
-    project_hierarchy = [proj]
-    if proj.parent_id:
-        project_hierarchy = project_hierarchy + _get_project_hierarchy(proj.parent_id, user_id)
-    
-    return project_hierarchy
-
-def get_project_hierarchy(project_id, user_id):
+def get_project_hierarchy(project_id, **kwargs):
     """
-        Return a list of project-ids which represent the links in the chain up to the root project
-        [project_id, parent_id, parent_parent_id ...etc]
-        If the project has no parent, return [project_id]
+        Return a list of project JSONObjects which represent the links in the chain up to the root project
+        [project_j, parent_j, parent_parent_j ...etc]
+        If the project has no parent, return [project_j]
     """
-    return _get_project_hierarchy(project_id, user_id)
+    user_id = kwargs.get('user_id')
+    hierarchy = _get_project(project_id, user_id).get_hierarchy(user_id)
+    return hierarchy

@@ -106,20 +106,19 @@ def generate_data_hash(dataset_dict):
     if d.get('metadata') is None:
         d['metadata'] = {}
 
-    hash_string = "%s %s %s %s %s"%(
-                                str(d['name']),
+    hash_string = "%s %s %s %s"%(
                                 str(d['unit_id']),
-                                str(d['type']),
+                                str(d['type']).lower(),
                                 d['value'],
                                 d['metadata'])
 
     log.debug("Generating data hash from: %s", hash_string)
 
-    data_hash = hash(hash_string)
+    hash_data = hash(hash_string)
 
-    log.debug("Data hash: %s", data_hash)
+    log.debug("Data hash: %s", hash_data)
 
-    return data_hash
+    return hash_data
 
 def get_val(dataset, timestamp=None):
     """

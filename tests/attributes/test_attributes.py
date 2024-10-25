@@ -198,6 +198,27 @@ class TestAttribute:
         assert existing_attr.dimension_id   == retrieved_attr.dimension_id
         assert existing_attr.description    == retrieved_attr.description
 
+    def test_get_attributes_by_id(self, client):
+
+        test_attrs = [
+            JSONObject({
+                "name": 'Test Attribute 1',
+                "dimension_id": None
+            }),
+            JSONObject({
+                "name": 'Test Attribute 2',
+                "dimension_id": 1
+            })
+        ]
+        new_attrs_list = client.add_attributes(test_attrs)
+
+        retrieved_attrs = client.get_attributes_by_id([a.id for a in new_attrs_list])
+
+        assert retrieved_attrs[0].name == 'Test Attribute 1'
+        assert retrieved_attrs[1].name == 'Test Attribute 2'
+
+        retrieved_attrs = client.get_attributes_by_id([])
+        assert len(retrieved_attrs) == 0
 
 
     def test_get_all_attributes(self, client, attributes):

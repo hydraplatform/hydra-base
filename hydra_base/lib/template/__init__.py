@@ -298,8 +298,6 @@ def get_template_as_dict(template_id, **kwargs):
 
     output_data = {'attributes': attr_dict, 'datasets':dataset_dict, 'template': template_j}
 
-    _save_template_to_cache(template_j)
-
     return output_data
 
 @required_perms("add_template")

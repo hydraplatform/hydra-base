@@ -245,7 +245,7 @@ class PermissionControlled(object):
         for owner in self.owners:
             if owner.user_id == int(user_id):
                 if owner.view == 'Y' and owner.share == 'Y':
-                    break
+                    return True
         else:
             raise PermissionError("Permission denied. User %s does not have share"
                              " access on %s '%s' (id=%s)" %
@@ -256,4 +256,3 @@ class PermissionControlled(object):
         from hydra_base.lib.usergroups import usergroups_with_member_user, any_usergroup_can_share
         groups = usergroups_with_member_user(user_id)
         return any_usergroup_can_share(groups, resource=self.ref_key, resource_id=self.id)
-
