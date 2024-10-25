@@ -443,6 +443,49 @@ class TestUserGroups():
         client.delete_project(c1proj.id)
         client.delete_project(pproj.id)
 
+    def test_get_organisation_projects(self, client, organisation, non_admin_user):
+        """
+          Does the organisation_id kwarg to lib.project.get_projects limit
+          the returned projects to those in the specified organisation?
+        """
+        # Add new organisation
+        extra_org = client.add_organisation("Extra organisation")
+
+        # Add three projects
+        first_proj = JSONObject({})
+        first_proj.name = "First Project"
+        fproj = client.add_project(first_proj)
+
+        second_proj = JSONObject({})
+        second_proj.name = "Second Project"
+        sproj = client.add_project(second_proj)
+
+        third_proj = JSONObject({})
+        third_proj.name = "Third Project"
+        tproj = client.add_project(third_proj)
+
+        # Make first two projects visible to existing org...
+        client.make_project_visible_to_organisation(organisation_id=organisation.id, project_id=fproj.id)
+        client.make_project_visible_to_organisation(organisation_id=organisation.id, project_id=sproj.id)
+
+        # ...and third project visible to new organisation
+        client.make_project_visible_to_organisation(organisation_id=extra_org.id, project_id=tproj.id)
+
+        # Verify get_projects is aware of organisations
+        orig_org_projects = client.get_projects(uid=client.user_id, organisation_id=organisation.id)
+        extra_org_projects = client.get_projects(uid=client.user_id, organisation_id=extra_org.id)
+
+        assert first_proj.name in [proj.name for proj in orig_org_projects]
+        assert second_proj.name in [proj.name for proj in orig_org_projects]
+        assert len(orig_org_projects) == 2
+
+        assert third_proj.name in [proj.name for proj in extra_org_projects]
+        assert len(extra_org_projects) == 1
+
+        client.delete_project(fproj.id)
+        client.delete_project(sproj.id)
+        client.delete_project(tproj.id)
+
     def test_organisation_administrator(self, client, organisation, non_admin_user):
         """
           Are Users not Organisation administrators until added, and does this

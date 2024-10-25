@@ -20,6 +20,7 @@
 import logging
 import json
 from collections import defaultdict
+from datetime import datetime
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import noload, joinedload
 
@@ -32,7 +33,7 @@ from .objects import JSONObject
 from ..util.permissions import required_perms
 from . import scenario
 from ..exceptions import ResourceNotFoundError
-from datetime import datetime
+
 
 log = logging.getLogger(__name__)
 
@@ -320,7 +321,12 @@ def get_project_by_name(project_name, **kwargs):
     return projects_i
 
 @required_perms('get_project')
-def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=None, project_id=None, **kwargs):
+def get_projects(uid,
+                 include_shared_projects=True,
+                 projects_ids_list_filter=None,
+                 project_id=None,
+                 organisation_id=None,
+                 **kwargs):
     """
         Get all the projects owned by the specified user.
         These include projects created by the user, but also ones shared with the user.
@@ -341,6 +347,10 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
 
     if project_id is not None:
         log.info("Getting projects in project %s", project_id)
+    elif organisation_id is not None:
+        log.info(f"Getting projects in organisation {organisation_id}")
+        from hydra_base.lib.usergroups import get_all_organisation_projects
+        org_proj_ids = get_all_organisation_projects(user_id=uid, organisation_id=organisation_id)
     else:
         log.info("Getting top-level projects")
 
@@ -396,7 +406,7 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
     #Load each
     projects_j = []
     for project_i in scoped_projects:
-        project_i.attributes#pylint: disable=W0104
+        project_i.attributes  #pylint: disable=W0104
         project_i.get_attribute_data()
         project_j = JSONObject(project_i)
         project_j.networks = project_network_lookup.get(project_i.id, [])
@@ -405,7 +415,11 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
 
     log.info("Networks loaded projects for user %s", uid)
 
-    return projects_j + nav_projects
+    present_ids = set(proj.id for proj in projects_j + nav_projects)
+    org_intersect = [proj for proj in projects_j + nav_projects if proj.id in org_proj_ids]
+    org_diff = get_projects_in(proj_id for proj_id in org_proj_ids if proj_id not in present_ids).all()
+    return org_intersect + org_diff
+
 
 def get_projects_in(project_ids, **kwargs):
     """
