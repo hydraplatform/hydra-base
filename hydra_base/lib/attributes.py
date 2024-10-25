@@ -119,6 +119,15 @@ def get_attribute_by_id(attr_id, **kwargs):
 
     return attr_i
 
+def get_attributes_by_id(attr_ids, **kwargs):
+    """
+        Get a list of specific attributes by their IDs.
+    """
+    if not attr_ids:
+        return []
+            
+    return db.DBSession.query(Attr).filter(Attr.id.in_(attr_ids)).all()
+
 def get_template_attributes(template_id, **kwargs):
     """
         Get a specific attribute by its ID.
