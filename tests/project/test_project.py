@@ -95,7 +95,7 @@ class TestProject:
 
         new_project.description = \
             'An updated project created through the Hydra Base interface.'
-        
+
         new_project.appdata['test1'] = 'metadata1'
 
         updated_project = client.update_project(new_project)
@@ -249,7 +249,7 @@ class TestProject:
 
         proj_name = proj.name
 
-        #Set the status of the project to 'X'. 
+        #Set the status of the project to 'X'.
         client.set_project_status(proj.id, 'X')
         #now create a project with the name of the deleted project
         project = JSONObject({})
@@ -263,7 +263,7 @@ class TestProject:
         assert old_proj.status == 'X'
         assert old_proj.name != project.name
 
-        
+
 
     def test_clone_project(self, client, projectmaker, networkmaker):
 
@@ -348,9 +348,9 @@ class TestProject:
 
         client.user_id = recipient_user.id
         recipient_projects_before = client.get_projects(client.user_id)
-        
+
         client.user_id = sender_user_id
-        
+
         new_project_name = 'Cloned Project'
 
         test_delete_project_id = client.clone_project(
@@ -366,7 +366,7 @@ class TestProject:
         recipient_projects_after = client.get_projects(client.user_id)
 
         assert len(recipient_projects_after) == len(recipient_projects_before)+1
-        
+
         client.user_id = sender_user_id
         sender_projects_after = client.get_projects(client.user_id)
         assert len(sender_projects_after) == len(sender_projects_before)
@@ -383,7 +383,7 @@ class TestProject:
         cloned_networks = client.get_networks(cloned_project.id)
         assert len(cloned_networks) == 2
 
-        #Check that the resource attribute references have been updated correctly 
+        #Check that the resource attribute references have been updated correctly
         #by comparing the attr_id on the original network and the cloned network for the same attribute name,
         #ensuring they are not the same.
         for n in cloned_project.networks:
@@ -409,26 +409,26 @@ class TestProject:
 
         client.user_id = recipient_user.id
         recipient_projects_before = client.get_projects(client.user_id)
-        
+
         client.user_id = sender_user_id
-        
+
         new_project_name = 'Cloned Project Test'
 
         test_delete_project_id = client.clone_project(
             proj.id,
             recipient_user_id=recipient_user.id,
             new_project_name=new_project_name)
-        
+
         #test renaming of deleted projects
         client.set_project_status(test_delete_project_id, 'X')
         changed_project = client.get_project(test_delete_project_id)
         assert changed_project.status == 'X'
-        
+
         cloned_project_id = client.clone_project(
             proj.id,
             recipient_user_id=recipient_user.id,
             new_project_name=new_project_name)
-        
+
         renamed_project = client.get_project(test_delete_project_id)
         assert renamed_project.status == 'X'
 

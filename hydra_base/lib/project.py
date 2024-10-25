@@ -120,6 +120,8 @@ def add_project(project, **kwargs):
     db.DBSession.add(proj_i)
     db.DBSession.flush()
 
+    Project.clear_cache(user_id)
+
     return proj_i
 
 @required_perms('edit_project')
@@ -155,11 +157,17 @@ def update_project(project, **kwargs):
             #check the user has the correct permission to write to the target project
             _get_project(project.parent_id, user_id, check_write=True)
             proj_i.parent_id = project.parent_id
+    else:
+        # parent_id has changed to None
+        if proj_i.parent_id is not None:
+            proj_i.parent_id = None
 
     if project.attributes:
         attr_map = hdb.add_resource_attributes(proj_i, project.attributes)
         proj_data = _add_project_attribute_data(proj_i, attr_map, project.attribute_data)
         proj_i.attribute_data = proj_data
+
+    Project.clear_cache(user_id)
 
     db.DBSession.flush()
 
@@ -176,11 +184,30 @@ def move_project(project_id, target_project_id, **kwargs):
     #Check the user has access to write to the project
     proj_i = _get_project(project_id, user_id, check_write=True)
 
+    if target_project_id is None:
+        return remove_project_parent(project_id, **kwargs)
+
     #check the user has the correct permission to write to the target project
     _get_project(target_project_id, user_id, check_write=True)
 
+    Project.clear_cache(user_id)
+
     proj_i.parent_id = target_project_id
 
+    db.DBSession.flush()
+
+    return proj_i
+
+@required_perms('edit_project')
+def remove_project_parent(project_id, **kwargs):
+    """
+        Removes the parent of the <project_id> argument
+        by setting the parent_id attr to None
+    """
+    user_id = kwargs.get('user_id')
+    proj_i = _get_project(project_id, user_id, check_write=True)
+    Project.clear_cache(user_id)
+    proj_i.parent_id = None
     db.DBSession.flush()
 
     return proj_i
@@ -351,7 +378,7 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
     #Now get projects which the user must have access to in order to navigate
     #to projects further down the tree which they are owners of.
     nav_project_ids = set(Project.get_cache(uid).get(project_id, [])) - scoped_project_ids
-    nav_projects_i = db.DBSession.query(Project).filter(Project.id.in_(nav_project_ids)).all()
+    nav_projects_i = db.DBSession.query(Project).filter(Project.id.in_(nav_project_ids)).filter(Project.parent_id==project_id).all()
     nav_projects = []
     for nav_project_i in nav_projects_i:
         nav_project_j = JSONObject(nav_project_i)
@@ -614,22 +641,12 @@ def clone_project(project_id,
 
     return new_project.id
 
-
-def _get_project_hierarchy(project_id, user_id):
-
-    proj = JSONObject(_get_project(project_id, user_id=user_id))
-
-    project_hierarchy = [proj]
-    if proj.parent_id:
-        project_hierarchy = project_hierarchy + _get_project_hierarchy(proj.parent_id, user_id)
-
-    return project_hierarchy
-
 def get_project_hierarchy(project_id, **kwargs):
     """
-        Return a list of project-ids which represent the links in the chain up to the root project
-        [project_id, parent_id, parent_parent_id ...etc]
-        If the project has no parent, return [project_id]
+        Return a list of project JSONObjects which represent the links in the chain up to the root project
+        [project_j, parent_j, parent_parent_j ...etc]
+        If the project has no parent, return [project_j]
     """
     user_id = kwargs.get('user_id')
-    return _get_project_hierarchy(project_id, user_id)
+    hierarchy = _get_project(project_id, user_id).get_hierarchy(user_id)
+    return hierarchy
