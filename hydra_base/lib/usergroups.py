@@ -809,6 +809,16 @@ def get_all_user_projects(uid: int, **kwargs) -> Set[int]:
 
 
 @export
+def get_all_user_organisations(uid: int, **kwargs) -> Set[int]:
+    """
+      Retrieve the ids of all Organisations of which the User
+      with id <uid> is a member.
+    """
+    groups = set(get_usergroup_by_id(group_id=group_id) for group_id in usergroups_with_member_user(uid))
+    return set(group.organisation.id for group in groups)
+
+
+@export
 def get_all_organisation_projects(organisation_id: int, **kwargs) -> Set[int]:
     """
       Return the ids of all Projects visible to all members of the

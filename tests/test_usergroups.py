@@ -157,6 +157,30 @@ class TestUserGroups():
         members = client.get_all_organisation_members(organisation_id=organisation.id)
         assert len(members) == 2
 
+    def test_get_all_user_organisations(self, client, non_admin_user):
+        """
+          Can the set of all Organisations of which a particular user is
+          a member be retrieved?
+        """
+        # Add three organisations
+        orgnames = ("First", "Second", "Third")
+        for orgname in orgnames:
+            client.add_organisation(f"{orgname} organisation")
+
+        # Add the User to the first and third org
+        first = client.get_organisation_by_name(organisation_name=f"{orgnames[0]} organisation")
+        last = client.get_organisation_by_name(organisation_name=f"{orgnames[-1]} organisation")
+
+        client.add_user_to_organisation(uid=non_admin_user.id, organisation_id=first.id)
+        client.add_user_to_organisation(uid=non_admin_user.id, organisation_id=last.id)
+
+        # Verify User is member of specified organisations...
+        organisations = client.get_all_user_organisations(uid=non_admin_user.id)
+        assert first.id in organisations
+        assert last.id in organisations
+        # ...and not others...
+        assert len(organisations) == 2
+
     def test_get_organisation_administrators(self, client, organisation, non_admin_user):
         """
           Can the administrators for a particular Organisation be correctly retrieved?
