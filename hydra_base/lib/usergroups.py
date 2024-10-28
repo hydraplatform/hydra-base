@@ -5,7 +5,8 @@ from typing import (
     Dict,
     Set,
     List,
-    Sequence
+    Sequence,
+    Tuple
 )
 
 from hydra_base import (
@@ -41,6 +42,7 @@ from hydra_base.exceptions import (
     PermissionError
 )
 
+from sqlalchemy import or_, and_
 from sqlalchemy.orm.exc import NoResultFound
 
 project_max_nest_depth = int(config.get("limits", "project_max_nest_depth", 32))
@@ -567,6 +569,45 @@ def set_resource_access(res: str, usergroup_id: int, res_id: int, access: Perm, 
     db.DBSession.flush()
 
     return current
+
+
+@export
+def batch_set_resource_access(res_specs: Sequence[Dict[str, int]], usergroup_id: int, access: Perm, **kwargs):
+    """
+      Sets the resource access mask specified by <access> for the UserGroup with id <usergroup_id>
+      for all resources identified by (res_type: str, res_id: int) pairs in the <res_specs> argument
+
+      Existing permissions on a resource are overwritten.
+    """
+    if not res_specs:
+        return
+
+    rst = []
+    for res_spec in res_specs:
+        rst.append(*res_spec.items())
+    rss = set((res_spec[0].upper(), res_spec[1]) for res_spec in rst)
+
+    qterms = []
+    for res_spec in res_specs:
+        for res_type, res_id in res_spec.items():
+            qterms.append (
+              (
+                ResourceAccess.resource == res_type.upper(),
+                ResourceAccess.usergroup_id == usergroup_id,
+                ResourceAccess.resource_id == res_id
+              )
+            )
+    qfilters = [ and_(f for f in term) for term in qterms ]
+    res_accesses = db.DBSession.query(ResourceAccess).filter(or_(*qfilters)).all()
+    for res_access in res_accesses:
+        res_access.access = access
+        rss.remove((res_access.resource, res_access.resource_id))
+
+    for res_spec in rss:
+        res_type, res_id = res_spec
+        _add_resource_access(res_type, usergroup_id, res_id, access)
+
+    db.DBSession.flush()
 
 
 @export

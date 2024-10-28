@@ -443,10 +443,53 @@ class TestUserGroups():
         client.delete_project(c1proj.id)
         client.delete_project(pproj.id)
 
-    def test_get_organisation_projects(self, client, organisation, non_admin_user):
+    def test_batch_set_permissions(self, client, usergroup, networkmaker):
+        first_proj = JSONObject({})
+        first_proj.name = f"First project"
+        fproj = client.add_project(first_proj)
+
+        second_proj = JSONObject({})
+        second_proj.name = f"Second project"
+        sproj = client.add_project(second_proj)
+
+        fnet = networkmaker.create(project_id=fproj.id)  # First Project  -> fnet
+        snet = networkmaker.create(project_id=sproj.id)  # Second Project -> snet
+
+        perm = Perm.Read | Perm.Write
+        res_specs = [
+            {"PROJECT": fproj.id},
+            {"PROJECT": sproj.id},
+            {"NETWORK": snet.id}
+        ]
+        # Give one of the resources an existing access permission
+        client.set_resource_access(res="project", usergroup_id=usergroup.id, res_id=fproj.id, access=Perm.Read)
+        fproj_mask = client.get_resource_access_mask(res="project", usergroup_id=usergroup.id, res_id=fproj.id)
+        assert fproj_mask == Perm.Read
+        # Set the access to Perm.Read | Perm.Write for both projects and the second network
+        client.batch_set_resource_access(res_specs=res_specs, usergroup_id=usergroup.id, access=perm)
+        # Retrieve and verify the new access permissions
+        fproj_mask = client.get_resource_access_mask(res="project", usergroup_id=usergroup.id, res_id=fproj.id)
+        sproj_mask = client.get_resource_access_mask(res="project", usergroup_id=usergroup.id, res_id=sproj.id)
+        fnet_mask = client.get_resource_access_mask(res="network", usergroup_id=usergroup.id, res_id=fnet.id)
+        snet_mask = client.get_resource_access_mask(res="network", usergroup_id=usergroup.id, res_id=snet.id)
+        # fproj_mask has changed from Perm.Read to Perm.Read | Perm.Write
+        assert fproj_mask == Perm.Read | Perm.Write
+        # sproj_mask and snet_mask were also set
+        assert sproj_mask == Perm.Read | Perm.Write
+        assert snet_mask == Perm.Read | Perm.Write
+        # fnet_mask has not been set
+        assert fnet_mask is None
+
+        client.delete_project(fproj.id)
+        client.delete_project(sproj.id)
+
+
+    def test_get_organisation_projects(self, client, organisation):
         """
           Does the organisation_id kwarg to lib.project.get_projects limit
           the returned projects to those in the specified organisation?
+          Is the normal operation of get_projects preserved where no
+          organisation_id argument is provided?
         """
         # Add new organisation
         extra_org = client.add_organisation("Extra organisation")
@@ -481,6 +524,15 @@ class TestUserGroups():
 
         assert third_proj.name in [proj.name for proj in extra_org_projects]
         assert len(extra_org_projects) == 1
+
+        # Verify get_projects without organisation_id returns all existing projects
+        all_projects = client.get_projects(uid=client.user_id)
+        assert len(
+            {first_proj.name, second_proj.name, third_proj.name}.intersection
+                (
+                    proj.name for proj in all_projects
+                )
+        ) == 3
 
         client.delete_project(fproj.id)
         client.delete_project(sproj.id)

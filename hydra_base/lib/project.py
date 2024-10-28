@@ -415,10 +415,13 @@ def get_projects(uid,
 
     log.info("Networks loaded projects for user %s", uid)
 
-    present_ids = set(proj.id for proj in projects_j + nav_projects)
-    org_intersect = [proj for proj in projects_j + nav_projects if proj.id in org_proj_ids]
-    org_diff = get_projects_in(proj_id for proj_id in org_proj_ids if proj_id not in present_ids).all()
-    return org_intersect + org_diff
+    if organisation_id is not None:
+        present_ids = set(proj.id for proj in projects_j + nav_projects)
+        org_intersect = [proj for proj in projects_j + nav_projects if proj.id in org_proj_ids]
+        org_diff = get_projects_in(proj_id for proj_id in org_proj_ids if proj_id not in present_ids).all()
+        return org_intersect + org_diff
+    else:
+        return projects_j + nav_projects
 
 
 def get_projects_in(project_ids, **kwargs):
