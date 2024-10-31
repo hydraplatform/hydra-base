@@ -43,7 +43,7 @@ def check_ret_err(result, func, args):
 
 def win_get_common_documents():
     # If the more recent KPF system is available, use this...
-    if Win_SHGetKnownFolderPath := getattr(windll.shell32, "SHGetKnownFolderPath"):
+    if Win_SHGetKnownFolderPath := getattr(windll.shell32, "SHGetKnownFolderPath", None):
         Win_SHGetKnownFolderPath.argtypes = [
             ctypes.POINTER(GUID),
             wintypes.DWORD,
