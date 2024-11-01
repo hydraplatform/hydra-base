@@ -1,4 +1,4 @@
-How to run the server natively on Windows Using python. 
+How to run the server natively on Windows Using python.
 =======================================================
 
 The soap server runs in python (2.7), and requires some external
@@ -156,15 +156,15 @@ SqlAlchemy
 Try:
 `pip install sqlalchemy`
 
-We use sqlalchemy to provide database connections and manage the database communication.  
+We use sqlalchemy to provide database connections and manage the database communication.
 
 zope.sqlalchemy
 ***************
 Try:
 `pip install zope.sqlalchemy`
 
-The aim of this package is to unify the plethora of existing packages integrating 
-SQLAlchemy with Zope's transaction management. As such it seeks only to provide 
+The aim of this package is to unify the plethora of existing packages integrating
+SQLAlchemy with Zope's transaction management. As such it seeks only to provide
 a data manager and makes no attempt to define a zopeish way to configure engines.
 
 Pandas
@@ -173,13 +173,6 @@ Try:
 `pip install pandas`
 
 Pandas allows us to manipulate and store timeseries and arrays in a very efficient and flexible way.
-
-winpath
-********
-Try:
-`pip install winpath`
-
-winpath is a python module that retrieves the names of common Windows folders.
 
 CherryPy
 *********
@@ -190,7 +183,7 @@ CherryPy allows developers to build web applications in much the same way they w
 
 python-dateutil
 ****************
-Try: 
+Try:
 `pip install python-dateutil`
 
 The dateutil module provides powerful extensions to the standard datetime module.
