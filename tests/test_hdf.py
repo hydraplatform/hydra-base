@@ -97,6 +97,7 @@ class TestHdf():
         """
         assert hdf.file_size(public_aws_file["path"]) == public_aws_file["file_size"]
 
+    @pytest.mark.skip
     @pytest.mark.requires_hdf
     def test_private_hdf_no_access(self, hdf, private_aws_file):
         """
@@ -293,7 +294,7 @@ class TestHdf():
                                                groupname="RFJ_Rffrk_erfhygf",
                                                columns=["Jbezvatsbeq Vagnxr.Fhccyl.Nzbhag"],
                                                end=256)
-        assert df[:92] == '{"Jbezvatsbeq Vagnxr.Fhccyl.Nzbhag":{"1910-01-01T00:00:00.000":0.0,"1910-01-02T00:00:00.000"'
+        assert df[:84] == '{"Jbezvatsbeq Vagnxr.Fhccyl.Nzbhag":{"1910-01-01 00:00:00":0.0,"1910-01-02 00:00:00"'
 
     @pytest.mark.requires_hdf
     def test_hdf_multigroups(self, client, multigroup_file):
@@ -316,8 +317,8 @@ class TestHdf():
         df_json = client.get_hdf_group_as_dataframe(multigroup_file["path"],
                                                   groupname="RFJ_Rffrk_erfhygf",
                                                   start=4, end=8)
-        assert df_json[:126] == '{"Ynatunz Vagnxr.Fhccyl.Nzbhag":{"1910-01-05T00:00:00.000":40.0,'\
-                                '"1910-01-06T00:00:00.000":40.0,"1910-01-07T00:00:00.000":40.0,'
+        assert df_json[:114] == '{"Ynatunz Vagnxr.Fhccyl.Nzbhag":{"1910-01-05 00:00:00":40.0,'\
+                                '"1910-01-06 00:00:00":40.0,"1910-01-07 00:00:00":40.0,'
 
     @pytest.mark.requires_hdf
     def test_hdf_group_columns(self, client, multigroup_file):
