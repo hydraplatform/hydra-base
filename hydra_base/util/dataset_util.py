@@ -199,52 +199,6 @@ def _get_val(val, full=False):
         val = newval
     return val
 
-def get_restriction_as_dict(restriction_xml):
-    """
-    turn:
-    ::
-
-            <restrictions>
-                <restriction>
-                    <type>MAXLEN</type>
-                    <value>3</value>
-                </restriction>
-                <restriction>
-                    <type>VALUERANGE</type>
-                    <value><item>1</item><item>10</item></value>
-                </restriction>
-            </restrictions>
-
-    into:
-    ::
-
-        {
-            'MAXLEN' : 3,
-            'VALUERANGE' : [1, 10]
-        }
-
-    """
-    restriction_dict = {}
-    if restriction_xml is None:
-        return restriction_dict
-
-    if restriction_xml.find('restriction') is not None:
-        restrictions = restriction_xml.findall('restriction')
-        for restriction in restrictions:
-            restriction_type = restriction.find('type').text
-            restriction_val  = restriction.find('value')
-            val = None
-            if restriction_val is not None:
-                if restriction_val.text.strip() != "":
-                    val = _get_val(restriction_val.text)
-                else:
-                    items = restriction_val.findall('item')
-                    val = []
-                    for item in items:
-                        val.append(_get_val(item.text))
-            restriction_dict[restriction_type] = val
-    return restriction_dict
-
 
 def validate_ENUM(in_value, restriction):
     """

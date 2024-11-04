@@ -25,6 +25,7 @@ import pandas as pd
 import six
 import pytz
 
+from hydra_base.exceptions import HydraError
 
 
 import logging
@@ -360,7 +361,7 @@ def parse_time_step(time_step, target='s', units_ref=None):
     try:
         value = float(value)
     except:
-        HydraPluginError("Unable to extract number of time steps (%s) from time step %s" % (value, time_step))
+        HydraError("Unable to extract number of time steps (%s) from time step %s" % (value, time_step))
 
     unit = time_step[valuelen:].strip()
 
@@ -400,11 +401,11 @@ def get_time_axis(start_time, end_time, time_step, time_axis=None):
 
     else:
         if start_time is None:
-            raise HydraPluginError("A start time must be specified")
+            raise HydraError("A start time must be specified")
         if end_time is None:
-            raise HydraPluginError("And end time must be specified")
+            raise HydraError("And end time must be specified")
         if time_step is None:
-            raise HydraPluginError("A time-step must be specified")
+            raise HydraError("A time-step must be specified")
 
         start_date = get_datetime(start_time)
         end_date = get_datetime(end_time)

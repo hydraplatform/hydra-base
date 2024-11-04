@@ -30,19 +30,6 @@ The simplest way to get started is to add an 'empty' network
  net.description = "A network with no nodes, links or data (scenarios)"
  net.project_id  = project.id
 
-A network also has a 'layout' attribute, which can be any XML encoding. This
-is used to help apps (the user interface) to store app-specific information
-about the network
-
-.. code-block:: python
-
- #Some helpful stuff for the UI, encoded in XML
- net.layout = {'background_colour': 'blue'}
-    
-Having defined the network, it is added
-
-.. code-block:: python
-
  #add network
  empty_net = client.service.add_network(net)
 

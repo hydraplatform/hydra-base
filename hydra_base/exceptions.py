@@ -32,10 +32,6 @@ class HydraDBError(HydraError):
     __error_code__ = 'HYDRADB'
 
 
-class HydraPluginError(HydraError):
-    __error_code__ = 'HYDRAPLUGIN'
-
-
 class ResourceNotFoundError(HydraError):
     __error_code__ = 'HYDRARESOURCE'
 
@@ -73,7 +69,7 @@ class HydraLoginUserPasswordWrong(HydraError):
 #ERROR CODES FOR HYDRA
 #Categories are:
 #DB Errors:         100 - 199
-#Plugin Errors:     200 - 299
+#Unused:            200 - 299
 #ResourceErrors:    300 - 399
 #Attribute Errors:  400 - 499
 #Permission Errors: 500 - 599
@@ -83,7 +79,6 @@ class HydraLoginUserPasswordWrong(HydraError):
 #
 error_codes = {
     'HYDRADB'               : "100",
-    'HYDRAPLUGIN'           : "200",
     'HYDRARESOURCE'         : "300",
     'HYDRAATTR'             : "400",
     'HYDRAPERM'             : "500",

@@ -41,9 +41,6 @@ from hydra_base.util.permissions import required_perms
 
 from hydra_base.lib.template.utils import check_dimension, get_attr_by_name_and_dimension
 
-from hydra_base.lib.template.xml import (get_template_as_xml, import_template_xml,
-    get_network_as_xml_template)
-
 from hydra_base.lib.template.resource import (get_types_by_attr,
     apply_template_to_network,
     set_network_template,

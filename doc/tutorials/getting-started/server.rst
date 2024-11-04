@@ -76,6 +76,7 @@ To check if Pip is working, type 'pip'. It should print out some documentation.
 
 Spyne
 ******
+**deprecated**
 Spyne is the SOAP server library.
 
 *edit*: The spyne library has a small bug, which needs to be fixed in order
@@ -194,11 +195,6 @@ Try:
 `pip install python-dateutil`
 
 The dateutil module provides powerful extensions to the standard datetime module.
-
-lxml
-****
-`pip install lxml`
-Lxml is an efficient library for parsing XML content.
 
 pywin32:
 ********

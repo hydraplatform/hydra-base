@@ -14,7 +14,6 @@ Welcome to Hydra Platform
 .. toctree::
    :hidden:
 
-   plugins/index
    Design <design/index>
    tutorials/index
    Implementation <implementation/index>
@@ -55,8 +54,7 @@ Apps
 Hydra Platform provides a set of selected Apps for importing and exporting
 datasets. Currently network topology and data can be exported to and imported
 from CSV files (:ref:`exportcsv` and :ref:`importcsv`). We also provide an App
-to :ref:`importwml`. To get started building an app, see our tutorial on building 
-a simple app (:doc:`here <tutorials/plug-in/index>`).
+to :ref:`importwml`.
 
 User Interfaces
 ---------------
@@ -67,7 +65,7 @@ Development team
 ----------------
 
 Stephen Knox is a computer scientist and currently the main developer of
-Hydra Platform at the University of Manchester. 
+Hydra Platform at the University of Manchester.
 
 `Philipp Meier
 <http://www.eawag.ch/de/ueberuns/portraet/organisation/mitarbeitende/profile/philipp-meier/show/>`_

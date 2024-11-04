@@ -26,8 +26,6 @@ Before resources can be given attributes, the Attributes must be defined.
     daily_throughput = client.service.add_attr(attr)
     print daily_throughput.id #Will print an ID
 
-All the valid dimensions are valid :download:'here ../../../HydraLib/trunk/HydraLib/static/unit_definitions.xml`.
-
 Resource Attributes
 ===================
 Should a nodei (or lots of nodes) in your network need a 'Daily Throughput', then first the attribute needs

@@ -62,7 +62,6 @@ from .lib.groups import *
 from .lib.network import *
 from .lib.notes import *
 from .lib.objects import *
-from .lib.plugins import *
 from .lib.project import *
 from .lib.rules import *
 from .lib.scenario import *
