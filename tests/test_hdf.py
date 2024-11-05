@@ -1,5 +1,6 @@
 from unittest.mock import patch
 import numpy as np
+import json
 import os
 import pandas as pd
 import pytest
@@ -54,6 +55,13 @@ def multigroup_file():
         "groups": ['RFJ_Rffrk_erfhygf', 'prageny_fbhgu_rffrk_erfhygf', 'qnvyl_cebsvyrf', 'yvapbyafuver_erfhygf', 'zbaguyl_cebsvyrf', 'gvzrfrevrf']
     }
 
+@pytest.fixture
+def non_timeseries_index_file():
+    return {
+        "path": "s3://modelers-data-bucket/eapp/single/flow_duration_curve.h5",
+        "group": "Charvakreservoirhydropower"
+    }
+
 @pytest.fixture(params=["s3://modelers-data-bucket/does_not_exist.h5", "does_not_exist"])
 def bad_url(request):
     return request.param
@@ -103,7 +111,7 @@ class TestHdf():
         """
           Do the reported properties of a dataset match expected values?
         """
-        with pytest.raises(ValueError):
+        with pytest.raises(PermissionError):
             info = hdf.get_series_info(private_aws_file["path"], columns=private_aws_file["series_name"])
 
     @pytest.mark.requires_hdf
@@ -114,7 +122,7 @@ class TestHdf():
         """
 
         hdf = HdfStorageAdapter()
-        
+
         info = hdf.get_series_info(private_aws_file["path"], columns=private_aws_file["series_name"])
 
         assert info[0]["name"] == private_aws_file["series_name"]
@@ -378,3 +386,12 @@ class TestHdf():
         ir = client.get_hdf_index_range(file_info["path"], groupname=groups[0], start=2, end=8)
         assert len(ir) > 0
         assert isinstance(ir[0], str)
+
+
+    @pytest.mark.requires_hdf
+    def test_non_timeseries_index(self, client, non_timeseries_index_file):
+        df = client.get_hdf_group_as_dataframe(
+                non_timeseries_index_file["path"],
+                groupname=non_timeseries_index_file["group"])
+        dd = json.loads(df)
+        assert len(dd["Chirchik Climate Change: 0"]) == 11
