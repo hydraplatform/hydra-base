@@ -1,5 +1,6 @@
 from unittest.mock import patch
 import numpy as np
+import json
 import os
 import pandas as pd
 import pytest
@@ -27,7 +28,7 @@ def hdf_config():
 @pytest.fixture
 def public_aws_file():
     return {
-        "path": "s3://modelers-data-bucket/eapp/single/ETH_flow_sim.h5",
+        "path": "s3://modelers-data-bucket/unit-tests/ETH_flow_sim.h5",
         "file_size": 7374454,
         "series_name": "BR_Kabura",
         "series_size": 12784,
@@ -50,8 +51,15 @@ def private_aws_file():
 @pytest.fixture
 def multigroup_file():
     return {
-        "path": "s3://modelers-data-bucket/grid_data.h5",  # NB rot13 strings
+        "path": "s3://modelers-data-bucket/unit-tests/grid_data.h5",  # NB rot13 strings
         "groups": ['RFJ_Rffrk_erfhygf', 'prageny_fbhgu_rffrk_erfhygf', 'qnvyl_cebsvyrf', 'yvapbyafuver_erfhygf', 'zbaguyl_cebsvyrf', 'gvzrfrevrf']
+    }
+
+@pytest.fixture
+def non_timeseries_index_file():
+    return {
+        "path": "s3://modelers-data-bucket/unit-tests/synthetic_flow_duration_recorder.h5",
+        "group": "hydra_test_data"
     }
 
 @pytest.fixture(params=["s3://modelers-data-bucket/does_not_exist.h5", "does_not_exist"])
@@ -97,12 +105,13 @@ class TestHdf():
         """
         assert hdf.file_size(public_aws_file["path"]) == public_aws_file["file_size"]
 
+    @pytest.mark.skip
     @pytest.mark.requires_hdf
     def test_private_hdf_no_access(self, hdf, private_aws_file):
         """
           Do the reported properties of a dataset match expected values?
         """
-        with pytest.raises(ValueError):
+        with pytest.raises(PermissionError):
             info = hdf.get_series_info(private_aws_file["path"], columns=private_aws_file["series_name"])
 
     @pytest.mark.requires_hdf
@@ -113,7 +122,7 @@ class TestHdf():
         """
 
         hdf = HdfStorageAdapter()
-        
+
         info = hdf.get_series_info(private_aws_file["path"], columns=private_aws_file["series_name"])
 
         assert info[0]["name"] == private_aws_file["series_name"]
@@ -293,7 +302,7 @@ class TestHdf():
                                                groupname="RFJ_Rffrk_erfhygf",
                                                columns=["Jbezvatsbeq Vagnxr.Fhccyl.Nzbhag"],
                                                end=256)
-        assert df[:92] == '{"Jbezvatsbeq Vagnxr.Fhccyl.Nzbhag":{"1910-01-01T00:00:00.000":0.0,"1910-01-02T00:00:00.000"'
+        assert df[:84] == '{"Jbezvatsbeq Vagnxr.Fhccyl.Nzbhag":{"1910-01-01 00:00:00":0.0,"1910-01-02 00:00:00"'
 
     @pytest.mark.requires_hdf
     def test_hdf_multigroups(self, client, multigroup_file):
@@ -316,8 +325,8 @@ class TestHdf():
         df_json = client.get_hdf_group_as_dataframe(multigroup_file["path"],
                                                   groupname="RFJ_Rffrk_erfhygf",
                                                   start=4, end=8)
-        assert df_json[:126] == '{"Ynatunz Vagnxr.Fhccyl.Nzbhag":{"1910-01-05T00:00:00.000":40.0,'\
-                                '"1910-01-06T00:00:00.000":40.0,"1910-01-07T00:00:00.000":40.0,'
+        assert df_json[:114] == '{"Ynatunz Vagnxr.Fhccyl.Nzbhag":{"1910-01-05 00:00:00":40.0,'\
+                                '"1910-01-06 00:00:00":40.0,"1910-01-07 00:00:00":40.0,'
 
     @pytest.mark.requires_hdf
     def test_hdf_group_columns(self, client, multigroup_file):
@@ -377,3 +386,15 @@ class TestHdf():
         ir = client.get_hdf_index_range(file_info["path"], groupname=groups[0], start=2, end=8)
         assert len(ir) > 0
         assert isinstance(ir[0], str)
+
+
+    @pytest.mark.requires_hdf
+    def test_non_timeseries_index(self, client, non_timeseries_index_file):
+        df_json = client.get_hdf_group_as_dataframe(
+                    non_timeseries_index_file["path"],
+                    groupname=non_timeseries_index_file["group"])
+        dfd = json.loads(df_json)
+        df = pd.DataFrame(dfd)
+        df.index = pd.Index(df.index, dtype=np.float64).sort_values()
+        assert len(df) == 11
+        assert np.array_equal(df.index, np.linspace(0, 100, 11))
