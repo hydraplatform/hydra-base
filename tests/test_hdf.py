@@ -395,6 +395,6 @@ class TestHdf():
                     groupname=non_timeseries_index_file["group"])
         dfd = json.loads(df_json)
         df = pd.DataFrame(dfd)
-        df.index = pd.Float64Index(df.index).sort_values()
+        df.index = pd.Index(df.index, dtype=np.float64).sort_values()
         assert len(df) == 11
         assert np.array_equal(df.index, np.linspace(0, 100, 11))
