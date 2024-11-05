@@ -28,7 +28,7 @@ def hdf_config():
 @pytest.fixture
 def public_aws_file():
     return {
-        "path": "s3://modelers-data-bucket/eapp/single/ETH_flow_sim.h5",
+        "path": "s3://modelers-data-bucket/unit-tests/ETH_flow_sim.h5",
         "file_size": 7374454,
         "series_name": "BR_Kabura",
         "series_size": 12784,
@@ -51,15 +51,15 @@ def private_aws_file():
 @pytest.fixture
 def multigroup_file():
     return {
-        "path": "s3://modelers-data-bucket/grid_data.h5",  # NB rot13 strings
+        "path": "s3://modelers-data-bucket/unit-tests/grid_data.h5",  # NB rot13 strings
         "groups": ['RFJ_Rffrk_erfhygf', 'prageny_fbhgu_rffrk_erfhygf', 'qnvyl_cebsvyrf', 'yvapbyafuver_erfhygf', 'zbaguyl_cebsvyrf', 'gvzrfrevrf']
     }
 
 @pytest.fixture
 def non_timeseries_index_file():
     return {
-        "path": "s3://modelers-data-bucket/eapp/single/flow_duration_curve.h5",
-        "group": "Charvakreservoirhydropower"
+        "path": "s3://modelers-data-bucket/unit-tests/synthetic_flow_duration_recorder.h5",
+        "group": "hydra_test_data"
     }
 
 @pytest.fixture(params=["s3://modelers-data-bucket/does_not_exist.h5", "does_not_exist"])
@@ -390,8 +390,11 @@ class TestHdf():
 
     @pytest.mark.requires_hdf
     def test_non_timeseries_index(self, client, non_timeseries_index_file):
-        df = client.get_hdf_group_as_dataframe(
-                non_timeseries_index_file["path"],
-                groupname=non_timeseries_index_file["group"])
-        dd = json.loads(df)
-        assert len(dd["Chirchik Climate Change: 0"]) == 11
+        df_json = client.get_hdf_group_as_dataframe(
+                    non_timeseries_index_file["path"],
+                    groupname=non_timeseries_index_file["group"])
+        dfd = json.loads(df_json)
+        df = pd.DataFrame(dfd)
+        df.index = pd.Float64Index(df.index).sort_values()
+        assert len(df) == 11
+        assert np.array_equal(df.index, np.linspace(0, 100, 11))
