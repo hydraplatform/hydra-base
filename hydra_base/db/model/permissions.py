@@ -17,6 +17,8 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 from .base import *
+from hydra_base import db
+from .usergroups import Organisation, UserGroup
 
 #***************************************************
 #Ownership & Permissions
@@ -137,6 +139,25 @@ class User(Base, Inspect):
         for ur in self.roleusers:
             roles.append(ur.role)
         return set(roles)
+
+    @property
+    def organisations(self):
+        """
+          Return a set of all Organisations of which
+          this User is a member.
+        """
+        orgs = set()
+        organisations = db.DBSession.query(Organisation).all()
+        for org in organisations:
+            qfilter = (
+                UserGroup.name == Organisation.everyone,
+                UserGroup.organisation_id == org.id
+            )
+            everyone = db.DBSession.query(UserGroup).filter(*qfilter).one()
+            if self.id in everyone.members:
+                orgs.add(org)
+
+        return orgs
 
     def is_admin(self):
         """
