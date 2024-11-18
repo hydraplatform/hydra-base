@@ -20,10 +20,21 @@ class ConfigKey(ABC):
         config_key_type_map[configkey_type] = cls
         log.debug(f"Registered ConfigKey type '{cls.__name__}' with key '{configkey_type}'")
 
+    def __init__(self, name, desc=None):
+        if not name:
+            raise ValueError(f"ConfigKey requires a valid name, not '{name}'")
+
+        self.name = name
+        self.description = desc if desc else ""
+
+
 
 class ConfigKey_Integer(ConfigKey):
     config_key_type = "integer"
     # min, max
+    def __init__(self, name, desc=None):
+        super().__init__(name, desc)
+
 
 
 class ConfigKey_String(ConfigKey):

@@ -2,16 +2,44 @@
   Library functions for Hydra configuration
 """
 
+from hydra_base import db
+from hydra_base.exceptions import (
+    HydraError,
+    ResourceNotFoundError,
+    PermissionError
+)
+
+from hydra_base.db.model.hydraconfig import (
+    ConfigKeyRecord,
+    config_key_type_map
+)
+
+
 """ Config Keys: Key:Value pairs of config settings """
 
-def register_config_key(key):
-    pass
+def register_config_key(key_name, key_type, **kwargs):
+
+    if not (key_cls := config_key_type_map.get(key_type, None)):
+        raise HydraError(f"Invalid ConfigKey type '{key_type}'")
+
+    key = key_cls(key_name)
+    key_record = ConfigKeyRecord(name=key.name, type=key.config_key_type, description=key.description)
+    db.DBSession.add(key_record)
+    db.DBSession.flush()
+
+    return key_record
+    #return f"Register: {key} {kwargs}"
 
 def unregister_config_key(key):
     pass
 
-def list_config_keys():
-    pass
+def list_config_keys(like=None, **kwargs):
+    query = db.DBSession.query(ConfigKeyRecord)
+    if like:
+        query = query.filter(ConfigKeyRecord.name.like(f"%{like}%"))
+
+    keys = query.all()
+    return [key.name for key in keys]
 
 def set_config_value(key, value):
     pass
