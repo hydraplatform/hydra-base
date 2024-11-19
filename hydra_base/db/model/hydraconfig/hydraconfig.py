@@ -1,7 +1,16 @@
 """
   Types and definitions for Hydra config values
 """
+import base64
+import binascii
+
 from hydra_base.db.model.base import *
+from hydra_base.exceptions import HydraError
+
+from sqlalchemy.orm import (
+    Mapped,
+    mapped_column
+)
 
 
 __all__ = ["ConfigKey", "config_key_type_map"]
@@ -46,38 +55,108 @@ class ConfigKey(Base):
         self.description = desc if desc else ""
 
 
-class ConfigKey_Integer(ConfigKey):
+class HasValue:
+    _value: Mapped[str] = mapped_column(String(2000), nullable=True, use_existing_column=True)
+
+
+class ConfigKey_Integer(ConfigKey, HasValue):
     config_key_type = "integer"
 
     __mapper_args__ = {
         "polymorphic_identity": config_key_type
     }
 
-    # min, max
+
     def __init__(self, name, desc=None):
         super().__init__(name, desc)
 
+    @property
+    def value(self):
+        if self._value is None:
+            return None
+
+        return int(self._value)
+
+    @value.setter
+    def value(self, val):
+        if val is None:
+            return
+
+        try:
+            _ = int(val)
+        except (TypeError, ValueError):
+            raise HydraError(f"Config Key {self.name} requires an integer value, not {val}")
+
+        self._value = val
 
 
-class ConfigKey_String(ConfigKey):
+class ConfigKey_String(ConfigKey, HasValue):
     config_key_type = "string"
 
     __mapper_args__ = {
         "polymorphic_identity": config_key_type
     }
-    # max_len
+
+    def __init__(self, name, desc=None):
+        super().__init__(name, desc)
+
+    @property
+    def value(self):
+        return str(self._value)
+
+    @value.setter
+    def value(self, val):
+        self._value = str(val)
 
 
-class ConfigKey_Boolean(ConfigKey):
+class ConfigKey_Boolean(ConfigKey, HasValue):
     config_key_type = "boolean"
 
     __mapper_args__ = {
         "polymorphic_identity": config_key_type
     }
-    # True, False only: not 'Y' 'N' 'X' etc
+
+    def __init__(self, name, desc=None):
+        super().__init__(name, desc)
+
+    @property
+    def value(self):
+        return self._value == "True"
+
+    @value.setter
+    def value(self, val):
+        if val not in (True, False):
+            raise HydraError(f"Config Key {self.name} with Boolean type accepts only True or False value")
+
+        self._value = "True" if val else "False"
 
 
-class ConfigKey_Uri(ConfigKey):
+class ConfigKey_Base64(ConfigKey, HasValue):
+    config_key_type = "base64"
+
+    __mapper_args__ = {
+        "polymorphic_identity": config_key_type
+    }
+
+    def __init__(self, name, desc=None):
+        super().__init__(name, desc)
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, val):
+        try:
+            _ = base64.b64decode(val, validate=True)
+        except (AttributeError, TypeError, binascii.Error) as e:
+            raise HydraError(f"Config Key {self.name} with Base64 "
+                             f"type accepts only valid Base64 strings") from e
+
+        self._value = val
+
+
+class ConfigKey_Uri(ConfigKey, HasValue):
     config_key_type = "uri"
 
     __mapper_args__ = {
@@ -86,7 +165,7 @@ class ConfigKey_Uri(ConfigKey):
     # Includes paths with file:// scheme
 
 
-class ConfigKey_Json(ConfigKey):
+class ConfigKey_Json(ConfigKey, HasValue):
     config_key_type = "json"
 
     __mapper_args__ = {

@@ -38,11 +38,14 @@ def list_config_keys(like=None, **kwargs):
     keys = query.all()
     return [key.name for key in keys]
 
-def set_config_value(key, value):
-    pass
+def set_config_key_value(key_name, value, **kwargs):
+    key = db.DBSession.query(ConfigKey).filter(ConfigKey.name == key_name).one()
+    key.value = value
+    db.DBSession.flush()
 
-def get_config_value(key):
-    pass
+def get_config_key_value(key_name, **kwargs):
+    key = db.DBSession.query(ConfigKey).filter(ConfigKey.name == key_name).one()
+    return key.value
 
 
 """ Config Sets: Archived versions of complete configurations """
