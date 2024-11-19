@@ -10,7 +10,7 @@ from hydra_base.exceptions import (
 )
 
 from hydra_base.db.model.hydraconfig import (
-    ConfigKeyRecord,
+    ConfigKey,
     config_key_type_map
 )
 
@@ -18,25 +18,22 @@ from hydra_base.db.model.hydraconfig import (
 """ Config Keys: Key:Value pairs of config settings """
 
 def register_config_key(key_name, key_type, **kwargs):
-
     if not (key_cls := config_key_type_map.get(key_type, None)):
         raise HydraError(f"Invalid ConfigKey type '{key_type}'")
 
-    key = key_cls(key_name)
-    key_record = ConfigKeyRecord(name=key.name, type=key.config_key_type, description=key.description)
-    db.DBSession.add(key_record)
+    key = key_cls(name=key_name)
+    db.DBSession.add(key)
     db.DBSession.flush()
 
-    return key_record
-    #return f"Register: {key} {kwargs}"
+    return key
 
 def unregister_config_key(key):
     pass
 
 def list_config_keys(like=None, **kwargs):
-    query = db.DBSession.query(ConfigKeyRecord)
+    query = db.DBSession.query(ConfigKey)
     if like:
-        query = query.filter(ConfigKeyRecord.name.like(f"%{like}%"))
+        query = query.filter(ConfigKey.name.like(f"%{like}%"))
 
     keys = query.all()
     return [key.name for key in keys]
