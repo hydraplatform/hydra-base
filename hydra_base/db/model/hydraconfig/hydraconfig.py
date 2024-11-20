@@ -7,6 +7,11 @@ import binascii
 from hydra_base.db.model.base import *
 from hydra_base.exceptions import HydraError
 
+from hydra_base.db.model.hydraconfig.validators import (
+    ConfigKeyIntegerValidator,
+    ConfigKeyStringValidator
+)
+
 from sqlalchemy.orm import (
     Mapped,
     mapped_column
@@ -22,12 +27,13 @@ class ConfigKey(Base):
     __tablename__ = "tConfigKey"
 
     key_name_max_length = 200
+    key_type_tag_max_length = 40
     key_desc_max_length = 1000
 
     id = Column(Integer(), primary_key=True, nullable=False)
     name = Column(String(key_name_max_length), nullable=False, unique=True)
     description = Column(String(key_desc_max_length))
-    type = Column(String(40))
+    type = Column(String(key_type_tag_max_length))
 
 
     __mapper_args__ = {
@@ -54,13 +60,19 @@ class ConfigKey(Base):
         self.name = name
         self.description = desc if desc else ""
 
+        if vcls := getattr(self.__class__, "validator_type", None):
+            self.validator = vcls()
+
 
 class HasValue:
-    _value: Mapped[str] = mapped_column(String(2000), nullable=True, use_existing_column=True)
+    value_max_length = 2000
+    _value: Mapped[str] = mapped_column(String(value_max_length), nullable=True, use_existing_column=True)
+
 
 
 class ConfigKey_Integer(ConfigKey, HasValue):
     config_key_type = "integer"
+    validator_type = ConfigKeyIntegerValidator
 
     __mapper_args__ = {
         "polymorphic_identity": config_key_type
@@ -70,7 +82,7 @@ class ConfigKey_Integer(ConfigKey, HasValue):
     def __init__(self, name, desc=None):
         super().__init__(name, desc)
 
-    @property
+    @hybrid_property
     def value(self):
         if self._value is None:
             return None
@@ -92,6 +104,7 @@ class ConfigKey_Integer(ConfigKey, HasValue):
 
 class ConfigKey_String(ConfigKey, HasValue):
     config_key_type = "string"
+    validator_type = ConfigKeyStringValidator
 
     __mapper_args__ = {
         "polymorphic_identity": config_key_type
@@ -100,7 +113,7 @@ class ConfigKey_String(ConfigKey, HasValue):
     def __init__(self, name, desc=None):
         super().__init__(name, desc)
 
-    @property
+    @hybrid_property
     def value(self):
         return str(self._value)
 
@@ -119,7 +132,7 @@ class ConfigKey_Boolean(ConfigKey, HasValue):
     def __init__(self, name, desc=None):
         super().__init__(name, desc)
 
-    @property
+    @hybrid_property
     def value(self):
         return self._value == "True"
 
@@ -141,7 +154,7 @@ class ConfigKey_Base64(ConfigKey, HasValue):
     def __init__(self, name, desc=None):
         super().__init__(name, desc)
 
-    @property
+    @hybrid_property
     def value(self):
         return self._value
 

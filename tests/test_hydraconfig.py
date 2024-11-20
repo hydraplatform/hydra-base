@@ -7,6 +7,74 @@ from hydra_base.lib.hydraconfig import (
     config_key_type_map,
     ConfigKey
 )
+from hydra_base.db.model.hydraconfig.validators import (
+    ConfigKeyIntegerValidator,
+    ConfigKeyStringValidator
+)
+
+class TestConfigKeyValidators():
+    """ Standalone tests of Config Key validator classes """
+    def test_create_validator(self):
+        """
+          Do Validators register their subclass-specific rules?
+        """
+        iv = ConfigKeyIntegerValidator()
+        assert len(iv.rules) == 2
+        assert len(iv.active_rules) == 0
+
+        sv = ConfigKeyStringValidator()
+        assert len(sv.rules) == 2
+        assert len(sv.active_rules) == 0
+
+    def test_validator_with_rules_spec(self):
+        # Integer Validator
+        too_low = 1
+        too_high = 12
+        valid_value = 7
+        rules_spec = '{"min_value": 2, "max_value": 9}'
+        iv = ConfigKeyIntegerValidator(rules_spec)
+        assert len(iv.active_rules) == 2
+        assert iv.validate(valid_value) is None
+        with pytest.raises(ValueError):
+            iv.validate(too_low)
+        with pytest.raises(ValueError):
+            iv.validate(too_high)
+
+        # String Validator
+        too_short = "one"
+        too_long = "eleven"
+        valid_value = "five"
+        rules_spec = '{"min_length": 4, "max_length": 5}'
+        sv = ConfigKeyStringValidator(rules_spec)
+        assert len(sv.active_rules) == 2
+        assert sv.validate(valid_value) is None
+        with pytest.raises(ValueError):
+            sv.validate(too_short)
+        with pytest.raises(ValueError):
+            sv.validate(too_long)
+
+    def test_validate_integer_key(self):
+        key_value = 12
+        max_value = 7
+        iv = ConfigKeyIntegerValidator()
+        # Validation succeeds as no rules are active
+        assert iv.validate(key_value) is None
+        iv.set_rule("max_value", max_value)
+        # Validation of the same value now fails due to active rule
+        with pytest.raises(ValueError):
+            iv.validate(key_value)
+
+    def test_validate_string_key(self):
+        key_value = "A string value"  # len 14
+        max_length = 7
+        sv = ConfigKeyStringValidator()
+        # Validation succeeds as no rules are active
+        assert sv.validate(key_value) is None
+        sv.set_rule("max_length", max_length)
+        # Validation of the same value now fails due to active rule
+        with pytest.raises(ValueError):
+            sv.validate(key_value)
+
 
 class TestHydraConfig():
     def test_valid_config_key_type_map(self):
@@ -52,6 +120,12 @@ class TestHydraConfig():
         ret_value = client.get_config_key_value(key_name)
         assert isinstance(ret_value, int)
         assert ret_value == key_value
+        # Can existing key value be changed?
+        new_value = 77
+        client.set_config_key_value(key_name, new_value)
+        new_ret_value = client.get_config_key_value(key_name)
+        assert isinstance(new_ret_value, int)
+        assert new_ret_value == new_value
 
         # Invalid int values should be rejected
         with pytest.raises(HydraError):
