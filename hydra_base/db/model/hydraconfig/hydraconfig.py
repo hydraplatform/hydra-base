@@ -108,6 +108,9 @@ class ConfigKey_Integer(ConfigKey, HasValue):
         except (TypeError, ValueError):
             raise HydraError(f"Config Key {self.name} requires an integer value, not {val}")
 
+        if validator := getattr(self, "validator", None):
+            validator.validate(val)
+
         self._value = val
 
 
@@ -128,6 +131,9 @@ class ConfigKey_String(ConfigKey, HasValue):
 
     @value.setter
     def value(self, val):
+        if validator := getattr(self, "validator", None):
+            validator.validate(str(val))
+
         self._value = str(val)
 
 

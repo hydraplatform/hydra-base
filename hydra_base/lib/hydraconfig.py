@@ -38,14 +38,52 @@ def list_config_keys(like=None, **kwargs):
     keys = query.all()
     return [key.name for key in keys]
 
-def set_config_key_value(key_name, value, **kwargs):
+def config_key_set_value(key_name, value, **kwargs):
     key = db.DBSession.query(ConfigKey).filter(ConfigKey.name == key_name).one()
     key.value = value
     db.DBSession.flush()
 
-def get_config_key_value(key_name, **kwargs):
+def config_key_get_value(key_name, **kwargs):
     key = db.DBSession.query(ConfigKey).filter(ConfigKey.name == key_name).one()
     return key.value
+
+""" Validation related functions """
+
+def config_key_get_rule_types(key_name, **kwargs):
+    key = db.DBSession.query(ConfigKey).filter(ConfigKey.name == key_name).one()
+    if validator := getattr(key, "validator", None):
+        return [*validator.rules]
+
+def config_key_get_rule_description(key_name, rule_name, **kwargs):
+    pass
+
+def config_key_get_active_rules(key_name, **kwargs):
+    key = db.DBSession.query(ConfigKey).filter(ConfigKey.name == key_name).one()
+    if validator := getattr(key, "validator", None):
+        return {rule.name: rule.value for rule in validator.active_rules.values()}
+    else:
+        return {}
+
+def config_key_set_rule(key_name, rule_name, value, **kwargs):
+    key = db.DBSession.query(ConfigKey).filter(ConfigKey.name == key_name).one()
+    if validator := getattr(key, "validator", None):
+        validator.set_rule(rule_name, value)
+
+def config_key_clear_rule(key_name, rule_name, **kwargs):
+    key = db.DBSession.query(ConfigKey).filter(ConfigKey.name == key_name).one()
+    if validator := getattr(key, "validator", None):
+        validator.clear_rule(rule_name)
+
+def config_key_clear_all_rules(key_name, **kwargs):
+    rules = config_key_get_active_rules(key_name, **kwargs)
+    if rules is None or len(rules) == 0:
+        return 0
+
+    for rule_name in rules:
+        config_key_clear_rule(key_name, rule_name)
+
+    return len(rules)
+
 
 
 """ Config Sets: Archived versions of complete configurations """

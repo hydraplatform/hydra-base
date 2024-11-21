@@ -47,6 +47,8 @@ class KeyValidator(ABC):
     def clear_rule(self, name):
         rule = self._get_rule(name)
         rule.value = None
+        if parent := getattr(self, "key", None):
+            parent.rules = self.as_json
 
     def _get_rule(self, name):
         if not (rule := self._rules.get(name)):
@@ -96,12 +98,17 @@ class ConfigKeyIntegerValidator(KeyValidator):
 
 
     def validate(self, value):
+        if parent := getattr(self, "key", None):
+            err_prefix = f"ConfigKey {parent.name}: "
+        else:
+            err_prefix = ""
+
         if max_value := self.active_rules.get("max_value"):
             if value > max_value.value:
-                raise ValueError("over max")
+                raise ValueError(f"{err_prefix}value of {value} exceeds maximum of {max_value.value}")
         if min_value := self.active_rules.get("min_value"):
             if value < min_value.value:
-                raise ValueError("under min")
+                raise ValueError(f"{err_prefix}value of {value} beneath minimum of {min_value.value}")
 
 
 class ConfigKeyStringValidator(KeyValidator):
