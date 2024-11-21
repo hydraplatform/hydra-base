@@ -75,6 +75,17 @@ class TestConfigKeyValidators():
         with pytest.raises(ValueError):
             sv.validate(key_value)
 
+    def test_serialise_validator(self):
+        min_value = 5
+        max_value = 12
+        initial_state = '{"max_value": null, "min_value": null}'
+        updated_rules = f'{{"max_value": {max_value}, "min_value": {min_value}}}'
+        iv = ConfigKeyIntegerValidator()
+        assert iv.as_json == initial_state
+        iv.set_rule("max_value", max_value)
+        iv.set_rule("min_value", min_value)
+        assert iv.as_json == updated_rules
+
 
 class TestHydraConfig():
     def test_valid_config_key_type_map(self):

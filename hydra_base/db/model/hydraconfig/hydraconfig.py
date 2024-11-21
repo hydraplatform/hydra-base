@@ -14,7 +14,8 @@ from hydra_base.db.model.hydraconfig.validators import (
 
 from sqlalchemy.orm import (
     Mapped,
-    mapped_column
+    mapped_column,
+    reconstructor
 )
 
 
@@ -34,6 +35,7 @@ class ConfigKey(Base):
     name = Column(String(key_name_max_length), nullable=False, unique=True)
     description = Column(String(key_desc_max_length))
     type = Column(String(key_type_tag_max_length))
+    rules = Column(String(200))
 
 
     __mapper_args__ = {
@@ -62,6 +64,13 @@ class ConfigKey(Base):
 
         if vcls := getattr(self.__class__, "validator_type", None):
             self.validator = vcls()
+            self.validator.key = self
+
+    @reconstructor
+    def load_state(self):
+        if vcls := getattr(self.__class__, "validator_type", None):
+            self.validator = vcls(self.rules)
+            self.validator.key = self
 
 
 class HasValue:

@@ -2,6 +2,7 @@ import json
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from json import JSONDecodeError
 
 from hydra_base.exceptions import HydraError
 
@@ -12,6 +13,10 @@ class KeyValidator(ABC):
         name: str
         description: str
         value: type
+
+    class ValidatorEncoder(json.JSONEncoder):
+        def default(self, inst):
+            return {r.name: r.value for r in inst.rules}
 
     def __init__(self, rules, rules_spec):
         self._rules = {}
@@ -24,7 +29,10 @@ class KeyValidator(ABC):
 
         if rules_spec is not None:
             if isinstance(rules_spec, str):
-                rvi = json.loads(rules_spec)
+                try:
+                    rvi = json.loads(rules_spec)
+                except JSONDecodeError as e:
+                    raise HydraError(f"Invalid rules_spec: {rules_spec}") from e
                 for rule_name, rule_value in rvi.items():
                    self.set_rule(rule_name, rule_value)
             else:
@@ -33,6 +41,8 @@ class KeyValidator(ABC):
     def set_rule(self, name, value):
         rule = self._get_rule(name)
         rule.value = value
+        if parent := getattr(self, "key", None):
+            parent.rules = self.as_json
 
     def clear_rule(self, name):
         rule = self._get_rule(name)
@@ -50,7 +60,21 @@ class KeyValidator(ABC):
 
     @property
     def rules(self):
-        return self._rules
+        return self._rules.values()
+
+    @property
+    def as_json(self):
+        return json.dumps(self, cls=self.ValidatorEncoder)
+
+    @property
+    def key(self):
+        if hasattr(self, "_key"):
+            return self._key
+
+    @key.setter
+    def key(self, key):
+        self._key = key
+        self._key.rules = self.as_json
 
     @abstractmethod
     def validate(self):
@@ -58,7 +82,7 @@ class KeyValidator(ABC):
 
 
 class ConfigKeyIntegerValidator(KeyValidator):
-    rules = [
+    rule_types = [
         {"name": "max_value",
          "description": "The maximum integer value of this key",
          "value": None},
@@ -68,7 +92,7 @@ class ConfigKeyIntegerValidator(KeyValidator):
     ]
 
     def __init__(self, rules_spec=None):
-        super().__init__(self.__class__.rules, rules_spec)
+        super().__init__(self.__class__.rule_types, rules_spec)
 
 
     def validate(self, value):
@@ -81,7 +105,7 @@ class ConfigKeyIntegerValidator(KeyValidator):
 
 
 class ConfigKeyStringValidator(KeyValidator):
-    rules = [
+    rule_types = [
         {"name": "max_length",
          "description": "The maximum length of this key's string value",
          "value": None},
@@ -91,7 +115,7 @@ class ConfigKeyStringValidator(KeyValidator):
     ]
 
     def __init__(self, rules_spec=None):
-        super().__init__(self.__class__.rules, rules_spec)
+        super().__init__(self.__class__.rule_types, rules_spec)
 
     def validate(self, value):
         if max_length := self.active_rules.get("max_length"):
