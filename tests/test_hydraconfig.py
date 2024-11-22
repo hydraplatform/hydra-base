@@ -11,6 +11,7 @@ from hydra_base.db.model.hydraconfig.validators import (
     ConfigKeyIntegerValidator,
     ConfigKeyStringValidator
 )
+from hydra_base.util.configset import ConfigSet
 
 
 @pytest.fixture
@@ -310,3 +311,13 @@ class TestConfigKeyGroups():
         # The member key and its value are unaffected by group deletion
         assert key_name in client.list_config_keys()
         assert key_value == client.config_key_get_value(key_name)
+
+
+class TestConfigSets:
+    def test_create_config_set(self, client):
+        key_name = "configset_test_key"
+        key_value = 46
+        _ = client.register_config_key(key_name, "integer")
+        client.config_key_set_value(key_name, key_value)
+        cs = ConfigSet()
+        css = cs.serialise_all_keys()
