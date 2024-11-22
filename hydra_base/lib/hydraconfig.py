@@ -11,8 +11,12 @@ from hydra_base.exceptions import (
 
 from hydra_base.db.model.hydraconfig import (
     ConfigKey,
-    config_key_type_map
+    config_key_type_map,
+    ConfigGroup,
+    ConfigGroupKeys
 )
+
+from sqlalchemy.exc import IntegrityError
 
 
 """ Config Keys: Key:Value pairs of config settings """
@@ -22,8 +26,11 @@ def register_config_key(key_name, key_type, **kwargs):
         raise HydraError(f"Invalid ConfigKey type '{key_type}'")
 
     key = key_cls(name=key_name)
-    db.DBSession.add(key)
-    db.DBSession.flush()
+    try:
+        db.DBSession.add(key)
+        db.DBSession.flush()
+    except IntegrityError:
+        raise HydraError(f"ConfigKey with name '{key_name}' exists")
 
     return key
 
@@ -106,17 +113,41 @@ def list_configset_versions(set_name):
 
 """ Config Groups: A named collection of Config Keys """
 
-def create_config_group(group_name):
-    pass
+def create_config_group(group_name, group_desc=None, **kwargs):
+    group = ConfigGroup(name=group_name, description=group_desc)
+    try:
+        db.DBSession.add(group)
+        db.DBSession.flush()
+    except IntegrityError:
+        raise HydraError(f"ConfigGroup with name '{group_name}' exists")
 
-def delete_config_group(group_name):
-    pass
+def delete_config_group(group_name, **kwargs):
+    group = db.DBSession.query(ConfigGroup).filter(ConfigGroup.name == group_name).one()
+    db.DBSession.delete(group)
+    db.DBSession.flush()
 
-def list_config_groups():
-    pass
+def list_config_groups(**kwargs):
+    groups = db.DBSession.query(ConfigGroup).all()
+    return groups
 
-def add_config_key_to_group(key_name, group_name):
-    pass
+def add_config_key_to_group(key_name, group_name, **kwargs):
+    key = db.DBSession.query(ConfigKey).filter(ConfigKey.name == key_name).one()
+    group = db.DBSession.query(ConfigGroup).filter(ConfigGroup.name == group_name).one()
+    gk = ConfigGroupKeys(group_id=group.id, key_id=key.id)
+    db.DBSession.add(gk)
+    db.DBSession.flush()
 
-def remove_config_key_from_group(key_name, group_name):
-    pass
+def config_group_list_keys(group_name, **kwargs):
+    group = db.DBSession.query(ConfigGroup).filter(ConfigGroup.name == group_name).one()
+    return group.keys
+
+def remove_config_key_from_group(key_name, group_name, **kwargs):
+    group = db.DBSession.query(ConfigGroup).filter(ConfigGroup.name == group_name).one()
+    key = db.DBSession.query(ConfigKey).filter(ConfigKey.name == key_name).one()
+    qfilter = {
+        ConfigGroupKeys.group_id == group.id,
+        ConfigGroupKeys.key_id == key.id
+    }
+    gk = db.DBSession.query(ConfigGroupKeys).filter(*qfilter).one()
+    db.DBSession.delete(gk)
+    db.DBSession.flush()

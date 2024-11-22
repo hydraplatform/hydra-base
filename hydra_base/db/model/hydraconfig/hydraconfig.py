@@ -4,6 +4,7 @@
 import base64
 import binascii
 
+from hydra_base import db
 from hydra_base.db.model.base import *
 from hydra_base.exceptions import HydraError
 
@@ -19,7 +20,7 @@ from sqlalchemy.orm import (
 )
 
 
-__all__ = ["ConfigKey", "config_key_type_map"]
+__all__ = ["ConfigKey", "config_key_type_map", "ConfigGroup", "ConfigGroupKeys"]
 
 config_key_type_map = {}
 
@@ -33,7 +34,7 @@ class ConfigKey(Base):
 
     id = Column(Integer(), primary_key=True, nullable=False)
     name = Column(String(key_name_max_length), nullable=False, unique=True)
-    description = Column(String(key_desc_max_length))
+    description = Column(String(key_desc_max_length), nullable=True, unique=False)
     type = Column(String(key_type_tag_max_length))
     rules = Column(String(200))
 
@@ -71,6 +72,11 @@ class ConfigKey(Base):
         if vcls := getattr(self.__class__, "validator_type", None):
             self.validator = vcls(self.rules)
             self.validator.key = self
+
+    @hybrid_property
+    def group(self):
+        group = db.DBSession.query(ConfigGroup).filter(ConfigGroup.id == self._group.group_id).one()
+        return group.name
 
 
 class HasValue:
@@ -200,3 +206,30 @@ class ConfigKey_Json(ConfigKey, HasValue):
         "polymorphic_identity": config_key_type
     }
     # Unvalidated json object
+
+
+class ConfigGroup(Base):
+    __tablename__ = "tConfigGroup"
+
+    group_name_max_length = 200
+    group_desc_max_length = 2000
+
+    id = Column(Integer(), primary_key=True, nullable=False)
+    name = Column(String(group_name_max_length), nullable=False, unique=True)
+    description = Column(String(group_desc_max_length), nullable=True, unique=False)
+
+    @hybrid_property
+    def keys(self):
+        member_key_ids = {k.key_id for k in self._keys}
+        member_keys = db.DBSession.query(ConfigKey).filter(ConfigKey.id.in_(member_key_ids)).all()
+        return [key.name for key in member_keys]
+
+
+class ConfigGroupKeys(Base):
+    __tablename__ = "tConfigGroupKeys"
+
+    group_id = Column(Integer(), ForeignKey("tConfigGroup.id"), primary_key=True, nullable=False)
+    key_id = Column(Integer(), ForeignKey("tConfigKey.id"), primary_key=True, nullable=False)
+
+    keys = relationship("ConfigGroup", backref=backref("_keys", uselist=True, cascade="all, delete-orphan"))
+    group = relationship("ConfigKey", backref=backref("_group", uselist=False, cascade="all, delete-orphan"))
