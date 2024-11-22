@@ -21,3 +21,5 @@ fsspec
 h5py
 s3fs
 tables
+cryptography
+qrcode
