@@ -1,6 +1,9 @@
 import base64
+import copy
 import math
 import pytest
+import random
+import string
 
 from hydra_base.exceptions import HydraError
 from hydra_base.lib.hydraconfig import (
@@ -13,6 +16,30 @@ from hydra_base.db.model.hydraconfig.validators import (
 )
 from hydra_base.util.configset import ConfigSet
 
+# Util funcs
+
+def make_integer_key_with_value(client, key_name):
+    key_value = random.randint(2**7, 2**9)
+    key = client.register_config_key(key_name, "integer")
+    val_diff = random.randint(1, key_value//2)
+    min_value, max_value = key_value-val_diff, key_value+val_diff
+    client.config_key_set_rule(key_name, "min_value", min_value)
+    client.config_key_set_rule(key_name, "max_value", max_value)
+    client.config_key_set_value(key_name, key_value)
+    return key.name
+
+
+def make_string_key_with_value(client, key_name):
+    key_len = random.randint(2**4, 2**6)
+    key_value = "".join(random.choices(string.ascii_lowercase, k=key_len))
+    key = client.register_config_key(key_name, "string")
+    len_diff = random.randint(1, key_len//2)
+    min_length, max_length = key_len-len_diff, key_len+len_diff
+    client.config_key_set_rule(key_name, "min_length", min_length)
+    client.config_key_set_rule(key_name, "max_length", max_length)
+    client.config_key_set_value(key_name, key_value)
+    return key.name
+
 
 @pytest.fixture
 def config_group():
@@ -21,6 +48,29 @@ def config_group():
     group = client.create_config_group(group_name, group_desc)
     yield group
     client.delete_config_group()
+
+@pytest.fixture
+def random_keys(client):
+    key_gen_funcs = {
+      "integer": make_integer_key_with_value,
+      "string": make_string_key_with_value
+    }
+    n_keys = 16
+    key_prefixes = set()
+    key_names = []
+    for idx in range(n_keys):
+        while True:
+            key_prefix = "".join(random.choices(string.ascii_lowercase, k=3))
+            if key_prefix not in key_prefixes:
+                break
+        key_name = f"{key_prefix} test key"
+        key_func = key_gen_funcs[random.choice([*key_gen_funcs])]
+        key_names.append(key_func(client, key_name))
+
+    yield key_names
+    for key_name in key_names:
+        client.unregister_config_key(key_name)
+
 
 
 class TestConfigKeyValidators():
@@ -290,6 +340,10 @@ class TestConfigKeyGroups():
         # Newly created group must be empty
         new_group_keys = client.config_group_list_keys(group_name)
         assert len(new_group_keys) == 0
+        # Verify that groupless key reports no group
+        no_group_name = client.config_key_get_group_name(key_name)
+        assert no_group_name is None
+        # Add key to group and confirm membership
         client.add_config_key_to_group(key_name, group_name)
         group_keys = client.config_group_list_keys(group_name)
         assert key_name in group_keys
@@ -314,10 +368,16 @@ class TestConfigKeyGroups():
 
 
 class TestConfigSets:
-    def test_create_config_set(self, client):
-        key_name = "configset_test_key"
-        key_value = 46
-        _ = client.register_config_key(key_name, "integer")
-        client.config_key_set_value(key_name, key_value)
-        cs = ConfigSet()
-        css = cs.serialise_all_keys()
+    def test_create_config_set(self, client, random_keys):
+        cs = ConfigSet("Test Configset")
+        state = cs.save_keys_to_configset()
+        # Tamper with serialised set
+        modified = copy.deepcopy(state)
+        first_key = next(iter(modified["keys"]))
+        key_val = modified["keys"].pop(first_key)
+        modified["keys"]["modifed_name"] = key_val
+        # Naughtiness is detected...
+        with pytest.raises(ValueError):
+            cs.load_configset(modified)
+        # ...but original state can be loaded
+        loaded = cs.load_configset(state)

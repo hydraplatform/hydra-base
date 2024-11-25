@@ -16,7 +16,10 @@ from hydra_base.db.model.hydraconfig import (
     ConfigGroupKeys
 )
 
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import (
+    IntegrityError,
+    NoResultFound
+)
 
 
 """ Config Keys: Key:Value pairs of config settings """
@@ -34,8 +37,10 @@ def register_config_key(key_name, key_type, **kwargs):
 
     return key
 
-def unregister_config_key(key):
-    pass
+def unregister_config_key(key_name, **kwargs):
+    key = _get_config_key_by_name(key_name)
+    db.DBSession.delete(key)
+    db.DBSession.flush()
 
 def list_config_keys(like=None, **kwargs):
     query = db.DBSession.query(ConfigKey)
@@ -46,18 +51,26 @@ def list_config_keys(like=None, **kwargs):
     return [key.name for key in keys]
 
 def config_key_set_value(key_name, value, **kwargs):
-    key = db.DBSession.query(ConfigKey).filter(ConfigKey.name == key_name).one()
+    key = _get_config_key_by_name(key_name)
     key.value = value
     db.DBSession.flush()
 
 def config_key_get_value(key_name, **kwargs):
-    key = db.DBSession.query(ConfigKey).filter(ConfigKey.name == key_name).one()
+    key = _get_config_key_by_name(key_name)
     return key.value
+
+def _get_config_key_by_name(key_name):
+    try:
+        key = db.DBSession.query(ConfigKey).filter(ConfigKey.name == key_name).one()
+    except NoResultFound:
+        raise HydraError(f"No ConfigKey found with name: {key_name}")
+
+    return key
 
 """ Validation related functions """
 
 def config_key_get_rule_types(key_name, **kwargs):
-    key = db.DBSession.query(ConfigKey).filter(ConfigKey.name == key_name).one()
+    key = _get_config_key_by_name(key_name)
     if validator := getattr(key, "validator", None):
         return [*validator.rules]
 
@@ -65,19 +78,19 @@ def config_key_get_rule_description(key_name, rule_name, **kwargs):
     pass
 
 def config_key_get_active_rules(key_name, **kwargs):
-    key = db.DBSession.query(ConfigKey).filter(ConfigKey.name == key_name).one()
+    key = _get_config_key_by_name(key_name)
     if validator := getattr(key, "validator", None):
         return {rule.name: rule.value for rule in validator.active_rules.values()}
     else:
         return {}
 
 def config_key_set_rule(key_name, rule_name, value, **kwargs):
-    key = db.DBSession.query(ConfigKey).filter(ConfigKey.name == key_name).one()
+    key = _get_config_key_by_name(key_name)
     if validator := getattr(key, "validator", None):
         validator.set_rule(rule_name, value)
 
 def config_key_clear_rule(key_name, rule_name, **kwargs):
-    key = db.DBSession.query(ConfigKey).filter(ConfigKey.name == key_name).one()
+    key = _get_config_key_by_name(key_name)
     if validator := getattr(key, "validator", None):
         validator.clear_rule(rule_name)
 
@@ -122,7 +135,7 @@ def create_config_group(group_name, group_desc=None, **kwargs):
         raise HydraError(f"ConfigGroup with name '{group_name}' exists")
 
 def delete_config_group(group_name, **kwargs):
-    group = db.DBSession.query(ConfigGroup).filter(ConfigGroup.name == group_name).one()
+    group = _get_config_group_by_name(group_name)
     db.DBSession.delete(group)
     db.DBSession.flush()
 
@@ -130,20 +143,32 @@ def list_config_groups(**kwargs):
     groups = db.DBSession.query(ConfigGroup).all()
     return groups
 
+def _get_config_group_by_name(group_name):
+    try:
+        group = db.DBSession.query(ConfigGroup).filter(ConfigGroup.name == group_name).one()
+    except NoResultFound:
+        raise HydraError(f"No ConfigGroup with name: {group_name}")
+
+    return group
+
 def add_config_key_to_group(key_name, group_name, **kwargs):
-    key = db.DBSession.query(ConfigKey).filter(ConfigKey.name == key_name).one()
-    group = db.DBSession.query(ConfigGroup).filter(ConfigGroup.name == group_name).one()
+    key = _get_config_key_by_name(key_name)
+    group = _get_config_group_by_name(group_name)
     gk = ConfigGroupKeys(group_id=group.id, key_id=key.id)
     db.DBSession.add(gk)
     db.DBSession.flush()
 
 def config_group_list_keys(group_name, **kwargs):
-    group = db.DBSession.query(ConfigGroup).filter(ConfigGroup.name == group_name).one()
+    group = _get_config_group_by_name(group_name)
     return group.keys
 
+def config_key_get_group_name(key_name, **kwargs):
+    key = _get_config_key_by_name(key_name)
+    return key.group
+
 def remove_config_key_from_group(key_name, group_name, **kwargs):
-    group = db.DBSession.query(ConfigGroup).filter(ConfigGroup.name == group_name).one()
-    key = db.DBSession.query(ConfigKey).filter(ConfigKey.name == key_name).one()
+    group = _get_config_group_by_name(group_name)
+    key = _get_config_key_by_name(key_name)
     qfilter = {
         ConfigGroupKeys.group_id == group.id,
         ConfigGroupKeys.key_id == key.id

@@ -75,8 +75,9 @@ class ConfigKey(Base):
 
     @hybrid_property
     def group(self):
-        group = db.DBSession.query(ConfigGroup).filter(ConfigGroup.id == self._group.group_id).one()
-        return group.name
+        if self._group:
+            group = db.DBSession.query(ConfigGroup).filter(ConfigGroup.id == self._group.group_id).one()
+            return group.name
 
 
 class HasValue:
