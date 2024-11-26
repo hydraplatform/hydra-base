@@ -49,28 +49,43 @@ def config_group():
     yield group
     client.delete_config_group()
 
+
 @pytest.fixture
 def random_keys(client):
-    key_gen_funcs = {
-      "integer": make_integer_key_with_value,
-      "string": make_string_key_with_value
-    }
-    n_keys = 16
-    key_prefixes = set()
+    """
+      Returns a function which...
+        - Generates and registers n_keys ConfigKeys of random
+          types, including appropriate validator rule settings
+          and a key value which passes validation.
+        - Deletes these keys on return unless the optional
+          do_tidy argument is overwritten to be False.
+    """
     key_names = []
-    for idx in range(n_keys):
-        while True:
-            key_prefix = "".join(random.choices(string.ascii_lowercase, k=3))
-            if key_prefix not in key_prefixes:
-                break
-        key_name = f"{key_prefix} test key"
-        key_func = key_gen_funcs[random.choice([*key_gen_funcs])]
-        key_names.append(key_func(client, key_name))
+    _do_tidy = True
+    def _random_keys(n_keys, do_tidy=True):
+        key_gen_funcs = {
+          "integer": make_integer_key_with_value,
+          "string": make_string_key_with_value
+        }
+        nonlocal _do_tidy
+        _do_tidy = do_tidy
+        key_prefixes = set()
+        for idx in range(n_keys):
+            while True:
+                key_prefix = "".join(random.choices(string.ascii_lowercase, k=3))
+                if key_prefix not in key_prefixes:
+                    key_prefixes.add(key_prefix)
+                    break
+            key_name = f"{key_prefix} test key"
+            key_func = key_gen_funcs[random.choice([*key_gen_funcs])]
+            key_names.append(key_func(client, key_name))
 
-    yield key_names
-    for key_name in key_names:
-        client.unregister_config_key(key_name)
+        return key_names
 
+    yield _random_keys
+    if _do_tidy:
+        for key_name in key_names:
+            client.unregister_config_key(key_name)
 
 
 class TestConfigKeyValidators():
@@ -137,6 +152,10 @@ class TestConfigKeyValidators():
             sv.validate(key_value)
 
     def test_serialise_validator(self):
+        """
+          Does a validator have the correct initial state
+          and can it be serialised to the correct format?
+        """
         min_value = 5
         max_value = 12
         initial_state = '{"max_value": null, "min_value": null}'
@@ -178,6 +197,7 @@ class TestHydraConfig():
 
         all_keys = client.list_config_keys()
         assert itk.name in all_keys
+        client.unregister_config_key("integer_test_key")
 
     def test_set_config_key_value(self, client):
         """
@@ -202,6 +222,7 @@ class TestHydraConfig():
         # Invalid int values should be rejected
         with pytest.raises(HydraError):
             client.config_key_set_value(key_name, math.nan)
+        client.unregister_config_key(key_name)
 
         # ConfigKey_String
         key_name = "string_value_test_key"
@@ -211,6 +232,7 @@ class TestHydraConfig():
         ret_value = client.config_key_get_value(key_name)
         assert isinstance(ret_value, str)
         assert ret_value == key_value
+        client.unregister_config_key(key_name)
 
 
         # ConfigKey_Boolean
@@ -225,6 +247,7 @@ class TestHydraConfig():
         # Invalid bool values should be rejected
         with pytest.raises(HydraError):
             client.config_key_set_value(key_name, 'Y')
+        client.unregister_config_key(key_name)
 
         # ConfigKey_Base64
         key_name = "base64_value_test_key"
@@ -241,6 +264,7 @@ class TestHydraConfig():
         # Non-b64 strings should be rejected
         with pytest.raises(HydraError):
             client.config_key_set_value(key_name, "Not Base64")
+        client.unregister_config_key(key_name)
 
     def test_integer_key_validation(self, client):
         key_name = "integer_validation_test_key"
@@ -274,6 +298,7 @@ class TestHydraConfig():
         # ...and previously rejected values now accepted
         client.config_key_set_value(key_name, max_value+1)
         client.config_key_set_value(key_name, min_value-1)
+        client.unregister_config_key(key_name)
 
     def test_string_key_validation(self, client):
         key_name = "string_validation_test_key"
@@ -309,6 +334,7 @@ class TestHydraConfig():
         # Previously rejected values may now be set
         client.config_key_set_value(key_name, key_value+"extra text")
         client.config_key_set_value(key_name, key_value[:8])
+        client.unregister_config_key(key_name)
 
 
 class TestConfigKeyGroups():
@@ -351,6 +377,7 @@ class TestConfigKeyGroups():
         client.remove_config_key_from_group(key_name, group_name)
         group_keys = client.config_group_list_keys(group_name)
         assert key_name not in group_keys
+        client.unregister_config_key(key_name)
 
     def test_delete_populated_group(self, client):
         group_name = "Populated ConfigKey Group"
@@ -365,10 +392,16 @@ class TestConfigKeyGroups():
         # The member key and its value are unaffected by group deletion
         assert key_name in client.list_config_keys()
         assert key_value == client.config_key_get_value(key_name)
+        client.unregister_config_key(key_name)
 
 
 class TestConfigSets:
-    def test_create_config_set(self, client, random_keys):
+    def test_config_set_save_and_verify(self, random_keys):
+        """
+          Can a ConfigSet be created, serialised and then
+          detect any modifications to the serialised version?
+        """
+        _ = random_keys(16)
         cs = ConfigSet("Test Configset")
         state = cs.save_keys_to_configset()
         # Tamper with serialised set
@@ -378,6 +411,34 @@ class TestConfigSets:
         modified["keys"]["modifed_name"] = key_val
         # Naughtiness is detected...
         with pytest.raises(ValueError):
-            cs.load_configset(modified)
-        # ...but original state can be loaded
-        loaded = cs.load_configset(state)
+            cs.verify_configset(modified)
+        # ...but original unmodified state can be loaded
+        loaded = cs.verify_configset(state)
+
+    def test_apply_configset_to_db(self, client, random_keys):
+        """
+          1. Serialises initial state
+          2. Deletes this and replaces with temporary ConfigKeys
+          3. Re-loads the initial state
+          4. Confirms this returns the temporary state
+          5. Confirms the final state is equal to initial state
+        """
+        num_keys = 16
+        key_names = random_keys(num_keys, do_tidy=False)
+        cs = ConfigSet("Configset")
+        # Save initial state
+        initial_state = cs.save_keys_to_configset()
+        # Manually delete initial keys
+        for key_name in key_names:
+            client.unregister_config_key(key_name)
+        # Generate new state
+        new_key_names = random_keys(num_keys, do_tidy=False)
+        # Save second state
+        second_state = cs.save_keys_to_configset()
+        # Reload the initial state
+        ret_state = cs.apply_configset_to_db(initial_state)
+        # The temporary key state was returned...
+        assert ret_state["keys"] == second_state["keys"]
+        # ...which means the initial key state was restored
+        final_state = cs.save_keys_to_configset()
+        assert final_state["keys"] == initial_state["keys"]
