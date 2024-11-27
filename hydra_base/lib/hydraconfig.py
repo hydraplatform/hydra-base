@@ -1,6 +1,8 @@
 """
   Library functions for Hydra configuration
 """
+import json
+import yaml
 
 from hydra_base import db
 from hydra_base.exceptions import (
@@ -108,14 +110,32 @@ def config_key_clear_all_rules(key_name, **kwargs):
 
 """ Config Sets: Archived versions of complete configurations """
 
-def create_configset(set_name):
-    pass
+def export_config_as_json(name, description="", **kwargs):
+    from hydra_base.util.configset import ConfigSet
+    cs = ConfigSet(name, description=description)
+    state = cs.save_keys_to_configset()
+    return json.dumps(state)
 
-def delete_configset(set_name):
-    pass
+def export_config_as_yaml(name, description="", **kwargs):
+    from hydra_base.util.configset import ConfigSet
+    cs = ConfigSet(name, description=description)
+    state = cs.save_keys_to_configset()
+    return yaml.safe_dump(state)
 
-def apply_configset(set_name):
-    pass
+def apply_json_configset(json_src, **kwargs):
+    from hydra_base.util.configset import ConfigSet
+    if not isinstance(json_src, str):
+        raise ValueError(f"apply_json_configset requires a JSON encoded string argument")
+
+    try:
+        state = json.loads(json_src)
+    except JSONDecodeError as e:
+        raise ValueError(f"Argument is not a valid JSON string: {e}")
+
+    cs = ConfigSet(state["name"], description=state["description"])
+    old_state = cs.apply_configset_to_db(state)
+
+    return old_state
 
 def list_configsets():
     pass

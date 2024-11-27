@@ -1,9 +1,12 @@
 import base64
 import copy
+import inspect
+import json
 import math
 import pytest
 import random
 import string
+import yaml
 
 from hydra_base.exceptions import HydraError
 from hydra_base.lib.hydraconfig import (
@@ -60,32 +63,70 @@ def random_keys(client):
         - Deletes these keys on return unless the optional
           do_tidy argument is overwritten to be False.
     """
-    key_names = []
+    pending_tidy = []
     _do_tidy = True
     def _random_keys(n_keys, do_tidy=True):
         key_gen_funcs = {
           "integer": make_integer_key_with_value,
           "string": make_string_key_with_value
         }
-        nonlocal _do_tidy
+        nonlocal _do_tidy, pending_tidy
         _do_tidy = do_tidy
+        prefix_len = 3
+        existing_key_prefixes = set(k[:prefix_len] for k in pending_tidy)
         key_prefixes = set()
+        key_names = []
         for idx in range(n_keys):
             while True:
-                key_prefix = "".join(random.choices(string.ascii_lowercase, k=3))
-                if key_prefix not in key_prefixes:
+                key_prefix = "".join(random.choices(string.ascii_lowercase, k=prefix_len))
+                if key_prefix not in key_prefixes | existing_key_prefixes:
                     key_prefixes.add(key_prefix)
                     break
             key_name = f"{key_prefix} test key"
             key_func = key_gen_funcs[random.choice([*key_gen_funcs])]
             key_names.append(key_func(client, key_name))
 
+        if do_tidy:
+            pending_tidy += key_names
         return key_names
 
     yield _random_keys
     if _do_tidy:
-        for key_name in key_names:
+        for key_name in pending_tidy:
             client.unregister_config_key(key_name)
+
+
+class TestFixtures():
+    def test_fixture_reentrancy(self, random_keys, request):
+        """
+          Verify random_keys fixture is reentrant wrt to
+          multiple calls to the returned func in the same
+          fixture scope.
+        """
+        num_keys = 16
+        # First fix func call returns new keys and has them pending deletion
+        keys0 = random_keys(num_keys)
+        assert len(keys0) == num_keys
+        rkpt0 = inspect.getclosurevars(random_keys).nonlocals["pending_tidy"]
+        assert len(rkpt0) == num_keys
+        for key in keys0:
+            assert key in rkpt0
+        # Second fix func call returns new keys but do_tidy is False
+        # so pending deletion not expanded
+        keys1 = random_keys(num_keys, do_tidy=False)
+        assert len(keys1) == num_keys
+        rkpt1 = inspect.getclosurevars(random_keys).nonlocals["pending_tidy"]
+        assert len(rkpt1) == num_keys
+        for key in keys1:
+            assert key not in rkpt1
+        # Third fix func call returns new keys and adds these to
+        # pending deletion
+        keys2 = random_keys(num_keys)
+        assert len(keys2) == num_keys
+        rkpt2 = inspect.getclosurevars(random_keys).nonlocals["pending_tidy"]
+        assert len(rkpt2) == 2*num_keys
+        for key in keys0 + keys2:
+            assert key in rkpt2
 
 
 class TestConfigKeyValidators():
@@ -431,6 +472,7 @@ class TestConfigSets:
         # Manually delete initial keys
         for key_name in key_names:
             client.unregister_config_key(key_name)
+        key_names.clear()
         # Generate new state
         new_key_names = random_keys(num_keys, do_tidy=False)
         # Save second state
@@ -442,3 +484,45 @@ class TestConfigSets:
         # ...which means the initial key state was restored
         final_state = cs.save_keys_to_configset()
         assert final_state["keys"] == initial_state["keys"]
+        # Initial keys were restored by load so delete again
+        for key_name in final_state["keys"]:
+            client.unregister_config_key(key_name)
+
+    def test_configset_api_json(self, client, random_keys):
+        num_keys = 16
+        key_names = random_keys(num_keys)
+        cs_json = client.export_config_as_json("Configset API test keys", "ConfigSet API test desc")
+        cs = json.loads(cs_json)
+        assert len(cs["keys"]) == num_keys
+        for key_name in key_names:
+            assert key_name in cs["keys"]
+
+    def test_configset_api_yaml(self, client, random_keys):
+        num_keys = 16
+        key_names = random_keys(num_keys)
+        cs_yaml = client.export_config_as_yaml("Configset API test keys", "ConfigSet API test desc")
+        cs = yaml.safe_load(cs_yaml)
+        assert len(cs["keys"]) == num_keys
+        for key_name in key_names:
+            assert key_name in cs["keys"]
+
+    def test_apply_json_configset(self, client, random_keys):
+        num_keys = 16
+        # Create an initial state
+        key_names = random_keys(num_keys)
+        # Export this as json
+        cs_json = client.export_config_as_json("Configset API test keys", "ConfigSet API test desc")
+        # Then delete state
+        for key_name in key_names:
+            client.unregister_config_key(key_name)
+        # Confirm no loaded state
+        all_keys = client.list_config_keys()
+        assert len(all_keys) == 0
+        # Apply the exported json configset
+        old_state = client.apply_json_configset(cs_json)
+        # Re-export the loaded state
+        applied_json = client.export_config_as_json("Applied keys")
+        # And confirm this is equal to initial state
+        orig_state = json.loads(cs_json)
+        applied_state = json.loads(applied_json)
+        assert orig_state["keys"] == applied_state["keys"]
