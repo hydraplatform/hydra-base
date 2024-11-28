@@ -10,7 +10,8 @@ from hydra_base.db.model.hydraconfig import ConfigKey
 from hydra_base.lib.hydraconfig import (
     register_config_key,
     config_key_set_value,
-    config_key_set_rule
+    config_key_set_rule,
+    config_key_set_description
 )
 
 
@@ -69,7 +70,14 @@ class ConfigSet:
         keys = db.DBSession.query(ConfigKey).all()
         if len(keys) == 0:
             return {}
-        return {key.name: {"type": key.type, "value": key.value, "rules": key.rules} for key in keys}
+        return {
+            key.name: {
+                "type": key.type,
+                "value": key.value,
+                "rules": key.rules,
+                "description": key.description
+            } for key in keys
+        }
 
     def generate_mac(self, state):
         digest = hmac.digest(key=config_set_secret_key, msg=state.encode("utf8"), digest=ConfigSet.mac_hash)
@@ -112,3 +120,4 @@ class ConfigSet:
             for rule_name, rule_val in rules.items():
                 config_key_set_rule(key_name, rule_name, rule_val)
             config_key_set_value(key_name, key["value"])
+            config_key_set_description(key_name, key["description"])

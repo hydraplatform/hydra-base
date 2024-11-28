@@ -36,7 +36,7 @@ class ConfigKey(Base):
     name = Column(String(key_name_max_length), nullable=False, unique=True)
     description = Column(String(key_desc_max_length), nullable=True, unique=False)
     type = Column(String(key_type_tag_max_length))
-    rules = Column(String(200))
+    rules = Column(String(200), default='{}')
 
 
     __mapper_args__ = {

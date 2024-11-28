@@ -2,7 +2,6 @@
   Library functions for Hydra configuration
 """
 import json
-import yaml
 
 from hydra_base import db
 from hydra_base.exceptions import (
@@ -26,11 +25,11 @@ from sqlalchemy.exc import (
 
 """ Config Keys: Key:Value pairs of config settings """
 
-def register_config_key(key_name, key_type, **kwargs):
+def register_config_key(key_name, key_type, description="", **kwargs):
     if not (key_cls := config_key_type_map.get(key_type, None)):
         raise HydraError(f"Invalid ConfigKey type '{key_type}'")
 
-    key = key_cls(name=key_name)
+    key = key_cls(name=key_name, desc=description)
     try:
         db.DBSession.add(key)
         db.DBSession.flush()
@@ -60,6 +59,17 @@ def config_key_set_value(key_name, value, **kwargs):
 def config_key_get_value(key_name, **kwargs):
     key = _get_config_key_by_name(key_name)
     return key.value
+
+def config_key_set_description(key_name, description="", **kwargs):
+    key = _get_config_key_by_name(key_name)
+    if not description or not isinstance(description, str):
+        raise HydraError(f"Invalid description for {key_name}: '{description}'")
+
+    key.description = description
+
+def config_key_get_description(key_name, **kwargs):
+    key = _get_config_key_by_name(key_name)
+    return key.description
 
 def _get_config_key_by_name(key_name):
     try:
@@ -116,16 +126,10 @@ def export_config_as_json(name, description="", **kwargs):
     state = cs.save_keys_to_configset()
     return json.dumps(state)
 
-def export_config_as_yaml(name, description="", **kwargs):
-    from hydra_base.util.configset import ConfigSet
-    cs = ConfigSet(name, description=description)
-    state = cs.save_keys_to_configset()
-    return yaml.safe_dump(state)
-
-def apply_json_configset(json_src, **kwargs):
+def apply_configset(json_src, **kwargs):
     from hydra_base.util.configset import ConfigSet
     if not isinstance(json_src, str):
-        raise ValueError(f"apply_json_configset requires a JSON encoded string argument")
+        raise ValueError(f"apply_configset requires a JSON encoded string argument")
 
     try:
         state = json.loads(json_src)
@@ -136,13 +140,6 @@ def apply_json_configset(json_src, **kwargs):
     old_state = cs.apply_configset_to_db(state)
 
     return old_state
-
-def list_configsets():
-    pass
-
-def list_configset_versions(set_name):
-    pass
-
 
 """ Config Groups: A named collection of Config Keys """
 

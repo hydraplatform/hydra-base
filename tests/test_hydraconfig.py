@@ -6,7 +6,6 @@ import math
 import pytest
 import random
 import string
-import yaml
 
 from hydra_base.exceptions import HydraError
 from hydra_base.lib.hydraconfig import (
@@ -19,11 +18,13 @@ from hydra_base.db.model.hydraconfig.validators import (
 )
 from hydra_base.util.configset import ConfigSet
 
+
 # Util funcs
 
 def make_integer_key_with_value(client, key_name):
     key_value = random.randint(2**7, 2**9)
-    key = client.register_config_key(key_name, "integer")
+    key_description = generate_key_description(key_type="integer")
+    key = client.register_config_key(key_name, "integer", description=key_description)
     val_diff = random.randint(1, key_value//2)
     min_value, max_value = key_value-val_diff, key_value+val_diff
     client.config_key_set_rule(key_name, "min_value", min_value)
@@ -35,13 +36,55 @@ def make_integer_key_with_value(client, key_name):
 def make_string_key_with_value(client, key_name):
     key_len = random.randint(2**4, 2**6)
     key_value = "".join(random.choices(string.ascii_lowercase, k=key_len))
-    key = client.register_config_key(key_name, "string")
+    key_description = generate_key_description(key_type="string")
+    key = client.register_config_key(key_name, "string", description=key_description)
     len_diff = random.randint(1, key_len//2)
     min_length, max_length = key_len-len_diff, key_len+len_diff
     client.config_key_set_rule(key_name, "min_length", min_length)
     client.config_key_set_rule(key_name, "max_length", max_length)
     client.config_key_set_value(key_name, key_value)
     return key.name
+
+
+def make_boolean_key_with_value(client, key_name):
+    key_value = random.getrandbits(1)
+    key_description = generate_key_description(key_type="boolean")
+    key = client.register_config_key(key_name, "boolean", description=key_description)
+    client.config_key_set_value(key_name, key_value)
+    return key.name
+
+
+def generate_key_description(src="\x80.", key_type=""):
+    dmap = {
+        "\x80": ["\x81 \x84 for a key of type \xC0"],
+        "\x81": ["An \x82", "A \x83", "The"],
+        "\x82": ["appropriate", "apt", "example", "illustrative"],
+        "\x83": ["fitting", "suitable", "relevant", "particular", "placeholder", "basic", "typical"],
+        "\x84": ["description", "comment", "overview", "explanation"]
+    }
+    maptop = 0x85
+    out = []
+    idx = -1
+    while True:
+        idx += 1
+        try:
+            c = src[idx]
+        except IndexError:
+            break
+        oc = ord(c)
+        if oc < 128:
+            out.append(c)
+            continue
+        else:
+            if oc < maptop:
+                mapline = dmap[c]
+                out.append(generate_key_description(src=random.choice(mapline), key_type=key_type))
+                continue
+        if oc == 0xC0:
+            out.append(key_type)
+            continue
+
+    return "".join(out)
 
 
 @pytest.fixture
@@ -68,7 +111,8 @@ def random_keys(client):
     def _random_keys(n_keys, do_tidy=True):
         key_gen_funcs = {
           "integer": make_integer_key_with_value,
-          "string": make_string_key_with_value
+          "string": make_string_key_with_value,
+          "boolean": make_boolean_key_with_value
         }
         nonlocal _do_tidy, pending_tidy
         _do_tidy = do_tidy
@@ -97,7 +141,7 @@ def random_keys(client):
 
 
 class TestFixtures():
-    def test_fixture_reentrancy(self, random_keys, request):
+    def test_fixture_reentrancy(self, client, random_keys):
         """
           Verify random_keys fixture is reentrant wrt to
           multiple calls to the returned func in the same
@@ -119,6 +163,10 @@ class TestFixtures():
         assert len(rkpt1) == num_keys
         for key in keys1:
             assert key not in rkpt1
+        # As a result of do_tidy=False, we have to do tidy
+        # or duplicates could occur
+        for key_name in keys1:
+            client.unregister_config_key(key_name)
         # Third fix func call returns new keys and adds these to
         # pending deletion
         keys2 = random_keys(num_keys)
@@ -488,7 +536,7 @@ class TestConfigSets:
         for key_name in final_state["keys"]:
             client.unregister_config_key(key_name)
 
-    def test_configset_api_json(self, client, random_keys):
+    def test_configset_api_export_json(self, client, random_keys):
         num_keys = 16
         key_names = random_keys(num_keys)
         cs_json = client.export_config_as_json("Configset API test keys", "ConfigSet API test desc")
@@ -497,16 +545,7 @@ class TestConfigSets:
         for key_name in key_names:
             assert key_name in cs["keys"]
 
-    def test_configset_api_yaml(self, client, random_keys):
-        num_keys = 16
-        key_names = random_keys(num_keys)
-        cs_yaml = client.export_config_as_yaml("Configset API test keys", "ConfigSet API test desc")
-        cs = yaml.safe_load(cs_yaml)
-        assert len(cs["keys"]) == num_keys
-        for key_name in key_names:
-            assert key_name in cs["keys"]
-
-    def test_apply_json_configset(self, client, random_keys):
+    def test_apply_configset(self, client, random_keys):
         num_keys = 16
         # Create an initial state
         key_names = random_keys(num_keys)
@@ -519,7 +558,7 @@ class TestConfigSets:
         all_keys = client.list_config_keys()
         assert len(all_keys) == 0
         # Apply the exported json configset
-        old_state = client.apply_json_configset(cs_json)
+        old_state = client.apply_configset(cs_json)
         # Re-export the loaded state
         applied_json = client.export_config_as_json("Applied keys")
         # And confirm this is equal to initial state
