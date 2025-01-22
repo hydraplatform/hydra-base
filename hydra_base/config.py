@@ -20,6 +20,8 @@ import os
 import glob
 import sys
 
+
+
 PYTHONVERSION = sys.version_info
 if PYTHONVERSION >= (3,2):
     import configparser as ConfigParser
@@ -142,14 +144,41 @@ def read_values_from_environment(config, section_key, options_key):
         # print("Presente")
         config.set(section_key, options_key, env_value)
 
+def read_env_db_config():
+    return {
+      "hydra_db_server": os.environ.get("HYDRA_DB_SERVER"),
+      "hydra_db_name": os.environ.get("HYDRA_DB_NAME"),
+      "hydra_db_user": os.environ.get("HYDRA_DB_USER"),
+      "hydra_db_passwd": os.environ.get("HYDRA_DB_PASSWD"),
+      "hydra_db_autocreate": os.environ.get("HYDRA_DB_AUTOCREATE"),
+      "hydra_db_preping": os.environ.get("HYDRA_DB_PREPING")
+    }
+
+def read_env_startup_config():
+    return {
+      "hydra_cachetype": os.environ.get("HYDRA_CACHETYPE"),
+      "hydra_log_confpath": os.environ.get("HYDRA_LOG_CONFPATH"),
+      "hydra_log_filedir": os.environ.get("HYDRA_LOG_FILEDIR")
+    }
+
+def get_startup_config():
+    db_config = read_env_db_config()
+    db_config["url"] = f"mysql+mysqldb://{db_config['hydra_db_user']}:{db_config['hydra_db_passwd']}"\
+                       f"@{db_config['hydra_db_server']}/{db_config['hydra_db_name']}"
+
+    db_config.update(read_env_startup_config())
+    return db_config
 
 def get(section, option, default=None):
+    from hydra_base.lib.hydraconfig import (
+        config_key_get_value
+    )
 
     if CONFIG is None:
         load_config()
 
     try:
-        return CONFIG.get(section, option)
+        return config_key_get_value(f"{section}_{option}")
     except:
         return default
 

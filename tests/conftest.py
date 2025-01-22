@@ -122,6 +122,17 @@ def client(connection_type, testdb_uri):
                                       test_server=null_server)
         client.login('root', '')
 
+    from hydra_base.util.migrate_config import (
+        ini_to_configset,
+        make_config_from_schema
+    )
+
+    ini_file = "hydra_base/hydra.ini"
+    schema = ini_to_configset(ini_file)
+    #pprint(schema)
+    config = make_config_from_schema(schema)
+    #keys = get_all_config_keys()
+
     client.testutils = testing.TestUtil(client)
     pytest.root_user_id = 1
     pytest.user_a = client.testutils.create_user("UserA")
@@ -148,11 +159,15 @@ def drop_tables(db_url):
 
 @pytest.fixture()
 def network(client, project_id=None, num_nodes=10, new_proj=True, map_projection='EPSG:4326'):
-    return client.testutils.build_network(project_id, num_nodes, new_proj, map_projection)
+    return client.testutils.build_network(project_id=project_id, num_nodes=num_nodes, new_proj=new_proj, map_projection=map_projection)
 
 @pytest.fixture()
 def network_with_data(client, project_id=None, num_nodes=10, ret_full_net=True, new_proj=True, map_projection='EPSG:4326'):
-    return client.testutils.create_network_with_data(project_id, num_nodes, ret_full_net, new_proj, map_projection)
+    return client.testutils.create_network_with_data(project_id=project_id,
+                                                     num_nodes=num_nodes,
+                                                     ret_full_net=ret_full_net,
+                                                     new_proj=new_proj,
+                                                     map_projection=map_projection)
 
 @pytest.fixture()
 def network_with_child_scenario(client, project_id=None, num_nodes=10, ret_full_net=True, new_proj=True, map_projection='EPSG:4326'):

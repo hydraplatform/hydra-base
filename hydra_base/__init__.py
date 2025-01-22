@@ -48,12 +48,6 @@ log.debug("CONFIG sysfiles %s found in %s", len(config.sysfiles), config.sysfile
 if len(config.sysfiles) + len(config.repofiles) + len(config.userfiles) + len(config.sysfiles) == 0:
     log.critical("No config found. Please put your ini file into one of the files listed beside CONFIG above.")
 
-if config.get("security", "max_login_attempts") is None:
-    """  Absence of max_login_attempts results in all users unable to log in,
-         so ensure this is defined in config, or fail.
-    """
-    raise RuntimeError("Config 'security' section must define 'max_login_attempts'")
-
 log.debug(" \n ")
 
 from .lib.attributes import *

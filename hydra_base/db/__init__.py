@@ -81,12 +81,13 @@ def create_mysql_db(db_url):
     #Remove trailing whitespace and forwardslashes
     db_url = db_url.strip().strip('/')
 
+    db_config = config.get_startup_config()
 
     #Check this is a mysql URL
     if db_url.find('mysql') >= 0:
 
         #Get the DB name from config and check if it's in the URL
-        db_name = config.get('mysqld', 'db_name', 'hydradb')
+        db_name = db_config["hydra_db_name"]
         if db_url.find(db_name) >= 0:
             no_db_url = db_url.rsplit("/", 1)[0]
         else:
@@ -104,7 +105,7 @@ def create_mysql_db(db_url):
         if db_url.find('charset') == -1:
             db_url = "{}?charset=utf8&use_unicode=1".format(db_url)
 
-        if config.get('mysqld', 'auto_create', 'Y') == 'Y':
+        if db_config.get("hydra_db_autocreate", 'Y') == 'Y':
             tmp_engine = create_engine(no_db_url)
             log.debug("Creating database {0} as it does not exist.".format(db_name))
             with tmp_engine.connect() as conn:
@@ -113,7 +114,7 @@ def create_mysql_db(db_url):
 
 def connect(db_url=None):
     if db_url is None:
-        db_url = config.get('mysqld', 'url')
+        db_url = config.get_startup_config()["url"]
 
     log.info("Connecting to database")
     if db_url.find('@') >= 0:

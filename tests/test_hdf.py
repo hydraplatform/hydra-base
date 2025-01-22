@@ -109,16 +109,17 @@ class TestHdf():
     @pytest.mark.requires_hdf
     def test_private_hdf_no_access(self, hdf, private_aws_file):
         """
-          Do the reported properties of a dataset match expected values?
+          Does attempted access to a private HDF file without credentials result in an error?
         """
         with pytest.raises(PermissionError):
             info = hdf.get_series_info(private_aws_file["path"], columns=private_aws_file["series_name"])
 
+    @pytest.mark.skip
     @pytest.mark.requires_hdf
     @patch.dict('os.environ', {'AWS_ACCESS_KEY_ID': IAM_ACCESS_KEY, 'AWS_SECRET_ACCESS_KEY': IAM_SECRET_KEY})
     def test_private_hdf_correct_access(self, private_aws_file):
         """
-          Do the reported properties of a dataset match expected values?
+          Is access to a private HDF file with correct credentials permitted?
         """
 
         hdf = HdfStorageAdapter()

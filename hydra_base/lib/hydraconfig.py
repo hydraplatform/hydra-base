@@ -62,7 +62,7 @@ def config_key_get_value(key_name, **kwargs):
 
 def config_key_set_description(key_name, description="", **kwargs):
     key = _get_config_key_by_name(key_name)
-    if not description or not isinstance(description, str):
+    if not isinstance(description, str):
         raise HydraError(f"Invalid description for {key_name}: '{description}'")
 
     key.description = description

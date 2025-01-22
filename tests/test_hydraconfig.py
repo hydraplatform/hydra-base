@@ -137,7 +137,10 @@ def random_keys(client):
     yield _random_keys
     if _do_tidy:
         for key_name in pending_tidy:
-            client.unregister_config_key(key_name)
+            try:
+                client.unregister_config_key(key_name)
+            except HydraError:
+                pass
 
 
 class TestFixtures():
@@ -546,6 +549,12 @@ class TestConfigSets:
             assert key_name in cs["keys"]
 
     def test_apply_configset(self, client, random_keys):
+        # Backup pre-test config state
+        initial_keys = client.list_config_keys()
+        initial_state = client.export_config_as_json("Initial state", "Initial state desc")
+        for key_name in initial_keys:
+            client.unregister_config_key(key_name)
+
         num_keys = 16
         # Create an initial state
         key_names = random_keys(num_keys)
@@ -565,3 +574,6 @@ class TestConfigSets:
         orig_state = json.loads(cs_json)
         applied_state = json.loads(applied_json)
         assert orig_state["keys"] == applied_state["keys"]
+
+        # Restore initial config state
+        _ = client.apply_configset(initial_state)

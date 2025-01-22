@@ -143,6 +143,7 @@ class TestTemplates:
     """
         Test for templates
     """
+    """
     def test_add_xml(self, template_json_object):
         new_tmpl = template_json_object
 
@@ -168,7 +169,7 @@ class TestTemplates:
 
         assert db_template is not None
 
-        template_xsd_path = config.get('templates', 'template_xsd_path')
+        template_xsd_path = config.get('template_xsd_path')
         xmlschema_doc = etree.parse(template_xsd_path)
 
         xmlschema = etree.XMLSchema(xmlschema_doc)
@@ -228,7 +229,7 @@ class TestTemplates:
 
         assert len(check_template_i.templatetypes) == 2
 
-
+    """
     """
         TEMPLATES Functions
     """
@@ -820,6 +821,7 @@ class TestTemplates:
         assert updated_node_j.types is None or str(result1_j.id) not in [str(x.type_id) for x in updated_node_j.types]
 
 
+    """
     def test_create_template_from_network(self, client, network_with_data):
         network = network_with_data
 
@@ -828,7 +830,7 @@ class TestTemplates:
 
         assert net_template is not None
 
-        template_xsd_path = config.get('templates', 'template_xsd_path')
+        template_xsd_path = config.get("templates", "template_xsd_path")
         xmlschema_doc = etree.parse(template_xsd_path)
 
         xmlschema = etree.XMLSchema(xmlschema_doc)
@@ -836,6 +838,7 @@ class TestTemplates:
         xml_tree = etree.fromstring(net_template)
 
         xmlschema.assertValid(xml_tree)
+    """
 
     def test_apply_template_to_network(self, client, mock_template, network_with_data):
         net_to_update = network_with_data

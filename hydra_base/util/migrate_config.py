@@ -4,6 +4,22 @@
 """
 import configparser
 import os
+import transaction
+
+from pprint import pprint
+
+from hydra_base import db
+from hydra_base.lib.hydraconfig import (
+    register_config_key,
+    unregister_config_key,
+    list_config_keys,
+    config_key_set_value,
+    config_key_get_value
+)
+
+
+if not db.DBSession:
+    db.connect()
 
 
 def ini_to_configset(ini_filename):
@@ -11,6 +27,7 @@ def ini_to_configset(ini_filename):
     return db_config_schema
 
 def make_db_config_schema(ini_filename):
+    exclude_sections = ("mysqld",)
     config = configparser.ConfigParser(allow_no_value=True)
     config.read(ini_filename)
 
@@ -22,8 +39,29 @@ def make_db_config_schema(ini_filename):
     config.set("DEFAULT", "hydra_base_dir", os.path.expanduser(hydra_base_dir))
 
     db_config_schema = {}
-    for section in ["DEFAULT", *config.sections()]:
-        for key in config[section]:
+    for key in config["DEFAULT"]:
+            try:
+                value = config["DEFAULT"][key]
+            except configparser.InterpolationSyntaxError:
+                value = config["DEFAULT"].get(key, raw=True)
+            try:
+                value = int(value, 10)
+                key_type = "integer"
+            except ValueError:
+                key_type = "string"
+
+            if key in db_config_schema:
+                raise ValueError(f"Duplicate key: {key}")
+
+            db_config_schema[key] = {
+                "type": key_type,
+                "value": value
+            }
+
+    for section in config.sections():
+        if section in exclude_sections:
+            continue
+        for key in config._sections[section].keys():
             try:
                 value = config[section][key]
             except configparser.InterpolationSyntaxError:
@@ -45,7 +83,35 @@ def make_db_config_schema(ini_filename):
 
     return db_config_schema
 
+
+def make_config_from_schema(schema):
+    for name, key in schema.items():
+        register_config_key(name, key["type"])
+        config_key_set_value(name, key["value"])
+
+    transaction.commit()
+
+
+def get_all_config_keys():
+    keys = list_config_keys()
+    return {k: config_key_get_value(k) for k in keys}
+
+
+def delete_all_config_keys():
+    keys = list_config_keys()
+    for key in keys:
+        unregister_config_key(key)
+
+    transaction.commit()
+
+
 if __name__ == "__main__":
-    ini_file = "hydra_base/hydra.ini"
-    config = ini_to_configset(ini_file)
-    print(config)
+    #ini_file = "hydra_base/hydra.ini"
+    #schema = ini_to_configset(ini_file)
+    #pprint(schema)
+    #config = make_config_from_schema(schema)
+    #keys = get_all_config_keys()
+    #pprint(keys)
+    #delete_all_config_keys()
+    keys = get_all_config_keys()
+    pprint(keys)
