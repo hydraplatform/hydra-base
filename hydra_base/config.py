@@ -157,6 +157,7 @@ def read_env_db_config():
 def read_env_startup_config():
     return {
       "hydra_cachetype": os.environ.get("HYDRA_CACHETYPE"),
+      "hydra_cachehost": os.environ.get("HYDRA_CACHEHOST"),
       "hydra_log_confpath": os.environ.get("HYDRA_LOG_CONFPATH"),
       "hydra_log_filedir": os.environ.get("HYDRA_LOG_FILEDIR")
     }

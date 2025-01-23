@@ -17,6 +17,7 @@ jobs:
       HYDRA_DB_AUTOCREATE: Y
       HYDRA_DB_PREPING: True
       HYDRA_CACHETYPE: memcached
+      HYDRA_CACHEHOST: 127.0.0.1
       HYDRA_LOG_CONFPATH: hydra-base/logging.conf
       HYDRA_LOG_FILEDIR: .hydra/log
 
