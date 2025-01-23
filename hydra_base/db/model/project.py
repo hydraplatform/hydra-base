@@ -25,7 +25,7 @@ from .network import Network, ResourceAttr
 from .attributes import Attr
 
 global project_cache_key
-project_cache_key = config.get('cache', 'projectkey', 'userprojects')
+project_cache_key = 'userprojects'
 
 __all__ = ['Project']
 

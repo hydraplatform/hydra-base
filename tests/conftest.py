@@ -20,6 +20,11 @@ from hydra_base.lib.cache import clear_cache
 no_externaldb_opt = "--no-externaldb"
 externaldb_mark = "externaldb"
 requires_hdf_mark = "requires_hdf"
+requires_replicaset_mark = "requires_replicaset"
+
+create_default_users_and_perms()
+make_root_user()
+create_default_units_and_dimensions()
 
 def pytest_addoption(parser):
     parser.addoption("--db-backend", action="store", default="sqlite",
@@ -47,8 +52,10 @@ def pytest_collection_modifyitems(config, items):
             if externaldb_mark in item.keywords:
                 item.add_marker(externaldb_skip)
 
-    conf_disabled = hydra_base.config.CONFIG.get("storage_hdf", "disable_hdf").lower()
-    hdf_disabled = True if conf_disabled in ("true", "yes") else False
+    truthlike = {"true", "yes", "y"}
+
+    hdf_conf = hydra_base.config.get("storage_hdf", "disable_hdf").lower()
+    hdf_disabled = True if hdf_conf in truthlike else False
     hdf_skip = pytest.mark.skip(reason="Test not applicable when HDF support disabled")
     if hdf_disabled:
         for item in items:
@@ -122,16 +129,12 @@ def client(connection_type, testdb_uri):
                                       test_server=null_server)
         client.login('root', '')
 
-    from hydra_base.util.migrate_config import (
-        ini_to_configset,
-        make_config_from_schema
-    )
+    from hydra_base.lib.hydraconfig import apply_configset
 
-    ini_file = "hydra_base/hydra.ini"
-    schema = ini_to_configset(ini_file)
-    #pprint(schema)
-    config = make_config_from_schema(schema)
-    #keys = get_all_config_keys()
+    with open("default_configset.json", 'r') as fp:
+        cs_json = fp.read()
+
+    apply_configset(cs_json)
 
     client.testutils = testing.TestUtil(client)
     pytest.root_user_id = 1

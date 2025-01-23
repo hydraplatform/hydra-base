@@ -20,6 +20,17 @@ jobs:
       HYDRA_CACHEHOST: 127.0.0.1
       HYDRA_LOG_CONFPATH: hydra-base/logging.conf
       HYDRA_LOG_FILEDIR: .hydra/log
+      HYDRA_MONGO_HOST: localhost
+      HYDRA_MONGO_PORT: 27017
+      HYDRA_MONGO_DB_NAME: hydra
+      HYDRA_MONGO_USER:
+      HYDRA_MONGO_PASSWD:
+      HYDRA_MONGO_DATASETS: datasets
+      HYDRA_MONGO_THRESHOLD: 4096
+      HYDRA_MONGO_DIRECT_LOCATION_TOKEN: mongo_direct
+      HYDRA_MONGO_VALUE_LOCATION_KEY: value_storage_location
+      HYDRA_DISABLE_HDF: False
+      HYDRA_HDF_FILESTORE: /tmp
 
     strategy:
       matrix:

@@ -67,6 +67,19 @@ def load_config():
     global CONFIG
     logging.basicConfig(level='INFO')
 
+    from hydra_base.lib.hydraconfig import apply_configset, list_config_keys, config_key_get_value
+    from pprint import pprint
+
+    with open("default_configset.json", 'r') as fp:
+        cs_json = fp.read()
+
+    apply_configset(cs_json)
+    #keys = list_config_keys()
+    #kp = {k: config_key_get_value(k) for k in keys}
+    #pprint(kp)
+
+    return
+
     config = ConfigParser.ConfigParser(allow_no_value=True)
 
     modulepath = os.path.dirname(os.path.abspath(__file__))
@@ -175,8 +188,8 @@ def get(section, option, default=None):
         config_key_get_value
     )
 
-    if CONFIG is None:
-        load_config()
+    #if CONFIG is None:
+    #    load_config()
 
     try:
         return config_key_get_value(f"{section}_{option}")
@@ -192,3 +205,6 @@ def getint(section, option, default=None):
         return CONFIG.getint(section, option)
     except:
         return default
+
+
+load_config()

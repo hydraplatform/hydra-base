@@ -94,6 +94,8 @@ class ConfigSet:
           7. Verify state loaded in 3-5 matches input state
           8. OK if so, else restore original state from 1
         """
+        if not db.DBSession:
+            db.connect()
         old_state = self.save_keys_to_configset()
         new_state = self.verify_configset(state)
         self._delete_all_keys()
@@ -105,6 +107,7 @@ class ConfigSet:
         # Otherwise restore state to that before call
         self._delete_all_keys()
         self.load_keys_from_state(old_state)
+        db.DBSession = None
         # Returns None on failure to update
 
     def _delete_all_keys(self):
