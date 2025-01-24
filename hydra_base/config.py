@@ -16,10 +16,12 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-import os
 import glob
+import os
+import re
 import sys
 
+from hydra_base import db
 
 
 PYTHONVERSION = sys.version_info
@@ -67,13 +69,46 @@ def load_config():
     global CONFIG
     logging.basicConfig(level='INFO')
 
-    from hydra_base.lib.hydraconfig import apply_configset, list_config_keys, config_key_get_value
+    from hydra_base.lib.hydraconfig import (
+        apply_configset,
+        list_config_keys,
+        config_key_get_value,
+        config_key_set_value,
+        register_config_key
+    )
     from pprint import pprint
 
-    with open("default_configset.json", 'r') as fp:
-        cs_json = fp.read()
+    modulepath = os.path.dirname(os.path.abspath(__file__))
+    home_dir = os.environ.get("HYDRA_HOME_DIR", '~')
+    hydra_base_dir = os.environ.get("HYDRA_BASE_DIR", modulepath)
+    configset = os.environ.get("HYDRA_CONFIGSET", "default_configset.json")
 
-    apply_configset(cs_json)
+
+    if not db.DBSession:
+        db.connect()
+    keys = list_config_keys()
+    if len(keys) == 0:
+        # No existing configset has been loaded
+        # Load set specified by env or default
+        # and register substitution keys
+        with open(configset, 'r') as fp:
+            cs_json = fp.read()
+        apply_configset(cs_json)
+
+        try:
+            register_config_key("home_dir", "string")
+            config_key_set_value("home_dir", home_dir)
+        except Exception:
+            pass
+
+        try:
+            register_config_key("hydra_base_dir", "string")
+            config_key_set_value("hydra_base_dir", hydra_base_dir)
+        except Exception:
+            pass
+
+    CONFIG = True
+    #db.DBSession = None
     #keys = list_config_keys()
     #kp = {k: config_key_get_value(k) for k in keys}
     #pprint(kp)
@@ -183,6 +218,22 @@ def get_startup_config():
     db_config.update(read_env_startup_config())
     return db_config
 
+def make_value_substitutions(value):
+    if not isinstance(value, str):
+        return value
+
+    p = r"__([a-zA-Z_]+)__"
+    tokens = re.findall(p, value)
+    for token in tokens:
+        try:
+            tkey = token.strip('_').lower()
+            tval = config_key_get_value(tkey)
+            value = value.replace(token, tval)
+        except Exception:
+            pass  # Do not substitute invalid keys
+
+    return value
+
 def get(section, option, default=None):
     from hydra_base.lib.hydraconfig import (
         config_key_get_value
@@ -191,8 +242,13 @@ def get(section, option, default=None):
     #if CONFIG is None:
     #    load_config()
 
+    #if option == "max_login_attempts":
+    #    breakpoint()
     try:
-        return config_key_get_value(f"{section}_{option}")
+        value = config_key_get_value(f"{section}_{option}")
+        value = make_value_substitutions(value)
+        print(f"{section}_{option} = {value}")
+        return value
     except:
         return default
 
@@ -207,4 +263,3 @@ def getint(section, option, default=None):
         return default
 
 
-load_config()

@@ -22,6 +22,11 @@ externaldb_mark = "externaldb"
 requires_hdf_mark = "requires_hdf"
 requires_replicaset_mark = "requires_replicaset"
 
+from hydra_base import db
+
+if not db.DBSession:
+    db.connect()
+
 create_default_users_and_perms()
 make_root_user()
 create_default_units_and_dimensions()
@@ -54,8 +59,11 @@ def pytest_collection_modifyitems(config, items):
 
     truthlike = {"true", "yes", "y"}
 
-    hdf_conf = hydra_base.config.get("storage_hdf", "disable_hdf").lower()
-    hdf_disabled = True if hdf_conf in truthlike else False
+    from hydra_base.lib.storage import HdfStorageAdapter
+    config = HdfStorageAdapter.get_hdf_config()
+
+    hdf_disabled = config.get("disable_hdf")
+    #hdf_disabled = True if hdf_conf in truthlike else False
     hdf_skip = pytest.mark.skip(reason="Test not applicable when HDF support disabled")
     if hdf_disabled:
         for item in items:
@@ -129,12 +137,17 @@ def client(connection_type, testdb_uri):
                                       test_server=null_server)
         client.login('root', '')
 
+    """
     from hydra_base.lib.hydraconfig import apply_configset
 
     with open("default_configset.json", 'r') as fp:
         cs_json = fp.read()
 
     apply_configset(cs_json)
+    """
+    from hydra_base.config import load_config
+
+    load_config()
 
     client.testutils = testing.TestUtil(client)
     pytest.root_user_id = 1

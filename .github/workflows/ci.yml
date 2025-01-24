@@ -10,8 +10,9 @@ jobs:
       COV_MIN: 70  # Minimum acceptable coverage level
       TEST_AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       TEST_AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      HYDRA_CONFIGSET: default_configset.json
       HYDRA_DB_SERVER: 127.0.0.1
-      HYDRA_DB_NAME: hydra_base_test
+      HYDRA_DB_NAME: hydradb
       HYDRA_DB_USER: root
       HYDRA_DB_PASSWD: root
       HYDRA_DB_AUTOCREATE: Y
