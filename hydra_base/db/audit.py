@@ -34,8 +34,9 @@ from sqlalchemy.dialects.mysql.base import DOUBLE
 from decimal import Decimal
 import os
 
-engine_name = config.get('mysqld', 'url')
-sqlite_engine = "sqlite:///%s"%(config.get('sqlite', 'backup_url'))
+db_config = config.get_startup_config()
+engine_name = db_config.get("url")
+sqlite_engine = "sqlite:///%s"%(config.get("sqlite_backup_url"))
 
 def connect():
     """
@@ -53,20 +54,20 @@ def create_sqlite_backup_db(audit_tables):
     #we always want to create a whole new DB, so delete the old one first
     #if it exists.
     try:
-        Popen("rm %s"%(config.get('sqlite', 'backup_url')), shell=True)
+        Popen("rm %s"%(config.get("sqlite_backup_url")), shell=True)
         logging.warn("Old sqlite backup DB removed")
     except Exception as e:
         logging.warn(e)
 
     try:
-        aux_dir = config.get('DEFAULT', 'hydra_aux_dir')
+        aux_dir = config.get("hydra_aux_dir")
         os.mkdir(aux_dir)
         logging.warn("%s created", aux_dir)
     except Exception as e:
         logging.warn(e)
 
     try:
-        backup_dir = config.get('db', 'export_target')
+        backup_dir = config.get("db_export_target")
         os.mkdir(backup_dir)
         logging.warn("%s created", backup_dir)
     except Exception as e:

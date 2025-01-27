@@ -162,7 +162,7 @@ def date_to_string(date, seasonal=False):
     recognised by Hydra as seasonal time stamp.
     """
 
-    seasonal_key = config.get('DEFAULT', 'seasonal_key', '9999')
+    seasonal_key = str(config.get("seasonal_key", 9999))
     if seasonal:
         FORMAT = seasonal_key+'-%m-%dT%H:%M:%S.%f'
     else:
@@ -219,7 +219,7 @@ def guess_timefmt(datestr):
     if isinstance(datestr, float) or isinstance(datestr, int):
         return None
 
-    seasonal_key = str(config.get('DEFAULT', 'seasonal_key', '9999'))
+    seasonal_key = str(config.get("seasonal_key", "9999"))
 
     #replace 'T' with space to handle ISO times.
     if datestr.find('T') > 0:
@@ -311,8 +311,8 @@ def reindex_timeseries(ts_string, new_timestamps):
 
     new_timestamps = new_timestamps_converted
 
-    seasonal_year = config.get('DEFAULT','seasonal_year', '1678')
-    seasonal_key = config.get('DEFAULT', 'seasonal_key', '9999')
+    seasonal_year = str(config.get("seasonal_year", 1678))
+    seasonal_key = str(config.get("seasonal_key", 9999))
 
     ts = ts_string.replace(seasonal_key, seasonal_year)
 

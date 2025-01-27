@@ -98,7 +98,7 @@ def import_template_xml(template_xml, allow_update=True, **kwargs):
     """
     user_id = kwargs.get('user_id')
 
-    template_xsd_path = config.get('templates', 'template_xsd_path')
+    template_xsd_path = config.get("template_xsd_path")
     xmlschema_doc = etree.parse(template_xsd_path)
 
     xmlschema = etree.XMLSchema(xmlschema_doc)

@@ -81,7 +81,7 @@ def _get_template_from_cache(template_id):
     now = datetime.datetime.now()
 
     #default the template timeout to a day -- they don't change often
-    timeout = datetime.timedelta(seconds=config.get('CACHE', 'CACHE_TIMEOUT', 86400))
+    timeout = datetime.timedelta(seconds=config.get("CACHE_TIMEOUT", 86400))
 
     cached_template = TEMPLATE_CACHE.get(template_id)
     if cached_template is None:

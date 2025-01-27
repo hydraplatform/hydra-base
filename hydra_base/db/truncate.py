@@ -35,7 +35,8 @@ from sqlalchemy import and_
 Base = declarative_base()
 
 
-engine_name = config.get('mysqld', 'url')
+db_config = config.get_startup_config()
+engine_name = db_config.get("url")
 
 def connect_mysql():
     """
@@ -46,10 +47,10 @@ def connect_mysql():
     db = create_engine(engine_name)
     db.echo = True
     db.connect()
-    
+
     return db
 
-sqlite_engine = "sqlite:///%s"%(config.get('sqlite', 'backup_url'))
+sqlite_engine = "sqlite:///%s"%(config.get("sqlite_backup_url"))
 
 def connect_sqlite():
 
@@ -69,7 +70,7 @@ def truncate_all_audit_tables():
 
     # create a Session
     mysql_session = session1()
-    sqlite_session = session2() 
+    sqlite_session = session2()
 
     mysql_metadata = MetaData(mysql_db)
     sqlite_metadata = MetaData(sqlite_db)
@@ -93,7 +94,7 @@ def truncate_all_audit_tables():
            continue
        export_table_to_sqlite(mysql_session, sqlite_session, sqlite_metadata, audit_table)
        truncate_table(mysql_session, table, audit_table)
-    
+
     mysql_session.commit()
     sqlite_session.commit()
     logging.info("Truncation Complete")
@@ -116,7 +117,7 @@ def truncate_table(session, table, audit_table):
         args = []
         for arg in truncated_cols:
             args.append(arg == getattr(r, arg.name))
-        
+
         aud_id_col = audit_table.c['aud_id']
         rs = session.query(aud_id_col).filter(and_(*args)).order_by(aud_id_col.desc())[3:]
         aud_ids = [str(r.aud_id) for r in rs]
@@ -133,23 +134,23 @@ def export_table_to_csv(session, table, target=None):
     """
 
     if target is None:
-        target_dir = os.path.join(config.get('db', 'export_target'))
-        target = os.path.join(config.get('db', 'export_target'), table.name)
+        target_dir = os.path.join(config.get("db_export_target"))
+        target = os.path.join(config.get("db_export_target"), table.name)
 
     if not os.path.exists(target_dir):
         os.mkdir(target_dir)
 
     if os.path.exists(target):
         target_file      = open(target, 'r+')
-    
+
         rs = session.query(table).all()
-        
+
         entries_in_db = set()
         for r in rs:
             entries_in_db.add("%s"%(r.__repr__()))
 
         contents = set(target_file.read().split('\n'))
-        
+
         new_data = entries_in_db.difference(contents)
 
         if len(new_data) > 0:
@@ -180,10 +181,10 @@ def export_table_to_sqlite(mysql_session, sqlite_session, sqlite_metadata, audit
 
     entries_in_mysql_db = set(current_data)
     entries_in_sqlite_db = set(sqlite_data)
-        
+
     new_data = list(entries_in_mysql_db.difference(entries_in_sqlite_db))
     if len(new_data) > 0:
-        values = [] 
+        values = []
         for val in new_data:
             row = []
             for i, v in enumerate(val):

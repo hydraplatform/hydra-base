@@ -96,7 +96,7 @@ def pytest_report_header(config):
 
 @pytest.fixture()
 def dateformat():
-    return hydra_base.config.get('DEFAULT', 'datetime_format', "%Y-%m-%dT%H:%M:%S.%f000Z")
+    return hydra_base.config.get("datetime_format", "%Y-%m-%dT%H:%M:%S.%f000Z")
 
 @pytest.fixture(scope='module')
 def testdb_uri(db_backend):

@@ -26,7 +26,7 @@ import inspect
 
 def init(level=None):
  #   if level is None:
- #       level = config.get('DEFAULT', 'log_level')
+ #       level = config.get('log_level')
 
  #   if os.name == "nt":
  #       logging.addLevelName( logging.INFO, logging.getLevelName(logging.INFO))
@@ -38,7 +38,7 @@ def init(level=None):
  #       return
 
  #   if level is None:
- #       level = config.get('DEFAULT', 'log_level')
+ #       level = config.get('log_level')
 
 
  #   logging.addLevelName( logging.INFO, "\033[0;m%s\033[0;m" % logging.getLevelName(logging.INFO))

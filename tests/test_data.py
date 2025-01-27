@@ -251,7 +251,7 @@ class TestTimeSeries:
 
         val_a = json.loads(val_to_query.value)
 
-        dtformat = hb.config.get("datetime", "format", "%Y-%m-%dT%H:%M:%S.%f000Z")
+        dtformat = hb.config.get("datetime_format", "%Y-%m-%dT%H:%M:%S.%f000Z")
         fmt = datetime.datetime.strftime
         qry_times = [
             fmt(datetime.datetime(2000, 1, 10, 00, 00, 00), dtformat),

@@ -113,8 +113,9 @@ def create_mysql_db(db_url):
     return db_url
 
 def connect(db_url=None):
+    db_config = config.get_startup_config()
     if db_url is None:
-        db_url = config.get_startup_config()["url"]
+        db_url = db_config["url"]
 
     log.info("Connecting to database")
     if db_url.find('@') >= 0:
@@ -135,11 +136,11 @@ def connect(db_url=None):
         #These values MUST be smaller than the pool timeouts of the DB, otherwise the connection
         #will remain open on the client while it has been closed on the server, resulting in
         #an error
-        db_pool_size = int(config.get('mysqld', 'pool_size',10)) # 10
-        db_pool_recycle = int(config.get('mysqld', 'pool_recycle', 300)) # 300
-        db_max_overflow = int(config.get('mysqld', 'max_overflow', 20)) # 10 -> 30
-        db_pool_timeout = int(config.get('mysqld', 'pool_timeout', 10))
-        db_pool_pre_ping = True if config.get('mysqld', 'pool_pre_ping', 'Y').upper() == 'Y' else False
+        db_pool_size = int(db_config.get("hydra_mysql_pool_size" ,10)) # 10
+        db_pool_recycle = int(db_config.get("hydra_mysql_pool_recycle", 300)) # 300
+        db_max_overflow = int(db_config.get("hydra_mysql_max_overflow", 20)) # 10 -> 30
+        db_pool_timeout = int(db_config.get("hydra_mysql_pool_timeout", 10))
+        db_pool_pre_ping = True if db_config.get("hydra_mysql_pool_preping", "True").upper() == "TRUE" else False
 
         log.warning(f"db_pool_size: {db_pool_size} - pool_recycle: {db_pool_recycle} - max_overflow: {db_max_overflow} - pool_timeout: {db_pool_timeout} - pool_pre_ping: {db_pool_pre_ping}")
 

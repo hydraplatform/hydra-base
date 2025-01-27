@@ -262,7 +262,7 @@ def search_datasets(dataset_id=None,
                 page_size))
 
     if page_size is None:
-        page_size = config.get('SEARCH', 'page_size', 2000)
+        page_size = config.get("search_page_size", 2000)
 
     user_id = int(kwargs.get('user_id'))
 
