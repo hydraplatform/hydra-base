@@ -15,6 +15,7 @@ from hydra_base.util.hdb import create_default_users_and_perms, make_root_user,\
 from hydra_base.util import testing
 from hydra_client.connection import JSONConnection, RemoteJSONConnection
 from hydra_base.lib.cache import clear_cache
+from hydra_base.config import load_config
 
 
 no_externaldb_opt = "--no-externaldb"
@@ -63,7 +64,6 @@ def pytest_collection_modifyitems(config, items):
     config = HdfStorageAdapter.get_hdf_config()
 
     hdf_disabled = config.get("disable_hdf")
-    #hdf_disabled = True if hdf_conf in truthlike else False
     hdf_skip = pytest.mark.skip(reason="Test not applicable when HDF support disabled")
     if hdf_disabled:
         for item in items:
@@ -136,16 +136,6 @@ def client(connection_type, testdb_uri):
                                       app_name='Hydra Remote Test Suite',
                                       test_server=null_server)
         client.login('root', '')
-
-    """
-    from hydra_base.lib.hydraconfig import apply_configset
-
-    with open("default_configset.json", 'r') as fp:
-        cs_json = fp.read()
-
-    apply_configset(cs_json)
-    """
-    from hydra_base.config import load_config
 
     load_config()
 

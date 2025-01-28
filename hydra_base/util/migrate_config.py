@@ -6,15 +6,14 @@ import configparser
 import os
 import transaction
 
-from pprint import pprint
-
 from hydra_base import db
 from hydra_base.lib.hydraconfig import (
     register_config_key,
     unregister_config_key,
     list_config_keys,
     config_key_set_value,
-    config_key_get_value
+    config_key_get_value,
+    export_config_as_json
 )
 
 
@@ -35,13 +34,13 @@ def make_db_config_schema(ini_filename):
     # set to allow for interpolation into later values
     home_dir = os.environ.get("HYDRA_HOME_DIR", '~')
     hydra_base_dir = os.environ.get("HYDRA_BASE_DIR", os.getcwd())
-    config.set("DEFAULT", "home_dir", os.path.expanduser(home_dir))
-    config.set("DEFAULT", "hydra_base_dir", os.path.expanduser(hydra_base_dir))
+    #config.set("DEFAULT", "home_dir", os.path.expanduser(home_dir))
+    #config.set("DEFAULT", "hydra_base_dir", os.path.expanduser(hydra_base_dir))
 
     db_config_schema = {}
     for key in config["DEFAULT"]:
             try:
-                value = config["DEFAULT"][key]
+                value = config["DEFAULT"].get(key, raw=True)
             except configparser.InterpolationSyntaxError:
                 value = config["DEFAULT"].get(key, raw=True)
             try:
@@ -63,7 +62,8 @@ def make_db_config_schema(ini_filename):
             continue
         for key in config._sections[section].keys():
             try:
-                value = config[section][key]
+                #value = config[section][key]
+                value = config[section].get(key, raw=True)
             except configparser.InterpolationSyntaxError:
                 value = config[section].get(key, raw=True)
             key_name = f"{section}_{key}"
@@ -103,15 +103,3 @@ def delete_all_config_keys():
         unregister_config_key(key)
 
     transaction.commit()
-
-
-if __name__ == "__main__":
-    #ini_file = "hydra_base/hydra.ini"
-    #schema = ini_to_configset(ini_file)
-    #pprint(schema)
-    #config = make_config_from_schema(schema)
-    #keys = get_all_config_keys()
-    #pprint(keys)
-    #delete_all_config_keys()
-    keys = get_all_config_keys()
-    pprint(keys)

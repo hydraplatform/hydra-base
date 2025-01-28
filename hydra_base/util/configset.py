@@ -13,9 +13,10 @@ from hydra_base.lib.hydraconfig import (
     config_key_set_rule,
     config_key_set_description
 )
+from hydra_base.config import get_startup_config
 
-
-config_set_secret_key = b"dev_only_secret_key"
+hash_key = get_startup_config()["hydra_config_hash_key"]
+config_set_secret_key = bytes(hash_key, encoding="utf8")
 
 class ConfigSet:
     mac_hash = "sha256"

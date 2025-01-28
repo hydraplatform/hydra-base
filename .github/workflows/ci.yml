@@ -36,6 +36,7 @@ jobs:
       HYDRA_MONGO_VALUE_LOCATION_KEY: value_storage_location
       HYDRA_DISABLE_HDF: False
       HYDRA_HDF_FILESTORE: /tmp
+      HYDRA_CONFIG_HASH_KEY: dev_only_secret_key
 
     strategy:
       matrix:

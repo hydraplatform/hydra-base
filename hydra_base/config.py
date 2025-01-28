@@ -16,64 +16,26 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
-import glob
+import logging
 import os
 import re
 import sys
 
 from hydra_base import db
+from hydra_base.exceptions import HydraError
 
 
-PYTHONVERSION = sys.version_info
-if PYTHONVERSION >= (3,2):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
-import logging
-
-global CONFIG
 CONFIG = None
 
-global localfiles
-global localfile
-global repofile
-global repofiles
-global userfile
-global userfiles
-global sysfile
-global sysfiles
 
 def load_config():
-    """Load a config file. This function looks for a config (*.ini) file in the
-    following order::
-
-        (1) ./*.ini
-        (2) ~/.config/hydra/
-        (3) /etc/hydra
-        (4) /path/to/hydra_base/*.ini
-
-    (1) will override (2) will override (3) will override (4). Parameters not
-    defined in (1) will be taken from (2). Parameters not defined in (2) will
-    be taken from (3).  (3) is the config folder that will be checked out from
-    the svn repository.  (2) Will be be provided as soon as an installable
-    distribution is available. (1) will usually be written individually by
-    every user."""
-    global localfiles
-    global localfile
-    global repofile
-    global repofiles
-    global userfile
-    global userfiles
-    global sysfile
-    global sysfiles
     global CONFIG
     logging.basicConfig(level='INFO')
 
     from hydra_base.lib.hydraconfig import (
         apply_configset,
-        list_config_keys,
-        config_key_get_value,
         config_key_set_value,
+        list_config_keys,
         register_config_key
     )
     from pprint import pprint
@@ -108,11 +70,6 @@ def load_config():
             pass
 
     CONFIG = True
-    #db.DBSession = None
-    #keys = list_config_keys()
-    #kp = {k: config_key_get_value(k) for k in keys}
-    #pprint(kp)
-
     return
 
 
@@ -130,13 +87,16 @@ def read_env_db_config():
       "hydra_mysql_max_overflow": os.environ.get("HYDRA_MYSQL_MAX_OVERFLOW")
     }
 
+
 def read_env_startup_config():
     return {
       "hydra_cachetype": os.environ.get("HYDRA_CACHETYPE"),
       "hydra_cachehost": os.environ.get("HYDRA_CACHEHOST"),
       "hydra_log_confpath": os.environ.get("HYDRA_LOG_CONFPATH"),
-      "hydra_log_filedir": os.environ.get("HYDRA_LOG_FILEDIR")
+      "hydra_log_filedir": os.environ.get("HYDRA_LOG_FILEDIR"),
+      "hydra_config_hash_key": os.environ.get("HYDRA_CONFIG_HASH_KEY")
     }
+
 
 def get_startup_config():
     db_config = read_env_db_config()
@@ -145,6 +105,7 @@ def get_startup_config():
 
     db_config.update(read_env_startup_config())
     return db_config
+
 
 def make_value_substitutions(value):
     if not isinstance(value, str):
@@ -157,10 +118,11 @@ def make_value_substitutions(value):
             tkey = token.strip('_').lower()
             tval = config_key_get_value(tkey)
             value = value.replace(token, tval)
-        except Exception:
+        except HydraError:
             pass  # Do not substitute invalid keys
 
     return value
+
 
 def get(*args, default=None):
     from hydra_base.lib.hydraconfig import (

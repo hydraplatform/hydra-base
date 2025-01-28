@@ -143,97 +143,6 @@ class TestTemplates:
     """
         Test for templates
     """
-    """
-    def test_add_xml(self, template_json_object):
-        new_tmpl = template_json_object
-
-        assert new_tmpl is not None, "Adding template from XML was not successful!"
-
-        assert len(new_tmpl.templatetypes) == 2
-
-        for tt in new_tmpl.templatetypes:
-            if tt.name == 'Reservoir':
-                for ta in tt.typeattrs:
-                    assert ta.data_type == 'scalar'
-
-                assert tt.typeattrs[-1].properties is not None
-                assert eval(tt.typeattrs[-1].properties)['template_property'] == "Test property from template"
-
-        return new_tmpl
-
-    def test_get_xml(self, client, template_json_object):
-        xml_tmpl = template_json_object
-
-        db_template = client.get_template_as_xml(xml_tmpl.id)
-
-
-        assert db_template is not None
-
-        template_xsd_path = config.get('template_xsd_path')
-        xmlschema_doc = etree.parse(template_xsd_path)
-
-        xmlschema = etree.XMLSchema(xmlschema_doc)
-
-        xml_tree = etree.fromstring(db_template)
-
-        xmlschema.assertValid(xml_tree)
-
-    def test_get_dict(self, client, template_json_object):
-
-        # Upload the xml file initally to avoid having to manage 2 template files
-        xml_tmpl = template_json_object
-
-        template_dict = client.get_template_as_dict(xml_tmpl.id)
-
-        # Error that there's already a template with this name.
-        with pytest.raises(HydraError):
-            client.import_template_dict(template_dict, allow_update=False)
-
-        typename = template_dict['template']['templatetypes'][0]['name']
-
-        template_dict['template']['templatetypes'][0].name = typename + "_updated"
-
-        # Finds a template with this name and updates it to mirror this dict.
-        # This includes deleting types if they're not in this dict.
-        # Changing the name of a type has this effect, as a new template does not have
-        # any reference to existing types in Hydra.
-
-        updated_template = JSONObject(client.import_template_dict(template_dict))
-
-        type_names = []
-
-        for templatetype in updated_template.templatetypes:
-            type_names.append(templatetype.name)
-
-        assert len(type_names) == 2
-        assert typename + "_updated" in type_names and typename not in type_names
-
-        # Now put it back to the original name so other tests will work
-        log.info("Reverting the type's name")
-        template_dict['template']['templatetypes'][0].name = typename
-        updated_template = JSONObject(client.import_template_dict(template_dict))
-
-        #just double-check that the JSON import works also
-        updated_template = JSONObject(client.import_template_json(json.dumps(template_dict)))
-
-        type_names = []
-        for templatetype in updated_template.templatetypes:
-            type_names.append(templatetype.name)
-
-        assert len(type_names) == 2
-        assert typename in type_names and typename + "_updated" not in type_names
-
-        log.info("Checking to ensure Template has been updated correctly...")
-        # one final check to ensure that the type has been deleted
-        check_template_i = client.get_template(updated_template.id)
-
-        assert len(check_template_i.templatetypes) == 2
-
-    """
-    """
-        TEMPLATES Functions
-    """
-
     def test_add_template(self, client, mock_template):
 
         link_attr_1 = client.testutils.create_attribute("link_attr_1", dimension='Pressure')
@@ -820,25 +729,6 @@ class TestTemplates:
 
         assert updated_node_j.types is None or str(result1_j.id) not in [str(x.type_id) for x in updated_node_j.types]
 
-
-    """
-    def test_create_template_from_network(self, client, network_with_data):
-        network = network_with_data
-
-        net_template = client.get_network_as_xml_template(network.id)
-
-
-        assert net_template is not None
-
-        template_xsd_path = config.get("templates", "template_xsd_path")
-        xmlschema_doc = etree.parse(template_xsd_path)
-
-        xmlschema = etree.XMLSchema(xmlschema_doc)
-
-        xml_tree = etree.fromstring(net_template)
-
-        xmlschema.assertValid(xml_tree)
-    """
 
     def test_apply_template_to_network(self, client, mock_template, network_with_data):
         net_to_update = network_with_data
