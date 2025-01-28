@@ -25,7 +25,7 @@ import logging
 log = logging.getLogger(__name__)
 
 def add_image(name, file,**kwargs):
-    path = config.get('filesys', 'img_src')
+    path = config.get("filesys_img_src")
     try:
         os.makedirs(path)
     except OSError:
@@ -67,7 +67,7 @@ def add_image(name, file,**kwargs):
     return True
 
 def get_image(name,**kwargs):
-    path = config.get('filesys', 'img_src')
+    path = config.get("filesys_img_src")
 
     path = os.path.join(path, name)
 
@@ -87,7 +87,7 @@ def get_image(name,**kwargs):
     return imageFile
 
 def remove_image(name,**kwargs):
-    path = config.get('filesys', 'img_src')
+    path = config.get("filesys_img_src")
 
     path = os.path.join(path, name)
     if(os.path.exists(path)):
@@ -99,7 +99,7 @@ def remove_image(name,**kwargs):
 
 
 def add_file(resource_type, resource_id, name, file,**kwargs):
-    path = config.get('filesys', 'file_src')
+    path = config.get("filesys_file_src")
     path = os.path.join(path, resource_type)
     try:
         os.makedirs(path)
@@ -148,7 +148,7 @@ def add_file(resource_type, resource_id, name, file,**kwargs):
     return True
 
 def get_file(resource_type, resource_id, name,**kwargs):
-    path = config.get('filesys', 'file_src')
+    path = config.get("filesys_file_src")
 
     path = os.path.join(path, resource_type, str(resource_id), name)
 
@@ -170,7 +170,7 @@ def get_file(resource_type, resource_id, name,**kwargs):
     return file_to_send
 
 def remove_file(resource_type, resource_id, name,**kwargs):
-    path = config.get('filesys', 'file_src')
+    path = config.get("filesys_file_src")
 
     path = os.path.join(path, resource_type, str(resource_id), name)
 

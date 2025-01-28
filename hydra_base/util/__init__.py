@@ -144,8 +144,8 @@ def get_val(dataset, timestamp=None):
     elif dataset.type == 'timeseries':
         #TODO: design a mechansim to retrieve this data if it's stored externally
 
-        seasonal_year = config.get('DEFAULT','seasonal_year', '1678')
-        seasonal_key = config.get('DEFAULT', 'seasonal_key', '9999')
+        seasonal_year = str(config.get("seasonal_year", 1678))
+        seasonal_key = str(config.get("seasonal_key", 9999))
         val = val.replace(seasonal_key, seasonal_year)
 
         timeseries = pd.read_json(val, convert_axes=True)
