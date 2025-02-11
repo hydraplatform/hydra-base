@@ -37,7 +37,10 @@ jobs:
              mysql -e "show databases;" -uroot -proot
 
       - name: Setup MongoDB
-        run: sudo systemctl start mongod
+        run: |
+             sudo apt-get install -y mongodb-org
+             sudo systemctl daemon-reload
+             sudo systemctl start mongod
 
       - name: Setup Memcache
         run: |
