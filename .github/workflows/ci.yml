@@ -13,7 +13,7 @@ jobs:
 
     strategy:
       matrix:
-        py_version: ["3.8", "3.9", "3.10"]
+        py_version: ["3.10", "3.11", "3.12"]
 
     steps:
       - uses: actions/checkout@v3
@@ -49,6 +49,7 @@ jobs:
       - name: Setup Memcache
         run: |
              sudo apt-get install -y memcached
+             sudo apt-get install -y libmemcached-dev
              sudo systemctl start memcached
 
       - name: Install hydra-base
