@@ -5,24 +5,45 @@
     config, in which case use that.
 """
 import logging
-
+import datetime
 from hydra_base import config as hydraconfig
 import tempfile
 
 log = logging.getLogger(__name__)
 global cache
 
-if hydraconfig.get('cache', 'type') != "memcached":
+def _init_diskcache():
+    global cache
     import diskcache as dc
     cache = dc.Cache(tempfile.gettempdir())
+
+if hydraconfig.get('cache', 'type') != "memcached":
+    _init_diskcache()
+
 elif hydraconfig.get('cache', 'type') == 'memcached':
+
     try:
         import pylibmc
         cache = pylibmc.Client([hydraconfig.get('cache', 'host', '127.0.0.1')], binary=True)
-    except ModuleNotFoundError:
-        log.warning("Unable to find pylibmc. Defaulting to diskcache.")
-        import diskcache as dc
-        cache = dc.Cache(tempfile.gettempdir())
+
+        # Check if Memcached server is reachable by setting a test key
+        test_key = "__connection_test__"
+        #pick a unique key based on the time
+        test_value = datetime.datetime.toordinal(datetime.datetime.now())
+        try:
+            cache.set(test_key, test_value, time=1)
+            cache.get(test_key)
+            log.info("Connected to memcached server.")
+        except pylibmc.HostLookupError:
+            raise ConnectionError("Memcached server not responding.")
+        
+    except (ModuleNotFoundError, ConnectionError) as e:
+        if isinstance(e, ModuleNotFoundError):
+            log.warning("Unable to find pylibmc. Defaulting to diskcache.")
+        else:
+            log.warning("Memcached server not reachable. Defaulting to diskcache.")
+        
+        _init_diskcache()
 
 def clear_cache():
     if hasattr(cache, 'flush_all'):
