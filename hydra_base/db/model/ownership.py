@@ -18,7 +18,7 @@
 #
 from .base import *
 
-__all__ = ['ProjectOwner', 'NetworkOwner', 'RuleOwner', 'DatasetOwner']
+__all__ = ['ProjectOwner', 'NetworkOwner', 'DatasetOwner']
 
 class ProjectOwner(Base, Inspect):
     """
@@ -60,27 +60,6 @@ class NetworkOwner(Base, Inspect):
     network = relationship('Network', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
 
     _parents  = ['tNetwork', 'tUser']
-    _children = []
-
-class RuleOwner(AuditMixin, Base, Inspect):
-    """
-        This table tracks the owners of rules, to ensure rules which contain confidential logic
-        can be kept hidden
-    """
-
-    __tablename__='tRuleOwner'
-
-    user_id = Column(Integer(), ForeignKey('tUser.id'), primary_key=True, nullable=False)
-    rule_id = Column(Integer(), ForeignKey('tRule.id'), primary_key=True, nullable=False)
-    cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    view = Column(String(1),  nullable=False, default='Y')
-    edit = Column(String(1),  nullable=False, default='N')
-    share = Column(String(1),  nullable=False, default='N')
-
-    user = relationship('User', foreign_keys=[user_id])
-    rule = relationship('Rule', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
-
-    _parents  = ['tRule', 'tUser']
     _children = []
 
 
