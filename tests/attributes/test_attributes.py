@@ -259,13 +259,29 @@ class TestAttribute:
         pass
 
 class TestResourceAttribute:
-    def test_add_resource_attribute(self, client):
-        """
-            SKELETON
-            def add_resource_attribute(resource_type, resource_id, attr_id, is_var, error_on_duplicate=True, **kwargs):
-        """
-        pass
 
+    def test_add_resource_attributes(self,
+                                     client,
+                                     network_with_data,
+                                     attribute):
+
+        new_attr = attribute
+
+        existing_attr = network_with_data.attributes[0]
+
+        #add one new one, plus one existing one. This should result in only one being added
+        newattributes = [
+            {"attr_id": new_attr.id, "network_id": network_with_data.id, "attr_is_var": "Y"},
+            existing_attr
+        ]
+
+        num_added = client.add_resource_attributes(newattributes)
+
+        updated_network = client.get_network(network_with_data.id)
+
+        assert len(updated_network.attributes) == len(network_with_data.attributes) + num_added
+
+        assert new_attr.id in [netattr.attr_id for netattr in updated_network.attributes]
 
     def test_update_resource_attribute(self, client):
         """
