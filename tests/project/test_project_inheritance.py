@@ -421,8 +421,10 @@ class TestProjectInheritance:
         client.user_id = proj_user
         client.share_network(net1.id, ['UserC'], False, False)
 
-        #Now as the sharee, try to get project c
+        #Now as the sharee, try to get project 2
         client.user_id = pytest.user_c.id
+        #this should not error
+        client.get_project(proj2.id)
 
         #As the sharee, Clone Network 1 inside project 2
         cloned_net_id = client.clone_network(net1.id, project_id=proj2.id)
