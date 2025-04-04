@@ -26,7 +26,7 @@ import inspect
 
 def init(level=None):
  #   if level is None:
- #       level = config.get('DEFAULT', 'log_level')
+ #       level = config.get('log_level')
 
  #   if os.name == "nt":
  #       logging.addLevelName( logging.INFO, logging.getLevelName(logging.INFO))
@@ -38,7 +38,7 @@ def init(level=None):
  #       return
 
  #   if level is None:
- #       level = config.get('DEFAULT', 'log_level')
+ #       level = config.get('log_level')
 
 
  #   logging.addLevelName( logging.INFO, "\033[0;m%s\033[0;m" % logging.getLevelName(logging.INFO))
@@ -57,7 +57,7 @@ def init(level=None):
         calling_file = os.path.split(calling_file)[1]
 
         log_file = "%s.log" % calling_file.split('.')[0]
-        log_base_path = config.get('logging_conf', 'log_file_dir', '.')
+        log_base_path = config.get_startup_config()["hydra_log_filedir"]
 
         if not os.path.isdir(log_base_path):
             os.makedirs(log_base_path)
@@ -71,7 +71,7 @@ def init(level=None):
 
     use_default = False
     try:
-        config_file = os.path.expanduser(config.get('logging_conf', 'log_config_path', '.'))
+        config_file = os.path.expanduser(config.get_startup_config()["hydra_log_confpath"])
         #check the config file exists...
         if os.path.isfile(config_file) and log_base_path is not None:
             logging.config.fileConfig(config_file)

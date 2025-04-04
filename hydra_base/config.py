@@ -16,149 +16,149 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
+import logging
 import os
-import glob
+import re
 import sys
 
-PYTHONVERSION = sys.version_info
-if PYTHONVERSION >= (3,2):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
-import logging
+from hydra_base import db
+from hydra_base.exceptions import HydraError
 
-global CONFIG
+
 CONFIG = None
 
-global localfiles
-global localfile
-global repofile
-global repofiles
-global userfile
-global userfiles
-global sysfile
-global sysfiles
 
 def load_config():
-    """Load a config file. This function looks for a config (*.ini) file in the
-    following order::
-
-        (1) ./*.ini
-        (2) ~/.config/hydra/
-        (3) /etc/hydra
-        (4) /path/to/hydra_base/*.ini
-
-    (1) will override (2) will override (3) will override (4). Parameters not
-    defined in (1) will be taken from (2). Parameters not defined in (2) will
-    be taken from (3).  (3) is the config folder that will be checked out from
-    the svn repository.  (2) Will be be provided as soon as an installable
-    distribution is available. (1) will usually be written individually by
-    every user."""
-    global localfiles
-    global localfile
-    global repofile
-    global repofiles
-    global userfile
-    global userfiles
-    global sysfile
-    global sysfiles
     global CONFIG
     logging.basicConfig(level='INFO')
 
-    config = ConfigParser.ConfigParser(allow_no_value=True)
+    from hydra_base.lib.hydraconfig import (
+        apply_configset,
+        config_key_set_value,
+        list_config_keys,
+        register_config_key
+    )
+    from pprint import pprint
 
     modulepath = os.path.dirname(os.path.abspath(__file__))
-
-    localfile = os.path.join(os.getcwd(), 'hydra.ini')
-    localfiles = glob.glob(localfile)
-
-    repofile = os.path.join(modulepath, 'hydra.ini')
-    repofiles = glob.glob(repofile)
-
-    if sys.platform.startswith("win"):
-        from hydra_base.util.windows import win_get_common_documents
-        userfile = os.path.join(os.path.expanduser('~'),'AppData','Local','hydra.ini')
-        userfiles = glob.glob(userfile)
-
-        sysfile = os.path.join(win_get_common_documents(), 'Hydra','hydra.ini')
-        sysfiles = glob.glob(sysfile)
-    else:
-        userfile = os.path.join(os.path.expanduser('~'), '.hydra', 'hydra.ini')
-        userfiles = glob.glob(userfile)
-
-        sysfile = os.path.join('etc','hydra','hydra.ini')
-        sysfiles = glob.glob(sysfile)
+    home_dir = os.environ.get("HYDRA_HOME_DIR", '~')
+    hydra_base_dir = os.environ.get("HYDRA_BASE_DIR", modulepath)
+    configset = os.environ.get("HYDRA_CONFIGSET", "default_configset.json")
 
 
-    for ini_file in repofiles:
-        logging.debug("Repofile: %s"%ini_file)
-        config.read(ini_file)
-    for ini_file in sysfiles:
-        logging.debug("Sysfile: %s"%ini_file)
-        config.read(ini_file)
-    for ini_file in userfiles:
-        logging.debug("Userfile: %s"%ini_file)
-        config.read(ini_file)
-    for ini_file in localfiles:
-        logging.info("Localfile: %s"%ini_file)
-        config.read(ini_file)
+    if not db.DBSession:
+        db.connect()
+    keys = list_config_keys()
+    if len(keys) == 0:
+        # No existing configset has been loaded
+        # Load set specified by env or default
+        # and register substitution keys
+        with open(configset, 'r') as fp:
+            cs_json = fp.read()
+        apply_configset(cs_json)
 
-    env_value = os.environ.get('HYDRA_CONFIG')
-    if env_value is not None:
-        if os.path.exists(env_value):
-            config.read(env_value)
+        try:
+            register_config_key("home_dir", "string")
+            config_key_set_value("home_dir", home_dir)
+        except Exception:
+            pass
+
+        try:
+            register_config_key("hydra_base_dir", "string")
+            config_key_set_value("hydra_base_dir", hydra_base_dir)
+        except Exception:
+            pass
+
+    CONFIG = True
+    return
+
+
+def read_env_db_config():
+    return {
+      "hydra_db_server": os.environ.get("HYDRA_DB_SERVER"),
+      "hydra_db_name": os.environ.get("HYDRA_DB_NAME"),
+      "hydra_db_user": os.environ.get("HYDRA_DB_USER"),
+      "hydra_db_passwd": os.environ.get("HYDRA_DB_PASSWD"),
+      "hydra_db_autocreate": os.environ.get("HYDRA_DB_AUTOCREATE"),
+      "hydra_mysql_pool_preping": os.environ.get("HYDRA_MYSQL_POOL_PREPING"),
+      "hydra_mysql_pool_size": os.environ.get("HYDRA_MYSQL_POOL_SIZE"),
+      "hydra_mysql_pool_recycle": os.environ.get("HYDRA_MYSQL_POOL_RECYCLE"),
+      "hydra_mysql_pool_timeout": os.environ.get("HYDRA_MYSQL_POOL_TIMEOUT"),
+      "hydra_mysql_max_overflow": os.environ.get("HYDRA_MYSQL_MAX_OVERFLOW")
+    }
+
+
+def read_env_startup_config():
+    return {
+      "hydra_cachetype": os.environ.get("HYDRA_CACHETYPE"),
+      "hydra_cachehost": os.environ.get("HYDRA_CACHEHOST"),
+      "hydra_log_confpath": os.environ.get("HYDRA_LOG_CONFPATH"),
+      "hydra_log_filedir": os.environ.get("HYDRA_LOG_FILEDIR"),
+      "hydra_config_hash_key": os.environ.get("HYDRA_CONFIG_HASH_KEY")
+    }
+
+
+def get_startup_config():
+    db_config = read_env_db_config()
+    db_config["url"] = f"mysql+mysqldb://{db_config['hydra_db_user']}:{db_config['hydra_db_passwd']}"\
+                       f"@{db_config['hydra_db_server']}/{db_config['hydra_db_name']}"
+
+    db_config.update(read_env_startup_config())
+    return db_config
+
+
+def make_value_substitutions(value):
+    if not isinstance(value, str):
+        return value
+
+    p = r"__([a-zA-Z_]+)__"
+    tokens = re.findall(p, value)
+    for token in tokens:
+        try:
+            tkey = token.strip('_').lower()
+            tval = config_key_get_value(tkey)
+            value = value.replace(token, tval)
+        except HydraError:
+            pass  # Do not substitute invalid keys
+
+    return value
+
+
+def get(*args, default=None):
+    from hydra_base.lib.hydraconfig import (
+        config_key_get_value
+    )
+    """
+      The section delineated below is a temporary
+      routine to allow calls from the hydra_client
+      module which use the old "section+option"
+      form of config.get to succeed.
+      This is required for tests to pass in CI
+      and should be removed on merge and update
+      of hydra_client.
+    """
+    # Temporary CI adjustment begins
+    import inspect
+    sf = inspect.stack()[1]
+    mod = inspect.getmodule(sf[0])
+    if mod.__name__.lower().startswith("hydra_client"):
+        if args[0].lower() == "default":
+            key = args[1]
         else:
-            logging.warning('HYDRA_CONFIG set as %s but file does not exist', env_value)
+            key = f"{args[0]}_{args[1]}"
+        if len(args) == 3:
+            default = args[2]
+    else:
+        key = args[0]
+        if len(args) == 2:
+            default = args[1]
 
-
-    try:
-        home_dir = config.get('DEFAULT', 'home_dir')
-    except:
-        home_dir = os.environ.get('HYDRA_HOME_DIR', '~')
-    config.set('DEFAULT', 'home_dir', os.path.expanduser(home_dir))
-
-    try:
-        hydra_base = config.get('DEFAULT', 'hydra_base_dir')
-    except:
-        hydra_base = os.environ.get('HYDRA_BASE_DIR', modulepath)
-    config.set('DEFAULT', 'hydra_base_dir', os.path.expanduser(hydra_base))
-
-    read_values_from_environment(config, 'mysqld', 'server_name')
-
-
-    CONFIG = config
-
-    return config
-
-def read_values_from_environment(config, section_key, options_key):
-    #####################################
-    # Settings for docker ENV variables #
-    #####################################
-    env_var_name='HYDRA_DOCKER__' + section_key + '__' + options_key
-
-    env_value = os.environ.get(env_var_name, '-')
-    if (env_value != '-'):
-        # Substitute the server_name with the end variable
-        # print("Presente")
-        config.set(section_key, options_key, env_value)
-
-
-def get(section, option, default=None):
-
-    if CONFIG is None:
-        load_config()
+    # Temporary CI adjustment ends
 
     try:
-        return CONFIG.get(section, option)
-    except:
-        return default
-
-def getint(section, option, default=None):
-
-    if CONFIG is None:
-        load_config()
-
-    try:
-        return CONFIG.getint(section, option)
+        value = config_key_get_value(key)
+        value = make_value_substitutions(value)
+        print(f"{key} = {value}")
+        return value
     except:
         return default

@@ -12,17 +12,22 @@ import tempfile
 log = logging.getLogger(__name__)
 global cache
 
-if hydraconfig.get('cache', 'type') != "memcached":
+startup_config = hydraconfig.get_startup_config()
+cache_type = startup_config["hydra_cachetype"]
+cache_host = startup_config["hydra_cachehost"]
+
+if cache_type != "memcached":
     import diskcache as dc
     cache = dc.Cache(tempfile.gettempdir())
-elif hydraconfig.get('cache', 'type') == 'memcached':
+elif cache_type == 'memcached':
     try:
         import pylibmc
-        cache = pylibmc.Client([hydraconfig.get('cache', 'host', '127.0.0.1')], binary=True)
+        cache = pylibmc.Client([cache_host], binary=True)
     except ModuleNotFoundError:
         log.warning("Unable to find pylibmc. Defaulting to diskcache.")
         import diskcache as dc
         cache = dc.Cache(tempfile.gettempdir())
+
 
 def clear_cache():
     if hasattr(cache, 'flush_all'):

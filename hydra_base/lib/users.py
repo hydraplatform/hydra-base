@@ -208,7 +208,7 @@ def get_max_login_attempts(*args, **kwargs):
          a value of 0 will be returned and users will be unable to log
          in.
     """
-    max_login_attempts = int(config.get("security", "max_login_attempts", 0))
+    max_login_attempts = int(config.get("security_max_login_attempts", 0))
 
     return max_login_attempts
 
