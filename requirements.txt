@@ -1,4 +1,10 @@
 bcrypt
+lxml
+pymongo
+mysqlclient
+pudb
+python-dateutil
+cheroot
 beaker
 cheroot
 click

@@ -27,6 +27,7 @@ from sqlalchemy import or_, and_, func
 from sqlalchemy.orm import aliased, joinedload
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import IntegrityError
+from zope.sqlalchemy import mark_changed
 
 from ..db.model import Attr,\
         User,\
@@ -92,10 +93,10 @@ def _get_resource(ref_key, ref_id):
     except NoResultFound:
         raise ResourceNotFoundError("Resource %s with ID %s not found"%(ref_key, ref_id))
 
-def _get_ra_resource(ra):
-    return _get_resource(ra.ref_key, ra.ref_id)
-
 def _get_resource_id(ra):
+    if ra.resource_id is not None:
+        return ra.resource_id
+
     ref_key = ra.ref_key
     if ref_key == 'NETWORK':
         return ra.network_id
@@ -118,6 +119,15 @@ def get_attribute_by_id(attr_id, **kwargs):
         raise ResourceNotFoundError("Attribute (attribute id=%s) does not exist"%(attr_id))
 
     return attr_i
+
+def get_attributes_by_id(attr_ids, **kwargs):
+    """
+        Get a list of specific attributes by their IDs.
+    """
+    if not attr_ids:
+        return []
+            
+    return db.DBSession.query(Attr).filter(Attr.id.in_(attr_ids)).all()
 
 def get_template_attributes(template_id, **kwargs):
     """
@@ -831,6 +841,90 @@ def delete_resource_attribute(resource_attr_id, **kwargs):
     db.DBSession.flush()
     return 'OK'
 
+def add_resource_attributes(resource_attributes, **kwargs):
+    """
+    A resource attribute looks like:
+    {
+        "ref_key": "NODE",
+        "node_id": 1,
+        "link_id": None,
+        "group_id": None,
+        "network_id": None,
+        "attr_id": 1,
+        "is_var": "N"}
+    """
+    if len(resource_attributes) == 0:
+        return 'OK'
+    
+    #1. Identify the network ID
+    network_id = get_network_id_from_resource_attribute(resource_attributes[0])
+
+    #2. Get all the resource attributes in the network
+    network_resource_attributes = get_all_network_resourceattributes(network_id, **kwargs)
+
+    #3. Remove any duplicates from the incoming data in case there are RAs which are already there
+    network_ra_lookup = {(ra.attr_id, ra.ref_key, _get_resource_id(ra)): ra for ra in network_resource_attributes}
+
+    for ra in resource_attributes:
+        if ra.ref_key is not None:
+            continue
+        elif ra.get('network_id') is not None:
+            ra['ref_key'] = 'NETWORK'
+        elif ra.get('node_id') is not None:
+            ra['ref_key'] = 'NODE'
+        elif ra.get('link_id') is not None:
+            ra['ref_key'] = 'LINK'
+        elif ra.get('group_id') is not None:
+            ra['ref_key'] = 'GROUP'
+
+    ras_to_be_inserted = []
+    for ra in resource_attributes:
+        key = (ra.attr_id, ra['ref_key'], _get_resource_id(ra))
+        if key not in network_ra_lookup:
+            ras_to_be_inserted.append(ra)
+
+    #4. Add the new resource attributes
+    if len(ras_to_be_inserted) > 0:
+        log.info("Adding %s new resource attributes", len(ras_to_be_inserted))
+        db.DBSession.execute(
+            ResourceAttr.__table__.insert(),
+            ras_to_be_inserted
+        )
+        mark_changed(db.DBSession())
+
+    db.DBSession.flush()
+
+    return len(ras_to_be_inserted)
+
+def get_network_id_from_resource_attribute(ra):
+    network_id = None
+    if ra.get('resource_id') is not None:
+        #set the node_id, group_id, link_id based on the resource_id
+        resource_id = ra.get('resource_id')
+        if ra.resource_type == 'NODE':
+            ra.node_id = resource_id
+        elif ra.resource_type == 'LINK':
+            ra.link_id = resource_id
+        elif ra.resource_type == 'GROUP':
+            ra.group_id = resource_id
+        elif ra.resource_type == 'NETWORK':
+            ra.network_id = resource_id
+
+    if ra.get('network_id') is not None:
+        network_id = ra.get('network_id')
+    if ra.get('node_id') is not None:
+        node_id = ra.get('node_id')
+        node = db.DBSession.query(Node).filter(Node.id == node_id).one()
+        network_id = node.network_id
+    if ra.get('link_id') is not None:
+        link_id = ra.get('link_id')
+        link = db.DBSession.query(Link).filter(Link.id == link_id).one()
+        network_id = link.network_id
+    if ra.get('group_id') is not None:
+        group_id = ra.get('group_id')
+        group = db.DBSession.query(ResourceGroup).filter(ResourceGroup.id == group_id).one()
+        network_id = group.network_id
+    return network_id
 
 def add_resource_attribute(resource_type, resource_id, attr_id, is_var, error_on_duplicate=True, **kwargs):
     """
