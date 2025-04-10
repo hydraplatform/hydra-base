@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
+import time
 from ..base import *
 
 from ..dataset import Dataset, Metadata
@@ -153,7 +154,7 @@ class Scenario(Base, Inspect):
         childrens_ras = []
         for child_rs in child_data:
             childrens_ras.append(child_rs.resource_attr_id)
-
+        t = time.time()
         resourcescenarios = self.get_all_resourcescenarios(
             user_id,
             ra_ids=ra_ids,
@@ -166,7 +167,7 @@ class Scenario(Base, Inspect):
             include_data_type_values=include_data_type_values,
             exclude_data_type_values=exclude_data_type_values
             )
-
+        log.info(f"get_all_resourcescenarios took {time.time() - t} seconds")
         for this_rs in resourcescenarios:
             if this_rs.resource_attr_id not in childrens_ras:
                 child_data.append(this_rs)
@@ -255,45 +256,44 @@ class Scenario(Base, Inspect):
         all_rs = non_dataframe_rs + excl_values_rs
 
         log.info(f"Ending dataset query -- {len(all_rs)} results")
+        t = time.time()
         processed_rs = []
         for rs in all_rs:
             rs_obj = JSONObject({
                 'resource_attr_id': rs.resource_attr_id,
                 'scenario_id':rs.scenario_id,
-                'dataset_id':rs.dataset_id
-            })
-            rs_attr = JSONObject({
-                'id': rs.resource_attr_id,
-                'attr_id':rs.attr_id,
-                'attr_is_var': rs.attr_is_var,
-                'ref_key': rs.ref_key,
-                'node_id': rs.node_id,
-                'link_id': rs.link_id,
-                'network_id': rs.network_id,
-                'group_id': rs.group_id,
-                'attr':{
-                    'name': rs.attr_name,
-                    'description':rs.attr_description,
-                    'id': rs.attr_id
+                'dataset_id':rs.dataset_id,
+                'resourceattr': {
+                    'id': rs.resource_attr_id,
+                    'attr_id':rs.attr_id,
+                    'attr_is_var': rs.attr_is_var,
+                    'ref_key': rs.ref_key,
+                    'node_id': rs.node_id,
+                    'link_id': rs.link_id,
+                    'network_id': rs.network_id,
+                    'group_id': rs.group_id,
+                    'attr':{
+                        'name': rs.attr_name,
+                        'description':rs.attr_description,
+                        'id': rs.attr_id
+                    }
+                },
+                'dataset': {
+                    'id':rs.dataset_id,
+                    'type' : rs.type,
+                    'unit_id' : rs.unit_id,
+                    'name' : rs.name,
+                    'hash' : rs.hash,
+                    'cr_date':rs.cr_date,
+                    'created_by':rs.created_by,
+                    'hidden':rs.hidden,
+                    'value': getattr(rs, 'value', None),
+                    'metadata':{},
                 }
-            })
-
-            rs_dataset = JSONDataset({
-                'id':rs.dataset_id,
-                'type' : rs.type,
-                'unit_id' : rs.unit_id,
-                'name' : rs.name,
-                'hash' : rs.hash,
-                'cr_date':rs.cr_date,
-                'created_by':rs.created_by,
-                'hidden':rs.hidden,
-                'value': getattr(rs, 'value', None),
-                'metadata':{},
-            })
-            rs_obj.resourceattr = rs_attr
-            rs_obj.dataset = rs_dataset
+            }, normalize=False)
 
             processed_rs.append(rs_obj)
+        log.info(f"Datasets processed in {time.time() - t} seconds")
 
         ## If metadata is requested, use a dedicated query to extract metadata
         ## from the scenario's datasets,
