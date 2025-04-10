@@ -81,7 +81,7 @@ class FrameGroupReader(GroupReader):
             columns_raw = [*self.group["axis0"]]
         except KeyError as ke:
             raise ValueError(f"Error: {self.group.name} has invalid format") from ke
-        return [col.decode() for col in columns_raw]
+        return [col.decode() if isinstance(col, bytes) else col for col in columns_raw]
 
     def get_columns_by_block(self):
         try:
@@ -91,7 +91,7 @@ class FrameGroupReader(GroupReader):
         blocks_columns = []
         for block_idx in range(nblocks):
             columns_raw = [*self.group[f"block{block_idx}_items"]]
-            blocks_columns.append([col.decode() for col in columns_raw])
+            blocks_columns.append([col.decode() if isinstance(col, bytes) else col for col in columns_raw])
         return blocks_columns
 
     def make_column_map_of_group(self, blocks):
@@ -168,6 +168,7 @@ class FrameGroupReader(GroupReader):
 
     def get_columns_as_dataframe(self, columns, start=None, end=None):
         index_range = self.get_index_range(start, end)
+        index_range = [i.decode() if isinstance(i, bytes) else i for i in index_range]
         column_series = self.get_series_by_column_names(columns, start, end)
         return make_pandas_dataframe(index_range, column_series)
 
