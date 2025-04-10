@@ -186,9 +186,9 @@ class JSONObject(dict):
                     oid = ObjectId(obj["value"])
                     doc = mongo.get_document_by_oid_inst(oid)
                     obj["value"] = doc["value"]
-            except (TypeError, InvalidId):
-                """ The value wasn't an valid ObjectID, keep the current value """
-                pass
+                except (TypeError, InvalidId):
+                    """ The value wasn't an valid ObjectID, keep the current value """
+                    pass
         elif hasattr(obj_dict, '__dict__') and len(obj_dict.__dict__) > 0:
             obj = obj_dict.__dict__
             """
