@@ -1317,7 +1317,7 @@ def get_all_parent_types(ttype_id, **kwargs):
     """
     parent_ids = Template.get_type_parent_ids(ttype_id)
 
-    q = db.DBSession.query(TemplateType)
-    q = q.filter(TemplateType.id.in_(parent_ids))
-    q = q.options(noload(TemplateType.typeattrs))
-    return q.all()
+    tt_qry = db.DBSession.query(TemplateType)
+    tt_qry = tt_qry.filter(TemplateType.id.in_(parent_ids))
+    tt_qry = tt_qry.options(noload(TemplateType.typeattrs))
+    return tt_qry.all()
