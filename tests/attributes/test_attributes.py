@@ -279,7 +279,7 @@ class TestResourceAttribute:
 
         updated_network = client.get_network(network_with_data.id)
 
-        assert len(updated_network.attributes) == len(network_with_data.attributes) + num_added
+        assert len(updated_network.attributes) == len(network_with_data.attributes) + len(num_added)
 
         assert new_attr.id in [netattr.attr_id for netattr in updated_network.attributes]
 
