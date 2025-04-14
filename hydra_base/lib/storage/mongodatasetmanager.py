@@ -40,12 +40,14 @@ class MongoDatasetManager(DatasetManager):
 
 
     def __set__(self, dataset, value):
-        if not value:
+        if not value or isinstance(value, int) or isinstance(value, float):
+            """ Empty or numeric value """
             size = 0
         else:
             try:
                 size = len(value)
             except TypeError as err:
+
                 raise HydraError(f"{value=} written to dataset has invalid type {type(value)=}") from err
 
         log.debug(f"* Dataset write: {size=} {value=} on {dataset=}")
