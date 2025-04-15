@@ -57,6 +57,7 @@ from ..util.permissions import required_perms, required_role
 
 from . import units
 from .objects import JSONObject
+from .cache import cache
 
 log = logging.getLogger(__name__)
 
@@ -855,13 +856,11 @@ def add_resource_attributes(resource_attributes, **kwargs):
     """
     if len(resource_attributes) == 0:
         return 'OK'
-    
+
     #1. Identify the network ID
     network_id = get_network_id_from_resource_attribute(resource_attributes[0])
-
     #2. Get all the resource attributes in the network
     network_resource_attributes = get_all_network_resourceattributes(network_id, **kwargs)
-
     #3. Remove any duplicates from the incoming data in case there are RAs which are already there
     network_ra_lookup = {(ra.attr_id, ra.ref_key, _get_resource_id(ra)): ra for ra in network_resource_attributes}
 
@@ -909,6 +908,7 @@ def add_resource_attributes(resource_attributes, **kwargs):
             ras_to_be_inserted.append(ra)
 
     inserted_ids = []
+
     #4. Add the new resource attributes
     cols = list(filter(lambda x: x not in ['id', 'cr_date', 'updated_at'], [c.name for c in ResourceAttr.__table__.columns]))
     ras_to_be_inserted = [{k: v for k, v in ra.items() if k in cols} for ra in ras_to_be_inserted]
@@ -922,6 +922,9 @@ def add_resource_attributes(resource_attributes, **kwargs):
         # Mark the session as dirty to ensure that the changes are saved
         # This is necessary if you are using a session with autocommit=False
         mark_changed(db.DBSession())
+
+        cache.set(f'network_resource_attributes_{network_id}', 
+            cache.get(f'network_resource_attributes_{network_id}') + [JSONObject(obj) for obj in objs], expire=60*60)
 
     db.DBSession.flush()
 
@@ -1065,9 +1068,14 @@ def get_all_network_resourceattributes(network_id, template_id=None, return_orm=
                 attr_is_var: 'Y' #comes from the ResourceAttr
                 }
     """
+
     user_id = kwargs.get('user_id')
     net = _get_network(network_id)
     net.check_read_permission(user_id, do_raise=True)
+
+    if cache.get(f'network_resource_attributes_{network_id}') is not None:
+        return cache.get(f'network_resource_attributes_{network_id}')
+
     network_attrs = db.DBSession.query(ResourceAttr).\
             join(Attr, ResourceAttr.attr_id == Attr.id).\
             join(Network, Network.id == ResourceAttr.network_id).\
@@ -1109,7 +1117,6 @@ def get_all_network_resourceattributes(network_id, template_id=None, return_orm=
 
         resource_attrs = filter(lambda x: x.attr_id in attr_ids, resource_attrs)
     
-
     network_attributes = []
     for ra in resource_attrs:
         if return_orm is True:
@@ -1118,6 +1125,8 @@ def get_all_network_resourceattributes(network_id, template_id=None, return_orm=
             ra_j = JSONObject(ra)
             ra_j.attr = JSONObject(ra.attr)
             network_attributes.append(ra_j)
+
+    cache.set(f'network_resource_attributes_{network_id}', network_attributes, expire=60*60)
 
     return network_attributes
 
