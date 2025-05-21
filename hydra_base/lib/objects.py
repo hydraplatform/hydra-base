@@ -164,10 +164,10 @@ class JSONObject(dict):
             try:
                 obj = json.loads(obj_dict)
                 assert isinstance(obj, dict), "JSON string does not evaluate to a dict"
-            except Exception:
-                log.critical(obj_dict)
+            except (AssertionError, json.decoder.JSONDecodeError) as e:
+                log.critical("Error with value: %s" , obj_dict)
                 log.critical(parent)
-                raise ValueError("Unable to read string value. Make sure it's JSON serialisable")
+                raise ValueError("Unable to read string value. Make sure it's JSON serialisable") from e
         elif hasattr(obj_dict, '_asdict') and obj_dict._asdict is not None:
             """
             The argument is a SQLAlchemy object. This originated from a
