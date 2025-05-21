@@ -293,7 +293,7 @@ class Scenario(Base, Inspect):
             }, normalize=False)
 
             processed_rs.append(rs_obj)
-        log.info(f"Datasets processed in {time.time() - t} seconds")
+        log.info(f"Datasets processed in {time.time() - t:.2f} seconds")
 
         ## If metadata is requested, use a dedicated query to extract metadata
         ## from the scenario's datasets,
