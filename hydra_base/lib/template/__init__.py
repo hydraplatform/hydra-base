@@ -1308,3 +1308,16 @@ def delete_typeattr(typeattr_id, **kwargs):
     _remove_template_from_cache(ta.templatetype.template_id)
 
     return 'OK'
+
+@required_perms("get_template")
+def get_all_parent_types(ttype_id, **kwargs):
+    """
+        Returns all TemplateTypes which are parents of
+        the TemplateType with <ttype_id>
+    """
+    parent_ids = Template.get_type_parent_ids(ttype_id)
+
+    tt_qry = db.DBSession.query(TemplateType)
+    tt_qry = tt_qry.filter(TemplateType.id.in_(parent_ids))
+    tt_qry = tt_qry.options(noload(TemplateType.typeattrs))
+    return tt_qry.all()

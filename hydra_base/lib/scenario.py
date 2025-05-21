@@ -975,12 +975,12 @@ def bulk_update_resourcedata(scenario_ids, resource_scenarios, **kwargs):
 
         #make a lookup dict of all the resource scenarios that already exist from the
         #ones that have been passed in to avoid querying for every one individually.
+
         ra_ids = [rs.resource_attr_id for rs in resource_scenarios]
         r_scens_i = db.DBSession.query(ResourceScenario).filter(
                 ResourceScenario.scenario_id == scenario_id,
                 ResourceScenario.resource_attr_id.in_(ra_ids)).all()
         r_scen_dict = dict((rs.resource_attr_id, rs) for rs in r_scens_i)
-
         for rs in resource_scenarios:
             if rs.dataset is not None:
                 updated_rs = _update_resourcescenario(scen_i,
@@ -1128,7 +1128,7 @@ def _update_resourcescenario(scenario, resource_scenario, r_scen_i=None, dataset
                 ResourceScenario.scenario_id == scenario.id,
                 ResourceScenario.resource_attr_id == resource_scenario.resource_attr_id).one()
         except NoResultFound as e:
-            log.info("Creating new RS for RS %s in scenario %s", resource_scenario.resource_attr_id, scenario.id)
+            log.debug("Creating new RS for RS %s in scenario %s", resource_scenario.resource_attr_id, scenario.id)
             r_scen_i = ResourceScenario()
             r_scen_i.resource_attr_id = resource_scenario.resource_attr_id
             r_scen_i.scenario_id = scenario.id
@@ -1369,15 +1369,11 @@ def _get_all_network_resource_attributes(network_id):
 
     network_attribute_qry = base_qry.filter(ResourceAttr.network_id == network_id)
 
-
-    x = time.time()
     logging.info("Getting all attributes using execute")
     attribute_qry = all_node_attribute_qry.union(all_link_attribute_qry,
                                                  all_group_attribute_qry,
                                                  network_attribute_qry)
     all_resource_attributes = attribute_qry.all()
-
-    log.info("%s attrs retrieved in %s", len(all_resource_attributes), round(time.time()-x, 2))
 
     return all_resource_attributes
 

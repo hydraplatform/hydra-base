@@ -57,6 +57,7 @@ from ..util.permissions import required_perms, required_role
 
 from . import units
 from .objects import JSONObject
+from .cache import cache
 
 log = logging.getLogger(__name__)
 
@@ -126,7 +127,7 @@ def get_attributes_by_id(attr_ids, **kwargs):
     """
     if not attr_ids:
         return []
-            
+
     return db.DBSession.query(Attr).filter(Attr.id.in_(attr_ids)).all()
 
 def get_template_attributes(template_id, **kwargs):
@@ -855,13 +856,11 @@ def add_resource_attributes(resource_attributes, **kwargs):
     """
     if len(resource_attributes) == 0:
         return 'OK'
-    
+
     #1. Identify the network ID
     network_id = get_network_id_from_resource_attribute(resource_attributes[0])
-
     #2. Get all the resource attributes in the network
     network_resource_attributes = get_all_network_resourceattributes(network_id, **kwargs)
-
     #3. Remove any duplicates from the incoming data in case there are RAs which are already there
     network_ra_lookup = {(ra.attr_id, ra.ref_key, _get_resource_id(ra)): ra for ra in network_resource_attributes}
 
@@ -909,23 +908,34 @@ def add_resource_attributes(resource_attributes, **kwargs):
                 ra[target_field] = ra['ref_id']
 
     ras_to_be_inserted = []
+
     for ra in resource_attributes:
         key = (ra.attr_id, ra['ref_key'], _get_resource_id(ra))
         if key not in network_ra_lookup:
             ras_to_be_inserted.append(ra)
 
+    inserted_ids = []
+
     #4. Add the new resource attributes
+    cols = list(filter(lambda x: x not in ['id', 'cr_date', 'updated_at'], [c.name for c in ResourceAttr.__table__.columns]))
+    ras_to_be_inserted = [{k: v for k, v in ra.items() if k in cols} for ra in ras_to_be_inserted]
+
     if len(ras_to_be_inserted) > 0:
         log.info("Adding %s new resource attributes", len(ras_to_be_inserted))
-        db.DBSession.execute(
-            ResourceAttr.__table__.insert(),
-            ras_to_be_inserted
-        )
+        objs = [ResourceAttr(**ra) for ra in ras_to_be_inserted]
+        db.DBSession.add_all(objs)
+        db.DBSession.flush()  # or commit
+        inserted_ids = [obj.id for obj in objs]
+        # Mark the session as dirty to ensure that the changes are saved
+        # This is necessary if you are using a session with autocommit=False
         mark_changed(db.DBSession())
+
+        cache.set(f'network_resource_attributes_{network_id}',
+            cache.get(f'network_resource_attributes_{network_id}') + [JSONObject(obj) for obj in objs], expire=60*60)
 
     db.DBSession.flush()
 
-    return len(ras_to_be_inserted)
+    return inserted_ids
 
 def get_network_id_from_resource_attribute(ra):
     network_id = None
@@ -1065,32 +1075,42 @@ def get_all_network_resourceattributes(network_id, template_id=None, return_orm=
                 attr_is_var: 'Y' #comes from the ResourceAttr
                 }
     """
+
     user_id = kwargs.get('user_id')
     net = _get_network(network_id)
     net.check_read_permission(user_id, do_raise=True)
-    resource_attr_qry = db.DBSession.query(ResourceAttr).\
+
+    if cache.get(f'network_resource_attributes_{network_id}') is not None:
+        return cache.get(f'network_resource_attributes_{network_id}')
+
+    network_attrs = db.DBSession.query(ResourceAttr).\
             join(Attr, ResourceAttr.attr_id == Attr.id).\
-            outerjoin(Network, Network.id == ResourceAttr.network_id).\
-            outerjoin(Node, Node.id == ResourceAttr.node_id).\
-            outerjoin(Link, Link.id == ResourceAttr.link_id).\
-            outerjoin(ResourceGroup, ResourceGroup.id == ResourceAttr.group_id).filter(
-                or_(
-                    and_(ResourceAttr.network_id != None,
-                         ResourceAttr.network_id == network_id),
+            join(Network, Network.id == ResourceAttr.network_id).\
+            filter(ResourceAttr.network_id != None).\
+            filter(Network.id==network_id).all()
 
-                    and_(ResourceAttr.node_id != None,
-                         ResourceAttr.node_id == Node.id,
-                         Node.network_id == network_id),
+    node_attrs = db.DBSession.query(ResourceAttr).\
+            join(Attr, ResourceAttr.attr_id == Attr.id).\
+            join(Node, Node.id == ResourceAttr.node_id).\
+            join(Network, Network.id == Node.network_id).\
+            filter(ResourceAttr.node_id != None).\
+            filter(Network.id==network_id).all()
 
-                    and_(ResourceAttr.link_id != None,
-                         ResourceAttr.link_id == Link.id,
-                         Link.network_id == network_id),
+    link_attrs = db.DBSession.query(ResourceAttr).\
+            join(Attr, ResourceAttr.attr_id == Attr.id).\
+            join(Link, Link.id == ResourceAttr.link_id).\
+            join(Network, Network.id == Link.network_id).\
+            filter(ResourceAttr.link_id != None).\
+            filter(Network.id==network_id).all()
 
-                    and_(ResourceAttr.group_id != None,
-                         ResourceAttr.group_id == ResourceGroup.id,
-                         ResourceGroup.network_id == network_id)
-                )
-            )
+    group_attrs = db.DBSession.query(ResourceAttr).\
+            join(Attr, ResourceAttr.attr_id == Attr.id).\
+            join(ResourceGroup, ResourceGroup.id == ResourceAttr.group_id).\
+            join(Network, Network.id == ResourceGroup.network_id).\
+            filter(ResourceAttr.group_id != None).\
+            filter(Network.id==network_id).all()
+
+    resource_attrs = network_attrs + node_attrs + link_attrs + group_attrs
 
     if template_id is not None:
         attr_ids = []
@@ -1102,9 +1122,7 @@ def get_all_network_resourceattributes(network_id, template_id=None, return_orm=
         for r in rs:
             attr_ids.append(r.attr_id)
 
-        resource_attr_qry = resource_attr_qry.filter(ResourceAttr.attr_id.in_(attr_ids))
-
-    resource_attrs = resource_attr_qry.all()
+        resource_attrs = filter(lambda x: x.attr_id in attr_ids, resource_attrs)
 
     network_attributes = []
     for ra in resource_attrs:
@@ -1114,6 +1132,8 @@ def get_all_network_resourceattributes(network_id, template_id=None, return_orm=
             ra_j = JSONObject(ra)
             ra_j.attr = JSONObject(ra.attr)
             network_attributes.append(ra_j)
+
+    cache.set(f'network_resource_attributes_{network_id}', network_attributes, expire=60*60)
 
     return network_attributes
 
