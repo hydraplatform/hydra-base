@@ -167,7 +167,7 @@ class Scenario(Base, Inspect):
             include_data_type_values=include_data_type_values,
             exclude_data_type_values=exclude_data_type_values
             )
-        log.info(f"get_all_resourcescenarios took {time.time() - t} seconds")
+        log.info(f"get_all_resourcescenarios took {time.time() - t:.2f} seconds")
         for this_rs in resourcescenarios:
             if this_rs.resource_attr_id not in childrens_ras:
                 child_data.append(this_rs)
