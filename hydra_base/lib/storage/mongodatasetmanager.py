@@ -1,4 +1,5 @@
 from sqlalchemy.exc import NoResultFound
+import numbers
 
 from hydra_base.db import get_session
 from hydra_base.exceptions import HydraError
@@ -40,7 +41,7 @@ class MongoDatasetManager(DatasetManager):
 
 
     def __set__(self, dataset, value):
-        if not value or isinstance(value, int) or isinstance(value, float):
+        if not value or isinstance(0+1j, numbers.Number):
             """ Empty or numeric value """
             size = 0
         else:
