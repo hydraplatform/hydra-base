@@ -292,12 +292,15 @@ def get_scenario(scenario_id,
 
     scen_j = JSONObject(scen_i)
     rscen_rs = []
+    t = time.time()
     if include_data is True:
-        rscen_rs = scen_i.get_data(user_id, get_parent_data=get_parent_data,
-                                   include_results=include_results,
-                                   include_only_results=include_only_results,
-                                   include_metadata=include_metadata)
-
+        rscen_rs = scen_i.get_data(
+            user_id,
+            get_parent_data=get_parent_data,
+            include_results=include_results,
+            include_only_results=include_only_results,
+            include_metadata=include_metadata)
+    log.info(f"Time taken to get data: {time.time() - t:.2f}")
     rgi_rs = []
     if include_group_items is True:
         rgi_rs = scen_i.get_group_items(get_parent_items=get_parent_data)
