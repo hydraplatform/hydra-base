@@ -152,7 +152,7 @@ class JSONObject(dict):
 
     def normalise_input(self, obj_dict):
         """
-            Pre-process the input dict to ensure that it is comopatible with a JSONObject
+            Pre-process the input dict to ensure that it is compatible with a JSONObject
         """
         asdict_fn = getattr(obj_dict, "asdict", None)
         if asdict_fn is not None and callable(asdict_fn):
