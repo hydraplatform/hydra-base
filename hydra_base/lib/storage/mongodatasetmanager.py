@@ -47,7 +47,6 @@ class MongoDatasetManager(DatasetManager):
             try:
                 size = len(value)
             except TypeError as err:
-
                 raise HydraError(f"{value=} written to dataset has invalid type {type(value)=}") from err
 
         log.debug(f"* Dataset write: {size=} {value=} on {dataset=}")
