@@ -160,7 +160,7 @@ class JSONObject(dict):
             for k, v in rd.items():
                 self[k] = v
 
-        if isinstance(obj_dict, six.string_types):
+        if isinstance(obj_dict, str):
             try:
                 obj = json.loads(obj_dict)
                 assert isinstance(obj, dict), "JSON string does not evaluate to a dict"
