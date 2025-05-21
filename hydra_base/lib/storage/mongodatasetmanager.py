@@ -41,7 +41,7 @@ class MongoDatasetManager(DatasetManager):
 
 
     def __set__(self, dataset, value):
-        if not value or isinstance(0+1j, numbers.Number):
+        if not value or isinstance(value, numbers.Number):
             """ Empty or numeric value """
             size = 0
         else:
