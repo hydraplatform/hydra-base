@@ -865,17 +865,48 @@ def add_resource_attributes(resource_attributes, **kwargs):
     #3. Remove any duplicates from the incoming data in case there are RAs which are already there
     network_ra_lookup = {(ra.attr_id, ra.ref_key, _get_resource_id(ra)): ra for ra in network_resource_attributes}
 
+    #an RA in the database has a 'REF_KEY' column, and then a 'network_id', 'node_id', 'link_id', 'group_id' and 'project_id' column which are mutually exclusive.
+    #The incoming RA can have this format, but also 'ref_key', and 'ref_id', where ref_id is the ID of the resource, and ref_key is the type of resource.
+    #The incoming RA can also have a 'resource_type' and 'resource_id' column, which is the same as the ref_key and ref_id.
+    #The result should be a ref_key and the relevant resource_id column (network_id, node_id etc) set to the ID of the resource.
+    key_to_field = {
+        'NETWORK': 'network_id',
+        'NODE': 'node_id',
+        'LINK': 'link_id',
+        'GROUP': 'group_id',
+        'PROJECT': 'project_id',
+    }
+
+    field_to_key = {v: k for k, v in key_to_field.items()}
+
     for ra in resource_attributes:
-        if ra.ref_key is not None:
-            continue
-        elif ra.get('network_id') is not None:
-            ra['ref_key'] = 'NETWORK'
-        elif ra.get('node_id') is not None:
-            ra['ref_key'] = 'NODE'
-        elif ra.get('link_id') is not None:
-            ra['ref_key'] = 'LINK'
-        elif ra.get('group_id') is not None:
-            ra['ref_key'] = 'GROUP'
+        # If no ref_key, try to infer it from existing ID fields
+        if ra.get('ref_key') is None:
+            for field, key in field_to_key.items():
+                if ra.get(field) is not None:
+                    ra['ref_key'] = key
+                    break
+
+        # Override with resource_type if provided
+        if ra.get('resource_type'):
+            ra['ref_key'] = ra['resource_type']
+
+        # If resource_id is present and ref_key is known, populate correct field
+        if ra.get('resource_id') and ra.get('ref_key'):
+            target_field = key_to_field.get(ra['ref_key'])
+            if target_field:
+                ra[target_field] = ra['resource_id']
+
+        # If ref_key and ref_id are both provided, override and clear other fields
+        if ra.get('ref_key') and ra.get('ref_id'):
+            # Clear all ID fields
+            for field in key_to_field.values():
+                ra[field] = None
+
+            # Set the correct ID field
+            target_field = key_to_field.get(ra['ref_key'])
+            if target_field:
+                ra[target_field] = ra['ref_id']
 
     ras_to_be_inserted = []
     for ra in resource_attributes:
