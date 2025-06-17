@@ -641,8 +641,6 @@ class TestScenario:
 
         assert len(scen_1_resourcegroupitems) == len(scen_2_resourcegroupitems)
 
-        return updated_network
-
     def test_get_inherited_data(self, client, network_with_child_scenario):
 
         network = network_with_child_scenario
