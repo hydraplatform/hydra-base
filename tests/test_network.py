@@ -411,7 +411,6 @@ class TestNetwork:
         new_network = client.get_network(network.id)
 
         assert len(new_network.links) == len(network.links)+1; "New node was not added correctly"
-        return new_network
 
     def test_add_node(self, client, projectmaker, template):
         project = projectmaker.create('test')
@@ -489,8 +488,6 @@ class TestNetwork:
 
         assert len(new_network.nodes) == len(network.nodes)+1; "new node was not added correctly"
 
-        return new_network
-
     ######################################
     def test_add_nodes(self, client, projectmaker):
         """
@@ -551,7 +548,6 @@ class TestNetwork:
 
         assert len(network.nodes)+len(nodes) == len(new_network.nodes); "new nodes were not added correctly_2",
 
-        return  new_network
     ########################################
 
 

@@ -993,8 +993,6 @@ class TestScenario:
         assert len(scenario_diff.groups.scenario_2_items) == 1, "Group comparison was not successful!"
         assert scenario_diff.groups.scenario_1_items == [], "Group comparison was not successful!"
 
-        return updated_network
-
     def test_purge_scenario(self, client, network_with_data):
 
         #Make a network with 2 scenarios

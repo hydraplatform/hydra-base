@@ -41,8 +41,6 @@ def template_json_object(client, template):
     with open(template) as fh:
         file_contents = fh.read()
 
-
-
     return JSONObject(client.import_template_xml(file_contents))
 
 
@@ -158,8 +156,6 @@ class TestTemplates:
                 assert tt.typeattrs[-1].properties is not None
                 assert eval(tt.typeattrs[-1].properties)['template_property'] == "Test property from template"
 
-        return new_tmpl
-
     def test_get_xml(self, client, template_json_object):
         xml_tmpl = template_json_object
 
@@ -255,8 +251,6 @@ class TestTemplates:
         for t in new_template_j.templatetypes[1].typeattrs:
             assert t.attr_id in (link_attr_1.id, link_attr_2.id);
             "Node types were not added correctly!"
-
-        return new_template_j
 
     def test_update_template(self, client):
 
@@ -474,8 +468,6 @@ class TestTemplates:
         assert new_type_j.id > 0, "New type has incorrect ID!"
 
         assert len(new_type_j.typeattrs) == 3, "Resource type attrs did not add correctly"
-
-        return new_type_j
 
     def test_update_type(self, client, mock_template):
 
