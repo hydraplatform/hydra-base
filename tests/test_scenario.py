@@ -641,8 +641,6 @@ class TestScenario:
 
         assert len(scen_1_resourcegroupitems) == len(scen_2_resourcegroupitems)
 
-        return updated_network
-
     def test_get_inherited_data(self, client, network_with_child_scenario):
 
         network = network_with_child_scenario
@@ -992,8 +990,6 @@ class TestScenario:
 
         assert len(scenario_diff.groups.scenario_2_items) == 1, "Group comparison was not successful!"
         assert scenario_diff.groups.scenario_1_items == [], "Group comparison was not successful!"
-
-        return updated_network
 
     def test_purge_scenario(self, client, network_with_data):
 

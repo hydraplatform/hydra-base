@@ -43,6 +43,8 @@ class Project(Base, Inspect, PermissionControlled):
         UniqueConstraint('name', 'created_by', 'status', name="unique proj name"),
     )
 
+    core_columns = ['name', 'description', 'status']
+
     attribute_data = []
 
     id = Column(Integer(), primary_key=True, nullable=False)
@@ -52,7 +54,7 @@ class Project(Base, Inspect, PermissionControlled):
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     created_by = Column(Integer(), ForeignKey('tUser.id'), nullable=False)
-
+    appdata = Column(JSON)
     user = relationship('User', backref=backref("projects", order_by=id))
 
     parent_id = Column(Integer(), ForeignKey('tProject.id'), nullable=True)
@@ -73,10 +75,9 @@ class Project(Base, Inspect, PermissionControlled):
            on this project, or can be set at a higher level project
         """
 
-        log.info("Getting networks for project %s", self.id)
+        log.debug("Getting networks for project %s", self.id)
 
         networks = []
-        networks_is_creator = []
         networks_not_creator = []
 
         if self.is_owner(user_id):
@@ -84,11 +85,6 @@ class Project(Base, Inspect, PermissionControlled):
             networks_not_creator = get_session().query(Network)\
                 .filter(Network.project_id == self.id).all()
         else:
-            #all networks created by this user
-            networks_is_creator = get_session().query(Network)\
-                .filter(Network.project_id == self.id)\
-                .filter(Network.created_by == user_id).all()
-
             #all networks created by someone else, but which this user is an owner,
             #and this user can read this network
             networks_not_creator = get_session().query(Network).join(NetworkOwner)\
@@ -97,7 +93,7 @@ class Project(Base, Inspect, PermissionControlled):
                 .filter(NetworkOwner.user_id == user_id)\
                 .filter(NetworkOwner.view == 'Y').all()
 
-        all_network_ids = [n.id for n in networks_is_creator] + [n.id for n in networks_not_creator]
+        all_network_ids = [n.id for n in networks_not_creator]
 
         #for efficiency, get all the owners in 1 query and sort them by network
         all_owners = get_session().query(NetworkOwner)\
@@ -105,7 +101,9 @@ class Project(Base, Inspect, PermissionControlled):
 
         owners_by_network = defaultdict(list)
         for owner in all_owners:
-            owners_by_network[owner.network_id].append(owner)
+            owners_by_network[owner.network_id].append(JSONObject(owner))
+
+        project_owners = self.get_owners()
 
         #for efficiency, get all the scenarios in 1 query and sort them by network
         all_scenarios = get_session().query(Scenario)\
@@ -115,13 +113,19 @@ class Project(Base, Inspect, PermissionControlled):
         for netscenario in all_scenarios:
             scenarios_by_network[netscenario.network_id].append(netscenario)
 
-        for net_i in networks_is_creator + networks_not_creator:
+        for net_i in networks_not_creator:
 
             if include_deleted_networks is False and net_i.status.lower() == 'x':
                 continue
 
             net_j = JSONObject(net_i)
             net_j.owners = owners_by_network[net_j.id]
+            owner_ids = [no.user_id for no in owners_by_network[net_j.id]]
+            #include inherited owners from the project ownership for this project
+            for proj_owner in project_owners:
+                if proj_owner.user_id not in owner_ids:
+                    proj_owner.source = f'Inherited from: {self.name} (ID:{self.id})'
+                    net_j.owners.append(proj_owner)
             net_j.scenarios = scenarios_by_network[net_j.id]
             networks.append(net_j)
 
@@ -134,7 +138,7 @@ class Project(Base, Inspect, PermissionControlled):
         Get all the direct child projects of a given project
         i.e. all projects which have this project specified in the 'parent_id' column
         """
-        log.info("Getting child projects of project %s", self.id)
+        log.debug("Getting child projects of project %s", self.id)
 
         child_projects_i = get_session().query(Project).outerjoin(ProjectOwner)\
             .filter(Project.parent_id == self.id).all()
@@ -144,21 +148,39 @@ class Project(Base, Inspect, PermissionControlled):
             if child_proj_i.check_read_permission(user_id, do_raise=False) is True:
                 projects_with_access.append(child_proj_i)
 
-        owners = get_session().query(ProjectOwner).filter(ProjectOwner.project_id.in_([p.id for p in child_projects_i])).all()
-        creators = get_session().query(User.id, User.username, User.display_name).filter(User.id.in_([p.created_by for p in child_projects_i])).all()
-        creator_lookup = {u.id:JSONObject(u)  for u in creators}
+        project_lookup = {p.id:p for p in child_projects_i}
+
+        owners = get_session().query(
+            User.id.label('user_id'), User.display_name,
+            ProjectOwner.project_id).filter(
+                User.id==ProjectOwner.user_id).filter(
+                    ProjectOwner.project_id.in_([p.id for p in child_projects_i])).all()
+
+        creators = get_session().query(User.id.label('user_id'), User.display_name).filter(User.id.in_([p.created_by for p in child_projects_i])).all()
+        creator_lookup = {u.user_id:JSONObject(u)  for u in creators}
+
         owner_lookup = defaultdict(list)
         for p in child_projects_i:
             owner_lookup[p.id] = [creator_lookup[p.created_by]]
         for o in owners:
-            if o.user_id == p.created_by:
+            if o.user_id == project_lookup[o.project_id].created_by:
                 continue
-            owner_lookup[o.project_id].append(o)
+            owner_lookup[o.project_id].append(JSONObject(o))
+
+        #Get the inherited owners of the child projects
+        parentowners = self.get_owners()
 
         child_projects = []
         for child_proj_i in projects_with_access:
             project = JSONObject(child_proj_i)
             project.owners = owner_lookup.get(project.id, [])
+            owner_ids = [o.user_id for o in project.owners]
+            #add any inherited owners to the child projects.
+            for parentowner in parentowners:
+                if parentowner.user_id not in owner_ids:
+                    parentowner.source = f"Inherited from {parentowner.project_name} (ID:{parentowner.project_id})"
+                    project.owners.append(parentowner)
+
             project.networks = child_proj_i.get_networks(
                 user_id,
                 include_deleted_networks=include_deleted_networks)
@@ -170,7 +192,7 @@ class Project(Base, Inspect, PermissionControlled):
                 project.projects = []
             child_projects.append(project)
 
-        log.info("%s child projects retrieved", len(child_projects))
+        log.debug("%s child projects retrieved", len(child_projects))
 
         return child_projects
 
@@ -258,9 +280,9 @@ class Project(Base, Inspect, PermissionControlled):
         log.info("Getting projects for user %s", uid)
 
         network_projects_i = network_project_qry.outerjoin(Network).outerjoin(NetworkOwner).filter(
-            Network.status == 'A', or_(
-                and_(NetworkOwner.user_id == uid, NetworkOwner.view == 'Y'),
-                Network.created_by == uid)).distinct().all()
+            Network.status == 'A',
+            NetworkOwner.user_id == uid,
+            NetworkOwner.view == 'Y').distinct().all()
 
         #for some reason this outputs a list of tuples.
         projects_with_network_owner = [p[0] for p in network_projects_i]
@@ -268,12 +290,11 @@ class Project(Base, Inspect, PermissionControlled):
         projects_qry = projects_qry.outerjoin(ProjectOwner).filter(
             Project.status == 'A', or_(
                 and_(ProjectOwner.user_id == uid, ProjectOwner.view == 'Y'),
-                Project.created_by == uid,
                 Project.id.in_(projects_with_network_owner)
             )
         )
 
-        projects_qry = projects_qry.options(noload('networks')).order_by('id')
+        projects_qry = projects_qry.options(noload(Project.networks)).order_by('id')
 
         projects_i = projects_qry.all()
 
@@ -447,3 +468,11 @@ class Project(Base, Inspect, PermissionControlled):
             return scoped_attrs_j
         else:
             return scoped_attrs
+
+    def get_hierarchy(self, user_id):
+
+        project_hierarchy = [JSONObject(self)]
+        if self.parent_id:
+            project_hierarchy = project_hierarchy + self.parent.get_hierarchy(user_id)
+
+        return project_hierarchy

@@ -81,7 +81,11 @@ class TestProject:
         project.name = 'SOAP test %s'%(datetime.datetime.now())
         project.description = \
             'A project created through the SOAP interface.'
+
         project.layout = {"color": "blue"}
+
+        project.appdata = {'test':'metadata'}
+
         project = self.add_attributes(client, project)
         project = self.add_data(client, project)
 
@@ -89,12 +93,19 @@ class TestProject:
 
         project_j = client.get_project(new_project_i.id)
 
+        assert project_j.appdata['test'] == 'metadata'
+
         new_project = copy.deepcopy(project_j)
 
         new_project.description = \
             'An updated project created through the Hydra Base interface.'
 
+        new_project.appdata['test1'] = 'metadata1'
+
         updated_project = client.update_project(new_project)
+
+        assert updated_project.appdata['test'] == 'metadata'
+        assert updated_project.appdata['test1'] == 'metadata1'
 
         assert project_j.id == updated_project.id, \
             "project_id changed on update."
@@ -236,6 +247,30 @@ class TestProject:
 
         assert len(projectowners) == 2
 
+    def test_rename_status_x_project(self, client, projectmaker, networkmaker):
+        sender_user_id = client.user_id
+        proj = projectmaker.create()
+        net1 = networkmaker.create(project_id=proj.id)
+        net2 = networkmaker.create(project_id=proj.id)
+
+        proj_name = proj.name
+
+        #Set the status of the project to 'X'.
+        client.set_project_status(proj.id, 'X')
+        #now create a project with the name of the deleted project
+        project = JSONObject({})
+        project.name = proj_name
+        project.description = \
+            'A project created with the same name as a deleted project.'
+        project = client.add_project(project)
+
+        old_proj = client.get_project(proj.id)
+
+        assert old_proj.status == 'X'
+        assert old_proj.name != project.name
+
+
+
     def test_clone_project(self, client, projectmaker, networkmaker):
 
         proj = projectmaker.create()
@@ -270,6 +305,138 @@ class TestProject:
         assert cloned_project.name.find('Cloned') > 0
         cloned_networks = client.get_networks(cloned_project.id)
         assert len(cloned_networks) == 2
+
+    def test_clone_project(self, client, projectmaker, networkmaker):
+
+        proj = projectmaker.create()
+
+        net1 = networkmaker.create(project_id=proj.id)
+
+        net2 = networkmaker.create(project_id=proj.id)
+
+        recipient_user = client.get_user_by_name('UserA')
+
+        new_project_name = 'New Project'
+
+        cloned_project_id = client.clone_project(
+            proj.id,
+            recipient_user_id=recipient_user.id,
+            new_project_name=new_project_name)
+
+        cloned_project = client.get_project(cloned_project_id)
+
+        assert cloned_project.name == new_project_name
+        cloned_networks = client.get_networks(cloned_project.id)
+        assert len(cloned_networks) == 2
+
+        #check with no name provided
+        cloned_project_id = client.clone_project(
+            proj.id,
+            recipient_user_id=recipient_user.id,
+            new_project_name=None)
+
+        cloned_project = client.get_project(cloned_project_id)
+
+        assert cloned_project.name.find('Cloned') > 0
+        cloned_networks = client.get_networks(cloned_project.id)
+        assert len(cloned_networks) == 2
+
+    def test_clone_project_to_other_user(self, client, projectmaker, networkmaker):
+        sender_user_id = client.user_id
+        proj = projectmaker.create()
+        net1 = networkmaker.create(project_id=proj.id)
+        net2 = networkmaker.create(project_id=proj.id)
+
+        #"sharing with a non-admin user"
+        recipient_user = client.get_user_by_id(pytest.user_c.id)
+
+        sender_projects_before = client.get_projects(client.user_id)
+
+        client.user_id = recipient_user.id
+        recipient_projects_before = client.get_projects(client.user_id)
+
+        client.user_id = sender_user_id
+
+        new_project_name = 'Cloned Project'
+
+        test_delete_project_id = client.clone_project(
+            proj.id,
+            recipient_user_id=recipient_user.id,
+            new_project_name=new_project_name)
+
+        #Check the recipient has received the project
+        client.user_id = recipient_user.id
+        recipient_user_project = client.get_project(test_delete_project_id)
+        assert len(recipient_user_project.networks) == 2
+
+        recipient_projects_after = client.get_projects(client.user_id)
+
+        assert len(recipient_projects_after) == len(recipient_projects_before)+1
+
+        client.user_id = sender_user_id
+        sender_projects_after = client.get_projects(client.user_id)
+        assert len(sender_projects_after) == len(sender_projects_before)
+
+        #check with no name provided
+        cloned_project_id = client.clone_project(
+            proj.id,
+            recipient_user_id=recipient_user.id,
+            new_project_name=None)
+
+        cloned_project = client.get_project(cloned_project_id)
+
+        assert cloned_project.name.find('Cloned') > 0
+        cloned_networks = client.get_networks(cloned_project.id)
+        assert len(cloned_networks) == 2
+
+        #Check that the resource attribute references have been updated correctly
+        #by comparing the attr_id on the original network and the cloned network for the same attribute name,
+        #ensuring they are not the same.
+        for n in cloned_project.networks:
+            net = client.get_network(network_id=n.id)
+            for ra in net.attributes:
+                a = client.get_attribute_by_id(attr_id=ra.attr_id)
+                if a.network_id is not None:
+                    for ra1 in net1.attributes:
+                        if ra1.name == a.name:
+                            assert ra1.network_id is not None
+                            assert ra.attr_id != ra1.attr_id
+
+    def test_rename_of_status_x_projects_in_clone(self, client, projectmaker, networkmaker):
+        sender_user_id = client.user_id
+        proj = projectmaker.create()
+        net1 = networkmaker.create(project_id=proj.id)
+        net2 = networkmaker.create(project_id=proj.id)
+
+        #"sharing with a non-admin user"
+        recipient_user = client.get_user_by_id(pytest.user_c.id)
+
+        sender_projects_before = client.get_projects(client.user_id)
+
+        client.user_id = recipient_user.id
+        recipient_projects_before = client.get_projects(client.user_id)
+
+        client.user_id = sender_user_id
+
+        new_project_name = 'Cloned Project Test'
+
+        test_delete_project_id = client.clone_project(
+            proj.id,
+            recipient_user_id=recipient_user.id,
+            new_project_name=new_project_name)
+
+        #test renaming of deleted projects
+        client.set_project_status(test_delete_project_id, 'X')
+        changed_project = client.get_project(test_delete_project_id)
+        assert changed_project.status == 'X'
+
+        cloned_project_id = client.clone_project(
+            proj.id,
+            recipient_user_id=recipient_user.id,
+            new_project_name=new_project_name)
+
+        renamed_project = client.get_project(test_delete_project_id)
+        assert renamed_project.status == 'X'
 
     def test_get_project_by_network_id(self, client, projectmaker, networkmaker):
 

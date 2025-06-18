@@ -19,6 +19,7 @@ from hydra_base.lib.cache import clear_cache
 
 no_externaldb_opt = "--no-externaldb"
 externaldb_mark = "externaldb"
+requires_hdf_mark = "requires_hdf"
 
 def pytest_addoption(parser):
     parser.addoption("--db-backend", action="store", default="sqlite",
@@ -30,17 +31,30 @@ def pytest_addoption(parser):
 
 def pytest_configure(config):
     config.addinivalue_line("markers", f"{externaldb_mark}: Tests external storage")
+    config.addinivalue_line("markers", f"{requires_hdf_mark}: Indicates that decorated test requires HDF support")
 
 def pytest_collection_modifyitems(config, items):
     """
     When the `no_externaldb_opt` is present, add a skip mark to every
     test marked with `externaldb_mark`
+
+    When config has disabled HDF support, add a skip mark to every test
+    marked with `requires_hdf_mark`
     """
     if config.getoption(no_externaldb_opt):
         externaldb_skip = pytest.mark.skip(reason=f"{no_externaldb_opt} selected")
         for item in items:
             if externaldb_mark in item.keywords:
                 item.add_marker(externaldb_skip)
+
+    conf_disabled = hydra_base.config.CONFIG.get("storage_hdf", "disable_hdf").lower()
+    hdf_disabled = True if conf_disabled in ("true", "yes") else False
+    hdf_skip = pytest.mark.skip(reason="Test not applicable when HDF support disabled")
+    if hdf_disabled:
+        for item in items:
+            if requires_hdf_mark in item.keywords:
+                item.add_marker(hdf_skip)
+
 
 @pytest.fixture(scope="session")
 def db_backend(request):

@@ -4,14 +4,16 @@ on: [push, pull_request]
 
 jobs:
   tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       TEST_DB: hydra_base_test
       COV_MIN: 70  # Minimum acceptable coverage level
+      TEST_AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      TEST_AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
     strategy:
       matrix:
-        py_version: ["3.8", "3.9", "3.10"]
+        py_version: ["3.10", "3.11", "3.12"]
 
     steps:
       - uses: actions/checkout@v3
@@ -35,7 +37,14 @@ jobs:
              mysql -e "show databases;" -uroot -proot
 
       - name: Setup MongoDB
-        run: sudo systemctl start mongod
+        run: |
+             sudo apt-get install gnupg curl
+             curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | sudo gpg -o /usr/share/keyrings/mongodb-server-8.0.gpg --dearmor
+             echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu noble/mongodb-org/8.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list
+             sudo apt-get update
+             sudo apt-get install -y mongodb-org
+             sudo systemctl daemon-reload
+             sudo systemctl start mongod
 
       - name: Setup Memcache
         run: |
@@ -45,6 +54,7 @@ jobs:
 
       - name: Install hydra-base
         run: |
+             pip install -r requirements.txt
              pip install git+https://github.com/hydraplatform/hydra-client-python.git
              pip install git+https://github.com/hydraplatform/hydra-server.git
              pip install -e .

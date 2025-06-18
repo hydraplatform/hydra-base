@@ -18,10 +18,11 @@
 #
 from ..base import *
 from .resourceattr import ResourceAttr
+from .resource import Resource
 
 __all__ = ['Node']
 
-class Node(Base, Inspect):
+class Node(Base, Inspect, Resource):
     """
     """
 

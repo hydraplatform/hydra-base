@@ -41,8 +41,12 @@ from ..db.model import Dataset, Metadata, DatasetOwner, DatasetCollection,\
 from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
 from ..util import generate_data_hash
 from ..util.hydra_dateutil import get_datetime
+from ..util.permissions import required_role
 
-from hydra_base.lib.storage import MongoStorageAdapter
+from hydra_base.lib.storage import (
+    MongoStorageAdapter,
+    HdfStorageAdapter
+)
 
 
 global FORMAT
@@ -75,7 +79,7 @@ def get_dataset(dataset_id,**kwargs):
                 Dataset.created_by,
                 DatasetOwner.user_id,
                 null().label('metadata'),
-                case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
+                case((and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None),
                         else_=Dataset.value).label('value')).filter(
                 Dataset.id==dataset_id).outerjoin(DatasetOwner,
                                     and_(DatasetOwner.dataset_id==Dataset.id,
@@ -112,7 +116,7 @@ def clone_dataset(dataset_id,**kwargs):
         return None
 
     dataset = db.DBSession.query(Dataset).filter(
-            Dataset.id==dataset_id).options(joinedload('metadata')).first()
+            Dataset.id==dataset_id).options(joinedload(Dataset.metadata)).first()
 
     if dataset is None:
         raise HydraError("Dataset %s does not exist."%(dataset_id))
@@ -482,7 +486,6 @@ def add_dataset(data_type, val, unit_id=None, metadata={}, name="", user_id=None
         if existing_dataset.check_read_permission(user_id, do_raise=False) is True:
             d = existing_dataset
         else:
-            d.set_metadata({'created_at': datetime.datetime.now()})
             d.set_hash()
             db.DBSession.add(d)
     except NoResultFound:
@@ -1092,3 +1095,160 @@ def delete_dataset(dataset_id,**kwargs):
 
 def read_json(json_string):
     pd.read_json(json_string)
+
+def get_hdf_file_size(url, **kwargs):
+    """
+      Returns the size in bytes of the hdf file <url> argument
+      Raises ValueError on bad url
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.file_size(url)
+
+def get_hdf_series_info(url, groupname=None, columns=None, **kwargs):
+    """
+      Returns information about the series contained in the
+      <columns> argument in the specified <groupname>
+
+      Returns an object containing two keys:
+        - index: an object of 'name', 'length', 'dtype' for
+                 the index of the <group> arg
+        - series: an array of objects, each containing 'name',
+                  'length', 'dtype' for each column of the
+                  <group> arg
+
+      If <columns> is None or is an empty container (including a
+      zero-length string), info on *all* series in the group
+      <groupname> will be returned.
+
+      If <columns> is a non-empty string, it is considered to
+      represent a single column name.
+
+      Raises ValueError on bad arguments.
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.get_series_info(url, groupname, columns)
+
+def get_hdf_index_info(url, groupname, **kwargs):
+    """
+      Returns an object with keys...
+        {name: str, length: int, dtype: str}
+      ...which describes the index of the <groupname> argument.
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.get_index_info(url, groupname)
+
+def get_hdf_index_range(url, groupname, start=0, end=None, **kwargs):
+    """
+      Returns index entries in the range [start,end) of the <groupname>
+      argument.
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.get_index_range(url, groupname, start, end)
+
+def get_hdf_group_info(url, groupname=None, **kwargs):
+    """
+      Returns an object containing two keys:
+        - index: an object of 'name', 'length', 'dtype' for
+                 the index of the <group> arg
+        - series: an array of objects, each containing 'name',
+                  'length', 'dtype' for each column of the
+                  <group> arg
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.get_group_info(url, groupname)
+
+def get_hdf_columns_as_dataframe(url, columns, groupname=None, start=None, end=None, **kwargs):
+    """
+      Returns the rows from <start> to <end> of series specified in
+      columns=["col1", "col2", "col3, ...] in the hdf file <url> as
+      the json representation of a Pandas DataFrame. This may then
+      be read directly in a client with pandas.read_json().
+
+      Keyword arguments:
+        <groupname> if absent assume file contains a single group
+        <start> start group row, 0 if absent
+        <end> end group row, len(groupdata) if absent
+
+      Raises ValueError on bad url, dataset name or bounds
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.get_columns_as_dataframe(url, groupname, columns, start, end)
+
+def resolve_url_to_path(url, **kwargs):
+    """
+      Returns the path, either on a local filesystem or remote
+      storage, to which the <url> arg resolves.
+      Raises ValueError if the arg cannot be interpreted as a valid url
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.url_to_filestore_path(url)
+
+def file_exists_at_url(url, **kwargs):
+    """
+      Return a boolean corresponding to the existence of a readable
+      file at the <url> arg.
+      Never raises, returns False for invalid args or no permission
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.file_exists_at_url(url)
+
+def get_hdf_group_as_dataframe(url, **kwargs):
+    """
+      Return the entire table of series within an HDF group as a
+      single dataframe.  Timeseries indices are represented in iso8601 format
+      Keyword arguments:
+        <groupname> if absent assume file contains a single group
+        <start> start group row, 0 if absent
+        <end> end group row, len(groupdata) if absent
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.get_columns_as_dataframe(url, columns=None, **kwargs)
+
+def get_hdf_groups(url, **kwargs):
+    """
+      Returns the root groups of an HDF file.
+      These may subsequently be used as the <groupname> arg to
+      `get_hdf_group_as_dataframe`
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.get_hdf_groups(url)
+
+def get_hdf_group_columns(url, groupname, **kwargs):
+    """
+      Returns a list containing the names of series within
+      the dataset of a specified group
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.get_group_columns(url, groupname)
+
+@required_role("admin")
+def retrieve_s3_file_to_local_storage(url, **kwargs):
+    """
+      Forces retrieval of the s3 file at <url> to Hydra's
+      local filesystem.
+      Future references to the original url may then be
+      replaced with the <file_path> location returned
+    """
+    hdf = HdfStorageAdapter()
+    file_path, file_size = hdf.retrieve_s3_file(url)
+    return file_path, file_size
+
+@required_role("admin")
+def list_local_files(**kwargs):
+    """
+      Returns an object of filename: file_size mappings
+      describing files in the HDF filestore
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.list_local_files()
+
+@required_role("admin")
+def purge_local_file(filename, **kwargs):
+    """
+      Removes a file from the HDF filestore.
+      Returns the path of the deleted filename on
+      success.
+      Raises ValueError on failure.
+    """
+    hdf = HdfStorageAdapter()
+    return hdf.purge_local_file(filename)

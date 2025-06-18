@@ -6,7 +6,6 @@ try:
 except:
     pass
 
-import platform
 import sys
 import os
 
@@ -24,32 +23,13 @@ testpkgs=[
                'coverage',
                ]
 
-install_requires=[
-    "sqlalchemy",
-    "psycopg2-binary",
-    "zope.sqlalchemy >= 0.4",
-    "pandas",
-    "numpy",
-    "bcrypt",
-    "lxml",
-    "mysqlclient",
-    "python-dateutil",
-    "cheroot",
-    "beaker",
-    "packaging",
-    "pymongo",
-    "pylibmc",
-    "diskcache"
-    ]
+install_requires=[]
 
 # get version string from __init__.py
 with open(os.path.join(os.path.dirname(__file__), "hydra_base", "__init__.py")) as f:
     for line in f:
         if line.startswith("__version__"):
             version = line.split("=")[1].strip().strip("\"'")
-
-if platform.system() == "Windows":  # only add winpath when platform is Windows so that setup.py is universal
-    install_requires.append("winpath")
 
 setup(
     name='hydra-base',

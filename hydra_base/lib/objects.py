@@ -48,16 +48,126 @@ class JSONObject(dict):
         A dictionary object whose attributes can be accesed via a '.'.
         Pass in a nested dictionary, a SQLAlchemy object or a JSON string.
     """
-    def __init__(self, obj_dict={}, parent=None, extras={}):
+    def __init__(self, obj_dict={}, parent=None, extras={}, normalize=True):
+        
+        if normalize:
+            obj = self.normalise_input(obj_dict)
+        else:
+            obj = obj_dict
 
-        if isinstance(obj_dict, six.string_types):
+        for k in obj:
+            v = obj[k]
+            if k == "value_ref":
+                continue
+
+            if isinstance(v, JSONObject):
+                self[k] = v
+            elif k == 'layout':
+                #Layout is often valid JSON, but we dont want to treat it as a JSON object necessarily
+                dict_layout = get_json_as_dict(v)
+                self[k] = dict_layout
+            elif isinstance(v, dict):
+                #TODO what is a better way to identify a dataset?
+                if 'unit_id' in v or 'unit' in v or 'metadata' in v or 'type' in v:
+                    self[k] = Dataset(v, obj_dict)
+                #The value on a dataset should remain untouched
+                elif k == 'value':
+                    self[k] = v
+                else:
+                    self[k] = JSONObject(v, obj_dict, normalize=normalize)
+            elif isinstance(v, list):
+                #another special case for datasets, to convert a metadata list into a dict
+                if k == 'metadata' and obj_dict is not None:
+                    if hasattr(obj_dict, 'get_metadata_as_dict'):
+                        self[k] = JSONObject(obj_dict.get_metadata_as_dict())
+                    else:
+                        metadata_dict = JSONObject()
+                        if hasattr(obj_dict, 'get'):#special case for resource data and row proxies
+                            for m in obj_dict.get('metadata', []):
+                                metadata_dict[m.key] = m.value
+                        self[k] = metadata_dict
+
+                else:
+                    is_list_of_objects = True
+                    if len(v) > 0:
+                        if isinstance(v[0], (float, int)):
+                            is_list_of_objects = False
+                        elif isinstance(v[0], six.string_types) and len(v[0]) == 0:
+                            is_list_of_objects = False
+                        elif isinstance(v[0], six.string_types) and v[0][0] not in VALID_JSON_FIRST_CHARS:
+                            is_list_of_objects=False
+
+                    if is_list_of_objects is True:
+                        l = [JSONObject(item, obj_dict) for item in v]
+                    else:
+                        l = v
+
+                    self[k] = l
+            #Special case for SQLAlchemy objects, to stop them recursing up and down
+            elif hasattr(v, '_sa_instance_state')\
+                    and v._sa_instance_state is not None\
+                    and v != parent\
+                    and hasattr(obj_dict, '_parents')\
+                    and obj_dict._parents is not None\
+                    and v.__tablename__ not in obj_dict._parents:
+                if v.__tablename__.lower() == 'tdataset':
+                    l = Dataset(v, obj_dict)
+                else:
+                    l = JSONObject(v, obj_dict)
+                self[k] = l
+            #Special case for SQLAlchemy objects, to stop them recursing up and down
+            elif hasattr(v, '_sa_instance_state')\
+                    and v._sa_instance_state is not None\
+                    and v != parent\
+                    and hasattr(obj_dict, '_parents')\
+                    and obj_dict._parents is not None\
+                    and v.__tablename__ in obj_dict._parents:
+                continue
+            elif isinstance(v, enum.Enum):
+                self[k] = v.value
+            else:
+
+                if k == '_sa_instance_state':
+                    continue
+
+                if parent is not None and type(v) == type(parent):
+                    continue
+
+                if isinstance(v, str) and v.replace('.', '', 1).isdigit():
+                    v = float(v) if '.' in v else int(v)
+
+                try:
+                    if not isinstance(v, int):
+                        v = float(v)
+                except:
+                    pass
+
+                if isinstance(v, datetime):
+                    v = six.text_type(v)
+
+                self[six.text_type(k)] = v
+
+        for k, v in extras.items():
+            self[k] = v
+
+    def normalise_input(self, obj_dict):
+        """
+            Pre-process the input dict to ensure that it is compatible with a JSONObject
+        """
+        asdict_fn = getattr(obj_dict, "asdict", None)
+        if asdict_fn is not None and callable(asdict_fn):
+            rd = obj_dict.asdict()
+            for k, v in rd.items():
+                self[k] = v
+
+        if isinstance(obj_dict, str):
             try:
                 obj = json.loads(obj_dict)
                 assert isinstance(obj, dict), "JSON string does not evaluate to a dict"
-            except Exception:
-                log.critical(obj_dict)
+            except (AssertionError, json.decoder.JSONDecodeError) as e:
+                log.critical("Error with value: %s" , obj_dict)
                 log.critical(parent)
-                raise ValueError("Unable to read string value. Make sure it's JSON serialisable")
+                raise ValueError("Unable to read string value. Make sure it's JSON serialisable") from e
         elif hasattr(obj_dict, '_asdict') and obj_dict._asdict is not None:
             """
             The argument is a SQLAlchemy object. This originated from a
@@ -66,15 +176,14 @@ class JSONObject(dict):
             performed here.
             """
             obj = obj_dict._asdict()
-            ref_key = obj.get("value")
-            if ref_key is not None:
+            if obj.get("value") is not None:
                 try:
                     """
                     ref_key may be not None but also not a valid oid string, so
                     must handle InvalidId from ObjectId and possible TypeError
                     if oid inst is created but then matches no document.
                     """
-                    oid = ObjectId(ref_key)
+                    oid = ObjectId(obj["value"])
                     doc = mongo.get_document_by_oid_inst(oid)
                     obj["value"] = doc["value"]
                 except (TypeError, InvalidId):
@@ -116,112 +225,7 @@ class JSONObject(dict):
             except:
                 log.critical("Error with value: %s" , obj_dict)
                 raise ValueError("Unrecognised value. It must be a valid JSON dict, a SQLAlchemy result or a dictionary.")
-
-
-        for k, v in obj.items():
-            if k == "value_ref":
-                continue
-
-            #This occurs regularly enough to warrant its own if statement.
-            #if isinstance(k, int):
-            #    raise TypeError('JSONObject Error: Cannot set attribute %s to %s. It is an int'%(k, v))
-
-            if isinstance(v, JSONObject):
-                setattr(self, k, v)
-            elif k == 'layout':
-                #Layout is often valid JSON, but we dont want to treat it as a JSON object necessarily
-                dict_layout = get_json_as_dict(v)
-                setattr(self, k, dict_layout)
-            elif isinstance(v, dict):
-                #TODO what is a better way to identify a dataset?
-                if 'unit_id' in v or 'unit' in v or 'metadata' in v or 'type' in v:
-                    setattr(self, k, Dataset(v, obj_dict))
-                #The value on a dataset should remain untouched
-                elif k == 'value':
-                    setattr(self, k, v)
-                else:
-                    setattr(self, k, JSONObject(v, obj_dict))
-            elif isinstance(v, list):
-                #another special case for datasets, to convert a metadata list into a dict
-                if k == 'metadata' and obj_dict is not None:
-                    if hasattr(obj_dict, 'get_metadata_as_dict'):
-                        setattr(self, k, JSONObject(obj_dict.get_metadata_as_dict()))
-                    else:
-                        metadata_dict = JSONObject()
-                        if hasattr(obj_dict, 'get'):#special case for resource data and row proxies
-                            for m in obj_dict.get('metadata', []):
-                                metadata_dict[m.key] = m.value
-                        setattr(self, k, metadata_dict)
-
-                else:
-                    is_list_of_objects = True
-                    if len(v) > 0:
-                        if isinstance(v[0], (float, int)):
-                            is_list_of_objects = False
-                        elif isinstance(v[0], six.string_types) and len(v[0]) == 0:
-                            is_list_of_objects = False
-                        elif isinstance(v[0], six.string_types) and v[0][0] not in VALID_JSON_FIRST_CHARS:
-                            is_list_of_objects=False
-
-                    if is_list_of_objects is True:
-                        l = [JSONObject(item, obj_dict) for item in v]
-                    else:
-                        l = v
-
-                    setattr(self, k, l)
-            #Special case for SQLAlchemy objects, to stop them recursing up and down
-            elif hasattr(v, '_sa_instance_state')\
-                    and v._sa_instance_state is not None\
-                    and v != parent\
-                    and hasattr(obj_dict, '_parents')\
-                    and obj_dict._parents is not None\
-                    and v.__tablename__ not in obj_dict._parents:
-                if v.__tablename__.lower() == 'tdataset':
-                    l = Dataset(v, obj_dict)
-                else:
-                    l = JSONObject(v, obj_dict)
-                setattr(self, k, l)
-            #Special case for SQLAlchemy objects, to stop them recursing up and down
-            elif hasattr(v, '_sa_instance_state')\
-                    and v._sa_instance_state is not None\
-                    and v != parent\
-                    and hasattr(obj_dict, '_parents')\
-                    and obj_dict._parents is not None\
-                    and v.__tablename__ in obj_dict._parents:
-                continue
-            elif isinstance(v, enum.Enum):
-                setattr(self, k, v.value)
-            else:
-
-                if k == '_sa_instance_state':
-                    continue
-
-                if parent is not None and type(v) == type(parent):
-                    continue
-
-                try:
-                    int(v)
-                    if v.find('.'):
-                        if int(v.split('.')[0]) == int(v):
-                            v = int(v)
-                    else:
-                        v = int(v)
-                except:
-                    pass
-
-                try:
-                    if not isinstance(v, int):
-                        v = float(v)
-                except:
-                    pass
-
-                if isinstance(v, datetime):
-                    v = six.text_type(v)
-
-                setattr(self, six.text_type(k), v)
-
-        for k, v in extras.items():
-            setattr(self, k, v)
+        return obj
 
     def __getattr__(self, name):
         # Make sure that "special" methods are returned as before.
@@ -274,7 +278,7 @@ class ResourceScenario(JSONObject):
         super(ResourceScenario, self).__init__(rs)
         for k, v in rs.items():
             if k == 'dataset':
-                setattr(self, k, Dataset(v))
+                self[k] = Dataset(v)
 
 
 class Dataset(JSONObject):
@@ -346,14 +350,9 @@ class Dataset(JSONObject):
         metadata_dict = self.metadata if isinstance(self.metadata, dict) else json.loads(self.metadata)
 
         # These should be set on all datasets by default, but we don't enforce this rigidly
-        metadata_keys = [m.lower() for m in metadata_dict]
-        if user_id is not None and 'user_id' not in metadata_keys:
-            metadata_dict['user_id'] = six.text_type(user_id)
+        metadata_keys = sorted([m for m in metadata_dict], key=lambda x:x.lower())
 
-        if source is not None and 'source' not in metadata_keys:
-            metadata_dict['source'] = six.text_type(source)
-
-        return { k : six.text_type(v) for k, v in metadata_dict.items() }
+        return { k : str(metadata_dict[k]) for k in metadata_keys }
 
 
     def get_hash(self, val, metadata):
@@ -366,11 +365,10 @@ class Dataset(JSONObject):
         else:
             value = val
 
-        dataset_dict = {'name'     : self.name,
-                        'unit_id'     : self.unit_id,
-                        'type'     : self.type.lower(),
+        dataset_dict = {'unit_id'  : self.unit_id,
+                        'type'     : self.type,
                         'value'    : value,
-                        'metadata' : metadata,}
+                        'metadata' : metadata}
 
         data_hash = generate_data_hash(dataset_dict)
 

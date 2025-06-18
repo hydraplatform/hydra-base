@@ -99,20 +99,19 @@ def generate_data_hash(dataset_dict):
     if d.get('metadata') is None:
         d['metadata'] = {}
 
-    hash_string = "%s %s %s %s %s"%(
-                                str(d['name']),
+    hash_string = "%s %s %s %s"%(
                                 str(d['unit_id']),
-                                str(d['type']),
+                                str(d['type']).lower(),
                                 d['value'],
                                 d['metadata'])
 
     log.debug("Generating data hash from: %s", hash_string)
 
-    data_hash = hash(hash_string)
+    hash_data = hash(hash_string)
 
-    log.debug("Data hash: %s", data_hash)
+    log.debug("Data hash: %s", hash_data)
 
-    return data_hash
+    return hash_data
 
 def get_val(dataset, timestamp=None):
     """
@@ -245,3 +244,40 @@ def get_json_as_dict(json_string_or_dict):
             return get_json_as_dict(json.loads(json_string_or_dict))
         except:
             return json_string_or_dict
+
+
+class NullAdapterType(type):
+    """
+      Metaclass for NullAdapter. Overriding __getattr__ here
+      enables class and static attrs to be simulated.
+    """
+    def __getattr__(self, *args, **kwargs):
+        return self
+
+
+class NullAdapter(metaclass=NullAdapterType):
+    """
+      A class that does nothing.
+      This may be used in place of any adapter in order to disable
+      the functionality of that adapter type without requiring other
+      code to be changed.
+      From the caller's perspective, all attributes exist on this class,
+      including nested attributes, and all are callable.
+    """
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def __call__(self, *args, **kwargs):
+        return self
+
+    def __getattr__(self, *args, **kwargs):
+        return self
+
+    def __getitem__(self, idx):
+        return None
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        raise StopIteration

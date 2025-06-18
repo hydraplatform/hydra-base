@@ -23,6 +23,7 @@ __all__ = ['Template', 'TemplateType', 'TypeAttr', 'ResourceType']
 from .attributes import Attr
 from .units import Unit
 
+
 class Template(Base, Inspect):
     """
     Template
@@ -89,8 +90,8 @@ class Template(Base, Inspect):
         #get all the type attrs for this type, and add any which are missing
         this_typeattr_i = get_session().query(TypeAttr)\
             .filter(TypeAttr.id == typeattr_id)\
-            .options(joinedload('attr'))\
-            .options(joinedload('default_dataset')).one()
+            .options(joinedload(TypeAttr.attr))\
+            .options(joinedload(TypeAttr.default_dataset)).one()
 
         this_typeattr = JSONObject(this_typeattr_i)
 
@@ -118,7 +119,7 @@ class Template(Base, Inspect):
 
         #Add resource attributes which are not defined already
         this_type_i = get_session().query(TemplateType).filter(
-            TemplateType.id == type_id).options(noload('typeattrs')).one()
+            TemplateType.id == type_id).options(noload(TemplateType.typeattrs)).one()
 
         this_type = JSONObject(this_type_i)
 
@@ -130,9 +131,9 @@ class Template(Base, Inspect):
         #get all the type attrs for this type, and add any which are missing
         typeattrs_i = get_session().query(TypeAttr)\
             .filter(TypeAttr.type_id == type_id)\
-            .options(joinedload('attr'))\
-            .options(joinedload('unit'))\
-            .options(joinedload('default_dataset')).all()
+            .options(joinedload(TypeAttr.attr))\
+            .options(joinedload(TypeAttr.unit))\
+            .options(joinedload(TypeAttr.default_dataset)).all()
         typeattrs = [JSONObject(ta) for ta in typeattrs_i]
 
 
@@ -178,6 +179,30 @@ class Template(Base, Inspect):
         return child_type
 
 
+    @staticmethod
+    def get_type_parent_ids(ttype_id):
+        """
+            Returns a list of the ids of TemplateTypes which
+            are parents of the TemplateType specified in the
+            <ttype_id> argument.
+        """
+        q = get_session().query(TemplateType)
+        q = q.filter(TemplateType.id == ttype_id)
+        q = q.options(noload(TemplateType.typeattrs))
+        try:
+            ttype = q.one()
+        except sqlalchemy.exc.NoResultFound:
+            raise HydraError(f"No TemplateType found with id {ttype_id}")
+
+        parent_ids = []
+
+        while ttype.parent_id:
+            parent_ids.insert(0, ttype.parent_id)
+            ttype = get_session().query(TemplateType).filter(TemplateType.id == ttype.parent_id).one()
+
+        return parent_ids
+
+
     def get_types(self, type_tree={}, child_types=None, get_parent_types=True, child_template_id=None):
         """
             Return all the templatetypes relevant to this template.
@@ -197,15 +222,16 @@ class Template(Base, Inspect):
 
         #Add resource attributes which are not defined already
         types_i = get_session().query(TemplateType).filter(
-            TemplateType.template_id == self.id).options(noload('typeattrs')).all()
+            TemplateType.template_id == self.id).options(noload(TemplateType.typeattrs)).all()
         types = [JSONObject(t) for t in types_i]
 
         if child_template_id is None:
             child_template_id = self.id
 
-        #TODO need to check here to see if there is a parent / child type
-        #and then add or not add as approprioate
         for i, this_type in enumerate(types):
+            if this_type.parent_id is not None:
+                this_type.parent_ids = Template.get_type_parent_ids(this_type.id)
+
             this_type.child_template_id = child_template_id
 
             #This keeps track of which type attributes are currently associated
@@ -217,8 +243,8 @@ class Template(Base, Inspect):
             #get all the type attrs for this type, and add any which are missing
             typeattrs_i = get_session().query(TypeAttr)\
                 .filter(TypeAttr.type_id == this_type.id)\
-                .options(joinedload('attr'))\
-                .options(joinedload('default_dataset')).all()
+                .options(joinedload(TypeAttr.attr))\
+                .options(joinedload(TypeAttr.default_dataset)).all()
 
             typeattrs = [JSONObject(ta) for ta in typeattrs_i]
 
@@ -290,6 +316,13 @@ class Template(Base, Inspect):
 
         return child_types
 
+    def get_hierarchy(self, user_id):
+
+        hierarchy = [JSONObject(self)]
+        if self.parent_id:
+            hierarchy = hierarchy + self.parent.get_hierarchy(user_id)
+        return hierarchy
+
 class TemplateType(Base, Inspect):
     """
     Template Type
@@ -339,7 +372,7 @@ class TemplateType(Base, Inspect):
         #get all the type attrs for this type, and add any which are missing
         typeattrs_i = get_session().query(TypeAttr)\
             .filter(TypeAttr.type_id == self.id)\
-            .options(joinedload('default_dataset')).all()
+            .options(joinedload(TypeAttr.default_dataset)).all()
         typeattrs = [JSONObject(ta) for ta in typeattrs_i]
 
 

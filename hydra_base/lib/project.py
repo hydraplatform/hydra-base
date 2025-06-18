@@ -22,31 +22,31 @@ import json
 from collections import defaultdict
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import noload, joinedload
-from sqlalchemy import and_, or_
 
 from ..util import hdb
 from ..exceptions import PermissionError, HydraError
-from ..db.model import Project, ProjectOwner, Network, NetworkOwner, User
+from ..db.model import Project, ProjectOwner, Network, NetworkOwner, User, Attr
 from .. import db
 from . import network
 from .objects import JSONObject
 from ..util.permissions import required_perms
 from . import scenario
 from ..exceptions import ResourceNotFoundError
+from datetime import datetime
 
 log = logging.getLogger(__name__)
 
 def _get_project(project_id, user_id, check_write=False):
     try:
-        project = db.DBSession.query(Project).filter(Project.id == project_id).options(noload('children')).one()
+        project_i = db.DBSession.query(Project).filter(Project.id == project_id).options(noload(Project.children)).one()
 
         if check_write is True:
-            project.check_write_permission(user_id)
+            project_i.check_write_permission(user_id)
         else:
             ## to avoid doing 2 checks, only check this if the check write is not set
-            project.check_read_permission(user_id)
+            project_i.check_read_permission(user_id)
 
-        return project
+        return project_i
     except NoResultFound:
         raise ResourceNotFoundError("Project %s not found"%(project_id))
 
@@ -80,18 +80,32 @@ def add_project(project, **kwargs):
     existing_proj = get_project_by_name(project.name, user_id=user_id)
 
     if len(existing_proj) > 0:
-        raise HydraError(f'A Project with the name "{project.name}" already exists')
+        if existing_proj[0].status == 'X':
+            now = datetime.now().strftime("%Y%m%d%H%M%S")
+            existing_proj[0].name = "{new_project_name} {now}"
+            log.info("Updating an existing deleted project %s with new project name to avoid naming clash %s",
+                      existing_proj[0].id, existing_proj[0].name)
+        else:
+            raise HydraError(f'A Project with the name "{project.name}" already exists')
 
     proj_i = Project()
-    proj_i.name = project.name
-    proj_i.description = project.description
+
+    #'appdata' is a metadata column. It's not called 'metadata' because
+    #'metadata' is a reserved sqlalchemy keyword.
+    #Add appdata to the core columns for insertion done like this because
+    #updating is done differently (where the contents are updated, not the whole column)
+    for columnname in Project.core_columns + ['appdata']:
+        if column := getattr(project, columnname, None):
+            setattr(proj_i, columnname, column)
+
     proj_i.created_by = user_id
+
     #A project can only be added to another if the user has write access to the target,
     #so we need to check the permissions on the target project if it is specified
-    if project.parent_id is not None:
+    if parent_id := getattr(project, 'parent_id', None):
         #check the user has the correct permission to write to the target project
-        _get_project(project.parent_id, user_id, check_write=True)
-        proj_i.parent_id = project.parent_id
+        _get_project(parent_id, user_id, check_write=True)
+        proj_i.parent_id = parent_id
 
     attr_map = hdb.add_resource_attributes(proj_i, project.attributes)
 
@@ -106,6 +120,8 @@ def add_project(project, **kwargs):
     db.DBSession.add(proj_i)
     db.DBSession.flush()
 
+    Project.clear_cache(user_id)
+
     return proj_i
 
 @required_perms('edit_project')
@@ -119,20 +135,40 @@ def update_project(project, **kwargs):
 
     proj_i = _get_project(project.id, user_id, check_write=True)
 
-    proj_i.name = project.name
-    proj_i.description = project.description
-    proj_i.layout = project.get_json('layout')
+    for columnname in Project.core_columns:
+        if column := getattr(project, columnname, None):
+            setattr(proj_i, columnname, column)
+
+    #'appdata' is a metadata column. It's not called 'metadata' because
+    #'metadata' is a reserved sqlalchemy keyword.
+    #Rather than replace the column
+    if appdata := getattr(project, 'appdata', None):
+        if proj_i.appdata is None:
+            proj_i.appdata = project.appdata
+        else:
+            newdict = proj_i.appdata.copy()
+            newdict.update(project.appdata)
+            proj_i.appdata = newdict
 
     #A project can only be moved to another if the user has write access on both,
     #so we need to check the permissions on the target project if it is specified
-    if project.parent_id != proj_i.parent_id:
-        #check the user has the correct permission to write to the target project
-        _get_project(project.parent_id, user_id, check_write=True)
-        proj_i.parent_id = project.parent_id
+    if parent_id := getattr(project, "parent_id", None):
+        if parent_id != proj_i.parent_id:
+            #check the user has the correct permission to write to the target project
+            _get_project(project.parent_id, user_id, check_write=True)
+            proj_i.parent_id = project.parent_id
+    else:
+        # parent_id has changed to None
+        if proj_i.parent_id is not None:
+            proj_i.parent_id = None
 
-    attr_map = hdb.add_resource_attributes(proj_i, project.attributes)
-    proj_data = _add_project_attribute_data(proj_i, attr_map, project.attribute_data)
-    proj_i.attribute_data = proj_data
+    if project.attributes:
+        attr_map = hdb.add_resource_attributes(proj_i, project.attributes)
+        proj_data = _add_project_attribute_data(proj_i, attr_map, project.attribute_data)
+        proj_i.attribute_data = proj_data
+
+    Project.clear_cache(user_id)
+
     db.DBSession.flush()
 
     return proj_i
@@ -148,8 +184,13 @@ def move_project(project_id, target_project_id, **kwargs):
     #Check the user has access to write to the project
     proj_i = _get_project(project_id, user_id, check_write=True)
 
+    if target_project_id is None:
+        return remove_project_parent(project_id, **kwargs)
+
     #check the user has the correct permission to write to the target project
     _get_project(target_project_id, user_id, check_write=True)
+
+    Project.clear_cache(user_id)
 
     proj_i.parent_id = target_project_id
 
@@ -157,10 +198,57 @@ def move_project(project_id, target_project_id, **kwargs):
 
     return proj_i
 
+@required_perms('edit_project')
+def remove_project_parent(project_id, **kwargs):
+    """
+        Removes the parent of the <project_id> argument
+        by setting the parent_id attr to None
+    """
+    user_id = kwargs.get('user_id')
+    proj_i = _get_project(project_id, user_id, check_write=True)
+    Project.clear_cache(user_id)
+    proj_i.parent_id = None
+    db.DBSession.flush()
+
+    return proj_i
+
+@required_perms('get_project')
+def check_project_write_permission(project_id, user_id):
+    """
+        Check whether a user has write permission on a project
+        Args:
+            project_id (int): ID of the project
+            user_id (int): ID of the user
+        Returns:
+            True if the user has write permission
+            False if the user does not have write permission
+    """
+    proj_i = _get_project(project_id, user_id)
+    return proj_i.check_write_permission(user_id)
+
+@required_perms('get_project')
+def check_project_read_permission(project_id, user_id):
+    """
+        Check whether a user has read permission on a project
+        Args:
+            project_id (int): ID of the project
+            user_id (int): ID of the user
+        Returns:
+            True if the user has read permission
+            False if the user does not have read permission
+    """
+    proj_i = _get_project(project_id, user_id)
+    return proj_i.check_read_permission(user_id)
+
 @required_perms('get_project')
 def get_project(project_id, include_deleted_networks=False, **kwargs):
     """
-        get a project complexmodel
+        Get a project object
+        Args:
+            project_id (int): The ID of the project
+            include_deleted_networks (bool): Include networks with the status 'X'. False by default
+        returns:
+            JSONObject of the project
     """
     user_id = kwargs.get('user_id')
     log.info("Getting project %s", project_id)
@@ -202,7 +290,7 @@ def get_project(project_id, include_deleted_networks=False, **kwargs):
 @required_perms('get_project')
 def get_project_by_network_id(network_id, **kwargs):
     """
-        get a project complexmodel by a network_id
+        get a project object by a network_id
     """
     user_id = kwargs.get('user_id')
 
@@ -247,7 +335,7 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
 
     ##Don't load the project's networks. Load them separately, as the networks
     #must be checked individually for ownership
-    projects_qry = db.DBSession.query(Project).options(joinedload('owners'))
+    projects_qry = db.DBSession.query(Project).options(joinedload(Project.owners))
 
     log.info("Getting projects for user %s", uid)
 
@@ -258,10 +346,9 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
 
     if include_shared_projects is True:
         projects_qry = projects_qry.outerjoin(ProjectOwner).filter(
-            Project.status == 'A', or_(
-                and_(ProjectOwner.user_id == uid, ProjectOwner.view == 'Y'),
-                Project.created_by == uid))
-
+            Project.status == 'A',
+            ProjectOwner.user_id == uid,
+            ProjectOwner.view == 'Y')
     else:
         projects_qry = projects_qry.filter(Project.created_by == uid)
 
@@ -275,7 +362,7 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
                 projects_qry = projects_qry.filter(Project.id.in_(projects_ids_list_filter))
 
 
-    projects_qry = projects_qry.options(noload('networks')).order_by('id')
+    projects_qry = projects_qry.options(noload(Project.networks)).order_by('id')
 
     projects_i = projects_qry.all()
 
@@ -291,10 +378,11 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
     #Now get projects which the user must have access to in order to navigate
     #to projects further down the tree which they are owners of.
     nav_project_ids = set(Project.get_cache(uid).get(project_id, [])) - scoped_project_ids
-    nav_projects_i = db.DBSession.query(Project).filter(Project.id.in_(nav_project_ids)).all()
+    nav_projects_i = db.DBSession.query(Project).filter(Project.id.in_(nav_project_ids)).filter(Project.parent_id==project_id).all()
     nav_projects = []
     for nav_project_i in nav_projects_i:
         nav_project_j = JSONObject(nav_project_i)
+        nav_project_j.nav_only = True
         nav_project_j.owners = []
         nav_project_j.networks = []
         nav_projects.append(nav_project_j)
@@ -361,16 +449,15 @@ def get_projects_networks(project_ids, uid, isadmin=None, **kwargs):
 
     log.info("Getting for all the networks for in the specified projects...")
     network_qry = db.DBSession.query(Network)\
-                                .options(joinedload('owners'))\
+                                .options(joinedload(Network.owners))\
                                 .filter(Network.project_id.in_(project_ids),\
                                         Network.status=='A')
     if not isadmin:
         network_qry.outerjoin(NetworkOwner)\
-        .filter(or_(
-            and_(NetworkOwner.user_id != None,
-                    NetworkOwner.view == 'Y'),
-            Network.created_by == uid
-        ))
+        .filter(
+            NetworkOwner.user_id == uid,
+            NetworkOwner.view == 'Y'
+        )
 
     networks = network_qry.all()
     project_network_lookup = defaultdict(list)
@@ -459,11 +546,25 @@ def get_network_project(network_id, **kwargs):
 
     return net_proj
 
-
 @required_perms('get_project', 'add_project')
-def clone_project(project_id, recipient_user_id=None, new_project_name=None, new_project_description=None, **kwargs):
+def clone_project(project_id,
+    recipient_user_id=None,
+    new_project_name=None,
+    new_project_description=None,
+    creator_is_owner=False,
+    **kwargs):
     """
         Create an exact clone of the specified project for the specified user.
+        args:
+            recipient_user_id (int): The ID of the user who will be granted ownership of the project after cloning.
+                If None, ownership will be granted to the requesting user.
+            new_project_name (str): The name of the cloned project. If None, then the project's name will be postfixed with ('Cloned by XXX')
+            new_project_description (str): The description of the cloned project.
+                If None, the current project's description will be used.
+            creator_is_owner (Bool) : The user who creates the network isn't added as an owner
+                (won't have an entry in tNetworkOwner and therefore won't see the network in 'get_project')
+        returns:
+            (int): The ID of the newly created project
     """
 
     user_id = kwargs['user_id']
@@ -471,18 +572,30 @@ def clone_project(project_id, recipient_user_id=None, new_project_name=None, new
     log.info("Creating a new project for cloned network")
 
     project = _get_project(project_id, user_id, check_write=True)
+    if recipient_user_id is None:
+        recipient_user_id = user_id
+
+    recipient_user = db.DBSession.query(User).filter(User.id == recipient_user_id).one()
+    cloning_user = db.DBSession.query(User).filter(User.id == user_id).one()
 
     if new_project_name is None:
-        user = db.DBSession.query(User).filter(User.id == user_id).one()
-        new_project_name = project.name + ' Cloned By {}'.format(user.display_name)
+        new_project_name = project.name + ' Cloned By {}'.format(cloning_user.display_name)
 
     #check a project with this name doesn't already exist:
     project_with_name =  db.DBSession.query(Project).filter(
         Project.name == new_project_name,
-        Project.created_by == user_id).all()
+        Project.created_by == recipient_user_id).first()
 
-    if len(project_with_name) > 0:
-        raise HydraError("A project with the name {0} already exists".format(new_project_name))
+    if project_with_name is not None:
+        now = datetime.now().strftime("%Y%m%d%H%M%S")
+        if project_with_name.status == 'X':
+            project_with_name.name = f"{new_project_name} {now}"
+            log.info("Updating an existing deleted project %s with new project anme to avoid naming clash %s",
+                      project_with_name.id, project_with_name.name)
+        else:
+            #If there is a naming clash, then add a timestamp to the name of the new project to make it unique for
+            #this user.
+            new_project_name = f"{new_project_name} ({now})"
 
     new_project = Project()
     new_project.name = new_project_name
@@ -491,26 +604,49 @@ def clone_project(project_id, recipient_user_id=None, new_project_name=None, new
     else:
         new_project.description = project.description
 
-    new_project.created_by = user_id
+    new_project.appdata = project.appdata
 
-    if recipient_user_id is not None:
+    new_project.created_by = recipient_user_id
+
+    if recipient_user_id is not None and recipient_user_id != user_id:
         project.check_share_permission(user_id)
         new_project.set_owner(recipient_user_id)
 
-    new_project.set_owner(user_id)
-
+    if creator_is_owner is True:
+        new_project.set_owner(user_id)
 
     db.DBSession.add(new_project)
     db.DBSession.flush()
 
     network_ids = db.DBSession.query(Network.id).filter(
                                         Network.project_id==project_id).all()
+
     for n in network_ids:
         network.clone_network(n.id,
                               recipient_user_id=recipient_user_id,
                               project_id=new_project.id,
-                             user_id=user_id)
+                              user_id=user_id)
+
+    project_attributes = db.DBSession.query(Attr).filter(Attr.project_id==project_id).all()
+
+    for pa in project_attributes:
+        newpa = Attr()
+        newpa.name = pa.name
+        newpa.dimension_id = pa.dimension_id
+        newpa.description = pa.description
+        newpa.project_id = new_project.id
+        db.DBSession.add(newpa)
 
     db.DBSession.flush()
 
     return new_project.id
+
+def get_project_hierarchy(project_id, **kwargs):
+    """
+        Return a list of project JSONObjects which represent the links in the chain up to the root project
+        [project_j, parent_j, parent_parent_j ...etc]
+        If the project has no parent, return [project_j]
+    """
+    user_id = kwargs.get('user_id')
+    hierarchy = _get_project(project_id, user_id).get_hierarchy(user_id)
+    return hierarchy

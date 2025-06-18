@@ -198,7 +198,7 @@ def get_dimensions(**kwargs):
     """
         Returns a list of objects describing all the dimensions with all the units.
     """
-    dimensions_list = db.DBSession.query(Dimension).options(load_only("id")).all()
+    dimensions_list = db.DBSession.query(Dimension).options(load_only(Dimension.id)).all()
     return_list = []
     for dimension in dimensions_list:
         return_list.append(get_dimension(dimension.id))

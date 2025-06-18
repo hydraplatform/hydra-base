@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
+import time
 from ..base import *
 
 from ..dataset import Dataset, Metadata
@@ -127,6 +128,11 @@ class Scenario(Base, Inspect):
         ra_ids=None,
         include_results=True,
         include_only_results=False,
+        include_data_types=None,
+        exclude_data_types=None,
+        include_values=True,
+        include_data_type_values=None,
+        exclude_data_type_values=None,
         include_metadata=True):
         """
             Return all the resourcescenarios relevant to this scenario.
@@ -148,14 +154,20 @@ class Scenario(Base, Inspect):
         childrens_ras = []
         for child_rs in child_data:
             childrens_ras.append(child_rs.resource_attr_id)
-
+        t = time.time()
         resourcescenarios = self.get_all_resourcescenarios(
             user_id,
             ra_ids=ra_ids,
             include_results=include_results,
             include_only_results=include_only_results,
-            include_metadata=include_metadata)
-
+            include_metadata=include_metadata,
+            include_data_types=include_data_types,
+            exclude_data_types=exclude_data_types,
+            include_values=include_values,
+            include_data_type_values=include_data_type_values,
+            exclude_data_type_values=exclude_data_type_values
+            )
+        log.info(f"get_all_resourcescenarios took {time.time() - t:.2f} seconds")
         for this_rs in resourcescenarios:
             if this_rs.resource_attr_id not in childrens_ras:
                 child_data.append(this_rs)
@@ -171,11 +183,17 @@ class Scenario(Base, Inspect):
         ra_ids=None,
         include_results=True,
         include_only_results=False,
+        include_data_types=None,
+        exclude_data_types=None,
+        include_values=True,
+        include_data_type_values=None,
+        exclude_data_type_values=None,
         include_metadata=True):
         """
             Get all the resource scenarios in a network, across all scenarios
             returns a dictionary of dict objects, keyed on scenario_id
         """
+        log.debug("Starting dataset query")
 
         rs_qry = get_session().query(
                     Dataset.type,
@@ -185,7 +203,6 @@ class Scenario(Base, Inspect):
                     Dataset.cr_date,
                     Dataset.created_by,
                     Dataset.hidden,
-                    Dataset.value,
                     ResourceScenario.dataset_id,
                     ResourceScenario.scenario_id,
                     ResourceScenario.resource_attr_id,
@@ -215,48 +232,68 @@ class Scenario(Base, Inspect):
 
         if ra_ids is not None:
             rs_qry = rs_qry.filter(ResourceScenario.resource_attr_id.in_(ra_ids))
+        
+        if include_data_types is not None:
+            rs_qry = rs_qry.filter(func.upper(Dataset.type).in_([t.upper() for t in include_data_types]))
+        
+        if exclude_data_types is not None:
+            rs_qry = rs_qry.filter(func.upper(Dataset.type).not_in([t.upper() for t in exclude_data_types]))
 
-        all_rs = rs_qry.all()
+        excl_values_rs = []
+        if include_values is True:
+            if include_data_type_values is not None:
+                rs_qry = rs_qry.filter(func.upper(Dataset.type).in_([t.upper() for t in include_data_type_values]))
 
+            if exclude_data_type_values is not None:
+                excl_values_qry = rs_qry.filter(func.upper(Dataset.type).in_([t.upper() for t in exclude_data_type_values]))
+                rs_qry = rs_qry.filter(func.upper(Dataset.type).not_in([t.upper() for t in exclude_data_type_values]))
+                excl_values_rs = excl_values_qry.all()
+
+            rs_qry = rs_qry.add_columns(Dataset.value)
+
+        non_dataframe_rs = rs_qry.all()
+        
+        all_rs = non_dataframe_rs + excl_values_rs
+
+        log.info(f"Ending dataset query -- {len(all_rs)} results")
+        t = time.time()
         processed_rs = []
         for rs in all_rs:
             rs_obj = JSONObject({
                 'resource_attr_id': rs.resource_attr_id,
                 'scenario_id':rs.scenario_id,
-                'dataset_id':rs.dataset_id
-            })
-            rs_attr = JSONObject({
-                'id': rs.resource_attr_id,
-                'attr_id':rs.attr_id,
-                'attr_is_var': rs.attr_is_var,
-                'ref_key': rs.ref_key,
-                'node_id': rs.node_id,
-                'link_id': rs.link_id,
-                'network_id': rs.network_id,
-                'group_id': rs.group_id,
-                'attr':{
-                    'name': rs.attr_name,
-                    'description':rs.attr_description,
-                    'id': rs.attr_id
+                'dataset_id':rs.dataset_id,
+                'resourceattr': {
+                    'id': rs.resource_attr_id,
+                    'attr_id':rs.attr_id,
+                    'attr_is_var': rs.attr_is_var,
+                    'ref_key': rs.ref_key,
+                    'node_id': rs.node_id,
+                    'link_id': rs.link_id,
+                    'network_id': rs.network_id,
+                    'group_id': rs.group_id,
+                    'attr':{
+                        'name': rs.attr_name,
+                        'description':rs.attr_description,
+                        'id': rs.attr_id
+                    }
+                },
+                'dataset': {
+                    'id':rs.dataset_id,
+                    'type' : rs.type,
+                    'unit_id' : rs.unit_id,
+                    'name' : rs.name,
+                    'hash' : rs.hash,
+                    'cr_date':rs.cr_date,
+                    'created_by':rs.created_by,
+                    'hidden':rs.hidden,
+                    'value': getattr(rs, 'value', None),
+                    'metadata':{},
                 }
-            })
-
-            rs_dataset = JSONDataset({
-                'id':rs.dataset_id,
-                'type' : rs.type,
-                'unit_id' : rs.unit_id,
-                'name' : rs.name,
-                'hash' : rs.hash,
-                'cr_date':rs.cr_date,
-                'created_by':rs.created_by,
-                'hidden':rs.hidden,
-                'value':rs.value,
-                'metadata':{},
-            })
-            rs_obj.resourceattr = rs_attr
-            rs_obj.dataset = rs_dataset
+            }, normalize=False)
 
             processed_rs.append(rs_obj)
+        log.info(f"Datasets processed in {time.time() - t:.2f} seconds")
 
         ## If metadata is requested, use a dedicated query to extract metadata
         ## from the scenario's datasets,
