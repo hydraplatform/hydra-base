@@ -21,3 +21,4 @@ fsspec
 h5py
 s3fs
 tables
+authlib
