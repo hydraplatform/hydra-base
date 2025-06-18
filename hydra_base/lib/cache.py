@@ -20,7 +20,7 @@ elif hydraconfig.get('cache', 'type') == 'memcached':
     log.info("Using memcached for caching.")
     try:
         import pylibmc
-        host= hydraconfig.get('cache', 'host', '127.0.0.1')
+        host = hydraconfig.get('cache', 'host', '127.0.0.1')
         port = hydraconfig.get('cache', 'port', 31211)
         cache = pylibmc.Client([f"{host}:{port}"], binary=True)
         log.info(f"Memcached client initialized with host: {host}:{port}")
