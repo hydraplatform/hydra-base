@@ -23,14 +23,15 @@ depends_on = None
 
 
 def upgrade():
+    # This migration is specific to MySQL. Other database dialects are not handled.
     if op.get_bind().dialect.name == 'mysql':
-
         try:
             op.add_column('tProject', sa.Column('layout', sa.JSON()))
         except Exception as e:
             log.critical(e)
 
 def downgrade():
+    # This migration is specific to MySQL. Other database dialects are not handled.
     if op.get_bind().dialect.name == 'mysql':
         try:
             op.drop_column('tProject', 'layout')
