@@ -50,11 +50,11 @@ class Project(Base, Inspect, PermissionControlled):
     id = Column(Integer(), primary_key=True, nullable=False)
     name = Column(String(200),  nullable=False, unique=False)
     description = Column(String(1000))
-    layout = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'), nullable=True)
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     created_by = Column(Integer(), ForeignKey('tUser.id'), nullable=False)
     appdata = Column(JSON)
+    layout = Column(JSON)
     user = relationship('User', backref=backref("projects", order_by=id))
 
     parent_id = Column(Integer(), ForeignKey('tProject.id'), nullable=True)

@@ -26,7 +26,7 @@ def upgrade():
     if op.get_bind().dialect.name == 'mysql':
 
         try:
-            op.add_column('tProject', sa.Column('layout', sa.Text().with_variant(sa.dialects.mysql.LONGTEXT, 'mysql'), nullable=True))
+            op.add_column('tProject', sa.Column('layout', sa.JSON()))
         except Exception as e:
             log.critical(e)
 
