@@ -7,22 +7,34 @@ is ignored, but this is still applied to any changes to datasets
 performed via Hydra.
 """
 import bz2
+from collections import defaultdict
 import io
 import json
 import logging
 import os
 import transaction
+import datetime
 
 from bson.objectid import ObjectId
 import pymongo
 from pymongo import MongoClient
 from sqlalchemy.sql.expression import func
+from sqlalchemy import not_
 from sqlalchemy.exc import NoResultFound
+from zope.sqlalchemy import mark_changed
 
 from hydra_base import db
 from hydra_base.db.model import (
+    Network,
+    Scenario,
     Dataset,
-    Metadata
+    Node,
+    Link,
+    Attr,
+    ResourceScenario,
+    ResourceGroup,
+    Metadata,
+    ResourceAttr
 )
 from hydra_base.lib.storage import MongoStorageAdapter
 
@@ -203,6 +215,134 @@ def export_dataset_to_external_storage(ds_id: int, db_name: str=None, collection
     transaction.commit()
 
     return result
+
+def export_network_datasets_to_hdf(network_id: int=None, bucket_name: str=None) -> None:
+    """
+    Find all the dataframe results (aka resource attribtues with an attr_is_var which have resource scenarios
+    where the dataset is type dataframe)
+    1. compile all of all output attributes which are dataframes
+    2. group all attributes togetether (all simulated_flows, for example) into one h5 document (simulated_flow.h5) keyed on the node names
+    3. Save the file to the specified s3 bucket
+    4. Update each dataset to point to the new location.
+    """
+
+    scenarios = db.DBSession.query(Scenario)\
+        .filter(Scenario.network_id==network_id).all()
+    
+    export_scenario_datasets_to_hdf(scenarios, bucket_name)
+
+def export_project_datasets_to_hdf(project_id: int, bucket_name: str=None) -> None:
+    """
+    Find all the dataframe results (aka resource attribtues with an attr_is_var which have resource scenarios
+    where the dataset is type dataframe)
+    1. compile all of all output attributes which are dataframes
+    2. group all attributes togetether (all simulated_flows, for example) into one h5 document (simulated_flow.h5) keyed on the node names
+    3. Save the file to the specified s3 bucket
+    4. Update each dataset to point to the new location.
+    """
+
+    scenarios = db.DBSession.query(Scenario)\
+        .filter(Scenario.network_id==Network.id)\
+        .filter(Network.project_id==project_id).all()
+    
+    export_scenario_datasets_to_hdf(scenarios, bucket_name)
+
+
+def export_scenario_datasets_to_hdf(scenarios: list, bucket_name: str=None) -> None:
+    from random import randbytes
+    import tempfile
+    import hashlib
+    import hmac
+    import pandas as pd
+    import boto3
+
+    hashkey = hashlib.sha256(randbytes(56)).hexdigest().encode('utf-8')
+
+    baseqry = db.DBSession.query(Attr, ResourceAttr, Dataset, ResourceScenario)\
+        .filter(ResourceScenario.dataset_id==Dataset.id)\
+        .filter(ResourceScenario.resource_attr_id==ResourceAttr.id)\
+        .filter(ResourceAttr.attr_is_var == 'Y')\
+        .filter(Attr.id==ResourceAttr.attr_id)\
+        .filter(func.lower(Dataset.type)=='dataframe')\
+        .filter(not_(Dataset.value.ilike('%url%')))
+
+    attribute_lookup = defaultdict(dict)
+
+    scenario_ids = [s.id for s in scenarios]
+
+
+    db.DBSession.expire_on_commit = False
+
+    for scenario_id in scenario_ids:
+
+        resourcenamelookup = {}
+
+        scenarioresults = baseqry.filter(ResourceScenario.scenario_id == scenario_id).all()
+        if len(scenarioresults) == 0:
+            log.info("No datasets to migrate from scenario %s Exiting.", scenario_id)
+            continue
+        log.info("Processing scenario %s", scenario_id)
+        #categorise the datasets by their attribute
+        log.info("Categorising datasets by attribute")
+        for attr, ra, dataset, rs in scenarioresults:
+            resource_id = ra.get_resource_id()
+
+            datasetvalue = json.loads(dataset.value)
+
+            #Is the value already an external file ref?
+            if datasetvalue.get('data', {}).get('url', '').startswith('s3://'):
+                continue
+
+            df = pd.read_json(io.StringIO(dataset.value))
+            attribute_lookup[attr.name][resource_id] = df
+            resourcenamelookup[ra.id] = {'attr_name':attr.name, 'resource_id': resource_id, 'dataset': dataset}
+
+        if len(resourcenamelookup) == 0:
+            log.info("No datasets to migrate from scenario %s Exiting.", scenario_id)
+            continue
+
+        #write results to h5 files
+        results_location = os.path.join(tempfile.gettempdir(), str(scenario_id))
+        os.makedirs(results_location, exist_ok=True)
+        log.info("Saving datasets to h5 files in %s", results_location)
+        for attr_name, resultdict in attribute_lookup.items():
+            filename = f'{attr_name}.h5'
+            resultstore = pd.HDFStore(os.path.join(results_location, filename), mode='w')
+            for resourceid, df in resultdict.items():
+                resultstore.put(f"_{resourceid}", df)
+                resultstore[f"_{resourceid}"].attrs['pandas_type'] = 'frame'
+            resultstore.close()
+
+        log.info("Uploading files to s3")
+        now = datetime.datetime.now().toordinal()
+        key = f"${scenario_id}_{now}".encode('utf-8')
+        s3_path =  hmac.digest(hashkey, key, hashlib.sha256).hex()
+
+        #upload files to s3
+        for f in os.listdir(results_location):
+            log.info("Saving %s to bucket %s s3", f, bucket_name)
+            s3 = boto3.client('s3')
+            s3.upload_file(os.path.join(results_location, f), Bucket=bucket_name, Key=f"{s3_path}/{f}")
+            log.info("%s saved to s3 bucket %s", f, bucket_name)
+
+        log.info("Updating datasets...")
+        # log.info("Updating datasets to point to external datasets")
+        # #update the datasets to point to the data within the h5 files
+        for namemap in resourcenamelookup.values():
+            attr_name = namemap['attr_name']
+            resource_id = namemap['resource_id']
+            dataset = namemap['dataset']
+            newvalue = json.dumps({
+                "data":
+                {
+                    "url": f"s3://{bucket_name}/{s3_path}/{attr_name}.h5",
+                    "group": f"_{resource_id}"
+                }
+            })
+            dataset.value = newvalue
+
+        db.DBSession.flush()
+        db.commit_transaction()
 
 
 def import_dataset_from_external_storage(ds_id: int, db_name: str=None, collection: str=None):
