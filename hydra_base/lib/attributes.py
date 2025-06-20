@@ -61,6 +61,7 @@ from .cache import cache
 
 log = logging.getLogger(__name__)
 
+
 def _get_network(network_id):
     try:
         network_i = db.DBSession.query(Network).filter(Network.id == network_id).one()
@@ -844,6 +845,12 @@ def delete_resource_attribute(resource_attr_id, **kwargs):
 
 def add_resource_attributes(resource_attributes, **kwargs):
     """
+    Adds a list of resource_attributes to the specified resource.
+
+    Returns a dict mapping a tuple containing the (resource_id, attr_id)
+    of each argument resource_attribute to the id with which it was
+    added.
+
     A resource attribute looks like:
     {
         "ref_key": "NODE",
@@ -855,7 +862,7 @@ def add_resource_attributes(resource_attributes, **kwargs):
         "is_var": "N"}
     """
     if len(resource_attributes) == 0:
-        return 'OK'
+        return {}
 
     #1. Identify the network ID
     network_id = get_network_id_from_resource_attribute(resource_attributes[0])
@@ -914,7 +921,7 @@ def add_resource_attributes(resource_attributes, **kwargs):
         if key not in network_ra_lookup:
             ras_to_be_inserted.append(ra)
 
-    inserted_ids = []
+    inserted_ids = {}
 
     #4. Add the new resource attributes
     cols = list(filter(lambda x: x not in ['id', 'cr_date', 'updated_at'], [c.name for c in ResourceAttr.__table__.columns]))
@@ -925,7 +932,8 @@ def add_resource_attributes(resource_attributes, **kwargs):
         objs = [ResourceAttr(**ra) for ra in ras_to_be_inserted]
         db.DBSession.add_all(objs)
         db.DBSession.flush()  # or commit
-        inserted_ids = [obj.id for obj in objs]
+        for obj in objs:
+            inserted_ids[(obj.get_resource_id(), obj.attr_id)] = obj.id
         # Mark the session as dirty to ensure that the changes are saved
         # This is necessary if you are using a session with autocommit=False
         mark_changed(db.DBSession())
