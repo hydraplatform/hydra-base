@@ -879,6 +879,9 @@ def add_resource_attributes(resource_attributes, **kwargs):
     field_to_key = {v: k for k, v in key_to_field.items()}
 
     for ra in resource_attributes:
+        if ra.get('is_var') is not None:
+            ra['attr_is_var'] = ra['is_var']
+
         # If no ref_key, try to infer it from existing ID fields
         if ra.get('ref_key') is None:
             for field, key in field_to_key.items():
