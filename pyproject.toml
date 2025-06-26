@@ -39,8 +39,8 @@ dependencies=[
 
 
 [project.urls]
-Documentation="https://pywr.github.io/pywr/"
-Repository="https://github.com/pywr/pywr"
+Documentation="https://hydraplatform.org"
+Repository="https://github.com/hydraplatform/hydra-base"
 
 [project.optional-dependencies]
 docs = []
