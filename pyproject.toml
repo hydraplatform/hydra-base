@@ -1,0 +1,61 @@
+[project]
+name="hydra-base"
+description="Hydra Platform Base Libary"
+readme="README.rst"
+dynamic = ["version"]
+authors = [
+  {name = "Stephen Knox", email = "knoxsp@gmail.com"},
+]
+requires-python=">=3.10"
+dependencies=[
+    "bcrypt",
+    "lxml",
+    "pymongo",
+    "mysqlclient",
+    "python-dateutil",
+    "cheroot",
+    "beaker",
+    "cheroot",
+    "click",
+    "diskcache",
+    "fsspec",
+    "h5py",
+    "lxml",
+    "mysqlclient",
+    "numpy",
+    "packaging",
+    "pandas",
+    "psycopg2-binary",
+    "pudb",
+    "pylibmc",
+    "pymongo",
+    "python-dateutil",
+    "requests",
+    "s3fs",
+    "sqlalchemy",
+    "tables",
+    "zope.sqlalchemy"
+]
+
+
+[project.urls]
+Documentation="https://pywr.github.io/pywr/"
+Repository="https://github.com/pywr/pywr"
+
+[project.optional-dependencies]
+docs = []
+notebook = []
+opt = []
+dev = ["pytest"]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+license-files = ["LICENSE"]
+
+[tool.black]
+line-length = 88
+target-version = ['py37']
+include = '\.pyi?$'
