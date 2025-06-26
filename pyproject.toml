@@ -7,6 +7,7 @@ authors = [
   {name = "Stephen Knox", email = "knoxsp@gmail.com"},
 ]
 requires-python=">=3.10"
+license-files = ["LICENSE"]
 dependencies=[
     "bcrypt",
     "lxml",
@@ -15,7 +16,6 @@ dependencies=[
     "python-dateutil",
     "cheroot",
     "beaker",
-    "cheroot",
     "click",
     "diskcache",
     "fsspec",
@@ -26,7 +26,6 @@ dependencies=[
     "packaging",
     "pandas",
     "psycopg2-binary",
-    "pudb",
     "pylibmc",
     "pymongo",
     "python-dateutil",
@@ -42,20 +41,10 @@ dependencies=[
 Documentation="https://hydraplatform.org"
 Repository="https://github.com/hydraplatform/hydra-base"
 
-[project.optional-dependencies]
-docs = []
-notebook = []
-opt = []
-dev = ["pytest"]
-
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=77", "setuptools_scm", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-license-files = ["LICENSE"]
-
-[tool.black]
-line-length = 88
-target-version = ['py37']
-include = '\.pyi?$'
+[tool.setuptools_scm]
+version_scheme = "post-release"
+local_scheme = "no-local-version"
