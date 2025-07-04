@@ -6,7 +6,7 @@ dynamic = ["version"]
 authors = [
   {name = "Stephen Knox", email = "knoxsp@gmail.com"},
 ]
-requires-python=">=3.10"
+requires-python=">=3.8"
 license-files = ["LICENSE"]
 dependencies=[
     "bcrypt",
