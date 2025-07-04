@@ -15,7 +15,6 @@ dependencies=[
     "python-dateutil",
     "cheroot",
     "beaker",
-    "cheroot",
     "click",
     "diskcache",
     "fsspec",
