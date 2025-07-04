@@ -722,7 +722,7 @@ def _get_all_resource_attributes(network_id, template_id=None, include_non_templ
             A list of sqlalchemy result proxy objects
     """
     start_time = time.time()
-    logging.info("Getting all resource attributes using multiple smaller queries")
+    log.info("Getting all resource attributes using multiple smaller queries")
     
     # Create the base query structure for reuse
     def _create_base_query():
