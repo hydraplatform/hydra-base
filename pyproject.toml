@@ -1,6 +1,6 @@
 [project]
 name="hydra-base"
-description="Hydra Platform Base Libary"
+description="Hydra Platform Base Library"
 readme="README.rst"
 dynamic = ["version"]
 authors = [
