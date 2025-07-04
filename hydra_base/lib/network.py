@@ -745,28 +745,28 @@ def _get_all_resource_attributes(network_id, template_id=None, include_non_templ
     
     # Query 1: Node attributes
     node_start = time.time()
-    node_qry = _create_base_query().join(Node).filter(Node.network_id == network_id)
+    node_qry = _create_base_query().filter(ResourceAttr.node_id != None).join(Node).filter(Node.network_id == network_id)
     node_attributes = node_qry.all()
     log.info("Node attributes: %s retrieved in %s", len(node_attributes), time.time()-node_start)
     all_resource_attributes.extend(node_attributes)
     
     # Query 2: Link attributes
     link_start = time.time()
-    link_qry = _create_base_query().join(Link).filter(Link.network_id == network_id)
+    link_qry = _create_base_query().filter(ResourceAttr.link_id != None).join(Link).filter(Link.network_id == network_id)
     link_attributes = link_qry.all()
     log.info("Link attributes: %s retrieved in %s", len(link_attributes), time.time()-link_start)
     all_resource_attributes.extend(link_attributes)
     
     # Query 3: Group attributes
     group_start = time.time()
-    group_qry = _create_base_query().join(ResourceGroup).filter(ResourceGroup.network_id == network_id)
+    group_qry = _create_base_query().filter(ResourceAttr.group_id != None).join(ResourceGroup).filter(ResourceGroup.network_id == network_id)
     group_attributes = group_qry.all()
     log.info("Group attributes: %s retrieved in %s", len(group_attributes), time.time()-group_start)
     all_resource_attributes.extend(group_attributes)
     
     # Query 4: Network attributes
     network_start = time.time()
-    network_qry = _create_base_query().filter(ResourceAttr.network_id == network_id)
+    network_qry = _create_base_query().filter(ResourceAttr.network_id != None).filter(ResourceAttr.network_id == network_id)
     network_attributes = network_qry.all()
     log.info("Network attributes: %s retrieved in %s", len(network_attributes), time.time()-network_start)
     all_resource_attributes.extend(network_attributes)
