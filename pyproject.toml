@@ -1,12 +1,13 @@
 [project]
 name="hydra-base"
-description="Hydra Platform Base Libary"
+description="Hydra Platform Base Library"
 readme="README.rst"
 dynamic = ["version"]
 authors = [
   {name = "Stephen Knox", email = "knoxsp@gmail.com"},
 ]
-requires-python=">=3.10"
+requires-python=">=3.8"
+license-files = ["LICENSE"]
 dependencies=[
     "bcrypt",
     "lxml",
@@ -25,7 +26,6 @@ dependencies=[
     "packaging",
     "pandas",
     "psycopg2-binary",
-    "pudb",
     "pylibmc",
     "pymongo",
     "python-dateutil",
@@ -38,23 +38,13 @@ dependencies=[
 
 
 [project.urls]
-Documentation="https://pywr.github.io/pywr/"
-Repository="https://github.com/pywr/pywr"
-
-[project.optional-dependencies]
-docs = []
-notebook = []
-opt = []
-dev = ["pytest"]
+Documentation="https://hydraplatform.org"
+Repository="https://github.com/hydraplatform/hydra-base"
 
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=77", "setuptools_scm", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-license-files = ["LICENSE"]
-
-[tool.black]
-line-length = 88
-target-version = ['py37']
-include = '\.pyi?$'
+[tool.setuptools_scm]
+version_scheme = "post-release"
+local_scheme = "no-local-version"
