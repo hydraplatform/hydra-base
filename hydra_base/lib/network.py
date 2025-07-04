@@ -721,38 +721,57 @@ def _get_all_resource_attributes(network_id, template_id=None, include_non_templ
         returns:
             A list of sqlalchemy result proxy objects
     """
-    base_qry = db.DBSession.query(
-                               ResourceAttr.id.label('id'),
-                               ResourceAttr.ref_key.label('ref_key'),
-                               ResourceAttr.cr_date.label('cr_date'),
-                               ResourceAttr.attr_is_var.label('attr_is_var'),
-                               ResourceAttr.node_id.label('node_id'),
-                               ResourceAttr.link_id.label('link_id'),
-                               ResourceAttr.group_id.label('group_id'),
-                               ResourceAttr.network_id.label('network_id'),
-                               ResourceAttr.attr_id.label('attr_id'),
-                               Attr.name.label('name'),
-                               Attr.dimension_id.label('dimension_id'),
-                              ).filter(Attr.id==ResourceAttr.attr_id)
+    start_time = time.time()
+    log.info("Getting all resource attributes using multiple smaller queries")
+    
+    # Create the base query structure for reuse
+    def _create_base_query():
+        return db.DBSession.query(
+            ResourceAttr.id.label('id'),
+            ResourceAttr.ref_key.label('ref_key'),
+            ResourceAttr.cr_date.label('cr_date'),
+            ResourceAttr.attr_is_var.label('attr_is_var'),
+            ResourceAttr.node_id.label('node_id'),
+            ResourceAttr.link_id.label('link_id'),
+            ResourceAttr.group_id.label('group_id'),
+            ResourceAttr.network_id.label('network_id'),
+            ResourceAttr.attr_id.label('attr_id'),
+            Attr.name.label('name'),
+            Attr.dimension_id.label('dimension_id'),
+        ).filter(Attr.id==ResourceAttr.attr_id)
 
+    # Execute separate queries for each resource type
+    all_resource_attributes = []
+    
+    # Query 1: Node attributes
+    node_start = time.time()
+    node_qry = _create_base_query().filter(ResourceAttr.node_id != None).join(Node).filter(Node.network_id == network_id)
+    node_attributes = node_qry.all()
+    log.info("Node attributes: %s retrieved in %s", len(node_attributes), time.time()-node_start)
+    all_resource_attributes.extend(node_attributes)
+    
+    # Query 2: Link attributes
+    link_start = time.time()
+    link_qry = _create_base_query().filter(ResourceAttr.link_id != None).join(Link).filter(Link.network_id == network_id)
+    link_attributes = link_qry.all()
+    log.info("Link attributes: %s retrieved in %s", len(link_attributes), time.time()-link_start)
+    all_resource_attributes.extend(link_attributes)
+    
+    # Query 3: Group attributes
+    group_start = time.time()
+    group_qry = _create_base_query().filter(ResourceAttr.group_id != None).join(ResourceGroup).filter(ResourceGroup.network_id == network_id)
+    group_attributes = group_qry.all()
+    log.info("Group attributes: %s retrieved in %s", len(group_attributes), time.time()-group_start)
+    all_resource_attributes.extend(group_attributes)
+    
+    # Query 4: Network attributes
+    network_start = time.time()
+    network_qry = _create_base_query().filter(ResourceAttr.network_id != None).filter(ResourceAttr.network_id == network_id)
+    network_attributes = network_qry.all()
+    log.info("Network attributes: %s retrieved in %s", len(network_attributes), time.time()-network_start)
+    all_resource_attributes.extend(network_attributes)
 
-    all_node_attribute_qry = base_qry.join(Node).filter(Node.network_id == network_id)
-
-    all_link_attribute_qry = base_qry.join(Link).filter(Link.network_id == network_id)
-
-    all_group_attribute_qry = base_qry.join(ResourceGroup)\
-            .filter(ResourceGroup.network_id == network_id)
-
-    network_attribute_qry = base_qry.filter(ResourceAttr.network_id == network_id)
-
-
-    x = time.time()
-    logging.info("Getting all attributes using execute")
-    attribute_qry = all_node_attribute_qry.union(all_link_attribute_qry,
-                                                 all_group_attribute_qry,
-                                                 network_attribute_qry)
-    all_resource_attributes = attribute_qry.all()
-    log.info("%s attrs retrieved in %s", len(all_resource_attributes), time.time()-x)
+    log.info("Total %s attrs retrieved in %s", len(all_resource_attributes), time.time()-start_time)
 
     logging.info("Attributes retrieved. Processing results...")
     x = time.time()
