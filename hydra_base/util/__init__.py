@@ -21,13 +21,20 @@ import logging
 log = logging.getLogger(__name__)
 
 from decimal import Decimal
+from functools import wraps
 import pandas as pd
 
+import inspect
 import json
 import six
-from .. import config
+import sys
 
 from collections import namedtuple
+
+from hydra_base import config
+from hydra_base.exceptions import PermissionError
+
+
 
 # Python 2 and 3 compatible string checking
 try:
@@ -281,3 +288,66 @@ class NullAdapter(metaclass=NullAdapterType):
 
     def __next__(self):
         raise StopIteration
+
+
+def export(func):
+    """
+      This defines a decorator which passes through the target
+      function without modification, but appends its name to
+      the calling module's '__all__' variable so that it is
+      exported when using 'from <mod> import *' syntax.
+    """
+    if not hasattr(sys.modules[func.__module__], "__all__"):
+        setattr(sys.modules[func.__module__], "__all__", tuple())
+    sys.modules[func.__module__].__all__ += (func.__name__,)
+    return func
+
+
+def organisation_admin(func):
+    """
+        Decorator which allows the wrapped function to be
+        called only by administrators of the organisation
+        specified in the <argname> argument to the wrapped
+        function.
+
+        Note that a Hydra Admin user is considered an
+        organisation administrator.
+    """
+    org_id_arg, uid_arg = "organisation_id", "user_id"
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        from hydra_base.lib.usergroups import is_organisation_administrator
+        av = inspect.getargvalues(inspect.currentframe())
+        org_id = av.locals[av.keywords][org_id_arg]
+        uid = av.locals[av.keywords][uid_arg]
+        if is_organisation_administrator(uid=uid, organisation_id=org_id):
+            return func(*args, **kwargs)
+        else:
+            raise PermissionError(f"User {uid} does not have permission to call {func.__name__}")
+
+    return wrapper
+
+
+def usergroup_admin(func):
+    """
+        Decorator which allows the wrapped function to be
+        called only by administrators of the usergroup
+        specified in the <argname> argument to the wrapped
+        function.
+
+        Note that a Hydra Admin user is considered a
+        usergroup administrator.
+    """
+    group_id_arg, uid_arg = "group_id", "user_id"
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        from hydra_base.lib.usergroups import is_usergroup_administrator
+        av = inspect.getargvalues(inspect.currentframe())
+        group_id = av.locals[av.keywords][group_id_arg]
+        uid = av.locals[av.keywords][uid_arg]
+        if is_usergroup_administrator(uid=uid, group_id=group_id):
+            return func(*args, **kwargs)
+        else:
+            raise PermissionError(f"User {uid} does not have permission to call {func.__name__}")
+
+    return wrapper
