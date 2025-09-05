@@ -1213,6 +1213,57 @@ def get_templatetype(type_id, include_parent_data=True, **kwargs):
 
     return inherited_templatetype
 
+@required_perms("edit_template")
+def clone_templatetype(type_id, name=None, **kwargs):
+    """
+        Clone a specific template type by ID. Creates a copy of the template type
+        with all its typeattrs. The clone will have new IDs and timestamps but
+        identical content otherwise, except the name which will be modified to be unique.
+    """
+
+    #First get the DB entry
+    parent_templatetype = db.DBSession.query(TemplateType).filter(
+        TemplateType.id == type_id).options(noload(TemplateType.typeattrs)).one()
+
+    cloned_templatetype = TemplateType()
+    for col in parent_templatetype.__table__.columns:
+        if col.name in ['id', 'cr_date', 'updated_at']:
+            continue
+        setattr(cloned_templatetype, col.name, getattr(parent_templatetype, col.name))
+    
+    if name is not None:
+        base_name = name
+    else:
+        # Make the name unique by appending " (Clone)" and potentially a number
+        base_name = parent_templatetype.name + " (Clone)"
+    clone_name = base_name
+    counter = 1
+    # Check if a template type with this name already exists in the same template
+    while db.DBSession.query(TemplateType).filter(
+        TemplateType.template_id == parent_templatetype.template_id,
+        TemplateType.name == clone_name,
+        TemplateType.resource_type == parent_templatetype.resource_type
+    ).first() is not None:
+        clone_name = f"{base_name} {counter}"
+        counter += 1
+    
+    cloned_templatetype.name = clone_name
+
+    typeattrs = db.DBSession.query(TypeAttr).filter(
+        TypeAttr.type_id == parent_templatetype.id).all()
+    for typeattr in typeattrs:
+        cloned_typeattr = TypeAttr()
+        for col in typeattr.__table__.columns:
+            if col.name in ['id', 'cr_date', 'updated_at']:
+                continue
+            setattr(cloned_typeattr, col.name, getattr(typeattr, col.name))
+        cloned_templatetype.typeattrs.append(cloned_typeattr)
+    
+    db.DBSession.add(cloned_templatetype)
+    db.DBSession.flush()  # Flush to get the ID
+
+    return cloned_templatetype
+
 @required_perms("get_template")
 def get_typeattr(typeattr_id, include_parent_data=True, **kwargs):
     """
