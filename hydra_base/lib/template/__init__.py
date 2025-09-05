@@ -1214,7 +1214,7 @@ def get_templatetype(type_id, include_parent_data=True, **kwargs):
     return inherited_templatetype
 
 @required_perms("edit_template")
-def clone_templatetype(type_id, **kwargs):
+def clone_templatetype(type_id, name=None, **kwargs):
     """
         Clone a specific template type by ID. Creates a copy of the template type
         with all its typeattrs. The clone will have new IDs and timestamps but
@@ -1231,11 +1231,13 @@ def clone_templatetype(type_id, **kwargs):
             continue
         setattr(cloned_templatetype, col.name, getattr(parent_templatetype, col.name))
     
-    # Make the name unique by appending " (Clone)" and potentially a number
-    base_name = parent_templatetype.name + " (Clone)"
+    if name is not None:
+        base_name = name
+    else:
+        # Make the name unique by appending " (Clone)" and potentially a number
+        base_name = parent_templatetype.name + " (Clone)"
     clone_name = base_name
     counter = 1
-    
     # Check if a template type with this name already exists in the same template
     while db.DBSession.query(TemplateType).filter(
         TemplateType.template_id == parent_templatetype.template_id,
