@@ -2923,6 +2923,8 @@ def clone_network(network_id,
 
     db.DBSession.flush()
 
+    Project.clear_cache(user_id)
+
     return newnetworkid
 
 def clone_node(node_id,

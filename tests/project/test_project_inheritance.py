@@ -380,3 +380,80 @@ class TestProjectInheritance:
         # Verify moved project now has no parent
         proj_i = client.get_project(child_proj_move.id)
         assert proj_i.parent_id is None
+
+
+    def test_clone_network_in_shared_project(self, client, projectmaker, networkmaker):
+        """
+            Test sharing a network contained in a sub-project. This should result in the sharee having
+            access to the full tree of projects until the shared projects, but not
+            the projects which are siblings of any projects in that path through the tree
+            For example, upon sharing p4, the sharee should not have access to p3
+                                 p1
+                                /  \
+                               p2   p3
+                              /
+                             n1
+        """
+        client.user_id = 1 # force current user to be 1 to avoid potential inconsistencies
+        proj_user = client.user_id
+        proj1 = projectmaker.create(share=False)
+        proj2 = projectmaker.create(share=False, parent_id=proj1.id)
+        proj3 = projectmaker.create(share=False, parent_id=proj1.id)
+
+        net1 = networkmaker.create(project_id=proj2.id)
+        #A netrwork which the sharee should never be able to see
+        net_hidden = networkmaker.create(project_id=proj2.id)
+
+        client.user_id = pytest.user_c.id
+        #Can't access P2
+        with pytest.raises(HydraError):
+            client.get_project(proj2.id)
+
+        #Can't access P3
+        with pytest.raises(HydraError):
+            client.get_project(proj3.id)
+
+        #Can't access N1
+        with pytest.raises(HydraError):
+            client.get_network(net1.id)
+
+        #Now, as the main user, share Net 1 with user C
+        client.user_id = proj_user
+        client.share_network(net1.id, ['UserC'], False, False)
+
+        #Now as the sharee, try to get project 2
+        client.user_id = pytest.user_c.id
+        #this should not error
+        client.get_project(proj2.id)
+
+        #As the sharee, Clone Network 1 inside project 2
+        cloned_net_id = client.clone_network(net1.id, project_id=proj2.id)
+
+        #As the sharee, get project 2. THere should be 2. THe original one, and
+        #the one this user has just cloned
+        updated_project = client.get_project(proj2.id)
+
+        assert len(updated_project.networks) == 2
+        #Hidden network is still hidden
+        assert net_hidden.id not in [n.id for n in updated_project.networks]
+
+        #Verify only network 1 and cloned network are the only networks returned in P2
+        assert set([net1.id, cloned_net_id]) == set([n.id for n in updated_project.networks])
+
+        #Still Can't access P3
+        with pytest.raises(HydraError):
+            client.get_project(proj3.id)
+
+        #Still Can't access P3
+        with pytest.raises(HydraError):
+            client.get_project(proj3.id)
+
+        #Ensure the original user can access all networks
+        client.user_id = proj_user
+        updated_project = client.get_project(proj2.id)
+        #Verify only network 1 and hidden network are the only networks returned in P2
+        assert set([net1.id, net_hidden.id, cloned_net_id]) == set([n.id for n in updated_project.networks])
+        #No error for main user
+        client.get_project(proj3.id)
+
+
