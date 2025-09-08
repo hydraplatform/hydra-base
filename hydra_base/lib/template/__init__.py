@@ -794,6 +794,11 @@ def add_templatetype(templatetype, **kwargs):
 
     _remove_template_from_cache(type_i.template_id)
 
+    #remove any child templates from the cache too
+    child_types = db.DBSession.query(TemplateType).filter(TemplateType.parent_id == type_i.id).all()
+    for child_type in child_types:
+        _remove_template_from_cache(child_type.template_id)
+
     db.DBSession.flush()
 
     return type_i
@@ -1191,7 +1196,7 @@ def clone_templatetype(type_id, name=None, **kwargs):
         if col.name in ['id', 'cr_date', 'updated_at']:
             continue
         setattr(cloned_templatetype, col.name, getattr(parent_templatetype, col.name))
-    
+
     if name is not None:
         base_name = name
     else:
@@ -1207,7 +1212,7 @@ def clone_templatetype(type_id, name=None, **kwargs):
     ).first() is not None:
         clone_name = f"{base_name} {counter}"
         counter += 1
-    
+
     cloned_templatetype.name = clone_name
 
     typeattrs = db.DBSession.query(TypeAttr).filter(
@@ -1219,7 +1224,7 @@ def clone_templatetype(type_id, name=None, **kwargs):
                 continue
             setattr(cloned_typeattr, col.name, getattr(typeattr, col.name))
         cloned_templatetype.typeattrs.append(cloned_typeattr)
-    
+
     db.DBSession.add(cloned_templatetype)
     db.DBSession.flush()  # Flush to get the ID
 
