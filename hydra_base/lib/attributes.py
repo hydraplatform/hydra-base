@@ -942,7 +942,7 @@ def add_resource_attributes(resource_attributes, **kwargs):
         mark_changed(db.DBSession())
 
         cache.set(f'network_resource_attributes_{network_id}',
-            cache.get(f'network_resource_attributes_{network_id}') + [JSONObject(obj) for obj in objs], expire=60*60)
+            cache.get(f'network_resource_attributes_{network_id}') + [JSONObject(obj) for obj in objs], 60*60)
 
     db.DBSession.flush()
 
@@ -1144,7 +1144,7 @@ def get_all_network_resourceattributes(network_id, template_id=None, return_orm=
             ra_j.attr = JSONObject(ra.attr)
             network_attributes.append(ra_j)
 
-    cache.set(f'network_resource_attributes_{network_id}', network_attributes, expire=60*60)
+    cache.set(f'network_resource_attributes_{network_id}', network_attributes, 60*60)
 
     return network_attributes
 
