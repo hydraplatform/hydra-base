@@ -33,7 +33,7 @@ elif hydraconfig.get('cache', 'type') == 'memcached':
         #pick a unique key based on the time
         test_value = datetime.datetime.toordinal(datetime.datetime.now())
         try:
-            cache.set(test_key, test_value, time=1)
+            cache.set(test_key, test_value, 1)
             cache.get(test_key)
             log.info("Connected to memcached server.")
         except (pylibmc.HostLookupError, pylibmc.ConnectionError):
