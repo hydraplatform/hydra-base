@@ -13,6 +13,7 @@ log = logging.getLogger(__name__)
 global cache
 
 def _init_diskcache():
+    log.info("Using diskcache for caching.")
     global cache
     import diskcache as dc
     cache = dc.Cache(tempfile.gettempdir())
@@ -21,10 +22,11 @@ if hydraconfig.get('cache', 'type') != "memcached":
     _init_diskcache()
 
 elif hydraconfig.get('cache', 'type') == 'memcached':
-
     try:
         import pylibmc
-        cache = pylibmc.Client([hydraconfig.get('cache', 'host', '127.0.0.1')], binary=True)
+        host = hydraconfig.get('cache', 'host', '127.0.0.1')
+        port = hydraconfig.get('cache', 'port', 31211)
+        cache = pylibmc.Client([f"{host}:{port}"], binary=True)
 
         # Check if Memcached server is reachable by setting a test key
         test_key = "__connection_test__"
@@ -36,13 +38,13 @@ elif hydraconfig.get('cache', 'type') == 'memcached':
             log.info("Connected to memcached server.")
         except pylibmc.HostLookupError:
             raise ConnectionError("Memcached server not responding.")
-        
+
     except (ModuleNotFoundError, ConnectionError) as e:
         if isinstance(e, ModuleNotFoundError):
             log.warning("Unable to find pylibmc. Defaulting to diskcache.")
         else:
             log.warning("Memcached server not reachable. Defaulting to diskcache.")
-        
+
         _init_diskcache()
 
 def clear_cache():

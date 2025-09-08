@@ -90,8 +90,6 @@ def share_network(network_id, usernames, read_only, share, **kwargs):
         #Set the owner ship on the network itself
         net_i.set_owner(user_i.id, write=write, share=share)
 
-        for rule_i in net_i.rules:
-            rule_i.set_owner(user_i.id, write=write, share=share)
         Project.clear_cache(user_i.id)
     db.DBSession.flush()
 
