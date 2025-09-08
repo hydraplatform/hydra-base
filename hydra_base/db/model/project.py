@@ -242,10 +242,18 @@ class Project(Base, Inspect, PermissionControlled):
     """
     @classmethod
     def get_cache(cls, user_id=None):
-        if user_id is None:
-            return cache.get(project_cache_key, {})
-        else:
-            return cache.get(project_cache_key, {}).get(user_id, {})
+        try:
+            if user_id is None:
+                return cache.get(project_cache_key, {})
+            else:
+                return cache.get(project_cache_key, {}).get(user_id, {})
+        except Exception as e:
+            log.exception(e)
+            err_value = cache.get(project_cache_key, {})
+            if type(err_value) is dict:
+                err_value = err_value.get(user_id)
+            log.warning(f"Error to get project cache: {project_cache_key}, user_id={user_id}, err_value={err_value}")
+            return {}
 
     @classmethod
     def set_cache(cls, data):
