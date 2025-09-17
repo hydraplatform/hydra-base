@@ -348,6 +348,16 @@ class Project(Base, Inspect, PermissionControlled):
 
         cls._build_user_cache_up_tree(uid, parent_project_ids, project_user_cache)
 
+
+    def remove_from_cache(self):
+        """Remove this project from the cache of all users who can see it"""
+        projectcache = cache.get(project_cache_key, {})
+        for uid, user_projects in projectcache.items():
+            for parent_id, child_projects in user_projects.items():
+                if self.id in child_projects:
+                    child_projects.remove(self.id)
+        cache.set(project_cache_key, projectcache)
+
     def get_attribute_data(self):
         attribute_data_rs = get_session().query(ResourceScenario).join(ResourceAttr).filter(
             ResourceAttr.project_id==self.id).all()

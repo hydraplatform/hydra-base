@@ -469,3 +469,19 @@ class TestProject:
         client.user_id = pytest.user_c.id
         with pytest.raises(hb.HydraError):
             client.get_project(proj.id)
+
+    def test_set_project_status_cache_invalidation(self, client, projectmaker):
+        proj = projectmaker.create()
+        project_id = proj.id
+
+        proj1 = client.get_project(project_id)
+        assert proj1.status == 'A'
+
+        client.set_project_status(project_id, 'X')
+
+        proj2 = client.get_project(project_id)
+        assert proj2.status == 'X'
+
+        #get projecs again to check the project is no longer present
+        projects = client.get_projects(pytest.root_user_id)
+        assert project_id not in [p.id for p in projects]
