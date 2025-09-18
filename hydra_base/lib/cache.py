@@ -36,7 +36,7 @@ elif hydraconfig.get('cache', 'type') == 'memcached':
             cache.set(test_key, test_value, 1)
             cache.get(test_key)
             log.info("Connected to memcached server.")
-        except (pylibmc.HostLookupError, pylibmc.ConnectionError):
+        except Exception:
             raise ConnectionError("Memcached server not responding.")
 
     except (ModuleNotFoundError, ConnectionError) as e:
