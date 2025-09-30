@@ -18,7 +18,7 @@
 #
 
 import logging
-import six
+import time
 from ..exceptions import HydraError, PermissionError, ResourceNotFoundError
 from .. import db
 from ..util.permissions import required_perms
@@ -292,12 +292,15 @@ def get_scenario(scenario_id,
 
     scen_j = JSONObject(scen_i)
     rscen_rs = []
+    t = time.time()
     if include_data is True:
-        rscen_rs = scen_i.get_data(user_id, get_parent_data=get_parent_data,
-                                   include_results=include_results,
-                                   include_only_results=include_only_results,
-                                   include_metadata=include_metadata)
-
+        rscen_rs = scen_i.get_data(
+            user_id,
+            get_parent_data=get_parent_data,
+            include_results=include_results,
+            include_only_results=include_only_results,
+            include_metadata=include_metadata)
+    log.info(f"Time taken to get data: {time.time() - t:.2f}")
     rgi_rs = []
     if include_group_items is True:
         rgi_rs = scen_i.get_group_items(get_parent_items=get_parent_data)
@@ -425,12 +428,12 @@ def update_scenario(scenario, update_data=True, update_groups=True, flush=True, 
         datasets = [rs.dataset for rs in scenario.resourcescenarios]
         updated_datasets = data._bulk_insert_data(datasets, user_id, kwargs.get('app_name'))
         for i, r_scen in enumerate(scenario.resourcescenarios):
-            log.info("updating resource scenario...")
+            log.debug("updating resource scenario...")
 
             rscen_i = rsmap.get(r_scen.resource_attr_id)
             _update_resourcescenario(scen, r_scen, r_scen_i=rscen_i, dataset=updated_datasets[i], user_id=user_id, source=kwargs.get('app_name'))
 
-    log.info('Resource Scenarios Updated')
+    log.info('%s Resource Scenarios Updated', len(scenario.resourcescenarios))
 
     #lazy load resource grou items from the DB
     scen.resourcegroupitems
@@ -970,9 +973,21 @@ def bulk_update_resourcedata(scenario_ids, resource_scenarios, **kwargs):
         #this is cast as a string so it can be read into a JSONObject
         res[str(scenario_id)] = []
 
+        #make a lookup dict of all the resource scenarios that already exist from the
+        #ones that have been passed in to avoid querying for every one individually.
+
+        ra_ids = [rs.resource_attr_id for rs in resource_scenarios]
+        r_scens_i = db.DBSession.query(ResourceScenario).filter(
+                ResourceScenario.scenario_id == scenario_id,
+                ResourceScenario.resource_attr_id.in_(ra_ids)).all()
+        r_scen_dict = dict((rs.resource_attr_id, rs) for rs in r_scens_i)
         for rs in resource_scenarios:
             if rs.dataset is not None:
-                updated_rs = _update_resourcescenario(scen_i, rs, user_id=user_id, source=kwargs.get('app_name'))
+                updated_rs = _update_resourcescenario(scen_i,
+                                                      rs,
+                                                      r_scen_i=r_scen_dict.get(rs.resource_attr_id),
+                                                      user_id=user_id,
+                                                      source=kwargs.get('app_name'))
                 #this is cast as a string so it can be read into a JSONObject
                 res[str(scenario_id)].append(updated_rs)
             else:
@@ -1113,7 +1128,7 @@ def _update_resourcescenario(scenario, resource_scenario, r_scen_i=None, dataset
                 ResourceScenario.scenario_id == scenario.id,
                 ResourceScenario.resource_attr_id == resource_scenario.resource_attr_id).one()
         except NoResultFound as e:
-            log.info("Creating new RS for RS %s in scenario %s", resource_scenario.resource_attr_id, scenario.id)
+            log.debug("Creating new RS for RS %s in scenario %s", resource_scenario.resource_attr_id, scenario.id)
             r_scen_i = ResourceScenario()
             r_scen_i.resource_attr_id = resource_scenario.resource_attr_id
             r_scen_i.scenario_id = scenario.id
@@ -1186,7 +1201,7 @@ def assign_value(rs, data_type, val,
 
         #Has this dataset changed?
         if rs.dataset.hash == data_hash:
-            log.debug("Dataset has not changed. Returning.")
+            log.info("Dataset has not changed. Returning.")
             return rs
 
         connected_rs = db.DBSession.query(ResourceScenario).filter(ResourceScenario.dataset_id == rs.dataset.id).all()
@@ -1206,6 +1221,7 @@ def assign_value(rs, data_type, val,
     if update_dataset is True:
         log.info("Updating dataset '%s'", name)
         dataset = data.update_dataset(rs.dataset.id, name, data_type, val, unit_id, metadata, flush=False, **dict(user_id=user_id))
+        log.info("Updated dataset '%s'", name)
         rs.dataset = dataset
         rs.dataset_id = dataset.id
         log.info("Set RS dataset id to %s"%dataset.id)
@@ -1225,12 +1241,7 @@ def assign_value(rs, data_type, val,
 
     db.DBSession.flush()
 
-    newrs = db.DBSession.query(ResourceScenario).filter(
-        ResourceScenario.scenario_id==rs.scenario_id,
-        ResourceScenario.resource_attr_id==rs.resource_attr_id,
-        ResourceScenario.dataset_id==rs.dataset_id).options(joinedload(ResourceScenario.dataset)).one()
-
-    return newrs
+    return rs
 
 @required_perms("edit_data", "edit_network")
 def add_data_to_attribute(scenario_id, resource_attr_id, dataset,**kwargs):
@@ -1336,21 +1347,110 @@ def get_attribute_data(attr_ids, node_ids, **kwargs):
 
     return node_attrs, resource_scenarios
 
+def _get_all_network_resource_attributes(network_id):
+    """
+        Get all the attributes for the nodes, links and groups of a network.
+        Return these attributes as a dictionary, keyed on type (NODE, LINK, GROUP)
+        then by ID of the node or link.
+
+        args:
+            network_id (int) The ID of the network from which to retrieve the attributes
+        returns:
+            A list of sqlalchemy result proxy objects
+    """
+    base_qry = db.DBSession.query(ResourceAttr).filter(Attr.id==ResourceAttr.attr_id)
+
+    all_node_attribute_qry = base_qry.join(Node).filter(Node.network_id == network_id)
+
+    all_link_attribute_qry = base_qry.join(Link).filter(Link.network_id == network_id)
+
+    all_group_attribute_qry = base_qry.join(ResourceGroup)\
+            .filter(ResourceGroup.network_id == network_id)
+
+    network_attribute_qry = base_qry.filter(ResourceAttr.network_id == network_id)
+
+    logging.info("Getting all attributes using execute")
+    attribute_qry = all_node_attribute_qry.union(all_link_attribute_qry,
+                                                 all_group_attribute_qry,
+                                                 network_attribute_qry)
+    all_resource_attributes = attribute_qry.all()
+
+    return all_resource_attributes
+
 @required_perms("get_data", "get_network")
-def get_resource_data(ref_key, ref_id, scenario_id, type_id=None, expunge_session=True, get_parent_data=False, **kwargs):
+def get_resource_data(ref_key,
+                      ref_id,
+                      scenario_id,
+                      type_id=None,
+                      expunge_session=True,
+                      get_parent_data=False,
+                      include_inputs=True,
+                      include_outputs=True,
+                      include_data_types=None,
+                      exclude_data_types=None,
+                      include_values=True,
+                      include_data_type_values=None,
+                      exclude_data_type_values=None,
+                      **kwargs):
     """
         Get all the resource scenarios for a given resource
         in a given scenario. If type_id is specified, only
         return the resource scenarios for the attributes
         within the type.
+        args:
+            ref_key (string): 'NETWORK', 'NODE', 'LINK', 'GROUP'
+            ref_id (int): The ID of the network / node / link / group
+            scenario_id (int): The ID of the scenario from which to get the resource scenarios
+            type_id (int): A filter which limits the resource scenarios to just the attributes defined by the resource type
+            expunge_session (bool): Expunge the DB session -- means that modifying the results will not update the database. Default True
+            get_parent_data (bool): Return the data of the parent scenario of the requestsed scenario in addition to the specified scenario. Default False.
+            include_inputs (bool) : Return resource scenarios which relate to resource attributes where the attr_is_var=N. Default True
+            include_outputs (bool): Return resource scenarios which relate to resource attributes where the attr_is_var=Y. Default True
+            include_data_types (list(string)): Return only resource scenarios with a dataset that has the type of one of these specified data types. Default None, meaning no filter is applied.
+            exclude_data_types (list(string)): Return resource scenarios with a dataset that do NOT have the type of one of these specified data types. Default None, meaning no filter is applied.
+            include_values (bool): Return the 'value' column of tDataset. Default True. Setting this to False can increase performance substantially due to the size of some dataset values.
+            include_data_type_values (list(string)): When include_values is True, specify which dataset types should return with the value column included.
+            exclude_data_type_values (list(string)): When include_values is True, specify which dataset types should return with the value column NOT included.
+
+        returns:
+            A list of JSONObjects representing Resource Scenarios, with a 'dataset' attribute and 'attribute' attribute.
     """
 
     user_id = kwargs.get('user_id')
 
-    resource_i = get_resource(ref_key, ref_id)
-    ra_ids = [ra.id for ra in resource_i.attributes]
+    if ref_key is not None and ref_id is not None:
+        resource_i = get_resource(ref_key, ref_id)
+        resource_attributes = resource_i.attributes
+    elif ref_key is None and ref_id is None:
+        scenario = _get_scenario(scenario_id, user_id)
+        resource_attributes = _get_all_network_resource_attributes(scenario.network_id)
+    elif None in (ref_key, ref_id): # One of them is None
+        raise HydraError("Unable to get data. Must specify a resource type (ref_key) and resource id (ref_id)")
+
+
+    if include_inputs is False or include_outputs is False:
+        if include_inputs is False:
+            #only include outputs
+            resource_attributes = list(filter(lambda x:x.attr_is_var=='Y', resource_attributes))
+
+        if include_outputs is False:
+            #only include inputs
+            resource_attributes = list(filter(lambda x:x.attr_is_var=='N', resource_attributes))
+
+    ra_ids = [ra.id for ra in resource_attributes]
+
+    ra_map = dict((ra.id, ra) for ra in resource_attributes)
+
     scenario_i = _get_scenario(scenario_id, user_id)
-    requested_rs = scenario_i.get_data(user_id, get_parent_data=get_parent_data, ra_ids=ra_ids)
+
+    requested_rs = scenario_i.get_data(user_id,
+                                       get_parent_data=get_parent_data,
+                                       ra_ids=ra_ids,
+                                       include_data_types=include_data_types,
+                                       exclude_data_types=exclude_data_types,
+                                       include_values=include_values,
+                                       include_data_type_values=include_data_type_values,
+                                       exclude_data_type_values=exclude_data_type_values)
 
     #map an raID to an rs for uses later
     ra_rs_map = {}
@@ -1359,7 +1459,7 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id=None, expunge_sessio
 
     #make a lookup table between an attr ID and an RS for filtering by types later.
     attr_rs_lookup = {} # Used later to remove results if they're not required
-    for ra in resource_i.attributes:
+    for ra in resource_attributes:
         #Is there data for this RA?
         if ra_rs_map.get(ra.id) is not None:
             attr_rs_lookup[ra.attr_id] = ra_rs_map[ra.id]
@@ -1374,21 +1474,6 @@ def get_resource_data(ref_key, ref_id, scenario_id, type_id=None, expunge_sessio
             type_limited_rs.append(attr_rs_lookup[r.attr_id])
 
         requested_rs = type_limited_rs
-
-    for rs in requested_rs:
-        #TODO: Design a mechanism to read the value of the dataset if it's stored externally
-        if rs.dataset.hidden == 'Y':
-            try:
-                rs.dataset.check_read_permission(user_id)
-            except:
-                rs.dataset.value = None
-
-        #lazy load the dataset's unit and metadata
-        rs.dataset.unit
-        rs.dataset.metadata
-
-        #lazy load the dataset's resourceattr object
-        rs.resourceattr
 
     if expunge_session is True:
         db.DBSession.expunge_all()

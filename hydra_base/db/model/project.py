@@ -43,6 +43,8 @@ class Project(Base, Inspect, PermissionControlled):
         UniqueConstraint('name', 'created_by', 'status', name="unique proj name"),
     )
 
+    core_columns = ['name', 'description', 'status']
+
     attribute_data = []
 
     id = Column(Integer(), primary_key=True, nullable=False)
@@ -51,7 +53,7 @@ class Project(Base, Inspect, PermissionControlled):
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     created_by = Column(Integer(), ForeignKey('tUser.id'), nullable=False)
-
+    appdata = Column(JSON)
     user = relationship('User', backref=backref("projects", order_by=id))
 
     parent_id = Column(Integer(), ForeignKey('tProject.id'), nullable=True)
@@ -98,7 +100,9 @@ class Project(Base, Inspect, PermissionControlled):
 
         owners_by_network = defaultdict(list)
         for owner in all_owners:
-            owners_by_network[owner.network_id].append(owner)
+            owners_by_network[owner.network_id].append(JSONObject(owner))
+
+        project_owners = self.get_owners()
 
         #for efficiency, get all the scenarios in 1 query and sort them by network
         all_scenarios = get_session().query(Scenario)\
@@ -115,6 +119,12 @@ class Project(Base, Inspect, PermissionControlled):
 
             net_j = JSONObject(net_i)
             net_j.owners = owners_by_network[net_j.id]
+            owner_ids = [no.user_id for no in owners_by_network[net_j.id]]
+            #include inherited owners from the project ownership for this project
+            for proj_owner in project_owners:
+                if proj_owner.user_id not in owner_ids:
+                    proj_owner.source = f'Inherited from: {self.name} (ID:{self.id})'
+                    net_j.owners.append(proj_owner)
             net_j.scenarios = scenarios_by_network[net_j.id]
             networks.append(net_j)
 
@@ -137,21 +147,39 @@ class Project(Base, Inspect, PermissionControlled):
             if child_proj_i.check_read_permission(user_id, do_raise=False) is True:
                 projects_with_access.append(child_proj_i)
 
-        owners = get_session().query(ProjectOwner).filter(ProjectOwner.project_id.in_([p.id for p in child_projects_i])).all()
-        creators = get_session().query(User.id, User.username, User.display_name).filter(User.id.in_([p.created_by for p in child_projects_i])).all()
-        creator_lookup = {u.id:JSONObject(u)  for u in creators}
+        project_lookup = {p.id:p for p in child_projects_i}
+
+        owners = get_session().query(
+            User.id.label('user_id'), User.display_name,
+            ProjectOwner.project_id).filter(
+                User.id==ProjectOwner.user_id).filter(
+                    ProjectOwner.project_id.in_([p.id for p in child_projects_i])).all()
+
+        creators = get_session().query(User.id.label('user_id'), User.display_name).filter(User.id.in_([p.created_by for p in child_projects_i])).all()
+        creator_lookup = {u.user_id:JSONObject(u)  for u in creators}
+
         owner_lookup = defaultdict(list)
         for p in child_projects_i:
             owner_lookup[p.id] = [creator_lookup[p.created_by]]
         for o in owners:
-            if o.user_id == p.created_by:
+            if o.user_id == project_lookup[o.project_id].created_by:
                 continue
-            owner_lookup[o.project_id].append(o)
+            owner_lookup[o.project_id].append(JSONObject(o))
+
+        #Get the inherited owners of the child projects
+        parentowners = self.get_owners()
 
         child_projects = []
         for child_proj_i in projects_with_access:
             project = JSONObject(child_proj_i)
             project.owners = owner_lookup.get(project.id, [])
+            owner_ids = [o.user_id for o in project.owners]
+            #add any inherited owners to the child projects.
+            for parentowner in parentowners:
+                if parentowner.user_id not in owner_ids:
+                    parentowner.source = f"Inherited from {parentowner.project_name} (ID:{parentowner.project_id})"
+                    project.owners.append(parentowner)
+
             project.networks = child_proj_i.get_networks(
                 user_id,
                 include_deleted_networks=include_deleted_networks)
@@ -214,10 +242,18 @@ class Project(Base, Inspect, PermissionControlled):
     """
     @classmethod
     def get_cache(cls, user_id=None):
-        if user_id is None:
-            return cache.get(project_cache_key, {})
-        else:
-            return cache.get(project_cache_key, {}).get(user_id, {})
+        try:
+            if user_id is None:
+                return cache.get(project_cache_key, {})
+            else:
+                return cache.get(project_cache_key, {}).get(user_id, {})
+        except Exception as e:
+            log.exception(e)
+            err_value = cache.get(project_cache_key, {})
+            if type(err_value) is dict:
+                err_value = err_value.get(user_id)
+            log.warning(f"Error to get project cache: {project_cache_key}, user_id={user_id}, err_value={err_value}")
+            return {}
 
     @classmethod
     def set_cache(cls, data):
@@ -311,6 +347,16 @@ class Project(Base, Inspect, PermissionControlled):
                 parent_project_ids.append(p.parent_id)
 
         cls._build_user_cache_up_tree(uid, parent_project_ids, project_user_cache)
+
+
+    def remove_from_cache(self):
+        """Remove this project from the cache of all users who can see it"""
+        projectcache = cache.get(project_cache_key, {})
+        for uid, user_projects in projectcache.items():
+            for parent_id, child_projects in user_projects.items():
+                if self.id in child_projects:
+                    child_projects.remove(self.id)
+        cache.set(project_cache_key, projectcache)
 
     def get_attribute_data(self):
         attribute_data_rs = get_session().query(ResourceScenario).join(ResourceAttr).filter(
@@ -439,3 +485,11 @@ class Project(Base, Inspect, PermissionControlled):
             return scoped_attrs_j
         else:
             return scoped_attrs
+
+    def get_hierarchy(self, user_id):
+
+        project_hierarchy = [JSONObject(self)]
+        if self.parent_id:
+            project_hierarchy = project_hierarchy + self.parent.get_hierarchy(user_id)
+
+        return project_hierarchy

@@ -28,12 +28,13 @@ from ..attributes import Attr
 from . import Link
 from . import Node
 from . import ResourceGroup
+from .resource import Resource
 
 __all__ = ['Network']
 
 
 
-class Network(Base, Inspect, PermissionControlled):
+class Network(Base, Inspect, PermissionControlled, Resource):
     """
     """
 
@@ -191,12 +192,13 @@ class Network(Base, Inspect, PermissionControlled):
         """
             Check whether this user can read this network
         """
-        can_read = super(Network, self).check_read_permission(user_id, do_raise=do_raise, is_admin=is_admin)
+
+        can_read = super(Network, self).check_read_permission(user_id, do_raise=False, is_admin=is_admin)
 
         if can_read is True:
             return True
 
-        can_read = self.project.check_read_permission(user_id)
+        can_read = self.project.check_read_permission(user_id, do_raise=False)
 
         if can_read is False and do_raise is True:
             raise PermissionError("Permission denied. User %s does not have read"
@@ -209,7 +211,7 @@ class Network(Base, Inspect, PermissionControlled):
         """
             Check whether this user can write this project
         """
-        can_write = super(Network, self).check_write_permission(user_id, do_raise=do_raise, is_admin=is_admin)
+        can_write = super(Network, self).check_write_permission(user_id, do_raise=False, is_admin=is_admin)
 
         if can_write is True:
             return True

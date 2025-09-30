@@ -61,68 +61,23 @@ from hydra_base.lib.template.resource import (get_types_by_attr,
     validate_resourcescenario,
     validate_network)
 
+
+from hydra_base.lib.cache import cache
+
 log = logging.getLogger(__name__)
 
-#A mapping from template ID to a template object
-#The cache is a dict of lists of length 2.
-#list[0] = the last update time of the template
-#list[1] = the template JSONObect
-global TEMPLATE_CACHE
-TEMPLATE_CACHE = {}
-
-def _get_template_from_cache(template_id):
-    """
-        Get the template JSONObect from the cache, if it's not expired.
-        If an expired template is found, it id deleted.
-    """
-
-    global TEMPLATE_CACHE
-
-    now = datetime.datetime.now()
-
-    #default the template timeout to a day -- they don't change often
-    timeout = datetime.timedelta(seconds=config.get('CACHE', 'CACHE_TIMEOUT', 86400))
-
-    cached_template = TEMPLATE_CACHE.get(template_id)
-    if cached_template is None:
-        return None
-
-    if cached_template[0] + timeout > now:
-        log.info("Returning cached template %s", template_id)
-        return cached_template[1]
-    else:
-        _remove_template_from_cache(template_id)
-        log.info("Found an expired template. Deleting.")
-
-    return None
+global CACHE_KEY
+CACHE_KEY = 'template'
 
 def _save_template_to_cache(template):
-    """
-        Save a template to the memory cache. save as a list:
-        [0] = the current time
-        [1] = the template
-    """
-    global TEMPLATE_CACHE
-
-    now = datetime.datetime.now()
-
-    TEMPLATE_CACHE[template.id] = [now, template]
-
-    return TEMPLATE_CACHE
+    cache.set(f"{CACHE_KEY}_{template.id}", template)
 
 def _remove_template_from_cache(template_id):
     """
         If a template is in the cache, remove it.
     """
-    global TEMPLATE_CACHE
-    if TEMPLATE_CACHE.get(template_id):
-        del TEMPLATE_CACHE[template_id]
-
+    cache.delete(f"{CACHE_KEY}_{template_id}")
     log.info("Template %s removed from cache.", template_id)
-
-def clear_cache():
-    global TEMPLATE_CACHE
-    TEMPLATE_CACHE = {}
 
 def parse_json_typeattr(type_i, typeattr_j, attribute_j, default_dataset_j, user_id=None):
     dimension_i = None
@@ -297,8 +252,6 @@ def get_template_as_dict(template_id, **kwargs):
                 del(typeattr_j['attr'])
 
     output_data = {'attributes': attr_dict, 'datasets':dataset_dict, 'template': template_j}
-
-    _save_template_to_cache(template_j)
 
     return output_data
 
@@ -786,13 +739,16 @@ def get_template(template_id, **kwargs):
     """
         Get a specific resource template, by ID.
     """
-
-    tmpl_j = _get_template_from_cache(template_id)
+    log.info("Getting template %s", template_id)
+    tmpl_j = cache.get(f"{CACHE_KEY}_{template_id}")
 
     if tmpl_j is not None:
+        log.info("Returning cached template")
         return tmpl_j
 
     try:
+        log.info("Building template")
+
         tmpl_i = db.DBSession.query(Template).filter(
             Template.id == template_id).one()
 
@@ -803,6 +759,9 @@ def get_template(template_id, **kwargs):
 
         #ignore the messing around we've been doing to the ORM objects
         #db.DBSession.expunge(tmpl_i)
+
+        _save_template_to_cache(tmpl_j)
+
 
         return tmpl_j
     except NoResultFound:
@@ -834,6 +793,11 @@ def add_templatetype(templatetype, **kwargs):
     type_i = _update_templatetype(templatetype, **kwargs)
 
     _remove_template_from_cache(type_i.template_id)
+
+    #remove any child templates from the cache too
+    child_types = db.DBSession.query(TemplateType).filter(TemplateType.parent_id == type_i.id).all()
+    for child_type in child_types:
+        _remove_template_from_cache(child_type.template_id)
 
     db.DBSession.flush()
 
@@ -1215,6 +1179,57 @@ def get_templatetype(type_id, include_parent_data=True, **kwargs):
 
     return inherited_templatetype
 
+@required_perms("edit_template")
+def clone_templatetype(type_id, name=None, **kwargs):
+    """
+        Clone a specific template type by ID. Creates a copy of the template type
+        with all its typeattrs. The clone will have new IDs and timestamps but
+        identical content otherwise, except the name which will be modified to be unique.
+    """
+
+    #First get the DB entry
+    parent_templatetype = db.DBSession.query(TemplateType).filter(
+        TemplateType.id == type_id).options(noload(TemplateType.typeattrs)).one()
+
+    cloned_templatetype = TemplateType()
+    for col in parent_templatetype.__table__.columns:
+        if col.name in ['id', 'cr_date', 'updated_at']:
+            continue
+        setattr(cloned_templatetype, col.name, getattr(parent_templatetype, col.name))
+
+    if name is not None:
+        base_name = name
+    else:
+        # Make the name unique by appending " (Clone)" and potentially a number
+        base_name = parent_templatetype.name + " (Clone)"
+    clone_name = base_name
+    counter = 1
+    # Check if a template type with this name already exists in the same template
+    while db.DBSession.query(TemplateType).filter(
+        TemplateType.template_id == parent_templatetype.template_id,
+        TemplateType.name == clone_name,
+        TemplateType.resource_type == parent_templatetype.resource_type
+    ).first() is not None:
+        clone_name = f"{base_name} {counter}"
+        counter += 1
+
+    cloned_templatetype.name = clone_name
+
+    typeattrs = db.DBSession.query(TypeAttr).filter(
+        TypeAttr.type_id == parent_templatetype.id).all()
+    for typeattr in typeattrs:
+        cloned_typeattr = TypeAttr()
+        for col in typeattr.__table__.columns:
+            if col.name in ['id', 'cr_date', 'updated_at']:
+                continue
+            setattr(cloned_typeattr, col.name, getattr(typeattr, col.name))
+        cloned_templatetype.typeattrs.append(cloned_typeattr)
+
+    db.DBSession.add(cloned_templatetype)
+    db.DBSession.flush()  # Flush to get the ID
+
+    return cloned_templatetype
+
 @required_perms("get_template")
 def get_typeattr(typeattr_id, include_parent_data=True, **kwargs):
     """
@@ -1310,3 +1325,16 @@ def delete_typeattr(typeattr_id, **kwargs):
     _remove_template_from_cache(ta.templatetype.template_id)
 
     return 'OK'
+
+@required_perms("get_template")
+def get_all_parent_types(ttype_id, **kwargs):
+    """
+        Returns all TemplateTypes which are parents of
+        the TemplateType with <ttype_id>
+    """
+    parent_ids = Template.get_type_parent_ids(ttype_id)
+
+    tt_qry = db.DBSession.query(TemplateType)
+    tt_qry = tt_qry.filter(TemplateType.id.in_(parent_ids))
+    tt_qry = tt_qry.options(noload(TemplateType.typeattrs))
+    return tt_qry.all()

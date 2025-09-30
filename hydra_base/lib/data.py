@@ -486,7 +486,6 @@ def add_dataset(data_type, val, unit_id=None, metadata={}, name="", user_id=None
         if existing_dataset.check_read_permission(user_id, do_raise=False) is True:
             d = existing_dataset
         else:
-            d.set_metadata({'created_at': datetime.datetime.now()})
             d.set_hash()
             db.DBSession.add(d)
     except NoResultFound:

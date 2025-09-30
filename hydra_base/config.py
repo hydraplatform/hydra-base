@@ -75,12 +75,12 @@ def load_config():
     repofile = os.path.join(modulepath, 'hydra.ini')
     repofiles = glob.glob(repofile)
 
-    if os.name == 'nt':
-        import winpath
+    if sys.platform.startswith("win"):
+        from hydra_base.util.windows import win_get_common_documents
         userfile = os.path.join(os.path.expanduser('~'),'AppData','Local','hydra.ini')
         userfiles = glob.glob(userfile)
 
-        sysfile = os.path.join(winpath.get_common_documents(), 'Hydra','hydra.ini')
+        sysfile = os.path.join(win_get_common_documents(), 'Hydra','hydra.ini')
         sysfiles = glob.glob(sysfile)
     else:
         userfile = os.path.join(os.path.expanduser('~'), '.hydra', 'hydra.ini')
@@ -110,9 +110,6 @@ def load_config():
         else:
             logging.warning('HYDRA_CONFIG set as %s but file does not exist', env_value)
 
-
-    if os.name == 'nt':
-        set_windows_env_variables(config)
 
     try:
         home_dir = config.get('DEFAULT', 'home_dir')
@@ -145,28 +142,6 @@ def read_values_from_environment(config, section_key, options_key):
         # print("Presente")
         config.set(section_key, options_key, env_value)
 
-
-def set_windows_env_variables(config):
-    import winpath
-    config.set('DEFAULT', 'common_app_data_folder', winpath.get_common_appdata())
-    config.set('DEFAULT', 'win_local_appdata', winpath.get_local_appdata())
-    config.set('DEFAULT', 'win_appdata', winpath.get_appdata())
-    config.set('DEFAULT', 'win_desktop', winpath.get_desktop())
-    config.set('DEFAULT', 'win_programs', winpath.get_programs())
-    config.set('DEFAULT', 'win_common_admin_tools', winpath.get_common_admin_tools())
-    config.set('DEFAULT', 'win_common_documents', winpath.get_common_documents())
-    config.set('DEFAULT', 'win_cookies', winpath.get_cookies())
-    config.set('DEFAULT', 'win_history', winpath.get_history())
-    config.set('DEFAULT', 'win_internet_cache', winpath.get_internet_cache())
-    config.set('DEFAULT', 'win_my_pictures', winpath.get_my_pictures())
-    config.set('DEFAULT', 'win_personal', winpath.get_personal())
-    config.set('DEFAULT', 'win_my_documents', winpath.get_my_documents())
-    config.set('DEFAULT', 'win_program_files', winpath.get_program_files())
-    config.set('DEFAULT', 'win_program_files_common', winpath.get_program_files_common())
-    config.set('DEFAULT', 'win_system', winpath.get_system())
-    config.set('DEFAULT', 'win_windows', winpath.get_windows())
-    config.set('DEFAULT', 'win_startup', winpath.get_startup())
-    config.set('DEFAULT', 'win_recent', winpath.get_recent())
 
 def get(section, option, default=None):
 

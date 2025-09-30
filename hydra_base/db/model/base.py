@@ -33,6 +33,7 @@ BIGINT,\
 SMALLINT,\
 Float,\
 Text, \
+JSON, \
 DateTime,\
 Unicode
 
@@ -228,10 +229,9 @@ class PermissionControlled(object):
         for owner in self.owners:
             if owner.user_id == int(user_id):
                 if owner.view == 'Y' and owner.share == 'Y':
-                    break
+                    return True
         else:
             raise PermissionError("Permission denied. User %s does not have share"
                              " access on %s '%s' (id=%s)" %
                              (user_id, self.__class__.__name__, self.name, self.id))
-
 

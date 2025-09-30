@@ -81,7 +81,7 @@ class FrameGroupReader(GroupReader):
             columns_raw = [*self.group["axis0"]]
         except KeyError as ke:
             raise ValueError(f"Error: {self.group.name} has invalid format") from ke
-        return [col.decode() for col in columns_raw]
+        return [col.decode() if isinstance(col, bytes) else col for col in columns_raw]
 
     def get_columns_by_block(self):
         try:
@@ -91,7 +91,7 @@ class FrameGroupReader(GroupReader):
         blocks_columns = []
         for block_idx in range(nblocks):
             columns_raw = [*self.group[f"block{block_idx}_items"]]
-            blocks_columns.append([col.decode() for col in columns_raw])
+            blocks_columns.append([col.decode() if isinstance(col, bytes) else col for col in columns_raw])
         return blocks_columns
 
     def make_column_map_of_group(self, blocks):
@@ -112,8 +112,8 @@ class FrameGroupReader(GroupReader):
         row_sz, _ = self.get_group_shape()
 
         start = start or 0
-        end = end or row_sz-1
-        if start < 0 or start >= row_sz or start >= end or end < 0 or end >= row_sz:
+        end = end or row_sz
+        if start < 0 or start >= row_sz or start >= end or end < 0 or end >= row_sz+1:
             raise ValueError(f"Invalid bounds ({start=}, {end=} for series of length {row_sz}")
 
         column_series = {}
@@ -130,6 +130,8 @@ class FrameGroupReader(GroupReader):
         return column_series
 
     def find_index_axis_index(self):
+        # If index is a Pandas type, an "index_class" attr
+        # will be present to indicate the index
         for ent in self.group:
             try:
                 index_class = self.group[ent].attrs["index_class"]
@@ -137,6 +139,12 @@ class FrameGroupReader(GroupReader):
             except KeyError:
                 continue
 
+        # No item has a designated index, assume axis1 is index,
+        # as per non-Datetime/Period Pandas index
+        if "axis1" in self.group:
+            return "axis1"
+
+        # Otherwise, no suitable index can be found
         raise ValueError(f"Group {self.group.name} of pandas_type "
                           "'frame' contains no index axis")
 
@@ -149,8 +157,8 @@ class FrameGroupReader(GroupReader):
             index_class = ""
 
         start = start or 0
-        end = end or len(index)-1
-        if start < 0 or start >= len(index) or start >= end or end < 0 or end >= len(index):
+        end = end or len(index)
+        if start < 0 or start >= len(index) or start >= end or end < 0 or end >= len(index)+1:
             raise ValueError(f"Invalid bounds ({start=}, {end=} for index of length {len(index)}")
 
         if index_class.lower() == "datetime":
@@ -160,6 +168,7 @@ class FrameGroupReader(GroupReader):
 
     def get_columns_as_dataframe(self, columns, start=None, end=None):
         index_range = self.get_index_range(start, end)
+        index_range = [i.decode() if isinstance(i, bytes) else i for i in index_range]
         column_series = self.get_series_by_column_names(columns, start, end)
         return make_pandas_dataframe(index_range, column_series)
 
@@ -315,8 +324,8 @@ class FrameTableGroupReader(GroupReader):
         first_value_block_idx = self.get_values_start_block_index()
 
         start = start or 0
-        end = end or len(self.table)-1
-        if start < 0 or start >= len(self.table) or start >= end or end < 0 or end >= len(self.table):
+        end = end or len(self.table)
+        if start < 0 or start >= len(self.table) or start >= end or end < 0 or end >= len(self.table)+1:
             raise ValueError(f"Invalid bounds ({start=}, {end=} for series of length {len(self.table)}")
 
         column_series = {}
@@ -401,5 +410,5 @@ def column_to_block_coord(column, blocks):
 def make_pandas_dataframe(index, series):
     return pd.DataFrame(
         {name: values for name, values in series.items()},
-        index=pd.DatetimeIndex(index)
+        index=pd.Index(index)
     )
