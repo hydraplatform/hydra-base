@@ -16,6 +16,7 @@ mysqlclient
 numpy
 packaging
 pandas
+Pillow
 psycopg2-binary
 pudb
 pylibmc
