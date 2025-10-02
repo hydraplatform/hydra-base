@@ -27,9 +27,7 @@ if cache_type != "memcached":
 elif cache_type == 'memcached':
     try:
         import pylibmc
-        host = hydraconfig.get('cache', 'host', '127.0.0.1')
-        port = hydraconfig.get('cache', 'port', 31211)
-        cache = pylibmc.Client([f"{host}:{port}"], binary=True)
+        cache = pylibmc.Client([f"{cache_host}:31211"], binary=True)
 
         # Check if Memcached server is reachable by setting a test key
         test_key = "__connection_test__"
