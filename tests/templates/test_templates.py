@@ -34,6 +34,13 @@ log = logging.getLogger(__name__)
 def template():
     return os.path.join(os.path.dirname(__file__), 'template.xml')
 
+@pytest.fixture()
+def template_json_object(client, template):
+
+    with open(template) as fh:
+        file_contents = fh.read()
+
+    return JSONObject(client.import_template_xml(file_contents))
 
 @pytest.fixture()
 def mock_template(client):
