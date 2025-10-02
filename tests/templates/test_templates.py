@@ -41,8 +41,6 @@ def template_json_object(client, template):
     with open(template) as fh:
         file_contents = fh.read()
 
-
-
     return JSONObject(client.import_template_xml(file_contents))
 
 
@@ -165,8 +163,6 @@ class TestTemplates:
         for t in new_template_j.templatetypes[1].typeattrs:
             assert t.attr_id in (link_attr_1.id, link_attr_2.id);
             "Node types were not added correctly!"
-
-        return new_template_j
 
     def test_update_template(self, client):
 
@@ -385,8 +381,6 @@ class TestTemplates:
 
         assert len(new_type_j.typeattrs) == 3, "Resource type attrs did not add correctly"
 
-        return new_type_j
-
     def test_update_type(self, client, mock_template):
 
         template = mock_template
@@ -467,6 +461,51 @@ class TestTemplates:
         type = up_to_date_template.templatetypes[0]
         new_type = client.get_templatetype_by_name(type.template_id, type.name)
         assert new_type is not None, "Resource type attrs not retrived by name!"
+
+    def test_clone_templatetype(self, client, mock_template):
+        """Test cloning a template type"""
+        original_template = client.get_template(mock_template.id)
+        original_type = original_template.templatetypes[0]
+
+        # Clone the template type
+        cloned_type = client.clone_templatetype(original_type.id)
+        cloned_type_j = JSONObject(cloned_type)
+
+        # Verify the clone was created successfully
+        assert cloned_type_j is not None, "Cloned template type should not be None"
+        assert cloned_type_j.id is not None, "Cloned template type should have an ID"
+        assert cloned_type_j.id != original_type.id, "Cloned type should have different ID than original"
+
+        # Verify that only the specified fields are different
+        # Name should be modified to be unique (appends "(Clone)")
+        assert cloned_type_j.name == original_type.name + " (Clone)", "Cloned type should have modified name"
+        assert cloned_type_j.alias == original_type.alias, "Cloned type should have same alias as original"
+        assert cloned_type_j.description == original_type.description, "Cloned type should have same description as original"
+        assert cloned_type_j.resource_type == original_type.resource_type, "Cloned type should have same resource_type as original"
+        assert cloned_type_j.template_id == original_type.template_id, "Cloned type should have same template_id as original"
+        assert cloned_type_j.layout == original_type.layout, "Cloned type should have same layout as original"
+
+        # Verify that typeattrs are cloned correctly
+        assert len(cloned_type_j.typeattrs) == len(original_type.typeattrs), "Cloned type should have same number of typeattrs"
+
+        # Check that typeattrs are properly cloned (different IDs but same content)
+        for i, cloned_typeattr in enumerate(cloned_type_j.typeattrs):
+            original_typeattr = original_type.typeattrs[i]
+
+            assert cloned_typeattr.id != original_typeattr.id, "Cloned typeattr should have different ID"
+            assert cloned_typeattr.type_id == cloned_type_j.id, "Cloned typeattr should reference cloned type"
+            assert cloned_typeattr.attr_id == original_typeattr.attr_id, "Cloned typeattr should have same attr_id"
+            assert cloned_typeattr.description == original_typeattr.description, "Cloned typeattr should have same description"
+            assert cloned_typeattr.properties == original_typeattr.properties, "Cloned typeattr should have same properties"
+            assert cloned_typeattr.data_restriction == original_typeattr.data_restriction, "Cloned typeattr should have same data_restriction"
+            assert cloned_typeattr.unit_id == original_typeattr.unit_id, "Cloned typeattr should have same unit_id"
+
+        # Test cloning multiple times to ensure unique names
+        cloned_type_2 = client.clone_templatetype(original_type.id)
+        cloned_type_2_j = JSONObject(cloned_type_2)
+
+        assert cloned_type_2_j.name == original_type.name + " (Clone) 1", "Second clone should have incremented name"
+        assert cloned_type_2_j.id != cloned_type_j.id, "Multiple clones should have different IDs"
 
 
     """

@@ -242,10 +242,18 @@ class Project(Base, Inspect, PermissionControlled):
     """
     @classmethod
     def get_cache(cls, user_id=None):
-        if user_id is None:
-            return cache.get(project_cache_key, {})
-        else:
-            return cache.get(project_cache_key, {}).get(user_id, {})
+        try:
+            if user_id is None:
+                return cache.get(project_cache_key, {})
+            else:
+                return cache.get(project_cache_key, {}).get(user_id, {})
+        except Exception as e:
+            log.exception(e)
+            err_value = cache.get(project_cache_key, {})
+            if type(err_value) is dict:
+                err_value = err_value.get(user_id)
+            log.warning(f"Error to get project cache: {project_cache_key}, user_id={user_id}, err_value={err_value}")
+            return {}
 
     @classmethod
     def set_cache(cls, data):
@@ -339,6 +347,16 @@ class Project(Base, Inspect, PermissionControlled):
                 parent_project_ids.append(p.parent_id)
 
         cls._build_user_cache_up_tree(uid, parent_project_ids, project_user_cache)
+
+
+    def remove_from_cache(self):
+        """Remove this project from the cache of all users who can see it"""
+        projectcache = cache.get(project_cache_key, {})
+        for uid, user_projects in projectcache.items():
+            for parent_id, child_projects in user_projects.items():
+                if self.id in child_projects:
+                    child_projects.remove(self.id)
+        cache.set(project_cache_key, projectcache)
 
     def get_attribute_data(self):
         attribute_data_rs = get_session().query(ResourceScenario).join(ResourceAttr).filter(

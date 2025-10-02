@@ -518,6 +518,143 @@ class TestTemplateInheritance:
         assert len(attr_ids_a.difference(attr_ids_b)) == 0
 
 
+    def test_network_child_template_with_subclassed_type(self, client):
+        """
+        This tests a few operations involving making a derived type in a child template
+        and verifies that the hydra_base.lib functions return a complete view of
+        the resulting hierarchy.
+
+          1. Create a Parent Template with 'Parent Node Type'
+          2. Create a Child Template
+          3. Create a Network using the Child Template
+          4. Create a Child Template Node Type with parent type 'Parent Node Type'
+          5. Create a Node instance of this type in the Network and verify correctness
+          6. Create a Grandchild Template
+          7. Create a Grandchild Template Node Type with parent type 'Child Template Node Type'
+          8. Retrieve type information and verify the parent_ids attr contains both
+             'Child Template Node Type' and 'Parent Node Type'
+          9. Verify that the get_all_parent_types(ttype_id) lib function returns the
+             correct Parent and GrandParent TemplateTypes
+
+        """
+        # Create Parent Template
+        parent_template = client.testutils.create_template()
+
+        # Create Child Template
+        child_template = client.testutils.create_child_template(parent_template.id)
+        child_template = client.get_template(child_template.id)
+
+        child_network_type = list(filter(lambda x: x.resource_type=="NETWORK", child_template.templatetypes))[0]
+
+        parent_node_type = list(filter(lambda x: x.resource_type=="NODE", child_template.templatetypes))[0]
+
+        # Create Network using Child Template
+        parent_node_name = "Original Parent Type Node"
+        project_j = client.add_project(JSONObject({"name": "Child Template SubType Test Project"}))
+
+        network = JSONObject({
+            "project_id": project_j.id,
+            "name": "Test Network with Child Template",
+            "types" : [{"id": child_network_type.id,
+                        "child_template_id": child_template.id}],
+            "nodes" : [{"name": parent_node_name, "x": 0, "y": 0, "types":[{"id": parent_node_type.id}]}]
+        })
+
+        new_network = client.add_network(network)
+        ret_network = client.get_network(new_network.id)
+
+        # Add a subclassed Node type to the Child Template
+
+        # 1. Make a Child Template Type
+        templatetype = JSONObject()
+        templatetype.name = "Child Template TT"
+        templatetype.alias = "Child Template TT alias"
+        templatetype.resource_type = "NODE"
+        templatetype.template_id = child_template.id
+        templatetype.parent_id = parent_node_type.id
+        templatetype.layout = {"color": "green", "shapefile": "child_node.shp"}
+
+        templatetype.typeattrs = []
+        client.add_templatetype(templatetype)
+        ret_tt = client.get_templatetype_by_name(child_template.id, "Child Template TT")
+
+        # 2. Make a Node using the Child TemplateType
+        node = JSONObject()
+        node.id = -1
+        node.name = "Child Template Added Node"
+        node.description = "Child Template Node desc"
+        node.x = 2
+        node.y = 3
+
+        node_types = []
+        node_type = JSONObject()
+        node_type.id  = ret_tt.id
+        node_type.name = ret_tt.name
+
+        node_types.append(node_type)
+        node.types = node_types
+
+        new_node = client.add_node(ret_network.id, node)
+
+        # Verify Node has expected Type
+        ret_child_node = client.get_node(new_node.id)
+        ret_orig_node = client.get_node(ret_network.nodes[0].id)
+        ret_child_template = client.get_template(child_template.id)
+        ret_network = client.get_network(new_network.id)
+
+        """
+        ret_network now has Node with type.id==2, but
+        ret_child_template.templatetypes has only Node type.id==6
+
+        E.g. in the following, the original Parent Node Type (2) appears
+        only in the parent_types, not in child_types even though these
+        are the types of a Child Template.
+
+        user_res_types = ("NODE", "LINK", "GROUP")
+        ret_parent_template = client.get_template(parent_template.id)
+
+        parent_types = set(tt.id for tt in ret_parent_template.templatetypes
+                           if tt.resource_type.upper() in user_res_types)
+        child_types = set(tt.id for tt in ret_child_template.templatetypes
+                          if tt.resource_type.upper() in user_res_types)
+
+
+        Now verify that the templates' parent_ids attr is complete...
+        """
+
+        # Make Grandchild Template with Node type derived from Child Node Type
+        grandchild_template = client.testutils.create_child_template(ret_child_template.id)
+        grandchild_template = client.get_template(grandchild_template.id)
+
+        templatetype = JSONObject()
+        templatetype.name = "Grandchild Template TT"
+        templatetype.alias = "Grandchild Template TT alias"
+        templatetype.resource_type = "NODE"
+        templatetype.template_id = grandchild_template.id
+        templatetype.parent_id = ret_child_node.types[0].type_id
+        templatetype.layout = {"color": "blue", "shapefile": "grandchild_node.shp"}
+
+        templatetype.typeattrs = []
+        client.add_templatetype(templatetype)
+        ret_tt = client.get_templatetype_by_name(grandchild_template.id, "Grandchild Template TT")
+
+        # Retrieve the Grandchild template and verify both
+        # 'Parent Node Type' and 'Child Node Type' are included
+        # as parents of the 'Grandchild Node Type'
+        ret_grandchild_template = client.get_template(grandchild_template.id)
+        assert ret_orig_node.types[0].type_id in ret_grandchild_template.templatetypes[1].parent_ids
+        assert ret_child_node.types[0].type_id in ret_grandchild_template.templatetypes[1].parent_ids
+        # ...and no others...
+        assert len(ret_grandchild_template.templatetypes[1].parent_ids) == 2
+
+        # Verify that get_all_parent_types(ttype_id) returns the expected TemplateTypes...
+        parents = client.get_all_parent_types(ret_grandchild_template.templatetypes[1].id)
+        assert parents[0].id == ret_orig_node.types[0].type_id
+        assert parents[1].id == ret_child_node.types[0].type_id
+        # ...and no others...
+        assert len(parents) == 2
+
+
     def test_delete_parent_type(self, client):
         """
             Test to ensure that when you delete a parent type, its child types

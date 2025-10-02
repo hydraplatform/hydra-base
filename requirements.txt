@@ -7,7 +7,6 @@ fsspec
 h5py
 lxml
 mysqlclient
-mysqlclient
 numpy
 packaging
 pandas

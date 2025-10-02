@@ -146,11 +146,11 @@ def client(connection_type, testdb_uri):
     pytest.user_c = client.testutils.create_user("UserC", role='developer')
     pytest.user_d = client.testutils.create_user("UserD", role='developer')
     yield client
-    #???
-    hydra_base.lib.template.clear_cache()
+
     hydra_base.db.close_session()
 
     clear_cache() # clear the user project cache
+
     try:
         drop_tables(testdb_uri)
     except Exception as err:
