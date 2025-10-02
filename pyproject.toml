@@ -26,7 +26,6 @@ dependencies=[
     "packaging",
     "pandas",
     "psycopg2-binary",
-    "pylibmc",
     "pymongo",
     "python-dateutil",
     "requests",
