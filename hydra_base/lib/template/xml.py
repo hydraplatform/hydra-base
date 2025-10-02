@@ -18,6 +18,7 @@
 
 import json
 import logging
+import os
 from decimal import Decimal
 from lxml import etree
 
@@ -98,7 +99,8 @@ def import_template_xml(template_xml, allow_update=True, **kwargs):
     """
     user_id = kwargs.get('user_id')
 
-    template_xsd_path = config.get("templates_template_xsd_path")
+    hydra_base_dir = config.get("hydra_base_dir")
+    template_xsd_path = os.path.join(hydra_base_dir, "static/template.xsd")
     xmlschema_doc = etree.parse(template_xsd_path)
 
     xmlschema = etree.XMLSchema(xmlschema_doc)
