@@ -12,16 +12,19 @@ import tempfile
 log = logging.getLogger(__name__)
 global cache
 
+startup_config = hydraconfig.get_startup_config()
+cache_type = startup_config["hydra_cachetype"]
+cache_host = startup_config["hydra_cachehost"]
+
 def _init_diskcache():
     log.info("Using diskcache for caching.")
     global cache
     import diskcache as dc
     cache = dc.Cache(tempfile.gettempdir())
 
-if hydraconfig.get('cache', 'type') != "memcached":
+if cache_type != "memcached":
     _init_diskcache()
-
-elif hydraconfig.get('cache', 'type') == 'memcached':
+elif cache_type == 'memcached':
     try:
         import pylibmc
         host = hydraconfig.get('cache', 'host', '127.0.0.1')
