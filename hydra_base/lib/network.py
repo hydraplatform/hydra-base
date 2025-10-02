@@ -197,7 +197,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
 
     ##the current user is validated, but some checks require admin permissions,
     ##so call as a user with all permissions
-    admin_id = config.get('DEFAULT', 'ALL_PERMISSION_USER', 1)
+    admin_id = config.get("ALL_PERMISSION_USER", 1)
 
  #   template_lookup = {} #a lookup of all the templates used by the resource
     typeattr_lookup = {} # a lookup from type ID to a list of typeattrs
@@ -917,7 +917,7 @@ def _get_all_templates(network_id, template_id):
 
     ##the current user is validated, but some checks require admin permissions,
     ##so call as a user with all permissions
-    admin_id = config.get('DEFAULT', 'ALL_PERMISSION_USER', 1)
+    admin_id = config.get("ALL_PERMISSION_USER", 1)
 
     for t in all_types:
         child_layout = None

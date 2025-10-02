@@ -56,10 +56,10 @@ def login(username, password, **kwargs):
 
     hydra_session = session.Session(
         {}, #This is normally a request object, but in this case is empty
-        validate_key=config.get('COOKIES', 'VALIDATE_KEY', DEFAULT_VALIDATE_KEY),
+        validate_key=config.get("COOKIES_VALIDATE_KEY", DEFAULT_VALIDATE_KEY),
         type='file' if db.hydra_db_url.startswith('sqlite') else 'ext:sqla',
         cookie_expires=True,
-        data_dir=config.get('COOKIES', 'DATA_DIR', DEFAULT_DATA_DIR),
+        data_dir=config.get("COOKIES_DATA_DIR", DEFAULT_DATA_DIR),
         bind=db.engine,
         table=CACHE_TABLE
     )
@@ -85,10 +85,10 @@ def logout(session_id, **kwargs):
 
     hydra_session_object = session.SessionObject(
         {}, #This is normally a request object, but in this case is empty
-        validate_key=config.get('COOKIES', 'VALIDATE_KEY', DEFAULT_VALIDATE_KEY),
+        validate_key=config.get("COOKIES_VALIDATE_KEY", DEFAULT_VALIDATE_KEY),
         type='file' if db.hydra_db_url.startswith('sqlite') else 'ext:sqla',
         cookie_expires=True,
-        data_dir=config.get('COOKIES', 'DATA_DIR', DEFAULT_DATA_DIR),
+        data_dir=config.get("COOKIES_DATA_DIR", DEFAULT_DATA_DIR),
         bind=db.engine,
         table=CACHE_TABLE
     )
@@ -114,10 +114,10 @@ def get_session_user(session_id, **kwargs):
 
     hydra_session_object = session.SessionObject(
         {}, #This is normally a request object, but in this case is empty
-        validate_key=config.get('COOKIES', 'VALIDATE_KEY', DEFAULT_VALIDATE_KEY),
+        validate_key=config.get("COOKIES_VALIDATE_KEY", DEFAULT_VALIDATE_KEY),
         type='file' if db.hydra_db_url.startswith('sqlite') else 'ext:sqla',
         cookie_expires=True,
-        data_dir=config.get('COOKIES', 'DATA_DIR', DEFAULT_DATA_DIR),
+        data_dir=config.get("COOKIES_DATA_DIR", DEFAULT_DATA_DIR),
         bind=db.engine,
         table=CACHE_TABLE
     )

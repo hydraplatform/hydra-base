@@ -352,7 +352,7 @@ def _reassign_scoped_attributes(attr_id, user_id):
         #first look up the hierarchy to see if there is an attribute scoped at a higher level.
 
 
-        max_levels = int(config.get("limits", "project_max_nest_depth", 32))
+        max_levels = int(config.get("limits_project_max_nest_depth", 32))
         attr_proj = db.DBSession.query(Project).filter(Project.id == attr_i.project_id).one()
         child_projects = attr_proj.get_child_projects(user_id=user_id, levels=max_levels)
         project_scope = {p["id"] for p in child_projects} | {attr_i.project_id}

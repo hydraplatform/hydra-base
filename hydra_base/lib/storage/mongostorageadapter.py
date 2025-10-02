@@ -1,4 +1,5 @@
 import logging
+import os
 
 from bson.objectid import ObjectId
 from pymongo import MongoClient
@@ -37,8 +38,19 @@ class MongoStorageAdapter():
     @staticmethod
     def get_mongo_config(config_key="mongodb"):
         numeric = ("threshold",)
-        mongo_keys = [k for k in config.CONFIG.options(config_key) if k not in config.CONFIG.defaults()]
-        mongo_items = {k: config.CONFIG.get(config_key, k) for k in mongo_keys}
+
+        mongo_items = {
+            "host": os.environ.get("HYDRA_MONGO_HOST"),
+            "port": os.environ.get("HYDRA_MONGO_PORT"),
+            "user": os.environ.get("HYDRA_MONGO_USER"),
+            "passwd": os.environ.get("HYDRA_MONGO_PASSWD"),
+            "db_name": os.environ.get("HYDRA_MONGO_DB_NAME"),
+            "datasets": os.environ.get("HYDRA_MONGO_DATASETS"),
+            "threshold": os.environ.get("HYDRA_MONGO_THRESHOLD"),
+            "direct_location_token": os.environ.get("HYDRA_MONGO_DIRECT_LOCATION_TOKEN"),
+            "value_location_key": os.environ.get("HYDRA_MONGO_VALUE_LOCATION_KEY")
+        }
+
         for k in numeric:
             mongo_items[k] = int(mongo_items[k])
 
