@@ -36,15 +36,6 @@ def template():
 
 
 @pytest.fixture()
-def template_json_object(client, template):
-
-    with open(template) as fh:
-        file_contents = fh.read()
-
-    return JSONObject(client.import_template_xml(file_contents))
-
-
-@pytest.fixture()
 def mock_template(client):
     link_attr_1 = client.testutils.create_attribute("link_attr_1", dimension='Pressure')
     link_attr_2 = client.testutils.create_attribute("link_attr_2", dimension='Speed')
