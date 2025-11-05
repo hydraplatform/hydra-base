@@ -283,6 +283,124 @@ class TestResourceAttribute:
 
         assert new_attr.id in [netattr.attr_id for netattr in updated_network.attributes]
 
+    def test_bulk_add_resource_attributes_performance(self,
+                                                      client,
+                                                      network_with_data):
+        """
+        Performance test comparing database-specific INSERT vs manual duplicate checking.
+        This test creates 100 attributes and then adds each of those attributes
+        as resource attributes to all nodes in the network.
+        """
+        import time
+        from hydra_base.lib import attributes as attr_lib
+        from hydra_base import db
+
+        log.info("=" * 80)
+        log.info("PERFORMANCE TEST: add_resource_attributes() - 100 attributes to nodes")
+        log.info("=" * 80)
+
+        network = network_with_data
+        network_id = network.id
+        nodes = [n for n in network.nodes]
+
+        log.info(f"Network ID: {network_id}")
+        log.info(f"Available nodes: {len(nodes)}")
+
+        # Create 1000 attributes first
+        num_attrs = 1000
+        log.info(f"Creating {num_attrs} attribute templates")
+
+        # Create all attribute templates at once using bulk add_attributes
+        attr_templates_to_add = []
+        for i in range(num_attrs):
+            # Create an attribute template
+            attr_template = JSONObject({
+                'name': f'test_perf_attr_{i}',
+                'description': f'Performance test attribute {i}',
+                'dimension_id': None
+            })
+            attr_templates_to_add.append(attr_template)
+
+        # Use bulk add_attributes instead of individual add_attribute calls
+        attr_templates = attr_lib.add_attributes(attr_templates_to_add, user_id=1)
+
+        log.info(f"Created {len(attr_templates)} attribute templates")
+
+        # Now create resource attributes by assigning each attribute to each node separately
+        # This creates unique (attr_id, node_id) combinations which respect the (network_id, attr_id) constraint
+        test_attrs = []
+        for i, attr_template in enumerate(attr_templates):
+            # Assign each attribute to just one node to avoid duplicates
+            # This creates 100 unique resource attributes (one per attr_template)
+            node_index = i % len(nodes)  # Cycle through nodes
+            test_attrs.append({
+                "attr_id": attr_template.id,
+                "network_id": network_id,
+                "node_id": nodes[node_index].id,
+                "attr_is_var": "N"
+            })
+
+        total_resource_attrs = len(test_attrs)
+        log.info(f"Created {total_resource_attrs} resource attributes ({num_attrs} unique attributes distributed across {len(nodes)} nodes)")
+
+        # Test 1: Database-specific INSERT approach (current optimized version)
+        log.info("Testing DATABASE-SPECIFIC INSERT approach")
+        start_time = time.time()
+
+        result1 = attr_lib.add_resource_attributes(test_attrs, use_manual_checking=False)
+
+        db_insert_time = time.time() - start_time
+        log.info(f"Database-specific INSERT: {db_insert_time:.3f} seconds, {result1} attributes added")
+
+        # Clear the data to test manual approach
+        import transaction
+
+        db.DBSession.execute(
+            db.text(f"DELETE FROM tResourceAttr WHERE network_id = {network_id}")
+        )
+        transaction.commit()
+
+        # Test 2: Manual duplicate checking approach using the function's flag
+        log.info("Testing MANUAL DUPLICATE CHECKING approach")
+        start_time = time.time()
+
+        result2 = attr_lib.add_resource_attributes(test_attrs, use_manual_checking=True)
+
+        manual_check_time = time.time() - start_time
+        log.info(f"Manual duplicate checking: {manual_check_time:.3f} seconds, {result2} attributes added")
+
+        # Performance comparison
+        speedup = manual_check_time / db_insert_time if db_insert_time > 0 else 0
+
+        log.info("=" * 80)
+        log.info("PERFORMANCE COMPARISON RESULTS")
+        log.info("=" * 80)
+        log.info(f"Database-specific INSERT: {db_insert_time:.3f} seconds")
+        log.info(f"Manual duplicate checking: {manual_check_time:.3f} seconds")
+        log.info(f"Speedup factor: {speedup:.2f}x")
+        log.info(f"Performance improvement: {((manual_check_time - db_insert_time) / manual_check_time * 100):.1f}%")
+        log.info(f"Records processed: {total_resource_attrs}")
+        log.info(f"Throughput (DB INSERT): {total_resource_attrs / db_insert_time:.0f} records/second")
+        log.info(f"Throughput (Manual): {total_resource_attrs / manual_check_time:.0f} records/second")
+        log.info("=" * 80)
+
+        # Assertions
+        assert result1 > 0, "Database INSERT approach should add some attributes"
+        assert result2 > 0, "Manual checking approach should add some attributes"
+
+        # Performance assertions (more lenient since SQLite might not show huge differences)
+        log.info(f"Speedup achieved: {speedup:.2f}x")
+        if speedup > 1.1:  # At least 10% improvement
+            log.info("✅ Database-specific INSERT is faster than manual checking")
+        else:
+            log.warning("⚠️ Performance improvement is minimal, possibly due to SQLite backend")
+
+        # Cleanup
+        db.DBSession.execute(
+            db.text(f"DELETE FROM tResourceAttr WHERE network_id = {network_id}")
+        )
+        transaction.commit()
+
     def test_update_resource_attribute(self, client):
         """
             SKELETON

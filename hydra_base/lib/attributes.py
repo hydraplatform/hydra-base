@@ -23,7 +23,7 @@ import logging
 
 from collections import defaultdict
 
-from sqlalchemy import or_, and_, func
+from sqlalchemy import or_, and_, func, text
 from sqlalchemy.orm import aliased, joinedload
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import IntegrityError
@@ -126,7 +126,7 @@ def get_attributes_by_id(attr_ids, **kwargs):
     """
     if not attr_ids:
         return []
-            
+
     return db.DBSession.query(Attr).filter(Attr.id.in_(attr_ids)).all()
 
 def get_template_attributes(template_id, **kwargs):
@@ -841,8 +841,51 @@ def delete_resource_attribute(resource_attr_id, **kwargs):
     db.DBSession.flush()
     return 'OK'
 
-def add_resource_attributes(resource_attributes, **kwargs):
+def _batch_get_network_ids(resource_attributes):
     """
+    Efficiently determine network IDs for a batch of resource attributes.
+    Returns a dictionary mapping (ref_key, resource_id) -> network_id
+    """
+    network_id_lookup = {}
+    node_ids = set()
+    link_ids = set()
+    group_ids = set()
+
+    # Collect all resource IDs by type
+    for ra in resource_attributes:
+        if ra.get('network_id') is not None:
+            network_id_lookup[('NETWORK', ra['network_id'])] = ra['network_id']
+        elif ra.get('node_id') is not None:
+            node_ids.add(ra['node_id'])
+        elif ra.get('link_id') is not None:
+            link_ids.add(ra['link_id'])
+        elif ra.get('group_id') is not None:
+            group_ids.add(ra['group_id'])
+
+    # Batch lookup network IDs with minimal queries
+    if node_ids:
+        node_network_map = dict(db.DBSession.query(Node.id, Node.network_id).filter(Node.id.in_(node_ids)).all())
+        for node_id, net_id in node_network_map.items():
+            network_id_lookup[('NODE', node_id)] = net_id
+
+    if link_ids:
+        link_network_map = dict(db.DBSession.query(Link.id, Link.network_id).filter(Link.id.in_(link_ids)).all())
+        for link_id, net_id in link_network_map.items():
+            network_id_lookup[('LINK', link_id)] = net_id
+
+    if group_ids:
+        group_network_map = dict(db.DBSession.query(ResourceGroup.id, ResourceGroup.network_id).filter(ResourceGroup.id.in_(group_ids)).all())
+        for group_id, net_id in group_network_map.items():
+            network_id_lookup[('GROUP', group_id)] = net_id
+
+    return network_id_lookup
+
+def add_resource_attributes(resource_attributes, use_manual_checking=False, **kwargs):
+    """
+    OPTIMIZED VERSION for handling large batches (10,000+) of resource attributes.
+
+    Uses database-specific upsert operations with fallback to manual duplicate checking.
+
     A resource attribute looks like:
     {
         "ref_key": "NODE",
@@ -852,49 +895,253 @@ def add_resource_attributes(resource_attributes, **kwargs):
         "network_id": None,
         "attr_id": 1,
         "is_var": "N"}
+
+    Args:
+        resource_attributes: List of resource attribute dictionaries to insert
+        use_manual_checking: If True, force manual duplicate checking instead of
+                           database-specific INSERT. Used for performance testing.
+
+    Performance improvements:
+    1. Database-specific INSERT syntax (MySQL: IGNORE, PostgreSQL: ON CONFLICT, SQLite: OR IGNORE)
+    2. Fallback to targeted duplicate checking for unsupported databases
+    3. Clean data processing and validation
+    4. Bulk insert operations
     """
     if len(resource_attributes) == 0:
         return 'OK'
-    
-    #1. Identify the network ID
-    network_id = get_network_id_from_resource_attribute(resource_attributes[0])
 
-    #2. Get all the resource attributes in the network
-    network_resource_attributes = get_all_network_resourceattributes(network_id, **kwargs)
-
-    #3. Remove any duplicates from the incoming data in case there are RAs which are already there
-    network_ra_lookup = {(ra.attr_id, ra.ref_key, _get_resource_id(ra)): ra for ra in network_resource_attributes}
-
+    # STEP 1: Clean and normalize resource attributes
+    processed_ras = []
     for ra in resource_attributes:
-        if ra.ref_key is not None:
+        # Make a clean copy with only the fields we need
+        ra_clean = {}
+
+        # Handle resource_id conversion if needed
+        if ra.get('resource_id') is not None:
+            resource_id = ra.get('resource_id')
+            resource_type = ra.get('resource_type')
+            if resource_type == 'NODE':
+                ra_clean['node_id'] = resource_id
+                ra_clean['ref_key'] = 'NODE'
+            elif resource_type == 'LINK':
+                ra_clean['link_id'] = resource_id
+                ra_clean['ref_key'] = 'LINK'
+            elif resource_type == 'GROUP':
+                ra_clean['group_id'] = resource_id
+                ra_clean['ref_key'] = 'GROUP'
+            elif resource_type == 'NETWORK':
+                ra_clean['network_id'] = resource_id
+                ra_clean['ref_key'] = 'NETWORK'
+        else:
+            # Copy the standard fields, handling both dict and object access
+            for field in ['network_id', 'node_id', 'link_id', 'group_id', 'attr_id', 'ref_key']:
+                value = ra.get(field) if hasattr(ra, 'get') else getattr(ra, field, None)
+                if value is not None:
+                    ra_clean[field] = value
+
+        # Set ref_key if not provided
+        if ra_clean.get('ref_key') is None:
+            if ra_clean.get('network_id') is not None:
+                ra_clean['ref_key'] = 'NETWORK'
+            elif ra_clean.get('node_id') is not None:
+                ra_clean['ref_key'] = 'NODE'
+            elif ra_clean.get('link_id') is not None:
+                ra_clean['ref_key'] = 'LINK'
+            elif ra_clean.get('group_id') is not None:
+                ra_clean['ref_key'] = 'GROUP'
+
+        # Handle attr_is_var
+        is_var = ra.get('attr_is_var') if hasattr(ra, 'get') else getattr(ra, 'attr_is_var', None)
+        if is_var is None:
+            is_var = ra.get('is_var') if hasattr(ra, 'get') else getattr(ra, 'is_var', 'N')
+        ra_clean['attr_is_var'] = is_var if is_var is not None else 'N'
+
+        # Ensure we have attr_id
+        attr_id = ra.get('attr_id') if hasattr(ra, 'get') else getattr(ra, 'attr_id', None)
+        if attr_id is None:
+            raise HydraError(f"Missing attr_id in resource attribute: {ra}")
+        ra_clean['attr_id'] = attr_id
+
+        # Ensure all required columns are present for SQL bind parameters
+        # Set None for missing foreign keys
+        if 'network_id' not in ra_clean:
+            ra_clean['network_id'] = None
+        if 'node_id' not in ra_clean:
+            ra_clean['node_id'] = None
+        if 'link_id' not in ra_clean:
+            ra_clean['link_id'] = None
+        if 'group_id' not in ra_clean:
+            ra_clean['group_id'] = None
+
+        processed_ras.append(ra_clean)
+
+    # STEP 2: Basic validation
+    sample_ra = processed_ras[0]
+    if not any([sample_ra.get('network_id'), sample_ra.get('node_id'),
+               sample_ra.get('link_id'), sample_ra.get('group_id')]):
+        raise HydraError("Could not determine network context from resource attributes")
+
+    # STEP 3: Choose insertion method based on flag
+    if use_manual_checking:
+        log.info("Using manual duplicate checking (forced by use_manual_checking flag)")
+        # Skip database-specific INSERT and go directly to manual checking
+        # Set a variable to skip the try block and go to except block
+        force_manual_checking = True
+    else:
+        force_manual_checking = False
+
+    # STEP 4: Try database-specific INSERT with duplicate handling for maximum performance
+    if not force_manual_checking:
+        log.info("Adding %s resource attributes with database duplicate handling", len(processed_ras))
+
+        try:
+            # Detect database type and use appropriate syntax
+            dialect_name = db.DBSession.bind.dialect.name.lower()
+
+            if dialect_name == 'mysql':
+                # MySQL: INSERT IGNORE
+                insert_sql = text("""
+                    INSERT IGNORE INTO tResourceAttr
+                    (attr_id, ref_key, network_id, node_id, link_id, group_id, attr_is_var)
+                    VALUES
+                    (:attr_id, :ref_key, :network_id, :node_id, :link_id, :group_id, :attr_is_var)
+                """)
+            elif dialect_name == 'postgresql':
+                # PostgreSQL: INSERT ... ON CONFLICT DO NOTHING
+                insert_sql = text("""
+                    INSERT INTO tResourceAttr
+                    (attr_id, ref_key, network_id, node_id, link_id, group_id, attr_is_var)
+                    VALUES
+                    (:attr_id, :ref_key, :network_id, :node_id, :link_id, :group_id, :attr_is_var)
+                    ON CONFLICT (network_id, attr_id) DO NOTHING
+                """)
+            elif dialect_name == 'sqlite':
+                # SQLite: INSERT OR IGNORE
+                insert_sql = text("""
+                    INSERT OR IGNORE INTO tResourceAttr
+                    (attr_id, ref_key, network_id, node_id, link_id, group_id, attr_is_var)
+                    VALUES
+                    (:attr_id, :ref_key, :network_id, :node_id, :link_id, :group_id, :attr_is_var)
+                """)
+            else:
+                # For other databases, fall back to manual checking immediately
+                raise Exception(f"Database {dialect_name} not supported for INSERT IGNORE, using manual checking")
+
+            result = db.DBSession.execute(insert_sql, processed_ras)
+            rows_inserted = result.rowcount
+
+            mark_changed(db.DBSession())
+            db.DBSession.flush()
+
+            log.info("Successfully inserted %s new resource attributes (database ignored %s duplicates)",
+                    rows_inserted, len(processed_ras) - rows_inserted)
+
+            return rows_inserted
+
+        except Exception as e:
+            log.warning("Database-specific INSERT failed (%s), falling back to manual duplicate checking", str(e))
+
+    # STEP 5: Manual duplicate checking fallback (used when force_manual_checking=True or database INSERT fails)
+    log.info("Using manual duplicate checking approach")
+
+    # Method 2: Fallback to manual duplicate checking for SQLite and other cases
+    # Efficient duplicate checking - Group by ref_key and collect IDs for targeted queries
+    resources_by_type = {'NETWORK': set(), 'NODE': set(), 'LINK': set(), 'GROUP': set()}
+    attr_ids = set()
+
+    for ra in processed_ras:
+        ref_key = ra['ref_key']
+        attr_id = ra['attr_id']
+        attr_ids.add(attr_id)
+
+        if ref_key == 'NETWORK' and ra.get('network_id'):
+            resources_by_type['NETWORK'].add(ra['network_id'])
+        elif ref_key == 'NODE' and ra.get('node_id'):
+            resources_by_type['NODE'].add(ra['node_id'])
+        elif ref_key == 'LINK' and ra.get('link_id'):
+            resources_by_type['LINK'].add(ra['link_id'])
+        elif ref_key == 'GROUP' and ra.get('group_id'):
+            resources_by_type['GROUP'].add(ra['group_id'])
+
+    # Query for existing combinations to avoid duplicates
+    existing_combinations = set()
+
+    # Check each resource type separately
+    for ref_key, resource_ids in resources_by_type.items():
+            if not resource_ids:
+                continue
+
+            query = db.DBSession.query(ResourceAttr.attr_id, ResourceAttr.ref_key)
+
+            if ref_key == 'NETWORK':
+                query = query.add_columns(ResourceAttr.network_id).filter(
+                    ResourceAttr.ref_key == 'NETWORK',
+                    ResourceAttr.network_id.in_(resource_ids),
+                    ResourceAttr.attr_id.in_(attr_ids)
+                )
+                for attr_id, ref_key_val, resource_id in query.all():
+                    existing_combinations.add((attr_id, ref_key_val, resource_id))
+
+            elif ref_key == 'NODE':
+                query = query.add_columns(ResourceAttr.node_id).filter(
+                    ResourceAttr.ref_key == 'NODE',
+                    ResourceAttr.node_id.in_(resource_ids),
+                    ResourceAttr.attr_id.in_(attr_ids)
+                )
+                for attr_id, ref_key_val, resource_id in query.all():
+                    existing_combinations.add((attr_id, ref_key_val, resource_id))
+
+            elif ref_key == 'LINK':
+                query = query.add_columns(ResourceAttr.link_id).filter(
+                    ResourceAttr.ref_key == 'LINK',
+                    ResourceAttr.link_id.in_(resource_ids),
+                    ResourceAttr.attr_id.in_(attr_ids)
+                )
+                for attr_id, ref_key_val, resource_id in query.all():
+                    existing_combinations.add((attr_id, ref_key_val, resource_id))
+
+            elif ref_key == 'GROUP':
+                query = query.add_columns(ResourceAttr.group_id).filter(
+                    ResourceAttr.ref_key == 'GROUP',
+                    ResourceAttr.group_id.in_(resource_ids),
+                    ResourceAttr.attr_id.in_(attr_ids)
+                )
+                for attr_id, ref_key_val, resource_id in query.all():
+                    existing_combinations.add((attr_id, ref_key_val, resource_id))
+
+    # Filter out duplicates
+    ras_to_insert = []
+    for ra in processed_ras:
+        ref_key = ra['ref_key']
+        attr_id = ra['attr_id']
+
+        if ref_key == 'NETWORK':
+            resource_id = ra.get('network_id')
+        elif ref_key == 'NODE':
+            resource_id = ra.get('node_id')
+        elif ref_key == 'LINK':
+            resource_id = ra.get('link_id')
+        elif ref_key == 'GROUP':
+            resource_id = ra.get('group_id')
+        else:
             continue
-        elif ra.get('network_id') is not None:
-            ra['ref_key'] = 'NETWORK'
-        elif ra.get('node_id') is not None:
-            ra['ref_key'] = 'NODE'
-        elif ra.get('link_id') is not None:
-            ra['ref_key'] = 'LINK'
-        elif ra.get('group_id') is not None:
-            ra['ref_key'] = 'GROUP'
 
-    ras_to_be_inserted = []
-    for ra in resource_attributes:
-        key = (ra.attr_id, ra['ref_key'], _get_resource_id(ra))
-        if key not in network_ra_lookup:
-            ras_to_be_inserted.append(ra)
+        combination_key = (attr_id, ref_key, resource_id)
+        if combination_key not in existing_combinations:
+            ras_to_insert.append(ra)
 
-    #4. Add the new resource attributes
-    if len(ras_to_be_inserted) > 0:
-        log.info("Adding %s new resource attributes", len(ras_to_be_inserted))
+    # Bulk insert new resource attributes
+    if len(ras_to_insert) > 0:
+        log.info("Manually inserting %s new resource attributes (after duplicate filtering)", len(ras_to_insert))
+
         db.DBSession.execute(
             ResourceAttr.__table__.insert(),
-            ras_to_be_inserted
+            ras_to_insert
         )
         mark_changed(db.DBSession())
 
     db.DBSession.flush()
-
-    return len(ras_to_be_inserted)
+    return len(ras_to_insert)
 
 def get_network_id_from_resource_attribute(ra):
     network_id = None
