@@ -39,7 +39,6 @@ log = logging.getLogger(__name__)
 def _get_project(project_id, user_id, check_write=False):
     try:
         project_i = db.DBSession.query(Project).filter(Project.id == project_id).options(noload(Project.children)).one()
-
         if check_write is True:
             project_i.check_write_permission(user_id)
         else:
