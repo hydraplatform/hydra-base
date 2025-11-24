@@ -318,6 +318,20 @@ def get_scenario(scenario_id,
 
     return scen_j
 
+def get_scenarios(scenario_ids, **kwargs):
+    """
+        Get multiple scenarios by their IDs
+    """
+    user_id = kwargs.get('user_id')
+
+    scenarios = db.DBSession.query(Scenario).join(Network).filter(
+            Scenario.id.in_(scenario_ids)).all()
+
+    for s in scenarios:
+        s.network.check_read_permission(user_id)
+
+    return scenarios
+
 @required_perms("edit_network")
 def add_scenario(network_id, scenario,**kwargs):
     """
