@@ -15,11 +15,22 @@ from hydra_base.util.hdb import create_default_users_and_perms, make_root_user,\
 from hydra_base.util import testing
 from hydra_client.connection import JSONConnection, RemoteJSONConnection
 from hydra_base.lib.cache import clear_cache
+from hydra_base.config import load_config
 
 
 no_externaldb_opt = "--no-externaldb"
 externaldb_mark = "externaldb"
 requires_hdf_mark = "requires_hdf"
+requires_replicaset_mark = "requires_replicaset"
+
+from hydra_base import db
+
+if not db.DBSession:
+    db.connect()
+
+create_default_users_and_perms()
+make_root_user()
+create_default_units_and_dimensions()
 
 def pytest_addoption(parser):
     parser.addoption("--db-backend", action="store", default="sqlite",
@@ -47,8 +58,12 @@ def pytest_collection_modifyitems(config, items):
             if externaldb_mark in item.keywords:
                 item.add_marker(externaldb_skip)
 
-    conf_disabled = hydra_base.config.CONFIG.get("storage_hdf", "disable_hdf").lower()
-    hdf_disabled = True if conf_disabled in ("true", "yes") else False
+    truthlike = {"true", "yes", "y"}
+
+    from hydra_base.lib.storage import HdfStorageAdapter
+    config = HdfStorageAdapter.get_hdf_config()
+
+    hdf_disabled = config.get("disable_hdf")
     hdf_skip = pytest.mark.skip(reason="Test not applicable when HDF support disabled")
     if hdf_disabled:
         for item in items:
@@ -81,7 +96,7 @@ def pytest_report_header(config):
 
 @pytest.fixture()
 def dateformat():
-    return hydra_base.config.get('DEFAULT', 'datetime_format', "%Y-%m-%dT%H:%M:%S.%f000Z")
+    return hydra_base.config.get("datetime_format", "%Y-%m-%dT%H:%M:%S.%f000Z")
 
 @pytest.fixture(scope='module')
 def testdb_uri(db_backend):
@@ -122,6 +137,8 @@ def client(connection_type, testdb_uri):
                                       test_server=null_server)
         client.login('root', '')
 
+    load_config()
+
     client.testutils = testing.TestUtil(client)
     pytest.root_user_id = 1
     pytest.user_a = client.testutils.create_user("UserA")
@@ -148,11 +165,15 @@ def drop_tables(db_url):
 
 @pytest.fixture()
 def network(client, project_id=None, num_nodes=10, new_proj=True, map_projection='EPSG:4326'):
-    return client.testutils.build_network(project_id, num_nodes, new_proj, map_projection)
+    return client.testutils.build_network(project_id=project_id, num_nodes=num_nodes, new_proj=new_proj, map_projection=map_projection)
 
 @pytest.fixture()
 def network_with_data(client, project_id=None, num_nodes=10, ret_full_net=True, new_proj=True, map_projection='EPSG:4326'):
-    return client.testutils.create_network_with_data(project_id, num_nodes, ret_full_net, new_proj, map_projection)
+    return client.testutils.create_network_with_data(project_id=project_id,
+                                                     num_nodes=num_nodes,
+                                                     ret_full_net=ret_full_net,
+                                                     new_proj=new_proj,
+                                                     map_projection=map_projection)
 
 @pytest.fixture()
 def network_with_child_scenario(client, project_id=None, num_nodes=10, ret_full_net=True, new_proj=True, map_projection='EPSG:4326'):

@@ -87,8 +87,12 @@ class HdfStorageAdapter():
     def get_hdf_config(config_key="storage_hdf", **kwargs):
         numeric = ()
         boolean = ("disable_hdf", )
-        hdf_keys = [k for k in config.CONFIG.options(config_key) if k not in config.CONFIG.defaults()]
-        hdf_items = {k: config.CONFIG.get(config_key, k) for k in hdf_keys}
+
+        hdf_items = {
+            "disable_hdf": os.environ.get("HYDRA_DISABLE_HDF"),
+            "hdf_filestore": os.environ.get("HYDRA_HDF_FILESTORE")
+        }
+
         for k in numeric:
             hdf_items[k] = int(hdf_items[k])
         for k in boolean:

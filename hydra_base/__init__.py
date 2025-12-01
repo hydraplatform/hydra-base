@@ -45,25 +45,6 @@ log = logging.getLogger(__name__)
 
 log.debug(" \n ")
 
-log.debug("CONFIG localfiles %s found in %s", len(config.localfiles), config.localfile)
-
-log.debug("CONFIG repofiles %s found in %s", len(config.repofiles), config.repofile)
-
-log.debug("CONFIG userfiles %s found in %s", len(config.userfiles), config.userfile)
-
-log.debug("CONFIG sysfiles %s found in %s", len(config.sysfiles), config.sysfile)
-
-if len(config.sysfiles) + len(config.repofiles) + len(config.userfiles) + len(config.sysfiles) == 0:
-    log.critical("No config found. Please put your ini file into one of the files listed beside CONFIG above.")
-
-if config.get("security", "max_login_attempts") is None:
-    """  Absence of max_login_attempts results in all users unable to log in,
-         so ensure this is defined in config, or fail.
-    """
-    raise RuntimeError("Config 'security' section must define 'max_login_attempts'")
-
-log.debug(" \n ")
-
 from .lib.attributes import *
 from .lib.data import *
 from .lib.groups import *
@@ -80,3 +61,4 @@ from .lib.template import *
 from .lib.units import *
 from .lib.users import *
 from .lib.service import *
+from .lib.hydraconfig import *

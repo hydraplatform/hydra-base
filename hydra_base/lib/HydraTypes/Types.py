@@ -298,8 +298,8 @@ class Timeseries(DataType):
     def validate(self):
         base_ts = pd.Timestamp("01-01-1970")
         #TODO: We need a more permanent solution to seasonal/repeating timeseries
-        seasonal_year = config.get('DEFAULT','seasonal_year', '1678')
-        seasonal_key = config.get('DEFAULT', 'seasonal_key', '9999')
+        seasonal_year = str(config.get("seasonal_year", "1678"))
+        seasonal_key = str(config.get("seasonal_key", "9999"))
         jd = json.loads(self.value, object_pairs_hook=collections.OrderedDict)
         for k,v in jd.items():
             for date in (six.text_type(d) for d in v.keys()):

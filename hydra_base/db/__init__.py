@@ -81,12 +81,13 @@ def create_mysql_db(db_url):
     #Remove trailing whitespace and forwardslashes
     db_url = db_url.strip().strip('/')
 
+    db_config = config.get_startup_config()
 
     #Check this is a mysql URL
     if db_url.find('mysql') >= 0:
 
         #Get the DB name from config and check if it's in the URL
-        db_name = config.get('mysqld', 'db_name', 'hydradb')
+        db_name = db_config["hydra_db_name"]
         if db_url.find(db_name) >= 0:
             no_db_url = db_url.rsplit("/", 1)[0]
         else:
@@ -104,7 +105,7 @@ def create_mysql_db(db_url):
         if db_url.find('charset') == -1:
             db_url = "{}?charset=utf8&use_unicode=1".format(db_url)
 
-        if config.get('mysqld', 'auto_create', 'Y') == 'Y':
+        if db_config.get("hydra_db_autocreate", 'Y') == 'Y':
             tmp_engine = create_engine(no_db_url)
             log.debug("Creating database {0} as it does not exist.".format(db_name))
             with tmp_engine.connect() as conn:
@@ -112,8 +113,9 @@ def create_mysql_db(db_url):
     return db_url
 
 def connect(db_url=None):
+    db_config = config.get_startup_config()
     if db_url is None:
-        db_url = config.get('mysqld', 'url')
+        db_url = db_config["url"]
 
     log.info("Connecting to database")
     if db_url.find('@') >= 0:
@@ -134,11 +136,11 @@ def connect(db_url=None):
         #These values MUST be smaller than the pool timeouts of the DB, otherwise the connection
         #will remain open on the client while it has been closed on the server, resulting in
         #an error
-        db_pool_size = int(config.get('mysqld', 'pool_size',10)) # 10
-        db_pool_recycle = int(config.get('mysqld', 'pool_recycle', 300)) # 300
-        db_max_overflow = int(config.get('mysqld', 'max_overflow', 20)) # 10 -> 30
-        db_pool_timeout = int(config.get('mysqld', 'pool_timeout', 10))
-        db_pool_pre_ping = True if config.get('mysqld', 'pool_pre_ping', 'Y').upper() == 'Y' else False
+        db_pool_size = int(db_config.get("hydra_mysql_pool_size" ,10)) # 10
+        db_pool_recycle = int(db_config.get("hydra_mysql_pool_recycle", 300)) # 300
+        db_max_overflow = int(db_config.get("hydra_mysql_max_overflow", 20)) # 10 -> 30
+        db_pool_timeout = int(db_config.get("hydra_mysql_pool_timeout", 10))
+        db_pool_pre_ping = True if db_config.get("hydra_mysql_pool_preping", "True").upper() == "TRUE" else False
 
         log.warning(f"db_pool_size: {db_pool_size} - pool_recycle: {db_pool_recycle} - max_overflow: {db_max_overflow} - pool_timeout: {db_pool_timeout} - pool_pre_ping: {db_pool_pre_ping}")
 
