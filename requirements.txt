@@ -16,6 +16,7 @@ mysqlclient
 numpy
 packaging
 pandas
+Pillow
 psycopg2-binary
 pymongo
 python-dateutil
@@ -23,4 +24,6 @@ requests
 s3fs
 sqlalchemy
 tables
+cryptography
+qrcode
 zope.sqlalchemy

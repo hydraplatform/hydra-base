@@ -196,6 +196,7 @@ class JSONObject(dict):
                 except (TypeError, InvalidId):
                     """ The value wasn't an valid ObjectID, keep the current value """
                     pass
+
         elif hasattr(obj_dict, '__dict__') and len(obj_dict.__dict__) > 0:
             obj = obj_dict.__dict__
             """
@@ -209,6 +210,11 @@ class JSONObject(dict):
             if "value_ref" in obj:
                 if obj_dict.value:
                     obj["value"] = obj_dict.value
+
+            if "_secret" in obj:
+                if obj_dict.secret:
+                    obj["secret"] = obj_dict.secret
+                    del obj["_secret"]
         elif isinstance(obj_dict, dict):
             """
             The argument is a dict of uncertain provenance. This can
