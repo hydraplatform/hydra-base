@@ -8,6 +8,7 @@ import pytest
 from packaging import version
 
 from hydra_base.lib.storage import HdfStorageAdapter
+from hydra_base.lib import data as hydra_data
 from hydra_base.util import NullAdapter
 
 min_lib_versions = {
@@ -115,7 +116,9 @@ class TestHdf():
             info = hdf.get_series_info(private_aws_file["path"], columns=private_aws_file["series_name"])
 
     @pytest.mark.requires_hdf
-    @patch.dict('os.environ', {'AWS_ACCESS_KEY_ID': IAM_ACCESS_KEY, 'AWS_SECRET_ACCESS_KEY': IAM_SECRET_KEY})
+    @pytest.mark.skipif(IAM_ACCESS_KEY is None or IAM_SECRET_KEY is None,
+                        reason="TEST_AWS_ACCESS_KEY_ID and TEST_AWS_SECRET_ACCESS_KEY environment variables required")
+    @patch.dict('os.environ', {'AWS_ACCESS_KEY_ID': IAM_ACCESS_KEY or '', 'AWS_SECRET_ACCESS_KEY': IAM_SECRET_KEY or ''})
     def test_private_hdf_correct_access(self, private_aws_file):
         """
           Do the reported properties of a dataset match expected values?
@@ -327,6 +330,44 @@ class TestHdf():
                                                   start=4, end=8)
         assert df_json[:114] == '{"Ynatunz Vagnxr.Fhccyl.Nzbhag":{"1910-01-05 00:00:00":40.0,'\
                                 '"1910-01-06 00:00:00":40.0,"1910-01-07 00:00:00":40.0,'
+
+        @pytest.mark.requires_hdf
+        def test_get_groups_as_dataframes(self, hdf, multigroup_file):
+                """
+                    Does the adapter return a dict of JSON dataframes for the requested groups?
+
+                    NB rot13 strings
+                """
+                groupname = "RFJ_Rffrk_erfhygf"
+                columns = ["Jbezvatsbeq Vagnxr.Fhccyl.Nzbhag"]
+                dfs = hdf.get_groups_as_dataframes(
+                        multigroup_file["path"],
+                        groupnames=[groupname],
+                        columns=columns,
+                        end=256
+                )
+
+                assert groupname in dfs
+                assert dfs[groupname][:84] == '{"Jbezvatsbeq Vagnxr.Fhccyl.Nzbhag":{"1910-01-01 00:00:00":0.0,"1910-01-02 00:00:00"'
+
+        @pytest.mark.requires_hdf
+        def test_get_hdf_groups_as_dataframe(self, multigroup_file):
+                """
+                    Does the data layer wrapper return a dict of JSON dataframes for requested groups?
+
+                    NB rot13 strings
+                """
+                groupname = "RFJ_Rffrk_erfhygf"
+                columns = ["Jbezvatsbeq Vagnxr.Fhccyl.Nzbhag"]
+                dfs = hydra_data.get_hdf_groups_as_dataframe(
+                        multigroup_file["path"],
+                        groupnames=[groupname],
+                        columns=columns,
+                        end=256
+                )
+
+                assert groupname in dfs
+                assert dfs[groupname][:84] == '{"Jbezvatsbeq Vagnxr.Fhccyl.Nzbhag":{"1910-01-01 00:00:00":0.0,"1910-01-02 00:00:00"'
 
     @pytest.mark.requires_hdf
     def test_hdf_group_columns(self, client, multigroup_file):

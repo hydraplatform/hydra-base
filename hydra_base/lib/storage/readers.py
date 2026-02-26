@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timezone
 
 log = logging.getLogger(__name__)
 
@@ -391,9 +391,9 @@ class FrameTableGroupReader(GroupReader):
 def nscale(ts):
     """
       Transforms integers representing nanoseconds past the epoch
-      into instances of datetime.timestamp
+      into instances of datetime.timestamp in UTC
     """
-    return datetime.fromtimestamp(ts/1e9)
+    return datetime.fromtimestamp(ts/1e9, tz=timezone.utc).replace(tzinfo=None)
 
 def trim_x_first_y_rest(x, y, names):
     return [names[0][x:], *[name[y:] for name in names[1:]] ]
