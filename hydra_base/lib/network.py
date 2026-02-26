@@ -723,7 +723,7 @@ def _get_all_resource_attributes(network_id, template_id=None, include_non_templ
     """
     start_time = time.time()
     log.info("Getting all resource attributes using multiple smaller queries")
-    
+
     # Create the base query structure for reuse
     def _create_base_query():
         return db.DBSession.query(
@@ -742,28 +742,28 @@ def _get_all_resource_attributes(network_id, template_id=None, include_non_templ
 
     # Execute separate queries for each resource type
     all_resource_attributes = []
-    
+
     # Query 1: Node attributes
     node_start = time.time()
     node_qry = _create_base_query().filter(ResourceAttr.node_id != None).join(Node).filter(Node.network_id == network_id)
     node_attributes = node_qry.all()
     log.info("Node attributes: %s retrieved in %s", len(node_attributes), time.time()-node_start)
     all_resource_attributes.extend(node_attributes)
-    
+
     # Query 2: Link attributes
     link_start = time.time()
     link_qry = _create_base_query().filter(ResourceAttr.link_id != None).join(Link).filter(Link.network_id == network_id)
     link_attributes = link_qry.all()
     log.info("Link attributes: %s retrieved in %s", len(link_attributes), time.time()-link_start)
     all_resource_attributes.extend(link_attributes)
-    
+
     # Query 3: Group attributes
     group_start = time.time()
     group_qry = _create_base_query().filter(ResourceAttr.group_id != None).join(ResourceGroup).filter(ResourceGroup.network_id == network_id)
     group_attributes = group_qry.all()
     log.info("Group attributes: %s retrieved in %s", len(group_attributes), time.time()-group_start)
     all_resource_attributes.extend(group_attributes)
-    
+
     # Query 4: Network attributes
     network_start = time.time()
     network_qry = _create_base_query().filter(ResourceAttr.network_id != None).filter(ResourceAttr.network_id == network_id)
@@ -2632,22 +2632,12 @@ def get_all_resource_attributes_in_network(attr_id, network_id, include_resource
     except NoResultFound:
         raise HydraError("Attribute %s not found"%(attr_id,))
 
-    ra_qry = db.DBSession.query(ResourceAttr).filter(
-        ResourceAttr.attr_id == attr_id,
-        or_(Network.id == network_id,
-            Node.network_id == network_id,
-            Link.network_id == network_id,
-            ResourceGroup.network_id == network_id)
-        ).outerjoin(ResourceAttr.node)\
-        .outerjoin(ResourceAttr.link)\
-        .outerjoin(ResourceAttr.network)\
-        .outerjoin(ResourceAttr.resourcegroup)\
-        .options(joinedload(ResourceAttr.node))\
-        .options(joinedload(ResourceAttr.link))\
-        .options(joinedload(ResourceAttr.resourcegroup))\
-        .options(joinedload(ResourceAttr.network))
-
-    resourceattrs = ra_qry.all()
+    querystub = db.DBSession.query(ResourceAttr).filter(ResourceAttr.attr_id == attr_id)
+    network_ra_rs = querystub.filter(ResourceAttr.network_id == network_id).all()
+    node_ra_rs = querystub.join(Node).filter(Node.network_id == network_id).all()
+    link_ra_rs = querystub.join(Link).filter(Link.network_id == network_id).all()
+    group_ra_rs = querystub.join(ResourceGroup).filter(ResourceGroup.network_id == network_id).all()
+    resourceattrs = network_ra_rs + node_ra_rs + link_ra_rs + group_ra_rs
 
     json_ra = []
     #Load the metadata too
