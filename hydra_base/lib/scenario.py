@@ -1328,6 +1328,36 @@ def get_scenario_data(scenario_id, get_parent_data=False, **kwargs):
     log.info("Retrieved %s datasets", len(datasets))
     return datasets
 
+def get_scenario_attribute_data(scenario_id, attr_ids, **kwargs):
+    """
+    For a given scenario ID and list of attribute ids, get all the datasets in the
+    network
+
+    :return: list of JSONObjects containng resource scenarios, with additional metadata such as attr_id
+    :rtype: list
+    """
+
+    #check for read permission on the scenario
+    _get_scenario(scenario_id, kwargs.get('user_id'))
+
+    all_scenario_data = db.DBSession.query(
+        Dataset.value,
+        ResourceAttr.id,
+        ResourceAttr.attr_id,
+        ResourceAttr.node_id,
+        ResourceAttr.link_id,
+        ResourceAttr.group_id,
+        ResourceAttr.network_id)\
+        .select_from(ResourceScenario)\
+        .join(ResourceAttr)\
+        .join(Dataset)\
+        .filter(ResourceScenario.scenario_id == scenario_id)\
+        .filter(ResourceAttr.attr_id.in_(attr_ids)).all()
+    log.info("Retrieved %s resource scenarios for scenario %s and attr_ids %s",
+             len(all_scenario_data), scenario_id, attr_ids)
+    return [JSONObject(d) for d in all_scenario_data]
+
+
 @required_perms("get_data", "get_network")
 def get_attribute_data(attr_ids, node_ids, **kwargs):
     """
@@ -1521,23 +1551,7 @@ def get_attribute_datasets(attr_id, scenario_id, get_parent_data=False, **kwargs
             #Finally add it to the list of RS to return
             requested_rs.append(rs_i)
 
-    json_rs = []
-    #Load the metadata too
-    for rs in requested_rs:
-        tmp_rs = JSONObject(rs)
-        tmp_rs.resourceattr = JSONObject(rs.resourceattr)
-        ra = tmp_rs.resourceattr
-        if rs.resourceattr.node_id is not None:
-            tmp_rs.resourceattr.node = get_resource(ra.ref_key, ra.node_id)
-        elif rs.resourceattr.link_id is not None:
-            tmp_rs.resourceattr.link = get_resource(ra.ref_key, ra.link_id)
-        elif rs.resourceattr.group_id is not None:
-            tmp_rs.resourceattr.resourcegroup = get_resource(ra.ref_key, ra.group_id)
-        elif rs.resourceattr.network_id is not None:
-            tmp_rs.resourceattr.network = get_resource(ra.ref_key, ra.network_id)
-
-        json_rs.append(tmp_rs)
-
+    json_rs = [JSONObject(rs) for rs in requested_rs]
 
     return json_rs
 
