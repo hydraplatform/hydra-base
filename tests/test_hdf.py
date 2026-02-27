@@ -1,3 +1,4 @@
+from io import StringIO
 from unittest.mock import patch
 import numpy as np
 import json
@@ -162,7 +163,7 @@ class TestHdf():
         for series_name, ranges in expected.items():
             for bounds, data in ranges.items():
                 df_json = hdf.get_columns_as_dataframe(public_aws_file["path"], columns=[series_name], start=bounds[0], end=bounds[1])
-                df = pd.read_json(df_json)
+                df = pd.read_json(StringIO(df_json))
                 for ts, val in data.items():
                     assert np.isclose(df[series_name][ts], val)
 
@@ -216,7 +217,7 @@ class TestHdf():
         for series_name, ranges in expected.items():
             for bounds, series in ranges.items():
                 df_json = client.get_hdf_columns_as_dataframe(public_aws_file["path"], groupname=None, columns=[series_name], start=bounds[0], end=bounds[1])
-                df = pd.read_json(df_json)
+                df = pd.read_json(StringIO(df_json))
                 for ts, val in series.items():
                     assert np.isclose(df[series_name][ts], val)
 
