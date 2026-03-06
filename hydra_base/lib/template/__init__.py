@@ -617,19 +617,19 @@ def update_template(template, auto_delete=False, **kwargs):
                                 should be deleted automatically. This flag is also
                                 used when updating the typeattrs of type. Defaults to False.
     """
-    tmpl = db.DBSession.query(Template).filter(Template.id == template.id).one()
-    tmpl.name = template.name
+    tmpl_i = db.DBSession.query(Template).filter(Template.id == template.id).one()
+    tmpl_i.name = template.name
 
     if template.status is not None:
-        tmpl.status = template.status
+        tmpl_i.status = template.status
 
     if template.description:
-        tmpl.description = template.description
+        tmpl_i.description = template.description
 
-    template_types = tmpl.get_types()
+    template_types = tmpl_i.get_types()
 
     if template.layout:
-        tmpl.layout = get_json_as_string(template.layout)
+        tmpl_i.layout = get_json_as_string(template.layout)
 
     type_dict = dict([(t.id, t) for t in template_types])
 
@@ -640,7 +640,7 @@ def update_template(template, auto_delete=False, **kwargs):
         types = template.types if template.types is not None else template.templatetypes
         for templatetype in types:
 
-            if templatetype.id is not None and templatetype.template_id != tmpl.id:
+            if templatetype.id is not None and templatetype.template_id != tmpl_i.id:
                 log.debug("Type %s is a part of a parent template. Ignoring.", templatetype.id)
                 req_templatetype_ids.append(type_i.id)
                 continue
@@ -662,9 +662,9 @@ def update_template(template, auto_delete=False, **kwargs):
 
     db.DBSession.flush()
 
-    updated_templatetypes = tmpl.get_types()
+    updated_templatetypes = tmpl_i.get_types()
 
-    tmpl_j = JSONObject(tmpl)
+    tmpl_j = JSONObject(tmpl_i)
 
     tmpl_j.templatetypes = updated_templatetypes
 
