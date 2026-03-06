@@ -134,20 +134,18 @@ def get_attributes_by_id(attr_ids, **kwargs):
 
 def get_template_attributes(template_id, **kwargs):
     """
-        Get a specific attribute by its ID.
+        Get all attributes linked to a template via template types.
     """
+    import hydra_base.lib.template as templatelib
+    template = templatelib.get_template(template_id, **kwargs)
+    attr_id_map = {}
 
-    try:
-        attrs_i = db.DBSession.query(Attr).filter(
-            TemplateType.template_id == template_id).filter(
-                TypeAttr.type_id == TemplateType.id).filter(
-                    Attr.id == TypeAttr.id).all()
-
-        log.debug(attrs_i)
-        return attrs_i
-    except NoResultFound:
-        return None
-
+    for tt in template.templatetypes:
+        for ta in tt.typeattrs:
+            attr_id_map[ta.attr_id] = ta.attr
+    attrs = list(attr_id_map.values())
+    log.info("Attributes linked to template %s: %s", template_id, len(attrs))
+    return [JSONObject(a) for a in attrs]
 
 def get_attribute_by_name_and_dimension(name, dimension_id=None, network_id=None, project_id=None, **kwargs):
     """
@@ -1158,6 +1156,7 @@ def get_all_network_attributes(network_id, template_id=None, **kwargs):
 
         args:
             network_id (int): The ID of the network containing the attributes
+            ref_key (str): An optional reference key to filter attributes
             template_id (int): A filter which will cause the function to
                                 return attributes associated to that template
 
@@ -1244,11 +1243,12 @@ def get_all_resource_attributes(ref_key, network_id, template_id=None, **kwargs)
     """
         Get all the resource attributes for a given resource type in the network.
         That includes all the resource attributes for a given type within the network.
-        For example, if the ref_key is 'NODE', then it will return all the attirbutes
+        For example, if the ref_key is 'NODE', then it will return all the attributes
         of all nodes in the network. This function allows a front end to pre-load an entire
         network's resource attribute information to reduce on function calls.
-        If type_id is specified, only
+        If template_id is specified, only
         return the resource attributes within the type.
+        NOTE: This uses discrete queries per resource type for performance reasons.
     """
 
     user_id = kwargs.get('user_id')
@@ -1256,24 +1256,41 @@ def get_all_resource_attributes(ref_key, network_id, template_id=None, **kwargs)
     net = _get_network(network_id)
     net.check_read_permission(user_id, do_raise=True)
 
-    resource_attr_qry = db.DBSession.query(ResourceAttr).\
-        outerjoin(Node, Node.id == ResourceAttr.node_id).\
-        outerjoin(Link, Link.id == ResourceAttr.link_id).\
-        outerjoin(ResourceGroup, ResourceGroup.id == ResourceAttr.group_id).filter(
-            ResourceAttr.ref_key == ref_key,
-            or_(
-                and_(ResourceAttr.node_id != None,
-                     ResourceAttr.node_id == Node.id,
-                     Node.network_id == network_id),
+    resource_attrs = []
 
-                and_(ResourceAttr.link_id != None,
-                     ResourceAttr.link_id == Link.id,
-                     Link.network_id == network_id),
+    if ref_key.upper() == 'NODE':
+        results = db.DBSession.query(ResourceAttr, Attr.name, Attr.id, Attr.description).\
+            join(Node, Node.id == ResourceAttr.node_id).\
+            join(Attr, Attr.id == ResourceAttr.attr_id).\
+            filter(
+                ResourceAttr.node_id != None,
+                Node.network_id == network_id).all()
+        resource_attrs = results
 
-                and_(ResourceAttr.group_id != None,
-                     ResourceAttr.group_id == ResourceGroup.id,
-                     ResourceGroup.network_id == network_id)
-            ))
+    elif ref_key.upper() == 'LINK':
+        results = db.DBSession.query(ResourceAttr, Attr.name, Attr.id, Attr.description).\
+            join(Link, Link.id == ResourceAttr.link_id).\
+            join(Attr, Attr.id == ResourceAttr.attr_id).\
+            filter(
+                ResourceAttr.link_id != None,
+                Link.network_id == network_id).all()
+        resource_attrs = results
+
+    elif ref_key.upper() == 'GROUP':
+        results = db.DBSession.query(ResourceAttr, Attr.name, Attr.id, Attr.description).\
+            join(ResourceGroup, ResourceGroup.id == ResourceAttr.group_id).\
+            join(Attr, Attr.id == ResourceAttr.attr_id).\
+            filter(
+                ResourceAttr.group_id != None,
+                ResourceGroup.network_id == network_id).all()
+        resource_attrs = results
+
+    elif ref_key.upper() == 'NETWORK':
+        results = db.DBSession.query(ResourceAttr, Attr.name, Attr.id, Attr.description).\
+            join(Attr, Attr.id == ResourceAttr.attr_id).\
+            filter(
+                ResourceAttr.network_id == network_id).all()
+        resource_attrs = results
 
     if template_id is not None:
         attr_ids = []
@@ -1284,11 +1301,18 @@ def get_all_resource_attributes(ref_key, network_id, template_id=None, **kwargs)
         for r in rs:
             attr_ids.append(r.attr_id)
 
-        resource_attr_qry = resource_attr_qry.filter(ResourceAttr.attr_id.in_(attr_ids))
+        resource_attrs = [ra for ra in resource_attrs if ra[0].attr_id in attr_ids]
 
-    resource_attrs = resource_attr_qry.all()
+    # Convert results to JSONObjects with attribute data included
+    result_objects = []
+    for ra in resource_attrs:
+        ra_obj = JSONObject(ra[0])  # ResourceAttr object
+        ra_obj.attr_id = ra[2]  # Attr.id
+        ra_obj.name = ra[1]  # Attr.name
+        ra_obj.description = ra[3]  # Attr.description
+        result_objects.append(ra_obj)
 
-    return resource_attrs
+    return result_objects
 
 def get_resource_attributes(ref_key, ref_id, type_id=None, **kwargs):
     """
