@@ -1259,54 +1259,63 @@ def get_all_resource_attributes(ref_key, network_id, template_id=None, **kwargs)
 
     ref_key_norm = ref_key.upper()
 
+    # If a template_id is provided, retrieve the relevant attr_ids up front
+    # so the filter can be applied at the SQL level in each query branch below.
+    attr_ids = None
+    if template_id is not None:
+        attr_ids = db.DBSession.query(TypeAttr.attr_id).join(
+            TemplateType,
+            TemplateType.id == TypeAttr.type_id).filter(
+                TemplateType.template_id == template_id).all()
+        attr_ids = [r.attr_id for r in attr_ids]
+        if not attr_ids:
+            return []
+
     if ref_key_norm == 'NODE':
-        results = db.DBSession.query(ResourceAttr, Attr.name, Attr.id, Attr.description).\
+        qry = db.DBSession.query(ResourceAttr, Attr.name, Attr.id, Attr.description).\
             join(Node, Node.id == ResourceAttr.node_id).\
             join(Attr, Attr.id == ResourceAttr.attr_id).\
             filter(
                 ResourceAttr.node_id != None,
                 Node.network_id == network_id,
-                ResourceAttr.ref_key == ref_key_norm).all()
-        resource_attrs = results
+                ResourceAttr.ref_key == ref_key_norm)
+        if attr_ids is not None:
+            qry = qry.filter(ResourceAttr.attr_id.in_(attr_ids))
+        resource_attrs = qry.all()
 
     elif ref_key_norm == 'LINK':
-        results = db.DBSession.query(ResourceAttr, Attr.name, Attr.id, Attr.description).\
+        qry = db.DBSession.query(ResourceAttr, Attr.name, Attr.id, Attr.description).\
             join(Link, Link.id == ResourceAttr.link_id).\
             join(Attr, Attr.id == ResourceAttr.attr_id).\
             filter(
                 ResourceAttr.link_id != None,
                 Link.network_id == network_id,
-                ResourceAttr.ref_key == ref_key_norm).all()
-        resource_attrs = results
+                ResourceAttr.ref_key == ref_key_norm)
+        if attr_ids is not None:
+            qry = qry.filter(ResourceAttr.attr_id.in_(attr_ids))
+        resource_attrs = qry.all()
 
     elif ref_key_norm == 'GROUP':
-        results = db.DBSession.query(ResourceAttr, Attr.name, Attr.id, Attr.description).\
+        qry = db.DBSession.query(ResourceAttr, Attr.name, Attr.id, Attr.description).\
             join(ResourceGroup, ResourceGroup.id == ResourceAttr.group_id).\
             join(Attr, Attr.id == ResourceAttr.attr_id).\
             filter(
                 ResourceAttr.group_id != None,
                 ResourceGroup.network_id == network_id,
-                ResourceAttr.ref_key == ref_key_norm).all()
-        resource_attrs = results
+                ResourceAttr.ref_key == ref_key_norm)
+        if attr_ids is not None:
+            qry = qry.filter(ResourceAttr.attr_id.in_(attr_ids))
+        resource_attrs = qry.all()
 
     elif ref_key_norm == 'NETWORK':
-        results = db.DBSession.query(ResourceAttr, Attr.name, Attr.id, Attr.description).\
+        qry = db.DBSession.query(ResourceAttr, Attr.name, Attr.id, Attr.description).\
             join(Attr, Attr.id == ResourceAttr.attr_id).\
             filter(
                 ResourceAttr.network_id == network_id,
-                ResourceAttr.ref_key == ref_key_norm).all()
-        resource_attrs = results
-
-    if template_id is not None:
-        attr_ids = []
-        rs = db.DBSession.query(TypeAttr).join(
-            TemplateType,
-            TemplateType.id == TypeAttr.type_id).filter(
-                TemplateType.template_id == template_id).all()
-        for r in rs:
-            attr_ids.append(r.attr_id)
-
-        resource_attrs = [ra for ra in resource_attrs if ra[0].attr_id in attr_ids]
+                ResourceAttr.ref_key == ref_key_norm)
+        if attr_ids is not None:
+            qry = qry.filter(ResourceAttr.attr_id.in_(attr_ids))
+        resource_attrs = qry.all()
 
     # Convert results to JSONObjects with attribute data included
     result_objects = []
