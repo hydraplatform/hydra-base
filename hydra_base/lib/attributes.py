@@ -1156,7 +1156,6 @@ def get_all_network_attributes(network_id, template_id=None, **kwargs):
 
         args:
             network_id (int): The ID of the network containing the attributes
-            ref_key (str): An optional reference key to filter attributes
             template_id (int): A filter which will cause the function to
                                 return attributes associated to that template
 
