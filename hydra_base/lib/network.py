@@ -2675,7 +2675,10 @@ def get_all_attributes_in_network(network_id, **kwargs):
     user_id = kwargs.get('user_id')
 
     #check the user can read the network
-    net = db.DBSession.query(Network).filter(Network.id == network_id).one()
+    try:
+        net = db.DBSession.query(Network).filter(Network.id == network_id).one()
+    except NoResultFound:
+        raise HydraError("Network %s not found" % (network_id,))
     net.check_read_permission(user_id)
 
     network_attr_ids = db.DBSession.query(ResourceAttr.attr_id.label('attr_id')).filter(
