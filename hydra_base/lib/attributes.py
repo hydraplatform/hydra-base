@@ -1259,15 +1259,13 @@ def get_all_resource_attributes(ref_key, network_id, template_id=None, **kwargs)
 
     ref_key_norm = ref_key.upper()
 
-    # If a template_id is provided, retrieve the relevant attr_ids up front
-    # so the filter can be applied at the SQL level in each query branch below.
+    # If a template_id is provided, resolve attr_ids via get_template() so that
+    # inherited type attributes (from parent templates/types) are included.
     attr_ids = None
     if template_id is not None:
-        attr_ids = db.DBSession.query(TypeAttr.attr_id).join(
-            TemplateType,
-            TemplateType.id == TypeAttr.type_id).filter(
-                TemplateType.template_id == template_id).all()
-        attr_ids = [r.attr_id for r in attr_ids]
+        import hydra_base.lib.template as templatelib
+        template = templatelib.get_template(template_id, **kwargs)
+        attr_ids = list({ta.attr_id for tt in template.templatetypes for ta in tt.typeattrs})
         if not attr_ids:
             return []
 
