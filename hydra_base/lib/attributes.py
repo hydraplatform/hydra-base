@@ -1257,38 +1257,44 @@ def get_all_resource_attributes(ref_key, network_id, template_id=None, **kwargs)
 
     resource_attrs = []
 
-    if ref_key.upper() == 'NODE':
+    ref_key_norm = ref_key.upper()
+
+    if ref_key_norm == 'NODE':
         results = db.DBSession.query(ResourceAttr, Attr.name, Attr.id, Attr.description).\
             join(Node, Node.id == ResourceAttr.node_id).\
             join(Attr, Attr.id == ResourceAttr.attr_id).\
             filter(
                 ResourceAttr.node_id != None,
-                Node.network_id == network_id).all()
+                Node.network_id == network_id,
+                ResourceAttr.ref_key == ref_key_norm).all()
         resource_attrs = results
 
-    elif ref_key.upper() == 'LINK':
+    elif ref_key_norm == 'LINK':
         results = db.DBSession.query(ResourceAttr, Attr.name, Attr.id, Attr.description).\
             join(Link, Link.id == ResourceAttr.link_id).\
             join(Attr, Attr.id == ResourceAttr.attr_id).\
             filter(
                 ResourceAttr.link_id != None,
-                Link.network_id == network_id).all()
+                Link.network_id == network_id,
+                ResourceAttr.ref_key == ref_key_norm).all()
         resource_attrs = results
 
-    elif ref_key.upper() == 'GROUP':
+    elif ref_key_norm == 'GROUP':
         results = db.DBSession.query(ResourceAttr, Attr.name, Attr.id, Attr.description).\
             join(ResourceGroup, ResourceGroup.id == ResourceAttr.group_id).\
             join(Attr, Attr.id == ResourceAttr.attr_id).\
             filter(
                 ResourceAttr.group_id != None,
-                ResourceGroup.network_id == network_id).all()
+                ResourceGroup.network_id == network_id,
+                ResourceAttr.ref_key == ref_key_norm).all()
         resource_attrs = results
 
-    elif ref_key.upper() == 'NETWORK':
+    elif ref_key_norm == 'NETWORK':
         results = db.DBSession.query(ResourceAttr, Attr.name, Attr.id, Attr.description).\
             join(Attr, Attr.id == ResourceAttr.attr_id).\
             filter(
-                ResourceAttr.network_id == network_id).all()
+                ResourceAttr.network_id == network_id,
+                ResourceAttr.ref_key == ref_key_norm).all()
         resource_attrs = results
 
     if template_id is not None:
