@@ -2661,6 +2661,46 @@ def get_all_resource_attributes_in_network(attr_id, network_id, include_resource
     return json_ra
 
 
+def get_all_attributes_in_network(network_id, **kwargs):
+    """
+        Find every attribute def (not resource attribute)
+        Args:
+            network_id (int): The ID of the network to search
+        Returns:
+            List of JSONObjects
+        Raises:
+            HydraError if the network_id does not exist
+    """
+
+    user_id = kwargs.get('user_id')
+
+    #check the user can read the network
+    try:
+        net = db.DBSession.query(Network).filter(Network.id == network_id).one()
+    except NoResultFound:
+        raise HydraError("Network %s not found" % (network_id,))
+    net.check_read_permission(user_id)
+
+    network_attr_ids = db.DBSession.query(ResourceAttr.attr_id.label('attr_id')).filter(
+        ResourceAttr.network_id == network_id
+    )
+    node_attr_ids = db.DBSession.query(ResourceAttr.attr_id.label('attr_id')).join(
+        Node, ResourceAttr.node_id == Node.id
+    ).filter(Node.network_id == network_id)
+    link_attr_ids = db.DBSession.query(ResourceAttr.attr_id.label('attr_id')).join(
+        Link, ResourceAttr.link_id == Link.id
+    ).filter(Link.network_id == network_id)
+    group_attr_ids = db.DBSession.query(ResourceAttr.attr_id.label('attr_id')).join(
+        ResourceGroup, ResourceAttr.group_id == ResourceGroup.id
+    ).filter(ResourceGroup.network_id == network_id)
+
+    all_attr_ids = network_attr_ids.union(node_attr_ids, link_attr_ids, group_attr_ids).subquery()
+
+    attrs = db.DBSession.query(Attr).join(all_attr_ids, Attr.id == all_attr_ids.c.attr_id).all()
+
+    return [JSONObject(a) for a in attrs]
+
+
 def get_all_resource_data(
         scenario_id,
         include_metadata=False,
