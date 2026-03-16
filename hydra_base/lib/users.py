@@ -21,7 +21,7 @@ from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm.exc import NoResultFound
 
 from .objects import JSONObject
-from ..db.model import User, Role, Perm, RoleUser, RolePerm
+from ..db.model import User, Role, Perm, RoleUser, RolePerm, OTPSecret
 from ..exceptions import ResourceNotFoundError, HydraError, HydraLoginUserNotFound
 from .. import db
 from .. import config
@@ -29,6 +29,12 @@ from ..util.permissions import required_perms
 
 import bcrypt
 import logging
+
+from typing import Dict
+
+from hydra_base.lib.otp.otp import (
+    make_user_secret_bundle
+)
 
 log = logging.getLogger(__name__)
 
@@ -184,6 +190,14 @@ def delete_user(deleted_user_id,**kwargs):
     """
     try:
         user_i = db.DBSession.query(User).filter(User.id==deleted_user_id).one()
+        try:
+            otp_entry = get_user_otp(deleted_user_id)
+        except ResourceNotFoundError:
+            # OTP not active for this user
+            pass
+        else:
+            # OTP must be deactivated before user deletion for FK constraint
+            deactivate_user_otp(deleted_user_id)
         db.DBSession.delete(user_i)
     except NoResultFound:
         raise ResourceNotFoundError("User (user_id=%s) does not exist"%(deleted_user_id))
@@ -592,3 +606,78 @@ def get_perm_by_code(perm_code,**kwargs):
         return perm
     except NoResultFound:
         raise ResourceNotFoundError("Permission not found (perm_code={})".format(perm_code))
+
+def get_user_otp(user_id: int, **kwargs) -> OTPSecret:
+    """
+        Retrieves OTP information for the specified <user_id> argument
+    """
+    try:
+        otp_entry = db.DBSession.query(OTPSecret).filter(OTPSecret.id==user_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError(f"No OTP info for user {user_id}")
+
+    return otp_entry
+
+def activate_user_otp(user_id: int, **kwargs) -> Dict[str, str]:
+    """
+        Generates TOTP information for the specified <user_id> argument.
+        Returns a dict consisting of the otp secret, otpauth:// string,
+        and a base64 encoded qr code.
+    """
+    user = _get_user(user_id)
+    otp_info = make_user_secret_bundle(user.username)
+    otp_entry = OTPSecret(user_id, otp_info["secret"])
+
+    db.DBSession.add(otp_entry)
+    db.DBSession.flush()
+
+    return otp_info
+
+def deactivate_user_otp(user_id: int, **kwargs) -> bool:
+    """
+        Removes the OTP entry for the specified <user_id> arg
+    """
+    try:
+        otp_entry = get_user_otp(user_id)
+    except ResourceNotFoundError:
+        return False
+
+    db.DBSession.delete(otp_entry)
+    db.DBSession.flush()
+
+    return True
+
+def user_has_otp(user_id: int, **kwargs) -> bool:
+    """
+        Does an OTP entry exist for the specified <user_id> arg?
+    """
+    try:
+        _ = db.DBSession.query(OTPSecret).filter(OTPSecret.id==user_id).one()
+    except NoResultFound:
+        return False
+
+    return True
+
+def reset_user_otp(user: User, do_create: bool=True, **kwargs) -> dict:
+    """
+        Regenerates any OTP secret for the specified user, incrementing
+        the entry's 'sequence' counter on each regeneration.
+        If the user does not have an OTP entry, one is created
+        if the <do_create> arg is True.
+    """
+    otp_info = make_user_secret_bundle(user.username)
+    try:
+        otp = db.DBSession.query(OTPSecret).filter(OTPSecret.id==user.id).one()
+    except NoResultFound:
+        if do_create:
+            otp = OTPSecret(user.id, otp_info["secret"])
+        else:
+            return {}
+    else:
+        otp.secret = otp_info["secret"]
+        otp.sequence += 1
+
+    db.DBSession.add(otp)
+    db.DBSession.flush()
+
+    return otp_info
