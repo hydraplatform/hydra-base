@@ -33,7 +33,7 @@ from ..util.permissions import required_perms
 from hydra_base.lib import template, attributes
 from ..db.model import Project, Network, Scenario, Node, Link, ResourceGroup,\
         ResourceAttr, Attr, ResourceType, ResourceGroupItem, Dataset, Metadata, DatasetOwner,\
-        ResourceScenario, TemplateType, TypeAttr, Template, NetworkOwner, User, Rule
+        ResourceScenario, TemplateType, TypeAttr, Template, NetworkOwner, User
 from sqlalchemy.orm import noload, joinedload
 from .. import db
 from sqlalchemy import func, and_, or_, distinct
@@ -721,38 +721,57 @@ def _get_all_resource_attributes(network_id, template_id=None, include_non_templ
         returns:
             A list of sqlalchemy result proxy objects
     """
-    base_qry = db.DBSession.query(
-                               ResourceAttr.id.label('id'),
-                               ResourceAttr.ref_key.label('ref_key'),
-                               ResourceAttr.cr_date.label('cr_date'),
-                               ResourceAttr.attr_is_var.label('attr_is_var'),
-                               ResourceAttr.node_id.label('node_id'),
-                               ResourceAttr.link_id.label('link_id'),
-                               ResourceAttr.group_id.label('group_id'),
-                               ResourceAttr.network_id.label('network_id'),
-                               ResourceAttr.attr_id.label('attr_id'),
-                               Attr.name.label('name'),
-                               Attr.dimension_id.label('dimension_id'),
-                              ).filter(Attr.id==ResourceAttr.attr_id)
+    start_time = time.time()
+    log.info("Getting all resource attributes using multiple smaller queries")
 
+    # Create the base query structure for reuse
+    def _create_base_query():
+        return db.DBSession.query(
+            ResourceAttr.id.label('id'),
+            ResourceAttr.ref_key.label('ref_key'),
+            ResourceAttr.cr_date.label('cr_date'),
+            ResourceAttr.attr_is_var.label('attr_is_var'),
+            ResourceAttr.node_id.label('node_id'),
+            ResourceAttr.link_id.label('link_id'),
+            ResourceAttr.group_id.label('group_id'),
+            ResourceAttr.network_id.label('network_id'),
+            ResourceAttr.attr_id.label('attr_id'),
+            Attr.name.label('name'),
+            Attr.dimension_id.label('dimension_id'),
+        ).filter(Attr.id==ResourceAttr.attr_id)
 
-    all_node_attribute_qry = base_qry.join(Node).filter(Node.network_id == network_id)
+    # Execute separate queries for each resource type
+    all_resource_attributes = []
 
-    all_link_attribute_qry = base_qry.join(Link).filter(Link.network_id == network_id)
+    # Query 1: Node attributes
+    node_start = time.time()
+    node_qry = _create_base_query().filter(ResourceAttr.node_id != None).join(Node).filter(Node.network_id == network_id)
+    node_attributes = node_qry.all()
+    log.info("Node attributes: %s retrieved in %s", len(node_attributes), time.time()-node_start)
+    all_resource_attributes.extend(node_attributes)
 
-    all_group_attribute_qry = base_qry.join(ResourceGroup)\
-            .filter(ResourceGroup.network_id == network_id)
+    # Query 2: Link attributes
+    link_start = time.time()
+    link_qry = _create_base_query().filter(ResourceAttr.link_id != None).join(Link).filter(Link.network_id == network_id)
+    link_attributes = link_qry.all()
+    log.info("Link attributes: %s retrieved in %s", len(link_attributes), time.time()-link_start)
+    all_resource_attributes.extend(link_attributes)
 
-    network_attribute_qry = base_qry.filter(ResourceAttr.network_id == network_id)
+    # Query 3: Group attributes
+    group_start = time.time()
+    group_qry = _create_base_query().filter(ResourceAttr.group_id != None).join(ResourceGroup).filter(ResourceGroup.network_id == network_id)
+    group_attributes = group_qry.all()
+    log.info("Group attributes: %s retrieved in %s", len(group_attributes), time.time()-group_start)
+    all_resource_attributes.extend(group_attributes)
 
+    # Query 4: Network attributes
+    network_start = time.time()
+    network_qry = _create_base_query().filter(ResourceAttr.network_id != None).filter(ResourceAttr.network_id == network_id)
+    network_attributes = network_qry.all()
+    log.info("Network attributes: %s retrieved in %s", len(network_attributes), time.time()-network_start)
+    all_resource_attributes.extend(network_attributes)
 
-    x = time.time()
-    logging.info("Getting all attributes using execute")
-    attribute_qry = all_node_attribute_qry.union(all_link_attribute_qry,
-                                                 all_group_attribute_qry,
-                                                 network_attribute_qry)
-    all_resource_attributes = attribute_qry.all()
-    log.info("%s attrs retrieved in %s", len(all_resource_attributes), time.time()-x)
+    log.info("Total %s attrs retrieved in %s", len(all_resource_attributes), time.time()-start_time)
 
     logging.info("Attributes retrieved. Processing results...")
     x = time.time()
@@ -2613,22 +2632,12 @@ def get_all_resource_attributes_in_network(attr_id, network_id, include_resource
     except NoResultFound:
         raise HydraError("Attribute %s not found"%(attr_id,))
 
-    ra_qry = db.DBSession.query(ResourceAttr).filter(
-        ResourceAttr.attr_id == attr_id,
-        or_(Network.id == network_id,
-            Node.network_id == network_id,
-            Link.network_id == network_id,
-            ResourceGroup.network_id == network_id)
-        ).outerjoin(ResourceAttr.node)\
-        .outerjoin(ResourceAttr.link)\
-        .outerjoin(ResourceAttr.network)\
-        .outerjoin(ResourceAttr.resourcegroup)\
-        .options(joinedload(ResourceAttr.node))\
-        .options(joinedload(ResourceAttr.link))\
-        .options(joinedload(ResourceAttr.resourcegroup))\
-        .options(joinedload(ResourceAttr.network))
-
-    resourceattrs = ra_qry.all()
+    querystub = db.DBSession.query(ResourceAttr).filter(ResourceAttr.attr_id == attr_id)
+    network_ra_rs = querystub.filter(ResourceAttr.network_id == network_id).all()
+    node_ra_rs = querystub.join(Node).filter(Node.network_id == network_id).all()
+    link_ra_rs = querystub.join(Link).filter(Link.network_id == network_id).all()
+    group_ra_rs = querystub.join(ResourceGroup).filter(ResourceGroup.network_id == network_id).all()
+    resourceattrs = network_ra_rs + node_ra_rs + link_ra_rs + group_ra_rs
 
     json_ra = []
     #Load the metadata too
@@ -2650,6 +2659,46 @@ def get_all_resource_attributes_in_network(attr_id, network_id, include_resource
         json_ra.append(ra_j)
 
     return json_ra
+
+
+def get_all_attributes_in_network(network_id, **kwargs):
+    """
+        Find every attribute def (not resource attribute)
+        Args:
+            network_id (int): The ID of the network to search
+        Returns:
+            List of JSONObjects
+        Raises:
+            HydraError if the network_id does not exist
+    """
+
+    user_id = kwargs.get('user_id')
+
+    #check the user can read the network
+    try:
+        net = db.DBSession.query(Network).filter(Network.id == network_id).one()
+    except NoResultFound:
+        raise HydraError("Network %s not found" % (network_id,))
+    net.check_read_permission(user_id)
+
+    network_attr_ids = db.DBSession.query(ResourceAttr.attr_id.label('attr_id')).filter(
+        ResourceAttr.network_id == network_id
+    )
+    node_attr_ids = db.DBSession.query(ResourceAttr.attr_id.label('attr_id')).join(
+        Node, ResourceAttr.node_id == Node.id
+    ).filter(Node.network_id == network_id)
+    link_attr_ids = db.DBSession.query(ResourceAttr.attr_id.label('attr_id')).join(
+        Link, ResourceAttr.link_id == Link.id
+    ).filter(Link.network_id == network_id)
+    group_attr_ids = db.DBSession.query(ResourceAttr.attr_id.label('attr_id')).join(
+        ResourceGroup, ResourceAttr.group_id == ResourceGroup.id
+    ).filter(ResourceGroup.network_id == network_id)
+
+    all_attr_ids = network_attr_ids.union(node_attr_ids, link_attr_ids, group_attr_ids).subquery()
+
+    attrs = db.DBSession.query(Attr).join(all_attr_ids, Attr.id == all_attr_ids.c.attr_id).all()
+
+    return [JSONObject(a) for a in attrs]
 
 
 def get_all_resource_data(
@@ -2896,13 +2945,9 @@ def clone_network(network_id,
                                        include_outputs=include_outputs,
                                        scenario_ids=scenario_ids)
 
-    _clone_rules(
+    _clone_network_rules(
         network_id,
         newnetworkid,
-        node_id_map,
-        link_id_map,
-        group_id_map,
-        scenario_id_map,
         user_id)
 
 
@@ -3149,59 +3194,20 @@ def _clone_node(
 
     log.info("Inserting new resource scenarios")
     db.DBSession.bulk_insert_mappings(ResourceScenario, new_rscens)
-
-    log.info("Cloning rules")
-    node_rules = db.DBSession.query(Rule).join(Node).filter(
-        Node.id==node_id).all()
-    for node_rule in node_rules:
-        rules.clone_rule(node_rule.id,
-                         target_ref_key='NODE',
-                         target_ref_id=newnode.id,
-                         user_id=user_id)
-
     db.DBSession.flush()
 
     log.info("Node clone complete. New node ID is %s", newnode.id)
 
     return newnode.id
 
-def _clone_rules(old_network_id, new_network_id, node_id_map, link_id_map, group_id_map, scenario_id_map, user_id):
+def _clone_network_rules(old_network_id, new_network_id, user_id):
     """
     """
     rules.clone_resource_rules('NETWORK',
                                old_network_id,
                                target_ref_key='NETWORK',
                                target_ref_id=new_network_id,
-                               scenario_id_map=scenario_id_map,
                                user_id=user_id)
-
-    node_rules = db.DBSession.query(Rule).join(Node).filter(Node.network_id==old_network_id).all()
-    for node_rule in node_rules:
-        rules.clone_rule(node_rule.id,
-                         target_ref_key='NODE',
-                         target_ref_id=node_id_map[node_rule.node_id],
-                         scenario_id_map=scenario_id_map,
-                         user_id=user_id)
-
-    link_rules = db.DBSession.query(Rule).join(Link).filter(Link.network_id==old_network_id).all()
-
-    for link_rule in link_rules:
-        rules.clone_rule(link_rule.id,
-                         target_ref_key='LINK',
-                         target_ref_id=link_id_map[link_rule.link_id],
-                         scenario_id_map=scenario_id_map,
-                         user_id=user_id)
-
-    group_rules = db.DBSession.query(Rule).join(ResourceGroup).filter(ResourceGroup.network_id==old_network_id).all()
-
-    for group_rule in group_rules:
-        rules.clone_rule(group_rule.id,
-                         group_rule.node_id,
-                         target_ref_key='GROUP',
-                         target_ref_id=group_id_map[group_rule.group_id],
-                         scenario_id_map=scenario_id_map,
-                         user_id=user_id)
-
 
 def _clone_nodes(old_network_id, new_network_id, user_id):
 
@@ -3230,7 +3236,6 @@ def _clone_nodes(old_network_id, new_network_id, user_id):
     #map old IDS to new IDS
 
     nodes = db.DBSession.query(Node).filter(Node.network_id==new_network_id).all()
-
 
     for n in nodes:
         old_node_id = old_node_name_map[n.name]

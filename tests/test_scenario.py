@@ -35,6 +35,14 @@ class TestScenario:
             Introduced as the JSONObject wrapper can be controlled more easily
         """
         return JSONObject(client.get_scenario(scenario_id, get_parent_data=get_parent_data))
+
+    def get_scenarios(self, scenario_ids, get_parent_data=False):
+        """
+            Utility function wrapper for a function that's called regularly
+            Introduced as the JSONObject wrapper can be controlled more easily
+        """
+        return JSONObject(client.get_scenarios(scenario_ids))
+
     def get_scenario_data(self, scenario_id, get_parent_data=False):
         """
             Utility function wrapper for a function that's called regularly
@@ -66,6 +74,21 @@ class TestScenario:
         scenario_no_groupitems = client.get_scenario(scenario.id, include_group_items=False)
         assert len(scenario_no_groupitems.resourcescenarios) == len(scenario.resourcescenarios)
         assert scenario_no_groupitems.resourcegroupitems == []
+
+    def test_get_scenarios(self, client, network_with_data):
+        """
+            Test to get the scenarios attached to a dataset
+        """
+
+        network = network_with_data
+
+        #Create the new scenario
+        scenario = network.scenarios[0]
+
+        scenarios_retrieved = client.get_scenarios([scenario.id])
+
+        assert len(scenarios_retrieved) == 1
+        assert scenarios_retrieved[0].id == scenario.id
 
     def test_get_scenario_by_name(self, client, network_with_data):
         """
@@ -641,8 +664,6 @@ class TestScenario:
 
         assert len(scen_1_resourcegroupitems) == len(scen_2_resourcegroupitems)
 
-        return updated_network
-
     def test_get_inherited_data(self, client, network_with_child_scenario):
 
         network = network_with_child_scenario
@@ -992,8 +1013,6 @@ class TestScenario:
 
         assert len(scenario_diff.groups.scenario_2_items) == 1, "Group comparison was not successful!"
         assert scenario_diff.groups.scenario_1_items == [], "Group comparison was not successful!"
-
-        return updated_network
 
     def test_purge_scenario(self, client, network_with_data):
 
