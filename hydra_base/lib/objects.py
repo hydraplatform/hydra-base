@@ -49,7 +49,7 @@ class JSONObject(dict):
         Pass in a nested dictionary, a SQLAlchemy object or a JSON string.
     """
     def __init__(self, obj_dict={}, parent=None, extras={}, normalize=True):
-        
+
         if normalize:
             obj = self.normalise_input(obj_dict)
         else:
@@ -57,6 +57,12 @@ class JSONObject(dict):
 
         for k in obj:
             v = obj[k]
+
+            # Preserve tuples as keys of dictionaries
+            if isinstance(k, tuple):
+                self[k] = v
+                continue
+
             if k == "value_ref":
                 continue
 
@@ -146,6 +152,7 @@ class JSONObject(dict):
                     v = six.text_type(v)
 
                 self[six.text_type(k)] = v
+
 
         for k, v in extras.items():
             self[k] = v

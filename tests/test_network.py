@@ -167,6 +167,69 @@ class TestNetwork:
         #Find the attribute that ALL nodes have.
         assert len(all_network_resource_attrs) == len(network_with_data.nodes)
 
+    def test_get_all_attributes_in_network(self, client, network_with_data):
+        """
+            Test that get_all_attributes_in_network returns unique attribute
+            definitions (not resource attributes) for all resource types in the
+            network: network-level, nodes, links, and groups.
+        """
+        net = network_with_data
+
+        all_attrs = client.get_all_attributes_in_network(net.id)
+
+        assert len(all_attrs) > 0
+
+        # Collect all attr_ids actually used across every resource type in the network
+        expected_attr_ids = set()
+        for ra in net.attributes:
+            expected_attr_ids.add(ra.attr_id)
+        for node in net.nodes:
+            for ra in node.attributes:
+                expected_attr_ids.add(ra.attr_id)
+        for link in net.links:
+            for ra in link.attributes:
+                expected_attr_ids.add(ra.attr_id)
+        for group in net.resourcegroups:
+            for ra in group.attributes:
+                expected_attr_ids.add(ra.attr_id)
+
+        returned_attr_ids = {a.id for a in all_attrs}
+
+        # Every attribute used in the network should be in the result
+        assert expected_attr_ids == returned_attr_ids
+
+    def test_get_all_attributes_in_network_deduplication(self, client, network_with_data):
+        """
+            Test that get_all_attributes_in_network de-duplicates attribute
+            definitions that appear on multiple resources (e.g. the same attr_id
+            shared by all nodes or shared between links and groups).
+        """
+        net = network_with_data
+
+        all_attrs = client.get_all_attributes_in_network(net.id)
+
+        # Each attribute definition must appear exactly once
+        returned_ids = [a.id for a in all_attrs]
+        assert len(returned_ids) == len(set(returned_ids)), (
+            "Duplicate attribute IDs found in get_all_attributes_in_network result"
+        )
+
+    def test_get_all_attributes_in_network_permissions(self, client, projectmaker, networkmaker):
+        """
+            Test that a user without read permission on the network cannot call
+            get_all_attributes_in_network.
+        """
+        # Create a project that is NOT shared with other users
+        private_proj = projectmaker.create(name=None, share=False)
+        net = networkmaker.create(project_id=private_proj.id)
+
+        # UserD has not been granted access to this private network/project
+        client.login('UserD', 'password')
+        try:
+            with pytest.raises(hb.exceptions.HydraError):
+                client.get_all_attributes_in_network(net.id)
+        finally:
+            client.login('root', '')
 
     def test_get_network_1(self, client, networkmaker):
         """

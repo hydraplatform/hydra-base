@@ -39,7 +39,6 @@ log = logging.getLogger(__name__)
 def _get_project(project_id, user_id, check_write=False):
     try:
         project_i = db.DBSession.query(Project).filter(Project.id == project_id).options(noload(Project.children)).one()
-
         if check_write is True:
             project_i.check_write_permission(user_id)
         else:
@@ -485,11 +484,14 @@ def get_project_attribute_data(project_id, **kwargs):
 @required_perms('delete_project')
 def set_project_status(project_id, status, **kwargs):
     """
-        Set the status of a project to 'X'
+        Set the status of a project to 'X' or 'A'
     """
     user_id = kwargs.get('user_id')
     project = _get_project(project_id, user_id, check_write=True)
     project.status = status
+    if status.lower() == 'x':
+        #delete the project from the cache
+        project.remove_from_cache()
     db.DBSession.flush()
 
 @required_perms('edit_project', 'delete_project')

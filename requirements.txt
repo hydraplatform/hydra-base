@@ -17,8 +17,6 @@ numpy
 packaging
 pandas
 psycopg2-binary
-pudb
-pylibmc
 pymongo
 python-dateutil
 requests

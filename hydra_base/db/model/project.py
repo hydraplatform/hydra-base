@@ -77,23 +77,21 @@ class Project(Base, Inspect, PermissionControlled):
 
         log.debug("Getting networks for project %s", self.id)
 
+        visible_networks = []
         networks = []
-        networks_not_creator = []
 
         if self.is_owner(user_id):
             #all networks in the project, as the user owns the project
-            networks_not_creator = get_session().query(Network)\
+            visible_networks = get_session().query(Network)\
                 .filter(Network.project_id == self.id).all()
         else:
-            #all networks created by someone else, but which this user is an owner,
-            #and this user can read this network
-            networks_not_creator = get_session().query(Network).join(NetworkOwner)\
+            #all the network in the project, which the requesting user is the owner of.
+            visible_networks = get_session().query(Network).join(NetworkOwner)\
                 .filter(Network.project_id == self.id)\
-                .filter(Network.created_by != user_id)\
                 .filter(NetworkOwner.user_id == user_id)\
                 .filter(NetworkOwner.view == 'Y').all()
 
-        all_network_ids = [n.id for n in networks_not_creator]
+        all_network_ids = [n.id for n in visible_networks]
 
         #for efficiency, get all the owners in 1 query and sort them by network
         all_owners = get_session().query(NetworkOwner)\
@@ -113,7 +111,7 @@ class Project(Base, Inspect, PermissionControlled):
         for netscenario in all_scenarios:
             scenarios_by_network[netscenario.network_id].append(netscenario)
 
-        for net_i in networks_not_creator:
+        for net_i in visible_networks:
 
             if include_deleted_networks is False and net_i.status.lower() == 'x':
                 continue
@@ -243,10 +241,18 @@ class Project(Base, Inspect, PermissionControlled):
     """
     @classmethod
     def get_cache(cls, user_id=None):
-        if user_id is None:
-            return cache.get(project_cache_key, {})
-        else:
-            return cache.get(project_cache_key, {}).get(user_id, {})
+        try:
+            if user_id is None:
+                return cache.get(project_cache_key, {})
+            else:
+                return cache.get(project_cache_key, {}).get(user_id, {})
+        except Exception as e:
+            log.exception(e)
+            err_value = cache.get(project_cache_key, {})
+            if type(err_value) is dict:
+                err_value = err_value.get(user_id)
+            log.warning(f"Error to get project cache: {project_cache_key}, user_id={user_id}, err_value={err_value}")
+            return {}
 
     @classmethod
     def set_cache(cls, data):
@@ -340,6 +346,16 @@ class Project(Base, Inspect, PermissionControlled):
                 parent_project_ids.append(p.parent_id)
 
         cls._build_user_cache_up_tree(uid, parent_project_ids, project_user_cache)
+
+
+    def remove_from_cache(self):
+        """Remove this project from the cache of all users who can see it"""
+        projectcache = cache.get(project_cache_key, {})
+        for uid, user_projects in projectcache.items():
+            for parent_id, child_projects in user_projects.items():
+                if self.id in child_projects:
+                    child_projects.remove(self.id)
+        cache.set(project_cache_key, projectcache)
 
     def get_attribute_data(self):
         attribute_data_rs = get_session().query(ResourceScenario).join(ResourceAttr).filter(
