@@ -7,6 +7,8 @@ import qrcode
 
 from typing import Dict
 
+from hydra_base import config
+
 SECRET_BYTE_LENGTH = 20
 
 
@@ -53,7 +55,8 @@ def make_user_secret_bundle(username: str) -> Dict[str, str]:
       for a user to configure their Authenticator of choice to generate codes.
     """
     secret = gen_secret()
-    uri = pyotp.TOTP(secret).provisioning_uri(username, issuer_name="hydra.org")
+    issuer = config.get("otp", "issuer", "hydra.org")
+    uri = pyotp.TOTP(secret).provisioning_uri(username, issuer_name=issuer)
     img_url = make_data_image_url(uri)
 
     return {
