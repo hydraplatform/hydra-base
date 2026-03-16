@@ -32,7 +32,7 @@ from sqlalchemy.orm import load_only
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 from ..lib.objects import JSONObject
 from ..lib.users import get_remaining_login_attempts, inc_failed_login_attempts, get_user_otp
-from hydra_base.lib.otp.otp import totp
+import pyotp
 
 log = logging.getLogger(__name__)
 
@@ -176,12 +176,10 @@ def login_user(username, password):
 def verify_otp(user_id, user_code):
     """
         1. Get user secret
-        2. Calculate TOTP for current window
-        3. Compare calculated code to user-submitted code
+        2. Verify TOTP code for current window (with ±1 window tolerance)
     """
     otp = get_user_otp(user_id)
-    calc_code = totp(otp.secret)
-    if user_code != calc_code:
+    if not pyotp.TOTP(otp.secret).verify(user_code, valid_window=1):
         raise HydraLoginInvalidOTP(user_id)
 
     return user_id

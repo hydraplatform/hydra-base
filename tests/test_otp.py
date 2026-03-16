@@ -23,6 +23,8 @@ min_lib_versions = {
     "cryptography": version.parse("40.0.0")
 }
 
+pyotp_min_version = version.parse("2.9.0")
+
 otp_user_id = None
 
 @pytest.fixture
@@ -59,9 +61,11 @@ class TestTOP():
           Are the required libraries present and adequate versions?
         """
         import importlib
+        import importlib.metadata
         for libname, semver in min_lib_versions.items():
             lib = importlib.import_module(libname)
             assert version.parse(lib.__version__) >= semver
+        assert version.parse(importlib.metadata.version("pyotp")) >= pyotp_min_version
 
     def test_add_user(self, client, user_json_object):
         """

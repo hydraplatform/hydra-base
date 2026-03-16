@@ -21,6 +21,7 @@ psycopg2-binary
 pudb
 pylibmc
 pymongo
+pyotp
 python-dateutil
 requests
 s3fs
