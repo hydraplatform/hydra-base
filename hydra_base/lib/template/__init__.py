@@ -1228,6 +1228,9 @@ def clone_templatetype(type_id, name=None, **kwargs):
     db.DBSession.add(cloned_templatetype)
     db.DBSession.flush()  # Flush to get the ID
 
+    #clear the template cache
+    _remove_template_from_cache(cloned_templatetype.template_id)
+
     return cloned_templatetype
 
 @required_perms("get_template")
