@@ -786,7 +786,7 @@ def compare_scenarios(scenario_id_1, scenario_id_2, allow_different_networks=Fal
         s2_rs = r_scen_2_dict.get(ra_id)
         if s2_rs is not None:
             log.debug("Is %s == %s?"%(s1_rs.dataset_id, s2_rs.dataset_id))
-            if s1_rs.dataset_id != s2_rs.dataset_id:
+            if s1_rs.dataset.value != s2_rs.dataset.value:
                 resource_diff = dict(
                     resource_attr_id = s1_rs.resource_attr_id,
                     scenario_1_dataset = s1_rs.dataset,
