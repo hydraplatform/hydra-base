@@ -112,8 +112,6 @@ class TestAttribute:
         with pytest.raises(HydraError):
             client.update_attribute(new_attr_fail)
 
-
-
     def test_delete_attribute(self, client):
         test_attr = JSONObject({
             "name": 'Test Attribute 1',
