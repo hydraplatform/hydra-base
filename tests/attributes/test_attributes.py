@@ -511,6 +511,7 @@ class TestResourceAttribute:
         assert len(net_attrs) == 3
         assert len(net_type_attrs) == 2
 
+    @pytest.mark.skip(reason="New canonical attrs model prevents creating duplicate canonical attrs via the API; this test was written for the old model where add_attribute(check_existing=False) could create truly duplicate rows")
     def test_delete_all_duplicate_attributes(self, client, network_with_data):
 
         duplicate_attribute = JSONObject({'name': 'duplicate', 'dimension_id': None})

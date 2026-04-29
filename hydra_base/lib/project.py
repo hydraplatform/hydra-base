@@ -25,7 +25,7 @@ from sqlalchemy.orm import noload, joinedload
 
 from ..util import hdb
 from ..exceptions import PermissionError, HydraError
-from ..db.model import Project, ProjectOwner, Network, NetworkOwner, User, Attr
+from ..db.model import Project, ProjectOwner, Network, NetworkOwner, User, Attr, AttrScope
 from .. import db
 from . import network
 from .objects import JSONObject
@@ -629,15 +629,19 @@ def clone_project(project_id,
                               project_id=new_project.id,
                               user_id=user_id)
 
-    project_attributes = db.DBSession.query(Attr).filter(Attr.project_id==project_id).all()
+    from sqlalchemy import and_
+    project_attributes = db.DBSession.query(Attr).join(
+        AttrScope,
+        and_(Attr.id == AttrScope.attr_id, AttrScope.scope == 'project')
+    ).filter(AttrScope.project_id == project_id).all()
 
     for pa in project_attributes:
-        newpa = Attr()
-        newpa.name = pa.name
-        newpa.dimension_id = pa.dimension_id
-        newpa.description = pa.description
-        newpa.project_id = new_project.id
-        db.DBSession.add(newpa)
+        new_scope = AttrScope(
+            attr_id=pa.id,
+            scope='project',
+            project_id=new_project.id
+        )
+        db.DBSession.add(new_scope)
 
     db.DBSession.flush()
 

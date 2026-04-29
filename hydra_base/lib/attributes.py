@@ -30,6 +30,7 @@ from sqlalchemy.exc import IntegrityError
 from zope.sqlalchemy import mark_changed
 
 from ..db.model import Attr,\
+        AttrScope,\
         User,\
         Node,\
         Link,\
@@ -60,6 +61,127 @@ from .objects import JSONObject
 from .cache import cache
 
 log = logging.getLogger(__name__)
+
+
+# ===== Helper functions for working with AttrScope =====
+
+def _get_scoped_attributes(scope, project_id=None, network_id=None, name_filter=None):
+    """
+    Get all attributes at a specific scope.
+
+    args:
+        scope: 'global', 'project', or 'network'
+        project_id: project ID (required if scope='project')
+        network_id: network ID (required if scope='network')
+        name_filter: optional list of (name.lower(), dimension_id) tuples to filter
+
+    returns:
+        list of Attr ORM objects
+    """
+    if scope == 'global':
+        # Global attributes are those with no AttrScope entries
+        query = db.DBSession.query(Attr).filter(
+            ~Attr.scopes.any()
+        )
+    elif scope == 'project':
+        # Project-scoped attributes have AttrScope with scope='project'
+        query = db.DBSession.query(Attr).join(
+            AttrScope,
+            and_(Attr.id == AttrScope.attr_id, AttrScope.scope == 'project')
+        ).filter(AttrScope.project_id == project_id)
+    elif scope == 'network':
+        # Network-scoped attributes have AttrScope with scope='network'
+        query = db.DBSession.query(Attr).join(
+            AttrScope,
+            and_(Attr.id == AttrScope.attr_id, AttrScope.scope == 'network')
+        ).filter(AttrScope.network_id == network_id)
+    else:
+        raise HydraError(f"Invalid scope: {scope}")
+
+    # Apply name filter if provided
+    if name_filter:
+        name_dim_conditions = [
+            and_(func.lower(Attr.name) == name, Attr.dimension_id == dim)
+            for name, dim in name_filter
+        ]
+        query = query.filter(or_(*name_dim_conditions))
+
+    return query.all()
+
+
+def _create_attr_scope(attr_id, scope, project_id=None, network_id=None):
+    """
+    Create an AttrScope entry to link an attribute to a scope.
+
+    args:
+        attr_id: ID of the attribute
+        scope: 'project' or 'network' (not 'global')
+        project_id: project ID (required if scope='project')
+        network_id: network ID (required if scope='network')
+
+    returns:
+        AttrScope ORM object
+    """
+    if scope == 'global':
+        raise HydraError("Cannot create AttrScope for global scope; global attributes have no scope entry")
+
+    scope_entry = AttrScope(
+        attr_id=attr_id,
+        scope=scope,
+        project_id=project_id if scope == 'project' else None,
+        network_id=network_id if scope == 'network' else None
+    )
+    db.DBSession.add(scope_entry)
+    return scope_entry
+
+
+def _get_canonical_attr_by_name_and_dimension(name, dimension_id):
+    """
+    Get the canonical (global) attribute by name and dimension.
+    Returns only truly global attributes (those with no AttrScope entries).
+
+    args:
+        name: attribute name (case-insensitive)
+        dimension_id: dimension ID (can be None)
+
+    returns:
+        Attr ORM object or None
+    """
+    try:
+        attr = db.DBSession.query(Attr).filter(
+            func.lower(Attr.name) == name.lower(),
+            Attr.dimension_id == dimension_id,
+            ~Attr.scopes.any()  # No scope entries = global
+        ).one()
+        return attr
+    except NoResultFound:
+        return None
+
+
+def _get_or_create_canonical_attr(name, dimension_id, description=None):
+    """
+    Get an existing canonical attribute or create a new one.
+
+    args:
+        name: attribute name
+        dimension_id: dimension ID (can be None)
+        description: optional description
+
+    returns:
+        Attr ORM object
+    """
+    existing = _get_canonical_attr_by_name_and_dimension(name, dimension_id)
+    if existing:
+        return existing
+
+    # Create new canonical attribute
+    attr = Attr(
+        name=name,
+        dimension_id=dimension_id,
+        description=description
+    )
+    db.DBSession.add(attr)
+    return attr
 
 
 def _get_network(network_id):
@@ -111,6 +233,19 @@ def _get_resource_id(ra):
     elif ref_key == 'PROJECT':
         return ra.project_id
 
+def _attr_json_with_scope(attr_orm):
+    """Create JSONObject from Attr ORM with scope info (network_id, project_id) attached."""
+    j = JSONObject(attr_orm)
+    j.network_id = None
+    j.project_id = None
+    for scope in attr_orm.scopes:
+        if scope.scope == 'network':
+            j.network_id = scope.network_id
+        elif scope.scope == 'project':
+            j.project_id = scope.project_id
+    return j
+
+
 def get_attribute_by_id(attr_id, **kwargs):
     """
         Get a specific attribute by its ID.
@@ -120,7 +255,7 @@ def get_attribute_by_id(attr_id, **kwargs):
     except NoResultFound:
         raise ResourceNotFoundError("Attribute (attribute id=%s) does not exist"%(attr_id))
 
-    return attr_i
+    return _attr_json_with_scope(attr_i)
 
 def get_attributes_by_id(attr_ids, **kwargs):
     """
@@ -149,34 +284,24 @@ def get_template_attributes(template_id, **kwargs):
 
 def get_attribute_by_name_and_dimension(name, dimension_id=None, network_id=None, project_id=None, **kwargs):
     """
-        Get all attributes with the specified name and dimension, irrespective of
-        scoping.
-        dimension_id can be None, because in attribute the dimension_id is not anymore mandatory
-        args:
-            name (str): The name of the attribute. Lower() is called on this for comparison, so this
-                        is case-insensitive
-            dimension_id (int): the ID of the dimension of the attribute
-        returns:
-            list: JSONObjects derived from the Sqlalchemy rows.
+    Get attribute by name and dimension (simplified for canonical attributes).
+
+    With Option D, only returns canonical (global) attributes.
+    The network_id and project_id parameters are ignored (kept for backward compatibility).
+
+    args:
+        name: attribute name (case-insensitive)
+        dimension_id: dimension ID (can be None)
+        network_id: ignored (kept for backward compat)
+        project_id: ignored (kept for backward compat)
+
+    returns:
+        Attr ORM object or None
     """
+    log.info("Retrieving attribute with name %s and dimension %s", name, dimension_id)
 
-    log.info("Retrieving all attributes with name %s and dimension %s (network_id=%s) (project_id=%s)", name, dimension_id, network_id, project_id)
-    try:
-        attr_qry = db.DBSession.query(Attr).filter(
-            and_(
-                func.lower(Attr.name) == name.strip().lower(),
-                Attr.dimension_id == dimension_id,
-                Attr.network_id == network_id,
-                Attr.project_id == project_id
-            )
-        )
-
-        attr_i = attr_qry.first()
-
-        log.debug("Attribute retrieved")
-        return attr_i
-    except NoResultFound:
-        return None
+    # Query only canonical attributes (those with no scope entries)
+    return _get_canonical_attr_by_name_and_dimension(name, dimension_id)
 
 def search_attributes(name, network_id=None, project_id=None, **kwargs):
     """
@@ -213,8 +338,8 @@ def search_attributes(name, network_id=None, project_id=None, **kwargs):
         #so if there is a 'cost' which is scoped, then all 'cost' (regardless of dimension) can be ignored.
         global_attrs_i = db.DBSession.query(Attr).filter(
             func.lower(Attr.name).like(f'%{name}%'),
-            Attr.network_id==None,
-            Attr.project_id==None).all()
+            ~Attr.scopes.any()
+        ).all()
 
         for a in global_attrs_i:
             if a.name not in attrs_dict:
@@ -235,206 +360,155 @@ def search_attributes(name, network_id=None, project_id=None, **kwargs):
 
 def _add_attribute(attr, user_id, flush=True, do_reassign=False):
     """
-    Add an attribute to the DB
+    Add an attribute to the DB (simplified for canonical attributes).
+
+    With Option D, this creates or updates a canonical attribute and optionally creates a scope entry.
+
     args:
-        attr: A JSONObject representing the attr
+        attr: A JSONObject representing the attr with fields: name, dimension_id, description,
+              optional: project_id, network_id for scoping
         user_id: The ID of the user adding the attribute
         flush: Flag to indicate whether this should call the DB flush
-        do_reassign: Flag to indicate whether any attributes scoped lower than the
-                     incoming attribute should be removed. **WARNING*** this is
-                     just here for testing purposes
-     returns:
-        JSONObject of new attr
+        do_reassign: Deprecated, ignored (no longer needed with canonical attrs)
+
+    returns:
+        ORM object if flush=False, JSONObject if flush=True
     """
     log.debug("Adding attribute: %s", attr.name)
 
-    attr_i = Attr(
+    incoming_network_id = getattr(attr, 'network_id', None)
+    incoming_project_id = getattr(attr, 'project_id', None)
+
+    if incoming_network_id is not None and incoming_project_id is not None:
+        raise HydraError("An attribute cannot be scoped to both a network and a project simultaneously.")
+
+    # Check if canonical attr already exists (any scope)
+    existing = db.DBSession.query(Attr).filter(
+        func.lower(Attr.name) == attr.name.lower(),
+        Attr.dimension_id == attr.dimension_id
+    ).first()
+
+    if existing is not None:
+        if incoming_network_id is not None or incoming_project_id is not None:
+            # Trying to add a scoped version of an existing attr
+            if not existing.scopes:
+                # Canonical is global (no scopes) — cannot scope a global attr
+                raise HydraError(
+                    f"Cannot add scoped attribute '{attr.name}': a global attribute "
+                    f"with this name and dimension already exists (id={existing.id}).")
+            # Check if this exact scope already exists
+            if incoming_network_id is not None:
+                already_scoped = any(
+                    s.scope == 'network' and s.network_id == incoming_network_id
+                    for s in existing.scopes
+                )
+            else:
+                already_scoped = any(
+                    s.scope == 'project' and s.project_id == incoming_project_id
+                    for s in existing.scopes
+                )
+            if already_scoped:
+                if flush is True:
+                    return _attr_json_with_scope(existing)
+                return existing
+            # Add the new scope to the existing canonical
+            if incoming_network_id is not None:
+                net = _get_network(incoming_network_id)
+                net.check_write_permission(user_id)
+                _create_attr_scope(existing.id, 'network', network_id=incoming_network_id)
+                log.info(f"Added network scope for attribute {existing.id} on network {incoming_network_id}")
+            else:
+                proj = _get_project(incoming_project_id)
+                proj.check_write_permission(user_id)
+                _create_attr_scope(existing.id, 'project', project_id=incoming_project_id)
+                log.info(f"Added project scope for attribute {existing.id} on project {incoming_project_id}")
+            if flush is True:
+                db.DBSession.flush()
+                db.DBSession.refresh(existing)
+                return _attr_json_with_scope(existing)
+            return existing
+        else:
+            # Adding global - return existing (idempotent)
+            if flush is True:
+                return _attr_json_with_scope(existing)
+            return existing
+
+    # No existing canonical — create new one
+    canonical_attr = Attr(
         name=attr.name,
         dimension_id=attr.dimension_id,
-        description=attr.description,
-        network_id = attr.network_id,
-        project_id = attr.project_id
+        description=attr.description
     )
+    db.DBSession.add(canonical_attr)
+    # Flush to ensure canonical_attr.id is populated (required for scope FK)
+    db.DBSession.flush()
 
-    _check_can_add_attribute(attr.name, attr.dimension_id, attr.project_id, attr.network_id)
+    # Handle scoping: create AttrScope entry if scoped
+    if incoming_network_id is not None:
+        net = _get_network(incoming_network_id)
+        net.check_write_permission(user_id)
+        _create_attr_scope(canonical_attr.id, 'network', network_id=incoming_network_id)
+        log.info(f"Created network scope for attribute {canonical_attr.id} on network {incoming_network_id}")
 
-    if attr.network_id is not None and attr.project_id is not None:
-        raise HydraError(f"Unable to add attrubute {attr.name}. "+
-                         "An attribute cannot have both a project_id and network_id")
-
-    #users can only add attributes to networks or projects which they own.
-    if attr.network_id is not None:
-        net = _get_network(attr.network_id)
-        if net.check_write_permission(user_id):
-            attr_i.network_id = attr.network_id
-
-    if attr.project_id is not None:
-        proj = _get_project(attr.project_id)
+    elif incoming_project_id is not None:
+        proj = _get_project(incoming_project_id)
         proj.check_write_permission(user_id)
-        attr_i.project_id = attr.project_id
+        _create_attr_scope(canonical_attr.id, 'project', project_id=incoming_project_id)
+        log.info(f"Created project scope for attribute {canonical_attr.id} on project {incoming_project_id}")
 
-    #Only admins can add global attributes.
-    if attr.network_id is None and attr.project_id is None:
+    else:
+        # Global attribute - require admin
         user = db.DBSession.query(User).filter(User.id == user_id).one()
         if not user.is_admin():
-            raise PermissionError(f"User {user.username} does not have permission to add a global attribute."+
-                                  "Please specify a network_id or project_id to the attribute.")
+            raise PermissionError(
+                f"User {user.username} does not have permission to add a global attribute. "
+                "Please specify a network_id or project_id to the attribute.")
 
-    db.DBSession.add(attr_i)
     if flush is True:
         db.DBSession.flush()
+        log.info("New attr added")
+        return _attr_json_with_scope(canonical_attr)
+    else:
+        return canonical_attr
 
-    log.info("New attr added")
-
+def _rescope_to_project(attr_id, project_id, user_id=None):
     """
-      Now that we have an ID, check for inconsistencies in the attribute scoping
-      hierarchy, and fix them by removing any conflicting entries and reassigning
-      any resource attributes to the non-conflicting attribute.
-      Only do this for attributes not scoped to a network as a network is the lowest scope.
+    After adding a project-level scope to a canonical attr, remove any lower-level
+    AttrScope entries (network scopes for networks in this project and its sub-projects,
+    and project scopes for direct sub-projects) so the canonical only has the single
+    higher-level scope within this hierarchy.
     """
-    if do_reassign is True and attr_i.network_id is None:
-        _reassign_scoped_attributes(attr_i.id, user_id)
-        if flush is True:
-            db.DBSession.flush()
-
-    # Return ORM object if not flushed (to get ID after batch flush)
-    # Return JSONObject if already flushed
-    if flush is False:
-        return attr_i
-    return JSONObject(attr_i)
-
-def _reassign_scoped_attributes(attr_id, user_id):
-    """
-    If a matching attribute exists (same name & dimension) but scoped at a lower
-    level, then we need to delete those attributes and then
-    re-assign all resource attributes to use the new, higher-level attribute
-    """
-    attr_i = db.DBSession.query(Attr).filter(Attr.id == attr_id).one()
-
-    """
-      If a matching attribute exists (same name & dimension) but scoped at a lower
-      level, then we need to delete those attributes, add the new attribute and then
-      re-assign all resource attributes to use the new, global attribute
-    """
-    matching_attrs = get_attributes_by_name_and_dimension(
-        attr_i.name,
-        attr_i.dimension_id
-    )
-    if len(matching_attrs) == 1:
-        #Only 1 returned value means this attr. More than 1 means there's a scoped
-        #attribute with the same name and dimension
-        assert matching_attrs[0].id == attr_id
+    from . import project as projectlib
+    max_levels = int(config.get("limits", "project_max_nest_depth", 32))
+    try:
+        proj = db.DBSession.query(Project).filter(Project.id == project_id).one()
+    except NoResultFound:
         return
+    child_projects = proj.get_child_projects(user_id=user_id, levels=max_levels)
+    child_project_ids = {p["id"] for p in child_projects}
+    project_scope = child_project_ids | {project_id}
 
-    #Reassign all resource attributes which point to scoped attirbutes, and then delete
-    #the scoped attributes.
-    scoped_resource_attrs_qry = db.DBSession.query(ResourceAttr).join(Attr).filter(
-        ResourceAttr.attr_id == Attr.id,
-        func.lower(Attr.name) == attr_i.name.lower(),
-        Attr.dimension_id == attr_i.dimension_id,
-        Attr.id != attr_id
-    )
+    # Remove network-scope entries for networks within this project scope
+    nets_in_scope = [n.id for n in db.DBSession.query(Network.id).filter(
+        Network.project_id.in_(project_scope)).all()]
+    if nets_in_scope:
+        net_scopes = db.DBSession.query(AttrScope).filter(
+            AttrScope.attr_id == attr_id,
+            AttrScope.scope == 'network',
+            AttrScope.network_id.in_(nets_in_scope)
+        ).all()
+        for s in net_scopes:
+            db.DBSession.delete(s)
 
-
-    """
-      If this is a project scoped attribute then we only want to change the scope
-      of attributes scoped to networks contained within this project, and leave
-      other projects alone.
-      If it's global, we want to stipulate that we want all attributes which
-      are project-scoped also.
-    """
-    scoped_resource_attrs = []
-    project_scope = []
-    if attr_i.project_id is not None:
-        """
-            A `project_scope` is defined here which includes the ids of the current
-            and any nested projects. This represents the scope within which matching
-            network and project attrs will be rescoped to the current attr.
-        """
-
-        #first look up the hierarchy to see if there is an attribute scoped at a higher level.
-
-
-        max_levels = int(config.get("limits", "project_max_nest_depth", 32))
-        attr_proj = db.DBSession.query(Project).filter(Project.id == attr_i.project_id).one()
-        child_projects = attr_proj.get_child_projects(user_id=user_id, levels=max_levels)
-        project_scope = {p["id"] for p in child_projects} | {attr_i.project_id}
-        network_scoped_resource_attrs_qry = scoped_resource_attrs_qry.join(Network).filter(
-            Attr.network_id == Network.id,
-            Network.project_id.in_(project_scope)
-        )
-
-        project_scoped_resource_attrs_qry = scoped_resource_attrs_qry.join(Project).filter(
-            Attr.project_id.in_(project_scope)
-        )
-
-        scoped_resource_attrs = network_scoped_resource_attrs_qry.all() + project_scoped_resource_attrs_qry.all()
-
-    if len(scoped_resource_attrs) > 0:
-        log.info(f"{len(scoped_resource_attrs)} scoped attributes found with same name & dimension. Reassigning.")
-
-    rescoped_from_networks = set()
-    # Reassign the attributes, noting the network_id of of any network attrs
-    for scoped_ra in scoped_resource_attrs:
-        if scoped_ra.attr.network_id:
-            rescoped_from_networks.add(scoped_ra.attr.network_id)
-        scoped_ra.attr_id = attr_i.id
-
-    # Remove rescoped attrs, both from project scope and those rescoped from network attrs
-    for matching_attr in matching_attrs:
-        if matching_attr.id != attr_id and (matching_attr.project_id in project_scope or matching_attr.network_id in rescoped_from_networks):
-            db.DBSession.delete(matching_attr)
-
-def _check_can_add_attribute(name, dimension, project_id, network_id, do_raise=True):
-    """
-        Check if an attribute can be added. If an attribute exists at a higher level
-        (such as global) then it cannot be added to a lower scope.
-        i.e. if a project-scoped attribute exists with a name of 'flow' and
-        dimension of 'volumetric flow rate', then a network-scoped attribute with
-        this name and dimenaion cannot be added, as the network scope is within the project scope.
-    """
-
-    if network_id is not None:
-        net = _get_network(network_id)
-
-        #look for an attribute with the same name and dimension but defined globally
-        globally_scoped_attribute = get_attribute_by_name_and_dimension(name, dimension)
-        if globally_scoped_attribute is not None:
-            if do_raise is True:
-                raise HydraError(
-                    f"Unable to add attribute with name '{name}' and dimension '{dimension}' "
-                    f"to network '{network_id}' as an "
-                    f"attribute with this name and dimension already "
-                    f"exists globally")
-            else:
-                return False
-
-        #look for an attribute with the same name and dimension but on the project
-        project_scoped_attribute = get_attribute_by_name_and_dimension(
-            name, dimension, project_id=net.project_id)
-        if project_scoped_attribute is not None:
-            if do_raise is True:
-                raise HydraError(
-                    f"Unable to add attribute with name '{name}' and dimension '{dimension}' "
-                    f"to network '{network_id}' as an "
-                    f"attribute with this name and dimension already "
-                    f"exists on the project ({net.project_id})")
-            else:
-                return False
-
-
-    if project_id is not None:
-        globally_scoped_attribute = get_attribute_by_name_and_dimension(name, dimension)
-        if globally_scoped_attribute is not None:
-            if do_raise is True:
-                raise HydraError(
-                    f"Unable to add attribute with name '{name}' and dimension '{dimension}' "
-                    f"to project '{project_id}' as an "
-                    f"attribute with this name and dimension already exists globally")
-            else:
-                return False
-
-    return True
+    # Remove sub-project scope entries (but keep the current project_id scope)
+    if child_project_ids:
+        proj_scopes = db.DBSession.query(AttrScope).filter(
+            AttrScope.attr_id == attr_id,
+            AttrScope.scope == 'project',
+            AttrScope.project_id.in_(child_project_ids)
+        ).all()
+        for s in proj_scopes:
+            db.DBSession.delete(s)
 
 
 @required_perms('add_attribute')
@@ -456,6 +530,9 @@ def add_attribute(attr, check_existing=True, **kwargs):
 
     user_id = kwargs.get('user_id')
 
+    incoming_network_id = getattr(attr, 'network_id', None)
+    incoming_project_id = getattr(attr, 'project_id', None)
+
     if check_existing is False:
         attr_i = _add_attribute(attr, user_id=user_id)
         return attr_i
@@ -468,37 +545,45 @@ def add_attribute(attr, check_existing=True, **kwargs):
         # so there is no need for a clause checking for the project id additionally,
         # as the project ID must be the parent of the network ID, so it is redundant
         # to check explicitly
-        if attr.network_id is not None and attr.project_id is None:
+        if incoming_network_id is not None and incoming_project_id is None:
             # don't just check for attributes scoped to this network but to attributes
             # scoped to it and all parent projects
             network_project_ids = _get_projects_referenced_by_network_id(
-                attr.network_id, **kwargs)
+                incoming_network_id, **kwargs)
 
-            attr_qry = attr_qry.filter(or_(Attr.network_id == attr.network_id,
-                                           Attr.project_id.in_(network_project_ids)
-                                          ))
-        elif attr.project_id is not None:
+            attr_qry = attr_qry.join(AttrScope, AttrScope.attr_id == Attr.id).filter(
+                or_(
+                    and_(AttrScope.scope == 'network', AttrScope.network_id == incoming_network_id),
+                    and_(AttrScope.scope == 'project', AttrScope.project_id.in_(network_project_ids))
+                )
+            )
+        elif incoming_project_id is not None:
             # don't just check for attributes scoped to this project, but to all
             # projects in its hierarchy
             project_project_ids = _get_projects_referenced_by_project_id(
-                attr.project_id, **kwargs)
+                incoming_project_id, **kwargs)
 
-            attr_qry = attr_qry.filter(Attr.project_id.in_(project_project_ids))
-
+            attr_qry = attr_qry.join(AttrScope, AttrScope.attr_id == Attr.id).filter(
+                AttrScope.scope == 'project',
+                AttrScope.project_id.in_(project_project_ids)
+            )
 
         attr_i = attr_qry.one()
-
-        attr_i = JSONObject(attr_i)
-
         log.info("Attr already exists")
 
     except NoResultFound:
-        #set the user ID to 2 here, as this requires admin priviliges. THis is
-        #safe to do because this function has already been checked for add_attribute
-        #permission from the caller
         attr_i = _add_attribute(attr, user_id=user_id, do_reassign=True)
+        # Remove lower-level scopes within this project hierarchy now that a project-level
+        # scope exists. _add_attribute always returns a JSONObject (flush=True), so check .id.
+        if incoming_project_id is not None:
+            _rescope_to_project(attr_i.id, incoming_project_id, user_id=user_id)
+            db.DBSession.flush()
 
-    return JSONObject(attr_i)
+    if isinstance(attr_i, Attr):
+        return _attr_json_with_scope(attr_i)
+    if isinstance(attr_i, JSONObject):
+        return attr_i
+    return _attr_json_with_scope(attr_i)
 
 @required_perms('edit_attribute')
 def update_attribute(attr, **kwargs):
@@ -522,10 +607,13 @@ def update_attribute(attr, **kwargs):
         Attr.id != attr.id)
 
     if attr.network_id is not None:
-        existing_attr_qry = existing_attr_qry.filter(Attr.network_id == attr.network_id)
-
-    if attr.project_id is not None:
-        existing_attr_qry = existing_attr_qry.filter(Attr.project_id == attr.project_id)
+        existing_attr_qry = existing_attr_qry.join(
+            AttrScope, AttrScope.attr_id == Attr.id
+        ).filter(AttrScope.scope == 'network', AttrScope.network_id == attr.network_id)
+    elif attr.project_id is not None:
+        existing_attr_qry = existing_attr_qry.join(
+            AttrScope, AttrScope.attr_id == Attr.id
+        ).filter(AttrScope.scope == 'project', AttrScope.project_id == attr.project_id)
 
     existing_attr_i = existing_attr_qry.first()
 
@@ -543,8 +631,14 @@ def update_attribute(attr, **kwargs):
     attr_i.name = attr.name
     attr_i.dimension_id = attr.dimension_id
     attr_i.description = attr.description
-    attr_i.network_id = attr.network_id
-    attr_i.project_id = attr.project_id
+
+    # Update scope entries to reflect new network/project scoping
+    for scope_entry in list(attr_i.scopes):
+        db.DBSession.delete(scope_entry)
+    if attr.network_id is not None:
+        _create_attr_scope(attr_i.id, 'network', network_id=attr.network_id)
+    elif attr.project_id is not None:
+        _create_attr_scope(attr_i.id, 'project', project_id=attr.project_id)
 
     db.DBSession.flush()
     return JSONObject(attr_i)
@@ -606,136 +700,38 @@ def _get_projects_referenced_by_project_id(project_id, **kwargs):
 
 def add_attributes(attrs, **kwargs):
     """
-    Add a list of generic attributes, which can then be used in creating
-    a resource attribute, and put into a type.
+    Add a list of attributes.
 
-    .. code-block:: python
+    For each attribute:
+    - If a canonical with the same name+dimension already exists and matches the requested scope
+      (or a higher-level scope), return the existing canonical.
+    - If the canonical exists as global (no scopes) and a scoped version is requested, raise.
+    - Otherwise create a new canonical + scope entry.
 
-        (Attr){
-            name = "Test Attr"
-            dimension_id (optional) = 123 # the ID of the relevant dimension. Defaults to None.
-            project_id (optional) = 123,
-            network_id (optional) = 456
-        }
+    args:
+        attrs: list of JSONObjects with fields: name, dimension_id, description,
+               optional: project_id, network_id for scoping
 
-    Attributes can only be added to one network / project a a time. Raises a
-    Hydra Error if it finds different networks or project IDs in the request.
-
+    returns:
+        list of JSONObjects (existing or newly created attributes) with scope info attached
     """
-
-    #Check to see if any of the attributs being added are already there.
-    #If they are there already, don't add a new one. If an attribute
-    #with the same name is there already but with a different dimension,
-    #add a new attribute.
     user_id = kwargs.get('user_id')
 
-    # Extract incoming attr keys to filter queries and avoid loading unnecessary rows
-    incoming_attr_keys = []
-    for a in attrs:
-        if a is not None:
-            incoming_attr_keys.append((a.name.lower(), a.dimension_id))
-
-    if not incoming_attr_keys:
+    if not attrs:
         return []
 
-    # Build OR conditions for filtering queries by (name, dimension_id) pairs
-    name_dim_filters = [
-        and_(func.lower(Attr.name) == name, Attr.dimension_id == dim)
-        for name, dim in incoming_attr_keys
-    ]
+    result = []
+    for attr in attrs:
+        if attr is None:
+            continue
+        # Delegate to add_attribute (which handles all the scope logic)
+        try:
+            attr_j = add_attribute(attr, check_existing=True, **kwargs)
+            result.append(attr_j)
+        except HydraError:
+            raise
 
-    # All global attributes matching incoming names/dimensions
-    global_attrs = db.DBSession.query(Attr).filter(
-        and_(
-            Attr.network_id == None,
-            Attr.project_id == None,
-            or_(*name_dim_filters)
-        )
-    ).all()
-
-    #project-scoped attributes
-    project_attrs = []
-
-    network_ids = list(set([a.network_id for a in filter(lambda x:x.network_id is not None and x.project_id is None, attrs)]))
-
-    if len(network_ids) > 1:
-        raise HydraError("Cannot bulk add attributes to different networks.")
-
-    #if the attributes are specified with a network ID but not a project ID, then find the
-    #project IDS for those network so we can check if there are
-    #matching attributes scoped to the container projects
-    network_project_ids = []
-    if len(network_ids) > 0:
-        network_project_ids = _get_projects_referenced_by_network_id(network_ids[0], **kwargs)
-
-    #Get all the project IDs specified in the incoming attributes.
-    #Attributes can only ne added to one project at a time
-
-    direct_project_ids = list(set([a.project_id for a in filter(lambda x:x.project_id is not None, attrs)]))
-
-    if len(direct_project_ids) > 1:
-        raise HydraError("Cannot bulk add attributes to different projects.")
-
-    project_ids = []
-    if len(direct_project_ids) > 0:
-        project_ids = _get_projects_referenced_by_project_id(direct_project_ids[0], **kwargs)
-
-    #go top down, saving the attributes, and overwriting the duplicates as we
-    #go down the tree.
-    project_attr_dict = {}
-    if project_ids + network_project_ids:
-        # Query for project attrs matching incoming keys in a single query
-        project_attrs = db.DBSession.query(Attr).filter(
-            Attr.project_id.in_(project_ids + network_project_ids),
-            or_(*name_dim_filters)
-        ).all()
-        for project_attr in project_attrs:
-            project_attr_dict[(project_attr.name, project_attr.dimension_id)] = project_attr
-
-    #network scoped attributes
-    network_attrs = []
-    if len(network_ids) > 0:
-        network_attrs = db.DBSession.query(Attr).filter(
-            Attr.network_id.in_(network_ids),
-            or_(*name_dim_filters)
-        ).all()
-
-    all_attrs = global_attrs + list(project_attr_dict.values()) + network_attrs
-
-    #this iterates from the highest scope to the lowst, thus overwriting higher-level
-    #attributes with lower level ones.
-    attr_dict = {}
-    for attr in all_attrs:
-        attr_dict[(attr.name.lower(), attr.dimension_id)] = JSONObject(attr)
-
-    attrs_to_add = []
-    existing_attrs = []
-    for potential_new_attr in attrs:
-        if potential_new_attr is not None:
-            # If the attrinute is None we cannot manage it
-            log.debug("Adding attribute: %s", potential_new_attr)
-            key = (potential_new_attr.name.lower(), potential_new_attr.dimension_id)
-            if attr_dict.get(key) is not None:
-                existing_attrs.append(attr_dict.get(key))
-            else:
-                attrs_to_add.append(JSONObject(potential_new_attr))
-
-    # Batch insert: collect ORM objects without flushing individually
-    orm_attrs = []
-    for attr in attrs_to_add:
-        new_attr_i = _add_attribute(attr, flush=False, user_id=user_id)
-        orm_attrs.append(new_attr_i)
-
-    # Single flush for all new attributes instead of per-attribute flushes
-    db.DBSession.flush()
-
-    # Convert ORM objects to JSONObjects AFTER flush so they have IDs assigned
-    new_attrs = [JSONObject(a) for a in orm_attrs]
-
-    # Combine with existing attributes (which are already JSONObjects)
-    new_attrs = new_attrs + existing_attrs
-
-    return new_attrs
+    return result
 
 def get_attributes(network_id=None,
                    project_id=None,
@@ -758,13 +754,8 @@ def get_attributes(network_id=None,
     base_qry = db.DBSession.query(Attr)
 
     if (network_id is None and project_id is None) or include_global is True:
-        #First get all global attributes
-        attrs = base_qry.filter(
-            and_(
-                Attr.network_id == None,
-                Attr.project_id == None
-            )
-            ).all()
+        #First get all global attributes (those with no AttrScope entries)
+        attrs = base_qry.filter(~Attr.scopes.any()).all()
 
         global_attrs = [JSONObject(a) for a in attrs]
     else:
@@ -782,10 +773,19 @@ def get_attributes(network_id=None,
         if network_id is None and include_network_attributes is True:
             nets = db.DBSession.query(Network).filter(Network.project_id==project_id).all()
             netlookup = {n.id:n for n in nets}
-            network_attributes = base_qry.filter(Attr.network_id.in_([n.id for n in nets])).all()
-            network_scoped_attributes = [JSONObject(a) for a in network_attributes]
-            for nsa in network_scoped_attributes:
-                nsa.network_name = netlookup[nsa.network_id].name
+            net_ids = [n.id for n in nets]
+            network_attrs_with_scope = db.DBSession.query(Attr, AttrScope).join(
+                AttrScope, AttrScope.attr_id == Attr.id
+            ).filter(
+                AttrScope.scope == 'network',
+                AttrScope.network_id.in_(net_ids)
+            ).all()
+            network_scoped_attributes = []
+            for attr_orm, scope in network_attrs_with_scope:
+                nsa = JSONObject(attr_orm)
+                nsa.network_id = scope.network_id
+                nsa.network_name = netlookup[scope.network_id].name
+                network_scoped_attributes.append(nsa)
 
     if network_id is not None:
         net = db.DBSession.query(Network).filter(Network.id==network_id).one()

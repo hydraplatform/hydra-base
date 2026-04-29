@@ -175,6 +175,34 @@ class Descriptor(DataType):
 
     value = property(get_value, set_value)
 
+class Dict(DataType):
+    tag      = "DICT"
+    name     = "Dictionary"
+    skeleton = "%s"
+    json     = DescriptorJSON()
+
+    def __init__(self, data):
+        super(Dict, self).__init__()
+        self.value = data
+        if isisntance(self.value, str):
+            self.value = json.loads(self.value)
+        self.validate()
+
+    @classmethod
+    def fromDataset(cls, value, metadata=None):
+        return cls(six.text_type(value))
+
+    def vlidate(self):
+        #check it is a dict
+        assert isinstance(json.loads(self.value), dict)
+
+    def get_value(self):
+        return self._value
+
+    def set_value(self, val):
+        self._value = val
+
+    value = property(get_value, set_value)
 
 class Dataframe(DataType):
     tag      = "DATAFRAME"

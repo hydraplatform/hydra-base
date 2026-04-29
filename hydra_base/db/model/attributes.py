@@ -19,17 +19,18 @@
 from . import *
 
 
-__all__ = ['Attr', 'AttrMap', 'AttrGroup', 'AttrGroupItem']
+__all__ = ['Attr', 'AttrScope', 'AttrMap', 'AttrGroup', 'AttrGroupItem']
 
 class Attr(Base, Inspect):
     """
-    An Attribute Definition
+    Canonical attribute definition (name + dimension = unique).
+    Scoping is handled via the AttrScope table.
     """
 
     __tablename__='tAttr'
 
     __table_args__ = (
-        UniqueConstraint('name', 'dimension_id', 'network_id', 'project_id', name="unique name dimension_id"),
+        UniqueConstraint('name', 'dimension_id', name="unique name dimension_id"),
     )
 
     id = Column(Integer(), primary_key=True, nullable=False)
@@ -38,14 +39,38 @@ class Attr(Base, Inspect):
     description = Column(String(1000))
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
-    project_id = Column(Integer(), ForeignKey('tProject.id'), nullable=True)
-    network_id = Column(Integer(), ForeignKey('tNetwork.id'), nullable=True)
-
-    network = relationship('Network', foreign_keys=[network_id], backref=backref('scopedattributes', uselist=True, cascade="all, delete-orphan"), lazy='joined')
-    project = relationship('Project', foreign_keys=[project_id], backref=backref('scopedattributes', uselist=True, cascade="all, delete-orphan"), lazy='joined')
     dimension = relationship('Dimension', foreign_keys=[dimension_id], backref=backref("attributes", uselist=True))
 
     _parents = ['tDimension']
+    _children = []
+
+class AttrScope(Base, Inspect):
+    """
+    Scope assignment for attributes.
+    Links attributes to their scope (global, project, or network).
+    A global attribute has no AttrScope row.
+    A project-scoped attribute has an AttrScope row with scope='project' and project_id.
+    A network-scoped attribute has an AttrScope row with scope='network' and network_id.
+    """
+
+    __tablename__ = 'tAttrScope'
+
+    __table_args__ = (
+        UniqueConstraint('attr_id', 'scope', 'project_id', 'network_id', name="unique attr_id scope"),
+    )
+
+    id = Column(Integer(), primary_key=True, nullable=False)
+    attr_id = Column(Integer(), ForeignKey('tAttr.id'), nullable=False, index=True)
+    scope = Column(String(20), nullable=False)  # 'global', 'project', or 'network'
+    project_id = Column(Integer(), ForeignKey('tProject.id'), nullable=True, index=True)
+    network_id = Column(Integer(), ForeignKey('tNetwork.id'), nullable=True, index=True)
+    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+
+    attr = relationship('Attr', backref=backref('scopes', uselist=True, cascade="all, delete-orphan"), lazy='joined')
+    project = relationship('Project', backref=backref('attr_scopes', uselist=True), foreign_keys=[project_id])
+    network = relationship('Network', backref=backref('attr_scopes', uselist=True), foreign_keys=[network_id])
+
+    _parents = ['tAttr', 'tProject', 'tNetwork']
     _children = []
 
 class AttrMap(Base, Inspect):

@@ -23,7 +23,7 @@ from ..template import Template, TemplateType
 from ..ownership import NetworkOwner
 from .resourceattr import ResourceAttr
 from ..scenario import ResourceGroupItem
-from ..attributes import Attr
+from ..attributes import Attr, AttrScope
 
 from . import Link
 from . import Node
@@ -250,7 +250,10 @@ class Network(Base, Inspect, PermissionControlled, Resource):
                     project hierarchy
         """
 
-        scoped_attrs_qry = get_session().query(Attr).filter(Attr.network_id==self.id)
+        scoped_attrs_qry = get_session().query(Attr).join(
+            AttrScope,
+            and_(Attr.id == AttrScope.attr_id, AttrScope.scope == 'network')
+        ).filter(AttrScope.network_id == self.id)
 
         if name_match is not None:
             name_match = name_match.lower()

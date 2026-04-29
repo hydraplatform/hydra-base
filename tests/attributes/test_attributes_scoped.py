@@ -417,11 +417,15 @@ class TestScopedAttribute:
         #duplication
         newly_scoped_attr = client.add_attribute({'project_id': proj1.id,'name': 'test_scoped_attr'})
 
-        with pytest.raises(HydraError):
-            client.get_attribute_by_id(attr_id=net_scoped_attr.id)
+        # In the canonical model the Attr row is never deleted; only AttrScope changes.
+        # The network-scoped attr is the same canonical attr, now promoted to project scope.
+        rescoped = client.get_attribute_by_id(attr_id=net_scoped_attr.id)
+        assert rescoped.id == newly_scoped_attr.id  # same canonical attr
+        assert rescoped.network_id is None           # network scope removed
+        assert rescoped.project_id == proj1.id       # now project-scoped
 
-        with pytest.raises(HydraError):
-            _ = client.get_attribute_by_id(attr_id=childproj_scoped_attr.id)
+        rescoped_child = client.get_attribute_by_id(attr_id=childproj_scoped_attr.id)
+        assert rescoped_child.id == newly_scoped_attr.id  # same canonical attr, promoted to parent
 
         #check it has been rescoped
         assert newly_scoped_attr.project_id == proj1.id
@@ -450,14 +454,17 @@ class TestScopedAttribute:
         #duplication
         proj2_newly_scoped_attr = client.add_attribute({'project_id': proj2.id,'name': 'test_scoped_attr'})
 
-        with pytest.raises(HydraError):
-            _ = client.get_attribute_by_id(attr_id=proj2_net_scoped_attr.id)
+        # Same canonical model behaviour: Attr row persists, AttrScope updated
+        rescoped_proj2 = client.get_attribute_by_id(attr_id=proj2_net_scoped_attr.id)
+        assert rescoped_proj2.id == proj2_newly_scoped_attr.id
+        assert rescoped_proj2.network_id is None  # network scope removed
 
         #check it has been rescoped
         assert proj2_newly_scoped_attr.project_id == proj2.id
 
         proj2_scoped_attr = client.get_attribute_by_id(attr_id=proj2_newly_scoped_attr.id)
-        assert proj2_scoped_attr != newly_scoped_attr
+        # Same canonical attr in both projects; scope isolation verified via search below
+        assert proj2_scoped_attr.id == newly_scoped_attr.id
 
     def test_different_projects_same_name_attributes(self, client, projectmaker, networkmaker):
         """

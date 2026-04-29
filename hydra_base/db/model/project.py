@@ -22,7 +22,7 @@ from .ownership import NetworkOwner, ProjectOwner
 from .scenario import Scenario, ResourceScenario
 from .permissions import User
 from .network import Network, ResourceAttr
-from .attributes import Attr
+from .attributes import Attr, AttrScope
 
 global project_cache_key
 project_cache_key = config.get('cache', 'projectkey', 'userprojects')
@@ -462,7 +462,10 @@ class Project(Base, Inspect, PermissionControlled):
                     project hierarchy
         """
 
-        scoped_attrs_qry = get_session().query(Attr).filter(Attr.project_id==self.id)
+        scoped_attrs_qry = get_session().query(Attr).join(
+            AttrScope,
+            and_(Attr.id == AttrScope.attr_id, AttrScope.scope == 'project')
+        ).filter(AttrScope.project_id == self.id)
 
         if name_match is not None:
             name_match = name_match.lower()
