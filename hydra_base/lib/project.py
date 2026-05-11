@@ -501,6 +501,7 @@ def delete_project(project_id, **kwargs):
     """
     user_id = kwargs.get('user_id')
     project = _get_project(project_id, user_id, check_write=True)
+    project.remove_from_cache()
     db.DBSession.delete(project)
     db.DBSession.flush()
 
