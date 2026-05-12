@@ -17,7 +17,6 @@ def _init_diskcache():
     global cache
     import diskcache as dc
     cache = dc.Cache(tempfile.gettempdir())
-
 if hydraconfig.get('cache', 'type') != "memcached":
     _init_diskcache()
 
@@ -25,7 +24,7 @@ elif hydraconfig.get('cache', 'type') == 'memcached':
     try:
         import pylibmc
         host = hydraconfig.get('cache', 'host', '127.0.0.1')
-        port = hydraconfig.get('cache', 'port', 31211)
+        port = hydraconfig.get('cache', 'port', 11211)
         cache = pylibmc.Client([f"{host}:{port}"], binary=True)
 
         # Check if Memcached server is reachable by setting a test key

@@ -838,8 +838,11 @@ def delete_resource_attribute(resource_attr_id, **kwargs):
         raise ResourceNotFoundError("Resource Attribute %s not found"%(resource_attr_id))
 
     ra.check_write_permission(user_id)
+    network = ra.get_network()
     db.DBSession.delete(ra)
     db.DBSession.flush()
+    if network is not None:
+        cache.delete(f'network_resource_attributes_{network.id}')
     return 'OK'
 
 def add_resource_attributes(resource_attributes, **kwargs):
