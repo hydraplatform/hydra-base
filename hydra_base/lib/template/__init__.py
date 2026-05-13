@@ -744,7 +744,7 @@ def get_template(template_id, **kwargs):
 
     if tmpl_j is not None:
         log.info("Returning cached template")
-        return tmpl_j
+        return JSONObject(tmpl_j)
 
     try:
         log.info("Building template")
