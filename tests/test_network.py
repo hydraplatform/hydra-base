@@ -1137,6 +1137,17 @@ class TestNetwork:
         networkowners = client.get_all_network_owners([net1.id])
         assert len(networkowners) == 2
 
+        # is_admin should default to 'N' for UserB
+        user_b_owner = next((o for o in networkowners if o.user_id != net1.created_by), None)
+        assert user_b_owner is not None
+        assert user_b_owner.is_admin == 'N'
+
+        # Share again with is_admin='Y' and verify
+        client.share_network(net1.id, ["UserB"], 'N', 'Y', is_admin='Y')
+        networkowners = client.get_all_network_owners([net1.id])
+        user_b_owner = next((o for o in networkowners if o.user_id != net1.created_by), None)
+        assert user_b_owner.is_admin == 'Y'
+
         client.login('UserC', 'password')
         #fails because user C is not an admin
         with pytest.raises(hb.exceptions.HydraError):
@@ -1157,12 +1168,16 @@ class TestNetwork:
             view='Y',
             edit='Y',
             share='Y',
+            is_admin='Y',
         ))
         client.bulk_set_network_owners([new_owner])
 
         networkowners = client.get_all_network_owners([net.id])
 
         assert len(networkowners) == 2
+
+        added = next(no for no in networkowners if no.user_id == 2)
+        assert added.is_admin == 'Y'
 
     def test_clone_network_into_existing_project(self, client, network_with_data):
         net = network_with_data
