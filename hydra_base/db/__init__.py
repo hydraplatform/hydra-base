@@ -26,11 +26,8 @@ from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
 
 from .. import config
-from zope.sqlalchemy import register
-
 from hydra_base.exceptions import HydraError
 
-import transaction
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 import logging
@@ -157,7 +154,6 @@ def connect(db_url=None):
 
     maker = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     DBSession = scoped_session(maker)
-    register(DBSession)
 
     global DeclarativeBase
     try:
@@ -173,10 +169,10 @@ def get_session():
 
 def commit_transaction():
     try:
-        transaction.commit()
+        DBSession.commit()
     except Exception as e:
         log.critical(e)
-        transaction.abort()
+        DBSession.rollback()
 
 def open_session():
     log.debug("OPENING SESSION")
