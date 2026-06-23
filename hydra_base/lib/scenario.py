@@ -971,8 +971,6 @@ def bulk_update_resourcedata(scenario_ids, resource_scenarios, **kwargs):
         Update the data associated with a list of scenarios.
     """
     user_id = kwargs.get('user_id')
-    res = None
-
     res = {}
 
     net_ids = db.DBSession.query(Scenario.network_id).filter(Scenario.id.in_(scenario_ids)).all()
@@ -991,17 +989,86 @@ def bulk_update_resourcedata(scenario_ids, resource_scenarios, **kwargs):
         #ones that have been passed in to avoid querying for every one individually.
 
         ra_ids = [rs.resource_attr_id for rs in resource_scenarios]
-        r_scens_i = db.DBSession.query(ResourceScenario).filter(
+        r_scens_i = db.DBSession.query(ResourceScenario)\
+            .options(joinedload(ResourceScenario.dataset).joinedload(Dataset.metadata))\
+            .filter(
                 ResourceScenario.scenario_id == scenario_id,
                 ResourceScenario.resource_attr_id.in_(ra_ids)).all()
         r_scen_dict = dict((rs.resource_attr_id, rs) for rs in r_scens_i)
+
+        existing_dataset_ids = [r.dataset_id for r in r_scens_i if r.dataset_id]
+        if existing_dataset_ids:
+            _rows = db.DBSession.query(
+                ResourceScenario.dataset_id,
+                ResourceScenario.scenario_id,
+                ResourceScenario.resource_attr_id
+            ).filter(ResourceScenario.dataset_id.in_(existing_dataset_ids)).all()
+            dataset_rs_map = {}
+            for row in _rows:
+                dataset_rs_map.setdefault(row.dataset_id, []).append((row.scenario_id, row.resource_attr_id))
+        else:
+            dataset_rs_map = {}
+
+        new_dataset_cache = {}
+
+        # Pre-pass: identify update-in-place candidates, compute their new hashes,
+        # then do ONE batch collision check against existing DB datasets.
+        # This replaces per-dataset hash-collision queries in the main loop.
+        #
+        # Hash is computed from the raw value string (same as Dataset.set_hash uses
+        # value_ref), NOT from parse_value() output. parse_value() returns Python
+        # objects whose str() representation differs from the raw JSON for non-scalar
+        # types (e.g. str([[1, 2]]) == '[[1, 2]]' but value_ref stores '[[1,2]]').
+        _prepass = {}        # resource_attr_id -> (current_dataset_id, new_hash)
+        _unchanged_ra_ids = set()  # RS where hash matched — skip in main loop
+        for rs_in in resource_scenarios:
+            if rs_in.dataset is None:
+                continue
+            r_scen = r_scen_dict.get(rs_in.resource_attr_id)
+            if r_scen is None or r_scen.dataset_id is None:
+                continue
+            ds_j = JSONDataset(rs_in.dataset)
+            raw_val = str(ds_j.value) if ds_j.value is not None else None
+            if raw_val is None or raw_val.upper().strip() in ('NULL', ''):
+                continue
+            meta = ds_j.get_metadata_as_dict()
+            new_hash = ds_j.get_hash(raw_val, meta)
+            connected = dataset_rs_map.get(r_scen.dataset_id, [])
+            if r_scen.dataset.hash == new_hash:
+                _unchanged_ra_ids.add(rs_in.resource_attr_id)
+            elif len(connected) == 1 and connected[0][0] == scenario_id and connected[0][1] == rs_in.resource_attr_id:
+                _prepass[rs_in.resource_attr_id] = (r_scen.dataset_id, new_hash)
+
+        if _prepass:
+            _cand_hashes = list({h for _, h in _prepass.values()})
+            _cand_ids = list({did for did, _ in _prepass.values()})
+            _collision_rows = db.DBSession.query(Dataset).filter(
+                Dataset.hash.in_(_cand_hashes),
+                Dataset.id.notin_(_cand_ids)
+            ).all()
+            # Pre-seed with DB-existing collisions; updated entries are added during the loop.
+            dataset_hash_cache = {row.hash: row for row in _collision_rows}
+        else:
+            dataset_hash_cache = {}
+
         for rs in resource_scenarios:
             if rs.dataset is not None:
+                ra_id = rs.resource_attr_id
+                if ra_id in _unchanged_ra_ids:
+                    # Pre-pass confirmed hash match — no DB write needed.
+                    r_scen_i = r_scen_dict.get(ra_id)
+                    if r_scen_i is not None:
+                        res[str(scenario_id)].append(r_scen_i)
+                        continue
                 updated_rs = _update_resourcescenario(scen_i,
                                                       rs,
-                                                      r_scen_i=r_scen_dict.get(rs.resource_attr_id),
+                                                      r_scen_i=r_scen_dict.get(ra_id),
                                                       user_id=user_id,
-                                                      source=kwargs.get('app_name'))
+                                                      source=kwargs.get('app_name'),
+                                                      flush=False,
+                                                      dataset_rs_map=dataset_rs_map,
+                                                      new_dataset_cache=new_dataset_cache,
+                                                      dataset_hash_cache=dataset_hash_cache)
                 #this is cast as a string so it can be read into a JSONObject
                 res[str(scenario_id)].append(updated_rs)
             else:
@@ -1121,7 +1188,7 @@ def _delete_resourcescenario(scenario_id, resource_attr_id, suppress_error=False
     db.DBSession.delete(sd_i)
     db.DBSession.flush()
 
-def _update_resourcescenario(scenario, resource_scenario, r_scen_i=None, dataset=None, new=False, user_id=None, source=None):
+def _update_resourcescenario(scenario, resource_scenario, r_scen_i=None, dataset=None, new=False, user_id=None, source=None, flush=True, dataset_rs_map=None, new_dataset_cache=None, dataset_hash_cache=None):
     """
         Insert or Update the value of a resource's attribute by first getting the
         resource, then parsing the input data, then assigning the value.
@@ -1164,19 +1231,19 @@ def _update_resourcescenario(scenario, resource_scenario, r_scen_i=None, dataset
     dataset = resource_scenario.dataset
 
     dataset_j = JSONDataset(dataset)
-
     value = dataset_j.parse_value()
+    metadata = dataset_j.get_metadata_as_dict()
+    data_unit_id = dataset_j.unit_id
+    # Use raw string value for hash — matches how Dataset.set_hash() uses value_ref.
+    # parse_value() returns Python objects whose str() representation differs from
+    # the raw JSON for non-scalar types, causing false "changed" detections.
+    data_hash = dataset_j.get_hash(str(dataset_j.value), metadata)
 
     log.debug("Assigning %s to resource attribute: %s", value, ra_id)
 
     if value is None:
         log.info("Cannot set data on resource attribute %s", ra_id)
         return None
-
-    metadata = dataset_j.get_metadata_as_dict(source=source, user_id=user_id)
-    data_unit_id = dataset_j.unit_id
-
-    data_hash = dataset_j.get_hash(value, metadata)
 
     new_rscen_i = assign_value(r_scen_i,
                  dataset_j.type.lower(),
@@ -1186,13 +1253,19 @@ def _update_resourcescenario(scenario, resource_scenario, r_scen_i=None, dataset
                  metadata=metadata,
                  data_hash=data_hash,
                  user_id=user_id,
-                 source=source)
+                 source=source,
+                 flush=flush,
+                 dataset_rs_map=dataset_rs_map,
+                 new_dataset_cache=new_dataset_cache,
+                 dataset_hash_cache=dataset_hash_cache)
 
     return new_rscen_i
 
 @required_perms("edit_data", "edit_network")
 def assign_value(rs, data_type, val,
-                 unit_id, name, metadata={}, data_hash=None, user_id=None, source=None):
+                 unit_id, name, metadata={}, data_hash=None, user_id=None, source=None,
+                 flush=True, dataset_rs_map=None, new_dataset_cache=None,
+                 dataset_hash_cache=None):
     """
         Insert or update a piece of data in a scenario.
         If the dataset is being shared by other resource scenarios, a new dataset is inserted.
@@ -1215,45 +1288,74 @@ def assign_value(rs, data_type, val,
 
         #Has this dataset changed?
         if rs.dataset.hash == data_hash:
-            log.info("Dataset has not changed. Returning.")
+            log.debug("Dataset has not changed. Returning.")
             return rs
 
-        connected_rs = db.DBSession.query(ResourceScenario).filter(ResourceScenario.dataset_id == rs.dataset.id).all()
-        #If there's no RS found, then the incoming rs is new, so the dataset can be altered
-        #without fear of affecting something else.
-        if len(connected_rs) == 0:
-        #If it's 1, the RS exists in the DB, but it's the only one using this dataset or
-        #The RS isn't in the DB yet and the datset is being used by 1 other RS.
-            update_dataset = True
+        if dataset_rs_map is not None:
+            connected = dataset_rs_map.get(rs.dataset.id, [])
+        else:
+            connected = [(r.scenario_id, r.resource_attr_id)
+                         for r in db.DBSession.query(ResourceScenario).filter(
+                             ResourceScenario.dataset_id == rs.dataset.id).all()]
 
-        if len(connected_rs) == 1:
-            if connected_rs[0].scenario_id == rs.scenario_id and connected_rs[0].resource_attr_id == rs.resource_attr_id:
+        if len(connected) == 1:
+            if connected[0][0] == rs.scenario_id and connected[0][1] == rs.resource_attr_id:
                 update_dataset = True
         else:
             update_dataset = False
 
     if update_dataset is True:
-        log.info("Updating dataset '%s'", name)
-        dataset = data.update_dataset(rs.dataset.id, name, data_type, val, unit_id, metadata, flush=False, **dict(user_id=user_id))
-        log.info("Updated dataset '%s'", name)
+        log.debug("Updating dataset '%s'", name)
+        if dataset_rs_map is not None:
+            # Bulk-path fast lane: we already know this dataset has exactly one RS
+            # (this one) and the scenario is unlocked (checked above), so we can
+            # skip the resourcescenarios lazy-load and the scenario.locked traversal.
+            dataset = rs.dataset
+            dataset.type = data_type
+            dataset.value = val
+            dataset.set_metadata(metadata)
+            dataset.unit_id = unit_id
+            dataset.name = name
+            dataset.created_by = user_id
+            new_hash = dataset.set_hash()
+
+            # Collision check using the pre-built batch cache — no per-dataset DB query.
+            # dataset_hash_cache is pre-seeded with DB-existing datasets that share a
+            # candidate hash, and is updated during the loop to catch batch-internal
+            # collisions (two update-path datasets converging on the same hash).
+            if dataset_hash_cache is not None:
+                existing = dataset_hash_cache.get(new_hash)
+                if existing is not None and existing.id != dataset.id and existing.check_read_permission(user_id, do_raise=False):
+                    db.DBSession.delete(dataset)
+                    dataset = existing
+                else:
+                    dataset_hash_cache[new_hash] = dataset
+        else:
+            dataset = data.update_dataset(rs.dataset.id, name, data_type, val, unit_id, metadata, flush=False, **dict(user_id=user_id))
+        log.debug("Updated dataset '%s'", name)
         rs.dataset = dataset
         rs.dataset_id = dataset.id
-        log.info("Set RS dataset id to %s"%dataset.id)
+        log.debug("Set RS dataset id to %s"%dataset.id)
     else:
-        log.info("Creating new dataset %s in scenario %s", name, rs.scenario_id)
-        dataset = data.add_dataset(
-            data_type,
-            val,
-            unit_id,
-            metadata=metadata,
-            name=name,
-            **dict(user_id=user_id)
-        )
+        log.debug("Creating new dataset %s in scenario %s", name, rs.scenario_id)
+        if new_dataset_cache is not None and data_hash in new_dataset_cache:
+            dataset = new_dataset_cache[data_hash]
+        else:
+            dataset = data.add_dataset(
+                data_type,
+                val,
+                unit_id,
+                metadata=metadata,
+                name=name,
+                **dict(user_id=user_id)
+            )
+            if new_dataset_cache is not None and data_hash is not None:
+                new_dataset_cache[data_hash] = dataset
         rs.dataset = dataset
         rs.source = source
 
-
-    db.DBSession.flush()
+    if flush:
+        db.DBSession.flush()
 
     return rs
 
@@ -1283,8 +1385,7 @@ def add_data_to_attribute(scenario_id, resource_attr_id, dataset,**kwargs):
     dataset_j = JSONDataset(dataset)
     value = dataset_j.parse_value()
 
-    dataset_metadata = dataset_j.get_metadata_as_dict(user_id=kwargs.get('user_id'),
-                                                      source=kwargs.get('source'))
+    dataset_metadata = dataset_j.get_metadata_as_dict()
     if value is None:
         raise HydraError(f"Cannot set value to attribute. No value was sent with dataset {dataset_j.id}")
 

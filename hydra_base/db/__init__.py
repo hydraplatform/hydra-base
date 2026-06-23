@@ -194,8 +194,37 @@ def close_session():
 
 
 def rollback_transaction():
-    #import pudb; pudb.set_trace()
-    transaction.abort()
+    DBSession.rollback()
+
+def bulk_insert_ignore(model, rows):
+    """
+    Bulk insert rows into model, silently skipping any that would violate a
+    unique constraint. Cross-database compatible.
+
+    Does not return inserted IDs — query back as needed after calling.
+    """
+    if not rows:
+        return
+
+    if engine is None:
+        raise HydraError("bulk_insert_ignore: No database engine available. Please call connect() first.")
+
+    dialect_name = engine.dialect.name
+
+    if dialect_name == 'mysql':
+        from sqlalchemy.dialects.mysql import insert as _insert
+        stmt = _insert(model).values(rows).prefix_with('IGNORE')
+    elif dialect_name == 'postgresql':
+        from sqlalchemy.dialects.postgresql import insert as _insert
+        stmt = _insert(model).values(rows).on_conflict_do_nothing()
+    elif dialect_name == 'sqlite':
+        from sqlalchemy.dialects.sqlite import insert as _insert
+        stmt = _insert(model).values(rows).on_conflict_do_nothing()
+    else:
+        raise HydraError(f"bulk_insert_ignore: unsupported dialect '{dialect_name}'")
+
+    DBSession.execute(stmt)
+
 
 def restart_session(caller='-- not specified --'):
     """
