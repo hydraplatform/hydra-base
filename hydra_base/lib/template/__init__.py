@@ -743,8 +743,11 @@ def get_template(template_id, **kwargs):
     tmpl_j = cache.get(f"{CACHE_KEY}_{template_id}")
 
     if tmpl_j is not None:
-        log.info("Returning cached template")
-        return JSONObject(tmpl_j)
+        result = JSONObject(tmpl_j) if not isinstance(tmpl_j, JSONObject) else tmpl_j
+        if result.templatetypes is not None:
+            log.info("Returning cached template")
+            return result
+        log.warning("Cached template %s has no templatetypes — re-fetching from DB", template_id)
 
     try:
         log.info("Building template")

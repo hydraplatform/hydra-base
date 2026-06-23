@@ -17,6 +17,7 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 from .base import *
+from .base import _is_admin
 
 __all__ = ['Template', 'TemplateType', 'TypeAttr', 'ResourceType']
 
@@ -322,6 +323,14 @@ class Template(Base, Inspect):
         if self.parent_id:
             hierarchy = hierarchy + self.parent.get_hierarchy(user_id)
         return hierarchy
+
+    def check_write_permission(self, user_id, do_raise=True):
+        if _is_admin(user_id):
+            return True
+        if do_raise:
+            raise PermissionError("Permission denied. User %s does not have edit"
+                                  " access on template %s" % (user_id, self.id))
+        return False
 
 class TemplateType(Base, Inspect):
     """
