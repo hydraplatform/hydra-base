@@ -740,7 +740,25 @@ def get_template(template_id, **kwargs):
         Get a specific resource template, by ID.
     """
     log.info("Getting template %s", template_id)
-    tmpl_j = cache.get(f"{CACHE_KEY}_{template_id}")
+
+    tmpl_j = None
+    try:
+        tmpl_j = cache.get(f"{CACHE_KEY}_{template_id}")
+    except ConnectionError as e:
+        cache_type = config.get('cache', 'type', 'memcached')
+        cache_host = config.get('cache', 'host', '127.0.0.1')
+        cache_port = config.get('cache', 'port', 11211)
+
+        log.critical(
+            f"Unable to connect to cache for template {template_id}: {e}; cache_type={cache_type} host={cache_host} port={cache_port}",
+            exc_info=True
+        )
+    except Exception as e:
+        log.critical(
+            f"Unexpected error when accessing cache for template {template_id}: {e}",
+            exc_info=True
+        )
+
 
     if tmpl_j is not None:
         result = JSONObject(tmpl_j) if not isinstance(tmpl_j, JSONObject) else tmpl_j

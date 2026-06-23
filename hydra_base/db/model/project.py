@@ -366,7 +366,7 @@ class Project(Base, Inspect, PermissionControlled):
 
         return res_attr
 
-    def set_owner(self, user_id, read='Y', write='Y', share='Y'):
+    def set_owner(self, user_id, read='Y', write='Y', share='Y', is_admin='N'):
 
         for o in self.owners:
             if user_id == o.user_id:
@@ -381,6 +381,7 @@ class Project(Base, Inspect, PermissionControlled):
         owner.view = read
         owner.edit = write
         owner.share = share
+        owner.is_admin = is_admin
 
         Project.clear_cache(user_id)
 

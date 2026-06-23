@@ -32,6 +32,7 @@ class ProjectOwner(Base, Inspect):
     view = Column(String(1),  nullable=False, default='Y')
     edit = Column(String(1),  nullable=False, default='N')
     share = Column(String(1),  nullable=False, default='N')
+    is_admin = Column(String(1),  nullable=False, server_default='N', default='N')
 
     user = relationship('User')
     project = relationship('Project', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
@@ -55,6 +56,7 @@ class NetworkOwner(Base, Inspect):
     view = Column(String(1),  nullable=False, default='Y')
     edit = Column(String(1),  nullable=False, default='N')
     share = Column(String(1),  nullable=False, default='N')
+    is_admin = Column(String(1),  nullable=False, server_default='N', default='N')
 
     user = relationship('User')
     network = relationship('Network', backref=backref('owners', order_by=user_id, uselist=True, cascade="all, delete-orphan"))
