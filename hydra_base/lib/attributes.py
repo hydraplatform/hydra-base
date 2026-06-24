@@ -629,28 +629,18 @@ def add_attributes(attrs, **kwargs):
     #add a new attribute.
     user_id = kwargs.get('user_id')
 
-    # Extract incoming attr keys to filter queries and avoid loading unnecessary rows
-    incoming_attr_keys = []
-    for a in attrs:
-        if a is not None:
-            incoming_attr_keys.append((a.name.lower(), a.dimension_id))
+    # Deduplicate to unique lowercase names for an efficient IN filter.
+    # Exact (name, dimension_id) matching is done in Python via attr_dict below.
+    unique_lower_names = list({a.name.lower() for a in attrs if a is not None})
 
-    if not incoming_attr_keys:
+    if not unique_lower_names:
         return []
 
-    # Build OR conditions for filtering queries by (name, dimension_id) pairs
-    name_dim_filters = [
-        and_(func.lower(Attr.name) == name, Attr.dimension_id == dim)
-        for name, dim in incoming_attr_keys
-    ]
-
-    # All global attributes matching incoming names/dimensions
+    # All global attributes matching incoming names
     global_attrs = db.DBSession.query(Attr).filter(
-        and_(
-            Attr.network_id == None,
-            Attr.project_id == None,
-            or_(*name_dim_filters)
-        )
+        Attr.network_id == None,
+        Attr.project_id == None,
+        func.lower(Attr.name).in_(unique_lower_names)
     ).all()
 
     #project-scoped attributes
@@ -682,14 +672,17 @@ def add_attributes(attrs, **kwargs):
 
     #go top down, saving the attributes, and overwriting the duplicates as we
     #go down the tree.
+    all_project_ids = project_ids + network_project_ids
     project_attr_dict = {}
-    if project_ids + network_project_ids:
-        # Query for project attrs matching incoming keys in a single query
+    if all_project_ids:
         project_attrs = db.DBSession.query(Attr).filter(
-            Attr.project_id.in_(project_ids + network_project_ids),
-            or_(*name_dim_filters)
+            Attr.project_id.in_(all_project_ids),
+            func.lower(Attr.name).in_(unique_lower_names)
         ).all()
-        for project_attr in project_attrs:
+        # all_project_ids is ordered parent-first (root → leaf); sorting by that
+        # order ensures child entries overwrite parent entries for the same key.
+        project_id_order = {pid: i for i, pid in enumerate(all_project_ids)}
+        for project_attr in sorted(project_attrs, key=lambda a: project_id_order[a.project_id]):
             project_attr_dict[(project_attr.name, project_attr.dimension_id)] = project_attr
 
     #network scoped attributes
@@ -697,7 +690,7 @@ def add_attributes(attrs, **kwargs):
     if len(network_ids) > 0:
         network_attrs = db.DBSession.query(Attr).filter(
             Attr.network_id.in_(network_ids),
-            or_(*name_dim_filters)
+            func.lower(Attr.name).in_(unique_lower_names)
         ).all()
 
     all_attrs = global_attrs + list(project_attr_dict.values()) + network_attrs
@@ -720,9 +713,22 @@ def add_attributes(attrs, **kwargs):
             else:
                 attrs_to_add.append(JSONObject(potential_new_attr))
 
+    # Deduplicate to prevent IntegrityError when a caller submits two attrs
+    # with the same (name, dimension_id, scope) in one batch — the deferred
+    # flush means _check_can_add_attribute can't catch in-batch duplicates.
+    seen_new_keys = set()
+    deduped_attrs_to_add = []
+    for attr in attrs_to_add:
+        dedup_key = (attr.name.lower(), attr.dimension_id,
+                     getattr(attr, 'project_id', None),
+                     getattr(attr, 'network_id', None))
+        if dedup_key not in seen_new_keys:
+            seen_new_keys.add(dedup_key)
+            deduped_attrs_to_add.append(attr)
+
     # Batch insert: collect ORM objects without flushing individually
     orm_attrs = []
-    for attr in attrs_to_add:
+    for attr in deduped_attrs_to_add:
         new_attr_i = _add_attribute(attr, flush=False, user_id=user_id)
         orm_attrs.append(new_attr_i)
 
