@@ -2681,22 +2681,42 @@ def get_all_attributes_in_network(network_id, **kwargs):
         raise HydraError("Network %s not found" % (network_id,))
     net.check_read_permission(user_id)
 
-    network_attr_ids = db.DBSession.query(ResourceAttr.attr_id.label('attr_id')).filter(
-        ResourceAttr.network_id == network_id
-    )
-    node_attr_ids = db.DBSession.query(ResourceAttr.attr_id.label('attr_id')).join(
-        Node, ResourceAttr.node_id == Node.id
-    ).filter(Node.network_id == network_id)
-    link_attr_ids = db.DBSession.query(ResourceAttr.attr_id.label('attr_id')).join(
-        Link, ResourceAttr.link_id == Link.id
-    ).filter(Link.network_id == network_id)
-    group_attr_ids = db.DBSession.query(ResourceAttr.attr_id.label('attr_id')).join(
-        ResourceGroup, ResourceAttr.group_id == ResourceGroup.id
-    ).filter(ResourceGroup.network_id == network_id)
+    #Find the distinct attr_ids used by the network and its nodes/links/groups.
+    attr_ids = set()
 
-    all_attr_ids = network_attr_ids.union(node_attr_ids, link_attr_ids, group_attr_ids).subquery()
+    #Network/Node/Link lookups join through an indexed network_id and are fast.
+    for r in db.DBSession.query(ResourceAttr.attr_id).filter(
+            ResourceAttr.network_id == network_id).distinct().all():
+        attr_ids.add(r[0])
 
-    attrs = db.DBSession.query(Attr).join(all_attr_ids, Attr.id == all_attr_ids.c.attr_id).all()
+    for r in db.DBSession.query(ResourceAttr.attr_id).join(
+            Node, ResourceAttr.node_id == Node.id).filter(
+            Node.network_id == network_id).distinct().all():
+        attr_ids.add(r[0])
+
+    for r in db.DBSession.query(ResourceAttr.attr_id).join(
+            Link, ResourceAttr.link_id == Link.id).filter(
+            Link.network_id == network_id).distinct().all():
+        attr_ids.add(r[0])
+
+    #The ResourceGroup join must NOT be done in one query: tResourceGroup has no
+    #dedicated index on network_id (only a composite unique index), so MySQL
+    #mis-plans the join and scans the whole multi-million-row tResourceAttr
+    #table - ~12s for a single group. Fetch the (tiny) set of group ids first,
+    #then look up ResourceAttr by group_id, which uses the (group_id, attr_id)
+    #covering index directly.
+    group_ids = [r[0] for r in db.DBSession.query(ResourceGroup.id).filter(
+        ResourceGroup.network_id == network_id).all()]
+
+    if len(group_ids) > 0:
+        for r in db.DBSession.query(ResourceAttr.attr_id).filter(
+                ResourceAttr.group_id.in_(group_ids)).distinct().all():
+            attr_ids.add(r[0])
+
+    if len(attr_ids) == 0:
+        return []
+
+    attrs = db.DBSession.query(Attr).filter(Attr.id.in_(attr_ids)).all()
 
     return [JSONObject(a) for a in attrs]
 
