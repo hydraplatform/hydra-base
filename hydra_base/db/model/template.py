@@ -18,7 +18,7 @@
 #
 from .base import *
 
-__all__ = ['Template', 'TemplateType', 'TypeAttr', 'ResourceType']
+__all__ = ['Template', 'TemplateType', 'TypeAttr', 'ResourceType', 'ProjectTemplate']
 
 from .attributes import Attr
 from .units import Unit
@@ -322,6 +322,7 @@ class Template(Base, Inspect):
         if self.parent_id:
             hierarchy = hierarchy + self.parent.get_hierarchy(user_id)
         return hierarchy
+
 
 class TemplateType(Base, Inspect):
     """
@@ -646,3 +647,17 @@ class ResourceType(Base, Inspect):
         type_i = template_i.get_type(self.type_id)
 
         return JSONObject(type_i)
+
+class ProjectTemplate(Base, Inspect, PermissionControlled):
+    """
+    Links a template to a project, allowing template lookup at the project level.
+    """
+
+    __tablename__ = 'tProjectTemplate'
+
+    project_id = Column(Integer(), ForeignKey('tProject.id'), primary_key=True, nullable=False)
+    template_id = Column(Integer(), ForeignKey('tTemplate.id'), primary_key=True, nullable=False)
+    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+
+    _parents = ['tProject', 'tTemplate']
+    _children = []
