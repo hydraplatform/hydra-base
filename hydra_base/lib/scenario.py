@@ -965,6 +965,37 @@ def get_dataset_scenarios(dataset_id, **kwargs):
 
     return scenarios
 
+
+class _BulkAssignContext:
+    """
+        Groups the batch-scoped caches that bulk_update_resourcedata builds once
+        per scenario_id and passes down through _update_resourcescenario and
+        assign_value, so those two functions can skip per-row DB round trips.
+
+        INVARIANT: dataset_rs_map must contain *complete* connectivity info
+        (every (scenario_id, resource_attr_id) pair currently pointing at each
+        dataset_id) for every resource scenario being processed in this batch.
+        assign_value's in-place-mutation fast lane trusts this map to decide
+        whether a dataset is safe to mutate directly -- if the map is partial
+        or stale, that fast lane can silently corrupt a dataset that some
+        other, unlisted resource scenario still depends on. Build a fresh
+        instance per batch; never reuse one across a different set of
+        resource_scenarios.
+    """
+    __slots__ = ('dataset_rs_map', 'new_dataset_cache', 'dataset_hash_cache',
+                 'unchanged', 'updated_in_place', 'created', 'collisions_avoided')
+
+    def __init__(self, dataset_rs_map=None, new_dataset_cache=None, dataset_hash_cache=None):
+        self.dataset_rs_map = dataset_rs_map if dataset_rs_map is not None else {}
+        self.new_dataset_cache = new_dataset_cache if new_dataset_cache is not None else {}
+        self.dataset_hash_cache = dataset_hash_cache if dataset_hash_cache is not None else {}
+        #Counters purely for the end-of-batch summary log -- not used for any logic.
+        self.unchanged = 0
+        self.updated_in_place = 0
+        self.created = 0
+        self.collisions_avoided = 0
+
+
 @required_perms("edit_data", "edit_network")
 def bulk_update_resourcedata(scenario_ids, resource_scenarios, **kwargs):
     """
@@ -1009,8 +1040,6 @@ def bulk_update_resourcedata(scenario_ids, resource_scenarios, **kwargs):
         else:
             dataset_rs_map = {}
 
-        new_dataset_cache = {}
-
         # Pre-pass: identify update-in-place candidates, compute their new hashes,
         # then do ONE batch collision check against existing DB datasets.
         # This replaces per-dataset hash-collision queries in the main loop.
@@ -1051,6 +1080,9 @@ def bulk_update_resourcedata(scenario_ids, resource_scenarios, **kwargs):
         else:
             dataset_hash_cache = {}
 
+        bulk_ctx = _BulkAssignContext(dataset_rs_map=dataset_rs_map,
+                                       dataset_hash_cache=dataset_hash_cache)
+
         for rs in resource_scenarios:
             if rs.dataset is not None:
                 ra_id = rs.resource_attr_id
@@ -1058,6 +1090,7 @@ def bulk_update_resourcedata(scenario_ids, resource_scenarios, **kwargs):
                     # Pre-pass confirmed hash match — no DB write needed.
                     r_scen_i = r_scen_dict.get(ra_id)
                     if r_scen_i is not None:
+                        bulk_ctx.unchanged += 1
                         res[str(scenario_id)].append(r_scen_i)
                         continue
                 updated_rs = _update_resourcescenario(scen_i,
@@ -1066,15 +1099,19 @@ def bulk_update_resourcedata(scenario_ids, resource_scenarios, **kwargs):
                                                       user_id=user_id,
                                                       source=kwargs.get('app_name'),
                                                       flush=False,
-                                                      dataset_rs_map=dataset_rs_map,
-                                                      new_dataset_cache=new_dataset_cache,
-                                                      dataset_hash_cache=dataset_hash_cache)
+                                                      bulk_ctx=bulk_ctx)
                 #this is cast as a string so it can be read into a JSONObject
                 res[str(scenario_id)].append(updated_rs)
             else:
                 _delete_resourcescenario(scenario_id, rs.resource_attr_id)
 
         db.DBSession.flush()
+
+        log.info(
+            "bulk_update_resourcedata scenario %s: %s unchanged, %s updated in place, "
+            "%s created, %s collisions avoided (%s total)",
+            scenario_id, bulk_ctx.unchanged, bulk_ctx.updated_in_place,
+            bulk_ctx.created, bulk_ctx.collisions_avoided, len(resource_scenarios))
 
     return res
 
@@ -1188,10 +1225,14 @@ def _delete_resourcescenario(scenario_id, resource_attr_id, suppress_error=False
     db.DBSession.delete(sd_i)
     db.DBSession.flush()
 
-def _update_resourcescenario(scenario, resource_scenario, r_scen_i=None, dataset=None, new=False, user_id=None, source=None, flush=True, dataset_rs_map=None, new_dataset_cache=None, dataset_hash_cache=None):
+def _update_resourcescenario(scenario, resource_scenario, r_scen_i=None, dataset=None, new=False, user_id=None, source=None, flush=True, bulk_ctx=None):
     """
         Insert or Update the value of a resource's attribute by first getting the
         resource, then parsing the input data, then assigning the value.
+
+        bulk_ctx (_BulkAssignContext): Optional. Set by bulk_update_resourcedata
+            to share its batch-scoped caches with assign_value. See
+            _BulkAssignContext's docstring for the invariant it requires.
 
         returns a ResourceScenario object.
     """
@@ -1255,22 +1296,30 @@ def _update_resourcescenario(scenario, resource_scenario, r_scen_i=None, dataset
                  user_id=user_id,
                  source=source,
                  flush=flush,
-                 dataset_rs_map=dataset_rs_map,
-                 new_dataset_cache=new_dataset_cache,
-                 dataset_hash_cache=dataset_hash_cache)
+                 bulk_ctx=bulk_ctx)
 
     return new_rscen_i
 
 @required_perms("edit_data", "edit_network")
 def assign_value(rs, data_type, val,
                  unit_id, name, metadata={}, data_hash=None, user_id=None, source=None,
-                 flush=True, dataset_rs_map=None, new_dataset_cache=None,
-                 dataset_hash_cache=None):
+                 flush=True, bulk_ctx=None):
     """
         Insert or update a piece of data in a scenario.
         If the dataset is being shared by other resource scenarios, a new dataset is inserted.
         If the dataset is ONLY being used by the resource scenario in question, the dataset
         is updated to avoid unnecessary duplication.
+
+        bulk_ctx (_BulkAssignContext): Optional. When set (only by
+            bulk_update_resourcedata's batch path), dataset connectivity and
+            hash-collision lookups use bulk_ctx's pre-built caches instead of
+            a per-call DB query. bulk_ctx.dataset_rs_map MUST reflect complete
+            connectivity for every dataset touched in the batch -- see
+            _BulkAssignContext's docstring. The in-place mutation fast lane
+            below re-verifies single-ownership from that same map immediately
+            before mutating, so a caller-side bug that violates the invariant
+            fails loudly (HydraError) rather than silently corrupting a
+            dataset some other resource scenario still depends on.
     """
 
     log.debug("Assigning value %s to rs %s in scenario %s",
@@ -1291,8 +1340,8 @@ def assign_value(rs, data_type, val,
             log.debug("Dataset has not changed. Returning.")
             return rs
 
-        if dataset_rs_map is not None:
-            connected = dataset_rs_map.get(rs.dataset.id, [])
+        if bulk_ctx is not None:
+            connected = bulk_ctx.dataset_rs_map.get(rs.dataset.id, [])
         else:
             connected = [(r.scenario_id, r.resource_attr_id)
                          for r in db.DBSession.query(ResourceScenario).filter(
@@ -1306,10 +1355,26 @@ def assign_value(rs, data_type, val,
 
     if update_dataset is True:
         log.debug("Updating dataset '%s'", name)
-        if dataset_rs_map is not None:
+        if bulk_ctx is not None:
             # Bulk-path fast lane: we already know this dataset has exactly one RS
             # (this one) and the scenario is unlocked (checked above), so we can
             # skip the resourcescenarios lazy-load and the scenario.locked traversal.
+            #
+            # Defense in depth: re-verify single-ownership right here, at the point
+            # of the in-place mutation, rather than trusting the check a few lines
+            # above still holds. This doesn't add an independent data source (it's
+            # the same dataset_rs_map), but it means a future edit that moves code
+            # around, or a caller that passes an incomplete/stale map, fails loudly
+            # instead of silently mutating a dataset another resource scenario
+            # still depends on.
+            if not (len(connected) == 1 and connected[0][0] == rs.scenario_id
+                     and connected[0][1] == rs.resource_attr_id):
+                raise HydraError(
+                    "Refusing in-place update of dataset %s for resource attribute "
+                    "%s in scenario %s: bulk_ctx.dataset_rs_map shows it is not "
+                    "exclusively owned by this resource scenario (connected=%s)." %
+                    (rs.dataset.id, rs.resource_attr_id, rs.scenario_id, connected))
+
             dataset = rs.dataset
             dataset.type = data_type
             dataset.value = val
@@ -1323,13 +1388,23 @@ def assign_value(rs, data_type, val,
             # dataset_hash_cache is pre-seeded with DB-existing datasets that share a
             # candidate hash, and is updated during the loop to catch batch-internal
             # collisions (two update-path datasets converging on the same hash).
-            if dataset_hash_cache is not None:
-                existing = dataset_hash_cache.get(new_hash)
-                if existing is not None and existing.id != dataset.id and existing.check_read_permission(user_id, do_raise=False):
-                    db.DBSession.delete(dataset)
-                    dataset = existing
-                else:
-                    dataset_hash_cache[new_hash] = dataset
+            existing = bulk_ctx.dataset_hash_cache.get(new_hash)
+            if existing is not None and existing.id != dataset.id and existing.check_read_permission(user_id, do_raise=False):
+                db.DBSession.delete(dataset)
+                dataset = existing
+                bulk_ctx.collisions_avoided += 1
+            elif existing is not None and existing.id != dataset.id:
+                #Found a hash match we can't reuse (no read permission on it), and
+                #can't keep this hash either -- tDataset.hash has a UNIQUE
+                #constraint, so leaving it as-is would raise IntegrityError on
+                #flush. set_unique_hash() salts the hash computation only, it
+                #does not touch this dataset's real (persisted) metadata.
+                new_hash = dataset.set_unique_hash(metadata)
+                bulk_ctx.dataset_hash_cache[new_hash] = dataset
+            else:
+                bulk_ctx.dataset_hash_cache[new_hash] = dataset
+
+            bulk_ctx.updated_in_place += 1
         else:
             dataset = data.update_dataset(rs.dataset.id, name, data_type, val, unit_id, metadata, flush=False, **dict(user_id=user_id))
         log.debug("Updated dataset '%s'", name)
@@ -1338,8 +1413,8 @@ def assign_value(rs, data_type, val,
         log.debug("Set RS dataset id to %s"%dataset.id)
     else:
         log.debug("Creating new dataset %s in scenario %s", name, rs.scenario_id)
-        if new_dataset_cache is not None and data_hash in new_dataset_cache:
-            dataset = new_dataset_cache[data_hash]
+        if bulk_ctx is not None and data_hash in bulk_ctx.new_dataset_cache:
+            dataset = bulk_ctx.new_dataset_cache[data_hash]
         else:
             dataset = data.add_dataset(
                 data_type,
@@ -1349,8 +1424,10 @@ def assign_value(rs, data_type, val,
                 name=name,
                 **dict(user_id=user_id)
             )
-            if new_dataset_cache is not None and data_hash is not None:
-                new_dataset_cache[data_hash] = dataset
+            if bulk_ctx is not None:
+                bulk_ctx.created += 1
+                if data_hash is not None:
+                    bulk_ctx.new_dataset_cache[data_hash] = dataset
         rs.dataset = dataset
         rs.source = source
 

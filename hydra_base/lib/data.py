@@ -486,7 +486,12 @@ def add_dataset(data_type, val, unit_id=None, metadata={}, name="", user_id=None
         if existing_dataset.check_read_permission(user_id, do_raise=False) is True:
             d = existing_dataset
         else:
-            d.set_hash()
+            #Can't reuse the existing dataset (no read permission) and can't keep
+            #this hash either -- tDataset.hash has a UNIQUE constraint, so leaving
+            #it as-is would raise IntegrityError on flush. set_unique_hash() salts
+            #the hash computation only, it does not touch this dataset's real
+            #(persisted) metadata.
+            d.hash = d.set_unique_hash(metadata)
             db.DBSession.add(d)
     except NoResultFound:
         db.DBSession.add(d)
