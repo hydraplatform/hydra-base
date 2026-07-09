@@ -485,6 +485,8 @@ class TestNetwork:
         nlinks = 2
         x = [0, 0, 1]
         y = [0, 1, 0]
+        alt_x = [51.379258, 51.479258, 51.579258]
+        alt_y = [0.011938, 0.021938, 0.021938]
 
         for i in range(nnodes):
             node = hb.JSONObject()
@@ -493,6 +495,8 @@ class TestNetwork:
             node.description = 'test node ' + str(i)
             node.x = x[i]
             node.y = y[i]
+            node.alt_x = alt_x[i]
+            node.alt_y = alt_y[i]
 
             nodes.append(node)
 
@@ -566,6 +570,8 @@ class TestNetwork:
         nlinks = 2
         x = [0, 0, 1]
         y = [0, 1, 0]
+        alt_x = [51.379258, 51.479258, 51.579258]
+        alt_y = [0.011938, 0.021938, 0.021938]
 
         for i in range(nnodes):
             node = hb.JSONObject()
@@ -574,6 +580,8 @@ class TestNetwork:
             node.description = 'test node ' + str(i)
             node.x = x[i]
             node.y = y[i]
+            node.alt_x = alt_x[i]
+            node.alt_y = alt_y[i]
 
             nodes.append(node)
 
@@ -632,6 +640,21 @@ class TestNetwork:
         assert updated_node.layout is not None
         assert updated_node.layout['app']  == ["Unit Test1", "Unit Test2"]
         assert updated_node.name == "Updated Node Name"
+
+        node_to_update.x = 99
+        node_to_update.y = 101
+
+        node_to_update.alt_x = 999
+        node_to_update.alt_y = 1101
+
+        updated_node = client.update_node(node_to_update)
+
+        updated_node = client.get_node(node_to_update.id)
+
+        assert updated_node.x == 99
+        assert updated_node.y == 101
+        assert updated_node.alt_x == 999
+        assert updated_node.alt_y == 1101
 
     def test_set_node_status(self, client, network_with_data):
         network = network_with_data
