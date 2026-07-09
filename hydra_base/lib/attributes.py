@@ -297,6 +297,10 @@ def _add_attribute(attr, user_id, flush=True, do_reassign=False):
         if flush is True:
             db.DBSession.flush()
 
+    # Return ORM object if not flushed (to get ID after batch flush)
+    # Return JSONObject if already flushed
+    if flush is False:
+        return attr_i
     return JSONObject(attr_i)
 
 def _reassign_scoped_attributes(attr_id, user_id):
@@ -625,8 +629,19 @@ def add_attributes(attrs, **kwargs):
     #add a new attribute.
     user_id = kwargs.get('user_id')
 
-    # All global attributes
-    global_attrs = db.DBSession.query(Attr).filter(and_(Attr.network_id == None, Attr.project_id == None)).all()
+    # Deduplicate to unique lowercase names for an efficient IN filter.
+    # Exact (name, dimension_id) matching is done in Python via attr_dict below.
+    unique_lower_names = list({a.name.lower() for a in attrs if a is not None})
+
+    if not unique_lower_names:
+        return []
+
+    # All global attributes matching incoming names
+    global_attrs = db.DBSession.query(Attr).filter(
+        Attr.network_id == None,
+        Attr.project_id == None,
+        func.lower(Attr.name).in_(unique_lower_names)
+    ).all()
 
     #project-scoped attributes
     project_attrs = []
@@ -657,22 +672,26 @@ def add_attributes(attrs, **kwargs):
 
     #go top down, saving the attributes, and overwriting the duplicates as we
     #go down the tree.
+    all_project_ids = project_ids + network_project_ids
     project_attr_dict = {}
-    seen = []
-    for project_id in project_ids + network_project_ids:
-        #  avoid duplicates. Can't use a set here because order is important
-        if project_id in seen:
-            continue
-        else:
-            seen.append(project_id)
-        project_attrs = db.DBSession.query(Attr).filter(Attr.project_id == project_id).all()
-        for project_attr in project_attrs:
-            project_attr_dict[(project_attr.name, project_attr.dimension)] = project_attr
+    if all_project_ids:
+        project_attrs = db.DBSession.query(Attr).filter(
+            Attr.project_id.in_(all_project_ids),
+            func.lower(Attr.name).in_(unique_lower_names)
+        ).all()
+        # all_project_ids is ordered parent-first (root → leaf); sorting by that
+        # order ensures child entries overwrite parent entries for the same key.
+        project_id_order = {pid: i for i, pid in enumerate(all_project_ids)}
+        for project_attr in sorted(project_attrs, key=lambda a: project_id_order[a.project_id]):
+            project_attr_dict[(project_attr.name, project_attr.dimension_id)] = project_attr
 
     #network scoped attributes
     network_attrs = []
     if len(network_ids) > 0:
-        network_attrs = db.DBSession.query(Attr).filter(Attr.network_id.in_(network_ids)).all()
+        network_attrs = db.DBSession.query(Attr).filter(
+            Attr.network_id.in_(network_ids),
+            func.lower(Attr.name).in_(unique_lower_names)
+        ).all()
 
     all_attrs = global_attrs + list(project_attr_dict.values()) + network_attrs
 
@@ -694,16 +713,35 @@ def add_attributes(attrs, **kwargs):
             else:
                 attrs_to_add.append(JSONObject(potential_new_attr))
 
-    new_attrs = []
+    # Deduplicate to prevent IntegrityError when a caller submits two attrs
+    # with the same (name, dimension_id, scope) in one batch — the deferred
+    # flush means _check_can_add_attribute can't catch in-batch duplicates.
+    seen_new_keys = set()
+    deduped_attrs_to_add = []
     for attr in attrs_to_add:
-        new_attr_i = _add_attribute(attr, flush=True, user_id=user_id)
-        new_attrs.append(new_attr_i)
+        dedup_key = (attr.name.lower(), attr.dimension_id,
+                     getattr(attr, 'project_id', None),
+                     getattr(attr, 'network_id', None))
+        if dedup_key not in seen_new_keys:
+            seen_new_keys.add(dedup_key)
+            deduped_attrs_to_add.append(attr)
 
+    # Batch insert: collect ORM objects without flushing individually
+    orm_attrs = []
+    for attr in deduped_attrs_to_add:
+        new_attr_i = _add_attribute(attr, flush=False, user_id=user_id)
+        orm_attrs.append(new_attr_i)
+
+    # Single flush for all new attributes instead of per-attribute flushes
     db.DBSession.flush()
 
+    # Convert ORM objects to JSONObjects AFTER flush so they have IDs assigned
+    new_attrs = [JSONObject(a) for a in orm_attrs]
+
+    # Combine with existing attributes (which are already JSONObjects)
     new_attrs = new_attrs + existing_attrs
 
-    return [JSONObject(a) for a in new_attrs]
+    return new_attrs
 
 def get_attributes(network_id=None,
                    project_id=None,
