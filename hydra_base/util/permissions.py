@@ -18,13 +18,19 @@
 #
 
 import threading
+import time
 from functools import wraps
-from .. import db
+from .. import db, config
 from ..db.model import Perm, User, Role, RolePerm, RoleUser
 from sqlalchemy.orm.exc import NoResultFound
 from ..exceptions import PermissionError
 
 _perm_cache = threading.local()
+
+#Seconds a positive permission check is cached for before being re-verified
+#against the DB. Keeps check_perm fast for hot paths while bounding how long
+#a revoked permission/role can remain (incorrectly) usable.
+PERM_CACHE_TTL = config.getint('permissions', 'cache_ttl', 30)
 
 
 def check_perm(user_id, permission_code):
@@ -37,7 +43,8 @@ def check_perm(user_id, permission_code):
     """
     cache = _perm_cache.__dict__.setdefault('cache', {})
     key = (user_id, permission_code)
-    if key in cache:
+    cached_at = cache.get(key)
+    if cached_at is not None and time.time() - cached_at < PERM_CACHE_TTL:
         return
 
     try:
@@ -58,7 +65,7 @@ def check_perm(user_id, permission_code):
         raise PermissionError("Permission denied. User %s does not have permission %s"%
                         (user_id, permission_code))
 
-    cache[key] = True
+    cache[key] = time.time()
 
 def check_role(user_id, role_code):
     """
