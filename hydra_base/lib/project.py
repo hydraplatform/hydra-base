@@ -378,17 +378,49 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
     #to projects further down the tree which they are owners of.
     nav_project_ids = set(Project.get_cache(uid).get(project_id, [])) - scoped_project_ids
     nav_projects_i = db.DBSession.query(Project).filter(Project.id.in_(nav_project_ids)).filter(Project.parent_id==project_id).all()
+
+    user = db.DBSession.query(User).filter(User.id == req_user_id).one()
+    isadmin = user.is_admin()
+
+    #nav_project_ids aren't in projects_i (the user doesn't own/have direct
+    #view access to them), so their networks aren't in project_network_lookup
+    #below -- look them up separately, otherwise a nav_only project always
+    #shows "no networks" even when the user can actually see some of its
+    #networks (the rest of its contents may only be visible via a
+    #sub-project further down, which get_projects_networks doesn't reach).
+    nav_network_lookup = get_projects_networks(
+        [p.id for p in nav_projects_i], uid, isadmin=isadmin, **kwargs)
+
+    #Also account for networks sitting one level further down, in a nav
+    #project's own direct sub-projects -- Project.get_cache(uid) already
+    #has the full tree in memory so this is just a dict lookup per nav
+    #project, plus one extra batched network query (not a recursive walk).
+    nav_child_project_ids = {}
+    all_nav_child_ids = []
+    for nav_project_i in nav_projects_i:
+        children = [
+            cid for cid in Project.get_cache(uid).get(nav_project_i.id, [])
+            if cid != nav_project_i.id
+        ]
+        nav_child_project_ids[nav_project_i.id] = children
+        all_nav_child_ids.extend(children)
+
+    nav_child_network_lookup = get_projects_networks(
+        all_nav_child_ids, uid, isadmin=isadmin, **kwargs) if all_nav_child_ids else {}
+
     nav_projects = []
     for nav_project_i in nav_projects_i:
         nav_project_j = JSONObject(nav_project_i)
         nav_project_j.nav_only = True
         nav_project_j.owners = []
-        nav_project_j.networks = []
+
+        direct_networks = nav_network_lookup.get(nav_project_i.id, [])
+        child_ids = nav_child_project_ids[nav_project_i.id]
+        child_networks = [n for cid in child_ids for n in nav_child_network_lookup.get(cid, [])]
+
+        nav_project_j.networks = direct_networks + child_networks
+
         nav_projects.append(nav_project_j)
-
-
-    user = db.DBSession.query(User).filter(User.id == req_user_id).one()
-    isadmin = user.is_admin()
 
     project_network_lookup = get_projects_networks([p.id for p in projects_i], uid, isadmin=isadmin, **kwargs)
 
@@ -452,7 +484,7 @@ def get_projects_networks(project_ids, uid, isadmin=None, **kwargs):
                                 .filter(Network.project_id.in_(project_ids),\
                                         Network.status=='A')
     if not isadmin:
-        network_qry.outerjoin(NetworkOwner)\
+        network_qry = network_qry.outerjoin(NetworkOwner)\
         .filter(
             NetworkOwner.user_id == uid,
             NetworkOwner.view == 'Y'

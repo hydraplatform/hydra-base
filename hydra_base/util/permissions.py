@@ -17,12 +17,14 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
+import threading
 from functools import wraps
 from .. import db
 from ..db.model import Perm, User, Role, RolePerm, RoleUser
 from sqlalchemy.orm.exc import NoResultFound
 from ..exceptions import PermissionError
 
+_perm_cache = threading.local()
 
 
 def check_perm(user_id, permission_code):
@@ -33,6 +35,11 @@ def check_perm(user_id, permission_code):
         If the user does not have permission to perfom an action, a permission
         error is thrown.
     """
+    cache = _perm_cache.__dict__.setdefault('cache', {})
+    key = (user_id, permission_code)
+    if key in cache:
+        return
+
     try:
         perm = db.DBSession.query(Perm).filter(Perm.code==permission_code).one()
     except NoResultFound:
@@ -50,6 +57,8 @@ def check_perm(user_id, permission_code):
     except NoResultFound:
         raise PermissionError("Permission denied. User %s does not have permission %s"%
                         (user_id, permission_code))
+
+    cache[key] = True
 
 def check_role(user_id, role_code):
     """
