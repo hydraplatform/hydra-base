@@ -334,8 +334,6 @@ class TestUtil:
             'layout'      : None,
             'x' : 10 * coord,
             'y' : 10 * coord -1,
-            #alt_ coordinates are not necessary. 
-            # they can be used for alternative coordinate systems
             'alt_x' : 100 * coord,
             'alt_y' : 100 * coord -1,
             'attributes' : attributes,

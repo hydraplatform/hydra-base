@@ -1735,19 +1735,19 @@ def get_network_extents(network_id,**kwargs):
         # Default y extent if all None values
         y_min, y_max = 0, 1
 
-    # Compute min/max extent of the network.
-    lat = [r.alt_x for r in rs if r.alt_x is not None]
-    if len(lat) > 0:
-        min_alt_x = min(lat)
-        max_alt_x = max(lat)
+    # Compute min/max extent of the network in the alternate coordinate system.
+    alt_x = [r.alt_x for r in rs if r.alt_x is not None]
+    if len(alt_x) > 0:
+        min_alt_x = min(alt_x)
+        max_alt_x = max(alt_x)
     else:
         # Default x extent if all None values
         min_alt_x, max_alt_x = 0, 1
 
-    lon = [r.alt_y for r in rs if r.alt_y is not None]
-    if len(lon) > 0:
-        min_alt_y = min(lon)
-        max_alt_y = max(lon)
+    alt_y = [r.alt_y for r in rs if r.alt_y is not None]
+    if len(alt_y) > 0:
+        min_alt_y = min(alt_y)
+        max_alt_y = max(alt_y)
     else:
         # Default y extent if all None values
         min_alt_y, max_alt_y = 0, 1
