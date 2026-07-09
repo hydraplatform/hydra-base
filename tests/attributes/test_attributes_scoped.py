@@ -528,29 +528,36 @@ class TestScopedAttribute:
 
         previous_all_attributes = client.get_attributes()
 
-        new_attributes = client.add_attributes([global_attr, network_scoped_attr, project_scoped_attr])
+        new_attributes = client.add_attributes([global_attr,
+                                                network_scoped_attr,
+                                                project_scoped_attr])
 
         all_global_attributes = client.get_attributes()
 
         assert len(all_global_attributes) == len(previous_all_attributes) + 1
 
         #try add it again. SHould have no effect
-        client.add_attributes([global_attr, network_scoped_attr, project_scoped_attr])
+        client.add_attributes([global_attr,
+                               network_scoped_attr,
+                               project_scoped_attr])
 
         global_attributes_no_network = client.get_attributes()
-        network_scoped_attributes = client.get_attributes(network_id=network_with_data.id)
+        network_scoped_attributes = client.get_attributes(
+            network_id=network_with_data.id)
 
         #This should not have changed
         assert len(global_attributes_no_network) == len(all_global_attributes)
 
-        #It's 2 because there is one added by default to all new networks and projects, plus the ones we just added
+        #It's 2 because there is one added by default to all new
+        #networks and projects, plus the ones we just added
         assert len(network_scoped_attributes) == 2
 
         #try add it again. SHould have no effect
         client.add_attribute(project_scoped_attr)
 
         global_attributes_no_project = client.get_attributes()
-        project_scoped_attributes = client.get_attributes(project_id=network_with_data.project_id)
+        project_scoped_attributes = client.get_attributes(
+            project_id=network_with_data.project_id)
 
         #This should not have changed
         assert len(global_attributes_no_project) == len(all_global_attributes)
@@ -584,4 +591,53 @@ class TestScopedAttribute:
         assert len(global_and_project_and_network_scoped_attributes) == len(all_global_attributes) + 4
 
 
+    def test_add_network_scoped_attribute_with_attribute_already_existing(self, client, network_with_data):
+        """
+            Test that when adding an attribute to a network, where that attribute is already
+            scoped higher, then return the higher scoped attribute instead of failing
+        """
+        global_attr = JSONObject({
+            "name": f'Global Attribute {datetime.datetime.now()}',
+            "dimension_id": None
+        })
 
+        network_scoped_attr = JSONObject({
+            "name": f'Network Attribute {datetime.datetime.now()}',
+            "dimension_id": None,
+            "network_id": network_with_data.id
+        })
+
+        project_attr_name =  f'Project Attribute {datetime.datetime.now()}'
+
+        project_scoped_attr = JSONObject({
+            "name": project_attr_name,
+            "dimension_id": None,
+            "project_id": network_with_data.project_id
+        })
+
+
+        previous_all_attributes = client.get_attributes()
+
+        new_attributes = client.add_attributes([global_attr, network_scoped_attr, project_scoped_attr])
+
+        new_project_attr = list(filter(lambda x:x.project_id==network_with_data.project_id, new_attributes))[0]
+
+        scoped_ids = [a.id for a in new_attributes]
+
+        #Now add the attribute which is scoped to the project, to the network
+        duplicate_network_scoped_attr = JSONObject({
+            "name": project_attr_name,
+            "dimension_id": None,
+            "network_id": network_with_data.id
+        })
+
+
+        new_attributes = client.add_attributes([duplicate_network_scoped_attr])
+
+        #should return an existing scoped attribute (the project one)
+        assert len(new_attributes) == 1
+        assert new_attributes[0].id == new_project_attr.id
+
+        new_attribute = client.add_attribute(duplicate_network_scoped_attr)
+
+        assert new_attribute.id == new_project_attr.id

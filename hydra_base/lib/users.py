@@ -84,6 +84,14 @@ def get_usernames_like(username,**kwargs):
     rs = db.DBSession.query(User.username).filter(User.username.like(checkname)).all()
     return [r.username for r in rs]
 
+@required_perms("get_user")
+def get_users_like(username,**kwargs):
+    """
+        Return a list of usernames like the given string.
+    """
+    checkname = "%%%s%%"%username
+    rs = db.DBSession.query(User.username, User.id).filter(User.username.like(checkname)).all()
+    return [JSONObject({'username': r.username, 'id': r.id}) for r in rs]
 
 @required_perms("add_user")
 def add_user(user, **kwargs):

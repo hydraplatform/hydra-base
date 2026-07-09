@@ -19,8 +19,8 @@
 import logging
 from sqlalchemy.orm.exc import NoResultFound
 from hydra_base.lib.objects import JSONObject
-from ..db.model import Rule, RuleTypeDefinition, RuleTypeLink, RuleOwner,\
-                       Node, Link, ResourceGroup, Network
+from ..db.model import Rule, RuleTypeDefinition, RuleTypeLink, NetworkOwner, \
+                       Network, Template, Project
 from .. import db
 from ..exceptions import HydraError, ResourceNotFoundError
 
@@ -45,23 +45,11 @@ def _get_rule(rule_id, user_id, check_write=False):
     return rule_i
 
 @required_perms("get_network", "get_rules")
-def get_scenario_rules(scenario_id, **kwargs):
+def get_network_rules(network_id, summary=True, **kwargs):
     """
-        Get all the rules for a given scenario.
-    """
-    rules = db.DBSession.query(Rule).filter(Rule.scenario_id == scenario_id,
-                                            Rule.status == 'A').all()
-
-    return rules
-
-@required_perms("get_network", "get_rules")
-def get_network_rules(network_id, scenario_id=None, summary=True, **kwargs):
-    """
-        Get all the rules within a network -- including rules associated to
-        all nodes, links and group=s.
+        Get all the rules within a network
         Args:
             network_id (int): ID of the resource
-            scenario_id (int): Optional which filters on scenario ID also
         Returns:
             List of Rule SQLAlchemy objects
     """
@@ -69,46 +57,27 @@ def get_network_rules(network_id, scenario_id=None, summary=True, **kwargs):
 
     #just in case
     network_id = int(network_id)
+    network = db.DBSession.query(Network).filter(Network.id==network_id).one()
+    network.check_read_permission(user_id)
 
     rule_qry = db.DBSession.query(Rule).filter(Rule.status != 'X')
-    rule_qry = rule_qry.join(RuleOwner).filter(RuleOwner.user_id == int(user_id))
 
-    #Network rules
-    network_rule_qry = rule_qry.filter(Rule.network_id == network_id)
+    #Go through the template hierarchy for all types defined on this network and extract
+    #all rules associated to them.
+    all_template_rules = []
+    for rtype in network.types:
+        if not hasattr(rtype, "template_id"):
+            continue
+        template = db.DBSession.query(Template).filter(Template.id==rtype.template_id).one()
+        #need this to go top-bottom to apply rules from the top level down
+        template_hierarchy = template.get_hierarchy().reverse()
+        for current_template in template_hierarchy:
+            this_template_rules = rule_qry.filter(Rule.template_id == current_template.id).all()
+            all_template_rules = all_template_rules + this_template_rules
 
-    if scenario_id is not None:
-        network_rule_qry = network_rule_qry.filter(Rule.scenario_id == scenario_id)
 
-    network_rules = network_rule_qry.all()
-
-    #get node rules
-    node_rule_qry = rule_qry.filter(Rule.node_id == Node.id,
-                                    Node.network_id == Network.id,
-                                    Network.id == network_id)
-    if scenario_id is not None:
-        node_rule_qry = node_rule_qry.filter(Rule.scenario_id == scenario_id)
-
-    node_rules = node_rule_qry.all()
-
-    #Link Rules
-    link_rule_qry = rule_qry.filter(Link.id == Rule.link_id,
-                                    Link.network_id == Network.id,
-                                    Network.id == network_id)
-    if scenario_id is not None:
-        link_rule_qry = link_rule_qry.filter(Rule.scenario_id == scenario_id)
-
-    link_rules = link_rule_qry.all()
-
-    #ResourceGroup Rules
-    group_rule_qry = rule_qry.filter(ResourceGroup.id == Rule.group_id,
-                                     ResourceGroup.network_id == Network.id,
-                                     Network.id == network_id)
-    if scenario_id is not None:
-        group_rule_qry = group_rule_qry.filter(Rule.scenario_id == scenario_id)
-
-    group_rules = group_rule_qry.all()
-
-    all_network_rules = network_rules + node_rules + link_rules + group_rules
+    network_rules = rule_qry.filter(Rule.network_id == network_id).all()
+    all_network_rules = network_rules + all_template_rules
 
     #lazy load types
     if summary is False:
@@ -118,54 +87,100 @@ def get_network_rules(network_id, scenario_id=None, summary=True, **kwargs):
     return all_network_rules
 
 
-@required_perms("get_network", "get_rules")
-def get_resource_rules(ref_key, ref_id, scenario_id=None, **kwargs):
+@required_perms("get_template", "get_rules")
+def get_template_rules(template_id, summary=True, **kwargs):
+    """
+       Retrieve all Rules defined in a template
+       args:
+         <template_id>: integer (or castable) identifying a template
+         <summary>: bool specifying whether type-loading should be
+                    omitted
+       return:
+         list of Rule SQLAlchemy objects
+    """
+    template_id = int(template_id)
+    template = db.DBSession.query(Template).filter(Template.id==template_id).one()
+    rule_qry = db.DBSession.query(Rule).filter(Rule.status != 'X')
+
+    all_template_rules = rule_qry.filter(Rule.template_id == template_id).all()
+    template_hierarchy = template.get_hierarchy(**kwargs).reverse()
+    if template_hierarchy is not None:
+        for current_template in template_hierarchy:
+            this_template_rules = rule_qry.filter(Rule.template_id == current_template.id).all()
+            all_template_rules = all_template_rules + this_template_rules
+
+    if summary is False:
+        for rule in all_template_rules:
+            rule.types
+
+    return all_template_rules
+
+
+@required_perms("get_project", "get_rules")
+def get_project_rules(project_id, summary=True, **kwargs):
+    """
+       Retrieve all Rules defined in a project
+       args:
+         <project_id>: integer (or castable) identifying a project
+         <summary>: bool specifying whether type-loading should be
+                    omitted
+       return:
+         list of Rule SQLAlchemy objects
+    """
+    user_id = kwargs.get("user_id")
+
+    project_id = int(project_id)
+    project = db.DBSession.query(Project).filter(Project.id==project_id).one()
+    project.check_read_permission(user_id)
+
+    rule_qry = db.DBSession.query(Rule).filter(Rule.status != 'X')
+
+    project_rules = rule_qry.filter(Rule.project_id == project.id).all()
+
+    if summary is False:
+        for rule in project_rules:
+            rule.types
+
+    return project_rules
+
+
+@required_perms("get_rules")
+def get_resource_rules(ref_key, ref_id, summary=True, **kwargs):
     """
         Get all the rules for a given resource.
         Args:
-            ref_key (string): NETWORK, NODE, LINK, GROUP
+            ref_key (string): NETWORK, PROJECT, TEMPLATE
             ref_id (int): ID of the resource
-            scenario_id (int): Optional which filters on scenario ID also
         Returns:
             List of Rule SQLAlchemy objects
     """
-    user_id = kwargs.get('user_id')
-
-    ref_key == ref_key.upper() # turn 'network' into 'NETWORK'
-
-    rule_qry = db.DBSession.query(Rule).filter(Rule.ref_key == ref_key,
-                                               Rule.status != 'X')
+    ref_key == ref_key.upper()
 
     if ref_key.upper() == 'NETWORK':
-        rule_qry = rule_qry.filter(Rule.network_id == ref_id)
-    elif ref_key.upper() == 'NODE':
-        rule_qry = rule_qry.filter(Rule.node_id == ref_id)
-    elif ref_key.upper() == 'LINK':
-        rule_qry = rule_qry.filter(Rule.link_id == ref_id)
-    elif ref_key.upper() == 'GROUP':
-        rule_qry = rule_qry.filter(Rule.group_id == ref_id)
+        ret_func = get_network_rules
+    elif ref_key.upper() == 'PROJECT':
+        ret_func = get_project_rules
+    elif ref_key.upper() == 'TEMPLATE':
+        ret_func = get_template_rules
     else:
         raise HydraError("Ref Key {0} not recognised.".format(ref_key))
 
-    rule_qry = rule_qry.join(RuleOwner).filter(RuleOwner.user_id == int(user_id))
+    rules = ret_func(ref_id, summary=summary, **kwargs)
 
-    if scenario_id is not None:
-        rule_qry = rule_qry.filter(Rule.scenario_id == scenario_id)
-
-    rules = rule_qry.all()
-
-    #lazy load types
-    for rule in rules:
-        rule.types
+    if summary is False:
+        #lazy load types
+        for rule in rules:
+            rule.types
 
     return rules
 
-@required_perms("get_network", "get_rules")
+
+@required_perms("get_rules")
 def get_rules_of_type(typecode, scenario_id=None, **kwargs):
     """
         Get all the rules for a given resource.
         Args:
-            ref_key (string): NETWORK, NODE, LINK, GROUP
+            ref_key (string): NETWORK, PROJECT, TEMPLATE
             ref_id (int): ID of the resource
             scenario_id (int): Optional which filters on scenario ID also
         Returns:
@@ -178,7 +193,7 @@ def get_rules_of_type(typecode, scenario_id=None, **kwargs):
                                         .join(RuleTypeLink)\
                                         .filter(RuleTypeLink.code == typecode)
 
-    rule_qry = rule_qry.join(RuleOwner).filter(RuleOwner.user_id == int(user_id))
+    rule_qry = rule_qry.join(NetworkOwner, Rule.network_id==NetworkOwner.network_id).filter(NetworkOwner.user_id == int(user_id))
 
     if scenario_id is not None:
         rule_qry = rule_qry.filter(Rule.scenario_id == scenario_id)
@@ -187,52 +202,7 @@ def get_rules_of_type(typecode, scenario_id=None, **kwargs):
 
     return rules
 
-@required_perms("edit_network", "update_rules")
-def add_rule_owner(rule_id, new_rule_user_id, read='Y', write='Y', share='Y', **kwargs):
-    """
-        Make a user a rule owner. This will mean the rule can be read and will be inclduded
-        when queried, for example in get_resource_rules
-
-        args:
-            rule_id: THe rule to be updated
-            rule_user_id: The user who will lose permission of this rule
-            read (char): Y or N if the new owner can read the rule
-            write(char): Y or N if the new owner can update the rule
-            share(char): Y or N if the new owner can share the rule (usally
-                         done while sharing a network)
-        returns:
-            None
-    """
-    user_id = kwargs.get('user_id')
-
-    rule_i = _get_rule(rule_id, user_id)
-
-    rule_i.check_write_permissions(user_id)
-
-    rule_i.set_owner(new_rule_user_id, read, write, share)
-
-@required_perms("edit_network", "update_rules")
-def remove_rule_owner(rule_id, rule_user_id, **kwargs):
-    """
-        Remove someone from being a rule owner. This will mean the rule
-        cannot be read and will not be included when queried
-
-        args:
-            rule_id: THe rule to be updated
-            rule_user_id: The user who will lose permission of this rule
-        returns:
-            None
-    """
-
-    user_id = kwargs.get('user_id')
-
-    rule_i = _get_rule(rule_id, user_id, check_write=True)
-
-    rule_i.check_write_permissions(user_id)
-
-    rule_i.unset_owner(rule_user_id)
-
-@required_perms("get_network", "get_rules")
+@required_perms("get_rules")
 def get_rule(rule_id, **kwargs):
     """
         Get a rule by its ID
@@ -245,16 +215,16 @@ def get_rule(rule_id, **kwargs):
     rule = _get_rule(rule_id, user_id)
     return rule
 
-@required_perms("edit_network", "add_rules")
-def add_rules(rules, include_network_users=True, **kwargs):
+@required_perms("add_rules")
+def add_rules(rules, **kwargs):
     LOG.info("Adding %s rules."%len(rules))
     for rule in rules:
-        add_rule(rule, include_network_users=include_network_users, **kwargs)
+        add_rule(rule, **kwargs)
 
     LOG.info("Rules Added")
 
-@required_perms("edit_network", "add_rules")
-def add_rule(rule, include_network_users=True, **kwargs):
+@required_perms("add_rules")
+def add_rule(rule, **kwargs):
     """
         Add a new rule.
         Args:
@@ -269,16 +239,13 @@ def add_rule(rule, include_network_users=True, **kwargs):
     rule_i.ref_key = rule.ref_key
     if rule.ref_key.upper() == 'NETWORK':
         rule_i.network_id = rule.network_id if rule.network_id else rule.ref_id
-    elif rule.ref_key.upper() == 'NODE':
-        rule_i.node_id = rule.node_id if rule.node_id else rule.ref_id
-    elif rule.ref_key.upper() == 'LINK':
-        rule_i.link_id = rule.link_id if rule.link_id else rule.ref_id
-    elif rule.ref_key.upper() == 'GROUP':
-        rule_i.group_id = rule.group_id if rule.group_id else rule.ref_id
+    elif rule.ref_key.upper() == 'PROJECT':
+        rule_i.project_id = rule.project_id if rule.project_id else rule.ref_id
+    elif rule.ref_key.upper() == 'TEMPLATE':
+        rule_i.template_id = rule.template_id if rule.template_id else rule.ref_id
     else:
         raise HydraError("Ref Key {0} not recognised.".format(rule.ref_key))
 
-    rule_i.scenario_id = rule.scenario_id
     rule_i.name = rule.name
     rule_i.description = rule.description
     rule_i.value = rule.value
@@ -290,20 +257,9 @@ def add_rule(rule, include_network_users=True, **kwargs):
 
     db.DBSession.flush()
 
-    #Set the owner of this rule to be the creator, and also allow access
-    #to all other users of the network in which it resides.
-    rule_i.set_owner(user_id)
-
-    if include_network_users is True:
-        for owner in rule_i.get_network().get_owners():
-            #apply ownership with the same conditions as on the parent network
-            rule_i.set_owner(owner.user_id, owner.view, owner.edit, owner.share)
-
-        db.DBSession.flush()
-
     return rule_i
 
-@required_perms("edit_network", "update_rules")
+@required_perms("update_rules")
 def update_rule(rule, **kwargs):
     """
         Add a new rule.
@@ -320,16 +276,13 @@ def update_rule(rule, **kwargs):
     rule_i.ref_key = rule.ref_key
     if rule.ref_key.upper() == 'NETWORK':
         rule_i.network_id = rule.network_id if rule.network_id else rule.ref_id
-    elif rule.ref_key.upper() == 'NODE':
-        rule_i.node_id = rule.node_id if rule.node_id else rule.ref_id
-    elif rule.ref_key.upper() == 'LINK':
-        rule_i.link_id = rule.link_id if rule.link_id else rule.ref_id
-    elif rule.ref_key.upper() == 'GROUP':
-        rule_i.group_id = rule.group_id if rule.group_id else rule.ref_id
+    elif rule.ref_key.upper() == 'PROJECT':
+        rule_i.network_id = rule.project_id if rule.project_id else rule.ref_id
+    elif rule.ref_key.upper() == 'TEMPLATE':
+        rule_i.network_id = rule.template_id if rule.template_id else rule.ref_id
     else:
         raise HydraError("Ref Key {0} not recognised.".format(rule.ref_key))
 
-    rule_i.scenario_id = rule.scenario_id
     rule_i.name = rule.name
     rule_i.description = rule.description
     rule_i.format = rule.format
@@ -342,7 +295,7 @@ def update_rule(rule, **kwargs):
 
     return rule_i
 
-@required_perms("edit_network", "update_rules")
+@required_perms("update_rules")
 def set_rule_type(rule_id, typecode, **kwargs):
     """
         Assign a rule type to a rule
@@ -367,19 +320,16 @@ def set_rule_type(rule_id, typecode, **kwargs):
     return rule_i
 
 @required_perms("edit_network", "get_rules", "add_rules")
-def clone_resource_rules(ref_key, ref_id, target_ref_key=None, target_ref_id=None, scenario_id_map={}, **kwargs):
+def clone_resource_rules(ref_key, ref_id, target_ref_key=None, target_ref_id=None, **kwargs):
     """
         Clone a rule
         args:
-            ref_key (int): NODE, LINK, GROUP, NETWORK
+            ref_key (int): NETWORK, PROJECT, TEMPLATE
             ref_id (int): The ID of the relevant resource
             target_ref_key (string): If the rule is to be cloned into a
                                      different resource, specify the new resources type
             target_ref_id (int): If the rule is to be cloned into a different
                                  resources, specify the resource ID.
-            scenario_id_map (dict): If the old rule is specified in a scenario,
-                                    then provide a dictionary mapping from the
-                                    old scenario ID to the new one, like {123 : 456}
 
         Cloning will only occur into a different resource if both
         ref_key AND ref_id are provided. Otherwise it will maintain its
@@ -399,14 +349,12 @@ def clone_resource_rules(ref_key, ref_id, target_ref_key=None, target_ref_id=Non
         cloned_rules.append(clone_rule(rule.id,
                                        target_ref_key=target_ref_key,
                                        target_ref_id=target_ref_id,
-                                       scenario_id_map = scenario_id_map,
                                        user_id=user_id))
-
 
     return cloned_rules
 
 @required_perms("edit_network", "get_rules", "add_rules")
-def clone_rule(rule_id, target_ref_key=None, target_ref_id=None, scenario_id_map={}, **kwargs):
+def clone_rule(rule_id, target_ref_key=None, target_ref_id=None, **kwargs):
     """
         Clone a rule
         args:
@@ -415,9 +363,6 @@ def clone_rule(rule_id, target_ref_key=None, target_ref_id=None, scenario_id_map
                                      resource, specify the new resources type
             target_ref_id (int): If the rule is to be cloned into a
                                  different resources, specify the resource ID.
-            scenario_id_map (dict): If the old rule is specified in a scenario,
-                                    then provide a dictionary mapping from the
-                                    old scenario ID to the new one, like {123 : 456}
         Cloning will only occur into a different resource if both ref_key AND
         ref_id are provided. Otherwise it will maintain its original ref_key and ref_id.
 
@@ -440,35 +385,21 @@ def clone_rule(rule_id, target_ref_key=None, target_ref_id=None, scenario_id_map
     #has changed, then apply the new ref_key and ref_id
     if target_ref_key is not None and target_ref_id is not None:
         rule_j.network_id = None
-        rule_j.node_id = None
-        rule_j.link_id = None
-        rule_j.group_id = None
+        rule_j.project_id = None
+        rule_j.template_id = None
         rule_j.ref_key = target_ref_key
-        if target_ref_key == 'NODE':
-            rule_j.node_id = target_ref_id
-        elif target_ref_key == 'LINK':
-            rule_j.link_id = target_ref_id
-        elif target_ref_key == 'GROUP':
-            rule_j.group_id = target_ref_id
-        elif target_ref_key == 'NETWORK':
+        if target_ref_key == 'NETWORK':
             rule_j.network_id = target_ref_id
-
-        #this should only be done if theres a possibility that this is being cloned
-        #to a new network -- the most likely scenario.
-        rule_j.scenario_id = scenario_id_map.get(rule_i.scenario_id)
-
-    #This is a blunt way of dealing with a situation where a rule is being cloned
-    #into a new network, but it has a scenario ID pointing to the original. We must
-    #ensure that there is no cross-network inconsistency, so simply make the
-    #rule non-scenario specific.
-    if len(scenario_id_map) == 0 and rule_i.scenario_id is not None:
-        rule_i.scenario_id = None
+        elif target_ref_key == 'PROJECT':
+            rule_j.project_id = target_ref_id
+        elif target_ref_key == 'TEMPLATE':
+            rule_j.template_id = target_ref_id
 
     cloned_rule = add_rule(rule_j, **kwargs)
 
     return cloned_rule
 
-@required_perms("edit_network", "update_rules")
+@required_perms("update_rules")
 def delete_rule(rule_id, **kwargs):
     """
         Set the status of a rule to 'X'
@@ -485,7 +416,7 @@ def delete_rule(rule_id, **kwargs):
 
     db.DBSession.flush()
 
-@required_perms("edit_network", "update_rules")
+@required_perms("update_rules")
 def activate_rule(rule_id, **kwargs):
     """
         Set the status of a rule to 'A'
@@ -502,7 +433,7 @@ def activate_rule(rule_id, **kwargs):
 
     db.DBSession.flush()
 
-@required_perms("edit_network", "delete_rules")
+@required_perms("delete_rules")
 def purge_rule(rule_id, **kwargs):
     """
         Remove a rule from the DB permanently
@@ -518,7 +449,7 @@ def purge_rule(rule_id, **kwargs):
     db.DBSession.delete(rule_i)
     db.DBSession.flush()
 
-@required_perms("edit_network", "update_rules")
+@required_perms("update_rules")
 def add_rule_type_definition(ruletypedefinition, **kwargs):
     """
         Add a rule type definition
@@ -548,7 +479,7 @@ def add_rule_type_definition(ruletypedefinition, **kwargs):
     else:
         return existing_rtd
 
-@required_perms("edit_network", "get_rules")
+@required_perms("get_rules")
 def get_rule_type_definitions(**kwargs):
     """
         Get all rule types
@@ -561,7 +492,7 @@ def get_rule_type_definitions(**kwargs):
 
     return all_rule_type_definitions_i
 
-@required_perms("edit_network", "get_rules")
+@required_perms("get_rules")
 def get_rule_type_definition(typecode, **kwargs):
     """
         Get a Type with the given typecode
@@ -580,7 +511,7 @@ def get_rule_type_definition(typecode, **kwargs):
 
     return rule_type_definition_i
 
-@required_perms("edit_network", "update_rules")
+@required_perms("update_rules")
 def purge_rule_type_definition(typecode, **kwargs):
     """
         Delete a rule type from the DB. Doing this will revert all existing rules to

@@ -21,6 +21,7 @@ import datetime
 import time
 import json
 import six
+import re
 
 from ..exceptions import HydraError, ResourceNotFoundError
 from . import scenario, rules
@@ -32,7 +33,7 @@ from ..util.permissions import required_perms
 from hydra_base.lib import template, attributes
 from ..db.model import Project, Network, Scenario, Node, Link, ResourceGroup,\
         ResourceAttr, Attr, ResourceType, ResourceGroupItem, Dataset, Metadata, DatasetOwner,\
-        ResourceScenario, TemplateType, TypeAttr, Template, NetworkOwner, User, Rule
+        ResourceScenario, TemplateType, TypeAttr, Template, NetworkOwner, User
 from sqlalchemy.orm import noload, joinedload
 from .. import db
 from sqlalchemy import func, and_, or_, distinct
@@ -159,9 +160,16 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
     defaults = {}
 
     attr_lookup = {}
-    all_attrs = db.DBSession.query(Attr).all()
+    log.info("Getting attributes")
+    attribute_ids = []
+    for resource in resources:
+        if resource.attributes is not None and isinstance(resource.attributes, list):
+            for ra in resource.attributes:
+                attribute_ids.append(ra.attr_id)
+    all_attrs = db.DBSession.query(Attr).filter(Attr.id.in_(attribute_ids)).all()
     for a in all_attrs:
         attr_lookup[a.id] = a
+    log.info("Attributes retrieved")
     #First get all the attributes assigned from the csv files.
     t0 = datetime.datetime.now()
     for resource in resources:
@@ -571,7 +579,7 @@ def add_network(network, **kwargs):
 
     if existing_net is not None:
         raise HydraError(f"A network with the name {network.name} is already"
-                         " in project {network.project_id}")
+                         f" in project {network.project_id}")
 
     user_id = kwargs.get('user_id')
     proj_i.check_write_permission(user_id)
@@ -715,38 +723,57 @@ def _get_all_resource_attributes(network_id, template_id=None, include_non_templ
         returns:
             A list of sqlalchemy result proxy objects
     """
-    base_qry = db.DBSession.query(
-                               ResourceAttr.id.label('id'),
-                               ResourceAttr.ref_key.label('ref_key'),
-                               ResourceAttr.cr_date.label('cr_date'),
-                               ResourceAttr.attr_is_var.label('attr_is_var'),
-                               ResourceAttr.node_id.label('node_id'),
-                               ResourceAttr.link_id.label('link_id'),
-                               ResourceAttr.group_id.label('group_id'),
-                               ResourceAttr.network_id.label('network_id'),
-                               ResourceAttr.attr_id.label('attr_id'),
-                               Attr.name.label('name'),
-                               Attr.dimension_id.label('dimension_id'),
-                              ).filter(Attr.id==ResourceAttr.attr_id)
+    start_time = time.time()
+    log.info("Getting all resource attributes using multiple smaller queries")
 
+    # Create the base query structure for reuse
+    def _create_base_query():
+        return db.DBSession.query(
+            ResourceAttr.id.label('id'),
+            ResourceAttr.ref_key.label('ref_key'),
+            ResourceAttr.cr_date.label('cr_date'),
+            ResourceAttr.attr_is_var.label('attr_is_var'),
+            ResourceAttr.node_id.label('node_id'),
+            ResourceAttr.link_id.label('link_id'),
+            ResourceAttr.group_id.label('group_id'),
+            ResourceAttr.network_id.label('network_id'),
+            ResourceAttr.attr_id.label('attr_id'),
+            Attr.name.label('name'),
+            Attr.dimension_id.label('dimension_id'),
+        ).filter(Attr.id==ResourceAttr.attr_id)
 
-    all_node_attribute_qry = base_qry.join(Node).filter(Node.network_id == network_id)
+    # Execute separate queries for each resource type
+    all_resource_attributes = []
 
-    all_link_attribute_qry = base_qry.join(Link).filter(Link.network_id == network_id)
+    # Query 1: Node attributes
+    node_start = time.time()
+    node_qry = _create_base_query().filter(ResourceAttr.node_id != None).join(Node).filter(Node.network_id == network_id)
+    node_attributes = node_qry.all()
+    log.info("Node attributes: %s retrieved in %s", len(node_attributes), time.time()-node_start)
+    all_resource_attributes.extend(node_attributes)
 
-    all_group_attribute_qry = base_qry.join(ResourceGroup)\
-            .filter(ResourceGroup.network_id == network_id)
+    # Query 2: Link attributes
+    link_start = time.time()
+    link_qry = _create_base_query().filter(ResourceAttr.link_id != None).join(Link).filter(Link.network_id == network_id)
+    link_attributes = link_qry.all()
+    log.info("Link attributes: %s retrieved in %s", len(link_attributes), time.time()-link_start)
+    all_resource_attributes.extend(link_attributes)
 
-    network_attribute_qry = base_qry.filter(ResourceAttr.network_id == network_id)
+    # Query 3: Group attributes
+    group_start = time.time()
+    group_qry = _create_base_query().filter(ResourceAttr.group_id != None).join(ResourceGroup).filter(ResourceGroup.network_id == network_id)
+    group_attributes = group_qry.all()
+    log.info("Group attributes: %s retrieved in %s", len(group_attributes), time.time()-group_start)
+    all_resource_attributes.extend(group_attributes)
 
+    # Query 4: Network attributes
+    network_start = time.time()
+    network_qry = _create_base_query().filter(ResourceAttr.network_id != None).filter(ResourceAttr.network_id == network_id)
+    network_attributes = network_qry.all()
+    log.info("Network attributes: %s retrieved in %s", len(network_attributes), time.time()-network_start)
+    all_resource_attributes.extend(network_attributes)
 
-    x = time.time()
-    logging.info("Getting all attributes using execute")
-    attribute_qry = all_node_attribute_qry.union(all_link_attribute_qry,
-                                                 all_group_attribute_qry,
-                                                 network_attribute_qry)
-    all_resource_attributes = attribute_qry.all()
-    log.info("%s attrs retrieved in %s", len(all_resource_attributes), time.time()-x)
+    log.info("Total %s attrs retrieved in %s", len(all_resource_attributes), time.time()-start_time)
 
     logging.info("Attributes retrieved. Processing results...")
     x = time.time()
@@ -1085,6 +1112,7 @@ def get_network(network_id,
                 template_id=None,
                 include_non_template_attributes=False,
                 include_metadata=False,
+                include_topology=True,
                 **kwargs):
     """
         Return a whole network as a dictionary.
@@ -1103,6 +1131,7 @@ def get_network(network_id,
         include_non_template_attribute: Return attributes which are not associated to any template.
         include_metadata (bool): If data is included, then this flag indicates whether to include metadata.
                           Setting this to True may have performance implications
+        include_topology (bool): If true, return the network's nodes, links and groups.
     """
     log.debug("getting network %s"%network_id)
 
@@ -1124,10 +1153,10 @@ def get_network(network_id,
         net_i.check_read_permission(user_id)
 
         net = JSONObject(net_i)
-
-        net.nodes = _get_nodes(network_id, template_id=template_id)
-        net.links = _get_links(network_id, template_id=template_id)
-        net.resourcegroups = _get_groups(network_id, template_id=template_id)
+        if include_topology is True:
+            net.nodes = _get_nodes(network_id, template_id=template_id)
+            net.links = _get_links(network_id, template_id=template_id)
+            net.resourcegroups = _get_groups(network_id, template_id=template_id)
         net.owners = net_i.get_owners()
 
         if include_attributes in ('Y', True):
@@ -1145,7 +1174,6 @@ def get_network(network_id,
             for group_i in net.resourcegroups:
                 group_i.attributes = all_attributes['GROUP'].get(group_i.id, [])
             log.info("Group attributes set")
-
 
         log.info("Setting types")
         all_types = _get_all_templates(network_id, template_id)
@@ -1398,7 +1426,7 @@ def get_node_by_name(network_id, node_name,**kwargs):
     try:
         n = db.DBSession.query(Node).filter(Node.name==node_name,
                                          Node.network_id==network_id).\
-                                         options(joinedload(Node.attributes).joinedload(ResourceAttr.Attr)).one()
+                                         options(joinedload(Node.attributes).joinedload(ResourceAttr.attr)).one()
         return n
     except NoResultFound:
         raise ResourceNotFoundError("Node %s not found in network %s"%(node_name, network_id,))
@@ -2637,22 +2665,12 @@ def get_all_resource_attributes_in_network(attr_id, network_id, include_resource
     except NoResultFound:
         raise HydraError("Attribute %s not found"%(attr_id,))
 
-    ra_qry = db.DBSession.query(ResourceAttr).filter(
-        ResourceAttr.attr_id == attr_id,
-        or_(Network.id == network_id,
-            Node.network_id == network_id,
-            Link.network_id == network_id,
-            ResourceGroup.network_id == network_id)
-        ).outerjoin(ResourceAttr.node)\
-        .outerjoin(ResourceAttr.link)\
-        .outerjoin(ResourceAttr.network)\
-        .outerjoin(ResourceAttr.resourcegroup)\
-        .options(joinedload(ResourceAttr.node))\
-        .options(joinedload(ResourceAttr.link))\
-        .options(joinedload(ResourceAttr.resourcegroup))\
-        .options(joinedload(ResourceAttr.network))
-
-    resourceattrs = ra_qry.all()
+    querystub = db.DBSession.query(ResourceAttr).filter(ResourceAttr.attr_id == attr_id)
+    network_ra_rs = querystub.filter(ResourceAttr.network_id == network_id).all()
+    node_ra_rs = querystub.join(Node).filter(Node.network_id == network_id).all()
+    link_ra_rs = querystub.join(Link).filter(Link.network_id == network_id).all()
+    group_ra_rs = querystub.join(ResourceGroup).filter(ResourceGroup.network_id == network_id).all()
+    resourceattrs = network_ra_rs + node_ra_rs + link_ra_rs + group_ra_rs
 
     json_ra = []
     #Load the metadata too
@@ -2676,13 +2694,53 @@ def get_all_resource_attributes_in_network(attr_id, network_id, include_resource
     return json_ra
 
 
+def get_all_attributes_in_network(network_id, **kwargs):
+    """
+        Find every attribute def (not resource attribute)
+        Args:
+            network_id (int): The ID of the network to search
+        Returns:
+            List of JSONObjects
+        Raises:
+            HydraError if the network_id does not exist
+    """
+
+    user_id = kwargs.get('user_id')
+
+    #check the user can read the network
+    try:
+        net = db.DBSession.query(Network).filter(Network.id == network_id).one()
+    except NoResultFound:
+        raise HydraError("Network %s not found" % (network_id,))
+    net.check_read_permission(user_id)
+
+    network_attr_ids = db.DBSession.query(ResourceAttr.attr_id.label('attr_id')).filter(
+        ResourceAttr.network_id == network_id
+    )
+    node_attr_ids = db.DBSession.query(ResourceAttr.attr_id.label('attr_id')).join(
+        Node, ResourceAttr.node_id == Node.id
+    ).filter(Node.network_id == network_id)
+    link_attr_ids = db.DBSession.query(ResourceAttr.attr_id.label('attr_id')).join(
+        Link, ResourceAttr.link_id == Link.id
+    ).filter(Link.network_id == network_id)
+    group_attr_ids = db.DBSession.query(ResourceAttr.attr_id.label('attr_id')).join(
+        ResourceGroup, ResourceAttr.group_id == ResourceGroup.id
+    ).filter(ResourceGroup.network_id == network_id)
+
+    all_attr_ids = network_attr_ids.union(node_attr_ids, link_attr_ids, group_attr_ids).subquery()
+
+    attrs = db.DBSession.query(Attr).join(all_attr_ids, Attr.id == all_attr_ids.c.attr_id).all()
+
+    return [JSONObject(a) for a in attrs]
+
+
 def get_all_resource_data(
         scenario_id,
         include_metadata=False,
         page_start=None,
         page_end=None,
         include_values=True,
-        **kwargs):    
+        **kwargs):
     """
         A function which returns the data for all resources in a network.
         -
@@ -2867,6 +2925,7 @@ def clone_network(network_id,
     newnet.status = ex_net.status
     newnet.projection = ex_net.projection
     newnet.created_by = user_id
+    newnet.appdata = ex_net.appdata
 
     #if true, the the creator will see this network in their project.networks.
     if creator_is_owner is True and user_id != recipient_user_id:
@@ -2919,57 +2978,269 @@ def clone_network(network_id,
                                        include_outputs=include_outputs,
                                        scenario_ids=scenario_ids)
 
-    _clone_rules(
+    _clone_network_rules(
         network_id,
         newnetworkid,
-        node_id_map,
-        link_id_map,
-        group_id_map,
-        scenario_id_map,
         user_id)
 
 
     db.DBSession.flush()
 
+    Project.clear_cache(user_id)
+
     return newnetworkid
 
-def _clone_rules(old_network_id, new_network_id, node_id_map, link_id_map, group_id_map, scenario_id_map, user_id):
+def clone_node(node_id,
+               include_outputs=False,
+               name=None,
+               new_x = None,
+               new_y = None,
+                  **kwargs):
+    """
+     Create an exact clone of the specified node, including attributes and data
+     Args:
+        node_id: The ID of the node to clone
+        include_outputs (bool): Flag to indicate whether output attributes and data should be cloned
+        name (str): The name of the new node. Defaults to the name of the old node plus (x) after, like "The Node (1)"
+        newx (float): The X-coordinate of the new node. Defaults to the coordinate of the node being cloned.
+        newy (float): The Y-coordinate of the new node. Defaults to the coordinate of the node being cloned.
+
+    """
+
+    user_id = kwargs['user_id']
+
+    node_net = db.DBSession.query(Network).filter(Network.id==Node.network_id, Node.id==node_id).one()
+
+    node_net.check_write_permission(user_id)
+
+    return _clone_node(node_id,
+                       node_net,
+                       user_id,
+                       include_outputs=include_outputs,
+                       name=name,
+                       new_x = new_x,
+                       new_y = new_y)
+
+
+
+def clone_nodes(
+        node_ids,
+        include_outputs=False,
+        names=None,
+        new_x_list = None,
+        new_y_list = None,
+        **kwargs):
+    """
+     Create an exact clone of the specified nodes, including attributes and data
+     Args:
+        node_ids: An iterable of node ids to clone
+        include_outputs (bool): Flag to indicate whether output attributes and data should be cloned
+        names (str): The names of the new nodes. Defaults to the names of the old nodes plus (x) after, like "The Node (1)".
+                    If this is not null, there MUST be a name specified for each new node.
+        new_x_list (float): The X-coordinates of the new nodes.
+                            If this is not null, there MUST be an X coordinate for every new node
+        new_y_list (float): The Y-coordinates of the new nodes.
+                            If this is not null, there MUST be an Y coordinate for every new node
+    """
+
+    user_id = kwargs['user_id']
+
+    node_net = db.DBSession.query(Network).filter(Network.id==Node.network_id, Node.id==node_ids[0]).one()
+
+    #verify that the lengths of the lists are equal
+    if None not in (new_x_list, new_y_list) and len(new_x_list) != len(new_y_list):
+        raise HydraError("Unable to clone nodes. The list of x coordinates must match the length of y coordinates")
+
+    if names is not None and len(names) != len(new_x_list):
+        raise HydraError("Unable to clone nodes. A name must be specified for each cloned node, or the names argument must be None. ")
+
+
+    node_net.check_write_permission(user_id)
+    cloned_ids = []
+    for i, node_id in enumerate(node_ids):
+        cloned_id = _clone_node(node_id,
+                node_net,
+                user_id,
+                include_outputs=include_outputs,
+                name  = names[i] if names else None,
+                new_x = new_x_list[i] if new_x_list else None,
+                new_y = new_y_list[i] if new_y_list else None)
+        cloned_ids.append(cloned_id)
+
+    return cloned_ids
+
+def _make_cloned_node_name(network_id, node_name):
+    """
+    Get the closest node name in the spoecified network to the node specified.
+    For example:
+        "Bury_wtw" would be similar to "Bury_wtw_East", "Bury_wtw_South", etc,
+        so this would return 'Bury_wtw', as it is the closest match.
+        Additionally, "Bury_wtw (1) would be closer than "Bury_wtw (10)"
+
+
+    If node name ends in ([0-9]+) then increment any match to be the next free number
+    If node to clone doesn't end in ([0-9]+) then add the next free number in this format
+
+    """
+    #if the node to clone ends with '(number)' like 'Bury_wtw (1)'
+    pattern = re.compile(r'\((\d+)\)$')
+    node_base_name = node_name
+    match = pattern.search(node_name)
+    if match:
+        node_base_name = node_name.replace(match.group(0))
+
+    #get all the nodes which match either 'Bury_wrw' or 'Bury_wtw (X)'
+    similar_names = db.DBSession.query(Node.name).filter(
+        Node.network_id==network_id,
+        or_(Node.name == node_base_name,
+        Node.name.regexp_match(f'{node_base_name} {pattern.pattern}'))
+    ).all()
+
+
+    #the node name is already unique so just use it
+    if len(similar_names) == 0:
+        return node_name
+
+    #go through all the matching names and find the one with the highest
+    #number in parentheses. ex of 'Bury_wtw (1)' and 'Bury_wtw (10), return 11.
+    highest_num = 0
+    for n in similar_names:
+        name = n.name
+        match = pattern.search(name)
+        if match:
+            if int(match.group(1)) > highest_num:
+                highest_num = int(match.group(1))
+
+    next_num = highest_num + 1
+
+    new_node_name = f"{node_base_name} ({next_num})"
+
+    return new_node_name
+
+
+def _clone_node(
+        node_id,
+        node_net,
+        user_id,
+        include_outputs=False,
+        name=None,
+        new_x = None,
+        new_y = None):
+
+    node_to_clone = db.DBSession.query(Node).filter(Node.id==node_id).one()
+
+    log.info('Cloning Node...')
+
+    newnode = Node()
+
+    for nodecolumn in Node.__table__.columns:
+        if nodecolumn.name in ('id', 'name', 'cr_date', 'created_by', 'updated_at', 'updated_by'):
+            continue
+        setattr(newnode, nodecolumn.name, getattr(node_to_clone, nodecolumn.name))
+
+    if name is not None:
+        node_with_same_name = db.DBSession.query(Node).filter(
+            Node.network_id==node_net.id,
+            Node.name == name
+        ).all()
+
+        if len(node_with_same_name) > 0:
+            raise HydraError(f"A node with name {name} already exists in this network.")
+        newnode.name = name
+    else:
+        newnode.name = _make_cloned_node_name(node_net.id, node_to_clone.name)
+
+
+    if new_x is not None:
+        try:
+            newnode.x = float(new_x)
+        except TypeError:
+            raise HydraError(f"Unable to clone node {name}. Coordinate {new_x} must be numeric.")
+
+    if new_y is not None:
+        try:
+            newnode.y = float(new_y)
+        except TypeError:
+            raise HydraError(f"Unable to clone node {name}. Coordinate {new_y} must be numeric.")
+
+    db.DBSession.add(newnode)
+    db.DBSession.flush()
+
+    #Clone the resource attributes
+    log.info("Cloning Resource Attributes")
+    node_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.node_id==node_id)).all()
+    new_ras = []
+    ra_id_map = {}
+    old_node_ra_map = {}
+    for ra in node_ras:
+        new_ras.append(dict(
+            node_id=newnode.id,
+            attr_id=ra.attr_id,
+            attr_is_var=ra.attr_is_var,
+            ref_key=ra.ref_key,
+        ))
+        old_node_ra_map[ra.attr_id] = ra.id
+    log.info("Inserting new resource attributes")
+    db.DBSession.bulk_insert_mappings(ResourceAttr, new_ras)
+    db.DBSession.flush()
+
+    log.info("Creating mapping from old resource attribute IDs to new")
+    new_node_ras = db.DBSession.query(ResourceAttr).filter(
+        ResourceAttr.node_id==newnode.id).all()
+
+    for ra in new_node_ras:
+        ra_id_map[old_node_ra_map[ra.attr_id]] = ra.id
+
+    log.info("Cloning Resource Types")
+    node_rts = db.DBSession.query(ResourceType).filter(and_(
+        ResourceType.node_id==node_id)).all()
+    new_resourcetypes = []
+    for rt in node_rts:
+        new_resourcetypes.append(dict(
+            ref_key=rt.ref_key,
+            node_id=newnode.id,
+            type_id=rt.type_id,
+            child_template_id=rt.child_template_id,
+        ))
+
+    db.DBSession.bulk_insert_mappings(ResourceType, new_resourcetypes)
+    db.DBSession.flush()
+
+    log.info('Cloning Data')
+    rscen_to_clone_qry = db.DBSession.query(ResourceScenario).filter(
+        ResourceScenario.scenario_id == Scenario.id,
+        ResourceScenario.resource_attr_id == ResourceAttr.id,
+        ResourceAttr.node_id==node_id,
+        Scenario.network_id==node_net.id
+    )
+    #Filter out output data unless explicitly requested not to.
+    if include_outputs is not True:
+        rscen_to_clone_qry = rscen_to_clone_qry.filter(ResourceAttr.attr_is_var == 'N')
+
+    new_rscens = []
+    for rscen_to_clone in rscen_to_clone_qry.all():
+        new_rscens.append(dict(
+            dataset_id=rscen_to_clone.dataset_id,
+            scenario_id=rscen_to_clone.scenario_id,
+            resource_attr_id=ra_id_map[rscen_to_clone.resource_attr_id],
+        ))
+
+    log.info("Inserting new resource scenarios")
+    db.DBSession.bulk_insert_mappings(ResourceScenario, new_rscens)
+    db.DBSession.flush()
+
+    log.info("Node clone complete. New node ID is %s", newnode.id)
+
+    return newnode.id
+
+def _clone_network_rules(old_network_id, new_network_id, user_id):
     """
     """
     rules.clone_resource_rules('NETWORK',
                                old_network_id,
                                target_ref_key='NETWORK',
                                target_ref_id=new_network_id,
-                               scenario_id_map=scenario_id_map,
                                user_id=user_id)
-
-    node_rules = db.DBSession.query(Rule).join(Node).filter(Node.network_id==old_network_id).all()
-    for node_rule in node_rules:
-        rules.clone_rule(node_rule.id,
-                         target_ref_key='NODE',
-                         target_ref_id=node_id_map[node_rule.node_id],
-                         scenario_id_map=scenario_id_map,
-                         user_id=user_id)
-
-    link_rules = db.DBSession.query(Rule).join(Link).filter(Link.network_id==old_network_id).all()
-
-    for link_rule in link_rules:
-        rules.clone_rule(link_rule.id,
-                         target_ref_key='LINK',
-                         target_ref_id=link_id_map[link_rule.link_id],
-                         scenario_id_map=scenario_id_map,
-                         user_id=user_id)
-
-    group_rules = db.DBSession.query(Rule).join(ResourceGroup).filter(ResourceGroup.network_id==old_network_id).all()
-
-    for group_rule in group_rules:
-        rules.clone_rule(group_rule.id,
-                         group_rule.node_id,
-                         target_ref_key='GROUP',
-                         target_ref_id=group_id_map[group_rule.group_id],
-                         scenario_id_map=scenario_id_map,
-                         user_id=user_id)
-
 
 def _clone_nodes(old_network_id, new_network_id, user_id):
 
@@ -3000,7 +3271,6 @@ def _clone_nodes(old_network_id, new_network_id, user_id):
     #map old IDS to new IDS
 
     nodes = db.DBSession.query(Node).filter(Node.network_id==new_network_id).all()
-
 
     for n in nodes:
         old_node_id = old_node_name_map[n.name]
@@ -3075,6 +3345,10 @@ def _clone_groups(old_network_id, new_network_id, node_id_map, link_id_map, user
 def _clone_attributes(network_id, newnetworkid, exnet_project_id, newnet_project_id, user_id):
     """
         Clone the attributes scoped to a network nad its project when cloning a network
+        @returns:
+            A lookup from the original scoped attr ID to any newly created scoped attribute.
+            This is so that resource-attribute attr_id references can be updated to refer to the
+            new scoped attribute ID
     """
     #first find any attributes which are scoped to the source network, and scope them to the parent project if the source
     #and target are in the same project, otherwise clone all the scoped attributes.
@@ -3083,20 +3357,30 @@ def _clone_attributes(network_id, newnetworkid, exnet_project_id, newnet_project
     network_scoped_attrs = attributes.get_attributes(network_id=network_id, user_id=user_id)
     project_scoped_attrs = []
     #get all the attributes scoped to the project of the source network (if it's not the same project as the target)
+    new_scoped_attrs_lookup = {}
+
     if exnet_project_id != newnet_project_id:
+        orig_scoped_attr_lookup = {}
         new_attributes = []
         exnet_project_scoped_attrs = attributes.get_attributes(project_id=exnet_project_id, user_id=user_id)
         for a in exnet_project_scoped_attrs:
             a.project_id = newnet_project_id
             new_attributes.append(a)
+            orig_scoped_attr_lookup[a.name] = a.id
 
         for a in network_scoped_attrs:
-        #the networks are in different projects, so clone the attributes
+            #the networks are in different projects, so clone the attributes
             a = JSONObject(a)
             a.network_id = newnetworkid
             new_attributes.append(a)
+            orig_scoped_attr_lookup[a.name] = a.id
 
-        attributes.add_attributes(new_attributes, user_id=user_id)
+        new_attrs = attributes.add_attributes(new_attributes, user_id=user_id)
+        #create a mapping from the old scpoed attr ID to the new scoped attr, so that we can
+        #update references in the network from the old attribute to the new one.
+        for na in new_attrs:
+            old_scoped_attr_id = orig_scoped_attr_lookup[na.name]
+            new_scoped_attrs_lookup[old_scoped_attr_id] = na
     else:
         for a in network_scoped_attrs:
             #the networks are in the same project, so re-scope the attribute
@@ -3105,11 +3389,13 @@ def _clone_attributes(network_id, newnetworkid, exnet_project_id, newnet_project
             a.project_id=exnet_project_id
             attributes.update_attribute(a)
 
+    return new_scoped_attrs_lookup
+
 def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, group_id_map, exnet_project_id, newnet_project_id, user_id):
 
     #clone any attributes which are scoped to a network or to the network's project (if the networks)
     #are in different projects.
-    _clone_attributes(network_id, newnetworkid, exnet_project_id, newnet_project_id, user_id)
+    new_scoped_attr_lookup = _clone_attributes(network_id, newnetworkid, exnet_project_id, newnet_project_id, user_id)
 
     log.info("Cloning Network Attributes")
     network_ras = db.DBSession.query(ResourceAttr).filter(ResourceAttr.network_id==network_id)
@@ -3117,57 +3403,73 @@ def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, gro
     new_ras = []
     old_ra_name_map = {}
     for ra in network_ras:
+        new_attr = new_scoped_attr_lookup.get(ra.attr_id)
+        attr_id = ra.attr_id
+        if new_attr:
+            attr_id = new_attr.id
         new_ras.append(dict(
             network_id=newnetworkid,
             node_id=None,
             group_id=None,
             link_id=None,
             ref_key='NETWORK',
-            attr_id=ra.attr_id,
+            attr_id=attr_id,
             attr_is_var=ra.attr_is_var,
         ))
         #key is (network_id, node_id, link_id, group_id) -- only one of which can be not null for a given row
-        old_ra_name_map[(newnetworkid, None, None, None, ra.attr_id)] = ra.id
+        old_ra_name_map[(newnetworkid, None, None, None, attr_id)] = ra.id
     log.info("Cloning Node Attributes")
     node_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.node_id==Node.id, Node.network_id==network_id)).all()
     for ra in node_ras:
+        new_attr = new_scoped_attr_lookup.get(ra.attr_id)
+        attr_id = ra.attr_id
+        if new_attr:
+            attr_id = new_attr.id
         new_ras.append(dict(
             node_id=node_id_map[ra.node_id],
             network_id=None,
             link_id=None,
             group_id=None,
-            attr_id=ra.attr_id,
+            attr_id=attr_id,
             attr_is_var=ra.attr_is_var,
             ref_key=ra.ref_key,
         ))
-        old_ra_name_map[(None, node_id_map[ra.node_id], None, None, ra.attr_id)] = ra.id
+        old_ra_name_map[(None, node_id_map[ra.node_id], None, None, attr_id)] = ra.id
     log.info("Cloning Link Attributes")
     link_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.link_id==Link.id, Link.network_id==network_id)).all()
     for ra in link_ras:
+        new_attr = new_scoped_attr_lookup.get(ra.attr_id)
+        attr_id = ra.attr_id
+        if new_attr:
+            attr_id = new_attr.id
         new_ras.append(dict(
             link_id=link_id_map[ra.link_id],
             network_id=ra.network_id,
             node_id=ra.node_id,
             group_id=ra.group_id,
-            attr_id=ra.attr_id,
+            attr_id=attr_id,
             attr_is_var=ra.attr_is_var,
             ref_key=ra.ref_key,
         ))
-        old_ra_name_map[(None, None, link_id_map[ra.link_id], None, ra.attr_id)] = ra.id
+        old_ra_name_map[(None, None, link_id_map[ra.link_id], None, attr_id)] = ra.id
 
     log.info("Cloning Group Attributes")
     group_ras = db.DBSession.query(ResourceAttr).filter(and_(ResourceAttr.group_id==ResourceGroup.id, ResourceGroup.network_id==network_id)).all()
     for ra in group_ras:
+        new_attr = new_scoped_attr_lookup.get(ra.attr_id)
+        attr_id = ra.attr_id
+        if new_attr:
+            attr_id = new_attr.id
         new_ras.append(dict(
             group_id=group_id_map[ra.group_id],
             network_id=ra.network_id,
             link_id=ra.link_id,
             node_id=ra.node_id,
-            attr_id=ra.attr_id,
+            attr_id=attr_id,
             attr_is_var=ra.attr_is_var,
             ref_key=ra.ref_key,
         ))
-        old_ra_name_map[(None, None, None, group_id_map[ra.group_id], ra.attr_id)] = ra.id
+        old_ra_name_map[(None, None, None, group_id_map[ra.group_id], attr_id)] = ra.id
 
     log.info("Inserting new resource attributes")
     db.DBSession.bulk_insert_mappings(ResourceAttr, new_ras)
@@ -3199,10 +3501,11 @@ def _clone_resourceattrs(network_id, newnetworkid, node_id_map, link_id_map, gro
 def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, group_id_map):
 
     log.info("Cloning Network Types")
-    network_rts = db.DBSession.query(ResourceType).filter(ResourceType.network_id==network_id)
-    new_ras = []
+    network_rts = db.DBSession.query(ResourceType).filter(
+        ResourceType.network_id==network_id).all()
+    new_rts = []
     for rt in network_rts:
-        new_ras.append(dict(
+        new_rts.append(dict(
             ref_key=rt.ref_key,
             network_id=newnetworkid,
             node_id=rt.node_id,
@@ -3212,9 +3515,11 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
             child_template_id=rt.child_template_id,
         ))
     log.info("Cloning Node Types")
-    node_rts = db.DBSession.query(ResourceType).filter(and_(ResourceType.node_id==Node.id, Node.network_id==network_id))
+    node_rts = db.DBSession.query(ResourceType).filter(and_(
+        ResourceType.node_id==Node.id,
+        Node.network_id==network_id)).all()
     for rt in node_rts:
-        new_ras.append(dict(
+        new_rts.append(dict(
             ref_key=rt.ref_key,
             network_id=rt.network_id,
             node_id=node_id_map[rt.node_id],
@@ -3224,9 +3529,11 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
             child_template_id=rt.child_template_id,
         ))
     log.info("Cloning Link Types")
-    link_rts = db.DBSession.query(ResourceType).filter(and_(ResourceType.link_id==Link.id, Link.network_id==network_id))
+    link_rts = db.DBSession.query(ResourceType).filter(and_(
+        ResourceType.link_id==Link.id,
+        Link.network_id==network_id)).all()
     for rt in link_rts:
-        new_ras.append(dict(
+        new_rts.append(dict(
             ref_key=rt.ref_key,
             network_id=rt.network_id,
             node_id=rt.node_id,
@@ -3237,9 +3544,11 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
         ))
 
     log.info("Cloning Group Types")
-    group_rts = db.DBSession.query(ResourceType).filter(and_(ResourceType.group_id==ResourceGroup.id, ResourceGroup.network_id==network_id))
+    group_rts = db.DBSession.query(ResourceType).filter(and_(
+        ResourceType.group_id==ResourceGroup.id,
+        ResourceGroup.network_id==network_id)).all()
     for rt in group_rts:
-        new_ras.append(dict(
+        new_rts.append(dict(
             ref_key=rt.ref_key,
             network_id=rt.network_id,
             node_id=rt.node_id,
@@ -3250,7 +3559,7 @@ def _clone_resourcetypes(network_id, newnetworkid, node_id_map, link_id_map, gro
         ))
 
     log.info("Inserting new resource types")
-    db.DBSession.bulk_insert_mappings(ResourceType, new_ras)
+    db.DBSession.bulk_insert_mappings(ResourceType, new_rts)
     db.DBSession.flush()
     log.info("Insertion Complete")
 

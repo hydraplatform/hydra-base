@@ -41,8 +41,6 @@ def template_json_object(client, template):
     with open(template) as fh:
         file_contents = fh.read()
 
-
-
     return JSONObject(client.import_template_xml(file_contents))
 
 
@@ -158,8 +156,6 @@ class TestTemplates:
                 assert tt.typeattrs[-1].properties is not None
                 assert eval(tt.typeattrs[-1].properties)['template_property'] == "Test property from template"
 
-        return new_tmpl
-
     def test_get_xml(self, client, template_json_object):
         xml_tmpl = template_json_object
 
@@ -255,8 +251,6 @@ class TestTemplates:
         for t in new_template_j.templatetypes[1].typeattrs:
             assert t.attr_id in (link_attr_1.id, link_attr_2.id);
             "Node types were not added correctly!"
-
-        return new_template_j
 
     def test_update_template(self, client):
 
@@ -475,8 +469,6 @@ class TestTemplates:
 
         assert len(new_type_j.typeattrs) == 3, "Resource type attrs did not add correctly"
 
-        return new_type_j
-
     def test_update_type(self, client, mock_template):
 
         template = mock_template
@@ -557,6 +549,51 @@ class TestTemplates:
         type = up_to_date_template.templatetypes[0]
         new_type = client.get_templatetype_by_name(type.template_id, type.name)
         assert new_type is not None, "Resource type attrs not retrived by name!"
+
+    def test_clone_templatetype(self, client, mock_template):
+        """Test cloning a template type"""
+        original_template = client.get_template(mock_template.id)
+        original_type = original_template.templatetypes[0]
+
+        # Clone the template type
+        cloned_type = client.clone_templatetype(original_type.id)
+        cloned_type_j = JSONObject(cloned_type)
+
+        # Verify the clone was created successfully
+        assert cloned_type_j is not None, "Cloned template type should not be None"
+        assert cloned_type_j.id is not None, "Cloned template type should have an ID"
+        assert cloned_type_j.id != original_type.id, "Cloned type should have different ID than original"
+
+        # Verify that only the specified fields are different
+        # Name should be modified to be unique (appends "(Clone)")
+        assert cloned_type_j.name == original_type.name + " (Clone)", "Cloned type should have modified name"
+        assert cloned_type_j.alias == original_type.alias, "Cloned type should have same alias as original"
+        assert cloned_type_j.description == original_type.description, "Cloned type should have same description as original"
+        assert cloned_type_j.resource_type == original_type.resource_type, "Cloned type should have same resource_type as original"
+        assert cloned_type_j.template_id == original_type.template_id, "Cloned type should have same template_id as original"
+        assert cloned_type_j.layout == original_type.layout, "Cloned type should have same layout as original"
+
+        # Verify that typeattrs are cloned correctly
+        assert len(cloned_type_j.typeattrs) == len(original_type.typeattrs), "Cloned type should have same number of typeattrs"
+
+        # Check that typeattrs are properly cloned (different IDs but same content)
+        for i, cloned_typeattr in enumerate(cloned_type_j.typeattrs):
+            original_typeattr = original_type.typeattrs[i]
+
+            assert cloned_typeattr.id != original_typeattr.id, "Cloned typeattr should have different ID"
+            assert cloned_typeattr.type_id == cloned_type_j.id, "Cloned typeattr should reference cloned type"
+            assert cloned_typeattr.attr_id == original_typeattr.attr_id, "Cloned typeattr should have same attr_id"
+            assert cloned_typeattr.description == original_typeattr.description, "Cloned typeattr should have same description"
+            assert cloned_typeattr.properties == original_typeattr.properties, "Cloned typeattr should have same properties"
+            assert cloned_typeattr.data_restriction == original_typeattr.data_restriction, "Cloned typeattr should have same data_restriction"
+            assert cloned_typeattr.unit_id == original_typeattr.unit_id, "Cloned typeattr should have same unit_id"
+
+        # Test cloning multiple times to ensure unique names
+        cloned_type_2 = client.clone_templatetype(original_type.id)
+        cloned_type_2_j = JSONObject(cloned_type_2)
+
+        assert cloned_type_2_j.name == original_type.name + " (Clone) 1", "Second clone should have incremented name"
+        assert cloned_type_2_j.id != cloned_type_j.id, "Multiple clones should have different IDs"
 
 
     """
@@ -1170,3 +1207,65 @@ class TestTemplates:
         assert len(errors_diff) == 1
         errors_same = client.check_type_compatibility(same_type_1_id, same_type_2_id)
         assert len(errors_same) == 0
+
+    def test_add_project_template(self, client, projectmaker, mock_template):
+        project = projectmaker.create()
+        pt = client.add_project_template(project.id, mock_template.id)
+        assert pt is not None
+        assert pt.project_id == project.id
+        assert pt.template_id == mock_template.id
+
+    def test_add_project_template_duplicate(self, client, projectmaker, mock_template):
+        """Adding the same link twice returns the existing record without error."""
+        project = projectmaker.create()
+        pt1 = client.add_project_template(project.id, mock_template.id)
+        pt2 = client.add_project_template(project.id, mock_template.id)
+        assert pt1.project_id == pt2.project_id
+        assert pt1.template_id == pt2.template_id
+
+    def test_add_project_template_invalid_project(self, client, mock_template):
+        with pytest.raises(Exception):
+            client.add_project_template(-999, mock_template.id)
+
+    def test_add_project_template_invalid_template(self, client, projectmaker):
+        project = projectmaker.create()
+        with pytest.raises(Exception):
+            client.add_project_template(project.id, -999)
+
+    def test_get_project_templates(self, client, projectmaker, mock_template):
+        project = projectmaker.create()
+        client.add_project_template(project.id, mock_template.id)
+        templates = client.get_project_templates(project.id)
+        assert templates is not None
+        template_ids = [t.id for t in templates]
+        assert mock_template.id in template_ids
+
+    def test_get_project_templates_empty(self, client, projectmaker):
+        """A project with no linked templates returns an empty list."""
+        project = projectmaker.create()
+        templates = client.get_project_templates(project.id)
+        assert len(templates) == 0
+
+    def test_get_project_templates_multiple(self, client, projectmaker, mock_template, mock_template_copy):
+        """Multiple templates can be linked to the same project."""
+        project = projectmaker.create()
+        client.add_project_template(project.id, mock_template.id)
+        client.add_project_template(project.id, mock_template_copy.id)
+        templates = client.get_project_templates(project.id)
+        template_ids = [t.id for t in templates]
+        assert mock_template.id in template_ids
+        assert mock_template_copy.id in template_ids
+
+    def test_remove_project_template(self, client, projectmaker, mock_template):
+        project = projectmaker.create()
+        client.add_project_template(project.id, mock_template.id)
+        result = client.remove_project_template(project.id, mock_template.id)
+        assert result == 'OK'
+        templates = client.get_project_templates(project.id)
+        assert mock_template.id not in [t.id for t in templates]
+
+    def test_remove_project_template_not_linked(self, client, projectmaker, mock_template):
+        """Removing a template that isn't linked to the project raises an error."""
+        project = projectmaker.create()
+        with pytest.raises(Exception):
+            client.remove_project_template(project.id, mock_template.id)

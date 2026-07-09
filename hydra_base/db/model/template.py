@@ -18,10 +18,11 @@
 #
 from .base import *
 
-__all__ = ['Template', 'TemplateType', 'TypeAttr', 'ResourceType']
+__all__ = ['Template', 'TemplateType', 'TypeAttr', 'ResourceType', 'ProjectTemplate']
 
 from .attributes import Attr
 from .units import Unit
+
 
 class Template(Base, Inspect):
     """
@@ -178,6 +179,30 @@ class Template(Base, Inspect):
         return child_type
 
 
+    @staticmethod
+    def get_type_parent_ids(ttype_id):
+        """
+            Returns a list of the ids of TemplateTypes which
+            are parents of the TemplateType specified in the
+            <ttype_id> argument.
+        """
+        q = get_session().query(TemplateType)
+        q = q.filter(TemplateType.id == ttype_id)
+        q = q.options(noload(TemplateType.typeattrs))
+        try:
+            ttype = q.one()
+        except sqlalchemy.exc.NoResultFound:
+            raise HydraError(f"No TemplateType found with id {ttype_id}")
+
+        parent_ids = []
+
+        while ttype.parent_id:
+            parent_ids.insert(0, ttype.parent_id)
+            ttype = get_session().query(TemplateType).filter(TemplateType.id == ttype.parent_id).one()
+
+        return parent_ids
+
+
     def get_types(self, type_tree={}, child_types=None, get_parent_types=True, child_template_id=None):
         """
             Return all the templatetypes relevant to this template.
@@ -203,9 +228,10 @@ class Template(Base, Inspect):
         if child_template_id is None:
             child_template_id = self.id
 
-        #TODO need to check here to see if there is a parent / child type
-        #and then add or not add as approprioate
         for i, this_type in enumerate(types):
+            if this_type.parent_id is not None:
+                this_type.parent_ids = Template.get_type_parent_ids(this_type.id)
+
             this_type.child_template_id = child_template_id
 
             #This keeps track of which type attributes are currently associated
@@ -289,6 +315,14 @@ class Template(Base, Inspect):
             child_type.ta_tree = None
 
         return child_types
+
+    def get_hierarchy(self, user_id):
+
+        hierarchy = [JSONObject(self)]
+        if self.parent_id:
+            hierarchy = hierarchy + self.parent.get_hierarchy(user_id)
+        return hierarchy
+
 
 class TemplateType(Base, Inspect):
     """
@@ -613,3 +647,17 @@ class ResourceType(Base, Inspect):
         type_i = template_i.get_type(self.type_id)
 
         return JSONObject(type_i)
+
+class ProjectTemplate(Base, Inspect, PermissionControlled):
+    """
+    Links a template to a project, allowing template lookup at the project level.
+    """
+
+    __tablename__ = 'tProjectTemplate'
+
+    project_id = Column(Integer(), ForeignKey('tProject.id'), primary_key=True, nullable=False)
+    template_id = Column(Integer(), ForeignKey('tTemplate.id'), primary_key=True, nullable=False)
+    cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
+
+    _parents = ['tProject', 'tTemplate']
+    _children = []

@@ -30,11 +30,11 @@ DEFAULT_FILE_DIR = '/tmp/auth'
 
 
 CACHE_TABLE = sa.Table('beaker_cache', db.DeclarativeBase.metadata,
-                    sa.Column('namespace', sa.String(255), primary_key=True),
-                    sa.Column('accessed', sa.DateTime, nullable=False),
-                    sa.Column('created', sa.DateTime, nullable=False),
-                    sa.Column('data', sa.PickleType, nullable=False),
-                    schema=db.DeclarativeBase.metadata.schema)
+                       sa.Column('namespace', sa.String(255), primary_key=True),
+                       sa.Column('accessed', sa.DateTime, nullable=False),
+                       sa.Column('created', sa.DateTime, nullable=False),
+                       sa.Column('data', sa.PickleType, nullable=False),
+                       schema=db.DeclarativeBase.metadata.schema)
 
 def login(username, password, **kwargs):
     """
@@ -60,8 +60,8 @@ def login(username, password, **kwargs):
         type='file' if db.hydra_db_url.startswith('sqlite') else 'ext:sqla',
         cookie_expires=True,
         data_dir=config.get('COOKIES', 'DATA_DIR', DEFAULT_DATA_DIR),
-        bind = db.engine,
-        table= CACHE_TABLE
+        bind=db.engine,
+        table=CACHE_TABLE
     )
 
     hydra_session['user_id'] = user_id

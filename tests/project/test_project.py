@@ -81,7 +81,11 @@ class TestProject:
         project.name = 'SOAP test %s'%(datetime.datetime.now())
         project.description = \
             'A project created through the SOAP interface.'
+
+        project.layout = {"color": "blue"}
+
         project.appdata = {'test':'metadata'}
+
         project = self.add_attributes(client, project)
         project = self.add_data(client, project)
 
@@ -95,7 +99,7 @@ class TestProject:
 
         new_project.description = \
             'An updated project created through the Hydra Base interface.'
-        
+
         new_project.appdata['test1'] = 'metadata1'
 
         updated_project = client.update_project(new_project)
@@ -109,6 +113,8 @@ class TestProject:
             "created by is null."
         assert project_j.name == updated_project.name, \
             "project_name changed on update."
+        assert project_j.layout == updated_project.layout, \
+            "project_layout changed on update."
         assert project_j.description != updated_project.description,\
             "project_description did not update"
         assert updated_project.description == \
@@ -233,6 +239,7 @@ class TestProject:
             view='Y',
             edit='Y',
             share='Y',
+            is_admin='Y',
         ))
 
         client.bulk_set_project_owners([new_owner])
@@ -240,6 +247,9 @@ class TestProject:
         projectowners = client.get_all_project_owners([proj.id])
 
         assert len(projectowners) == 2
+
+        added = next(po for po in projectowners if po.user_id == 2)
+        assert added.is_admin == 'Y'
 
     def test_rename_status_x_project(self, client, projectmaker, networkmaker):
         sender_user_id = client.user_id
@@ -249,7 +259,7 @@ class TestProject:
 
         proj_name = proj.name
 
-        #Set the status of the project to 'X'. 
+        #Set the status of the project to 'X'.
         client.set_project_status(proj.id, 'X')
         #now create a project with the name of the deleted project
         project = JSONObject({})
@@ -263,7 +273,7 @@ class TestProject:
         assert old_proj.status == 'X'
         assert old_proj.name != project.name
 
-        
+
 
     def test_clone_project(self, client, projectmaker, networkmaker):
 
@@ -348,9 +358,9 @@ class TestProject:
 
         client.user_id = recipient_user.id
         recipient_projects_before = client.get_projects(client.user_id)
-        
+
         client.user_id = sender_user_id
-        
+
         new_project_name = 'Cloned Project'
 
         test_delete_project_id = client.clone_project(
@@ -366,7 +376,7 @@ class TestProject:
         recipient_projects_after = client.get_projects(client.user_id)
 
         assert len(recipient_projects_after) == len(recipient_projects_before)+1
-        
+
         client.user_id = sender_user_id
         sender_projects_after = client.get_projects(client.user_id)
         assert len(sender_projects_after) == len(sender_projects_before)
@@ -383,6 +393,18 @@ class TestProject:
         cloned_networks = client.get_networks(cloned_project.id)
         assert len(cloned_networks) == 2
 
+        #Check that the resource attribute references have been updated correctly
+        #by comparing the attr_id on the original network and the cloned network for the same attribute name,
+        #ensuring they are not the same.
+        for n in cloned_project.networks:
+            net = client.get_network(network_id=n.id)
+            for ra in net.attributes:
+                a = client.get_attribute_by_id(attr_id=ra.attr_id)
+                if a.network_id is not None:
+                    for ra1 in net1.attributes:
+                        if ra1.name == a.name:
+                            assert ra1.network_id is not None
+                            assert ra.attr_id != ra1.attr_id
 
     def test_rename_of_status_x_projects_in_clone(self, client, projectmaker, networkmaker):
         sender_user_id = client.user_id
@@ -397,26 +419,26 @@ class TestProject:
 
         client.user_id = recipient_user.id
         recipient_projects_before = client.get_projects(client.user_id)
-        
+
         client.user_id = sender_user_id
-        
+
         new_project_name = 'Cloned Project Test'
 
         test_delete_project_id = client.clone_project(
             proj.id,
             recipient_user_id=recipient_user.id,
             new_project_name=new_project_name)
-        
+
         #test renaming of deleted projects
         client.set_project_status(test_delete_project_id, 'X')
         changed_project = client.get_project(test_delete_project_id)
         assert changed_project.status == 'X'
-        
+
         cloned_project_id = client.clone_project(
             proj.id,
             recipient_user_id=recipient_user.id,
             new_project_name=new_project_name)
-        
+
         renamed_project = client.get_project(test_delete_project_id)
         assert renamed_project.status == 'X'
 
@@ -449,11 +471,39 @@ class TestProject:
         client.user_id = pytest.user_c.id
         client.get_project(proj.id)
 
-        #now revolk access
+        # is_admin defaults to 'N' when not specified
         client.user_id = proj_user
+        owners = client.get_all_project_owners([proj.id])
+        user_c_owner = next((o for o in owners if o.user_id == pytest.user_c.id), None)
+        assert user_c_owner is not None
+        assert user_c_owner.is_admin == 'N'
+
+        # Share again with is_admin='Y'
+        client.share_project(proj.id, ['UserC'], False, False, is_admin='Y')
+        owners = client.get_all_project_owners([proj.id])
+        user_c_owner = next((o for o in owners if o.user_id == pytest.user_c.id), None)
+        assert user_c_owner.is_admin == 'Y'
+
+        #now revolk access
         client.unshare_project(proj.id, ['UserC'])
 
         #user c no longer has access
         client.user_id = pytest.user_c.id
         with pytest.raises(hb.HydraError):
             client.get_project(proj.id)
+
+    def test_set_project_status_cache_invalidation(self, client, projectmaker):
+        proj = projectmaker.create()
+        project_id = proj.id
+
+        proj1 = client.get_project(project_id)
+        assert proj1.status == 'A'
+
+        client.set_project_status(project_id, 'X')
+
+        proj2 = client.get_project(project_id)
+        assert proj2.status == 'X'
+
+        #get projecs again to check the project is no longer present
+        projects = client.get_projects(pytest.root_user_id)
+        assert project_id not in [p.id for p in projects]

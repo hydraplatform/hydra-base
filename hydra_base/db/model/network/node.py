@@ -41,8 +41,6 @@ class Node(Base, Inspect, Resource):
     y = Column(Float(precision=10, asdecimal=True))
     layout  = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
-    alt_x = Column(Float(precision=10, asdecimal=True))
-    alt_y = Column(Float(precision=10, asdecimal=True))
 
     network = relationship('Network', backref=backref("nodes", order_by=network_id, cascade="all, delete-orphan"), lazy='joined')
 
