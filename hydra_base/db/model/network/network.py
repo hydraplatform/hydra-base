@@ -113,7 +113,7 @@ class Network(Base, Inspect, PermissionControlled, Resource):
         return l
 
 
-    def add_node(self, name, desc, layout, node_x, node_y):
+    def add_node(self, name, desc, layout, node_x, node_y, node_alt_x=None, node_alt_y=None):
         """
             Add a node to a network.
         """
@@ -127,6 +127,8 @@ class Network(Base, Inspect, PermissionControlled, Resource):
         node.layout      = str(layout) if layout is not None else None
         node.x           = node_x
         node.y           = node_y
+        node.alt_x       = node_alt_x
+        node.alt_y       = node_alt_y
 
         #Do not call save here because it is likely that we may want
         #to bulk insert nodes, not one at a time.
