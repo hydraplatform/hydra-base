@@ -19,6 +19,7 @@
 from .base import *
 
 from .ownership import NetworkOwner, ProjectOwner
+from .template import ProjectTemplate
 from .scenario import Scenario, ResourceScenario
 from .permissions import User
 from .network import Network, ResourceAttr
@@ -61,6 +62,9 @@ class Project(Base, Inspect, PermissionControlled):
     appdata = Column(JSON)
     layout = Column(JSON)
     user = relationship('User', backref=backref("projects", order_by=id))
+
+    templates = relationship('Template', secondary=ProjectTemplate.__table__,
+        backref=backref('projects', uselist=True))
 
     parent_id = Column(Integer(), ForeignKey('tProject.id'), nullable=True)
     parent = relationship('Project', remote_side=[id],

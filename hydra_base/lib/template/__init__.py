@@ -28,7 +28,8 @@ from sqlalchemy.orm import noload, joinedload
 from hydra_base import db
 from hydra_base.db.model import (Template, TemplateType, TypeAttr, Attr,
                                 Network, Node, Link, ResourceGroup,
-                                ResourceType, ResourceAttr, ResourceScenario, Scenario)
+                                ResourceType, ResourceAttr, ResourceScenario, Scenario,
+                                Project, ProjectTemplate)
 
 from hydra_base.db.model import Dataset as ModelDataset
 from hydra_base.lib.objects import JSONObject, Dataset
@@ -1362,3 +1363,93 @@ def get_all_parent_types(ttype_id, **kwargs):
     tt_qry = tt_qry.filter(TemplateType.id.in_(parent_ids))
     tt_qry = tt_qry.options(noload(TemplateType.typeattrs))
     return tt_qry.all()
+
+
+@required_perms("get_project")
+def get_project_templates(project_id, **kwargs):
+    """
+    Return all templates linked to a project.
+    The requesting user must have read access on the project.
+    """
+    user_id = kwargs.get('user_id')
+
+    try:
+        project_i = db.DBSession.query(Project).filter(Project.id == project_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError(f"Project {project_id} not found")
+
+    project_i.check_read_permission(user_id)
+
+    return project_i.templates
+
+
+@required_perms("edit_project")
+def add_project_template(project_id, template_id, **kwargs):
+    """
+    Link a template to a project.
+    The requesting user must have edit rights on the project.
+    """
+    user_id = kwargs.get('user_id')
+
+    try:
+        project_i = db.DBSession.query(Project).filter(Project.id == project_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError(f"Project {project_id} not found")
+
+    project_i.check_write_permission(user_id)
+
+    try:
+        db.DBSession.query(Template).filter(Template.id == template_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError(f"Template {template_id} not found")
+
+    existing = db.DBSession.query(ProjectTemplate).filter(
+        ProjectTemplate.project_id == project_id,
+        ProjectTemplate.template_id == template_id
+    ).first()
+
+    if existing is not None:
+        return existing
+
+    pt = ProjectTemplate()
+    pt.project_id = project_id
+    pt.template_id = template_id
+    db.DBSession.add(pt)
+    db.DBSession.flush()
+
+    log.info("Template %s linked to project %s", template_id, project_id)
+
+    return pt
+
+
+@required_perms("edit_project")
+def remove_project_template(project_id, template_id, **kwargs):
+    """
+    Remove the link between a template and a project.
+    The requesting user must have edit rights on the project.
+    """
+    user_id = kwargs.get('user_id')
+
+    try:
+        project_i = db.DBSession.query(Project).filter(Project.id == project_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError(f"Project {project_id} not found")
+
+    project_i.check_write_permission(user_id)
+
+    try:
+        pt = db.DBSession.query(ProjectTemplate).filter(
+            ProjectTemplate.project_id == project_id,
+            ProjectTemplate.template_id == template_id
+        ).one()
+    except NoResultFound:
+        raise ResourceNotFoundError(
+            f"Template {template_id} is not linked to project {project_id}"
+        )
+
+    db.DBSession.delete(pt)
+    db.DBSession.flush()
+
+    log.info("Template %s unlinked from project %s", template_id, project_id)
+
+    return 'OK'
