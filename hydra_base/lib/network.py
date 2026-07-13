@@ -1665,6 +1665,35 @@ def update_resource_layout(resource_type, resource_id, key, value, **kwargs):
 
     return layout
 
+def update_network_appdata(network_id, key, value, **kwargs):
+    """
+        Update a single key in a network's appdata without touching any
+        other network fields (name, description, projection, layout, etc).
+        This assumes that appdata is a JSON compatible dictionary.
+    """
+    user_id = kwargs.get('user_id')
+
+    log.info("Updating network %s's appdata with {%s:%s}", network_id, key, value)
+
+    try:
+        net_i = db.DBSession.query(Network).filter(Network.id == network_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError("Network with id %s not found"%(network_id))
+
+    net_i.check_write_permission(user_id)
+
+    if net_i.appdata is None:
+        appdata = dict()
+    else:
+        appdata = json.loads(net_i.appdata)
+
+    appdata[key] = value
+    net_i.appdata = json.dumps(appdata)
+
+    db.DBSession.flush()
+
+    return appdata
+
 def get_resource(resource_type, resource_id, **kwargs):
     user_id = kwargs.get('user_id')
 
@@ -1715,7 +1744,9 @@ def get_network_extents(network_id,**kwargs):
             min_alt_x=None,
             max_alt_x=None,
             min_alt_y=None,
-            max_alt_y=None
+            max_alt_y=None,
+            has_geographic=False,
+            has_schematic=False
         )
 
     # Compute min/max extent of the network.
@@ -1761,7 +1792,14 @@ def get_network_extents(network_id,**kwargs):
         min_alt_x=min_alt_x,
         max_alt_x=max_alt_x,
         min_alt_y=min_alt_y,
-        max_alt_y=max_alt_y
+        max_alt_y=max_alt_y,
+        # `min`/`max` above default to a fake (0, 1) range when no node in
+        # the network has that coordinate system populated, so callers that
+        # need to know whether the coordinate system is actually usable
+        # (e.g. to decide whether to offer a map/schematic view) must check
+        # these flags rather than the min/max values themselves.
+        has_geographic=len(x) > 0 and len(y) > 0,
+        has_schematic=len(alt_x) > 0 and len(alt_y) > 0
     ))
     return ne
 
