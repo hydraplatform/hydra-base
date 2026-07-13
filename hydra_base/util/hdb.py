@@ -17,21 +17,23 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
-import os
-import json
-from ..db.model import Network, Scenario, Project, User, Role, Perm, RolePerm, RoleUser, ResourceAttr, ResourceType, Dimension, Unit
-from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
-from .. import db
-import datetime
-import random
 import bcrypt
-from ..exceptions import HydraError, HydraLoginUserNotFound, HydraLoginUserMaxAttemptsExceeded, HydraLoginUserPasswordWrong
-from sqlalchemy.orm import load_only
-from sqlalchemy import func
-from ..lib.objects import JSONObject
-from ..lib.users import get_remaining_login_attempts, inc_failed_login_attempts
-
+import datetime
+import json
 import logging
+import os
+import random
+
+from ..db.model import Network, Scenario, Project, User, Role, Perm, RolePerm, RoleUser, ResourceAttr, ResourceType, Dimension, Unit
+from .. import db
+from ..exceptions import HydraError, HydraLoginUserNotFound, HydraLoginUserMaxAttemptsExceeded, HydraLoginUserPasswordWrong, HydraLoginInvalidOTP
+from sqlalchemy import func
+from sqlalchemy.orm import load_only
+from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
+from ..lib.objects import JSONObject
+from ..lib.users import get_remaining_login_attempts, inc_failed_login_attempts, get_user_otp
+from hydra_base.lib.otp.otp import totp
+
 log = logging.getLogger(__name__)
 
 
@@ -169,6 +171,20 @@ def login_user(username, password):
         log.info("User {} now has {} failed logins".format(username, user_i.failed_logins+1))
         inc_failed_login_attempts(user_i.username, user_id=1)
         raise HydraLoginUserPasswordWrong(username)
+
+
+def verify_otp(user_id, user_code):
+    """
+        1. Get user secret
+        2. Calculate TOTP for current window
+        3. Compare calculated code to user-submitted code
+    """
+    otp = get_user_otp(user_id)
+    calc_code = totp(otp.secret)
+    if user_code != calc_code:
+        raise HydraLoginInvalidOTP(user_id)
+
+    return user_id
 
 
 def create_default_net():
