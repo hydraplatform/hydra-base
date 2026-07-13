@@ -1,0 +1,723 @@
+import enum
+import random
+import sys
+
+import pytest
+
+from hydra_base.exceptions import HydraError, PermissionError
+from hydra_base.lib.objects import JSONObject
+
+
+@pytest.fixture
+def organisation(client):
+    org =  client.add_organisation("PyTest fixture organisation")
+    yield org
+    client.delete_organisation(organisation_id=org.id)
+
+
+@pytest.fixture
+def usergroup(client, organisation):
+    group = client.add_usergroup("PyTest fixture group", organisation_id=organisation.id)
+    yield group
+    client.delete_usergroup(group_id=group.id, purge=True)
+
+@pytest.fixture
+def non_admin_user(client):
+    user_data = JSONObject({
+        "username": "non_admin_user",
+        "password": "password",
+        "display_name": "PyTest fixture non_admin_user"
+    })
+    user = client.add_user(user_data)
+    user.plaintext_passwd = user_data.password  # Used to client.login this user
+    yield user
+    client.delete_user(user.id)
+    client.login("root", "")  # Restore default test user
+
+
+@pytest.fixture(scope="module", autouse=True)
+def Permissions_Map(client):
+    perm = client.get_permissions_map()
+    sys.modules[__name__].Perm = enum.IntEnum("Perm", perm)
+
+
+
+class TestUserGroups():
+
+    def test_organisation_instance(self, client):
+        """
+          Can an Organisation be created and have the expected properties?
+        """
+        org = client.add_organisation("Main organisation")
+
+        assert org.name == "Main organisation"
+        assert isinstance(org.id, int)
+        everyone = client.get_default_organisation_usergroup_name()  # Org has default UserGroup
+        assert isinstance(everyone, str)
+        client.delete_organisation(organisation_id=org.id)
+
+    def test_group_instance(self, client, organisation):
+        """
+          Can a UserGroup be created and have the expected properties?
+        """
+        group = client.add_usergroup("PyTest group", organisation_id=organisation.id)
+
+        assert group.name == "PyTest group"
+        assert isinstance(group.id, int)
+
+    def test_delete_empty_group(self, client, organisation):
+        """
+          Can a UserGroup without members be deleted?
+        """
+        group = client.add_usergroup("PyTest group", organisation_id=organisation.id)
+        client.delete_usergroup(group.id, purge=False)
+
+    def test_delete_populated_group(self, client, organisation, non_admin_user):
+        """
+          Can a UserGroup with members and an administrator be deleted?
+        """
+        user_id = non_admin_user.id
+        group = client.add_usergroup("PyTest group", organisation_id=organisation.id)
+        client.add_user_to_usergroup(uid=user_id, group_id=group.id)
+        client.add_usergroup_administrator(uid=user_id, group_id=group.id)
+
+        assert client.is_usergroup_administrator(uid=user_id, group_id=group.id)
+        assert client.is_usergroup_member(uid=user_id, group_id=group.id)
+        client.delete_usergroup(group.id, purge=True)
+        assert not client.is_usergroup_administrator(uid=user_id, group_id=group.id)
+        assert not client.is_usergroup_member(uid=user_id, group_id=group.id)
+
+    def test_get_organisations(self, client):
+        """
+          Can the set of all defined Organisations be retrieved?
+        """
+        before_orgs = client.get_all_organisations()
+        orgnames = ("First", "Second", "Third")
+        for orgname in orgnames:
+            client.add_organisation(f"{orgname} organisation")
+        after_orgs = client.get_all_organisations()
+
+        assert len(before_orgs) == 0
+        assert len(after_orgs) == len(orgnames)
+
+        for org in after_orgs:
+            client.delete_organisation(org.id)
+
+    def test_get_organisation_by_id(self, client, organisation):
+        """
+          Can a specific Organisation be retreived by its id attr?
+        """
+        org = client.get_organisation_by_id(organisation_id=organisation.id)
+        assert isinstance(org, JSONObject)
+        assert org.name == organisation.name
+        assert org.id == organisation.id
+
+    def test_get_organisation_by_name(self, client, organisation):
+        """
+          Can a specific Organisation be retreived by its name attr?
+        """
+        org = client.get_organisation_by_name(organisation_name=organisation.name)
+        assert isinstance(org, JSONObject)
+        assert org.name == organisation.name
+        assert org.id == organisation.id
+
+
+    def test_organisation_groups(self, client, organisation):
+        """
+          Are UserGroups created correctly within the specified Organisation?
+        """
+        client.add_usergroup("PyTest group", organisation_id=organisation.id)
+        org_groups = client.get_groups_by_organisation_id(organisation_id=organisation.id)
+
+        assert isinstance(org_groups, list)  # Return is a list...
+        assert len(org_groups) == 3  # ...containing three elements (Everyone + guests +group)...
+        assert org_groups[0].organisation_id == organisation.id  # ...and has the correct parent org.
+
+    def test_organisation_user_membership(self, client, organisation):
+        """
+          Can Users be added to and removed from Organisations?
+        """
+        user_id = client.user_id
+        # Verify addition...
+        assert not client.is_organisation_member(uid=user_id, organisation_id=organisation.id)
+        client.add_user_to_organisation(uid=user_id, organisation_id=organisation.id)
+        assert client.is_organisation_member(uid=user_id, organisation_id=organisation.id)
+
+        # ..and removal.
+        client.remove_user_from_organisation(uid=user_id, organisation_id=organisation.id)
+        assert not client.is_organisation_member(uid=user_id, organisation_id=organisation.id)
+
+    def test_get_all_organisation_members(self, client, organisation, non_admin_user):
+        """
+          Can the set of Users who are members of an Organisation be retrieved?
+        """
+        user_id = client.user_id
+        client.add_user_to_organisation(uid=user_id, organisation_id=organisation.id)
+        client.add_user_to_organisation(uid=non_admin_user.id, organisation_id=organisation.id)
+        members = client.get_all_organisation_members(organisation_id=organisation.id)
+        assert len(members) == 2
+
+    def test_get_all_user_organisations(self, client, non_admin_user):
+        """
+          Can the set of all Organisations of which a particular user is
+          a member be retrieved?
+        """
+        # Add three organisations
+        orgnames = ("First", "Second", "Third")
+        for orgname in orgnames:
+            client.add_organisation(f"{orgname} organisation")
+
+        # Add the User to the first and third org
+        first = client.get_organisation_by_name(organisation_name=f"{orgnames[0]} organisation")
+        last = client.get_organisation_by_name(organisation_name=f"{orgnames[-1]} organisation")
+
+        client.add_user_to_organisation(uid=non_admin_user.id, organisation_id=first.id)
+        client.add_user_to_organisation(uid=non_admin_user.id, organisation_id=last.id)
+
+        # Verify User is member of specified organisations...
+        organisations = client.get_all_user_organisations(uid=non_admin_user.id)
+        assert first.id in organisations
+        assert last.id in organisations
+        # ...and not others...
+        assert len(organisations) == 2
+
+    def test_get_organisation_administrators(self, client, organisation, non_admin_user):
+        """
+          Can the administrators for a particular Organisation be correctly retrieved?
+        """
+        client.add_user_to_organisation(uid=non_admin_user.id, organisation_id=organisation.id)
+        before_admins = client.get_organisation_administrators(organisation_id=organisation.id)
+        assert len(before_admins) == 0
+        client.add_organisation_administrator(uid=non_admin_user.id, organisation_id=organisation.id)
+        after_admins = client.get_organisation_administrators(organisation_id=organisation.id)
+        assert len(after_admins) == 1
+
+    def test_add_group_member(self, client, usergroup, non_admin_user):
+        """
+          Can Users be added to an Organisation?
+        """
+        user_id = client.user_id
+        client.add_user_to_usergroup(uid=user_id, group_id=usergroup.id)
+        client.add_user_to_usergroup(uid=non_admin_user.id, group_id=usergroup.id)
+        members = client.get_all_usergroup_members(group_id=usergroup.id)
+
+        # Does the UG now have that user as a member?
+        assert len(members) == 2
+        assert members[0].id == user_id  # Should preserve addition order
+        assert members[1].id == non_admin_user.id
+
+        # Test the reverse relationship: is the UG among those of which the user is a member?
+        assert client.is_usergroup_member(uid=user_id, group_id=usergroup.id)
+        assert client.is_usergroup_member(uid=non_admin_user.id, group_id=usergroup.id)
+
+    def test_disallow_repeat_addition(self, client, usergroup):
+        """
+          A User cannot be added more than once to the same UserGroup
+        """
+        user_id = client.user_id
+        client.add_user_to_usergroup(uid=user_id, group_id=usergroup.id)
+        # Repeat addition of same User...
+        with pytest.raises(HydraError):
+            client.add_user_to_usergroup(uid=user_id, group_id=usergroup.id)
+
+    def test_remove_group_member(self, client, usergroup):
+        """
+          Can a User be removed from a UserGroup?
+        """
+        user_id = client.user_id
+        client.add_user_to_usergroup(uid=user_id, group_id=usergroup.id)
+        client.remove_user_from_usergroup(uid=user_id, group_id=usergroup.id)
+
+        assert not client.is_usergroup_member(uid=user_id, group_id=usergroup.id)
+
+    def test_add_group_administrator(self, client, usergroup):
+        """
+          Can an administrator be assigned to a UserGroup?
+        """
+        user_id = client.user_id
+        client.add_usergroup_administrator(uid=user_id, group_id=usergroup.id)
+        admins = client.get_usergroup_administrators(group_id=usergroup.id)
+
+        # Does the UG now have that user as an administrator?
+        assert len(admins) == 1
+        assert admins[0].id == user_id
+
+        # Test the reverse relationship: is the UG among those the user administers?
+        assert client.is_usergroup_administrator(uid=user_id, group_id=usergroup.id)
+
+    def test_remove_group_administrator(self, client, usergroup, non_admin_user):
+        """
+          Can a User have the position of UserGroup administrator removed?
+        """
+        user_id = non_admin_user.id
+        client.add_user_to_usergroup(uid=user_id, group_id=usergroup.id)
+        client.add_usergroup_administrator(uid=user_id, group_id=usergroup.id)
+        assert client.is_usergroup_administrator(uid=user_id, group_id=usergroup.id)
+
+        client.remove_usergroup_administrator(uid=user_id, group_id=usergroup.id)
+        assert not client.is_usergroup_administrator(uid=user_id, group_id=usergroup.id)
+
+    def test_everyone(self, client, usergroup, organisation):
+        """
+          Does each organisation define an 'Everyone' group and are organisation
+          members automatically added to it?
+        """
+        user_id = client.user_id
+        client.add_user_to_organisation(uid=user_id, organisation_id=organisation.id)
+        eo = client.get_organisation_group(organisation_id=organisation.id, groupname="Everyone")
+        eom = client.get_all_usergroup_members(group_id=eo.id)
+
+        assert len(eom) == 1  # User automatically in Everyone
+        assert eom[0].id == user_id
+
+    def test_permissions_map(self, client):
+        """
+          Does the Permissions map as exported over remote connections correctly
+          define the required permissions?
+
+          See the Permissions_Map fixture above.
+        """
+        required_permissions = ("Read", "Write", "Share")
+        assert issubclass(Perm, enum.IntEnum)
+
+        for perm in required_permissions:
+            assert hasattr(Perm, perm)
+
+    def test_check_resource_access_mask(self, client, usergroup, network_with_data):
+        """
+          Can the access mask for a resource be both set and returned correctly?
+        """
+        ref_key = "NETWORK"
+        _ = client.set_resource_access(res=ref_key, usergroup_id=usergroup.id, res_id=network_with_data.id, access=Perm.Read)
+        mask = client.get_resource_access_mask(res=ref_key, usergroup_id=usergroup.id, res_id=network_with_data.id)
+
+        assert mask & Perm.Read
+        assert not mask & Perm.Write
+
+    def test_check_resource_access_helpers(self, client, usergroup, network_with_data):
+        """
+          Do the convenience functions for testing UserGroup permissions return
+          the expected results?
+        """
+        ref_key = "NETWORK"
+        set_permission = Perm.Read | Perm.Share
+        _ = client.set_resource_access(res=ref_key, usergroup_id=usergroup.id, res_id=network_with_data.id, access=set_permission)
+        assert client.usergroup_can_read(usergroup_id=usergroup.id, resource=ref_key, resource_id=network_with_data.id)
+        assert client.usergroup_can_share(usergroup_id=usergroup.id, resource=ref_key, resource_id=network_with_data.id)
+        assert not client.usergroup_can_write(usergroup_id=usergroup.id, resource=ref_key, resource_id=network_with_data.id)
+
+    def test_check_permission_change(self, client, usergroup, network_with_data):
+        """
+          Are UserGroup permissions changes correctly detected by the helper functions?
+        """
+        ref_key = "NETWORK"
+        before_permission = Perm.Read | Perm.Share | Perm.Write
+        after_permission = Perm.Read
+
+        _ = client.set_resource_access(res=ref_key, usergroup_id=usergroup.id, res_id=network_with_data.id, access=before_permission)
+        assert client.usergroup_can_read(usergroup_id=usergroup.id, resource=ref_key, resource_id=network_with_data.id)
+        assert client.usergroup_can_share(usergroup_id=usergroup.id, resource=ref_key, resource_id=network_with_data.id)
+        assert client.usergroup_can_write(usergroup_id=usergroup.id, resource=ref_key, resource_id=network_with_data.id)
+
+        _ = client.set_resource_access(res=ref_key, usergroup_id=usergroup.id, res_id=network_with_data.id, access=after_permission)
+        assert client.usergroup_can_read(usergroup_id=usergroup.id, resource=ref_key, resource_id=network_with_data.id)
+        assert not client.usergroup_can_share(usergroup_id=usergroup.id, resource=ref_key, resource_id=network_with_data.id)
+        assert not client.usergroup_can_write(usergroup_id=usergroup.id, resource=ref_key, resource_id=network_with_data.id)
+
+    def test_get_all_usergroup_projects_direct(self, client, usergroup):
+        """
+          Are direct (no-parent, leaf) Projects with read permission visible to a UserGroup?
+          Are such projects without read permission not visible?
+        """
+        perm0 = Perm.Read | Perm.Write
+        perm1 = Perm.Share
+        client.set_resource_access(res="project", usergroup_id=usergroup.id, res_id=1234, access=perm0)
+        client.set_resource_access(res="project", usergroup_id=usergroup.id, res_id=5678, access=perm1)
+        visible = client.get_all_usergroup_projects(usergroup.id)
+
+        assert len(visible) == 1
+        assert visible[0] == 1234
+
+    def test_get_all_usergroup_projects_children(self, client, usergroup):
+        """
+          Does the Project visibility lookup produce the correct results for
+          an arbitrarily-structured hierarchy?
+
+          Permissions set on the root Project should be inherited by every
+          child Project, irrespective of it being a direct child or indirect
+          child and being a leaf or parent.
+        """
+        parent_proj = JSONObject({})
+        parent_proj.name = "Parent"
+        pproj = client.add_project(parent_proj)
+
+        child_1 = JSONObject({})
+        child_1.name = "Child Project 01"
+        child_1.parent_id = pproj.id  # Parent -> child_1
+        c1proj = client.add_project(child_1)
+
+        child_2 = JSONObject({})
+        child_2.name = "Child Project 02"
+        child_2.parent_id = c1proj.id  # Parent -> child_1 -> child_2
+        c2proj = client.add_project(child_2)
+
+        child_3 = JSONObject({})
+        child_3.name = "Child Project 03"
+        child_3.parent_id = c2proj.id  # Parent -> child_1 -> child_2 -> child_3
+        c3proj = client.add_project(child_3)
+
+        child_4 = JSONObject({})
+        child_4.name = "Parent Leaf Child Project"
+        child_4.parent_id = pproj.id  # Parent -> child_4
+        c4proj = client.add_project(child_4)
+
+        child_5 = JSONObject({})
+        child_5.name = "Floating Leaf Child Project"
+        # Randomly associate a child with either a Child&Parent or Child&Leaf project
+        floatleaf_parent = random.choice((c1proj, c2proj, c4proj))
+        child_5.parent_id = floatleaf_parent.id  # <floatleaf_parent> -> child_5
+        c5proj = client.add_project(child_5)
+
+        # Set a permission including Read on the Parent only, should be inherited by all Children
+        perm0 = Perm.Read | Perm.Write
+        client.set_resource_access(res="project", usergroup_id=usergroup.id, res_id=pproj.id, access=perm0)
+        visible = client.get_all_usergroup_projects(usergroup.id, include_children=True)
+
+        for proj in (pproj, c1proj, c2proj, c3proj, c4proj, c5proj):
+            assert proj.id in visible
+        for proj in reversed((pproj, c1proj, c2proj, c3proj, c4proj, c5proj)):
+            client.delete_project(proj.id)
+
+    def test_get_all_usergroup_networks(self, client, usergroup, networkmaker):
+        """
+          The Networks visible to a UserGroup should include those in Projects
+          which have been made visible directly and those in Projects which
+          have inherited visibility.
+        """
+        parent_proj = JSONObject({})
+        parent_proj.name = f"Parent {id(parent_proj)}"
+        pproj = client.add_project(parent_proj)
+
+        child_1 = JSONObject({})
+        child_1.name = f"Child Project 01 {id(child_1)}"
+        child_1.parent_id = pproj.id  # Parent -> child_1
+        c1proj = client.add_project(child_1)
+
+        net1 = networkmaker.create(project_id=pproj.id)  # Parent -> net_1
+        net2 = networkmaker.create(project_id=c1proj.id) # Parent -> child_1 -> net_2
+
+        perm0 = Perm.Read | Perm.Write
+        client.set_resource_access(res="project", usergroup_id=usergroup.id, res_id=pproj.id, access=perm0)
+
+        nets = client.get_all_usergroup_networks(group_id=usergroup.id)
+        for net in (net1, net2):
+            assert net.id in nets
+
+        client.delete_project(c1proj.id)
+        client.delete_project(pproj.id)
+
+    def test_get_user_projects(self, client, usergroup):
+        """
+          The Projects visible to a particular User should include the full
+          hierarchy of Projects which inherit read permission.
+        """
+        user_id = client.user_id
+        client.add_user_to_usergroup(uid=user_id, group_id=usergroup.id)
+
+        parent_proj = JSONObject({})
+        parent_proj.name = "Parent"
+        pproj = client.add_project(parent_proj)
+
+        child_1 = JSONObject({})
+        child_1.name = "Child Project 01"
+        child_1.parent_id = pproj.id  # Parent -> child_1
+        c1proj = client.add_project(child_1)
+
+        perm0 = Perm.Read | Perm.Write
+        client.set_resource_access(res="project", usergroup_id=usergroup.id, res_id=pproj.id, access=perm0)
+
+        user_projects = client.get_all_user_projects(uid=user_id)
+        for proj in (pproj, c1proj):
+            assert proj.id in user_projects
+
+        client.delete_project(c1proj.id)
+        client.delete_project(pproj.id)
+
+    def test_batch_set_permissions(self, client, usergroup, networkmaker):
+        first_proj = JSONObject({})
+        first_proj.name = f"First project"
+        fproj = client.add_project(first_proj)
+
+        second_proj = JSONObject({})
+        second_proj.name = f"Second project"
+        sproj = client.add_project(second_proj)
+
+        fnet = networkmaker.create(project_id=fproj.id)  # First Project  -> fnet
+        snet = networkmaker.create(project_id=sproj.id)  # Second Project -> snet
+
+        perm = Perm.Read | Perm.Write
+        res_specs = [
+            {"PROJECT": fproj.id},
+            {"PROJECT": sproj.id},
+            {"NETWORK": snet.id}
+        ]
+        # Give one of the resources an existing access permission
+        client.set_resource_access(res="project", usergroup_id=usergroup.id, res_id=fproj.id, access=Perm.Read)
+        fproj_mask = client.get_resource_access_mask(res="project", usergroup_id=usergroup.id, res_id=fproj.id)
+        assert fproj_mask == Perm.Read
+        # Set the access to Perm.Read | Perm.Write for both projects and the second network
+        client.batch_set_resource_access(res_specs=res_specs, usergroup_id=usergroup.id, access=perm)
+        # Retrieve and verify the new access permissions
+        fproj_mask = client.get_resource_access_mask(res="project", usergroup_id=usergroup.id, res_id=fproj.id)
+        sproj_mask = client.get_resource_access_mask(res="project", usergroup_id=usergroup.id, res_id=sproj.id)
+        fnet_mask = client.get_resource_access_mask(res="network", usergroup_id=usergroup.id, res_id=fnet.id)
+        snet_mask = client.get_resource_access_mask(res="network", usergroup_id=usergroup.id, res_id=snet.id)
+        # fproj_mask has changed from Perm.Read to Perm.Read | Perm.Write
+        assert fproj_mask == Perm.Read | Perm.Write
+        # sproj_mask and snet_mask were also set
+        assert sproj_mask == Perm.Read | Perm.Write
+        assert snet_mask == Perm.Read | Perm.Write
+        # fnet_mask has not been set
+        assert fnet_mask is None
+
+        client.delete_project(fproj.id)
+        client.delete_project(sproj.id)
+
+
+    def test_get_organisation_projects(self, client, organisation):
+        """
+          Does the organisation_id kwarg to lib.project.get_projects limit
+          the returned projects to those in the specified organisation?
+          Is the normal operation of get_projects preserved where no
+          organisation_id argument is provided?
+        """
+        # Add new organisation
+        extra_org = client.add_organisation("Extra organisation")
+
+        # Add three projects
+        first_proj = JSONObject({})
+        first_proj.name = "First Project"
+        fproj = client.add_project(first_proj)
+
+        second_proj = JSONObject({})
+        second_proj.name = "Second Project"
+        sproj = client.add_project(second_proj)
+
+        third_proj = JSONObject({})
+        third_proj.name = "Third Project"
+        tproj = client.add_project(third_proj)
+
+        # Make first two projects visible to existing org...
+        client.make_project_visible_to_organisation(organisation_id=organisation.id, project_id=fproj.id)
+        client.make_project_visible_to_organisation(organisation_id=organisation.id, project_id=sproj.id)
+
+        # ...and third project visible to new organisation
+        client.make_project_visible_to_organisation(organisation_id=extra_org.id, project_id=tproj.id)
+
+        # Verify get_projects is aware of organisations
+        orig_org_projects = client.get_projects(uid=client.user_id, organisation_id=organisation.id)
+        extra_org_projects = client.get_projects(uid=client.user_id, organisation_id=extra_org.id)
+
+        assert first_proj.name in [proj.name for proj in orig_org_projects]
+        assert second_proj.name in [proj.name for proj in orig_org_projects]
+        assert len(orig_org_projects) == 2
+
+        assert third_proj.name in [proj.name for proj in extra_org_projects]
+        assert len(extra_org_projects) == 1
+
+        # Verify get_projects without organisation_id returns all existing projects
+        all_projects = client.get_projects(uid=client.user_id)
+        assert len(
+            {first_proj.name, second_proj.name, third_proj.name}.intersection
+                (
+                    proj.name for proj in all_projects
+                )
+        ) == 3
+
+        client.delete_project(fproj.id)
+        client.delete_project(sproj.id)
+        client.delete_project(tproj.id)
+
+    def test_organisation_administrator(self, client, organisation, non_admin_user):
+        """
+          Are Users not Organisation administrators until added, and does this
+          automatically confer Organisation.everyone UesrGroup admin status?
+        """
+        user_id = non_admin_user.id
+        assert not client.is_organisation_administrator(uid=user_id, organisation_id=organisation.id)
+        client.add_organisation_administrator(uid=user_id, organisation_id=organisation.id)
+        assert client.is_organisation_administrator(uid=user_id, organisation_id=organisation.id)
+
+        # Converse: Organisation 'Everyone' group should appear in groups administered by User...
+        eo = client.get_organisation_group(organisation_id=organisation.id, groupname="Everyone")
+        admin_groups = client.usergroups_administered_by_user(uid=user_id)
+        assert eo.id in admin_groups
+
+    def test_usergroup_operations_require_permissions(self, client, usergroup, non_admin_user):
+        """
+          Operations modifying UserGroup membership and admin permissions must
+          require UserGroup administrator privilege.
+        """
+        user_id = non_admin_user.id
+        assert not client.is_usergroup_administrator(uid=user_id, group_id=usergroup.id)
+
+        uid, sid = client.login(non_admin_user.username, non_admin_user.plaintext_passwd)
+
+        with pytest.raises(PermissionError):
+            client.add_usergroup_administrator(uid=user_id, group_id=usergroup.id)
+
+        with pytest.raises(PermissionError):
+            client.remove_usergroup_administrator(uid=user_id, group_id=usergroup.id)
+
+        with pytest.raises(PermissionError):
+            client.add_user_to_usergroup(uid=user_id, group_id=usergroup.id)
+
+        with pytest.raises(PermissionError):
+            client.remove_user_from_usergroup(uid=user_id, group_id=usergroup.id)
+
+    def test_organisation_operations_require_permissions(self, client, organisation, non_admin_user):
+        """
+          Operations modifying Organisation membership and admin permissions must
+          require Organisation administrator privilege.
+        """
+        user_id = non_admin_user.id
+        assert not client.is_organisation_administrator(uid=user_id, organisation_id=organisation.id)
+
+        uid, sid = client.login(non_admin_user.username, non_admin_user.plaintext_passwd)
+
+        with pytest.raises(PermissionError):
+            client.add_user_to_organisation(uid=user_id, organisation_id=organisation.id)
+
+        with pytest.raises(PermissionError):
+            client.add_organisation_administrator(uid=user_id, organisation_id=organisation.id)
+
+    def test_organisation_project_visibility(self, client, organisation):
+        """
+          Are projects which have been made visible to an Organisation among that
+          Organisation's 'all projects'?  This should include inherited visibility.
+        """
+        proj = JSONObject({})
+        proj.name = "Organisation Parent Project"
+        hproj = client.add_project(proj)
+
+        child_1 = JSONObject({})
+        child_1.name = "Child Project 01"
+        child_1.parent_id = hproj.id  # OPP -> child_1
+        c1proj = client.add_project(child_1)
+
+        orig_ids = client.get_all_organisation_projects(organisation_id=organisation.id)
+        assert not orig_ids
+        # Make only Parent project visible to Organisation...
+        client.make_project_visible_to_organisation(organisation_id=organisation.id, project_id=hproj.id)
+        project_ids = client.get_all_organisation_projects(organisation_id=organisation.id)
+
+        # ...but visibility is inherited by children
+        for p in (hproj, c1proj):
+            assert p.id in project_ids
+
+    def test_transfer_user_between_usergroups(self, client, organisation):
+        """
+          Does the transfer_user_between_usergroups convenience function behave
+          correctly?
+        """
+        from_group = client.add_usergroup("From UserGroup", organisation_id=organisation.id)
+        to_group = client.add_usergroup("To UserGroup", organisation_id=organisation.id)
+        user_id = client.user_id
+
+        assert not client.is_usergroup_member(uid=user_id, group_id=from_group.id)
+        client.add_user_to_usergroup(uid=user_id, group_id=from_group.id)
+        assert client.is_usergroup_member(uid=user_id, group_id=from_group.id)
+
+        assert not client.is_usergroup_member(uid=user_id, group_id=to_group.id)
+        client.transfer_user_between_usergroups(uid=user_id, from_gid=from_group.id, to_gid=to_group.id)
+        assert client.is_usergroup_member(uid=user_id, group_id=to_group.id)
+
+        # Now re-add User to original UserGroup and reattempt transfer to same destination...
+        client.add_user_to_usergroup(uid=user_id, group_id=from_group.id)
+        # ...which should not be permitted...
+        with pytest.raises(HydraError):
+            client.transfer_user_between_usergroups(uid=user_id, from_gid=from_group.id, to_gid=to_group.id)
+
+        # Nor should it be possible to transfer a non-member...
+        client.remove_user_from_usergroup(uid=user_id, group_id=from_group.id)
+        client.remove_user_from_usergroup(uid=user_id, group_id=to_group.id)
+        with pytest.raises(HydraError):
+            client.transfer_user_between_usergroups(uid=user_id, from_gid=from_group.id, to_gid=to_group.id)
+
+    def test_delete_organisation_requires_hydra_admin(self, client, organisation, non_admin_user):
+        """
+          Can only Hydra admins delete an Organisation?
+        """
+        uid, sid = client.login(non_admin_user.username, non_admin_user.plaintext_passwd)
+        with pytest.raises(PermissionError):
+            client.delete_organisation(organisation_id=organisation.id)
+
+    def test_organisation_report(self, client, organisation, non_admin_user):
+        """
+          Does the Organisation report have the expected format and values?
+        """
+        group1 = client.add_usergroup("Report group 1", organisation_id=organisation.id)
+        group2 = client.add_usergroup("Report group 2", organisation_id=organisation.id)
+
+        client.add_user_to_organisation(uid=client.user_id, organisation_id=organisation.id)
+        client.add_user_to_organisation(uid=non_admin_user.id, organisation_id=organisation.id)
+
+        client.add_usergroup_administrator(uid=client.user_id, group_id=group1.id)
+        client.add_organisation_administrator(uid=non_admin_user.id, organisation_id=organisation.id)
+
+        client.add_user_to_usergroup(uid=non_admin_user.id, group_id=group1.id)
+        client.add_user_to_usergroup(uid=non_admin_user.id, group_id=group2.id)
+
+        report = client.organisation_report(organisation_id=organisation.id)
+        assert report == {
+            'members': 2,
+            'admins': ['non_admin_user'],
+            'guests': [],
+            'groups': [
+                {'name': 'Report group 1',
+                 'members': 2,
+                 'admins': 1},
+                {'name': 'Report group 2',
+                 'members': 1,
+                 'admins': 0}
+            ]
+        }
+
+    def test_organisation_guests(self, client, organisation, non_admin_user):
+        """
+          Can Users be added, retrieved, and removed as Guests of an Organisation?
+          Are duplicates and non-external Guests correctly disallowed?
+        """
+        client.add_user_to_organisation(uid=non_admin_user.id, organisation_id=organisation.id)
+        other_org = client.add_organisation("Other organisation")
+
+        # Add User as a Guest in an Organisation
+        assert not client.is_user_guest_of_organisation(uid=non_admin_user.id, organisation_id=other_org.id)
+        client.add_guest_to_organisation(uid=non_admin_user.id, organisation_id=other_org.id)
+        assert client.is_user_guest_of_organisation(uid=non_admin_user.id, organisation_id=other_org.id)
+
+        # May not be added twice
+        with pytest.raises(HydraError):
+            client.add_guest_to_organisation(uid=non_admin_user.id, organisation_id=other_org.id)
+
+        # User who is Organisation member may not be added as Guest
+        client.add_user_to_organisation(uid=client.user_id, organisation_id=other_org.id)
+        with pytest.raises(HydraError):
+            client.add_guest_to_organisation(uid=client.user_id, organisation_id=other_org.id)
+
+        # User appears on guest list...
+        guests = client.get_all_guests(organisation_id=other_org.id)
+        assert len(guests) == 1
+        assert guests[0].id == non_admin_user.id
+
+        # ...and guest usergroup appears on User's group list...
+        groups = client.usergroups_with_member_user(uid=non_admin_user.id)
+        guest_group_name = client.get_guest_organisation_usergroup_name()
+        guest_group = client.get_organisation_group(organisation_id=other_org.id, groupname=guest_group_name)
+        assert guest_group.id in groups
+
+        # Removal resets status to initial
+        client.remove_guest_from_organisation(uid=non_admin_user.id, organisation_id=other_org.id)
+        assert not client.is_user_guest_of_organisation(uid=non_admin_user.id, organisation_id=other_org.id)
+        guests_absent = client.get_all_guests(organisation_id=other_org.id)
+        assert len(guests_absent) == 0
