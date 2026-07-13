@@ -23,12 +23,10 @@ import logging
 
 from collections import defaultdict
 
-from sqlalchemy import or_, and_, func
+from sqlalchemy import or_, and_, func, tuple_
 from sqlalchemy.orm import aliased, joinedload
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import IntegrityError
-from zope.sqlalchemy import mark_changed
-
 from ..db.model import Attr,\
         User,\
         Node,\
@@ -96,8 +94,10 @@ def _get_resource(ref_key, ref_id):
         raise ResourceNotFoundError("Resource %s with ID %s not found"%(ref_key, ref_id))
 
 def _get_resource_id(ra):
-    if ra.resource_id is not None:
+    try:
         return ra.resource_id
+    except AttributeError:
+        pass
 
     ref_key = ra.ref_key
     if ref_key == 'NETWORK':
@@ -904,17 +904,9 @@ def add_resource_attributes(resource_attributes, **kwargs):
     if len(resource_attributes) == 0:
         return {}
 
-    #1. Identify the network ID
+    #1. Identify the network ID (needed for cache invalidation)
     network_id = get_network_id_from_resource_attribute(resource_attributes[0])
-    #2. Get all the resource attributes in the network
-    network_resource_attributes = get_all_network_resourceattributes(network_id, **kwargs)
-    #3. Remove any duplicates from the incoming data in case there are RAs which are already there
-    network_ra_lookup = {(ra.attr_id, ra.ref_key, _get_resource_id(ra)): ra for ra in network_resource_attributes}
 
-    #an RA in the database has a 'REF_KEY' column, and then a 'network_id', 'node_id', 'link_id', 'group_id' and 'project_id' column which are mutually exclusive.
-    #The incoming RA can have this format, but also 'ref_key', and 'ref_id', where ref_id is the ID of the resource, and ref_key is the type of resource.
-    #The incoming RA can also have a 'resource_type' and 'resource_id' column, which is the same as the ref_key and ref_id.
-    #The result should be a ref_key and the relevant resource_id column (network_id, node_id etc) set to the ID of the resource.
     key_to_field = {
         'NETWORK': 'network_id',
         'NODE': 'node_id',
@@ -957,34 +949,31 @@ def add_resource_attributes(resource_attributes, **kwargs):
             if target_field:
                 ra[target_field] = ra['ref_id']
 
-    ras_to_be_inserted = []
+    #2. Build DB-column-filtered dicts for all incoming RAs
+    cols = set(c.name for c in ResourceAttr.__table__.columns) - {'id', 'cr_date', 'updated_at'}
+    rows = [{k: v for k, v in ra.items() if k in cols} for ra in resource_attributes]
 
-    for ra in resource_attributes:
-        key = (ra.attr_id, ra['ref_key'], _get_resource_id(ra))
-        if key not in network_ra_lookup:
-            ras_to_be_inserted.append(ra)
+    #3. Bulk insert — the DB skips any rows that violate a unique constraint
+    if rows:
+        log.info("Inserting %s resource attributes (duplicates will be skipped)", len(rows))
+        db.bulk_insert_ignore(ResourceAttr, rows)
+        db.DBSession.flush()
+        cache.delete(f'network_resource_attributes_{network_id}')
 
+    #4. Query back IDs for all requested (attr_id, resource_id) combinations
     inserted_ids = {}
+    by_ref_key = defaultdict(list)
+    for row in rows:
+        by_ref_key[row['ref_key']].append(row)
 
-    #4. Add the new resource attributes
-    cols = list(filter(lambda x: x not in ['id', 'cr_date', 'updated_at'], [c.name for c in ResourceAttr.__table__.columns]))
-    ras_to_be_inserted = [{k: v for k, v in ra.items() if k in cols} for ra in ras_to_be_inserted]
-
-    if len(ras_to_be_inserted) > 0:
-        log.info("Adding %s new resource attributes", len(ras_to_be_inserted))
-        objs = [ResourceAttr(**ra) for ra in ras_to_be_inserted]
-        db.DBSession.add_all(objs)
-        db.DBSession.flush()  # or commit
-        for obj in objs:
-            inserted_ids[(obj.get_resource_id(), obj.attr_id)] = obj.id
-        # Mark the session as dirty to ensure that the changes are saved
-        # This is necessary if you are using a session with autocommit=False
-        mark_changed(db.DBSession())
-
-        cache.set(f'network_resource_attributes_{network_id}',
-            cache.get(f'network_resource_attributes_{network_id}') + [JSONObject(obj) for obj in objs], 60*60)
-
-    db.DBSession.flush()
+    for ref_key, ras in by_ref_key.items():
+        id_field = key_to_field[ref_key]
+        id_col = getattr(ResourceAttr, id_field)
+        pairs = [(ra['attr_id'], ra[id_field]) for ra in ras]
+        for obj in db.DBSession.query(ResourceAttr).filter(
+            tuple_(ResourceAttr.attr_id, id_col).in_(pairs)
+        ).all():
+            inserted_ids[obj.id] = [_get_resource_id(obj), obj.attr_id]
 
     return inserted_ids
 

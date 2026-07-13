@@ -1,7 +1,7 @@
 """node_alt_coords
 
 Revision ID: b7f3e1a92c44
-Revises: a1b2c3d4e5f6
+Revises: edf7bffb7b33
 Create Date: 2026-07-09 00:00:00.000000
 
 """
@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 
 # revision identifiers, used by Alembic.
 revision = 'b7f3e1a92c44'
-down_revision = 'a1b2c3d4e5f6'
+down_revision = 'edf7bffb7b33'
 branch_labels = None
 depends_on = None
 

@@ -339,13 +339,9 @@ class Dataset(JSONObject):
             log.exception(e)
             raise HydraError("Error parsing value %s: %s"%(self.value, e))
 
-    def get_metadata_as_dict(self, user_id=None, source=None):
+    def get_metadata_as_dict(self):
         """
         Convert a metadata json string into a dictionary.
-
-        Args:
-            user_id (int): Optional: Insert user_id into the metadata if specified
-            source (string): Optional: Insert source (the name of the app typically) into the metadata if necessary.
 
         Returns:
             dict: THe metadata as a python dictionary
