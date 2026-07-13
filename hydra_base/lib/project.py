@@ -172,6 +172,32 @@ def update_project(project, **kwargs):
 
     return proj_i
 
+def update_project_appdata(project_id, key, value, **kwargs):
+    """
+        Update a single key in a project's appdata without touching any
+        other project fields (name, description, parent_id, etc).
+        This assumes that appdata is a JSON compatible dictionary.
+    """
+    user_id = kwargs.get('user_id')
+
+    log.info("Updating project %s's appdata with {%s:%s}", project_id, key, value)
+
+    proj_i = _get_project(project_id, user_id, check_write=True)
+
+    if proj_i.appdata is None:
+        appdata = dict()
+    else:
+        appdata = proj_i.appdata.copy()
+
+    appdata[key] = value
+    proj_i.appdata = appdata
+
+    Project.clear_cache(user_id)
+
+    db.DBSession.flush()
+
+    return appdata
+
 @required_perms('edit_project')
 def move_project(project_id, target_project_id, **kwargs):
     """
