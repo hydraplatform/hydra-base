@@ -925,6 +925,12 @@ def add_resource_attributes(resource_attributes, **kwargs):
 
     field_to_key = {v: k for k, v in key_to_field.items()}
 
+    attr_ids = [ra.attr_id for ra in resource_attributes if ra.get('attr_id') is not None]
+    attr_lookup = {}
+    if attr_ids:
+        attrs = db.DBSession.query(Attr).filter(Attr.id.in_(attr_ids)).all()
+        attr_lookup = {a.id: a for a in attrs}
+
     for ra in resource_attributes:
         if ra.get('is_var') is not None:
             ra['attr_is_var'] = ra['is_var']
@@ -956,6 +962,12 @@ def add_resource_attributes(resource_attributes, **kwargs):
             target_field = key_to_field.get(ra['ref_key'])
             if target_field:
                 ra[target_field] = ra['ref_id']
+
+        attr_id = ra.get('attr_id')
+        attr_i = attr_lookup.get(attr_id)
+        if attr_i is not None:
+            ra['attr_name'] = ra.get('attr_name', attr_i.name)
+            ra['dimension_id'] = ra.get('dimension_id', attr_i.dimension_id)
 
     ras_to_be_inserted = []
 
@@ -1060,7 +1072,12 @@ def add_resource_attribute(resource_type, resource_id, attr_id, is_var, error_on
 
     attr_is_var = 'Y' if is_var in (True, 'Y') else 'N'
 
-    new_ra = resource_i.add_attribute(attr_id, attr_is_var)
+    new_ra = resource_i.add_attribute(
+        attr_id,
+        attr_is_var,
+        attr_name=attr.name,
+        dimension_id=attr.dimension_id,
+    )
     db.DBSession.flush()
 
     return new_ra
@@ -1095,7 +1112,11 @@ def add_resource_attrs_from_type(type_id, resource_type, resource_id, **kwargs):
     new_resource_attrs = []
     for item in type_i.typeattrs:
         if attrs.get(item.attr_id) is None:
-            ra = resource_i.add_attribute(item.attr_id)
+            ra = resource_i.add_attribute(
+                item.attr_id,
+                attr_name=item.attr.name if item.attr is not None else getattr(item, 'attr_name', None),
+                dimension_id=item.attr.dimension_id if item.attr is not None else getattr(item, 'dimension_id', None),
+            )
             new_resource_attrs.append(ra)
 
     db.DBSession.flush()

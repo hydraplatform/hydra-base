@@ -360,9 +360,11 @@ class Project(Base, Inspect, PermissionControlled):
         self.attribute_data = attribute_data_rs
         return attribute_data_rs
 
-    def add_attribute(self, attr_id, attr_is_var='N'):
+    def add_attribute(self, attr_id, attr_is_var='N', attr_name=None, dimension_id=None):
         res_attr = ResourceAttr()
         res_attr.attr_id = attr_id
+        res_attr.attr_name = attr_name
+        res_attr.dimension_id = dimension_id
         res_attr.attr_is_var = attr_is_var
         res_attr.ref_key = self.ref_key
         res_attr.project_id  = self.id

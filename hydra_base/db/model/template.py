@@ -478,7 +478,9 @@ class TypeAttr(Base, Inspect):
 
     id = Column(Integer(), primary_key=True, nullable=False)
     parent_id = Column(Integer(), ForeignKey('tTypeAttr.id'))
-    attr_id = Column(Integer(), ForeignKey('tAttr.id'), nullable=False)
+    attr_id = Column(Integer(), ForeignKey('tAttr.id'), nullable=True)
+    attr_name = Column(String(200), nullable=True)
+    dimension_id = Column(Integer(), ForeignKey('tDimension.id'), nullable=True)
     type_id = Column(Integer(), ForeignKey('tTemplateType.id', ondelete='CASCADE'),
                      nullable=False)
     default_dataset_id = Column(Integer(), ForeignKey('tDataset.id'))
@@ -495,6 +497,7 @@ class TypeAttr(Base, Inspect):
     parent = relationship('TypeAttr', remote_side=[id], backref=backref("children", order_by=id))
 
     attr = relationship('Attr')
+    dimension = relationship('Dimension', foreign_keys=[dimension_id])
     #Don't use a cascade delete all here. Instead force the code to delete the typeattrs
     #manually, to avoid accidentally deleting them
     templatetype = relationship('TemplateType',
