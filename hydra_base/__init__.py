@@ -19,7 +19,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-__version__="0.1.14"
+try:
+    from setuptools_scm import get_version
+    __version__ = get_version(root='..', relative_to=__file__)
+except ImportError:
+    # setuptools_scm not available, fall back to hardcoded version
+    __version__ = "0.1.14"
+except Exception:
+    # setuptools_scm failed to determine version, fall back to hardcoded version
+    __version__ = "0.1.14"
 
 
 import logging

@@ -26,6 +26,11 @@ from .attributes import Attr
 
 global project_cache_key
 project_cache_key = config.get('cache', 'projectkey', 'userprojects')
+project_cache_users_key = f'{project_cache_key}_users'
+
+
+def _user_project_cache_key(uid):
+    return f'{project_cache_key}_{uid}'
 
 __all__ = ['Project']
 
@@ -54,6 +59,7 @@ class Project(Base, Inspect, PermissionControlled):
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     created_by = Column(Integer(), ForeignKey('tUser.id'), nullable=False)
     appdata = Column(JSON)
+    layout = Column(JSON)
     user = relationship('User', backref=backref("projects", order_by=id))
 
     parent_id = Column(Integer(), ForeignKey('tProject.id'), nullable=True)
@@ -76,23 +82,21 @@ class Project(Base, Inspect, PermissionControlled):
 
         log.debug("Getting networks for project %s", self.id)
 
+        visible_networks = []
         networks = []
-        networks_not_creator = []
 
         if self.is_owner(user_id):
             #all networks in the project, as the user owns the project
-            networks_not_creator = get_session().query(Network)\
+            visible_networks = get_session().query(Network)\
                 .filter(Network.project_id == self.id).all()
         else:
-            #all networks created by someone else, but which this user is an owner,
-            #and this user can read this network
-            networks_not_creator = get_session().query(Network).join(NetworkOwner)\
+            #all the network in the project, which the requesting user is the owner of.
+            visible_networks = get_session().query(Network).join(NetworkOwner)\
                 .filter(Network.project_id == self.id)\
-                .filter(Network.created_by != user_id)\
                 .filter(NetworkOwner.user_id == user_id)\
                 .filter(NetworkOwner.view == 'Y').all()
 
-        all_network_ids = [n.id for n in networks_not_creator]
+        all_network_ids = [n.id for n in visible_networks]
 
         #for efficiency, get all the owners in 1 query and sort them by network
         all_owners = get_session().query(NetworkOwner)\
@@ -112,7 +116,7 @@ class Project(Base, Inspect, PermissionControlled):
         for netscenario in all_scenarios:
             scenarios_by_network[netscenario.network_id].append(netscenario)
 
-        for net_i in networks_not_creator:
+        for net_i in visible_networks:
 
             if include_deleted_networks is False and net_i.status.lower() == 'x':
                 continue
@@ -140,7 +144,7 @@ class Project(Base, Inspect, PermissionControlled):
         log.debug("Getting child projects of project %s", self.id)
 
         child_projects_i = get_session().query(Project).outerjoin(ProjectOwner)\
-            .filter(Project.parent_id == self.id).all()
+            .filter(Project.parent_id == self.id, Project.status == 'A').all()
 
         projects_with_access = [] # projects to which the user has access
         for child_proj_i in child_projects_i:
@@ -229,34 +233,33 @@ class Project(Base, Inspect, PermissionControlled):
         return owners + parent_owners
 
     """
-    This map should look like:
-     {'UID' :
-         {
-             None: [P1, P2],
-             'P1': [P3, P4]
-         }
-     }
-    Where UID is the user ID and the inner keys are project IDS, and the lists are
-    projects the user can see within those projects. The 'None' key at the top is for
-    top-level projects.
+    Per-user cache keyed as f'{project_cache_key}_{uid}'.
+    Each entry maps parent_project_id -> [child_project_ids].
+    The None key holds top-level projects.
+
+     uid=6: { None: [P1, P2], P1: [P3, P4] }
     """
     @classmethod
-    def get_cache(cls, user_id=None):
-        if user_id is None:
-            return cache.get(project_cache_key, {})
-        else:
-            return cache.get(project_cache_key, {}).get(user_id, {})
+    def get_cache(cls, user_id):
+        try:
+            return cache.get(_user_project_cache_key(user_id)) or {}
+        except Exception as e:
+            log.warning(f"Error getting project cache for user {user_id}: {e}")
+            return {}
 
     @classmethod
-    def set_cache(cls, data):
-        cache.set(project_cache_key, dict(data))
+    def set_cache(cls, uid, data):
+        cache.set(_user_project_cache_key(uid), dict(data))
+        try:
+            users = cache.get(project_cache_users_key) or set()
+            users.add(uid)
+            cache.set(project_cache_users_key, users)
+        except Exception as e:
+            log.warning(f"Error updating project cache user registry: {e}")
 
     @classmethod
     def clear_cache(cls, uid):
-        projectcache = cache.get(project_cache_key, {})
-        if projectcache.get(uid) is not None:
-            del projectcache[uid]
-        cls.set_cache(projectcache)
+        cache.delete(_user_project_cache_key(uid))
 
     def get_name(self):
         return self.project_name
@@ -265,14 +268,12 @@ class Project(Base, Inspect, PermissionControlled):
     def build_user_cache(cls, uid):
         """
             Build the cache of projects a user has access to either by direct Ownership
-            or by indirect access required for navigating to a projct to which they own
+            or by indirect access required for navigating to a project to which they own
         """
-        if cls.get_cache().get(uid) is not None:
+        if cache.get(_user_project_cache_key(uid)) is not None:
             return
 
-        project_user_cache = defaultdict(lambda: defaultdict(list))
-        ##Don't load the project's networks. Load them separately, as the networks
-        #must be checked individually for ownership
+        user_cache = defaultdict(list)
         projects_qry = get_session().query(Project)
         network_project_qry = get_session().query(Project.id)
 
@@ -283,7 +284,6 @@ class Project(Base, Inspect, PermissionControlled):
             NetworkOwner.user_id == uid,
             NetworkOwner.view == 'Y').distinct().all()
 
-        #for some reason this outputs a list of tuples.
         projects_with_network_owner = [p[0] for p in network_projects_i]
 
         projects_qry = projects_qry.outerjoin(ProjectOwner).filter(
@@ -299,46 +299,53 @@ class Project(Base, Inspect, PermissionControlled):
 
         parent_project_ids = []
         for p in projects_i:
-            project_user_cache[uid][p.parent_id].append(p.id)
+            user_cache[p.parent_id].append(p.id)
             if p.parent_id is not None:
                 parent_project_ids.append(p.parent_id)
 
-        cls._build_user_cache_up_tree(uid, parent_project_ids, project_user_cache)
+        cls._build_user_cache_up_tree(uid, parent_project_ids, user_cache)
+        cls._build_user_cache_down_tree(uid, [p.id for p in projects_i], user_cache)
 
-        cls._build_user_cache_down_tree(uid, [p.id for p in projects_i], project_user_cache)
-
-        cls.set_cache(project_user_cache)
+        cls.set_cache(uid, user_cache)
 
     @classmethod
-    def _build_user_cache_down_tree(cls, uid, project_ids, project_user_cache):
+    def _build_user_cache_down_tree(cls, uid, project_ids, user_cache):
 
         if len(project_ids) == 0:
             return
 
-        projects = get_session().query(Project).filter(Project.parent_id.in_(project_ids)).all()
+        projects = get_session().query(Project).filter(Project.parent_id.in_(project_ids), Project.status == 'A').all()
 
         child_project_ids = []
         for p in projects:
-            project_user_cache[uid][p.parent_id].append(p.id)
-            child_project_ids.append(p.id)
+            if p.id not in user_cache[p.parent_id]:
+                user_cache[p.parent_id].append(p.id)
+                child_project_ids.append(p.id)
 
-        cls._build_user_cache_down_tree(uid, child_project_ids, project_user_cache)
+        cls._build_user_cache_down_tree(uid, child_project_ids, user_cache)
 
     @classmethod
-    def _build_user_cache_up_tree(cls, uid, project_ids, project_user_cache):
+    def _build_user_cache_up_tree(cls, uid, project_ids, user_cache):
 
         if len(project_ids) == 0:
             return
 
-        projects = get_session().query(Project).filter(Project.id.in_(project_ids)).all()
+        projects = get_session().query(Project).filter(Project.id.in_(project_ids), Project.status == 'A').all()
 
         parent_project_ids = []
         for p in projects:
-            project_user_cache[uid][p.parent_id].append(p.id)
+            if p.id not in user_cache[p.parent_id]:
+                user_cache[p.parent_id].append(p.id)
             if p.parent_id is not None:
                 parent_project_ids.append(p.parent_id)
 
-        cls._build_user_cache_up_tree(uid, parent_project_ids, project_user_cache)
+        cls._build_user_cache_up_tree(uid, parent_project_ids, user_cache)
+
+    def remove_from_cache(self):
+        """Remove all users' project caches so they rebuild without this project."""
+        users = cache.get(project_cache_users_key) or set()
+        for uid in users:
+            cache.delete(_user_project_cache_key(uid))
 
     def get_attribute_data(self):
         attribute_data_rs = get_session().query(ResourceScenario).join(ResourceAttr).filter(
@@ -359,7 +366,7 @@ class Project(Base, Inspect, PermissionControlled):
 
         return res_attr
 
-    def set_owner(self, user_id, read='Y', write='Y', share='Y'):
+    def set_owner(self, user_id, read='Y', write='Y', share='Y', is_admin='N'):
 
         for o in self.owners:
             if user_id == o.user_id:
@@ -374,6 +381,7 @@ class Project(Base, Inspect, PermissionControlled):
         owner.view = read
         owner.edit = write
         owner.share = share
+        owner.is_admin = is_admin
 
         Project.clear_cache(user_id)
 

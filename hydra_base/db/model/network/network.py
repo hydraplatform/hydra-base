@@ -158,7 +158,7 @@ class Network(Base, Inspect, PermissionControlled, Resource):
 
         return group_i
 
-    def set_owner(self, user_id, read='Y', write='Y', share='Y'):
+    def set_owner(self, user_id, read='Y', write='Y', share='Y', is_admin='N'):
         owner = None
         for o in self.owners:
             if str(user_id) == str(o.user_id):
@@ -170,9 +170,10 @@ class Network(Base, Inspect, PermissionControlled, Resource):
             self.owners.append(owner)
 
         owner.user_id = int(user_id)
-        owner.view  = read
-        owner.edit  = write
-        owner.share = share
+        owner.view     = read
+        owner.edit     = write
+        owner.share    = share
+        owner.is_admin = is_admin
 
         return owner
 

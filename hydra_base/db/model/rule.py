@@ -17,24 +17,25 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 from .base import *
+from .permissions import User
 
-from .ownership import RuleOwner
+from hydra_base.exceptions import PermissionError
 
 __all__ = ['Rule', 'RuleTypeDefinition', 'RuleTypeLink']
 
-class Rule(AuditMixin, Base, Inspect, PermissionControlled):
+class Rule(AuditMixin, Base, Inspect):
     """
-        A rule is an arbitrary piece of text applied to resources
-        within a scenario. A scenario itself cannot have a rule applied
-        to it.
+        A rule is an arbitrary piece of text applied to either
+        a Network, Project or Template.
     """
 
     __tablename__ = 'tRule'
     __table_args__ = (
-        UniqueConstraint('scenario_id', 'name', name="unique rule name"),
+        UniqueConstraint('network_id', 'name', name="unique network rule name"),
+        UniqueConstraint('project_id', 'name', name="unique project rule name"),
+        UniqueConstraint('template_id', 'name', name="unique template rule name")
     )
 
-    __ownerclass__ = RuleOwner
     __ownerfk__ = 'rule_id'
 
     id = Column(Integer(), primary_key=True, nullable=False)
@@ -49,44 +50,27 @@ class Rule(AuditMixin, Base, Inspect, PermissionControlled):
     value = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'), nullable=True)
 
     status = Column(String(1), nullable=False, server_default=text(u"'A'"))
-    scenario_id = Column(Integer(), ForeignKey('tScenario.id'), nullable=True)
 
     network_id = Column(Integer(), ForeignKey('tNetwork.id'), index=True, nullable=True)
-    node_id = Column(Integer(), ForeignKey('tNode.id'), index=True, nullable=True)
-    link_id = Column(Integer(), ForeignKey('tLink.id'), index=True, nullable=True)
-    group_id = Column(Integer(), ForeignKey('tResourceGroup.id'), index=True, nullable=True)
+    project_id = Column(Integer(), ForeignKey('tProject.id'), index=True, nullable=True)
+    template_id = Column(Integer(), ForeignKey('tTemplate.id'), index=True, nullable=True)
 
-    scenario = relationship('Scenario',
-                            backref=backref('rules',
-                                            uselist=True,
-                                            cascade="all, delete-orphan"),
-                            lazy='joined')
-    network = relationship('Network',
-                           backref=backref("rules",
-                                           order_by=network_id,
-                                           cascade="all, delete-orphan"),
+    network = relationship('Network', backref=backref("rules",
+                           order_by=network_id,
+                           cascade="all, delete-orphan"),
                            lazy='joined')
-    node = relationship('Node',
-                        backref=backref("rules",
-                                        order_by=node_id,
-                                        uselist=True,
-                                        cascade="all, delete-orphan"),
 
-                        lazy='joined')
-    link = relationship('Link',
-                        backref=backref("rules",
-                                        order_by=link_id,
-                                        uselist=True,
-                                        cascade="all, delete-orphan"),
-                        lazy='joined')
-    group = relationship('ResourceGroup',
-                         backref=backref("rules",
-                                         order_by=group_id,#
-                                         uselist=True,
-                                         cascade="all, delete-orphan"),
-                         lazy='joined')
+    project = relationship('Project', backref=backref("rules",
+                           order_by=project_id,
+                           cascade="all, delete-orphan"),
+                           lazy='joined')
 
-    _parents = ['tScenario', 'tNode', 'tLink', 'tProject', 'tNetwork', 'tResourceGroup']
+    template = relationship('Template', backref=backref("templates",
+                            order_by=project_id,
+                            cascade="all, delete-orphan"),
+                            lazy='joined')
+
+    _parents = ['tProject', 'tNetwork', 'tTemplate']
     _children = []
 
 
@@ -141,31 +125,69 @@ class Rule(AuditMixin, Base, Inspect, PermissionControlled):
         rule_network = None
         if self.ref_key.upper() == 'NETWORK':
             rule_network = self.network
-        elif self.ref_key.upper() == 'NODE':
-            rule_network = self.node.network
-        elif self.ref_key.upper() == 'LINK':
-            rule_network = self.link.network
-        elif self.ref_key.upper() == 'GROUP':
-            rule_network = self.group.network
 
         return rule_network
+
+
+    @property
+    def owners(self):
+        rule_owners = []
+        if self.network:
+            rule_owners += self.network.get_owners()
+
+        if self.project:
+            rule_owners += self.project.get_owners()
+
+        user_ids = set(o.user_id for o in rule_owners)
+        return [{"user_id": user_id} for user_id in user_ids]
+
+
+    def check_read_permission(self, user_id, do_raise=True):
+        user = get_session().query(User).filter(User.id==user_id).one()
+        if user.is_admin():
+            return True
+
+        if user_id in set(o["user_id"] for o in self.owners):
+            return True
+        else:
+            if do_raise:
+                raise PermissionError(f"user {user_id} does not have access to rule {self.id}")
+            return False
+
+
+    def check_write_permission(self, user_id, do_raise=True):
+        if self.network:
+            return self.network.check_write_permission(user_id, do_raise=do_raise)
+
+        if self.project:
+            return self.project.check_write_permission(user_id, do_raise=do_raise)
+
+        if self.template:
+            return self.template.check_write_permission(user_id, do_raise=do_raise)
+
+        return False
+
+
+    def asdict(self):
+        """
+         Dataclass-style dict representation for conversion to JSONObject
+        """
+        return {
+          "id": self.id,
+          "name": self.name,
+          "value": self.value,
+          "description": self.description,
+          "status": self.status,
+          "owners": self.owners
+        }
+
 
     def get_owners(self):
         """
             Get all the owners of a rule, both those which are applied directly
             to this rule, but also who have been granted access via a project / network
         """
-
-        owners = [JSONObject(o) for o in self.owners]
-        owner_ids = [o.user_id for o in owners]
-
-        network = self.get_network()
-        network_owners = list(filter(lambda x:x.user_id not in owner_ids, network.get_owners()))
-
-        for no in network_owners:
-            no.source = f'Inherited from: {no.network_name} (ID:{no.network_id})'
-
-        return owners + network_owners;
+        return self.owners
 
 
 

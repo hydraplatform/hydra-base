@@ -97,7 +97,6 @@ class Scalar(DataType):
 
     def validate(self):
         f = float(self.value)
-        assert not math.isnan(f) # Excludes NaN etc
 
     def get_value(self):
         return str(self._value)

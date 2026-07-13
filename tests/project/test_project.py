@@ -81,7 +81,11 @@ class TestProject:
         project.name = 'SOAP test %s'%(datetime.datetime.now())
         project.description = \
             'A project created through the SOAP interface.'
+
+        project.layout = {"color": "blue"}
+
         project.appdata = {'test':'metadata'}
+
         project = self.add_attributes(client, project)
         project = self.add_data(client, project)
 
@@ -109,6 +113,8 @@ class TestProject:
             "created by is null."
         assert project_j.name == updated_project.name, \
             "project_name changed on update."
+        assert project_j.layout == updated_project.layout, \
+            "project_layout changed on update."
         assert project_j.description != updated_project.description,\
             "project_description did not update"
         assert updated_project.description == \
@@ -233,6 +239,7 @@ class TestProject:
             view='Y',
             edit='Y',
             share='Y',
+            is_admin='Y',
         ))
 
         client.bulk_set_project_owners([new_owner])
@@ -240,6 +247,9 @@ class TestProject:
         projectowners = client.get_all_project_owners([proj.id])
 
         assert len(projectowners) == 2
+
+        added = next(po for po in projectowners if po.user_id == 2)
+        assert added.is_admin == 'Y'
 
     def test_rename_status_x_project(self, client, projectmaker, networkmaker):
         sender_user_id = client.user_id
@@ -461,11 +471,39 @@ class TestProject:
         client.user_id = pytest.user_c.id
         client.get_project(proj.id)
 
-        #now revolk access
+        # is_admin defaults to 'N' when not specified
         client.user_id = proj_user
+        owners = client.get_all_project_owners([proj.id])
+        user_c_owner = next((o for o in owners if o.user_id == pytest.user_c.id), None)
+        assert user_c_owner is not None
+        assert user_c_owner.is_admin == 'N'
+
+        # Share again with is_admin='Y'
+        client.share_project(proj.id, ['UserC'], False, False, is_admin='Y')
+        owners = client.get_all_project_owners([proj.id])
+        user_c_owner = next((o for o in owners if o.user_id == pytest.user_c.id), None)
+        assert user_c_owner.is_admin == 'Y'
+
+        #now revolk access
         client.unshare_project(proj.id, ['UserC'])
 
         #user c no longer has access
         client.user_id = pytest.user_c.id
         with pytest.raises(hb.HydraError):
             client.get_project(proj.id)
+
+    def test_set_project_status_cache_invalidation(self, client, projectmaker):
+        proj = projectmaker.create()
+        project_id = proj.id
+
+        proj1 = client.get_project(project_id)
+        assert proj1.status == 'A'
+
+        client.set_project_status(project_id, 'X')
+
+        proj2 = client.get_project(project_id)
+        assert proj2.status == 'X'
+
+        #get projecs again to check the project is no longer present
+        projects = client.get_projects(pytest.root_user_id)
+        assert project_id not in [p.id for p in projects]

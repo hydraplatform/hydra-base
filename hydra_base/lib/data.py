@@ -1204,6 +1204,32 @@ def get_hdf_group_as_dataframe(url, **kwargs):
     hdf = HdfStorageAdapter()
     return hdf.get_columns_as_dataframe(url, columns=None, **kwargs)
 
+def get_hdf_groups_as_dataframe(url, groupnames=None, columns=None, start=None, end=None, **kwargs):
+        """
+            Return one or more HDF groups as JSON-encoded dataframes from a single file
+            access path.
+
+            Arguments:
+                url (str): HDF file URL/path.
+                groupnames (Sequence[str] | str | None): Group names to read. If None,
+                    all root groups are read.
+                columns (Sequence[str] | str | dict[str, Sequence[str] | str] | None):
+                    Column selection for each group. A sequence/string is applied to all
+                    groups; a dict provides per-group column selections.
+                start (int | None): Optional inclusive row start for each group.
+                end (int | None): Optional exclusive row end for each group.
+                **kwargs: Reserved for API compatibility.
+
+            Returns:
+                dict[str, str]: Mapping of ``groupname -> dataframe_json``.
+        """
+        hdf = HdfStorageAdapter()
+        return hdf.get_groups_as_dataframes(url,
+                                            groupnames=groupnames,
+                                            columns=columns,
+                                            start=start,
+                                            end=end)
+
 def get_hdf_groups(url, **kwargs):
     """
       Returns the root groups of an HDF file.

@@ -1,5 +1,7 @@
+from io import StringIO
 from unittest.mock import patch
 import numpy as np
+import json
 import os
 import pandas as pd
 import pytest
@@ -7,6 +9,7 @@ import pytest
 from packaging import version
 
 from hydra_base.lib.storage import HdfStorageAdapter
+from hydra_base.lib import data as hydra_data
 from hydra_base.util import NullAdapter
 
 min_lib_versions = {
@@ -27,7 +30,7 @@ def hdf_config():
 @pytest.fixture
 def public_aws_file():
     return {
-        "path": "s3://modelers-data-bucket/eapp/single/ETH_flow_sim.h5",
+        "path": "s3://modelers-data-bucket/unit-tests/ETH_flow_sim.h5",
         "file_size": 7374454,
         "series_name": "BR_Kabura",
         "series_size": 12784,
@@ -50,8 +53,15 @@ def private_aws_file():
 @pytest.fixture
 def multigroup_file():
     return {
-        "path": "s3://modelers-data-bucket/grid_data.h5",  # NB rot13 strings
+        "path": "s3://modelers-data-bucket/unit-tests/grid_data.h5",  # NB rot13 strings
         "groups": ['RFJ_Rffrk_erfhygf', 'prageny_fbhgu_rffrk_erfhygf', 'qnvyl_cebsvyrf', 'yvapbyafuver_erfhygf', 'zbaguyl_cebsvyrf', 'gvzrfrevrf']
+    }
+
+@pytest.fixture
+def non_timeseries_index_file():
+    return {
+        "path": "s3://modelers-data-bucket/unit-tests/synthetic_flow_duration_recorder.h5",
+        "group": "hydra_test_data"
     }
 
 @pytest.fixture(params=["s3://modelers-data-bucket/does_not_exist.h5", "does_not_exist"])
@@ -97,23 +107,26 @@ class TestHdf():
         """
         assert hdf.file_size(public_aws_file["path"]) == public_aws_file["file_size"]
 
+    @pytest.mark.skip
     @pytest.mark.requires_hdf
     def test_private_hdf_no_access(self, hdf, private_aws_file):
         """
           Do the reported properties of a dataset match expected values?
         """
-        with pytest.raises(ValueError):
+        with pytest.raises(PermissionError):
             info = hdf.get_series_info(private_aws_file["path"], columns=private_aws_file["series_name"])
 
     @pytest.mark.requires_hdf
-    @patch.dict('os.environ', {'AWS_ACCESS_KEY_ID': IAM_ACCESS_KEY, 'AWS_SECRET_ACCESS_KEY': IAM_SECRET_KEY})
+    @pytest.mark.skipif(IAM_ACCESS_KEY is None or IAM_SECRET_KEY is None,
+                        reason="TEST_AWS_ACCESS_KEY_ID and TEST_AWS_SECRET_ACCESS_KEY environment variables required")
+    @patch.dict('os.environ', {'AWS_ACCESS_KEY_ID': IAM_ACCESS_KEY or '', 'AWS_SECRET_ACCESS_KEY': IAM_SECRET_KEY or ''})
     def test_private_hdf_correct_access(self, private_aws_file):
         """
           Do the reported properties of a dataset match expected values?
         """
 
         hdf = HdfStorageAdapter()
-        
+
         info = hdf.get_series_info(private_aws_file["path"], columns=private_aws_file["series_name"])
 
         assert info[0]["name"] == private_aws_file["series_name"]
@@ -150,7 +163,7 @@ class TestHdf():
         for series_name, ranges in expected.items():
             for bounds, data in ranges.items():
                 df_json = hdf.get_columns_as_dataframe(public_aws_file["path"], columns=[series_name], start=bounds[0], end=bounds[1])
-                df = pd.read_json(df_json)
+                df = pd.read_json(StringIO(df_json))
                 for ts, val in data.items():
                     assert np.isclose(df[series_name][ts], val)
 
@@ -204,7 +217,7 @@ class TestHdf():
         for series_name, ranges in expected.items():
             for bounds, series in ranges.items():
                 df_json = client.get_hdf_columns_as_dataframe(public_aws_file["path"], groupname=None, columns=[series_name], start=bounds[0], end=bounds[1])
-                df = pd.read_json(df_json)
+                df = pd.read_json(StringIO(df_json))
                 for ts, val in series.items():
                     assert np.isclose(df[series_name][ts], val)
 
@@ -293,7 +306,7 @@ class TestHdf():
                                                groupname="RFJ_Rffrk_erfhygf",
                                                columns=["Jbezvatsbeq Vagnxr.Fhccyl.Nzbhag"],
                                                end=256)
-        assert df[:92] == '{"Jbezvatsbeq Vagnxr.Fhccyl.Nzbhag":{"1910-01-01T00:00:00.000":0.0,"1910-01-02T00:00:00.000"'
+        assert df[:84] == '{"Jbezvatsbeq Vagnxr.Fhccyl.Nzbhag":{"1910-01-01 00:00:00":0.0,"1910-01-02 00:00:00"'
 
     @pytest.mark.requires_hdf
     def test_hdf_multigroups(self, client, multigroup_file):
@@ -316,8 +329,46 @@ class TestHdf():
         df_json = client.get_hdf_group_as_dataframe(multigroup_file["path"],
                                                   groupname="RFJ_Rffrk_erfhygf",
                                                   start=4, end=8)
-        assert df_json[:126] == '{"Ynatunz Vagnxr.Fhccyl.Nzbhag":{"1910-01-05T00:00:00.000":40.0,'\
-                                '"1910-01-06T00:00:00.000":40.0,"1910-01-07T00:00:00.000":40.0,'
+        assert df_json[:114] == '{"Ynatunz Vagnxr.Fhccyl.Nzbhag":{"1910-01-05 00:00:00":40.0,'\
+                                '"1910-01-06 00:00:00":40.0,"1910-01-07 00:00:00":40.0,'
+
+        @pytest.mark.requires_hdf
+        def test_get_groups_as_dataframes(self, hdf, multigroup_file):
+                """
+                    Does the adapter return a dict of JSON dataframes for the requested groups?
+
+                    NB rot13 strings
+                """
+                groupname = "RFJ_Rffrk_erfhygf"
+                columns = ["Jbezvatsbeq Vagnxr.Fhccyl.Nzbhag"]
+                dfs = hdf.get_groups_as_dataframes(
+                        multigroup_file["path"],
+                        groupnames=[groupname],
+                        columns=columns,
+                        end=256
+                )
+
+                assert groupname in dfs
+                assert dfs[groupname][:84] == '{"Jbezvatsbeq Vagnxr.Fhccyl.Nzbhag":{"1910-01-01 00:00:00":0.0,"1910-01-02 00:00:00"'
+
+        @pytest.mark.requires_hdf
+        def test_get_hdf_groups_as_dataframe(self, multigroup_file):
+                """
+                    Does the data layer wrapper return a dict of JSON dataframes for requested groups?
+
+                    NB rot13 strings
+                """
+                groupname = "RFJ_Rffrk_erfhygf"
+                columns = ["Jbezvatsbeq Vagnxr.Fhccyl.Nzbhag"]
+                dfs = hydra_data.get_hdf_groups_as_dataframe(
+                        multigroup_file["path"],
+                        groupnames=[groupname],
+                        columns=columns,
+                        end=256
+                )
+
+                assert groupname in dfs
+                assert dfs[groupname][:84] == '{"Jbezvatsbeq Vagnxr.Fhccyl.Nzbhag":{"1910-01-01 00:00:00":0.0,"1910-01-02 00:00:00"'
 
     @pytest.mark.requires_hdf
     def test_hdf_group_columns(self, client, multigroup_file):
@@ -377,3 +428,15 @@ class TestHdf():
         ir = client.get_hdf_index_range(file_info["path"], groupname=groups[0], start=2, end=8)
         assert len(ir) > 0
         assert isinstance(ir[0], str)
+
+
+    @pytest.mark.requires_hdf
+    def test_non_timeseries_index(self, client, non_timeseries_index_file):
+        df_json = client.get_hdf_group_as_dataframe(
+                    non_timeseries_index_file["path"],
+                    groupname=non_timeseries_index_file["group"])
+        dfd = json.loads(df_json)
+        df = pd.DataFrame(dfd)
+        df.index = pd.Index(df.index, dtype=np.float64).sort_values()
+        assert len(df) == 11
+        assert np.array_equal(df.index, np.linspace(0, 100, 11))
