@@ -16,6 +16,11 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
+import uuid
+
+from sqlalchemy import Boolean
+from sqlalchemy.orm import validates
+
 from .base import *
 
 #***************************************************
@@ -107,20 +112,79 @@ class User(Base, Inspect):
 
     id = Column(Integer(), primary_key=True, nullable=False)
     username = Column(String(60),  nullable=False, unique=True)
-    password = Column(LargeBinary(),  nullable=False)
+    _password = Column('password', LargeBinary(),  nullable=False)
     display_name = Column(String(200),  nullable=False, server_default=text(u"''"))
     last_login = Column(TIMESTAMP())
     last_edit = Column(TIMESTAMP())
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     failed_logins = Column(SMALLINT, nullable=True, default=0)
 
+    # Flask-Security-required columns. This is the single mapping of
+    # tUser -- HWI's Flask-Security User model imports this class rather
+    # than declaring its own, so the schema is defined in one place.
+    email = Column(String(255), nullable=False, unique=True)
+    active = Column(Boolean(), nullable=False, server_default=text('1'))
+    confirmed_at = Column(TIMESTAMP())
+    first_name = Column(String(255))
+    last_name = Column(String(255))
+    demographic = Column(String(255))
+    country_code = Column(String(255))
+    organization = Column(String(255))
+    current_login_at = Column(TIMESTAMP())
+    last_login_ip = Column(String(255))
+    current_login_ip = Column(String(255))
+    login_count = Column(Integer)
+    fs_uniquifier = Column(String(255), nullable=False, unique=True, default=lambda: uuid.uuid4().hex)
+
     _parents  = []
     _children = ['tRoleUser']
+
+    @hybrid_property
+    def password(self):
+        # Stored as LargeBinary (raw bcrypt hash bytes); exposed as str
+        # since that's what Flask-Security's hasher (and callers
+        # generally) work with. Bytes in, bytes out for anything that
+        # still passes bytes directly (e.g. hydra-base's own add_user).
+        if self._password is None:
+            return None
+        return self._password.decode('utf-8') if isinstance(self._password, bytes) else self._password
+
+    @password.setter
+    def password(self, value):
+        self._password = value.encode('utf-8') if isinstance(value, str) else value
+
+    @validates('email')
+    def _default_username_from_email(self, key, value):
+        # username is hydra-base's own NOT NULL identity column; every
+        # creation path (Flask-Security register/admin, hydra-base
+        # add_user) sets email, so default username from it unless a
+        # caller already set a different username.
+        if not self.username:
+            self.username = value
+        return value
 
     def validate_password(self, password):
         if bcrypt.hashpw(password.encode('utf-8'), self.password.encode('utf-8')) == self.password.encode('utf-8'):
             return True
         return False
+
+    # -- flask-login's expected duck-typed interface (deliberately not
+    # importing flask_login here -- hydra-base has non-Flask consumers,
+    # e.g. the Spyne-based hydra-server, and must stay framework-agnostic).
+    @property
+    def is_authenticated(self):
+        return True
+
+    @property
+    def is_active(self):
+        return bool(self.active)
+
+    @property
+    def is_anonymous(self):
+        return False
+
+    def get_id(self):
+        return str(self.id)
 
     @property
     def permissions(self):
@@ -147,6 +211,16 @@ class User(Base, Inspect):
                 return True
 
         return False
+
+    def has_role(self, role):
+        """
+        Flask-Security/flask-login call this with a role code string
+        (e.g. 'admin', 'developer') -- hydra-base identifies roles by
+        `code`, not `name`, so this checks against that, not the
+        default RoleMixin behaviour of comparing role.name.
+        """
+        role_code = role.code if hasattr(role, 'code') else role
+        return any(r.code == role_code for r in self.roles)
 
     def __repr__(self):
         return "{0}".format(self.username)
