@@ -126,6 +126,42 @@ class TestProject:
                rs_to_check.dataset.value == 'just project desscriptor', \
                "There is an inconsistency with the attributes."
 
+    def test_update_project_appdata(self, client, projectmaker):
+        """
+        Test that a single key can be set in a project's appdata without
+        touching any other project fields, and that the result persists.
+        """
+        proj = projectmaker.create()
+
+        newappdata = client.update_project_appdata(proj.id, 'dualViewEnabled', True)
+
+        assert newappdata['dualViewEnabled'] is True
+
+        # Setting a second key should not clobber the first.
+        newappdata = client.update_project_appdata(proj.id, 'favouriteColour', 'blue')
+
+        assert newappdata['dualViewEnabled'] is True
+        assert newappdata['favouriteColour'] == 'blue'
+
+        updated_project = client.get_project(proj.id)
+
+        assert updated_project.appdata['dualViewEnabled'] is True
+        assert updated_project.appdata['favouriteColour'] == 'blue'
+
+    def test_update_project_appdata_no_permission(self, client, projectmaker):
+        """
+        A user with no write access to a project must not be able to
+        update its appdata.
+        """
+        proj = projectmaker.create(share=False)
+
+        with pytest.raises(hb.exceptions.HydraError):
+            #check for non-admin, non-owning users
+            client.user_id = 5
+            client.update_project_appdata(proj.id, 'dualViewEnabled', True)
+        #set back to admin
+        client.user_id = 1
+
     def test_load(self, client):
         project = JSONObject({})
         project.name = 'Test Project %s'%(datetime.datetime.now())

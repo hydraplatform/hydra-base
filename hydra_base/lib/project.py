@@ -173,6 +173,33 @@ def update_project(project, **kwargs):
     return proj_i
 
 @required_perms('edit_project')
+def update_project_appdata(project_id, key, value, **kwargs):
+    """
+        Update a single key in a project's appdata, without touching any
+        other project fields (name, description, parent_id, etc).
+        Unlike Network.appdata (a Text column, manually JSON (de)serialized -
+        see update_network_appdata), Project.appdata is a native JSON column,
+        so no json.dumps/loads is needed here.
+    """
+    user_id = kwargs.get('user_id')
+
+    proj_i = _get_project(project_id, user_id, check_write=True)
+
+    if proj_i.appdata is None:
+        appdata = {}
+    else:
+        appdata = proj_i.appdata.copy()
+
+    appdata[key] = value
+    proj_i.appdata = appdata
+
+    db.DBSession.flush()
+
+    Project.clear_cache(user_id)
+
+    return appdata
+
+@required_perms('edit_project')
 def move_project(project_id, target_project_id, **kwargs):
     """
         Move a project from one project into another
