@@ -176,9 +176,14 @@ class Rule(AuditMixin, Base, Inspect):
           "id": self.id,
           "name": self.name,
           "value": self.value,
+          "format": self.format,
+          "ref_key": self.ref_key,
+          "network_id": self.network_id,
+          "template_id": self.template_id,
           "description": self.description,
           "status": self.status,
-          "owners": self.owners
+          "owners": self.owners,
+          "types": [{"code": t.code} for t in self.types]
         }
 
 

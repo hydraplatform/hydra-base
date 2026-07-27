@@ -302,6 +302,54 @@ class TestNetwork:
         assert extents.min_y == 9
         assert extents.max_y == 99
 
+    def test_update_network_appdata(self, client, network_with_data):
+        """
+        Test that a single key can be added to a network's appdata without
+        disturbing any keys already present.
+        """
+        net = network_with_data
+
+        appdata = client.update_network_appdata(net.id, 'foo', 'bar')
+        assert appdata['foo'] == 'bar'
+
+        stored_net = client.get_network(net.id)
+        assert json.loads(stored_net.appdata) == {'foo': 'bar'}
+
+        #Updating a different key should leave the existing one untouched
+        appdata = client.update_network_appdata(net.id, 'baz', {'nested': 1})
+        assert appdata == {'foo': 'bar', 'baz': {'nested': 1}}
+
+        stored_net = client.get_network(net.id)
+        assert json.loads(stored_net.appdata) == {'foo': 'bar', 'baz': {'nested': 1}}
+
+        #Updating an existing key should overwrite its value
+        appdata = client.update_network_appdata(net.id, 'foo', 'updated')
+        assert appdata == {'foo': 'updated', 'baz': {'nested': 1}}
+
+    def test_update_network_appdata_unknown_network(self, client):
+        """
+        Updating the appdata of a network which does not exist should raise
+        an error.
+        """
+        with pytest.raises(hb.exceptions.HydraError):
+            client.update_network_appdata(999999, 'foo', 'bar')
+
+    def test_update_network_appdata_no_permission(self, client, networkmaker):
+        """
+        A user without write access to a network should not be able to
+        update its appdata.
+        """
+        net = networkmaker.create()
+
+        #UserD is not shared onto the default test project (unlike UserA/B/C),
+        #so it has no view/edit access to this network.
+        client.login('UserD', 'password')
+        try:
+            with pytest.raises(hb.exceptions.HydraError):
+                client.update_network_appdata(net.id, 'foo', 'bar')
+        finally:
+            client.login('root', '')
+
     def test_update_network(self, client, network_with_data):
 
         net = hb.JSONObject(client.get_network(network_with_data.id))

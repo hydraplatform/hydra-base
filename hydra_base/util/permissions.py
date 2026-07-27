@@ -17,12 +17,20 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
+import threading
+import time
 from functools import wraps
-from .. import db
+from .. import db, config
 from ..db.model import Perm, User, Role, RolePerm, RoleUser
 from sqlalchemy.orm.exc import NoResultFound
 from ..exceptions import PermissionError
 
+_perm_cache = threading.local()
+
+#Seconds a positive permission check is cached for before being re-verified
+#against the DB. Keeps check_perm fast for hot paths while bounding how long
+#a revoked permission/role can remain (incorrectly) usable.
+PERM_CACHE_TTL = config.getint('permissions', 'cache_ttl', 30)
 
 
 def check_perm(user_id, permission_code):
@@ -33,6 +41,12 @@ def check_perm(user_id, permission_code):
         If the user does not have permission to perfom an action, a permission
         error is thrown.
     """
+    cache = _perm_cache.__dict__.setdefault('cache', {})
+    key = (user_id, permission_code)
+    cached_at = cache.get(key)
+    if cached_at is not None and time.time() - cached_at < PERM_CACHE_TTL:
+        return
+
     try:
         perm = db.DBSession.query(Perm).filter(Perm.code==permission_code).one()
     except NoResultFound:
@@ -50,6 +64,8 @@ def check_perm(user_id, permission_code):
     except NoResultFound:
         raise PermissionError("Permission denied. User %s does not have permission %s"%
                         (user_id, permission_code))
+
+    cache[key] = time.time()
 
 def check_role(user_id, role_code):
     """

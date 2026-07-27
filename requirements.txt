@@ -23,4 +23,3 @@ requests
 s3fs
 sqlalchemy
 tables
-zope.sqlalchemy
