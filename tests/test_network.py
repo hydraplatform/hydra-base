@@ -301,6 +301,77 @@ class TestNetwork:
         assert extents.max_x == 100
         assert extents.min_y == 9
         assert extents.max_y == 99
+        assert extents.has_geographic is True
+        assert extents.has_schematic is True
+
+    def test_get_extents_empty_network(self, client, projectmaker):
+        """
+        A network with no nodes at all has no coordinates in either system.
+        """
+        project = projectmaker.create('test')
+
+        network = dict(
+            name = 'Network @ %s'%datetime.datetime.now(),
+            description = 'Test network with no nodes',
+            project_id = project.id,
+            links = [],
+            nodes = [],
+            layout = {},
+            scenarios = [],
+            resourcegroups = [],
+            projection = None,
+            attributes = [],
+        )
+        network = client.add_network(network)
+
+        extents = client.get_network_extents(network.id)
+
+        assert extents.min_x is None
+        assert extents.max_x is None
+        assert extents.min_y is None
+        assert extents.max_y is None
+        assert extents.has_geographic is False
+        assert extents.has_schematic is False
+
+    def test_update_network_appdata(self, client, network_with_data):
+        """
+        Test that a single key can be set in a network's appdata without
+        touching any other network fields, and that the result persists.
+        """
+        net = network_with_data
+
+        newappdata = client.update_network_appdata(net.id, 'dualViewEnabled', True)
+
+        assert newappdata['dualViewEnabled'] is True
+
+        # Setting a second key should not clobber the first.
+        newappdata = client.update_network_appdata(net.id, 'schematicGridSize', 25)
+
+        assert newappdata['dualViewEnabled'] is True
+        assert newappdata['schematicGridSize'] == 25
+
+        updated_net = client.get_network(net.id)
+        persisted_appdata = json.loads(updated_net.appdata)
+
+        assert persisted_appdata['dualViewEnabled'] is True
+        assert persisted_appdata['schematicGridSize'] == 25
+
+    def test_update_network_appdata_no_permission(self, client, projectmaker, networkmaker):
+        """
+        A user with no write access to a network's project must not be able
+        to update its appdata.
+        """
+        # Create a project that is NOT shared with other users
+        private_proj = projectmaker.create(name=None, share=False)
+        net = networkmaker.create(project_id=private_proj.id)
+
+        # UserD has not been granted access to this private network/project
+        client.login('UserD', 'password')
+        try:
+            with pytest.raises(hb.exceptions.HydraError):
+                client.update_network_appdata(net.id, 'dualViewEnabled', True)
+        finally:
+            client.login('root', '')
 
     def test_update_network(self, client, network_with_data):
 
