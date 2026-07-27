@@ -128,39 +128,50 @@ class TestProject:
 
     def test_update_project_appdata(self, client, projectmaker):
         """
-        Test that a single key can be set in a project's appdata without
-        touching any other project fields, and that the result persists.
+        Test that a single key can be added to a project's appdata without
+        disturbing any keys already present.
         """
         proj = projectmaker.create()
 
-        newappdata = client.update_project_appdata(proj.id, 'dualViewEnabled', True)
+        appdata = client.update_project_appdata(proj.id, 'foo', 'bar')
+        assert appdata['foo'] == 'bar'
 
-        assert newappdata['dualViewEnabled'] is True
+        stored_proj = client.get_project(proj.id)
+        assert stored_proj.appdata == {'foo': 'bar'}
 
-        # Setting a second key should not clobber the first.
-        newappdata = client.update_project_appdata(proj.id, 'favouriteColour', 'blue')
+        #Updating a different key should leave the existing one untouched
+        appdata = client.update_project_appdata(proj.id, 'baz', {'nested': 1})
+        assert appdata == {'foo': 'bar', 'baz': {'nested': 1}}
 
-        assert newappdata['dualViewEnabled'] is True
-        assert newappdata['favouriteColour'] == 'blue'
+        stored_proj = client.get_project(proj.id)
+        assert stored_proj.appdata == {'foo': 'bar', 'baz': {'nested': 1}}
 
-        updated_project = client.get_project(proj.id)
+        #Updating an existing key should overwrite its value
+        appdata = client.update_project_appdata(proj.id, 'foo', 'updated')
+        assert appdata == {'foo': 'updated', 'baz': {'nested': 1}}
 
-        assert updated_project.appdata['dualViewEnabled'] is True
-        assert updated_project.appdata['favouriteColour'] == 'blue'
+    def test_update_project_appdata_unknown_project(self, client):
+        """
+        Updating the appdata of a project which does not exist should raise
+        an error.
+        """
+        with pytest.raises(hb.exceptions.HydraError):
+            client.update_project_appdata(999999, 'foo', 'bar')
 
     def test_update_project_appdata_no_permission(self, client, projectmaker):
         """
-        A user with no write access to a project must not be able to
+        A user without write access to a project should not be able to
         update its appdata.
         """
+        proj_user = client.user_id
         proj = projectmaker.create(share=False)
 
-        with pytest.raises(hb.exceptions.HydraError):
-            #check for non-admin, non-owning users
-            client.user_id = 5
-            client.update_project_appdata(proj.id, 'dualViewEnabled', True)
-        #set back to admin
-        client.user_id = 1
+        client.user_id = pytest.user_c.id
+        try:
+            with pytest.raises(hb.exceptions.HydraError):
+                client.update_project_appdata(proj.id, 'foo', 'bar')
+        finally:
+            client.user_id = proj_user
 
     def test_load(self, client):
         project = JSONObject({})

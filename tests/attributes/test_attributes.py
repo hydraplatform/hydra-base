@@ -267,7 +267,9 @@ class TestResourceAttribute:
 
         existing_attr = network_with_data.attributes[0]
 
-        #add one new one, plus one existing one. This should result in only one being added
+        # add one new one, plus one existing one. add_resource_attributes returns
+        # IDs for all requested RAs (new and pre-existing), so len(added_attrs) == 2,
+        # but the network only grows by 1.
         newattributes = [
             {"attr_id": new_attr.id, "network_id": network_with_data.id, "attr_is_var": "Y"},
             existing_attr
@@ -277,8 +279,9 @@ class TestResourceAttribute:
 
         updated_network = client.get_network(network_with_data.id)
 
-        assert (network_with_data.id, new_attr.id) in added_attrs
-        assert len(updated_network.attributes) == len(network_with_data.attributes) + len(added_attrs)
+        assert [network_with_data.id, new_attr.id] in list(added_attrs.values())
+        assert len(added_attrs) == len(newattributes)
+        assert len(updated_network.attributes) == len(network_with_data.attributes) + 1
 
         assert new_attr.id in [netattr.attr_id for netattr in updated_network.attributes]
 

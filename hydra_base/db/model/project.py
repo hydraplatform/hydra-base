@@ -274,8 +274,11 @@ class Project(Base, Inspect, PermissionControlled):
             Build the cache of projects a user has access to either by direct Ownership
             or by indirect access required for navigating to a project to which they own
         """
-        if cache.get(_user_project_cache_key(uid)) is not None:
-            return
+        try:
+            if cache.get(_user_project_cache_key(uid)) is not None:
+                return
+        except Exception as e:
+            log.warning(f"Error checking project cache for user {uid}: {e}")
 
         user_cache = defaultdict(list)
         projects_qry = get_session().query(Project)
