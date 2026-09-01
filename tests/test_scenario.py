@@ -1357,7 +1357,7 @@ class TestScenario:
         locked_resource_scenarios_value = None
         for rs in updated_locked_scenario.resourcescenarios:
             if rs.resource_attr_id == resource_attr_id:
-                locked_resource_scenarios_value = rs.datset
+                locked_resource_scenarios_value = rs.dataset
 
         unlocked_resource_scenarios_value = None
         for rs in updated_unlocked_scenario.resourcescenarios:
