@@ -56,7 +56,7 @@ sqlalchemy.url = mysql+mysqldb://root:root@localhost/hydradb
 37569 2022-08-08 14:19:58,202 - INFO - Registering data type "DESCRIPTOR".
 37569 2022-08-08 14:19:58,202 - INFO - Registering data type "DATAFRAME".
 37569 2022-08-08 14:19:58,202 - INFO - Registering data type "TIMESERIES".
-37569 2022-08-08 14:19:58,206 - WARNING - Unable to find pylibmc. Defaulting to diskcache.
+37569 2022-08-08 14:19:58,206 - WARNING - Unable to find pymemcache. Defaulting to diskcache.
 INFO  [alembic.runtime.migration] Context impl MySQLImpl.
 INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
 INFO  [alembic.runtime.migration] Applying 04e4ae80b7b9_project_inheritance.py
