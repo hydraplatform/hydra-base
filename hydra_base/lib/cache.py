@@ -19,10 +19,10 @@ def _init_diskcache():
     cache = dc.Cache(tempfile.gettempdir())
 
 class _MemcachedWithFallback:
-    """Wraps a pylibmc client and falls back to diskcache on connection errors."""
+    """Wraps a pymemcache client and falls back to diskcache on connection errors."""
 
-    def __init__(self, pylibmc_cache, fallback):
-        self._mc = pylibmc_cache
+    def __init__(self, memcache_client, fallback):
+        self._mc = memcache_client
         self._fb = fallback
 
     def set(self, key, value, *args, **kwargs):
@@ -59,12 +59,13 @@ if hydraconfig.get('cache', 'type') != "memcached":
 
 elif hydraconfig.get('cache', 'type') == 'memcached':
     try:
-        import pylibmc
+        from pymemcache.client.base import Client as MemcacheClient
+        from pymemcache.serde import pickle_serde
         import diskcache as dc
 
         host = hydraconfig.get('cache', 'host', '127.0.0.1')
         port = hydraconfig.get('cache', 'port', 11211)
-        _mc = pylibmc.Client([f"{host}:{port}"], binary=True)
+        _mc = MemcacheClient((host, int(port)), serde=pickle_serde)
 
         # Check if Memcached server is reachable by setting a test key
         test_key = "__connection_test__"
@@ -81,7 +82,7 @@ elif hydraconfig.get('cache', 'type') == 'memcached':
 
     except (ModuleNotFoundError, ConnectionError) as e:
         if isinstance(e, ModuleNotFoundError):
-            log.warning("Unable to find pylibmc. Defaulting to diskcache.")
+            log.warning("Unable to find pymemcache. Defaulting to diskcache.")
         else:
             log.warning("Memcached server not reachable. Defaulting to diskcache.")
 
