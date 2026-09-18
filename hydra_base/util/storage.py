@@ -367,8 +367,8 @@ def get_mongo_client() -> MongoClient:
     global mongo
     if mongo:
         return mongo
-    mongo_config = MongoStorageAdapter.get_mongo_config()
-    mongo = MongoClient(f"mongodb://{mongo_config['host']}:{mongo_config['port']}")
+    conntext, client_kwargs = MongoStorageAdapter.get_connection_arguments()
+    mongo = MongoClient(conntext, **client_kwargs)
     return mongo
 
 
