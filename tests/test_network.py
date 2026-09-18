@@ -33,6 +33,37 @@ class TestNetwork:
         Test for network-based functionality
     """
 
+    def test_add_network_unknown_attribute(self, client, projectmaker):
+        project = projectmaker.create('test')
+        project_id = project.id
+
+        net_ra_bad_attr_id = dict(
+            ref_id = None,
+            ref_key = 'NETWORK',
+            attr_is_var = 'N',
+            attr_id = 999, # an unknown attribute ID~
+            id = -1
+        )
+
+        network = dict(
+            name = 'Network @ %s'%datetime.datetime.now(),
+            description = 'Test network with 2 nodes and 1 link',
+            project_id = project_id,
+            links = [],
+            nodes = [],
+            layout = {},
+            scenarios = [],
+            resourcegroups = [],
+            projection = None,
+            attributes = [net_ra_bad_attr_id],
+        )
+
+
+        with pytest.raises(hb.exceptions.HydraError):
+            client.add_network(network)
+
+
+
     def test_get_network_with_template(self, client, network_with_data):
         """
 
@@ -136,6 +167,69 @@ class TestNetwork:
         #Find the attribute that ALL nodes have.
         assert len(all_network_resource_attrs) == len(network_with_data.nodes)
 
+    def test_get_all_attributes_in_network(self, client, network_with_data):
+        """
+            Test that get_all_attributes_in_network returns unique attribute
+            definitions (not resource attributes) for all resource types in the
+            network: network-level, nodes, links, and groups.
+        """
+        net = network_with_data
+
+        all_attrs = client.get_all_attributes_in_network(net.id)
+
+        assert len(all_attrs) > 0
+
+        # Collect all attr_ids actually used across every resource type in the network
+        expected_attr_ids = set()
+        for ra in net.attributes:
+            expected_attr_ids.add(ra.attr_id)
+        for node in net.nodes:
+            for ra in node.attributes:
+                expected_attr_ids.add(ra.attr_id)
+        for link in net.links:
+            for ra in link.attributes:
+                expected_attr_ids.add(ra.attr_id)
+        for group in net.resourcegroups:
+            for ra in group.attributes:
+                expected_attr_ids.add(ra.attr_id)
+
+        returned_attr_ids = {a.id for a in all_attrs}
+
+        # Every attribute used in the network should be in the result
+        assert expected_attr_ids == returned_attr_ids
+
+    def test_get_all_attributes_in_network_deduplication(self, client, network_with_data):
+        """
+            Test that get_all_attributes_in_network de-duplicates attribute
+            definitions that appear on multiple resources (e.g. the same attr_id
+            shared by all nodes or shared between links and groups).
+        """
+        net = network_with_data
+
+        all_attrs = client.get_all_attributes_in_network(net.id)
+
+        # Each attribute definition must appear exactly once
+        returned_ids = [a.id for a in all_attrs]
+        assert len(returned_ids) == len(set(returned_ids)), (
+            "Duplicate attribute IDs found in get_all_attributes_in_network result"
+        )
+
+    def test_get_all_attributes_in_network_permissions(self, client, projectmaker, networkmaker):
+        """
+            Test that a user without read permission on the network cannot call
+            get_all_attributes_in_network.
+        """
+        # Create a project that is NOT shared with other users
+        private_proj = projectmaker.create(name=None, share=False)
+        net = networkmaker.create(project_id=private_proj.id)
+
+        # UserD has not been granted access to this private network/project
+        client.login('UserD', 'password')
+        try:
+            with pytest.raises(hb.exceptions.HydraError):
+                client.get_all_attributes_in_network(net.id)
+        finally:
+            client.login('root', '')
 
     def test_get_network_1(self, client, networkmaker):
         """
@@ -207,6 +301,54 @@ class TestNetwork:
         assert extents.max_x == 100
         assert extents.min_y == 9
         assert extents.max_y == 99
+
+    def test_update_network_appdata(self, client, network_with_data):
+        """
+        Test that a single key can be added to a network's appdata without
+        disturbing any keys already present.
+        """
+        net = network_with_data
+
+        appdata = client.update_network_appdata(net.id, 'foo', 'bar')
+        assert appdata['foo'] == 'bar'
+
+        stored_net = client.get_network(net.id)
+        assert json.loads(stored_net.appdata) == {'foo': 'bar'}
+
+        #Updating a different key should leave the existing one untouched
+        appdata = client.update_network_appdata(net.id, 'baz', {'nested': 1})
+        assert appdata == {'foo': 'bar', 'baz': {'nested': 1}}
+
+        stored_net = client.get_network(net.id)
+        assert json.loads(stored_net.appdata) == {'foo': 'bar', 'baz': {'nested': 1}}
+
+        #Updating an existing key should overwrite its value
+        appdata = client.update_network_appdata(net.id, 'foo', 'updated')
+        assert appdata == {'foo': 'updated', 'baz': {'nested': 1}}
+
+    def test_update_network_appdata_unknown_network(self, client):
+        """
+        Updating the appdata of a network which does not exist should raise
+        an error.
+        """
+        with pytest.raises(hb.exceptions.HydraError):
+            client.update_network_appdata(999999, 'foo', 'bar')
+
+    def test_update_network_appdata_no_permission(self, client, networkmaker):
+        """
+        A user without write access to a network should not be able to
+        update its appdata.
+        """
+        net = networkmaker.create()
+
+        #UserD is not shared onto the default test project (unlike UserA/B/C),
+        #so it has no view/edit access to this network.
+        client.login('UserD', 'password')
+        try:
+            with pytest.raises(hb.exceptions.HydraError):
+                client.update_network_appdata(net.id, 'foo', 'bar')
+        finally:
+            client.login('root', '')
 
     def test_update_network(self, client, network_with_data):
 
@@ -380,7 +522,6 @@ class TestNetwork:
         new_network = client.get_network(network.id)
 
         assert len(new_network.links) == len(network.links)+1; "New node was not added correctly"
-        return new_network
 
     def test_add_node(self, client, projectmaker, template):
         project = projectmaker.create('test')
@@ -392,6 +533,8 @@ class TestNetwork:
         nlinks = 2
         x = [0, 0, 1]
         y = [0, 1, 0]
+        alt_x = [51.379258, 51.479258, 51.579258]
+        alt_y = [0.011938, 0.021938, 0.021938]
 
         for i in range(nnodes):
             node = hb.JSONObject()
@@ -400,6 +543,8 @@ class TestNetwork:
             node.description = 'test node ' + str(i)
             node.x = x[i]
             node.y = y[i]
+            node.alt_x = alt_x[i]
+            node.alt_y = alt_y[i]
 
             nodes.append(node)
 
@@ -458,8 +603,6 @@ class TestNetwork:
 
         assert len(new_network.nodes) == len(network.nodes)+1; "new node was not added correctly"
 
-        return new_network
-
     ######################################
     def test_add_nodes(self, client, projectmaker):
         """
@@ -475,6 +618,8 @@ class TestNetwork:
         nlinks = 2
         x = [0, 0, 1]
         y = [0, 1, 0]
+        alt_x = [51.379258, 51.479258, 51.579258]
+        alt_y = [0.011938, 0.021938, 0.021938]
 
         for i in range(nnodes):
             node = hb.JSONObject()
@@ -483,6 +628,8 @@ class TestNetwork:
             node.description = 'test node ' + str(i)
             node.x = x[i]
             node.y = y[i]
+            node.alt_x = alt_x[i]
+            node.alt_y = alt_y[i]
 
             nodes.append(node)
 
@@ -520,7 +667,6 @@ class TestNetwork:
 
         assert len(network.nodes)+len(nodes) == len(new_network.nodes); "new nodes were not added correctly_2",
 
-        return  new_network
     ########################################
 
 
@@ -542,6 +688,21 @@ class TestNetwork:
         assert updated_node.layout is not None
         assert updated_node.layout['app']  == ["Unit Test1", "Unit Test2"]
         assert updated_node.name == "Updated Node Name"
+
+        node_to_update.x = 99
+        node_to_update.y = 101
+
+        node_to_update.alt_x = 999
+        node_to_update.alt_y = 1101
+
+        updated_node = client.update_node(node_to_update)
+
+        updated_node = client.get_node(node_to_update.id)
+
+        assert updated_node.x == 99
+        assert updated_node.y == 101
+        assert updated_node.alt_x == 999
+        assert updated_node.alt_y == 1101
 
     def test_set_node_status(self, client, network_with_data):
         network = network_with_data
@@ -884,7 +1045,7 @@ class TestNetwork:
             assert ra.resourcescenario is not None
             assert ra.id in group_ras
 
-    def test_get_resource_data(self, client, network_with_data):
+    def test_get_all_resource_data(self, client, network_with_data):
         net = network_with_data
         s = net.scenarios[0]
 
@@ -901,17 +1062,79 @@ class TestNetwork:
             for ra in group.attributes:
                 all_ras.append(ra.id)
 
-
-        all_resource_data = client.get_all_resource_data(s.id, include_values='Y')
-        log.info(all_resource_data[0])
+        all_resource_data = client.get_all_resource_data(s.id, include_values=False)
         for rd in all_resource_data:
+            assert rd.value is None
             assert int(rd.resource_attr_id) in all_ras
 
-        truncated_resource_data = client.get_all_resource_data(s.id, include_values='Y', include_metadata='Y', page_start=0, page_end=1)
+        all_resource_data = client.get_all_resource_data(s.id, include_values=True)
+        for rd in all_resource_data:
+            assert rd.value is not None
+            assert int(rd.resource_attr_id) in all_ras
+
+
+        truncated_resource_data = client.get_all_resource_data(s.id, include_values=True, include_metadata=True, page_start=0, page_end=1)
         assert len(truncated_resource_data) == 1
 
+    def test_get_resource_data(self, client, network_with_data):
+        net = network_with_data
+        s = net.scenarios[0]
+        node = net.nodes[0]
 
+        node_ras = [a.id for a in node.attributes]
 
+        all_resource_data = client.get_resource_data('NODE', node.id, s.id, include_values=False)
+        all_node_types = []
+        for rd in all_resource_data:
+            assert rd.dataset.value is None
+            assert int(rd.resource_attr_id) in node_ras
+            all_node_types.append(rd.dataset.type)
+
+        all_node_types = list(set(all_node_types))
+
+        for datatype in all_node_types:
+
+            all_resource_data = client.get_resource_data('NODE', node.id,s.id, include_values=True)
+            for rd in all_resource_data:
+                assert rd.dataset.value is not None
+                assert int(rd.resource_attr_id) in node_ras
+
+            all_resource_data = client.get_resource_data('NODE', node.id,s.id,
+                                                        exclude_data_types=[datatype],
+                                                        include_values=True)
+            for rd in all_resource_data:
+                assert rd.dataset.type != datatype
+                assert rd.dataset.value is not None
+                assert int(rd.resource_attr_id) in node_ras
+
+            all_resource_data = client.get_resource_data('NODE', node.id,s.id,
+                                                        include_data_types=[datatype],
+                                                        include_values=True)
+            for rd in all_resource_data:
+                assert rd.dataset.type == datatype
+                assert rd.dataset.value is not None
+                assert int(rd.resource_attr_id) in node_ras
+
+            all_resource_data = client.get_resource_data('NODE', node.id,s.id,
+                                                        include_data_type_values=[datatype],
+                                                        include_values=True)
+            for rd in all_resource_data:
+                if rd.dataset.type == datatype:
+                    assert rd.dataset.value is not None
+                else:
+                    assert rd.dataset.value is None
+                assert int(rd.resource_attr_id) in node_ras
+
+            all_resource_data = client.get_resource_data('NODE', node.id,s.id,
+                                                        exclude_data_type_values=[datatype],
+                                                        include_values=True)
+            for rd in all_resource_data:
+                if rd.dataset.type == datatype:
+                    # there should be no values returned with this type
+                    assert rd.dataset.value is None
+                else:
+                    assert rd.dataset.value is not None
+                assert int(rd.resource_attr_id) in node_ras
 
     def test_delete_node(self, client, network_with_data):
         net = network_with_data
@@ -985,6 +1208,17 @@ class TestNetwork:
         networkowners = client.get_all_network_owners([net1.id])
         assert len(networkowners) == 2
 
+        # is_admin should default to 'N' for UserB
+        user_b_owner = next((o for o in networkowners if o.user_id != net1.created_by), None)
+        assert user_b_owner is not None
+        assert user_b_owner.is_admin == 'N'
+
+        # Share again with is_admin='Y' and verify
+        client.share_network(net1.id, ["UserB"], 'N', 'Y', is_admin='Y')
+        networkowners = client.get_all_network_owners([net1.id])
+        user_b_owner = next((o for o in networkowners if o.user_id != net1.created_by), None)
+        assert user_b_owner.is_admin == 'Y'
+
         client.login('UserC', 'password')
         #fails because user C is not an admin
         with pytest.raises(hb.exceptions.HydraError):
@@ -1005,12 +1239,16 @@ class TestNetwork:
             view='Y',
             edit='Y',
             share='Y',
+            is_admin='Y',
         ))
         client.bulk_set_network_owners([new_owner])
 
         networkowners = client.get_all_network_owners([net.id])
 
         assert len(networkowners) == 2
+
+        added = next(no for no in networkowners if no.user_id == 2)
+        assert added.is_admin == 'Y'
 
     def test_clone_network_into_existing_project(self, client, network_with_data):
         net = network_with_data
@@ -1073,7 +1311,7 @@ class TestNetwork:
         #the attribute has been re-scoped to the project, so now there are 2 on the project. one
         #is the project's original scoped attribute, and the other is the one which has been rescoped.
         assert len(project_scoped_attributes) == 2
-        
+
 
     def test_clone_network_into_new_project(self, client, network_with_data):
         net = network_with_data
@@ -1120,3 +1358,116 @@ class TestNetwork:
         #this project (as it was created outside the project test suite) does not have a default scoped
         #attributes like the projectes created using the ProjectMaker, hence it will have 0
         assert len(project_scoped_attributes) == 0
+
+
+    def test_clone_node(self, client, network_with_data):
+
+        node_to_clone = network_with_data.nodes[0]
+
+        cloned_node_id = client.clone_node(node_to_clone.id)
+
+        cloned_node = client.get_node(cloned_node_id)
+
+        assert cloned_node.name == f"{node_to_clone.name} (1)"
+
+        assert len(cloned_node.attributes) == len(node_to_clone.attributes)
+
+        scenario = client.get_scenario(network_with_data.scenarios[0].id)
+        original_node_data = list(filter(lambda x: x.resource_attr_id in [a.id for a in node_to_clone.attributes],
+                                         scenario.resourcescenarios))
+
+        cloned_node_data = list(filter(lambda x: x.resource_attr_id in [a.id for a in cloned_node.attributes],
+                                       scenario.resourcescenarios))
+
+        assert len(cloned_node_data) == len(original_node_data)-1 #has no outputs, so has one less dataset
+
+
+        cloned_node_id_2 = client.clone_node(node_to_clone.id, include_outputs=True)
+
+        cloned_node_2 = client.get_node(cloned_node_id_2)
+
+        assert cloned_node_2.name == f"{node_to_clone.name} (2)"
+
+        assert len(cloned_node_2.attributes) == len(node_to_clone.attributes)
+
+        scenario = client.get_scenario(network_with_data.scenarios[0].id)
+        original_node_data = list(filter(lambda x: x.resource_attr_id in [a.id for a in node_to_clone.attributes],
+                                         scenario.resourcescenarios))
+
+        cloned_node_data = list(filter(lambda x: x.resource_attr_id in [a.id for a in cloned_node_2.attributes],
+                                       scenario.resourcescenarios))
+
+        assert len(cloned_node_data) == len(original_node_data)
+
+        with pytest.raises(hb.exceptions.HydraError):
+            cloned_node_id_3 = client.clone_node(node_to_clone.id, name=network_with_data.nodes[1].name)
+
+        name = "Cloned node"
+        x = 100
+        y = -100
+        cloned_node_id_3 = client.clone_node(node_to_clone.id, name=name, new_x=x, new_y=y)
+
+        cloned_node_3 = client.get_node(cloned_node_id_3)
+
+        assert cloned_node_3.name == name
+        assert cloned_node_3.x == x
+        assert cloned_node_3.y == y
+
+
+
+    def test_clone_nodes(self, client, network_with_data):
+
+        nodes_to_clone = network_with_data.nodes[0:1]
+
+        cloned_node_ids = client.clone_nodes([n.id for n in nodes_to_clone])
+
+        for i, cloned_node_id in enumerate(cloned_node_ids):
+            cloned_node = client.get_node(cloned_node_id)
+            node_to_clone = nodes_to_clone[i]
+
+            assert cloned_node.name == f"{node_to_clone.name} (1)"
+
+            assert len(cloned_node.attributes) == len(node_to_clone.attributes)
+
+            scenario = client.get_scenario(network_with_data.scenarios[0].id)
+            original_node_data = list(filter(lambda x: x.resource_attr_id in [a.id for a in node_to_clone.attributes],
+                                            scenario.resourcescenarios))
+
+            cloned_node_data = list(filter(lambda x: x.resource_attr_id in [a.id for a in cloned_node.attributes],
+                                        scenario.resourcescenarios))
+
+            assert len(cloned_node_data) == len(original_node_data)-1 #has no outputs, so has one less dataset
+
+
+    def test_cloned_node_name_similarity(self, client, network_with_data):
+
+        node_to_clone = network_with_data.nodes[0]
+
+        updated_similar_name = node_to_clone.name + ' extratext'
+
+        update_node = network_with_data.nodes[1]
+        update_node.name = updated_similar_name
+
+        client.update_node(update_node)
+
+        cloned_node_ids = client.clone_nodes([node_to_clone.id])
+
+        changed_name_node = client.get_node(update_node.id)
+
+        assert changed_name_node.name ==  updated_similar_name
+
+        cloned_node = client.get_node(cloned_node_ids[0])
+
+        assert cloned_node.name == f"{node_to_clone.name} (1)"
+
+        second_cloned_node_ids = client.clone_nodes([node_to_clone.id])
+
+        second_cloned_node = client.get_node(second_cloned_node_ids[0])
+
+        assert second_cloned_node.name == f"{node_to_clone.name} (2)"
+
+        third_cloned_node_ids = client.clone_nodes([node_to_clone.id])
+
+        third_cloned_node = client.get_node(third_cloned_node_ids[0])
+
+        assert third_cloned_node.name == f"{node_to_clone.name} (3)"

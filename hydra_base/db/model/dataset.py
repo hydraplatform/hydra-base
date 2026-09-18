@@ -16,6 +16,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
+import uuid
+
 from .base import *
 
 from hydra_base.lib.storage import (
@@ -149,11 +151,10 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
         if metadata is None:
             metadata = self.get_metadata_as_dict()
 
-        dataset_dict = dict(name      = self.name,
-                           unit_id    = self.unit_id,
-                           type       = self.type,
-                           value      = self.value_ref,
-                           metadata   = metadata)
+        dataset_dict = {'unit_id'   : self.unit_id,
+                        'type'      : self.type,
+                        'value'     : self.value_ref,
+                        'metadata'  : metadata}
 
         data_hash = generate_data_hash(dataset_dict)
 
@@ -161,9 +162,31 @@ class Dataset(Base, Inspect, PermissionControlled, AuditMixin):
 
         return data_hash
 
+    def set_unique_hash(self, metadata=None):
+        """
+        Like set_hash(), but guarantees the result cannot collide with any
+        other dataset's hash. Used when a hash collision was found but the
+        existing dataset can't be reused (e.g. no read permission on it) --
+        tDataset.hash has a DB-level UNIQUE constraint, so leaving the hash
+        as a duplicate would raise IntegrityError on flush.
+
+        The salt is folded into the hash computation only -- it is NOT
+        passed to set_metadata()/persisted as a real metadata row, since
+        that would leak an internal implementation detail into the
+        dataset's actual (user-visible) metadata.
+        """
+        if metadata is None:
+            metadata = self.get_metadata_as_dict()
+
+        salted_metadata = dict(metadata)
+        salted_metadata['_hash_salt'] = uuid.uuid4().hex
+
+        return self.set_hash(metadata=salted_metadata)
+
     def get_metadata_as_dict(self):
         metadata = {}
-        for r in self.metadata:
+        sortedmeta = sorted(self.metadata, key=lambda x:x.key.lower())
+        for r in sortedmeta:
             val = str(r.value)
 
             metadata[str(r.key)] = val

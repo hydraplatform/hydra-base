@@ -18,10 +18,11 @@
 #
 from ..base import *
 from .resourceattr import ResourceAttr
+from .resource import Resource
 
 __all__ = ['Node']
 
-class Node(Base, Inspect):
+class Node(Base, Inspect, Resource):
     """
     """
 
@@ -38,6 +39,8 @@ class Node(Base, Inspect):
     status = Column(String(1),  nullable=False, server_default=text(u"'A'"))
     x = Column(Float(precision=10, asdecimal=True))
     y = Column(Float(precision=10, asdecimal=True))
+    alt_x = Column(Float(precision=10, asdecimal=True))
+    alt_y = Column(Float(precision=10, asdecimal=True))
     layout  = Column(Text().with_variant(mysql.LONGTEXT, 'mysql'),  nullable=True)
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 

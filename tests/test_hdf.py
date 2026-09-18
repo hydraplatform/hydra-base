@@ -1,11 +1,15 @@
+from io import StringIO
+from unittest.mock import patch
 import numpy as np
+import json
+import os
 import pandas as pd
 import pytest
 
 from packaging import version
 
-from hydra_base.lib import data
 from hydra_base.lib.storage import HdfStorageAdapter
+from hydra_base.lib import data as hydra_data
 from hydra_base.util import NullAdapter
 
 min_lib_versions = {
@@ -24,25 +28,59 @@ def hdf_config():
     return HdfStorageAdapter.get_hdf_config()
 
 @pytest.fixture
-def aws_file():
+def public_aws_file():
     return {
-        "path": "s3://modelers-data-bucket/eapp/single/ETH_flow_sim.h5",
+        "path": "s3://modelers-data-bucket/unit-tests/ETH_flow_sim.h5",
         "file_size": 7374454,
-        "dataset_name": "BR_Kabura",
-        "dataset_size": 12784,
-        "dataset_type": "float64"
+        "series_name": "BR_Kabura",
+        "series_size": 12784,
+        "series_type": "float64"
+    }
+
+IAM_ACCESS_KEY = os.getenv("TEST_AWS_ACCESS_KEY_ID")
+IAM_SECRET_KEY = os.getenv("TEST_AWS_SECRET_ACCESS_KEY")
+
+@pytest.fixture
+def private_aws_file():
+    return {
+        "path": "s3://private-test-data/ETH_flow_sim.h5",
+        "file_size": 7374454,
+        "series_name": "BR_Kabura",
+        "series_size": 12784,
+        "series_type": "float64"
     }
 
 @pytest.fixture
 def multigroup_file():
     return {
-        "path": "s3://modelers-data-bucket/grid_data.h5",  # NB rot13 strings
+        "path": "s3://modelers-data-bucket/unit-tests/grid_data.h5",  # NB rot13 strings
         "groups": ['RFJ_Rffrk_erfhygf', 'prageny_fbhgu_rffrk_erfhygf', 'qnvyl_cebsvyrf', 'yvapbyafuver_erfhygf', 'zbaguyl_cebsvyrf', 'gvzrfrevrf']
+    }
+
+@pytest.fixture
+def non_timeseries_index_file():
+    return {
+        "path": "s3://modelers-data-bucket/unit-tests/synthetic_flow_duration_recorder.h5",
+        "group": "hydra_test_data"
     }
 
 @pytest.fixture(params=["s3://modelers-data-bucket/does_not_exist.h5", "does_not_exist"])
 def bad_url(request):
     return request.param
+
+@pytest.fixture
+def symlink_path(hdf):
+    symlink = os.path.join(hdf.filestore_path, "symlink.txt")
+    os.symlink("/dev/shm/somefile.txt", symlink)
+    yield symlink
+    os.unlink(symlink)
+
+bad_paths = {
+    "relative_component": "../../dev/shm/somefile.txt",
+    "variable_component": "$HOME/somefile.txt",
+    "user_component": "~/somefile.txt",
+    "device_file": "/dev/null"
+}
 
 
 class TestHdf():
@@ -63,31 +101,46 @@ class TestHdf():
             assert version.parse(lib.__version__) >= semver
 
     @pytest.mark.requires_hdf
-    def test_hdf_size(self, hdf, aws_file):
+    def test_hdf_size(self, hdf, public_aws_file):
         """
           Does the reported file size match an expected value?
         """
-        assert hdf.size(aws_file["path"]) == aws_file["file_size"]
+        assert hdf.file_size(public_aws_file["path"]) == public_aws_file["file_size"]
 
+    @pytest.mark.skip
     @pytest.mark.requires_hdf
-    def test_hdf_info(self, hdf, aws_file):
+    def test_private_hdf_no_access(self, hdf, private_aws_file):
         """
           Do the reported properties of a dataset match expected values?
         """
-        info = hdf.get_dataset_info_url(aws_file["path"], aws_file["dataset_name"])
-
-        assert info["name"] == aws_file["dataset_name"]
-        assert info["size"] == aws_file["dataset_size"]
-        assert info["dtype"] == aws_file["dataset_type"]
+        with pytest.raises(PermissionError):
+            info = hdf.get_series_info(private_aws_file["path"], columns=private_aws_file["series_name"])
 
     @pytest.mark.requires_hdf
-    def test_hdf_dataset(self, hdf, aws_file):
+    @pytest.mark.skipif(IAM_ACCESS_KEY is None or IAM_SECRET_KEY is None,
+                        reason="TEST_AWS_ACCESS_KEY_ID and TEST_AWS_SECRET_ACCESS_KEY environment variables required")
+    @patch.dict('os.environ', {'AWS_ACCESS_KEY_ID': IAM_ACCESS_KEY or '', 'AWS_SECRET_ACCESS_KEY': IAM_SECRET_KEY or ''})
+    def test_private_hdf_correct_access(self, private_aws_file):
+        """
+          Do the reported properties of a dataset match expected values?
+        """
+
+        hdf = HdfStorageAdapter()
+
+        info = hdf.get_series_info(private_aws_file["path"], columns=private_aws_file["series_name"])
+
+        assert info[0]["name"] == private_aws_file["series_name"]
+        assert info[0]["length"] == private_aws_file["series_size"]
+        assert info[0]["dtype"] == private_aws_file["series_type"]
+
+    @pytest.mark.requires_hdf
+    def test_hdf_dataset(self, hdf, public_aws_file):
         """
           Does a specified subset of a dataset match its expected
           index and series values?
         """
         expected = {
-            aws_file["dataset_name"]: {
+            public_aws_file["series_name"]: {
                 (8,16): { "1972-01-09": 0.65664,
                           "1972-01-10": 0.65664,
                           "1972-01-11": 0.65664,
@@ -107,41 +160,41 @@ class TestHdf():
                                  "2004-11-23": 1.2528}
             }
         }
-        for dataset_name, ranges in expected.items():
+        for series_name, ranges in expected.items():
             for bounds, data in ranges.items():
-                df_json = hdf.hdf_dataset_to_pandas_dataframe(aws_file["path"], dataset_name, *bounds)
-                df = pd.read_json(df_json)
+                df_json = hdf.get_columns_as_dataframe(public_aws_file["path"], columns=[series_name], start=bounds[0], end=bounds[1])
+                df = pd.read_json(StringIO(df_json))
                 for ts, val in data.items():
-                    assert np.isclose(df[dataset_name][ts], val)
+                    assert np.isclose(df[series_name][ts], val)
 
     @pytest.mark.requires_hdf
-    def test_hydra_hdf_size(self, aws_file):
+    def test_hydra_hdf_size(self, client, public_aws_file):
         """
           Does the reported file size match an expected value when
           accessed via hydra.lib?
         """
-        assert data.get_hdf_filesize(aws_file["path"]) == aws_file["file_size"]
+        assert client.get_hdf_file_size(public_aws_file["path"]) == public_aws_file["file_size"]
 
     @pytest.mark.requires_hdf
-    def test_hydra_hdf_info(self, aws_file):
+    def test_hydra_hdf_info(self, client, public_aws_file):
         """
-          Do the reported properties of a dataset match expected values when
+          Do the reported properties of a series match expected values when
           accessed via hydra.lib?
         """
-        info = data.get_hdf_dataset_info(aws_file["path"], aws_file["dataset_name"])
+        info = client.get_hdf_group_info(public_aws_file["path"])
 
-        assert info["name"] == aws_file["dataset_name"]
-        assert info["size"] == aws_file["dataset_size"]
-        assert info["dtype"] == aws_file["dataset_type"]
+        assert info["index"] == {'name': 'timestamp', 'length': 12784, 'dtype': 'datetime64'}
+        assert len(info["series"]) == 71
+        assert info["series"][0] == {'name': 'BR_Bendera (Ruzizi 0.035)', 'length': 12784, 'dtype': 'float64'}
 
     @pytest.mark.requires_hdf
-    def test_hydra_hdf_dataset(self, aws_file):
+    def test_hydra_hdf_dataset(self, client, public_aws_file):
         """
           Does a specified subset of a dataset match its expected
           index and series values when accessed via hydra.lib?
         """
         expected = {
-            aws_file["dataset_name"]: {
+            public_aws_file["series_name"]: {
                 (8,16): { "1972-01-09": 0.65664,
                           "1972-01-10": 0.65664,
                           "1972-01-11": 0.65664,
@@ -161,65 +214,65 @@ class TestHdf():
                                  "2004-11-23": 1.2528}
             }
         }
-        for dataset_name, ranges in expected.items():
+        for series_name, ranges in expected.items():
             for bounds, series in ranges.items():
-                df_json = data.get_hdf_dataframe(aws_file["path"], dataset_name, *bounds)
-                df = pd.read_json(df_json)
+                df_json = client.get_hdf_columns_as_dataframe(public_aws_file["path"], groupname=None, columns=[series_name], start=bounds[0], end=bounds[1])
+                df = pd.read_json(StringIO(df_json))
                 for ts, val in series.items():
-                    assert np.isclose(df[dataset_name][ts], val)
+                    assert np.isclose(df[series_name][ts], val)
 
     @pytest.mark.requires_hdf
-    def test_bad_url(self, bad_url):
+    def test_bad_url(self, client, bad_url):
         """
           Does an inaccessible url raise ValueError?
         """
         with pytest.raises(ValueError):
-            info = data.get_hdf_dataset_info(bad_url, "dataset_name")
+            info = client.get_hdf_series_info(bad_url, "series_name")
 
     @pytest.mark.requires_hdf
-    def test_bad_dataset_name(self, aws_file):
+    def test_bad_series_name(self, client, public_aws_file):
         """
           Does a nonexistent dataset name raise ValueError both for
           info and series retrieval?
         """
         with pytest.raises(ValueError):
-            info = data.get_hdf_dataset_info(aws_file["path"], "nonexistent_dataset")
+            info = client.get_hdf_series_info(public_aws_file["path"], "nonexistent_series")
 
         with pytest.raises(ValueError):
-            df_json = data.get_hdf_dataframe(aws_file["path"], "nonexistent_dataset", 8, 16)
+            df_json = client.get_hdf_columns_as_dataframe(public_aws_file["path"], columns=["nonexistent_series"], start=8, end=16)
 
     @pytest.mark.requires_hdf
-    def test_bad_bounds(self, aws_file):
+    def test_bad_bounds(self, client, public_aws_file):
         """
           Do invalid bounds (start<0, start>end, end<0, end>size) raise ValueError?
         """
         with pytest.raises(ValueError):
-            df_json = data.get_hdf_dataframe(aws_file["path"], aws_file["dataset_name"], -1, 16)
+            df_json = client.get_hdf_group_as_dataframe(public_aws_file["path"], start=-1, end=16)
 
         with pytest.raises(ValueError):
-            df_json = data.get_hdf_dataframe(aws_file["path"], aws_file["dataset_name"], 16, 8)
+            df_json = client.get_hdf_group_as_dataframe(public_aws_file["path"], start=16, end=8)
 
         with pytest.raises(ValueError):
-            df_json = data.get_hdf_dataframe(aws_file["path"], aws_file["dataset_name"], 8, -1)
+            df_json = client.get_hdf_group_as_dataframe(public_aws_file["path"], start=8, end=-1)
 
         with pytest.raises(ValueError):
-            df_json = data.get_hdf_dataframe(aws_file["path"], aws_file["dataset_name"], 8, 1e72)
+            df_json = client.get_hdf_group_as_dataframe(public_aws_file["path"], start=8, end=1e72)
 
     @pytest.mark.requires_hdf
-    def test_bad_url_does_not_exist(self, bad_url):
+    def test_bad_url_does_not_exist(self, client, bad_url):
         """
           Does data.file_exists_at_url() return False for nonexistent
           files on remote or local filesystem?
         """
-        assert not data.file_exists_at_url(bad_url)
+        assert not client.file_exists_at_url(bad_url)
 
     @pytest.mark.requires_hdf
-    def test_existing_file_at_url_exists(self, aws_file):
+    def test_existing_file_at_url_exists(self, client, public_aws_file):
         """
           Does data.file_exists_at_url() return True for existing
           files on remote or local filesystem?
         """
-        assert data.file_exists_at_url(aws_file["path"])
+        assert client.file_exists_at_url(public_aws_file["path"])
 
     def test_nulladapter_is_null(self):
         """
@@ -242,50 +295,148 @@ class TestHdf():
         assert na[2] == None
 
     @pytest.mark.requires_hdf
-    def test_multigroup_dataframe(self, multigroup_file):
-        """
-          Is the correct dataframe returned when requesting a whole
-          dataframe from a remote multigroup file?
-
-          NB rot13 strings
-        """
-        df = data.get_hdf_group_as_dataframe(multigroup_file["path"], groupname="RFJ_Rffrk_erfhygf")
-        assert df[:94] == '{"Ynatunz Vagnxr.Fhccyl.Nzbhag":{"1910-01-01T00:00:00.000":40.0,"1910-01-02T00:00:00.000":40.0'
-
-    @pytest.mark.requires_hdf
-    def test_multigroup_series(self, multigroup_file):
+    def test_multigroup_series(self, client, multigroup_file):
         """
           Is the correct series returned when requesting a particular
           series from a dataframe in a multigroup file?
 
           NB rot13 strings
         """
-        df = data.get_hdf_group_as_dataframe(multigroup_file["path"], groupname="RFJ_Rffrk_erfhygf", series="Jbezvatsbeq Vagnxr.Fhccyl.Nzbhag")
-        assert df[:93] == '{"1910-01-01T00:00:00.000":0.0,"1910-01-02T00:00:00.000":0.0,"1910-01-03T00:00:00.000":0.0,"1'
+        df = client.get_hdf_columns_as_dataframe(multigroup_file["path"],
+                                               groupname="RFJ_Rffrk_erfhygf",
+                                               columns=["Jbezvatsbeq Vagnxr.Fhccyl.Nzbhag"],
+                                               end=256)
+        assert df[:84] == '{"Jbezvatsbeq Vagnxr.Fhccyl.Nzbhag":{"1910-01-01 00:00:00":0.0,"1910-01-02 00:00:00"'
 
     @pytest.mark.requires_hdf
-    def test_hdf_multigroups(self, multigroup_file):
+    def test_hdf_multigroups(self, client, multigroup_file):
         """
           Are the expected groups returned when querying an HDF file for its root groups?
 
           NB rot13 strings
         """
-        groups = data.get_hdf_groups(multigroup_file["path"])
+        groups = client.get_hdf_groups(multigroup_file["path"])
         assert set(groups) == set(multigroup_file["groups"])
 
     @pytest.mark.requires_hdf
-    def test_get_hdf_multigroup_subset(self, multigroup_file):
-        df_json = data.get_hdf_dataframe(multigroup_file["path"], "Qraire Vagnxr.Fhccyl.Nzbhag", 4, 8, groupname="RFJ_Rffrk_erfhygf")
-        assert df_json == '{"Qraire Vagnxr.Fhccyl.Nzbhag":{"1910-01-05T00:00:00.000":61.19238,"1910-01-06T00:00:00.000":77.95459,"1910-01-07T00:00:00.000":106.8699,"1910-01-08T00:00:00.000":119.7732}}'
+    def test_get_hdf_whole_group_as_dataframe(self, client, multigroup_file):
+        """
+          Does retrieving a selection of rows from a whole Group
+          return the correct section?
+
+          NB rot13 strings
+        """
+        df_json = client.get_hdf_group_as_dataframe(multigroup_file["path"],
+                                                  groupname="RFJ_Rffrk_erfhygf",
+                                                  start=4, end=8)
+        assert df_json[:114] == '{"Ynatunz Vagnxr.Fhccyl.Nzbhag":{"1910-01-05 00:00:00":40.0,'\
+                                '"1910-01-06 00:00:00":40.0,"1910-01-07 00:00:00":40.0,'
+
+        @pytest.mark.requires_hdf
+        def test_get_groups_as_dataframes(self, hdf, multigroup_file):
+                """
+                    Does the adapter return a dict of JSON dataframes for the requested groups?
+
+                    NB rot13 strings
+                """
+                groupname = "RFJ_Rffrk_erfhygf"
+                columns = ["Jbezvatsbeq Vagnxr.Fhccyl.Nzbhag"]
+                dfs = hdf.get_groups_as_dataframes(
+                        multigroup_file["path"],
+                        groupnames=[groupname],
+                        columns=columns,
+                        end=256
+                )
+
+                assert groupname in dfs
+                assert dfs[groupname][:84] == '{"Jbezvatsbeq Vagnxr.Fhccyl.Nzbhag":{"1910-01-01 00:00:00":0.0,"1910-01-02 00:00:00"'
+
+        @pytest.mark.requires_hdf
+        def test_get_hdf_groups_as_dataframe(self, multigroup_file):
+                """
+                    Does the data layer wrapper return a dict of JSON dataframes for requested groups?
+
+                    NB rot13 strings
+                """
+                groupname = "RFJ_Rffrk_erfhygf"
+                columns = ["Jbezvatsbeq Vagnxr.Fhccyl.Nzbhag"]
+                dfs = hydra_data.get_hdf_groups_as_dataframe(
+                        multigroup_file["path"],
+                        groupnames=[groupname],
+                        columns=columns,
+                        end=256
+                )
+
+                assert groupname in dfs
+                assert dfs[groupname][:84] == '{"Jbezvatsbeq Vagnxr.Fhccyl.Nzbhag":{"1910-01-01 00:00:00":0.0,"1910-01-02 00:00:00"'
 
     @pytest.mark.requires_hdf
-    def test_hdf_group_columns(self, multigroup_file):
+    def test_hdf_group_columns(self, client, multigroup_file):
         """
           Are the correct columns in the correct order returned from a group dataframe?
 
           NB rot13 strings
         """
-        columns = data.get_hdf_group_columns(multigroup_file["path"], groupname="RFJ_Rffrk_erfhygf")
+        columns = client.get_hdf_group_columns(multigroup_file["path"], groupname="RFJ_Rffrk_erfhygf")
         assert len(columns) == 109
         assert columns[2] == 'Qraire Vagnxr.Fhccyl.Nzbhag'
         assert 'Unaavatsvryq Erfreibve.Fgbentr.Pnyphyngrq (%)' in columns
+
+    @pytest.mark.requires_hdf
+    @pytest.mark.parametrize("pathname, path", {**bad_paths, **{"symlink_path": symlink_path}}.items())
+    def test_purge_file(self, client, hdf, pathname, path, request):
+        """
+          This tests the operation of HdfStorageAdapter.purge_local_file()
+          This is an inherently dangerous function which allows a file specified
+          as an argument to be deleted from the local filesystem.
+          The precautions taken against abuse of this are described in the function's
+          docstring.
+          Success in these tests occurs when an exception is raised as a result of a
+          invalid argument.
+        """
+        fsp = hdf.filestore_path
+        try:
+            # The symlink_path is just a ref to the fixture func
+            # so make pytest replace the ref with its value
+            path = request.getfixturevalue(pathname)
+        except:
+            pass
+        with pytest.raises(ValueError):
+            client.purge_local_file(os.path.join(fsp, path))
+
+    @pytest.mark.requires_hdf
+    @pytest.mark.parametrize("file, file_info", [("public_aws_file", public_aws_file), ("multigroup_file", multigroup_file)])
+    def test_index_info(self, client, file, file_info, request):
+        try:
+            file_info = request.getfixturevalue(file)
+        except:
+            pass
+        groups = client.get_hdf_groups(file_info["path"])
+        ii = client.get_hdf_index_info(file_info["path"], groupname=groups[0])
+        for key in ("name", "length", "dtype"):
+            assert key in ii
+        assert isinstance(ii, dict)
+
+    @pytest.mark.requires_hdf
+    @pytest.mark.parametrize("file, file_info", [("public_aws_file", public_aws_file), ("multigroup_file", multigroup_file)])
+    def test_index_range(self, client, file, file_info, request):
+        try:
+            file_info = request.getfixturevalue(file)
+        except:
+            pass
+        groups = client.get_hdf_groups(file_info["path"])
+        ir = client.get_hdf_index_range(file_info["path"], groupname=groups[0], start=2, end=8)
+        assert len(ir) > 0
+        assert isinstance(ir[0], str)
+
+
+    @pytest.mark.requires_hdf
+    def test_non_timeseries_index(self, client, non_timeseries_index_file):
+        df_json = client.get_hdf_group_as_dataframe(
+                    non_timeseries_index_file["path"],
+                    groupname=non_timeseries_index_file["group"])
+        dfd = json.loads(df_json)
+        df = pd.DataFrame(dfd)
+        df.index = pd.Index(df.index, dtype=np.float64).sort_values()
+        assert len(df) == 11
+        assert np.array_equal(df.index, np.linspace(0, 100, 11))

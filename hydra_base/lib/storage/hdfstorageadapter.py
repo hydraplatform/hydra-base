@@ -3,16 +3,15 @@ import h5py
 import inspect
 import logging
 import os
-import pandas as pd
 import s3fs
 
 from botocore.exceptions import ClientError
-from datetime import datetime
 from urllib.parse import urlparse
 from functools import wraps
 
 from hydra_base import config
 from hydra_base.util import NullAdapter
+from hydra_base.lib.storage.readers import group_reader_map
 
 log = logging.getLogger(__name__)
 
@@ -54,10 +53,35 @@ class HdfStorageAdapter():
     """
 
     def __init__(self):
+        self.fsspec_args = dict(
+            mode='rb',
+            anon=self._get_anon(),
+            default_fill_cache=True
+        )
         self.config = self.__class__.get_hdf_config()
         self.filestore_path = self.config.get("hdf_filestore")
         if self.filestore_path and not os.path.exists(self.filestore_path):
-            self.filestore_path = None
+            os.makedirs(self.filestore_path, exist_ok=True)
+
+    def _get_anon(self):
+        """
+            If there are AWS credentials present in the environment,
+            then assume that this user will be not anonymous
+        """
+
+        self.accesskeyid = os.getenv('AWS_ACCESS_KEY_ID')
+        self.secretaccesskey = os.getenv('AWS_SECRET_ACCESS_KEY')
+        if self.accesskeyid not in ('' , None) and self.secretaccesskey not in ('', None):
+            return False
+
+        home = os.getenv('HOME')
+        default_credentials_path = os.path.join(home, '.aws', 'credentials')
+        credentials_path = os.getenv('AWS_SHARED_CREDENTIALS_FILE', default_credentials_path)
+        #If there is a credentials file, then assume the user is not anonymous
+        if os.path.exists(credentials_path):
+            return False
+
+        return True
 
     @staticmethod
     def get_hdf_config(config_key="storage_hdf", **kwargs):
@@ -75,7 +99,7 @@ class HdfStorageAdapter():
     @filestore_url("url")
     def open_hdf_url(self, url, **kwargs):
         try:
-            with fsspec.open(url, mode='rb', anon=True, default_fill_cache=False) as fp:
+            with fsspec.open(url, **self.fsspec_args) as fp:
                 return h5py.File(fp.fs.open(url), mode='r')
         except (ClientError, FileNotFoundError, PermissionError) as e:
             raise ValueError(f"Unable to access url: {url}") from e
@@ -97,164 +121,152 @@ class HdfStorageAdapter():
     def file_exists_at_url(self, url, **kwargs):
         try:
             url = self.url_to_filestore_path(url)
-            with fsspec.open(url, mode='rb', anon=True, default_fill_cache=False) as fp:
+            with fsspec.open(url, **self.fsspec_args) as fp:
                 return fp.fs.exists(url)
         except (ValueError, FileNotFoundError, PermissionError):
             return False
 
-
-    @filestore_url("filepath")
-    def get_dataset_info_file(self, filepath, dsname, **kwargs):
-        df = pd.read_hdf(filepath)
-        series = df[dsname]
-        index = df.index
-        info = {
-          "index":  {"name": index.name,
-                     "length": len(index),
-                     "dtype": str(index.dtype)
-                    },
-          "series": {"name": series.name,
-                     "length": len(series),
-                     "dtype": str(series.dtype)
-                    }
-        }
-        return info
-
-    @filestore_url("filepath")
-    def get_dataset_block_file(self, filepath, dsname, start, end, **kwargs):
-        df = pd.read_hdf(filepath)
-        section = df[dsname][start:end]
-        block_index = section.index.map(str).tolist()
-        block_values = section.values.tolist()
+    @filestore_url("url")
+    def get_group_info(self, url, groupname):
+        """
+          Returns a dict containing two keys:
+            - index: a dict of 'name', 'length', 'dtype' for
+                     the index of the <group> arg
+            - series: an array of dicts, each containing 'name',
+                      'length', 'dtype' for each column of the
+                      <group> arg
+        """
+        reader = self.make_group_reader(url, groupname)
+        index_info = reader.get_index_info()
+        columns = reader.get_columns_of_group()
+        series_info = [reader.get_series_info(c) for c in columns]
 
         return {
-            "index": block_index,
-            "series": block_values
+          "index": index_info,
+          "series": series_info
         }
 
     @filestore_url("url")
-    def size(self, url, **kwargs):
-        with fsspec.open(url, mode='rb', anon=True, default_fill_cache=False) as fp:
-            size_bytes = fp.fs.size(fp.path)
+    def get_index_info(self, url, groupname):
+        reader = self.make_group_reader(url, groupname)
+        return reader.get_index_info()
 
+    @filestore_url("url")
+    def get_index_range(self, url, groupname, start=0, end=None):
+        reader = self.make_group_reader(url, groupname)
+        return reader.get_index_range(start, end)
+
+    @filestore_url("url")
+    def get_series_info(self, url, groupname=None, columns=None):
+        reader = self.make_group_reader(url, groupname)
+        if isinstance(columns, str):
+            """
+              Assume any str arg represents a single column
+              name which should have been passed as a single-
+              element Sequence, *unless that string is empty*
+              in which case it is equivalent to an empty
+              container and represents *all* columns
+            """
+            columns = (columns,) if len(columns) > 0 else None
+        if not columns:
+            columns = reader.get_columns_of_group()
+        return [reader.get_series_info(c) for c in columns]
+
+    @filestore_url("url")
+    def file_size(self, url, **kwargs):
+        with fsspec.open(url, **self.fsspec_args) as fp:
+            size_bytes = fp.fs.size(fp.path)
         return size_bytes
 
+    @filestore_url("url")
     def get_hdf_groups(self, url, **kwargs):
         h5f = self.open_hdf_url(url)
         return [*h5f.keys()]
 
-    def get_group_columns(self, url, groupname, **kwargs):
-        h5f = self.open_hdf_url(url)
-        try:
-            group = h5f[groupname]
-        except KeyError as ke:
-            raise ValueError(f"Data source {url} does not contain specified group: {groupname}") from ke
+    @filestore_url("url")
+    def get_group_columns(self, url, groupname):
+        reader = self.make_group_reader(url, groupname)
+        return reader.get_columns_of_group()
 
-        localpath, filename = self.equivalent_local_path(url)
-        localfile = os.path.join(localpath, filename)
-        if not os.path.exists(localfile):
-            self.retrieve_s3_file(url)
-        df = pd.read_hdf(localfile, key=groupname)
-        return df.columns.to_list()
+    @filestore_url("url")
+    def get_group_index(self, url, groupname):
+        reader = self.make_group_reader(url, groupname)
+        return reader.get_index_range(start=0, end=None)
 
-    def hdf_group_to_pandas_dataframe(self, url, groupname=None, series=None, as_json=True, **kwargs):
+    @filestore_url("url")
+    def get_group_shape(self, url, groupname):
+        reader = self.make_group_reader(url, groupname)
+        return reader.get_group_shape()
+
+    def get_columns_as_dataframe(self, url, groupname=None, columns=None, start=None, end=None, **kwargs):
         json_opts = {"date_format": "iso"}
 
-        localpath, filename = self.equivalent_local_path(url)
-        localfile = os.path.join(localpath, filename)
-        if not os.path.exists(localfile):
-            self.retrieve_s3_file(url)
-        df = pd.read_hdf(localfile, key=groupname)  # pd uses key=None as equivalent to no kwarg
-        if series:
-            if as_json:
-                return df[series].to_json(**json_opts)
-            else:
-                return df[series]
-        if as_json:
-            return df.to_json(**json_opts)
-        else:
-            return df
+        reader = self.make_group_reader(url, groupname)
+        if isinstance(columns, str):
+            """
+              Assume any str arg represents a single column
+              name which should have been passed as a single-
+              element Sequence, *unless that string is empty*
+              in which case it is equivalent to an empty
+              container and represents *all* columns
+            """
+            columns = (columns,) if len(columns) > 0 else None
+        if not columns:
+            columns = reader.get_columns_of_group()
 
-    def hdf_dataset_to_pandas_dataframe(self, url, dsname, start, end, groupname=None, **kwargs):
-        json_opts = {"date_format": "iso"}
-        h5f = self.open_hdf_url(url)
-        """
-          Pywr uses hdf group names implicitly and these vary by dataset type.
-          Assume the first key of the hdf doc represents a group containing
-          the [axis0, axis1, block0_index, block0_values] constituents of a
-          Pandas dataframe.
-          Alternately, a groupname may be specified for cases where a data
-          source contains multiple groups.
-        """
-        if not groupname:
-            try:
-                groupname = [*h5f.keys()][0]
-            except IndexError as ie:
-                raise ValueError(f"Data source {url} contains no groups") from ie
-        try:
-            group = h5f[groupname]
-        except KeyError as ke:
-            raise ValueError(f"Data source {url} does not contain specified group: {groupname}") from ke
-        try:
-            bcols = group["axis0"][:]
-        except KeyError as ke:
-            try:
-                df = self.hdf_group_to_pandas_dataframe(url, groupname=groupname, series=dsname, as_json=False)
-                return df[start:end].to_json(**json_opts)
-            except:
-                pass
-            raise ValueError(f"Data source {url} has invalid structure") from ke
+        df = reader.get_columns_as_dataframe(columns, start=start, end=end)
 
-        cols = [*map(bytes.decode, bcols)]
-
-        try:
-            series_col = cols.index(dsname)
-        except ValueError as ve:
-            raise ValueError(f"No series '{dsname}' in {url}") from ve
-
-        val_ds = group["block0_values"]
-        val_rows = val_ds.shape[0]
-
-        if start < 0 or start >= val_rows or start >= end or end < 0 or end >= val_rows:
-            raise ValueError(f"Invalid section in dataset of size {val_rows}: {start=}, {end=}")
-
-        val_sect = val_ds[start:end]
-        section = [ i[0] for i in val_sect[:, series_col:series_col+1].tolist() ]
-
-        ts_nano = group["axis1"][start:end]
-        ts_sec = [*map(nscale, ts_nano)]
-        timestamps = [*map(str, ts_sec)]
-
-        h5f.close()
-
-        df = pd.DataFrame({dsname: section}, index=pd.DatetimeIndex(timestamps))
         return df.to_json(**json_opts)
 
-    def get_dataset_info_url(self, url, dsname, **kwargs):
+    @filestore_url("url")
+    def get_groups_as_dataframes(self, url, groupnames=None, columns=None, start=None, end=None, **kwargs):
+        """
+        Return one or more HDF groups as JSON-encoded dataframes using a single
+        open file handle.
+
+        Arguments:
+            url (str): HDF file URL/path. Decorated with ``@filestore_url`` so
+                relative/local paths may be rewritten to the configured filestore.
+            groupnames (Sequence[str] | str | None): Group names to read. If None
+                or empty, all root groups are read.
+            columns (Sequence[str] | str | dict[str, Sequence[str] | str] | None):
+                Columns to read. If a sequence/string is provided it is applied to
+                every group. If a dict is provided, keys are group names and values
+                are per-group columns. If None/empty, all columns for each group are
+                read.
+            start (int | None): Optional inclusive row start for each group.
+            end (int | None): Optional exclusive row end for each group.
+            **kwargs: Reserved for API compatibility.
+
+        Returns:
+            dict[str, str]: Mapping of ``groupname -> dataframe_json``.
+        """
+        json_opts = {"date_format": "iso"}
         h5f = self.open_hdf_url(url)
 
-        groupname = [*h5f.keys()][0]
-        try:
-            group = h5f[groupname]
-            bcols = group["axis0"][:]
-        except KeyError as ke:
-            raise ValueError(f"Data source {url} has invalid structure") from ke
+        if isinstance(groupnames, str):
+            groupnames = (groupnames,) if len(groupnames) > 0 else None
 
-        cols = [*map(bytes.decode, bcols)]
+        if not groupnames:
+            groupnames = [*h5f.keys()]
 
-        try:
-            _ = cols.index(dsname)
-        except ValueError as ve:
-            raise ValueError(f"No series '{dsname}' in {url}") from ve
+        group_data = {}
+        for groupname in groupnames:
+            reader = self.make_group_reader(url, groupname, hf=h5f)
 
-        val_ds = group["block0_values"]
-        val_rows = val_ds.shape[0]
+            group_columns = columns
+            if isinstance(columns, dict):
+                group_columns = columns.get(groupname)
+            elif isinstance(columns, str):
+                group_columns = (columns,) if len(columns) > 0 else None
 
-        return {
-            "name": dsname,
-            "size": val_rows,
-            "dtype": str(val_ds.dtype)
-        }
+            if not group_columns:
+                group_columns = reader.get_columns_of_group()
+
+            df = reader.get_columns_as_dataframe(group_columns, start=start, end=end)
+            group_data[groupname] = df.to_json(**json_opts)
+
+        return group_data
 
     def equivalent_local_path(self, url, **kwargs):
         u = urlparse(url)
@@ -283,20 +295,155 @@ class HdfStorageAdapter():
                 raise OSError(f"Unable to create local path at {destdir}: {err}")
 
         destfile = os.path.join(destdir, filename)
-        fs = s3fs.S3FileSystem(anon=True)
+        fs = s3fs.S3FileSystem(anon=self._get_anon())
         log.info(f"Retrieving {url} to {destfile} ...")
         fs.get(filesrc, destfile)
         file_sz = os.stat(destfile).st_size
         log.info(f"Retrieved {destfile} ({file_sz} bytes)")
         return destfile, file_sz
 
+    def list_local_files(self):
+        import glob
+        files = {}
+        pattern = os.path.join(self.filestore_path, "**")
+        for p in glob.iglob(pattern, recursive=True):
+            if not os.path.isfile(p):
+                continue
+            files[p] = os.stat(p).st_size
+        return files
 
-def nscale(ts):
-    """
-      Transforms integers representing nanoseconds past the epoch
-      into instances of datetime.timestamp
-    """
-    return datetime.fromtimestamp(ts/1e9)
+    def purge_local_file(self, filename):
+        """
+          This prevents directory traversal by:
+            - relative path components
+            - ~user path components
+            - $ENV_VAR components
+            - paths containing hard or symbolic links
+
+          A valid target file must be all of:
+            - a real absolute filesystem path
+            - a subtree of the filestore
+            - not a directory
+            - not a link
+            - not a device file or pipe
+            - owned by the Hydra user
+
+          In addition, the filestore_path may not be:
+            - undefined
+            - the root filesystem
+            - the root of any mount point
+
+          ValueError is raised if any of these conditions
+          are not met.
+        """
+        real_fsp = os.path.realpath(self.filestore_path)
+        if not self.filestore_path or real_fsp == '/' or os.path.ismount(real_fsp):
+            raise ValueError(f"Invalid filestore configuration value '{self.filestore_path}'")
+
+        expanded = os.path.expandvars(filename)
+        if expanded != filename:
+            raise ValueError(f"Invalid path '{filename}': Arguments may not contain variables")
+        target = os.path.realpath(expanded)
+        if os.path.commonprefix([target, self.filestore_path]) != self.filestore_path:
+            raise ValueError(f"Invalid path '{filename}': Only filestore files may be purged")
+
+        if not os.path.exists(target):
+            raise ValueError(f"Invalid path '{filename}': File does not exist")
+
+        # Tests for directories, device files and pipes, and existence again
+        if not os.path.isfile(target):
+            raise ValueError(f"Invalid path '{filename}': Only regular files may be purged")
+
+        if os.getuid() != os.stat(target).st_uid:
+            raise ValueError(f"Invalid path '{filename}': File is not owned by "
+                             f"user {os.getlogin()} ({os.getuid()})")
+        try:
+            os.unlink(target)
+        except OSError as oe:
+            raise ValueError(f"Invalid path '{filename}': Unable to purge file") from oe
+
+        return target
+
+    def make_group_reader(self, url, groupname, hf=None):
+        """
+        Build a GroupReader instance for a group in an HDF file.
+
+        Arguments:
+            url (str): HDF file URL/path.
+            groupname (str | None): Target group name. If None/empty, the first
+                root group in the file is used.
+            hf (h5py.File | None): Optional pre-opened HDF handle. When provided,
+                this avoids reopening the same file for repeated group operations.
+
+        Returns:
+            GroupReader: Reader instance appropriate for the group's pandas format.
+
+        Raises:
+            ValueError: If the file has no groups or the group cannot be read.
+        """
+        hf = hf if hf is not None else self.open_hdf_url(url)
+        if not groupname:
+            # Use first group in file
+            try:
+                groupname = [*hf.keys()][0]
+            except IndexError as ie:
+                raise ValueError(f"Data source {url} contains no groups") from ie
+        Reader = self.get_group_reader(url, groupname, hf=hf)
+        return Reader(hf, groupname)
+
+    def get_group_reader(self, url, groupname, hf=None):
+        """
+        Resolve the GroupReader type for a group in an HDF file.
+
+        Arguments:
+            url (str): HDF file URL/path.
+            groupname (str): Target group name.
+            hf (h5py.File | None): Optional pre-opened HDF handle used to avoid
+                reopening the same file.
+
+        Returns:
+            type: GroupReader subclass type mapped from the group's pandas format.
+
+        Raises:
+            ValueError: If no reader exists for the detected group format.
+        """
+        group_type = self.identify_group_format(url, groupname, hf=hf)
+        try:
+            Reader = group_reader_map[group_type]
+        except KeyError:
+            # Not-None group_type was returned, but we don't have a reader for it
+            raise ValueError(f"No reader available for group of type {group_type}")
+
+        return Reader
+
+    def identify_group_format(self, url, groupname, hf=None):
+        """
+        Identify the pandas storage format for an HDF group.
+
+        Arguments:
+            url (str): HDF file URL/path.
+            groupname (str): Target group name.
+            hf (h5py.File | None): Optional pre-opened HDF handle used to avoid
+                reopening the same file.
+
+        Returns:
+            str: Value of the group's ``pandas_type`` attribute.
+
+        Raises:
+            ValueError: If the group is missing or does not contain ``pandas_type``.
+        """
+        hf = hf if hf is not None else self.open_hdf_url(url)
+        try:
+            group = hf[groupname]
+        except KeyError as ke:
+            raise ValueError(f"File at {url} contains no group {groupname}") from ke
+
+        try:
+            pandas_type = group.attrs["pandas_type"]
+        except KeyError as ke:
+            raise ValueError(f"File at {url} has invalid format") from ke
+
+        return pandas_type.decode()
 
 
 """

@@ -1,0 +1,50 @@
+[project]
+name="hydra-base"
+description="Hydra Platform Base Library"
+readme="README.rst"
+dynamic = ["version"]
+authors = [
+  {name = "Stephen Knox", email = "knoxsp@gmail.com"},
+]
+requires-python=">=3.8"
+license-files = ["LICENSE"]
+dependencies=[
+    "bcrypt",
+    "lxml",
+    "pymongo",
+    "mysqlclient",
+    "python-dateutil",
+    "cheroot",
+    "beaker",
+    "click",
+    "diskcache",
+    "fsspec",
+    "h5py",
+    "lxml",
+    "mysqlclient",
+    "numpy",
+    "packaging",
+    "pandas",
+    "psycopg2-binary",
+    "pylibmc",
+    "pymongo",
+    "python-dateutil",
+    "requests",
+    "s3fs",
+    "sqlalchemy",
+    "tables",
+    "zope.sqlalchemy"
+]
+
+
+[project.urls]
+Documentation="https://hydraplatform.org"
+Repository="https://github.com/hydraplatform/hydra-base"
+
+[build-system]
+requires = ["setuptools>=77", "setuptools_scm", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+version_scheme = "post-release"
+local_scheme = "no-local-version"

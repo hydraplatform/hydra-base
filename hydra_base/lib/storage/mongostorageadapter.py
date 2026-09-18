@@ -96,7 +96,8 @@ class MongoStorageAdapter():
 
     def __del__(self):
         """ Close connection on object destruction """
-        self.client.close()
+        if hasattr(self, "client"):
+            self.client.close()
 
     @autoreconnect
     def get_document_by_object_id(self, object_id: str, collection=None):

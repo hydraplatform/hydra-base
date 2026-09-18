@@ -11,6 +11,7 @@ import math
 import six
 import numpy as np
 import pandas as pd
+from io import StringIO
 from abc import abstractmethod, abstractproperty
 from datetime import datetime
 import collections
@@ -96,7 +97,6 @@ class Scalar(DataType):
 
     def validate(self):
         f = float(self.value)
-        assert not math.isnan(f) # Excludes NaN etc
 
     def get_value(self):
         return str(self._value)
@@ -224,7 +224,7 @@ class Dataframe(DataType):
                         longest_index = index
                 index = longest_index
 
-            df = pd.read_json(value, convert_axes=False)
+            df = pd.read_json(StringIO(value), convert_axes=False)
 
             #Make both indices the same type, so they can be compared
             df.index = df.index.astype(str)

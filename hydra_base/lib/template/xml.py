@@ -25,7 +25,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm import joinedload
 
 from hydra_base import db
-from hydra_base.db.model import Template, TemplateType, TypeAttr, Network
+from hydra_base.db.model import Template, TemplateType, TypeAttr, Network, Dataset, Metadata
 from hydra_base.lib.data import add_dataset
 from hydra_base.exceptions import HydraError
 from hydra_base import config
@@ -47,8 +47,10 @@ def get_template_as_xml(template_id, **kwargs):
 
     template_i = db.DBSession.query(Template).filter(
         Template.id == template_id).options(
-            joinedload('templatetypes').joinedload('typeattrs')\
-            .joinedload('default_dataset').joinedload('metadata')
+            joinedload(Template.templatetypes)\
+            .joinedload(TemplateType.typeattrs)\
+            .joinedload(TypeAttr.default_dataset)\
+            .joinedload(Dataset.metadata)
         ).one()
 
     template_name = etree.SubElement(template_xml, "template_name")
@@ -119,9 +121,10 @@ def import_template_xml(template_xml, allow_update=True, **kwargs):
 
     try:
         tmpl_i = db.DBSession.query(Template).filter(Template.name == template_name)\
-            .options(joinedload('templatetypes')
-            .joinedload('typeattrs')
-            .joinedload('attr')).one()
+            .options(joinedload(Template.templatetypes)\
+            .joinedload(TemplateType.typeattrs)\
+            .joinedload(TypeAttr.attr)
+            ).one()
 
         if allow_update == False:
             raise HydraError("Existing Template Found with name %s"%(template_name,))
@@ -167,7 +170,9 @@ def import_template_xml(template_xml, allow_update=True, **kwargs):
             type_id = type_name_map[type_name]
             type_i = db.DBSession.query(TemplateType).filter(
                 TemplateType.id == type_id).options(
-                    joinedload('typeattrs').joinedload('attr')).one()
+                    joinedload(TemplateType.typeattrs)\
+                    .joinedload(TypeAttr.attr)
+                ).one()
 
         else:
             log.debug("Type %s not found, creating new one.", type_name)
@@ -209,7 +214,7 @@ def import_template_xml(template_xml, allow_update=True, **kwargs):
             try:
                 attr_i = db.DBSession.query(TypeAttr).filter(
                     TypeAttr.attr_id == attr_id,
-                    TypeAttr.type_id == type_id).options(joinedload('attr')).one()
+                    TypeAttr.type_id == type_id).options(joinedload(TypeAttr.attr)).one()
                 db.DBSession.delete(attr_i)
                 log.debug("Attr %s in type %s deleted", attr_i.attr.name, attr_i.templatetype.name)
             except NoResultFound:
