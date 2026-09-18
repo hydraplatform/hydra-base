@@ -19,6 +19,7 @@
 
 import logging
 from decimal import Decimal
+from io import StringIO
 
 from operator import mul
 from ..exceptions import HydraError, ValidationError
@@ -44,7 +45,7 @@ def json_to_df(json_dataframe):
     data_dict = json.loads(json_dataframe)
     
     #load the json dataframe into a pandas dataframe
-    df = pd.read_json(json_dataframe, convert_axes=False)
+    df = pd.read_json(StringIO(json_dataframe), convert_axes=False)
 
     #extraxt the ordered index from the dict
     ordered_index = list(data_dict[df.columns[0]].keys())

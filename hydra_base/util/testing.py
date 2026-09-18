@@ -334,6 +334,8 @@ class TestUtil:
             'layout'      : None,
             'x' : 10 * coord,
             'y' : 10 * coord -1,
+            'alt_x' : 100 * coord,
+            'alt_y' : 100 * coord -1,
             'attributes' : attributes,
         })
 
@@ -765,12 +767,15 @@ class TestUtil:
         for n in response_net.nodes:
             assert n.x is not None
             assert n.y is not None
+            assert n.alt_x is not None
+            assert n.alt_y is not None
             assert len(n.attributes) > 0
 
         before_times = []
 
         s = request_net['scenarios'][0]
-        ordered_rs_request = sorted(s['resourcescenarios'], key=lambda x: x.dataset.value)
+        print(s['resourcescenarios'])
+        ordered_rs_request = sorted(s['resourcescenarios'], key=lambda x: str(x.dataset.value))
         for rs0 in ordered_rs_request:
 
             if rs0.dataset.type == 'timeseries':
@@ -785,7 +790,7 @@ class TestUtil:
 
         after_times = []
         s = response_net.scenarios[0]
-        ordered_rs_response = sorted(s.resourcescenarios, key=lambda x: x.dataset.value)
+        ordered_rs_response = sorted(s.resourcescenarios, key=lambda x: str(x.dataset.value))
 
         for rs0 in ordered_rs_response:
             if rs0.dataset.type == 'timeseries':

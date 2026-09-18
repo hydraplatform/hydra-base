@@ -28,12 +28,13 @@ from ..attributes import Attr
 from . import Link
 from . import Node
 from . import ResourceGroup
+from .resource import Resource
 
 __all__ = ['Network']
 
 
 
-class Network(Base, Inspect, PermissionControlled):
+class Network(Base, Inspect, PermissionControlled, Resource):
     """
     """
 
@@ -112,7 +113,7 @@ class Network(Base, Inspect, PermissionControlled):
         return l
 
 
-    def add_node(self, name, desc, layout, node_x, node_y):
+    def add_node(self, name, desc, layout, node_x, node_y, node_alt_x=None, node_alt_y=None):
         """
             Add a node to a network.
         """
@@ -126,6 +127,8 @@ class Network(Base, Inspect, PermissionControlled):
         node.layout      = str(layout) if layout is not None else None
         node.x           = node_x
         node.y           = node_y
+        node.alt_x       = node_alt_x
+        node.alt_y       = node_alt_y
 
         #Do not call save here because it is likely that we may want
         #to bulk insert nodes, not one at a time.
@@ -157,7 +160,7 @@ class Network(Base, Inspect, PermissionControlled):
 
         return group_i
 
-    def set_owner(self, user_id, read='Y', write='Y', share='Y'):
+    def set_owner(self, user_id, read='Y', write='Y', share='Y', is_admin='N'):
         owner = None
         for o in self.owners:
             if str(user_id) == str(o.user_id):
@@ -169,9 +172,10 @@ class Network(Base, Inspect, PermissionControlled):
             self.owners.append(owner)
 
         owner.user_id = int(user_id)
-        owner.view  = read
-        owner.edit  = write
-        owner.share = share
+        owner.view     = read
+        owner.edit     = write
+        owner.share    = share
+        owner.is_admin = is_admin
 
         return owner
 
@@ -191,12 +195,13 @@ class Network(Base, Inspect, PermissionControlled):
         """
             Check whether this user can read this network
         """
-        can_read = super(Network, self).check_read_permission(user_id, do_raise=do_raise, is_admin=is_admin)
+
+        can_read = super(Network, self).check_read_permission(user_id, do_raise=False, is_admin=is_admin)
 
         if can_read is True:
             return True
 
-        can_read = self.project.check_read_permission(user_id)
+        can_read = self.project.check_read_permission(user_id, do_raise=False)
 
         if can_read is False and do_raise is True:
             raise PermissionError("Permission denied. User %s does not have read"
@@ -209,7 +214,7 @@ class Network(Base, Inspect, PermissionControlled):
         """
             Check whether this user can write this project
         """
-        can_write = super(Network, self).check_write_permission(user_id, do_raise=do_raise, is_admin=is_admin)
+        can_write = super(Network, self).check_write_permission(user_id, do_raise=False, is_admin=is_admin)
 
         if can_write is True:
             return True

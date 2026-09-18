@@ -17,6 +17,7 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
+from io import StringIO
 import logging
 log = logging.getLogger(__name__)
 
@@ -99,20 +100,19 @@ def generate_data_hash(dataset_dict):
     if d.get('metadata') is None:
         d['metadata'] = {}
 
-    hash_string = "%s %s %s %s %s"%(
-                                str(d['name']),
+    hash_string = "%s %s %s %s"%(
                                 str(d['unit_id']),
-                                str(d['type']),
+                                str(d['type']).lower(),
                                 d['value'],
                                 d['metadata'])
 
     log.debug("Generating data hash from: %s", hash_string)
 
-    data_hash = hash(hash_string)
+    hash_data = hash(hash_string)
 
-    log.debug("Data hash: %s", data_hash)
+    log.debug("Data hash: %s", hash_data)
 
-    return data_hash
+    return hash_data
 
 def get_val(dataset, timestamp=None):
     """
@@ -149,7 +149,8 @@ def get_val(dataset, timestamp=None):
         seasonal_key = config.get('DEFAULT', 'seasonal_key', '9999')
         val = val.replace(seasonal_key, seasonal_year)
 
-        timeseries = pd.read_json(val, convert_axes=True)
+
+        timeseries = pd.read_json(StringIO(val), convert_axes=True)
 
         if isinstance(timeseries.index, pd.DatetimeIndex):
             if timeseries.index.tz is None:

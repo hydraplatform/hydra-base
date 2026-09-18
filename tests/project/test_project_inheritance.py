@@ -318,6 +318,14 @@ class TestProjectInheritance:
         userc_projects = client.get_projects(pytest.user_c.id)
         assert proj1.id in [p.id for p in userc_projects]
 
+        #proj1 is only visible to User C as a nav-only project (they don't
+        #own it or have direct view access) and it doesn't directly contain
+        #net1 -- net1 is one level down, in proj2. Regression check: proj1's
+        #entry should still list net1, otherwise proj1 looks like it has "no
+        #networks" even though the user can see one further down the tree.
+        userc_proj1_entry = next(p for p in userc_projects if p.id == proj1.id)
+        assert net1.id in [n.id for n in userc_proj1_entry.networks]
+
         #User C doesn't have explicit read access on proj1 or proj2, but should
         #be abe to navigate to proj1 and 2 so they cna access proj4
         userc_proj1 = client.get_project(project_id=proj1.id)
@@ -348,3 +356,150 @@ class TestProjectInheritance:
         #User C can't see project 3
         with pytest.raises(HydraError):
             client.get_project(project_id=proj3.id)
+
+        #client is module-scoped -- leaving user_id set to User C here would
+        #silently corrupt every subsequent test in this module (it did,
+        #before this line was added: their projectmaker/networkmaker calls
+        #would run as User C instead of the intended owner).
+        client.user_id = proj_user
+
+    def test_get_projects_networks_permission_filtering(self, client, projectmaker, networkmaker):
+        """
+            Regression test for a bug in get_projects_networks() where the
+            non-admin permission filter (an outerjoin onto NetworkOwner) was
+            applied to a new query object without reassigning it back to
+            network_qry, making the filter a silent no-op. This meant a
+            non-admin user calling get_projects() could see every network in
+            a project they can navigate to, including ones never shared with
+            them individually.
+        """
+        client.user_id = 1 # force current user to be 1 to avoid potential inconsistencies
+        proj_user = client.user_id
+        proj = projectmaker.create(share=False)
+        net1 = networkmaker.create(project_id=proj.id)
+        net2 = networkmaker.create(project_id=proj.id)
+
+        #Share only net1 with User C. This is enough to give them nav-only
+        #visibility of the containing project, but NOT of net2.
+        client.share_network(net1.id, ['UserC'], False, False)
+
+        client.user_id = pytest.user_c.id
+        userc_projects = client.get_projects(pytest.user_c.id)
+        userc_proj_entry = next(p for p in userc_projects if p.id == proj.id)
+
+        userc_network_ids = {n.id for n in userc_proj_entry.networks}
+        assert userc_network_ids == {net1.id}
+        assert net2.id not in userc_network_ids
+
+        client.user_id = proj_user
+
+        client.user_id = proj_user
+
+    def test_remove_project_parent(self, client, projectmaker, networkmaker):
+        """
+          Test two actions which should result in a project's parent_id
+          being set to None:
+            - Calling update_project() where the existing version has a not-None
+              parent_id while the argument's parent_id has been set to None
+            - Calling move_project() with a target parent project of None
+        """
+        orig_parent_proj = projectmaker.create()
+        child_proj_update = projectmaker.create(parent_id=orig_parent_proj.id)
+        child_proj_move = projectmaker.create(parent_id=orig_parent_proj.id)
+
+        proj_i = client.get_project(child_proj_update.id)
+        assert proj_i.parent_id == orig_parent_proj.id
+
+        # Remove parent of child_proj
+        proj_i.parent_id = None
+        client.update_project(proj_i)
+
+        # Verify retrieved project now has no parent
+        proj_i = client.get_project(child_proj_update.id)
+        assert proj_i.parent_id is None
+
+        proj_i = client.get_project(child_proj_move.id)
+        assert proj_i.parent_id == orig_parent_proj.id
+
+        client.move_project(child_proj_move.id, None)
+
+        # Verify moved project now has no parent
+        proj_i = client.get_project(child_proj_move.id)
+        assert proj_i.parent_id is None
+
+
+    def test_clone_network_in_shared_project(self, client, projectmaker, networkmaker):
+        """
+            Test sharing a network contained in a sub-project. This should result in the sharee having
+            access to the full tree of projects until the shared projects, but not
+            the projects which are siblings of any projects in that path through the tree
+            For example, upon sharing p4, the sharee should not have access to p3
+                                 p1
+                                /  \
+                               p2   p3
+                              /
+                             n1
+        """
+        client.user_id = 1 # force current user to be 1 to avoid potential inconsistencies
+        proj_user = client.user_id
+        proj1 = projectmaker.create(share=False)
+        proj2 = projectmaker.create(share=False, parent_id=proj1.id)
+        proj3 = projectmaker.create(share=False, parent_id=proj1.id)
+
+        net1 = networkmaker.create(project_id=proj2.id)
+        #A netrwork which the sharee should never be able to see
+        net_hidden = networkmaker.create(project_id=proj2.id)
+
+        client.user_id = pytest.user_c.id
+        #Can't access P2
+        with pytest.raises(HydraError):
+            client.get_project(proj2.id)
+
+        #Can't access P3
+        with pytest.raises(HydraError):
+            client.get_project(proj3.id)
+
+        #Can't access N1
+        with pytest.raises(HydraError):
+            client.get_network(net1.id)
+
+        #Now, as the main user, share Net 1 with user C
+        client.user_id = proj_user
+        client.share_network(net1.id, ['UserC'], False, False)
+
+        #Now as the sharee, try to get project 2
+        client.user_id = pytest.user_c.id
+        #this should not error
+        client.get_project(proj2.id)
+
+        #As the sharee, Clone Network 1 inside project 2
+        cloned_net_id = client.clone_network(net1.id, project_id=proj2.id)
+
+        #As the sharee, get project 2. THere should be 2. THe original one, and
+        #the one this user has just cloned
+        updated_project = client.get_project(proj2.id)
+
+        assert len(updated_project.networks) == 2
+        #Hidden network is still hidden
+        assert net_hidden.id not in [n.id for n in updated_project.networks]
+
+        #Verify only network 1 and cloned network are the only networks returned in P2
+        assert set([net1.id, cloned_net_id]) == set([n.id for n in updated_project.networks])
+
+        #Still Can't access P3
+        with pytest.raises(HydraError):
+            client.get_project(proj3.id)
+
+        #Still Can't access P3
+        with pytest.raises(HydraError):
+            client.get_project(proj3.id)
+
+        #Ensure the original user can access all networks
+        client.user_id = proj_user
+        updated_project = client.get_project(proj2.id)
+        #Verify only network 1 and hidden network are the only networks returned in P2
+        assert set([net1.id, net_hidden.id, cloned_net_id]) == set([n.id for n in updated_project.networks])
+        #No error for main user
+        client.get_project(proj3.id)
+
+

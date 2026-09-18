@@ -53,10 +53,35 @@ class HdfStorageAdapter():
     """
 
     def __init__(self):
+        self.fsspec_args = dict(
+            mode='rb',
+            anon=self._get_anon(),
+            default_fill_cache=True
+        )
         self.config = self.__class__.get_hdf_config()
         self.filestore_path = self.config.get("hdf_filestore")
         if self.filestore_path and not os.path.exists(self.filestore_path):
-            self.filestore_path = None
+            os.makedirs(self.filestore_path, exist_ok=True)
+
+    def _get_anon(self):
+        """
+            If there are AWS credentials present in the environment,
+            then assume that this user will be not anonymous
+        """
+
+        self.accesskeyid = os.getenv('AWS_ACCESS_KEY_ID')
+        self.secretaccesskey = os.getenv('AWS_SECRET_ACCESS_KEY')
+        if self.accesskeyid not in ('' , None) and self.secretaccesskey not in ('', None):
+            return False
+
+        home = os.getenv('HOME')
+        default_credentials_path = os.path.join(home, '.aws', 'credentials')
+        credentials_path = os.getenv('AWS_SHARED_CREDENTIALS_FILE', default_credentials_path)
+        #If there is a credentials file, then assume the user is not anonymous
+        if os.path.exists(credentials_path):
+            return False
+
+        return True
 
     @staticmethod
     def get_hdf_config(config_key="storage_hdf", **kwargs):
@@ -74,7 +99,7 @@ class HdfStorageAdapter():
     @filestore_url("url")
     def open_hdf_url(self, url, **kwargs):
         try:
-            with fsspec.open(url, mode='rb', anon=True, default_fill_cache=True) as fp:
+            with fsspec.open(url, **self.fsspec_args) as fp:
                 return h5py.File(fp.fs.open(url), mode='r')
         except (ClientError, FileNotFoundError, PermissionError) as e:
             raise ValueError(f"Unable to access url: {url}") from e
@@ -96,7 +121,7 @@ class HdfStorageAdapter():
     def file_exists_at_url(self, url, **kwargs):
         try:
             url = self.url_to_filestore_path(url)
-            with fsspec.open(url, mode='rb', anon=True, default_fill_cache=False) as fp:
+            with fsspec.open(url, **self.fsspec_args) as fp:
                 return fp.fs.exists(url)
         except (ValueError, FileNotFoundError, PermissionError):
             return False
@@ -149,7 +174,7 @@ class HdfStorageAdapter():
 
     @filestore_url("url")
     def file_size(self, url, **kwargs):
-        with fsspec.open(url, mode='rb', anon=True, default_fill_cache=False) as fp:
+        with fsspec.open(url, **self.fsspec_args) as fp:
             size_bytes = fp.fs.size(fp.path)
         return size_bytes
 
@@ -193,6 +218,56 @@ class HdfStorageAdapter():
 
         return df.to_json(**json_opts)
 
+    @filestore_url("url")
+    def get_groups_as_dataframes(self, url, groupnames=None, columns=None, start=None, end=None, **kwargs):
+        """
+        Return one or more HDF groups as JSON-encoded dataframes using a single
+        open file handle.
+
+        Arguments:
+            url (str): HDF file URL/path. Decorated with ``@filestore_url`` so
+                relative/local paths may be rewritten to the configured filestore.
+            groupnames (Sequence[str] | str | None): Group names to read. If None
+                or empty, all root groups are read.
+            columns (Sequence[str] | str | dict[str, Sequence[str] | str] | None):
+                Columns to read. If a sequence/string is provided it is applied to
+                every group. If a dict is provided, keys are group names and values
+                are per-group columns. If None/empty, all columns for each group are
+                read.
+            start (int | None): Optional inclusive row start for each group.
+            end (int | None): Optional exclusive row end for each group.
+            **kwargs: Reserved for API compatibility.
+
+        Returns:
+            dict[str, str]: Mapping of ``groupname -> dataframe_json``.
+        """
+        json_opts = {"date_format": "iso"}
+        h5f = self.open_hdf_url(url)
+
+        if isinstance(groupnames, str):
+            groupnames = (groupnames,) if len(groupnames) > 0 else None
+
+        if not groupnames:
+            groupnames = [*h5f.keys()]
+
+        group_data = {}
+        for groupname in groupnames:
+            reader = self.make_group_reader(url, groupname, hf=h5f)
+
+            group_columns = columns
+            if isinstance(columns, dict):
+                group_columns = columns.get(groupname)
+            elif isinstance(columns, str):
+                group_columns = (columns,) if len(columns) > 0 else None
+
+            if not group_columns:
+                group_columns = reader.get_columns_of_group()
+
+            df = reader.get_columns_as_dataframe(group_columns, start=start, end=end)
+            group_data[groupname] = df.to_json(**json_opts)
+
+        return group_data
+
     def equivalent_local_path(self, url, **kwargs):
         u = urlparse(url)
         filesrc = f"{u.netloc}{u.path}"
@@ -220,7 +295,7 @@ class HdfStorageAdapter():
                 raise OSError(f"Unable to create local path at {destdir}: {err}")
 
         destfile = os.path.join(destdir, filename)
-        fs = s3fs.S3FileSystem(anon=True)
+        fs = s3fs.S3FileSystem(anon=self._get_anon())
         log.info(f"Retrieving {url} to {destfile} ...")
         fs.get(filesrc, destfile)
         file_sz = os.stat(destfile).st_size
@@ -289,32 +364,50 @@ class HdfStorageAdapter():
 
         return target
 
-    def make_group_reader(self, url, groupname):
+    def make_group_reader(self, url, groupname, hf=None):
         """
-        Returns an instance of the appropriate GroupReader subclass for the <groupname>
-        argument in the file at <url>.
-        The required type is first looked up by get_group_reader() and an instance of
-        this is returned.
+        Build a GroupReader instance for a group in an HDF file.
+
+        Arguments:
+            url (str): HDF file URL/path.
+            groupname (str | None): Target group name. If None/empty, the first
+                root group in the file is used.
+            hf (h5py.File | None): Optional pre-opened HDF handle. When provided,
+                this avoids reopening the same file for repeated group operations.
+
+        Returns:
+            GroupReader: Reader instance appropriate for the group's pandas format.
+
+        Raises:
+            ValueError: If the file has no groups or the group cannot be read.
         """
-        hf = self.open_hdf_url(url)
+        hf = hf if hf is not None else self.open_hdf_url(url)
         if not groupname:
             # Use first group in file
             try:
                 groupname = [*hf.keys()][0]
             except IndexError as ie:
                 raise ValueError(f"Data source {url} contains no groups") from ie
-        Reader = self.get_group_reader(url, groupname)
+        Reader = self.get_group_reader(url, groupname, hf=hf)
         return Reader(hf, groupname)
 
-    def get_group_reader(self, url, groupname):
+    def get_group_reader(self, url, groupname, hf=None):
         """
-        Returns the type of the appropriate GroupReader subclass for the <groupname>
-        argument in the file at <url>.
-        The internal format of the group used by Pandas is first identified by
-        identify_group_format(), and a reader capable of handling this type is then
-        looked up in the group_reader_map.
+        Resolve the GroupReader type for a group in an HDF file.
+
+        Arguments:
+            url (str): HDF file URL/path.
+            groupname (str): Target group name.
+            hf (h5py.File | None): Optional pre-opened HDF handle used to avoid
+                reopening the same file.
+
+        Returns:
+            type: GroupReader subclass type mapped from the group's pandas format.
+
+        Raises:
+            ValueError: If no reader exists for the detected group format.
         """
-        group_type = self.identify_group_format(url, groupname)
+        group_type = self.identify_group_format(url, groupname, hf=hf)
         try:
             Reader = group_reader_map[group_type]
         except KeyError:
@@ -323,15 +416,23 @@ class HdfStorageAdapter():
 
         return Reader
 
-    def identify_group_format(self, url, groupname):
+    def identify_group_format(self, url, groupname, hf=None):
         """
-        Returns a string identifying the Pandas format of the group <groupname> in
-        the file at <url>.
-        This string, stored as the `pandas_type` attribute on the HDF group, indicates
-        the layout of datasets and indices for the group and therefore the type of
-        GroupReader required.
+        Identify the pandas storage format for an HDF group.
+
+        Arguments:
+            url (str): HDF file URL/path.
+            groupname (str): Target group name.
+            hf (h5py.File | None): Optional pre-opened HDF handle used to avoid
+                reopening the same file.
+
+        Returns:
+            str: Value of the group's ``pandas_type`` attribute.
+
+        Raises:
+            ValueError: If the group is missing or does not contain ``pandas_type``.
         """
-        hf = self.open_hdf_url(url)
+        hf = hf if hf is not None else self.open_hdf_url(url)
         try:
             group = hf[groupname]
         except KeyError as ke:
