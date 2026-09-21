@@ -392,6 +392,72 @@ class TestProject:
         cloned_networks = client.get_networks(cloned_project.id)
         assert len(cloned_networks) == 2
 
+    def test_clone_project_with_sub_projects(self, client, projectmaker, networkmaker):
+
+        proj = projectmaker.create()
+        subproj = projectmaker.create(parent_id=proj.id)
+        subsubproj = projectmaker.create(parent_id=subproj.id)
+
+        networkmaker.create(project_id=proj.id)
+        networkmaker.create(project_id=subproj.id)
+        networkmaker.create(project_id=subsubproj.id)
+
+        recipient_user = client.get_user_by_name('UserA')
+
+        new_project_name = 'Cloned With Sub-Projects'
+
+        cloned_project_id = client.clone_project(
+            proj.id,
+            recipient_user_id=recipient_user.id,
+            new_project_name=new_project_name)
+
+        cloned_project = client.get_project(cloned_project_id)
+
+        assert cloned_project.name == new_project_name
+        assert len(client.get_networks(cloned_project.id)) == 1
+
+        #the sub-project has been cloned into the new project
+        assert len(cloned_project.projects) == 1
+        cloned_subproj = client.get_project(cloned_project.projects[0].id)
+        assert cloned_subproj.id != subproj.id
+        #sub-projects keep their own name
+        assert cloned_subproj.name == subproj.name
+        assert cloned_subproj.parent_id == cloned_project.id
+        assert len(client.get_networks(cloned_subproj.id)) == 1
+
+        #...and so has the sub-project of the sub-project
+        assert len(cloned_subproj.projects) == 1
+        cloned_subsubproj = client.get_project(cloned_subproj.projects[0].id)
+        assert cloned_subsubproj.id != subsubproj.id
+        assert cloned_subsubproj.name == subsubproj.name
+        assert cloned_subsubproj.parent_id == cloned_subproj.id
+        assert len(client.get_networks(cloned_subsubproj.id)) == 1
+
+        #the project which was cloned is unchanged
+        assert len(client.get_project(proj.id).projects) == 1
+
+    def test_clone_project_excluding_sub_projects(self, client, projectmaker, networkmaker):
+
+        proj = projectmaker.create()
+        projectmaker.create(parent_id=proj.id)
+
+        networkmaker.create(project_id=proj.id)
+
+        recipient_user = client.get_user_by_name('UserA')
+
+        new_project_name = 'Cloned Without Sub-Projects'
+
+        cloned_project_id = client.clone_project(
+            proj.id,
+            recipient_user_id=recipient_user.id,
+            new_project_name=new_project_name,
+            include_child_projects=False)
+
+        cloned_project = client.get_project(cloned_project_id)
+
+        assert cloned_project.name == new_project_name
+        assert len(client.get_networks(cloned_project.id)) == 1
+        assert len(cloned_project.projects) == 0
     def test_clone_project_to_other_user(self, client, projectmaker, networkmaker):
         sender_user_id = client.user_id
         proj = projectmaker.create()
