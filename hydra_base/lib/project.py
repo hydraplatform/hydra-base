@@ -634,56 +634,85 @@ def get_network_project(network_id, **kwargs):
 
     return net_proj
 
-@required_perms('get_project', 'add_project')
-def clone_project(project_id,
-    recipient_user_id=None,
-    new_project_name=None,
-    new_project_description=None,
-    creator_is_owner=False,
-    **kwargs):
+def _get_unique_project_name(new_project_name, recipient_user_id):
     """
-        Create an exact clone of the specified project for the specified user.
+        Ensure the name of a project about to be created does not clash with an
+        existing project of the same user, as the combination of name, creator and
+        status must be unique.
         args:
-            recipient_user_id (int): The ID of the user who will be granted ownership of the project after cloning.
-                If None, ownership will be granted to the requesting user.
-            new_project_name (str): The name of the cloned project. If None, then the project's name will be postfixed with ('Cloned by XXX')
-            new_project_description (str): The description of the cloned project.
-                If None, the current project's description will be used.
-            creator_is_owner (Bool) : The user who creates the network isn't added as an owner
-                (won't have an entry in tNetworkOwner and therefore won't see the network in 'get_project')
+            new_project_name (str): The proposed name of the new project
+            recipient_user_id (int): The ID of the user who will create (own) the project
+        returns:
+            (str): A name which is unique for this user
+    """
+    #check a project with this name doesn't already exist:
+    project_with_name = db.DBSession.query(Project).filter(
+        Project.name == new_project_name,
+        Project.created_by == recipient_user_id).first()
+
+    if project_with_name is None:
+        return new_project_name
+
+    now = datetime.now().strftime("%Y%m%d%H%M%S")
+
+    if project_with_name.status == 'X':
+        #The clashing project is deleted, so rename it and keep the requested name
+        project_with_name.name = f"{new_project_name} {now}"
+        log.info("Updating an existing deleted project %s with new project name to avoid naming clash %s",
+                 project_with_name.id, project_with_name.name)
+        db.DBSession.flush()
+        return new_project_name
+
+    #If there is a naming clash, then add a timestamp to the name of the new project to make it unique for
+    #this user.
+    unique_project_name = f"{new_project_name} ({now})"
+
+    #Cloning a project tree can create several projects within the same second, so
+    #fall back to a counter if the timestamp alone isn't enough to make the name unique
+    counter = 1
+    while db.DBSession.query(Project).filter(
+            Project.name == unique_project_name,
+            Project.created_by == recipient_user_id).first() is not None:
+        unique_project_name = f"{new_project_name} ({now}-{counter})"
+        counter += 1
+
+    return unique_project_name
+
+def _clone_project(project_id,
+    recipient_user_id,
+    new_project_name,
+    new_project_description,
+    creator_is_owner,
+    new_parent_id,
+    include_child_projects,
+    user_id,
+    cloned_project_ids):
+    """
+        Clone a single project (its networks, attributes and, if requested, its
+        sub-projects) into a new project owned by the recipient.
+        args:
+            new_parent_id (int): The ID of the project which the new project is a child of.
+                None for the project at the top of the clone.
+            cloned_project_ids (set): The IDs of the projects cloned so far in this request,
+                used to protect against a loop in the project hierarchy.
         returns:
             (int): The ID of the newly created project
     """
 
-    user_id = kwargs['user_id']
-
-    log.info("Creating a new project for cloned network")
-
     project = _get_project(project_id, user_id, check_write=True)
-    if recipient_user_id is None:
-        recipient_user_id = user_id
 
-    recipient_user = db.DBSession.query(User).filter(User.id == recipient_user_id).one()
-    cloning_user = db.DBSession.query(User).filter(User.id == user_id).one()
+    cloned_project_ids.add(project_id)
 
     if new_project_name is None:
-        new_project_name = project.name + ' Cloned By {}'.format(cloning_user.display_name)
-
-    #check a project with this name doesn't already exist:
-    project_with_name =  db.DBSession.query(Project).filter(
-        Project.name == new_project_name,
-        Project.created_by == recipient_user_id).first()
-
-    if project_with_name is not None:
-        now = datetime.now().strftime("%Y%m%d%H%M%S")
-        if project_with_name.status == 'X':
-            project_with_name.name = f"{new_project_name} {now}"
-            log.info("Updating an existing deleted project %s with new project anme to avoid naming clash %s",
-                      project_with_name.id, project_with_name.name)
+        if new_parent_id is None:
+            cloning_user = db.DBSession.query(User).filter(User.id == user_id).one()
+            new_project_name = project.name + ' Cloned By {}'.format(cloning_user.display_name)
         else:
-            #If there is a naming clash, then add a timestamp to the name of the new project to make it unique for
-            #this user.
-            new_project_name = f"{new_project_name} ({now})"
+            #sub-projects keep their own name, as they are identified by their position
+            #in the hierarchy rather than by the user who cloned them
+            new_project_name = project.name
+
+    new_project_name = _get_unique_project_name(new_project_name, recipient_user_id)
 
     new_project = Project()
     new_project.name = new_project_name
@@ -696,8 +725,9 @@ def clone_project(project_id,
 
     new_project.created_by = recipient_user_id
 
+    new_project.parent_id = new_parent_id
+
     if recipient_user_id is not None and recipient_user_id != user_id:
-        project.check_share_permission(user_id)
         new_project.set_owner(recipient_user_id)
 
     if creator_is_owner is True:
@@ -727,7 +757,89 @@ def clone_project(project_id,
 
     db.DBSession.flush()
 
+    if include_child_projects is True:
+        child_project_ids = db.DBSession.query(Project.id).filter(
+            Project.parent_id == project_id,
+            Project.status == 'A').all()
+
+        for child_project in child_project_ids:
+            if child_project.id in cloned_project_ids:
+                #Protect against a loop in the project hierarchy
+                log.warning("Not cloning project %s again. It has already been cloned "
+                            "as part of this request.", child_project.id)
+                continue
+
+            log.info("Cloning sub-project %s into new project %s",
+                     child_project.id, new_project.id)
+
+            _clone_project(child_project.id,
+                           recipient_user_id,
+                           None, #sub-projects keep their own name
+                           None, #and their own description
+                           creator_is_owner,
+                           new_project.id,
+                           include_child_projects,
+                           user_id,
+                           cloned_project_ids)
+
     return new_project.id
+
+@required_perms('get_project', 'add_project')
+def clone_project(project_id,
+    recipient_user_id=None,
+    new_project_name=None,
+    new_project_description=None,
+    creator_is_owner=False,
+    include_child_projects=True,
+    **kwargs):
+    """
+        Create an exact clone of the specified project for the specified user.
+        args:
+            recipient_user_id (int): The ID of the user who will be granted ownership of the project after cloning.
+                If None, ownership will be granted to the requesting user.
+            new_project_name (str): The name of the cloned project. If None, then the project's name will be postfixed with ('Cloned by XXX')
+            new_project_description (str): The description of the cloned project.
+                If None, the current project's description will be used.
+            creator_is_owner (Bool) : The user who creates the network isn't added as an owner
+                (won't have an entry in tNetworkOwner and therefore won't see the network in 'get_project')
+            include_child_projects (Bool): Clone the sub-projects of this project (and their
+                sub-projects) into the new project, keeping the structure of the project tree.
+                The new name and description apply only to the project at the top of the tree.
+        returns:
+            (int): The ID of the newly created project
+    """
+
+    user_id = kwargs['user_id']
+
+    log.info("Creating a new project for cloned network")
+
+    project = _get_project(project_id, user_id, check_write=True)
+
+    if recipient_user_id is None:
+        recipient_user_id = user_id
+
+    #verify the recipient exists before cloning anything
+    db.DBSession.query(User).filter(User.id == recipient_user_id).one()
+
+    if recipient_user_id != user_id:
+        #The share check is done on the project at the top of the tree. Its sub-projects
+        #are shared by virtue of being within it.
+        project.check_share_permission(user_id)
+
+    new_project_id = _clone_project(project_id,
+                                    recipient_user_id,
+                                    new_project_name,
+                                    new_project_description,
+                                    creator_is_owner,
+                                    None, #the cloned project is at the top of the new tree
+                                    include_child_projects,
+                                    user_id,
+                                    set())
+
+    #The recipient has a new project tree, so their cached view of it is out of date
+    Project.clear_cache(recipient_user_id)
+
+    return new_project_id
 
 def get_project_hierarchy(project_id, **kwargs):
     """
