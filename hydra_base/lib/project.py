@@ -657,7 +657,14 @@ def _get_unique_project_name(new_project_name, recipient_user_id):
 
     if project_with_name.status == 'X':
         #The clashing project is deleted, so rename it and keep the requested name
-        project_with_name.name = f"{new_project_name} {now}"
+        unique_project_name = f"{new_project_name} {now}"
+        counter = 1
+        while db.DBSession.query(Project).filter(
+                Project.name == unique_project_name,
+                Project.created_by == recipient_user_id).first() is not None:
+            unique_project_name = f"{new_project_name} {now}-{counter}"
+            counter += 1
+        project_with_name.name = unique_project_name
         log.info("Updating an existing deleted project %s with new project name to avoid naming clash %s",
                  project_with_name.id, project_with_name.name)
         db.DBSession.flush()
