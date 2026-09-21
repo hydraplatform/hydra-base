@@ -40,6 +40,10 @@ from .HydraTypes.Registry import HydraObjectFactory
 
 log = logging.getLogger(__name__)
 mongo = MongoStorageAdapter()
+mongo_config = MongoStorageAdapter.get_mongo_config()
+mongo_storage_location_key = mongo_config["value_location_key"]
+mongo_external = mongo_config["direct_location_token"]
+use_mongo = mongo_config["use_mongo"]
 VALID_JSON_FIRST_CHARS = ['{', '[']
 
 
@@ -183,7 +187,8 @@ class JSONObject(dict):
             performed here.
             """
             obj = obj_dict._asdict()
-            if obj.get("value") is not None:
+            ref_key = obj.get("value")
+            if use_mongo and ref_key is not None:
                 try:
                     """
                     ref_key may be not None but also not a valid oid string, so
@@ -205,6 +210,9 @@ class JSONObject(dict):
             The "value_ref" must remain present in the __dict__ for
             later external db lookup, but should not be present in the
             returned object whereas the "value" should.
+
+            Note that "value_ref" present in the instance __dict__
+            implies that use_mongo is True in config.
             """
             if "value_ref" in obj:
                 if obj_dict.value:
@@ -217,7 +225,7 @@ class JSONObject(dict):
             """
             obj = obj_dict
             ref_key = obj.get("value")
-            if ref_key:
+            if use_mongo and ref_key:
                 try:
                     oid = ObjectId(ref_key)
                     doc = mongo.get_document_by_oid_inst(oid)

@@ -14,6 +14,7 @@ import os
 from bson.objectid import ObjectId
 import pymongo
 from pymongo import MongoClient
+from pymongo.errors import ServerSelectionTimeoutError
 from sqlalchemy.sql.expression import func
 from sqlalchemy.exc import NoResultFound
 
@@ -37,6 +38,9 @@ if not db.DBSession:
 
 mongo = None
 
+
+def percent_encode(s, xchars=":/?#[]@"):
+    return "".join(f"%{ord(char):2X}" if char in xchars else char for char in s)
 
 def largest_datasets(count: int=20) -> List[Tuple[int, int]]:
     """
@@ -189,7 +193,12 @@ def export_dataset_to_external_storage(ds_id: int, db_name: str=None, collection
     if dataset.is_external():
         raise LookupError(f"Dataset {dataset.id} has external storage metadata")
 
-    result = path.insert_one({"value": dataset.value, "dataset_id": dataset.id})
+    try:
+        result = path.insert_one({"value": dataset.value, "dataset_id": dataset.id})
+    except ServerSelectionTimeoutError:
+        raise TypeError(f"Insertion of dataset {dataset.id} to path {db_name}:{collection} failed "
+                        f"Unable to connect to server at {mongo_config['host']}:{mongo_config['port']}")
+
     if not (hasattr(result, "inserted_id") and isinstance(result.inserted_id, ObjectId)):
         raise TypeError(f"Insertion of dataset {dataset.id} to path {db_name}:{collection} failed")
 
@@ -278,16 +287,16 @@ def write_dataset_as_bz2(dataset_id: int, path: str='.'):
     return filename, f_size
 
 
-def write_oid_as_bz2(oid: str, path: str='.', db_name=None, collection=None):
+def write_oid_as_bz2(oid: str, filepath='.', db_name=None, collection=None):
     """
     Makes a compressed copy of the 'value' attribute of a MongoDB document
     with oid <oid> in a file named "<oid>.bz2". An optional target directory
     may be provided in <path>
     """
-    if not os.path.isdir(path):
-        raise ValueError(f"Invalid path {path}; must be an existing directory")
+    if not os.path.isdir(filepath):
+        raise ValueError(f"Invalid path {filepath}; must be an existing directory")
 
-    filename = os.path.join(path, f"{oid}.bz2")
+    filename = os.path.join(filepath, f"{oid}.bz2")
     if os.path.exists(filename):
         raise ValueError(f"File {filename} already exists")
 
@@ -310,6 +319,58 @@ def write_oid_as_bz2(oid: str, path: str='.', db_name=None, collection=None):
     f_size = os.stat(filename).st_size
     log.info(f"Written {filename} {ds_size} => {f_size} bytes ({(1-f_size/ds_size)*100.0:.2f}%)")
     return filename, f_size
+
+
+def export_oid_as_bz2_file(oid: str, filepath='.', db_name=None, collection=None):
+    """
+    Removes the dataset in the 'value' key of the specified document
+    from MongoDB, writes it as a bz2-compressed file, and adds a
+    reference to this file to the Mongo document.
+
+    See import_bz2_file_as_oid to reverse this process.
+    """
+    filename, f_size = write_oid_as_bz2(oid, filepath, db_name, collection)
+
+    mongo_config = MongoStorageAdapter.get_mongo_config()
+    db_name = db_name if db_name else mongo_config["db_name"]
+    collection = collection if collection else mongo_config["datasets"]
+
+    mongo = get_mongo_client()
+    path = mongo[db_name][collection]
+
+    object_id = ObjectId(oid)
+    status = path.update_one({'_id': object_id}, {'$set': {'location': 'FILE', 'value': filename}}, upsert=False)
+    assert status.matched_count == 1
+    assert status.modified_count == 1
+    doc = path.find_one({"_id": object_id})
+    print(f"{doc=}")
+    return filename, f_size
+
+
+def import_bz2_file_as_oid(filename: str, oid: str, db_name=None, collection=None):
+    """
+    Adds the bz2-compressed file specified by <filename> to MongoDB as
+    the 'value' key of the document with the specified oid, and removes
+    the reference reference to this file from the Mongo document.
+
+    Files imported in this way are assumed to originate from export_oid_as_bz2_file.
+    """
+    with bz2.BZ2File(filename, 'rb') as infile:
+        with io.TextIOWrapper(infile, encoding='utf-8') as tiw:
+            file_dso = json.loads(tiw.read())
+
+    mongo_config = MongoStorageAdapter.get_mongo_config()
+    db_name = db_name if db_name else mongo_config["db_name"]
+    collection = collection if collection else mongo_config["datasets"]
+
+    mongo = get_mongo_client()
+    path = mongo[db_name][collection]
+
+    object_id = ObjectId(oid)
+    status = path.update_one({'_id': object_id}, {'$set': {'value': file_dso}, '$unset': {'location': 1}}, upsert=False)
+    assert status.matched_count == 1
+    assert status.modified_count == 1
+    return status
 
 
 def bz2_file_equal_to_dataset(filename: str) -> bool:
@@ -368,7 +429,21 @@ def get_mongo_client() -> MongoClient:
     if mongo:
         return mongo
     mongo_config = MongoStorageAdapter.get_mongo_config()
-    mongo = MongoClient(f"mongodb://{mongo_config['host']}:{mongo_config['port']}")
+    host = mongo_config["host"]
+    port = mongo_config["port"]
+    user = mongo_config["user"]
+    passwd = mongo_config["passwd"]
+    db_name = mongo_config["db_name"]
+
+    """ Mongo usernames/passwds require percent encoding of `:/?#[]@` chars """
+    user, passwd = percent_encode(user), percent_encode(passwd)
+    authtext = f"{user}:{passwd}@" if (user and passwd) else ""
+    conntext = f"mongodb://{authtext}{host}:{port}/{db_name}"
+    try:
+        mongo = MongoClient(conntext)
+    except ServerSelectionTimeoutError as sste:
+        log.critical(f"Unable to connect to Mongo server {conntext}: {sste}")
+        raise sste
     return mongo
 
 
