@@ -150,16 +150,17 @@ def update_project(project, **kwargs):
             proj_i.appdata = newdict
 
     #A project can only be moved to another if the user has write access on both,
-    #so we need to check the permissions on the target project if it is specified
-    if parent_id := getattr(project, "parent_id", None):
+    #so we need to check the permissions on the target project if it is specified.
+    #Only touch parent_id if the caller's payload actually includes the key -- a
+    #partial update (e.g. one that only patches 'appdata') must not clear the
+    #project's existing parent just because it didn't mention it.
+    if "parent_id" in project:
+        parent_id = project.parent_id
         if parent_id != proj_i.parent_id:
-            #check the user has the correct permission to write to the target project
-            _get_project(project.parent_id, user_id, check_write=True)
-            proj_i.parent_id = project.parent_id
-    else:
-        # parent_id has changed to None
-        if proj_i.parent_id is not None:
-            proj_i.parent_id = None
+            if parent_id is not None:
+                #check the user has the correct permission to write to the target project
+                _get_project(parent_id, user_id, check_write=True)
+            proj_i.parent_id = parent_id
 
     if project.attributes:
         attr_map = hdb.add_resource_attributes(proj_i, project.attributes)
