@@ -291,8 +291,12 @@ class Template(Base, Inspect):
                     type_tree[this_type.parent_id] = child_type
 
             else:
-                if not hasattr(this_type, 'typeattrs'):
-                    setattr(this_type, 'typeattrs', [])
+                # Always start from an empty list. JSONObject(t) copies 'typeattrs' from the ORM
+                # object when the relationship is already loaded in the session (e.g. straight
+                # after an import), despite noload(), which would duplicate every type
+                # attribute below. (hasattr() can't be used to test for this: JSONObject returns
+                # None for missing keys, so it is always True.)
+                this_type.typeattrs = []
                 for typeattr in typeattrs:
                     #is this a child? if so, register it as one
                     if typeattr.parent_id is not None:
