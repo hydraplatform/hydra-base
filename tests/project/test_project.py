@@ -605,6 +605,60 @@ class TestProject:
         with pytest.raises(hb.HydraError):
             client.get_project(proj.id)
 
+    def test_update_project_partial_payload_preserves_parent_id(self, client, projectmaker):
+        """
+        A partial update (one that omits 'parent_id' entirely, e.g. one which
+        only patches 'appdata') must not clear a project's existing parent.
+        Regression test: update_project used to treat a missing 'parent_id'
+        key the same as an explicit null, silently detaching the project
+        from its parent.
+        """
+        parent = projectmaker.create()
+        child = projectmaker.create(parent_id=parent.id)
+
+        assert child.parent_id == parent.id
+
+        #Simulate a caller (e.g. hwi's get_uuid()) which only wants to patch
+        #appdata, and doesn't mention parent_id at all.
+        client.update_project({'id': child.id, 'appdata': {'foo': 'bar'}})
+
+        reloaded_child = client.get_project(child.id)
+        assert reloaded_child.parent_id == parent.id, \
+            "A partial update with no 'parent_id' key must not clear the project's parent."
+        assert reloaded_child.appdata['foo'] == 'bar'
+
+    def test_update_project_explicit_null_parent_id_clears_parent(self, client, projectmaker):
+        """
+        An update which explicitly sets parent_id to None should still move
+        the project to the root (i.e. clear its parent) -- only an *absent*
+        key should be treated as 'don't touch this field'.
+        """
+        parent = projectmaker.create()
+        child = projectmaker.create(parent_id=parent.id)
+
+        assert child.parent_id == parent.id
+
+        updated_child = client.get_project(child.id)
+        updated_child.parent_id = None
+        client.update_project(updated_child)
+
+        reloaded_child = client.get_project(child.id)
+        assert reloaded_child.parent_id is None
+
+    def test_update_project_moves_to_new_parent(self, client, projectmaker):
+        """
+        An update which specifies a different parent_id should move the
+        project there, provided the user has write access to the target.
+        """
+        old_parent = projectmaker.create()
+        new_parent = projectmaker.create()
+        child = projectmaker.create(parent_id=old_parent.id)
+
+        client.update_project({'id': child.id, 'parent_id': new_parent.id})
+
+        reloaded_child = client.get_project(child.id)
+        assert reloaded_child.parent_id == new_parent.id
+
     def test_set_project_status_cache_invalidation(self, client, projectmaker):
         proj = projectmaker.create()
         project_id = proj.id
