@@ -263,3 +263,59 @@ class TestTemplateCachePoisoning:
                 "caches without calling get_types(), so typeattrs may not be "
                 "present in the cached JSONObject."
             )
+
+    def test_import_template_dict_cache_keeps_empty_typeattrs(self, db):
+        """
+        A type with no type attributes (e.g. a plain 'edge' LINK type, or a NETWORK type that
+        defines none) must still carry typeattrs == [] when get_template is served from the cache
+        written by import_template_dict().
+
+        get_template() builds such types with an empty list, but the cache entry written by
+        import_template_dict() omits the 'typeattrs' key for them, so callers that index
+        tt["typeattrs"] raise KeyError (and tt.typeattrs is None) only on the first read after an
+        import, and not after the cache entry has been rebuilt.
+        """
+        attr = _create_attr()
+
+        template_dict = {
+            "attributes": {
+                str(attr.id): {"id": attr.id, "name": attr.name}
+            },
+            "datasets": {},
+            "template": {
+                "name": f"ImportEmptyTypeattrsTest {datetime.datetime.now()}",
+                "templatetypes": [
+                    {
+                        "name": "TypeWithAttr",
+                        "resource_type": "NODE",
+                        "typeattrs": [{"attr_id": attr.id}]
+                    },
+                    {
+                        "name": "EmptyEdge",
+                        "resource_type": "LINK",
+                        "typeattrs": []
+                    }
+                ]
+            }
+        }
+
+        imported = template_lib.import_template_dict(
+            template_dict, allow_update=True, user_id=USER_ID
+        )
+
+        # First read after the import is served from the cache entry that the import wrote
+        first = JSONObject(template_lib.get_template(imported.id, user_id=USER_ID))
+        first_types = {tt.name: tt for tt in first.templatetypes}
+        assert first_types["EmptyEdge"].typeattrs is not None, (
+            "Type with no type attributes has no 'typeattrs' in the template cached by "
+            "import_template_dict; expected an empty list"
+        )
+        assert list(first_types["EmptyEdge"].typeattrs) == []
+
+        # Once the cache entry is removed, get_template rebuilds it and must agree with the above
+        clear_cache()
+        rebuilt = JSONObject(template_lib.get_template(imported.id, user_id=USER_ID))
+        rebuilt_types = {tt.name: tt for tt in rebuilt.templatetypes}
+        assert list(rebuilt_types["EmptyEdge"].typeattrs) == []
+        assert len(first_types["TypeWithAttr"].typeattrs) == len(rebuilt_types["TypeWithAttr"].typeattrs) == 1
+
