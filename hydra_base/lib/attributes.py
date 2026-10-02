@@ -233,7 +233,7 @@ def search_attributes(name, network_id=None, project_id=None, **kwargs):
         return None
 
 
-def _add_attribute(attr, user_id, flush=True, do_reassign=False):
+def _add_attribute(attr, user_id, flush=True, do_reassign=False, check_scope=True):
     """
     Add an attribute to the DB
     args:
@@ -243,6 +243,9 @@ def _add_attribute(attr, user_id, flush=True, do_reassign=False):
         do_reassign: Flag to indicate whether any attributes scoped lower than the
                      incoming attribute should be removed. **WARNING*** this is
                      just here for testing purposes
+        check_scope: Flag to indicate whether to check for conflicting attributes at
+                     higher scopes (one or more queries per attribute). Callers which
+                     have already done this in bulk, like add_attributes, pass False.
      returns:
         JSONObject of new attr
     """
@@ -256,7 +259,8 @@ def _add_attribute(attr, user_id, flush=True, do_reassign=False):
         project_id = attr.project_id
     )
 
-    _check_can_add_attribute(attr.name, attr.dimension_id, attr.project_id, attr.network_id)
+    if check_scope is True:
+        _check_can_add_attribute(attr.name, attr.dimension_id, attr.project_id, attr.network_id)
 
     if attr.network_id is not None and attr.project_id is not None:
         raise HydraError(f"Unable to add attrubute {attr.name}. "+
@@ -726,10 +730,13 @@ def add_attributes(attrs, **kwargs):
             seen_new_keys.add(dedup_key)
             deduped_attrs_to_add.append(attr)
 
-    # Batch insert: collect ORM objects without flushing individually
+    # Batch insert: collect ORM objects without flushing individually.
+    # The scope conflict check is skipped as attr_dict above already holds every
+    # matching attribute in the global, project-hierarchy and network scopes, and
+    # any match was put in existing_attrs rather than attrs_to_add.
     orm_attrs = []
     for attr in deduped_attrs_to_add:
-        new_attr_i = _add_attribute(attr, flush=False, user_id=user_id)
+        new_attr_i = _add_attribute(attr, flush=False, user_id=user_id, check_scope=False)
         orm_attrs.append(new_attr_i)
 
     # Single flush for all new attributes instead of per-attribute flushes
