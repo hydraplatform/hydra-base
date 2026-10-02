@@ -114,7 +114,7 @@ def connect(db_url=None):
 
     log.info("Connecting to database")
     if db_url.find('@') >= 0:
-        log.info("DB URL: %s", db_url.split('@')[1])
+        log.info("DB URL: %s", db_url.rsplit('@', 1)[-1])
     else:
         log.info("DB URL: %s", db_url)
 
