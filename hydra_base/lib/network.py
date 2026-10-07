@@ -1783,6 +1783,15 @@ def get_network_extents(network_id,**kwargs):
         # Default y extent if all None values
         min_alt_y, max_alt_y = 0, 1
 
+    # min/max default to fake 0/1 (or 0/100 in some callers) ranges when a
+    # coordinate system has no data at all, which the frontend can't tell
+    # apart from "genuinely spans 0 to 1" - these booleans let it reliably
+    # detect presence instead (see hwi's network.html: hasGeographicView/
+    # hasSchematicView, which gate whether the map/schematic view - and the
+    # dual-view switch button - are offered at all).
+    has_geographic = len(x) > 0 and len(y) > 0
+    has_schematic = len(alt_x) > 0 and len(alt_y) > 0
+
     ne = JSONObject(dict(
         network_id = network_id,
         min_x=x_min,
