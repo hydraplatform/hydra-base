@@ -29,7 +29,6 @@ from decimal import Decimal
 
 from sqlalchemy import func, null, and_, or_, distinct
 from sqlalchemy.orm import aliased, make_transient, joinedload
-from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.sql.expression import literal_column, case
 
@@ -616,23 +615,17 @@ def _bulk_insert_data(bulk_data, user_id=None, source=None):
             new_data_for_insert[key]["value"] = str(inserted.inserted_ids[idx])  # Replace ds.values with _id ref
 
     if len(new_data_for_insert) > 0:
-    	#If we're working with mysql, we have to lock the table..
-    	#For sqlite, this is not possible. Hence the try: except
-        #try:
-        #    db.DBSession.execute("LOCK TABLES tDataset WRITE, tMetadata WRITE")
-        #except OperationalError:
-        #    pass
-
+        #Two concurrent imports can independently compute a dataset with the
+        #same content (and therefore the same hash) and both find it missing
+        #from the existing-data lookup above before either has committed.
+        #Insert-ignore rather than a plain insert so a hash that lands here
+        #as a duplicate is skipped instead of aborting the whole batch with
+        #an IntegrityError; the hash is re-queried below regardless of which
+        #concurrent transaction actually won the insert.
         log.info("Inserting new data %s", get_timing(start_time))
 
-        db.DBSession.execute(Dataset.__table__.insert(), new_data_for_insert)
+        db.bulk_insert_ignore(Dataset, new_data_for_insert)
         log.info("New data Inserted %s", get_timing(start_time))
-
-        #try:
-        #    db.DBSession.execute("UNLOCK TABLES")
-        #except OperationalError:
-        #    pass
-
 
         new_data = _get_existing_data(new_data_hashes)
         log.info("New data retrieved %s", get_timing(start_time))
@@ -774,8 +767,8 @@ def _get_existing_data(hashes):
 
 def _get_datasets(dataset_ids):
     """
-        Get all the datasets in a list of dataset IDS. This must be done in chunks of 999,
-        as sqlite can only handle 'in' with < 1000 elements.
+        Get all the datasets in a list of dataset IDS. This is done in chunks of 999
+        to keep individual 'in' queries a reasonable size.
     """
 
     dataset_dict = {}

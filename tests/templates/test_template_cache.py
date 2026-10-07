@@ -35,7 +35,6 @@ The three tests below each isolate a different aspect of the bug:
 
 import datetime
 import json
-import tempfile
 import time
 import pytest
 
@@ -53,19 +52,20 @@ from hydra_base.util.hdb import (
 
 
 # ---------------------------------------------------------------------------
-# Session-scoped DB fixture (self-contained SQLite, no conftest.py dependency)
+# Session-scoped DB fixture (self-contained MySQL DB, no conftest.py dependency)
 # ---------------------------------------------------------------------------
 
 @pytest.fixture(scope='module')
 def db():
     millis = int(round(time.time() * 1000))
-    db_url = f'sqlite:///{tempfile.gettempdir()}/test_template_cache_{millis}.db'
+    db_url = f'mysql+mysqldb://root:root@localhost/test_template_cache_{millis}'
     hb.db.connect(db_url)
     create_default_users_and_perms()
     make_root_user()
     create_default_units_and_dimensions()
     yield hb.db
     clear_cache()
+    hb.db.DeclarativeBase.metadata.drop_all(hb.db.engine)
     hb.db.close_session()
 
 

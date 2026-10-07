@@ -21,9 +21,7 @@ import sqlalchemy
 from sqlalchemy.orm import scoped_session
 from sqlalchemy import create_engine
 
-#Import these as a test for foreign key checking in
-from sqlalchemy import event, text
-from sqlalchemy.engine import Engine
+from sqlalchemy import text
 
 from .. import config
 from hydra_base.exceptions import HydraError
@@ -51,12 +49,6 @@ restart_counter = 0
 #logger_sqlalchemy = logging.getLogger('sqlalchemy')
 #logger_sqlalchemy.setLevel(logging.DEBUG)
 
-# @event.listens_for(Engine, "connect")
-# def set_sqlite_pragma(dbapi_connection, connection_record):
-#     cursor = dbapi_connection.cursor()
-#     cursor.execute("PRAGMA foreign_keys=ON")
-#     cursor.close()
-
 def create_mysql_db(db_url):
     """
         To simplify deployment, create the mysql DB if it's not there.
@@ -70,10 +62,6 @@ def create_mysql_db(db_url):
 
         if no DB name is specified, it is retrieved from config
     """
-
-    #add a special case for a memory-based sqlite session
-    if db_url == 'sqlite://':
-        return db_url
 
     #Remove trailing whitespace and forwardslashes
     db_url = db_url.strip().strip('/')
@@ -122,29 +110,25 @@ def connect(db_url=None):
 
     global engine
 
-    if db_url.startswith('sqlite'):
-        engine = create_engine(db_url)
-    else:
+    # Let's use at least 10 for size and 20 for overflow (hydra.ini file)
+    # To test the timeout: pool_size:1, max_overflow: 0, pool_timeout: 5 or any low value
+    #These values MUST be smaller than the pool timeouts of the DB, otherwise the connection
+    #will remain open on the client while it has been closed on the server, resulting in
+    #an error
+    db_pool_size = int(config.get('mysqld', 'pool_size',10)) # 10
+    db_pool_recycle = int(config.get('mysqld', 'pool_recycle', 300)) # 300
+    db_max_overflow = int(config.get('mysqld', 'max_overflow', 20)) # 10 -> 30
+    db_pool_timeout = int(config.get('mysqld', 'pool_timeout', 10))
+    db_pool_pre_ping = True if config.get('mysqld', 'pool_pre_ping', 'Y').upper() == 'Y' else False
 
-        # Let's use at least 10 for size and 20 for overflow (hydra.ini file)
-        # To test the timeout: pool_size:1, max_overflow: 0, pool_timeout: 5 or any low value
-        #These values MUST be smaller than the pool timeouts of the DB, otherwise the connection
-        #will remain open on the client while it has been closed on the server, resulting in
-        #an error
-        db_pool_size = int(config.get('mysqld', 'pool_size',10)) # 10
-        db_pool_recycle = int(config.get('mysqld', 'pool_recycle', 300)) # 300
-        db_max_overflow = int(config.get('mysqld', 'max_overflow', 20)) # 10 -> 30
-        db_pool_timeout = int(config.get('mysqld', 'pool_timeout', 10))
-        db_pool_pre_ping = True if config.get('mysqld', 'pool_pre_ping', 'Y').upper() == 'Y' else False
+    log.warning(f"db_pool_size: {db_pool_size} - pool_recycle: {db_pool_recycle} - max_overflow: {db_max_overflow} - pool_timeout: {db_pool_timeout} - pool_pre_ping: {db_pool_pre_ping}")
 
-        log.warning(f"db_pool_size: {db_pool_size} - pool_recycle: {db_pool_recycle} - max_overflow: {db_max_overflow} - pool_timeout: {db_pool_timeout} - pool_pre_ping: {db_pool_pre_ping}")
-
-        engine = create_engine(db_url,
-                               pool_recycle=db_pool_recycle,
-                               pool_size=db_pool_size,
-                               pool_timeout=db_pool_timeout,
-                               max_overflow=db_max_overflow,
-                               pool_pre_ping=db_pool_pre_ping)
+    engine = create_engine(db_url,
+                           pool_recycle=db_pool_recycle,
+                           pool_size=db_pool_size,
+                           pool_timeout=db_pool_timeout,
+                           max_overflow=db_max_overflow,
+                           pool_pre_ping=db_pool_pre_ping)
 
     global hydra_db_url
     hydra_db_url=db_url
@@ -216,9 +200,6 @@ def bulk_insert_ignore(model, rows):
         stmt = _insert(model).values(rows).prefix_with('IGNORE')
     elif dialect_name == 'postgresql':
         from sqlalchemy.dialects.postgresql import insert as _insert
-        stmt = _insert(model).values(rows).on_conflict_do_nothing()
-    elif dialect_name == 'sqlite':
-        from sqlalchemy.dialects.sqlite import insert as _insert
         stmt = _insert(model).values(rows).on_conflict_do_nothing()
     else:
         raise HydraError(f"bulk_insert_ignore: unsupported dialect '{dialect_name}'")

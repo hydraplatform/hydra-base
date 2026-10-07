@@ -1,9 +1,6 @@
 import pytest
 
-import tempfile
 import datetime
-import sqlite3
-import time
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -22,7 +19,7 @@ externaldb_mark = "externaldb"
 requires_hdf_mark = "requires_hdf"
 
 def pytest_addoption(parser):
-    parser.addoption("--db-backend", action="store", default="sqlite",
+    parser.addoption("--db-backend", action="store", default="mysql",
                      help="Database backend to use when running the tests.")
     parser.addoption("--connection-type", action="store", default="local",
                      help="Remote or Local Connection")
@@ -85,12 +82,7 @@ def dateformat():
 
 @pytest.fixture(scope='module')
 def testdb_uri(db_backend):
-    if db_backend == 'sqlite':
-        tmp = tempfile.gettempdir()
-        # Use a :memory: database for the tests.
-        millis = int(round(time.time() * 1000))
-        return f'sqlite:///{tmp}/test_db_{millis}.db'
-    elif db_backend == 'postgres':
+    if db_backend == 'postgres':
         # This is designed to work on Travis CI
         return 'postgresql://postgres@localhost:5432/hydra_base_test'
     elif db_backend == 'mysql':
