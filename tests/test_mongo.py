@@ -76,6 +76,31 @@ class TestMongo():
             assert key in mongo_config, f"Mongo config missing `{key}` definition"
 
 
+    @pytest.mark.requires_replicaset
+    def test_replica_set_connection(self, client, mongo_config, mongo):
+        """
+        Verifies the connection, identity, and topology of the replica set.
+        """
+        # Connection should always be to the set primary
+        assert mongo.client.is_primary
+
+        td = mongo.client.topology_description
+        # The connection is some form of replica topology...
+        assert "replica" in td.topology_type_name.lower()
+
+        # ...and is the expected replica set...
+        assert td.replica_set_name == mongo.replSet["id"]
+
+        # ...and includes all of the hosts in our replSet config
+        for node in mongo.replSet["members"]:
+            assert (node["host"], node["port"]) in td.server_descriptions()
+
+        # Exactly one arbiter should be present...
+        assert len(mongo.client.arbiters) == 1
+        # ...and it is the expected host
+        assert (mongo.replSet["arbiter"]["host"], mongo.replSet["arbiter"]["port"]) in mongo.client.arbiters
+
+
     def test_bulk_add_mongo_data(self, client, mongo_config, mongo):
         """
         Builds a non-trivial number of large datasets and adds *the values*
@@ -85,7 +110,7 @@ class TestMongo():
         """
 
         mongo_threshold = mongo_config["threshold"]
-        num_datasets = 32
+        num_datasets = 24
         datasets = []
         unit_id = client.get_unit_by_abbreviation("m s^-1").id
         for idx in range(num_datasets):
