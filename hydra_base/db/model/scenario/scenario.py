@@ -33,7 +33,7 @@ class ResourceScenario(Base, Inspect):
 
     __tablename__='tResourceScenario'
 
-    dataset_id = Column(Integer(), ForeignKey('tDataset.id'), nullable=False)
+    dataset_id = Column(Integer(), ForeignKey('tDataset.id'), nullable=False, index=True)
     scenario_id = Column(Integer(), ForeignKey('tScenario.id'), primary_key=True, nullable=False, index=True)
     resource_attr_id = Column(Integer(), ForeignKey('tResourceAttr.id'), primary_key=True, nullable=False, index=True)
     source           = Column(String(60))
@@ -175,7 +175,15 @@ class Scenario(Base, Inspect):
         if self.parent is not None and get_parent_data is True:
             return self.parent.get_data(user_id, child_data=child_data,
                                         get_parent_data=get_parent_data,
-                                       ra_ids=ra_ids)
+                                        ra_ids=ra_ids,
+                                        include_results=include_results,
+                                        include_only_results=include_only_results,
+                                        include_data_types=include_data_types,
+                                        exclude_data_types=exclude_data_types,
+                                        include_values=include_values,
+                                        include_data_type_values=include_data_type_values,
+                                        exclude_data_type_values=exclude_data_type_values,
+                                        include_metadata=include_metadata)
 
         return child_data
 

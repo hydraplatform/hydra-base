@@ -861,7 +861,7 @@ def update_resource_attribute(resource_attr_id, is_var, **kwargs):
 
     ra.check_write_permission(user_id)
 
-    ra.is_var = is_var
+    ra.attr_is_var = 'Y' if is_var in (True, 'Y', 'y') else 'N'
 
     return 'OK'
 

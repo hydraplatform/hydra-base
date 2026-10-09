@@ -269,6 +269,7 @@ def get_scenario(scenario_id,
                  include_only_results=False,
                  include_metadata=True,
                  include_attr=True,
+                 include_values=True,
                  **kwargs):
     """
         Get the specified scenario
@@ -282,6 +283,8 @@ def get_scenario(scenario_id,
                 are necessary. This can have a significant performance impact
             include_only_results: Flag (default False). Set to True if you ONLY
                 want results data. This will only work when include_results is True
+            include_values: Flag (default True). Set to False to omit the (potentially
+                large) dataset 'value' column and return structure only.
         return:
             A scenario JSONObject
     """
@@ -299,6 +302,7 @@ def get_scenario(scenario_id,
             get_parent_data=get_parent_data,
             include_results=include_results,
             include_only_results=include_only_results,
+            include_values=include_values,
             include_metadata=include_metadata)
     log.info(f"Time taken to get data: {time.time() - t:.2f}")
     rgi_rs = []
@@ -727,14 +731,14 @@ def compare_scenarios(scenario_id_1, scenario_id_2, allow_different_networks=Fal
     user_id = kwargs.get('user_id')
 
     scenario_1 = get_scenario(scenario_id_1,
-                              include_parent_data=True,
+                              get_parent_data=True,
                               include_results=include_results,
                               include_attr=True,
                               include_metadata=False,
                               user_id=user_id)
 
     scenario_2 = get_scenario(scenario_id_2,
-                              include_parent_data=True,
+                              get_parent_data=True,
                               include_results=include_results,
                               include_attr=True,
                               include_metadata=False,
@@ -786,7 +790,7 @@ def compare_scenarios(scenario_id_1, scenario_id_2, allow_different_networks=Fal
         s2_rs = r_scen_2_dict.get(ra_id)
         if s2_rs is not None:
             log.debug("Is %s == %s?"%(s1_rs.dataset_id, s2_rs.dataset_id))
-            if s1_rs.dataset.value != s2_rs.dataset.value:
+            if s1_rs.dataset_id != s2_rs.dataset_id and s1_rs.dataset.value != s2_rs.dataset.value:
                 resource_diff = dict(
                     resource_attr_id = s1_rs.resource_attr_id,
                     scenario_1_dataset = s1_rs.dataset,
