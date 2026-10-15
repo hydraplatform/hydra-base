@@ -33,7 +33,7 @@ class ResourceScenario(Base, Inspect):
 
     __tablename__='tResourceScenario'
 
-    dataset_id = Column(Integer(), ForeignKey('tDataset.id'), nullable=False)
+    dataset_id = Column(Integer(), ForeignKey('tDataset.id'), nullable=False, index=True)
     scenario_id = Column(Integer(), ForeignKey('tScenario.id'), primary_key=True, nullable=False, index=True)
     resource_attr_id = Column(Integer(), ForeignKey('tResourceAttr.id'), primary_key=True, nullable=False, index=True)
     source           = Column(String(60))
@@ -133,7 +133,8 @@ class Scenario(Base, Inspect):
         include_values=True,
         include_data_type_values=None,
         exclude_data_type_values=None,
-        include_metadata=True):
+        include_metadata=True,
+        attr_ids=None):
         """
             Return all the resourcescenarios relevant to this scenario.
             If this scenario inherits from another, look up the tree to compile
@@ -158,6 +159,7 @@ class Scenario(Base, Inspect):
         resourcescenarios = self.get_all_resourcescenarios(
             user_id,
             ra_ids=ra_ids,
+            attr_ids=attr_ids,
             include_results=include_results,
             include_only_results=include_only_results,
             include_metadata=include_metadata,
@@ -175,7 +177,16 @@ class Scenario(Base, Inspect):
         if self.parent is not None and get_parent_data is True:
             return self.parent.get_data(user_id, child_data=child_data,
                                         get_parent_data=get_parent_data,
-                                       ra_ids=ra_ids)
+                                        ra_ids=ra_ids,
+                                        attr_ids=attr_ids,
+                                        include_results=include_results,
+                                        include_only_results=include_only_results,
+                                        include_data_types=include_data_types,
+                                        exclude_data_types=exclude_data_types,
+                                        include_values=include_values,
+                                        include_data_type_values=include_data_type_values,
+                                        exclude_data_type_values=exclude_data_type_values,
+                                        include_metadata=include_metadata)
 
         return child_data
 
@@ -188,7 +199,8 @@ class Scenario(Base, Inspect):
         include_values=True,
         include_data_type_values=None,
         exclude_data_type_values=None,
-        include_metadata=True):
+        include_metadata=True,
+        attr_ids=None):
         """
             Get all the resource scenarios in a network, across all scenarios
             returns a dictionary of dict objects, keyed on scenario_id
@@ -232,6 +244,9 @@ class Scenario(Base, Inspect):
 
         if ra_ids is not None:
             rs_qry = rs_qry.filter(ResourceScenario.resource_attr_id.in_(ra_ids))
+
+        if attr_ids is not None:
+            rs_qry = rs_qry.filter(ResourceAttr.attr_id.in_(attr_ids))
         
         if include_data_types is not None:
             rs_qry = rs_qry.filter(func.upper(Dataset.type).in_([t.upper() for t in include_data_types]))
