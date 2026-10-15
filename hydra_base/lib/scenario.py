@@ -270,6 +270,7 @@ def get_scenario(scenario_id,
                  include_metadata=True,
                  include_attr=True,
                  include_values=True,
+                 attr_ids=None,
                  **kwargs):
     """
         Get the specified scenario
@@ -283,6 +284,8 @@ def get_scenario(scenario_id,
                 are necessary. This can have a significant performance impact
             include_only_results: Flag (default False). Set to True if you ONLY
                 want results data. This will only work when include_results is True
+            attr_ids: Optional list of attribute IDs. If given, only resource
+                scenarios for these attributes are returned (filtered in SQL).
             include_values: Flag (default True). Set to False to omit the (potentially
                 large) dataset 'value' column and return structure only.
         return:
@@ -303,7 +306,8 @@ def get_scenario(scenario_id,
             include_results=include_results,
             include_only_results=include_only_results,
             include_values=include_values,
-            include_metadata=include_metadata)
+            include_metadata=include_metadata,
+            attr_ids=attr_ids)
     log.info(f"Time taken to get data: {time.time() - t:.2f}")
     rgi_rs = []
     if include_group_items is True:
