@@ -1413,21 +1413,24 @@ def assign_value(rs, data_type, val,
         log.debug("Set RS dataset id to %s"%dataset.id)
     else:
         log.debug("Creating new dataset %s in scenario %s", name, rs.scenario_id)
-        if bulk_ctx is not None and data_hash in bulk_ctx.new_dataset_cache:
-            dataset = bulk_ctx.new_dataset_cache[data_hash]
-        else:
-            dataset = data.add_dataset(
-                data_type,
-                val,
-                unit_id,
-                metadata=metadata,
-                name=name,
-                **dict(user_id=user_id)
-            )
-            if bulk_ctx is not None:
-                bulk_ctx.created += 1
-                if data_hash is not None:
-                    bulk_ctx.new_dataset_cache[data_hash] = dataset
+        # Dedup is keyed by each dataset's real, post-set_hash() hash (handled
+        # inside add_dataset via pending_cache), NOT by the data_hash estimated
+        # here from the pre-parse raw value -- that estimate can legitimately
+        # differ from the real hash (parse_value() can reformat the value), so
+        # using it as the cache key let two new datasets with equal real values
+        # slip past this cache and both reach flush(), colliding on tDataset's
+        # UNIQUE(hash) constraint.
+        dataset = data.add_dataset(
+            data_type,
+            val,
+            unit_id,
+            metadata=metadata,
+            name=name,
+            pending_cache=bulk_ctx.new_dataset_cache if bulk_ctx is not None else None,
+            **dict(user_id=user_id)
+        )
+        if bulk_ctx is not None:
+            bulk_ctx.created += 1
         rs.dataset = dataset
         rs.source = source
 
