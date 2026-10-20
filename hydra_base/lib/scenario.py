@@ -411,7 +411,7 @@ def update_scenario(scenario, update_data=True, update_groups=True, flush=True, 
                 of another process, like update_network.
     """
     user_id = kwargs.get('user_id')
-    scen = _get_scenario(scenario.id, user_id)
+    scen = _get_scenario(scenario.id, user_id, check_write=True)
 
     if scen.locked == 'Y':
         raise PermissionError('Scenario is locked. Unlock before editing.')
@@ -506,7 +506,7 @@ def create_child_scenario(parent_scenario_id, child_name, **kwargs):
 
     user_id = kwargs.get('user_id')
 
-    scen_i = _get_scenario(parent_scenario_id, user_id)
+    scen_i = _get_scenario(parent_scenario_id, user_id, check_write=True)
 
     log.info("Creating child scenario of %s", scen_i.name)
 
@@ -562,7 +562,7 @@ def clone_scenario(scenario_id, retain_results=False, scenario_name=None, **kwar
 
     user_id = kwargs.get('user_id')
 
-    scen_i = _get_scenario(scenario_id, user_id)
+    scen_i = _get_scenario(scenario_id, user_id, check_write=True)
 
     log.info("cloning scenario %s", scen_i.name)
 
@@ -1765,11 +1765,12 @@ def delete_resourcegroupitems(scenario_id, item_ids, **kwargs):
         Delete specified items in a group, in a scenario.
     """
     user_id = int(kwargs.get('user_id'))
-    #check the scenario exists
-    _get_scenario(scenario_id, user_id)
+    #check the scenario exists and the user can edit it
+    _get_scenario(scenario_id, user_id, check_write=True, check_can_edit=True)
     for item_id in item_ids:
         rgi = db.DBSession.query(ResourceGroupItem).\
-                filter(ResourceGroupItem.id == item_id).one()
+                filter(ResourceGroupItem.id == item_id,
+                       ResourceGroupItem.scenario_id == scenario_id).one()
         db.DBSession.delete(rgi)
 
     db.DBSession.flush()
@@ -1780,8 +1781,8 @@ def empty_group(group_id, scenario_id, **kwargs):
         Delete all itemas in a group, in a scenario.
     """
     user_id = int(kwargs.get('user_id'))
-    #check the scenario exists
-    _get_scenario(scenario_id, user_id)
+    #check the scenario exists and the user can edit it
+    _get_scenario(scenario_id, user_id, check_write=True, check_can_edit=True)
 
     rgi = db.DBSession.query(ResourceGroupItem).\
             filter(ResourceGroupItem.group_id == group_id).\
@@ -1797,7 +1798,7 @@ def add_resourcegroupitems(scenario_id, items, scenario=None, **kwargs):
     user_id = int(kwargs.get('user_id'))
 
     if scenario is None:
-        scenario = _get_scenario(scenario_id, user_id)
+        scenario = _get_scenario(scenario_id, user_id, check_write=True, check_can_edit=True)
 
     _check_network_ownership(scenario.network_id, user_id)
 
@@ -1870,7 +1871,7 @@ def update_value_from_mapping(source_resource_attr_id, target_resource_attr_id, 
 
     #check scenarios exist
     s1 = _get_scenario(source_scenario_id, user_id)
-    s2 = _get_scenario(target_scenario_id, user_id)
+    s2 = _get_scenario(target_scenario_id, user_id, check_write=True, check_can_edit=True)
 
     rs = aliased(ResourceScenario, name='rs')
     rs1 = db.DBSession.query(rs).filter(rs.resource_attr_id == source_resource_attr_id,
