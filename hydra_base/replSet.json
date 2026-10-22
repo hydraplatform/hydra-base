@@ -1,0 +1,17 @@
+{
+  "id": "HydraReplicaSet",
+  "members": [
+    {
+      "host": "mongo-1.hydra.org.uk",
+      "port": 27017
+    },
+    {
+      "host": "mongo-2.hydra.org.uk",
+      "port": 27017
+    }
+  ],
+  "arbiter": {
+    "host": "46.105.98.40",
+    "port": 27017
+  }
+}
