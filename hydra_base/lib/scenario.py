@@ -55,15 +55,15 @@ def _check_network_ownership(network_id, user_id):
 
     net.check_write_permission(user_id)
 
-def _get_scenario(scenario_id, user_id, check_write=False, check_unlocked=False):
+def _get_scenario(scenario_id, user_id, check_can_edit=False, check_unlocked=False):
     log.info("Getting scenario %s", scenario_id)
     try:
         scenario_i = db.DBSession.query(Scenario).filter(Scenario.id == scenario_id).one()
 
-        if check_write is True:
+        if check_can_edit is True:
             scenario_i.network.check_write_permission(user_id)
         else:
-            #always check read permission. only do this if check write is false to
+            #always check read permission. only do this if check_can_edit is false to
             #avoid doing basically the same query twice.
             scenario_i.network.check_read_permission(user_id)
 
@@ -114,7 +114,7 @@ def merge_scenarios(source_scenario_id, target_scenario_id, match_all_names=True
     user_id = kwargs.get('user_id')
 
     source_scenario = _get_scenario(source_scenario_id, user_id)
-    target_scenario = _get_scenario(target_scenario_id, user_id, check_write=True)
+    target_scenario = _get_scenario(target_scenario_id, user_id, check_can_edit=True)
 
     source_network = source_scenario.network
     target_network = target_scenario.network
@@ -411,7 +411,7 @@ def update_scenario(scenario, update_data=True, update_groups=True, flush=True, 
                 of another process, like update_network.
     """
     user_id = kwargs.get('user_id')
-    scen = _get_scenario(scenario.id, user_id, check_write=True)
+    scen = _get_scenario(scenario.id, user_id, check_can_edit=True)
 
     if scen.locked == 'Y':
         raise PermissionError('Scenario is locked. Unlock before editing.')
@@ -476,7 +476,7 @@ def set_scenario_status(scenario_id, status, **kwargs):
 
     user_id = kwargs.get('user_id')
 
-    scenario_i = _get_scenario(scenario_id, user_id, check_write=True, check_unlocked=True)
+    scenario_i = _get_scenario(scenario_id, user_id, check_can_edit=True, check_unlocked=True)
 
     scenario_i.status = status
     db.DBSession.flush()
@@ -490,7 +490,7 @@ def purge_scenario(scenario_id, **kwargs):
 
     user_id = kwargs.get('user_id')
 
-    scenario_i = _get_scenario(scenario_id, user_id, check_write=True, check_unlocked=True)
+    scenario_i = _get_scenario(scenario_id, user_id, check_can_edit=True, check_unlocked=True)
 
     db.DBSession.delete(scenario_i)
     db.DBSession.flush()
@@ -506,7 +506,7 @@ def create_child_scenario(parent_scenario_id, child_name, **kwargs):
 
     user_id = kwargs.get('user_id')
 
-    scen_i = _get_scenario(parent_scenario_id, user_id, check_write=True)
+    scen_i = _get_scenario(parent_scenario_id, user_id, check_can_edit=True)
 
     log.info("Creating child scenario of %s", scen_i.name)
 
@@ -562,7 +562,7 @@ def clone_scenario(scenario_id, retain_results=False, scenario_name=None, **kwar
 
     user_id = kwargs.get('user_id')
 
-    scen_i = _get_scenario(scenario_id, user_id, check_write=True)
+    scen_i = _get_scenario(scenario_id, user_id, check_can_edit=True)
 
     log.info("cloning scenario %s", scen_i.name)
 
@@ -1011,7 +1011,7 @@ def bulk_update_resourcedata(scenario_ids, resource_scenarios, **kwargs):
 
     for scenario_id in scenario_ids:
 
-        scen_i = _get_scenario(scenario_id, user_id, check_write=True, check_unlocked=True)
+        scen_i = _get_scenario(scenario_id, user_id, check_can_edit=True, check_unlocked=True)
 
         #this is cast as a string so it can be read into a JSONObject
         res[str(scenario_id)] = []
@@ -1136,7 +1136,7 @@ def update_resourcedata(scenario_id, resource_scenarios, **kwargs):
     user_id = kwargs.get('user_id')
     res = None
 
-    scenario_i = _get_scenario(scenario_id, user_id, check_write=True, check_unlocked=True)
+    scenario_i = _get_scenario(scenario_id, user_id, check_can_edit=True, check_unlocked=True)
 
     res = []
     for rs in resource_scenarios:
@@ -1158,7 +1158,7 @@ def delete_scenario_results(scenario_id, **kwargs):
     """
     user_id = kwargs.get('user_id')
 
-    _get_scenario(scenario_id, user_id, check_write=True, check_unlocked=True)
+    _get_scenario(scenario_id, user_id, check_can_edit=True, check_unlocked=True)
 
     results_rs = db.DBSession.query(ResourceScenario)\
         .join(ResourceAttr)\
@@ -1178,7 +1178,7 @@ def delete_resource_scenario(scenario_id, resource_attr_id, quiet=False, **kwarg
     """
     user_id = kwargs.get('user_id')
 
-    _get_scenario(scenario_id, user_id, check_write=True, check_unlocked=True)
+    _get_scenario(scenario_id, user_id, check_can_edit=True, check_unlocked=True)
 
     _delete_resourcescenario(scenario_id, resource_attr_id, suppress_error=quiet)
 
@@ -1190,7 +1190,7 @@ def delete_resource_scenarios(scenario_id, resource_attr_ids, quiet=False, **kwa
     user_id = kwargs.get('user_id')
 
     log.info("Deleting %s resource scenarios from from scenario %s", len(resource_attr_ids), scenario_id)
-    _get_scenario(scenario_id, user_id, check_write=True, check_unlocked=True)
+    _get_scenario(scenario_id, user_id, check_can_edit=True, check_unlocked=True)
 
     for resource_attr_id in resource_attr_ids:
         _delete_resourcescenario(scenario_id, resource_attr_id, suppress_error=quiet)
@@ -1204,7 +1204,7 @@ def delete_resourcedata(scenario_id, resource_scenario, quiet = False, **kwargs)
     """
     user_id = kwargs.get('user_id')
 
-    _get_scenario(scenario_id, user_id, check_write=True, check_unlocked=True)
+    _get_scenario(scenario_id, user_id, check_can_edit=True, check_unlocked=True)
 
     _delete_resourcescenario(scenario_id, resource_scenario.resource_attr_id, suppress_error=quiet)
 
@@ -1446,7 +1446,7 @@ def add_data_to_attribute(scenario_id, resource_attr_id, dataset,**kwargs):
     """
     user_id = kwargs.get('user_id')
 
-    scenario_i = _get_scenario(scenario_id, user_id, check_write=True, check_unlocked=True)
+    scenario_i = _get_scenario(scenario_id, user_id, check_can_edit=True, check_unlocked=True)
 
     try:
         r_scen_i = db.DBSession.query(ResourceScenario).filter(
@@ -1766,7 +1766,7 @@ def delete_resourcegroupitems(scenario_id, item_ids, **kwargs):
     """
     user_id = int(kwargs.get('user_id'))
     #check the scenario exists and the user can edit it
-    _get_scenario(scenario_id, user_id, check_write=True, check_unlocked=True)
+    _get_scenario(scenario_id, user_id, check_can_edit=True, check_unlocked=True)
     for item_id in item_ids:
         rgi = db.DBSession.query(ResourceGroupItem).\
                 filter(ResourceGroupItem.id == item_id,
@@ -1782,7 +1782,7 @@ def empty_group(group_id, scenario_id, **kwargs):
     """
     user_id = int(kwargs.get('user_id'))
     #check the scenario exists and the user can edit it
-    _get_scenario(scenario_id, user_id, check_write=True, check_unlocked=True)
+    _get_scenario(scenario_id, user_id, check_can_edit=True, check_unlocked=True)
 
     rgi = db.DBSession.query(ResourceGroupItem).\
             filter(ResourceGroupItem.group_id == group_id).\
@@ -1798,7 +1798,7 @@ def add_resourcegroupitems(scenario_id, items, scenario=None, **kwargs):
     user_id = int(kwargs.get('user_id'))
 
     if scenario is None:
-        scenario = _get_scenario(scenario_id, user_id, check_write=True, check_unlocked=True)
+        scenario = _get_scenario(scenario_id, user_id, check_can_edit=True, check_unlocked=True)
 
     _check_network_ownership(scenario.network_id, user_id)
 
@@ -1871,7 +1871,7 @@ def update_value_from_mapping(source_resource_attr_id, target_resource_attr_id, 
 
     #check scenarios exist
     s1 = _get_scenario(source_scenario_id, user_id)
-    s2 = _get_scenario(target_scenario_id, user_id, check_write=True, check_unlocked=True)
+    s2 = _get_scenario(target_scenario_id, user_id, check_can_edit=True, check_unlocked=True)
 
     rs = aliased(ResourceScenario, name='rs')
     rs1 = db.DBSession.query(rs).filter(rs.resource_attr_id == source_resource_attr_id,
