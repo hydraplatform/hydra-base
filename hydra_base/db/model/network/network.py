@@ -219,7 +219,7 @@ class Network(Base, Inspect, PermissionControlled, Resource):
         if can_write is True:
             return True
 
-        can_write = self.project.check_write_permission(user_id)
+        can_write = self.project.check_write_permission(user_id, do_raise=False, is_admin=is_admin)
 
         if can_write is False and do_raise is True:
             raise PermissionError("Permission denied. User %s does not have edit"
