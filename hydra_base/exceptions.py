@@ -69,6 +69,9 @@ class HydraLoginUserMaxAttemptsExceeded(HydraError):
 class HydraLoginUserPasswordWrong(HydraError):
     __error_code__ = 'HYDRA_LOGIN_USER_PASSWORD_WRONG'
 
+class HydraLoginInvalidOTP(HydraError):
+    __error_code__ = 'HYDRA_LOGIN_INVALID_OTP'
+
 #
 #ERROR CODES FOR HYDRA
 #Categories are:
