@@ -93,7 +93,7 @@ def update_resourcegroup(group,**kwargs):
 
 def add_resourcegroupitem(group_item, scenario_id,**kwargs):
 
-    _get_scenario(scenario_id, kwargs['user_id'], check_write=True, check_can_edit=True)
+    _get_scenario(scenario_id, kwargs['user_id'], check_write=True, check_unlocked=True)
     #Check whether the ref_id is correct.
 
     if group_item.ref_key == 'NODE':
@@ -135,7 +135,7 @@ def add_resourcegroupitem(group_item, scenario_id,**kwargs):
 def delete_resourcegroupitem(item_id,**kwargs):
     group_item_i = _get_item(item_id)
 
-    _get_scenario(group_item_i.scenario_id, kwargs['user_id'], check_write=True, check_can_edit=True)
+    _get_scenario(group_item_i.scenario_id, kwargs['user_id'], check_write=True, check_unlocked=True)
     db.DBSession.delete(group_item_i)
     db.DBSession.flush()
 
