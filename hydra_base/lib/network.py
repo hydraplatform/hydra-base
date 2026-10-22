@@ -1324,6 +1324,72 @@ def get_network_simple(network_id,**kwargs):
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id,))
 
+def check_network_write_permission(network_id, is_admin=None, **kwargs):
+    """
+        Whether the user (kwargs['user_id']) has edit access to a network.
+
+        Unlike the update functions, which raise, this just answers: False
+        for a view-only user or an unknown network. Write access on the
+        network's project counts, as for Network.check_write_permission.
+        is_admin is passed through to that check; None looks it up.
+    """
+    net_i = db.DBSession.query(Network).filter(Network.id==network_id).first()
+
+    if net_i is None:
+        return False
+
+    return net_i.check_write_permission(kwargs['user_id'], do_raise=False, is_admin=is_admin) is True
+
+def get_resource_network_id(resource_type, resource_id, **kwargs):
+    """
+        The ID of the network a resource belongs to, so that a caller which
+        is handed a node, link, group, scenario or resource attribute ID can
+        check the network's permissions. resource_type is one of NETWORK,
+        NODE, LINK, GROUP, SCENARIO or RESOURCEATTR (case-insensitive).
+
+        Returns None if the resource doesn't exist or isn't in a network the
+        user (kwargs['user_id']) can read, so this doesn't reveal which
+        networks exist.
+    """
+    try:
+        resource_id = int(resource_id)
+    except (TypeError, ValueError):
+        return None
+
+    resource_type = str(resource_type).upper()
+
+    if resource_type == 'RESOURCEATTR':
+        ra = db.DBSession.query(ResourceAttr.ref_key, ResourceAttr.network_id,
+                                ResourceAttr.node_id, ResourceAttr.link_id,
+                                ResourceAttr.group_id).filter(ResourceAttr.id==resource_id).first()
+        if ra is None:
+            return None
+        resource_type = ra.ref_key
+        resource_id = {'NETWORK': ra.network_id, 'NODE': ra.node_id,
+                       'LINK': ra.link_id, 'GROUP': ra.group_id}.get(ra.ref_key)
+        if resource_id is None:
+            return None
+
+    if resource_type == 'NETWORK':
+        network_id_col, model = Network.id, Network
+    else:
+        model = {'NODE': Node, 'LINK': Link, 'GROUP': ResourceGroup, 'SCENARIO': Scenario}.get(resource_type)
+        if model is None:
+            return None
+        network_id_col = model.network_id
+
+    row = db.DBSession.query(network_id_col).filter(model.id==resource_id).first()
+
+    if row is None or row[0] is None:
+        return None
+
+    net_i = db.DBSession.query(Network).filter(Network.id==row[0]).first()
+
+    if net_i is None or net_i.check_read_permission(kwargs['user_id'], do_raise=False) is not True:
+        return None
+
+    return net_i.id
+
 def get_node(node_id, scenario_id=None, **kwargs):
     try:
         n = db.DBSession.query(Node).filter(Node.id==node_id).options(joinedload(Node.attributes).joinedload(ResourceAttr.attr)).one()
