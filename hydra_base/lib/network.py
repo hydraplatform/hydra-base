@@ -1551,12 +1551,17 @@ def update_network(network,
     """
     log.info("Updating Network %s", network.name)
     user_id = kwargs.get('user_id')
-    #check_perm('update_network')
 
     try:
         net_i = db.DBSession.query(Network).filter(Network.id == network.id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Network with id %s not found"%(network.id))
+
+    net_i.check_write_permission(user_id)
+
+    #Moving the network to another project requires write access to that project too
+    if network.project_id != net_i.project_id:
+        _get_project_for_write(network.project_id, user_id)
 
     net_i.project_id = network.project_id
     net_i.name = network.name
@@ -1709,6 +1714,8 @@ def move_network(network_id, target_project_id, **kwargs):
         raise ResourceNotFoundError("Network with id %s not found"%(network_id))
 
     net_i.check_write_permission(user_id)
+
+    _get_project_for_write(target_project_id, user_id)
 
     net_i.project_id = target_project_id
 
@@ -2958,6 +2965,20 @@ def get_all_resource_data(
     log.info("Returning %s datasets", len(return_data))
 
     return return_data
+
+def _get_project_for_write(project_id, user_id):
+    """
+        Return the project with the given ID, raising if it does not exist
+        or if the user does not have write permission on it.
+    """
+    try:
+        proj_i = db.DBSession.query(Project).filter(Project.id == project_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError("Project with id %s not found"%(project_id))
+
+    proj_i.check_write_permission(user_id)
+
+    return proj_i
 
 def clone_network(network_id,
                   recipient_user_id=None,

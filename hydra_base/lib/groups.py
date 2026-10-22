@@ -21,7 +21,7 @@ from ..exceptions import HydraError, ResourceNotFoundError
 from . import scenario, network
 
 from .. import db
-from ..db.model import ResourceGroup, ResourceGroupItem, Node, Link
+from ..db.model import ResourceGroup, ResourceGroupItem, Node, Link, Network
 from .scenario import _get_scenario
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -45,6 +45,12 @@ def add_resourcegroup(group, network_id,**kwargs):
     """
         Add a new group to a network.
     """
+    try:
+        net_i = db.DBSession.query(Network).filter(Network.id==network_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError("Network %s not found"%(network_id,))
+    net_i.check_write_permission(kwargs.get('user_id'))
+
     group_i                   = ResourceGroup()
     group_i.name              = group.name
     group_i.description       = group.description
@@ -59,6 +65,7 @@ def delete_resourcegroup(group_id, purge_data='N', **kwargs):
         Add a new group to a scenario.
     """
     group_i = _get_group(group_id)
+    group_i.check_write_permission(kwargs.get('user_id'))
 
     if purge_data == 'Y':
         network._purge_datasets_unique_to_resource('GROUP', group_id)
@@ -74,6 +81,7 @@ def update_resourcegroup(group,**kwargs):
     """
 
     group_i                 = _get_group(group.id)
+    group_i.check_write_permission(kwargs.get('user_id'))
     group_i.name            = group.name
     group_i.description     = group.description
     group_i.status          = group.status
@@ -85,7 +93,7 @@ def update_resourcegroup(group,**kwargs):
 
 def add_resourcegroupitem(group_item, scenario_id,**kwargs):
 
-    _get_scenario(scenario_id, kwargs['user_id'], check_can_edit=True)
+    _get_scenario(scenario_id, kwargs['user_id'], check_can_edit=True, check_unlocked=True)
     #Check whether the ref_id is correct.
 
     if group_item.ref_key == 'NODE':
@@ -127,7 +135,7 @@ def add_resourcegroupitem(group_item, scenario_id,**kwargs):
 def delete_resourcegroupitem(item_id,**kwargs):
     group_item_i = _get_item(item_id)
 
-    _get_scenario(group_item_i.scenario_id, kwargs['user_id'], check_can_edit=True)
+    _get_scenario(group_item_i.scenario_id, kwargs['user_id'], check_can_edit=True, check_unlocked=True)
     db.DBSession.delete(group_item_i)
     db.DBSession.flush()
 
