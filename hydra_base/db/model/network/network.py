@@ -113,7 +113,7 @@ class Network(Base, Inspect, PermissionControlled, Resource):
         return l
 
 
-    def add_node(self, name, desc, layout, node_x, node_y):
+    def add_node(self, name, desc, layout, node_x, node_y, node_alt_x=None, node_alt_y=None):
         """
             Add a node to a network.
         """
@@ -127,6 +127,8 @@ class Network(Base, Inspect, PermissionControlled, Resource):
         node.layout      = str(layout) if layout is not None else None
         node.x           = node_x
         node.y           = node_y
+        node.alt_x       = node_alt_x
+        node.alt_y       = node_alt_y
 
         #Do not call save here because it is likely that we may want
         #to bulk insert nodes, not one at a time.
@@ -158,7 +160,7 @@ class Network(Base, Inspect, PermissionControlled, Resource):
 
         return group_i
 
-    def set_owner(self, user_id, read='Y', write='Y', share='Y'):
+    def set_owner(self, user_id, read='Y', write='Y', share='Y', is_admin='N'):
         owner = None
         for o in self.owners:
             if str(user_id) == str(o.user_id):
@@ -170,9 +172,10 @@ class Network(Base, Inspect, PermissionControlled, Resource):
             self.owners.append(owner)
 
         owner.user_id = int(user_id)
-        owner.view  = read
-        owner.edit  = write
-        owner.share = share
+        owner.view     = read
+        owner.edit     = write
+        owner.share    = share
+        owner.is_admin = is_admin
 
         return owner
 
@@ -216,7 +219,7 @@ class Network(Base, Inspect, PermissionControlled, Resource):
         if can_write is True:
             return True
 
-        can_write = self.project.check_write_permission(user_id)
+        can_write = self.project.check_write_permission(user_id, do_raise=False, is_admin=is_admin)
 
         if can_write is False and do_raise is True:
             raise PermissionError("Permission denied. User %s does not have edit"

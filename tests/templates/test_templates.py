@@ -1207,3 +1207,65 @@ class TestTemplates:
         assert len(errors_diff) == 1
         errors_same = client.check_type_compatibility(same_type_1_id, same_type_2_id)
         assert len(errors_same) == 0
+
+    def test_add_project_template(self, client, projectmaker, mock_template):
+        project = projectmaker.create()
+        pt = client.add_project_template(project.id, mock_template.id)
+        assert pt is not None
+        assert pt.project_id == project.id
+        assert pt.template_id == mock_template.id
+
+    def test_add_project_template_duplicate(self, client, projectmaker, mock_template):
+        """Adding the same link twice returns the existing record without error."""
+        project = projectmaker.create()
+        pt1 = client.add_project_template(project.id, mock_template.id)
+        pt2 = client.add_project_template(project.id, mock_template.id)
+        assert pt1.project_id == pt2.project_id
+        assert pt1.template_id == pt2.template_id
+
+    def test_add_project_template_invalid_project(self, client, mock_template):
+        with pytest.raises(Exception):
+            client.add_project_template(-999, mock_template.id)
+
+    def test_add_project_template_invalid_template(self, client, projectmaker):
+        project = projectmaker.create()
+        with pytest.raises(Exception):
+            client.add_project_template(project.id, -999)
+
+    def test_get_project_templates(self, client, projectmaker, mock_template):
+        project = projectmaker.create()
+        client.add_project_template(project.id, mock_template.id)
+        templates = client.get_project_templates(project.id)
+        assert templates is not None
+        template_ids = [t.id for t in templates]
+        assert mock_template.id in template_ids
+
+    def test_get_project_templates_empty(self, client, projectmaker):
+        """A project with no linked templates returns an empty list."""
+        project = projectmaker.create()
+        templates = client.get_project_templates(project.id)
+        assert len(templates) == 0
+
+    def test_get_project_templates_multiple(self, client, projectmaker, mock_template, mock_template_copy):
+        """Multiple templates can be linked to the same project."""
+        project = projectmaker.create()
+        client.add_project_template(project.id, mock_template.id)
+        client.add_project_template(project.id, mock_template_copy.id)
+        templates = client.get_project_templates(project.id)
+        template_ids = [t.id for t in templates]
+        assert mock_template.id in template_ids
+        assert mock_template_copy.id in template_ids
+
+    def test_remove_project_template(self, client, projectmaker, mock_template):
+        project = projectmaker.create()
+        client.add_project_template(project.id, mock_template.id)
+        result = client.remove_project_template(project.id, mock_template.id)
+        assert result == 'OK'
+        templates = client.get_project_templates(project.id)
+        assert mock_template.id not in [t.id for t in templates]
+
+    def test_remove_project_template_not_linked(self, client, projectmaker, mock_template):
+        """Removing a template that isn't linked to the project raises an error."""
+        project = projectmaker.create()
+        with pytest.raises(Exception):
+            client.remove_project_template(project.id, mock_template.id)

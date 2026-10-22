@@ -166,6 +166,47 @@ class TestUser:
 
         assert delete_result == 'OK', "Role Perm was not removed!"
 
+    def test_get_users_like(self, client):
+
+        all_users = client.get_all_users()
+        matching_users = []
+        for u in all_users:
+            if u.username.lower().find('user') >= 0:
+                matching_users.append(u.username)
+
+        partial_name_a = 'erA' # UserA
+
+        similar_users_a = client.get_users_like(partial_name_a)
+
+        assert len(similar_users_a) == 1
+
+        partial_name_b = 'User'
+
+        similar_users_b = client.get_users_like(partial_name_b)
+
+        assert len(similar_users_b) == len(matching_users)
+
+    def test_get_usernames_like(self, client):
+
+        all_users = client.get_all_users()
+        matching_users = []
+        for u in all_users:
+            if u.username.lower().find('user') >= 0:
+                matching_users.append(u.username)
+
+        partial_name_a = 'erA' # UserA
+
+        similar_users_a = client.get_usernames_like(partial_name_a)
+
+        assert len(similar_users_a) == 1
+
+        partial_name_b = 'User'
+
+        similar_users_b = client.get_usernames_like(partial_name_b)
+
+        assert len(similar_users_b) == len(matching_users)
+
+
     def test_get_users(self, client, user_json_object):
         """ Test fetching all the users """
 

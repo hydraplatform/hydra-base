@@ -17,6 +17,7 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
+from io import StringIO
 import logging
 log = logging.getLogger(__name__)
 
@@ -148,7 +149,8 @@ def get_val(dataset, timestamp=None):
         seasonal_key = config.get('DEFAULT', 'seasonal_key', '9999')
         val = val.replace(seasonal_key, seasonal_year)
 
-        timeseries = pd.read_json(val, convert_axes=True)
+
+        timeseries = pd.read_json(StringIO(val), convert_axes=True)
 
         if isinstance(timeseries.index, pd.DatetimeIndex):
             if timeseries.index.tz is None:

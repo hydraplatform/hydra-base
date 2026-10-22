@@ -54,7 +54,7 @@ def _get_dataset(dataset_id):
     except NoResultFound:
         raise ResourceNotFoundError("Dataset %s not found"%(dataset_id))
 
-def share_network(network_id, usernames, read_only, share, **kwargs):
+def share_network(network_id, usernames, read_only, share, is_admin=False, **kwargs):
     """
         Share a network with a list of users, identified by their usernames.
 
@@ -81,6 +81,11 @@ def share_network(network_id, usernames, read_only, share, **kwargs):
     elif share is False:
         share = 'N'
 
+    if is_admin in (True, 'Y'):
+        is_admin = 'Y'
+    else:
+        is_admin = 'N'
+
     if net_i.created_by != int(user_id) and share == 'Y':
         raise HydraError(f"Cannot share the 'sharing' ability as user {user_id} is not"
                          f" the owner of network {network_id}")
@@ -88,7 +93,7 @@ def share_network(network_id, usernames, read_only, share, **kwargs):
     for username in usernames:
         user_i = _get_user(username)
         #Set the owner ship on the network itself
-        net_i.set_owner(user_i.id, write=write, share=share)
+        net_i.set_owner(user_i.id, write=write, share=share, is_admin=is_admin)
 
         Project.clear_cache(user_i.id)
     db.DBSession.flush()
@@ -110,7 +115,7 @@ def unshare_network(network_id, usernames, **kwargs):
 
     db.DBSession.flush()
 
-def share_project(project_id, usernames, read_only=False, share=False, flush=True, **kwargs):
+def share_project(project_id, usernames, read_only=False, share=False, is_admin=False, flush=True, **kwargs):
     """
         Share an entire project with a list of users, identifed by
         their usernames.
@@ -130,12 +135,6 @@ def share_project(project_id, usernames, read_only=False, share=False, flush=Tru
 
     user_id = int(user_id)
 
-    # for owner in proj_i.owners:
-    #     if user_id == owner.user_id:
-    #         break
-    # else:
-    #     raise HydraError("Permission Denied. Cannot share project.")
-
     if read_only in ('Y', True):
         write = 'N'
         share = 'N'
@@ -149,15 +148,15 @@ def share_project(project_id, usernames, read_only=False, share=False, flush=Tru
     if share in ('N', False):
         share = 'N'
 
-    # if proj_i.created_by != user_id and share == 'Y':
-    #     raise HydraError("Cannot share the 'sharing' ability as user %s is not"
-    #                  " the owner of project %s"%
-    #                  (user_id, project_id))
+    if is_admin in (True, 'Y'):
+        is_admin = 'Y'
+    else:
+        is_admin = 'N'
 
     for username in usernames:
         user_i = _get_user(username)
 
-        proj_i.set_owner(user_i.id, write=write, share=share)
+        proj_i.set_owner(user_i.id, write=write, share=share, is_admin=is_admin)
 
         Project.clear_cache(user_i.id)
 
@@ -370,6 +369,7 @@ def bulk_set_project_owners(project_owners, **kwargs):
         new_po.view       = project_owner.view
         new_po.edit       = project_owner.edit
         new_po.share      = project_owner.share
+        new_po.is_admin   = getattr(project_owner, 'is_admin', 'N')
 
         db.DBSession.add(new_po)
 
@@ -410,6 +410,7 @@ def bulk_set_network_owners(network_owners, **kwargs):
         new_no.view       = network_owner.view
         new_no.edit       = network_owner.edit
         new_no.share      = network_owner.share
+        new_no.is_admin   = getattr(network_owner, 'is_admin', 'N')
 
         db.DBSession.add(new_no)
 

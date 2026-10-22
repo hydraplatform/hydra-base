@@ -51,7 +51,7 @@ class ResourceGroupItem(Base, Inspect):
     #--There needs to be a connection between the items & the resources to allow it
     node = relationship('Node', backref=backref("resourcegroupitems", order_by=id, cascade="all, delete-orphan"))
     link = relationship('Link', backref=backref("resourcegroupitems", order_by=id, cascade="all, delete-orphan"))
-    subgroup = relationship('ResourceGroup', foreign_keys=[subgroup_id])
+    subgroup = relationship('ResourceGroup', foreign_keys=[subgroup_id], backref=backref("subgroup_items", order_by=id, cascade="all, delete-orphan"))
 
     _parents  = ['tResourceGroup', 'tScenario']
     _children = []

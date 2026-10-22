@@ -18,8 +18,6 @@ packaging
 pandas
 Pillow
 psycopg2-binary
-pudb
-pylibmc
 pymongo
 python-dateutil
 requests

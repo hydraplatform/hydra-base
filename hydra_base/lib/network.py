@@ -264,7 +264,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
                     template_j = template.get_template(resource_type.child_template_id, user_id=admin_id)
                     template_lookup[template_j.id] = template_j
                 for tt in template_j.templatetypes:
-                    typeattr_lookup[tt.id] = tt.typeattrs
+                    typeattr_lookup[tt.id] = tt.typeattrs or []
 
                 typeattrs = typeattr_lookup.get(resource_type.id, []) #TODO this should be type_id
                 for ta in typeattrs:
@@ -377,6 +377,8 @@ def _add_nodes_to_database(net_i, nodes):
                      'layout'     : node.get_layout(),
                      'x'     : node.x,
                      'y'     : node.y,
+                     'alt_x' : node.alt_x,
+                     'alt_y' : node.alt_y,
                     }
         node_list.append(node_dict)
     t0 = time.time()
@@ -723,7 +725,7 @@ def _get_all_resource_attributes(network_id, template_id=None, include_non_templ
     """
     start_time = time.time()
     log.info("Getting all resource attributes using multiple smaller queries")
-    
+
     # Create the base query structure for reuse
     def _create_base_query():
         return db.DBSession.query(
@@ -742,28 +744,28 @@ def _get_all_resource_attributes(network_id, template_id=None, include_non_templ
 
     # Execute separate queries for each resource type
     all_resource_attributes = []
-    
+
     # Query 1: Node attributes
     node_start = time.time()
     node_qry = _create_base_query().filter(ResourceAttr.node_id != None).join(Node).filter(Node.network_id == network_id)
     node_attributes = node_qry.all()
     log.info("Node attributes: %s retrieved in %s", len(node_attributes), time.time()-node_start)
     all_resource_attributes.extend(node_attributes)
-    
+
     # Query 2: Link attributes
     link_start = time.time()
     link_qry = _create_base_query().filter(ResourceAttr.link_id != None).join(Link).filter(Link.network_id == network_id)
     link_attributes = link_qry.all()
     log.info("Link attributes: %s retrieved in %s", len(link_attributes), time.time()-link_start)
     all_resource_attributes.extend(link_attributes)
-    
+
     # Query 3: Group attributes
     group_start = time.time()
     group_qry = _create_base_query().filter(ResourceAttr.group_id != None).join(ResourceGroup).filter(ResourceGroup.network_id == network_id)
     group_attributes = group_qry.all()
     log.info("Group attributes: %s retrieved in %s", len(group_attributes), time.time()-group_start)
     all_resource_attributes.extend(group_attributes)
-    
+
     # Query 4: Network attributes
     network_start = time.time()
     network_qry = _create_base_query().filter(ResourceAttr.network_id != None).filter(ResourceAttr.network_id == network_id)
@@ -1322,6 +1324,72 @@ def get_network_simple(network_id,**kwargs):
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id,))
 
+def check_network_write_permission(network_id, is_admin=None, **kwargs):
+    """
+        Whether the user (kwargs['user_id']) has edit access to a network.
+
+        Unlike the update functions, which raise, this just answers: False
+        for a view-only user or an unknown network. Write access on the
+        network's project counts, as for Network.check_write_permission.
+        is_admin is passed through to that check; None looks it up.
+    """
+    net_i = db.DBSession.query(Network).filter(Network.id==network_id).first()
+
+    if net_i is None:
+        return False
+
+    return net_i.check_write_permission(kwargs['user_id'], do_raise=False, is_admin=is_admin) is True
+
+def get_resource_network_id(resource_type, resource_id, **kwargs):
+    """
+        The ID of the network a resource belongs to, so that a caller which
+        is handed a node, link, group, scenario or resource attribute ID can
+        check the network's permissions. resource_type is one of NETWORK,
+        NODE, LINK, GROUP, SCENARIO or RESOURCEATTR (case-insensitive).
+
+        Returns None if the resource doesn't exist or isn't in a network the
+        user (kwargs['user_id']) can read, so this doesn't reveal which
+        networks exist.
+    """
+    try:
+        resource_id = int(resource_id)
+    except (TypeError, ValueError):
+        return None
+
+    resource_type = str(resource_type).upper()
+
+    if resource_type == 'RESOURCEATTR':
+        ra = db.DBSession.query(ResourceAttr.ref_key, ResourceAttr.network_id,
+                                ResourceAttr.node_id, ResourceAttr.link_id,
+                                ResourceAttr.group_id).filter(ResourceAttr.id==resource_id).first()
+        if ra is None:
+            return None
+        resource_type = ra.ref_key
+        resource_id = {'NETWORK': ra.network_id, 'NODE': ra.node_id,
+                       'LINK': ra.link_id, 'GROUP': ra.group_id}.get(ra.ref_key)
+        if resource_id is None:
+            return None
+
+    if resource_type == 'NETWORK':
+        network_id_col, model = Network.id, Network
+    else:
+        model = {'NODE': Node, 'LINK': Link, 'GROUP': ResourceGroup, 'SCENARIO': Scenario}.get(resource_type)
+        if model is None:
+            return None
+        network_id_col = model.network_id
+
+    row = db.DBSession.query(network_id_col).filter(model.id==resource_id).first()
+
+    if row is None or row[0] is None:
+        return None
+
+    net_i = db.DBSession.query(Network).filter(Network.id==row[0]).first()
+
+    if net_i is None or net_i.check_read_permission(kwargs['user_id'], do_raise=False) is not True:
+        return None
+
+    return net_i.id
+
 def get_node(node_id, scenario_id=None, **kwargs):
     try:
         n = db.DBSession.query(Node).filter(Node.id==node_id).options(joinedload(Node.attributes).joinedload(ResourceAttr.attr)).one()
@@ -1483,12 +1551,17 @@ def update_network(network,
     """
     log.info("Updating Network %s", network.name)
     user_id = kwargs.get('user_id')
-    #check_perm('update_network')
 
     try:
         net_i = db.DBSession.query(Network).filter(Network.id == network.id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Network with id %s not found"%(network.id))
+
+    net_i.check_write_permission(user_id)
+
+    #Moving the network to another project requires write access to that project too
+    if network.project_id != net_i.project_id:
+        _get_project_for_write(network.project_id, user_id)
 
     net_i.project_id = network.project_id
     net_i.name = network.name
@@ -1519,6 +1592,8 @@ def update_network(network,
                 n.description = node.description
                 n.x           = node.x
                 n.y           = node.y
+                n.alt_x       = node.alt_x
+                n.alt_y       = node.alt_y
                 n.status      = node.status
                 n.layout      = node.get_layout()
             else:
@@ -1527,7 +1602,9 @@ def update_network(network,
                                    node.description,
                                    node.get_layout(),
                                    node.x,
-                                   node.y)
+                                   node.y,
+                                   node.alt_x,
+                                   node.alt_y)
                 net_i.nodes.append(n)
                 node_id_map[n.id] = n
 
@@ -1638,6 +1715,8 @@ def move_network(network_id, target_project_id, **kwargs):
 
     net_i.check_write_permission(user_id)
 
+    _get_project_for_write(target_project_id, user_id)
+
     net_i.project_id = target_project_id
 
     db.DBSession.flush()
@@ -1658,6 +1737,35 @@ def update_resource_layout(resource_type, resource_id, key, value, **kwargs):
     db.DBSession.flush()
 
     return layout
+
+def update_network_appdata(network_id, key, value, **kwargs):
+    """
+        Update a single key in a network's appdata without touching any
+        other network fields (name, description, projection, layout, etc).
+        This assumes that appdata is a JSON compatible dictionary.
+    """
+    user_id = kwargs.get('user_id')
+
+    log.info("Updating network %s's appdata with {%s:%s}", network_id, key, value)
+
+    try:
+        net_i = db.DBSession.query(Network).filter(Network.id == network_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError("Network with id %s not found"%(network_id))
+
+    net_i.check_write_permission(user_id)
+
+    if net_i.appdata is None:
+        appdata = dict()
+    else:
+        appdata = json.loads(net_i.appdata)
+
+    appdata[key] = value
+    net_i.appdata = json.dumps(appdata)
+
+    db.DBSession.flush()
+
+    return appdata
 
 def get_resource(resource_type, resource_id, **kwargs):
     user_id = kwargs.get('user_id')
@@ -1698,7 +1806,7 @@ def get_network_extents(network_id,**kwargs):
 
     @returns NetworkExtents object
     """
-    rs = db.DBSession.query(Node.x, Node.y).filter(Node.network_id==network_id).all()
+    rs = db.DBSession.query(Node.x, Node.y, Node.alt_x, Node.alt_y).filter(Node.network_id==network_id).all()
     if len(rs) == 0:
         return dict(
             network_id = network_id,
@@ -1706,6 +1814,12 @@ def get_network_extents(network_id,**kwargs):
             max_x=None,
             min_y=None,
             max_y=None,
+            min_alt_x=None,
+            max_alt_x=None,
+            min_alt_y=None,
+            max_alt_y=None,
+            has_geographic=False,
+            has_schematic=False
         )
 
     # Compute min/max extent of the network.
@@ -1725,12 +1839,40 @@ def get_network_extents(network_id,**kwargs):
         # Default y extent if all None values
         y_min, y_max = 0, 1
 
+    # Compute min/max extent of the network in the alternate coordinate system.
+    alt_x = [r.alt_x for r in rs if r.alt_x is not None]
+    if len(alt_x) > 0:
+        min_alt_x = min(alt_x)
+        max_alt_x = max(alt_x)
+    else:
+        # Default x extent if all None values
+        min_alt_x, max_alt_x = 0, 1
+
+    alt_y = [r.alt_y for r in rs if r.alt_y is not None]
+    if len(alt_y) > 0:
+        min_alt_y = min(alt_y)
+        max_alt_y = max(alt_y)
+    else:
+        # Default y extent if all None values
+        min_alt_y, max_alt_y = 0, 1
+
     ne = JSONObject(dict(
         network_id = network_id,
         min_x=x_min,
         max_x=x_max,
         min_y=y_min,
         max_y=y_max,
+        min_alt_x=min_alt_x,
+        max_alt_x=max_alt_x,
+        min_alt_y=min_alt_y,
+        max_alt_y=max_alt_y,
+        # `min`/`max` above default to a fake (0, 1) range when no node in
+        # the network has that coordinate system populated, so callers that
+        # need to know whether the coordinate system is actually usable
+        # (e.g. to decide whether to offer a map/schematic view) must check
+        # these flags rather than the min/max values themselves.
+        has_geographic=len(x) > 0 and len(y) > 0,
+        has_schematic=len(alt_x) > 0 and len(alt_y) > 0
     ))
     return ne
 
@@ -1825,7 +1967,7 @@ def add_node(network_id, node, **kwargs):
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id))
 
-    new_node = net_i.add_node(node.name, node.description, node.layout, node.x, node.y)
+    new_node = net_i.add_node(node.name, node.description, node.layout, node.x, node.y, node.alt_x, node.alt_y)
 
     hdb.add_resource_attributes(new_node, node.attributes)
 
@@ -1894,6 +2036,8 @@ def update_node(node, flush=True, **kwargs):
     node_i.name = node.name if node.name is not None else node_i.name
     node_i.x    = node.x if node.x is not None else node_i.x
     node_i.y    = node.y if node.y is not None else node_i.y
+    node_i.alt_x = node.alt_x if node.alt_x is not None else node_i.alt_x
+    node_i.alt_y = node.alt_y if node.alt_y is not None else node_i.alt_y
     node_i.description = node.description if node.description is not None else node_i.description
     node_i.layout      = node.get_layout() if node.layout is not None else node_i.layout
 
@@ -2632,22 +2776,12 @@ def get_all_resource_attributes_in_network(attr_id, network_id, include_resource
     except NoResultFound:
         raise HydraError("Attribute %s not found"%(attr_id,))
 
-    ra_qry = db.DBSession.query(ResourceAttr).filter(
-        ResourceAttr.attr_id == attr_id,
-        or_(Network.id == network_id,
-            Node.network_id == network_id,
-            Link.network_id == network_id,
-            ResourceGroup.network_id == network_id)
-        ).outerjoin(ResourceAttr.node)\
-        .outerjoin(ResourceAttr.link)\
-        .outerjoin(ResourceAttr.network)\
-        .outerjoin(ResourceAttr.resourcegroup)\
-        .options(joinedload(ResourceAttr.node))\
-        .options(joinedload(ResourceAttr.link))\
-        .options(joinedload(ResourceAttr.resourcegroup))\
-        .options(joinedload(ResourceAttr.network))
-
-    resourceattrs = ra_qry.all()
+    querystub = db.DBSession.query(ResourceAttr).filter(ResourceAttr.attr_id == attr_id)
+    network_ra_rs = querystub.filter(ResourceAttr.network_id == network_id).all()
+    node_ra_rs = querystub.join(Node).filter(Node.network_id == network_id).all()
+    link_ra_rs = querystub.join(Link).filter(Link.network_id == network_id).all()
+    group_ra_rs = querystub.join(ResourceGroup).filter(ResourceGroup.network_id == network_id).all()
+    resourceattrs = network_ra_rs + node_ra_rs + link_ra_rs + group_ra_rs
 
     json_ra = []
     #Load the metadata too
@@ -2669,6 +2803,66 @@ def get_all_resource_attributes_in_network(attr_id, network_id, include_resource
         json_ra.append(ra_j)
 
     return json_ra
+
+
+def get_all_attributes_in_network(network_id, **kwargs):
+    """
+        Find every attribute def (not resource attribute)
+        Args:
+            network_id (int): The ID of the network to search
+        Returns:
+            List of JSONObjects
+        Raises:
+            HydraError if the network_id does not exist
+    """
+
+    user_id = kwargs.get('user_id')
+
+    #check the user can read the network
+    try:
+        net = db.DBSession.query(Network).filter(Network.id == network_id).one()
+    except NoResultFound:
+        raise HydraError("Network %s not found" % (network_id,))
+    net.check_read_permission(user_id)
+
+    #Find the distinct attr_ids used by the network and its nodes/links/groups.
+    attr_ids = set()
+
+    #Network/Node/Link lookups join through an indexed network_id and are fast.
+    for r in db.DBSession.query(ResourceAttr.attr_id).filter(
+            ResourceAttr.network_id == network_id).distinct().all():
+        attr_ids.add(r[0])
+
+    for r in db.DBSession.query(ResourceAttr.attr_id).join(
+            Node, ResourceAttr.node_id == Node.id).filter(
+            Node.network_id == network_id).distinct().all():
+        attr_ids.add(r[0])
+
+    for r in db.DBSession.query(ResourceAttr.attr_id).join(
+            Link, ResourceAttr.link_id == Link.id).filter(
+            Link.network_id == network_id).distinct().all():
+        attr_ids.add(r[0])
+
+    #The ResourceGroup join must NOT be done in one query: tResourceGroup has no
+    #dedicated index on network_id (only a composite unique index), so MySQL
+    #mis-plans the join and scans the whole multi-million-row tResourceAttr
+    #table - ~12s for a single group. Fetch the (tiny) set of group ids first,
+    #then look up ResourceAttr by group_id, which uses the (group_id, attr_id)
+    #covering index directly.
+    group_ids = [r[0] for r in db.DBSession.query(ResourceGroup.id).filter(
+        ResourceGroup.network_id == network_id).all()]
+
+    if len(group_ids) > 0:
+        for r in db.DBSession.query(ResourceAttr.attr_id).filter(
+                ResourceAttr.group_id.in_(group_ids)).distinct().all():
+            attr_ids.add(r[0])
+
+    if len(attr_ids) == 0:
+        return []
+
+    attrs = db.DBSession.query(Attr).filter(Attr.id.in_(attr_ids)).all()
+
+    return [JSONObject(a) for a in attrs]
 
 
 def get_all_resource_data(
@@ -2771,6 +2965,20 @@ def get_all_resource_data(
     log.info("Returning %s datasets", len(return_data))
 
     return return_data
+
+def _get_project_for_write(project_id, user_id):
+    """
+        Return the project with the given ID, raising if it does not exist
+        or if the user does not have write permission on it.
+    """
+    try:
+        proj_i = db.DBSession.query(Project).filter(Project.id == project_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError("Project with id %s not found"%(project_id))
+
+    proj_i.check_write_permission(user_id)
+
+    return proj_i
 
 def clone_network(network_id,
                   recipient_user_id=None,
@@ -2922,6 +3130,8 @@ def clone_network(network_id,
 
 
     db.DBSession.flush()
+
+    Project.clear_cache(user_id)
 
     return newnetworkid
 
@@ -3190,6 +3400,8 @@ def _clone_nodes(old_network_id, new_network_id, user_id):
             description = ex_n.description,
             x = ex_n.x,
             y = ex_n.y,
+            alt_x = ex_n.alt_x,
+            alt_y = ex_n.alt_y,
             layout = ex_n.layout,
             status = ex_n.status,
         )

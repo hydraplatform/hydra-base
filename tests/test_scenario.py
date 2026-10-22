@@ -35,6 +35,14 @@ class TestScenario:
             Introduced as the JSONObject wrapper can be controlled more easily
         """
         return JSONObject(client.get_scenario(scenario_id, get_parent_data=get_parent_data))
+
+    def get_scenarios(self, scenario_ids, get_parent_data=False):
+        """
+            Utility function wrapper for a function that's called regularly
+            Introduced as the JSONObject wrapper can be controlled more easily
+        """
+        return JSONObject(client.get_scenarios(scenario_ids))
+
     def get_scenario_data(self, scenario_id, get_parent_data=False):
         """
             Utility function wrapper for a function that's called regularly
@@ -66,6 +74,21 @@ class TestScenario:
         scenario_no_groupitems = client.get_scenario(scenario.id, include_group_items=False)
         assert len(scenario_no_groupitems.resourcescenarios) == len(scenario.resourcescenarios)
         assert scenario_no_groupitems.resourcegroupitems == []
+
+    def test_get_scenarios(self, client, network_with_data):
+        """
+            Test to get the scenarios attached to a dataset
+        """
+
+        network = network_with_data
+
+        #Create the new scenario
+        scenario = network.scenarios[0]
+
+        scenarios_retrieved = client.get_scenarios([scenario.id])
+
+        assert len(scenarios_retrieved) == 1
+        assert scenarios_retrieved[0].id == scenario.id
 
     def test_get_scenario_by_name(self, client, network_with_data):
         """
@@ -506,7 +529,245 @@ class TestScenario:
             if ra_id == descriptor['resource_attr_id']:
                 assert rs.dataset.value == descriptor.dataset.value
 
+    def test_bulk_update_resourcedata_skips_unchanged_values(self, client, network_with_data):
+        """
+            Regression test for the pre-pass "unchanged" short-circuit in
+            bulk_update_resourcedata: resubmitting the exact same value a resource
+            scenario already has must not create a new dataset or touch the
+            existing one.
+        """
+        client.user_id = pytest.root_user_id
+        network1 = network_with_data
+        scenario = network1.scenarios[0]
 
+        node = network1.nodes[5]
+        ra = client.testutils.get_by_name('node_attr_a', node.attributes)
+
+        baseline_value = 111.111
+        client.bulk_update_resourcedata(
+            [scenario.id], [client.testutils.create_scalar(ra, val=baseline_value)])
+
+        baseline_scenario = client.get_scenario(scenario.id)
+        baseline_rs = next(rs for rs in baseline_scenario.resourcescenarios
+                            if rs.resource_attr_id == ra['id'])
+        baseline_dataset_id = baseline_rs.dataset.id
+        assert float(baseline_rs.dataset.value) == baseline_value
+
+        #Resubmit the exact same value -- the pre-pass hash check should
+        #short-circuit this RA: no new dataset, existing one left untouched.
+        client.bulk_update_resourcedata(
+            [scenario.id], [client.testutils.create_scalar(ra, val=baseline_value)])
+
+        after_scenario = client.get_scenario(scenario.id)
+        after_rs = next(rs for rs in after_scenario.resourcescenarios
+                         if rs.resource_attr_id == ra['id'])
+        assert after_rs.dataset.id == baseline_dataset_id, (
+            "Resubmitting an unchanged value should not create a new dataset -- "
+            "the resource scenario should still point at the original one."
+        )
+        assert float(after_rs.dataset.value) == baseline_value
+
+    def test_bulk_update_resourcedata_dedupes_in_batch_hash_collision(self, client, network_with_data):
+        """
+            Regression test for the batch-scoped dataset_hash_cache in assign_value's
+            bulk fast lane: two resource scenarios updated to the same new value in
+            the *same* bulk_update_resourcedata call must end up sharing a single
+            dataset, not each creating their own duplicate with an identical hash.
+        """
+        client.user_id = pytest.root_user_id
+        network1 = network_with_data
+        scenario = network1.scenarios[0]
+
+        node_a, node_b = network1.nodes[0], network1.nodes[1]
+        ra_a = client.testutils.get_by_name('node_attr_a', node_a.attributes)
+        ra_b = client.testutils.get_by_name('node_attr_a', node_b.attributes)
+
+        #Give each RA its own distinct, exclusively-owned dataset first, so the
+        #collision below is guaranteed to go through the update-in-place fast
+        #lane (dataset_hash_cache), not the separately-tested new-dataset path.
+        client.bulk_update_resourcedata(
+            [scenario.id],
+            [client.testutils.create_scalar(ra_a, val=1.0),
+             client.testutils.create_scalar(ra_b, val=2.0)])
+
+        shared_value = 987654.321
+        client.bulk_update_resourcedata(
+            [scenario.id],
+            [client.testutils.create_scalar(ra_a, val=shared_value),
+             client.testutils.create_scalar(ra_b, val=shared_value)])
+
+        updated_scenario = client.get_scenario(scenario.id)
+        ds_a = next(rs.dataset for rs in updated_scenario.resourcescenarios
+                     if rs.resource_attr_id == ra_a['id'])
+        ds_b = next(rs.dataset for rs in updated_scenario.resourcescenarios
+                     if rs.resource_attr_id == ra_b['id'])
+
+        assert float(ds_a.value) == shared_value
+        assert float(ds_b.value) == shared_value
+        assert ds_a.id == ds_b.id, (
+            "Two resource scenarios updated to the same value in the same batch "
+            "should be deduplicated onto a single dataset via the in-batch "
+            "hash-collision cache."
+        )
+
+    def test_bulk_update_resourcedata_dedupes_brand_new_datasets_with_differing_raw_value(
+            self, client, network_with_data):
+        """
+            Regression test for a production failure: two resource scenarios that
+            have NEVER had a dataset before (both go through assign_value's
+            "Creating new dataset" branch, not the update-in-place fast lane)
+            are set, in the same bulk_update_resourcedata call, to dataframe
+            values that are byte-different as raw JSON -- e.g. two GAMS results
+            carrying different floating-point solver noise -- but parse to the
+            exact same value once pandas' Dataframe type rounds to its default
+            JSON precision (both end up "0.0"). The two resource scenarios must
+            still end up sharing a single dataset.
+
+            Before the fix, assign_value's new-dataset-cache was keyed by a hash
+            estimated from the pre-parse raw value, which differed between the two
+            RAs here even though their real (post-parse) hash -- the one
+            Dataset.set_hash() actually persists -- was identical. Both resource
+            scenarios then called data.add_dataset(), whose own DB-side duplicate
+            check cannot see the other's still-unflushed insert (DBSession runs
+            with autoflush=False), so both were added to the session and the
+            batch's single flush() at the end of bulk_update_resourcedata raised
+            IntegrityError on tDataset's UNIQUE(hash) constraint.
+        """
+        client.user_id = pytest.root_user_id
+        network1 = network_with_data
+        scenario = network1.scenarios[0]
+
+        node_a, node_b = network1.nodes[2], network1.nodes[3]
+        ra_a = client.testutils.get_by_name('node_attr_a', node_a.attributes)
+        ra_b = client.testutils.get_by_name('node_attr_a', node_b.attributes)
+
+        #Neither RA has ever had a dataset in this scenario, so both will go
+        #through the "Creating new dataset" branch, not update-in-place.
+        noisy_value_a = {"DYCP.0": {"2032-2033": 1.2345e-13, "2033-2034": 3.4e-14, "2034-2035": 0}}
+        noisy_value_b = {"DYCP.0": {"2032-2033": 5.6e-14, "2033-2034": 9.1e-15, "2034-2035": 0}}
+
+        rs_a = client.testutils.create_dataframe(ra_a, dataframe_value=noisy_value_a)
+        rs_b = client.testutils.create_dataframe(ra_b, dataframe_value=noisy_value_b)
+        assert rs_a.dataset.value != rs_b.dataset.value, (
+            "Test setup error: the two raw values must differ pre-parse for this "
+            "to exercise the new-dataset dedup path."
+        )
+
+        #Must not raise IntegrityError on tDataset.hash.
+        client.bulk_update_resourcedata([scenario.id], [rs_a, rs_b])
+
+        updated_scenario = client.get_scenario(scenario.id)
+        ds_a = next(rs.dataset for rs in updated_scenario.resourcescenarios
+                     if rs.resource_attr_id == ra_a['id'])
+        ds_b = next(rs.dataset for rs in updated_scenario.resourcescenarios
+                     if rs.resource_attr_id == ra_b['id'])
+
+        assert ds_a.id == ds_b.id, (
+            "Two brand-new resource scenarios set to values that differ as raw "
+            "JSON but parse to the same real value should be deduplicated onto a "
+            "single dataset, not each create their own duplicate-hash dataset."
+        )
+
+    def test_bulk_update_resourcedata_hash_collision_respects_dataset_permission(
+            self, client, network_with_data):
+        """
+            Security regression test: the batch hash-collision cache must not
+            attach a resource scenario to an existing dataset the calling user
+            doesn't have read permission on, even though its hash matches.
+        """
+        client.user_id = pytest.root_user_id
+        network1 = network_with_data
+        scenario = network1.scenarios[0]
+
+        owner_node = network1.nodes[2]
+        ra_owner = client.testutils.get_by_name('node_attr_a', owner_node.attributes)
+
+        secret_value = 424242.42
+        client.bulk_update_resourcedata(
+            [scenario.id], [client.testutils.create_scalar(ra_owner, val=secret_value)])
+
+        owner_scenario = client.get_scenario(scenario.id)
+        hidden_dataset_id = next(
+            rs.dataset.id for rs in owner_scenario.resourcescenarios
+            if rs.resource_attr_id == ra_owner['id'])
+
+        #Hide the dataset with no exceptions -- only its owner (root) can read it.
+        client.hide_dataset(hidden_dataset_id, [], 'N', 'N', 'N')
+
+        #Share the network with UserC (non-admin) so they can legitimately edit
+        #it, but they have no read access to root's now-hidden dataset.
+        client.share_network(network1.id, ["UserC"], 'N', 'N')
+
+        try:
+            client.user_id = pytest.user_c.id
+            other_node = network1.nodes[3]
+            ra_other = client.testutils.get_by_name('node_attr_a', other_node.attributes)
+            client.bulk_update_resourcedata(
+                [scenario.id], [client.testutils.create_scalar(ra_other, val=secret_value)])
+
+            client.user_id = pytest.root_user_id
+            after_scenario = client.get_scenario(scenario.id)
+            ds_other_id = next(
+                rs.dataset.id for rs in after_scenario.resourcescenarios
+                if rs.resource_attr_id == ra_other['id'])
+
+            assert ds_other_id != hidden_dataset_id, (
+                "UserC has no read permission on root's hidden dataset -- the "
+                "batch collision cache must not silently attach it to UserC's "
+                "resource scenario just because the hash matches."
+            )
+        finally:
+            client.user_id = pytest.root_user_id
+
+    def test_bulk_update_resourcedata_hash_collision_reuses_when_permitted(
+            self, client, network_with_data):
+        """
+            Mirror of test_..._respects_dataset_permission: when the calling user
+            DOES have read permission on the matching-hash dataset, the batch
+            collision cache should reuse it rather than creating a duplicate.
+        """
+        client.user_id = pytest.root_user_id
+        network1 = network_with_data
+        scenario = network1.scenarios[0]
+
+        owner_node = network1.nodes[2]
+        ra_owner = client.testutils.get_by_name('node_attr_a', owner_node.attributes)
+
+        shared_secret_value = 135791.113
+        client.bulk_update_resourcedata(
+            [scenario.id], [client.testutils.create_scalar(ra_owner, val=shared_secret_value)])
+
+        owner_scenario = client.get_scenario(scenario.id)
+        target_dataset_id = next(
+            rs.dataset.id for rs in owner_scenario.resourcescenarios
+            if rs.resource_attr_id == ra_owner['id'])
+
+        #Hide the dataset, but explicitly grant UserC read access to it.
+        client.hide_dataset(target_dataset_id, ["UserC"], 'Y', 'N', 'N')
+
+        client.share_network(network1.id, ["UserC"], 'N', 'N')
+
+        try:
+            client.user_id = pytest.user_c.id
+            other_node = network1.nodes[3]
+            ra_other = client.testutils.get_by_name('node_attr_a', other_node.attributes)
+            client.bulk_update_resourcedata(
+                [scenario.id],
+                [client.testutils.create_scalar(ra_other, val=shared_secret_value)])
+
+            client.user_id = pytest.root_user_id
+            after_scenario = client.get_scenario(scenario.id)
+            ds_other_id = next(
+                rs.dataset.id for rs in after_scenario.resourcescenarios
+                if rs.resource_attr_id == ra_other['id'])
+
+            assert ds_other_id == target_dataset_id, (
+                "UserC has read permission on the matching-hash dataset -- the "
+                "batch collision cache should reuse it instead of creating a "
+                "duplicate."
+            )
+        finally:
+            client.user_id = pytest.root_user_id
 
     def test_bulk_add_data(self, client, dateformat):
 
@@ -1154,7 +1415,7 @@ class TestScenario:
         locked_resource_scenarios_value = None
         for rs in updated_locked_scenario.resourcescenarios:
             if rs.resource_attr_id == resource_attr_id:
-                locked_resource_scenarios_value = rs.datset
+                locked_resource_scenarios_value = rs.dataset
 
         unlocked_resource_scenarios_value = None
         for rs in updated_unlocked_scenario.resourcescenarios:
