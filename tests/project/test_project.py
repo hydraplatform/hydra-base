@@ -126,6 +126,53 @@ class TestProject:
                rs_to_check.dataset.value == 'just project desscriptor', \
                "There is an inconsistency with the attributes."
 
+    def test_update_project_appdata(self, client, projectmaker):
+        """
+        Test that a single key can be added to a project's appdata without
+        disturbing any keys already present.
+        """
+        proj = projectmaker.create()
+
+        appdata = client.update_project_appdata(proj.id, 'foo', 'bar')
+        assert appdata['foo'] == 'bar'
+
+        stored_proj = client.get_project(proj.id)
+        assert stored_proj.appdata == {'foo': 'bar'}
+
+        #Updating a different key should leave the existing one untouched
+        appdata = client.update_project_appdata(proj.id, 'baz', {'nested': 1})
+        assert appdata == {'foo': 'bar', 'baz': {'nested': 1}}
+
+        stored_proj = client.get_project(proj.id)
+        assert stored_proj.appdata == {'foo': 'bar', 'baz': {'nested': 1}}
+
+        #Updating an existing key should overwrite its value
+        appdata = client.update_project_appdata(proj.id, 'foo', 'updated')
+        assert appdata == {'foo': 'updated', 'baz': {'nested': 1}}
+
+    def test_update_project_appdata_unknown_project(self, client):
+        """
+        Updating the appdata of a project which does not exist should raise
+        an error.
+        """
+        with pytest.raises(hb.exceptions.HydraError):
+            client.update_project_appdata(999999, 'foo', 'bar')
+
+    def test_update_project_appdata_no_permission(self, client, projectmaker):
+        """
+        A user without write access to a project should not be able to
+        update its appdata.
+        """
+        proj_user = client.user_id
+        proj = projectmaker.create(share=False)
+
+        client.user_id = pytest.user_c.id
+        try:
+            with pytest.raises(hb.exceptions.HydraError):
+                client.update_project_appdata(proj.id, 'foo', 'bar')
+        finally:
+            client.user_id = proj_user
+
     def test_load(self, client):
         project = JSONObject({})
         project.name = 'Test Project %s'%(datetime.datetime.now())
@@ -239,6 +286,7 @@ class TestProject:
             view='Y',
             edit='Y',
             share='Y',
+            is_admin='Y',
         ))
 
         client.bulk_set_project_owners([new_owner])
@@ -246,6 +294,9 @@ class TestProject:
         projectowners = client.get_all_project_owners([proj.id])
 
         assert len(projectowners) == 2
+
+        added = next(po for po in projectowners if po.user_id == 2)
+        assert added.is_admin == 'Y'
 
     def test_rename_status_x_project(self, client, projectmaker, networkmaker):
         sender_user_id = client.user_id
@@ -341,6 +392,72 @@ class TestProject:
         cloned_networks = client.get_networks(cloned_project.id)
         assert len(cloned_networks) == 2
 
+    def test_clone_project_with_sub_projects(self, client, projectmaker, networkmaker):
+
+        proj = projectmaker.create()
+        subproj = projectmaker.create(parent_id=proj.id)
+        subsubproj = projectmaker.create(parent_id=subproj.id)
+
+        networkmaker.create(project_id=proj.id)
+        networkmaker.create(project_id=subproj.id)
+        networkmaker.create(project_id=subsubproj.id)
+
+        recipient_user = client.get_user_by_name('UserA')
+
+        new_project_name = 'Cloned With Sub-Projects'
+
+        cloned_project_id = client.clone_project(
+            proj.id,
+            recipient_user_id=recipient_user.id,
+            new_project_name=new_project_name)
+
+        cloned_project = client.get_project(cloned_project_id)
+
+        assert cloned_project.name == new_project_name
+        assert len(client.get_networks(cloned_project.id)) == 1
+
+        #the sub-project has been cloned into the new project
+        assert len(cloned_project.projects) == 1
+        cloned_subproj = client.get_project(cloned_project.projects[0].id)
+        assert cloned_subproj.id != subproj.id
+        #sub-projects keep their own name
+        assert cloned_subproj.name == subproj.name
+        assert cloned_subproj.parent_id == cloned_project.id
+        assert len(client.get_networks(cloned_subproj.id)) == 1
+
+        #...and so has the sub-project of the sub-project
+        assert len(cloned_subproj.projects) == 1
+        cloned_subsubproj = client.get_project(cloned_subproj.projects[0].id)
+        assert cloned_subsubproj.id != subsubproj.id
+        assert cloned_subsubproj.name == subsubproj.name
+        assert cloned_subsubproj.parent_id == cloned_subproj.id
+        assert len(client.get_networks(cloned_subsubproj.id)) == 1
+
+        #the project which was cloned is unchanged
+        assert len(client.get_project(proj.id).projects) == 1
+
+    def test_clone_project_excluding_sub_projects(self, client, projectmaker, networkmaker):
+
+        proj = projectmaker.create()
+        projectmaker.create(parent_id=proj.id)
+
+        networkmaker.create(project_id=proj.id)
+
+        recipient_user = client.get_user_by_name('UserA')
+
+        new_project_name = 'Cloned Without Sub-Projects'
+
+        cloned_project_id = client.clone_project(
+            proj.id,
+            recipient_user_id=recipient_user.id,
+            new_project_name=new_project_name,
+            include_child_projects=False)
+
+        cloned_project = client.get_project(cloned_project_id)
+
+        assert cloned_project.name == new_project_name
+        assert len(client.get_networks(cloned_project.id)) == 1
+        assert len(cloned_project.projects) == 0
     def test_clone_project_to_other_user(self, client, projectmaker, networkmaker):
         sender_user_id = client.user_id
         proj = projectmaker.create()
@@ -467,14 +584,80 @@ class TestProject:
         client.user_id = pytest.user_c.id
         client.get_project(proj.id)
 
-        #now revolk access
+        # is_admin defaults to 'N' when not specified
         client.user_id = proj_user
+        owners = client.get_all_project_owners([proj.id])
+        user_c_owner = next((o for o in owners if o.user_id == pytest.user_c.id), None)
+        assert user_c_owner is not None
+        assert user_c_owner.is_admin == 'N'
+
+        # Share again with is_admin='Y'
+        client.share_project(proj.id, ['UserC'], False, False, is_admin='Y')
+        owners = client.get_all_project_owners([proj.id])
+        user_c_owner = next((o for o in owners if o.user_id == pytest.user_c.id), None)
+        assert user_c_owner.is_admin == 'Y'
+
+        #now revolk access
         client.unshare_project(proj.id, ['UserC'])
 
         #user c no longer has access
         client.user_id = pytest.user_c.id
         with pytest.raises(hb.HydraError):
             client.get_project(proj.id)
+
+    def test_update_project_partial_payload_preserves_parent_id(self, client, projectmaker):
+        """
+        A partial update (one that omits 'parent_id' entirely, e.g. one which
+        only patches 'appdata') must not clear a project's existing parent.
+        Regression test: update_project used to treat a missing 'parent_id'
+        key the same as an explicit null, silently detaching the project
+        from its parent.
+        """
+        parent = projectmaker.create()
+        child = projectmaker.create(parent_id=parent.id)
+
+        assert child.parent_id == parent.id
+
+        #Simulate a caller (e.g. hwi's get_uuid()) which only wants to patch
+        #appdata, and doesn't mention parent_id at all.
+        client.update_project({'id': child.id, 'appdata': {'foo': 'bar'}})
+
+        reloaded_child = client.get_project(child.id)
+        assert reloaded_child.parent_id == parent.id, \
+            "A partial update with no 'parent_id' key must not clear the project's parent."
+        assert reloaded_child.appdata['foo'] == 'bar'
+
+    def test_update_project_explicit_null_parent_id_clears_parent(self, client, projectmaker):
+        """
+        An update which explicitly sets parent_id to None should still move
+        the project to the root (i.e. clear its parent) -- only an *absent*
+        key should be treated as 'don't touch this field'.
+        """
+        parent = projectmaker.create()
+        child = projectmaker.create(parent_id=parent.id)
+
+        assert child.parent_id == parent.id
+
+        updated_child = client.get_project(child.id)
+        updated_child.parent_id = None
+        client.update_project(updated_child)
+
+        reloaded_child = client.get_project(child.id)
+        assert reloaded_child.parent_id is None
+
+    def test_update_project_moves_to_new_parent(self, client, projectmaker):
+        """
+        An update which specifies a different parent_id should move the
+        project there, provided the user has write access to the target.
+        """
+        old_parent = projectmaker.create()
+        new_parent = projectmaker.create()
+        child = projectmaker.create(parent_id=old_parent.id)
+
+        client.update_project({'id': child.id, 'parent_id': new_parent.id})
+
+        reloaded_child = client.get_project(child.id)
+        assert reloaded_child.parent_id == new_parent.id
 
     def test_set_project_status_cache_invalidation(self, client, projectmaker):
         proj = projectmaker.create()

@@ -26,11 +26,8 @@ from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
 
 from .. import config
-from zope.sqlalchemy import register
-
 from hydra_base.exceptions import HydraError
 
-import transaction
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 import logging
@@ -102,7 +99,7 @@ def create_mysql_db(db_url):
                 no_db_url = db_url
                 db_url = no_db_url + "/" + db_name
         if db_url.find('charset') == -1:
-            db_url = "{}?charset=utf8&use_unicode=1".format(db_url)
+            db_url = "{}?charset=utf8mb4&use_unicode=1".format(db_url)
 
         if config.get('mysqld', 'auto_create', 'Y') == 'Y':
             tmp_engine = create_engine(no_db_url)
@@ -117,7 +114,7 @@ def connect(db_url=None):
 
     log.info("Connecting to database")
     if db_url.find('@') >= 0:
-        log.info("DB URL: %s", db_url.split('@')[1])
+        log.info("DB URL: %s", db_url.rsplit('@', 1)[-1])
     else:
         log.info("DB URL: %s", db_url)
 
@@ -157,7 +154,6 @@ def connect(db_url=None):
 
     maker = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     DBSession = scoped_session(maker)
-    register(DBSession)
 
     global DeclarativeBase
     try:
@@ -173,10 +169,10 @@ def get_session():
 
 def commit_transaction():
     try:
-        transaction.commit()
+        DBSession.commit()
     except Exception as e:
         log.critical(e)
-        transaction.abort()
+        DBSession.rollback()
 
 def open_session():
     log.debug("OPENING SESSION")
@@ -198,8 +194,37 @@ def close_session():
 
 
 def rollback_transaction():
-    #import pudb; pudb.set_trace()
-    transaction.abort()
+    DBSession.rollback()
+
+def bulk_insert_ignore(model, rows):
+    """
+    Bulk insert rows into model, silently skipping any that would violate a
+    unique constraint. Cross-database compatible.
+
+    Does not return inserted IDs — query back as needed after calling.
+    """
+    if not rows:
+        return
+
+    if engine is None:
+        raise HydraError("bulk_insert_ignore: No database engine available. Please call connect() first.")
+
+    dialect_name = engine.dialect.name
+
+    if dialect_name == 'mysql':
+        from sqlalchemy.dialects.mysql import insert as _insert
+        stmt = _insert(model).values(rows).prefix_with('IGNORE')
+    elif dialect_name == 'postgresql':
+        from sqlalchemy.dialects.postgresql import insert as _insert
+        stmt = _insert(model).values(rows).on_conflict_do_nothing()
+    elif dialect_name == 'sqlite':
+        from sqlalchemy.dialects.sqlite import insert as _insert
+        stmt = _insert(model).values(rows).on_conflict_do_nothing()
+    else:
+        raise HydraError(f"bulk_insert_ignore: unsupported dialect '{dialect_name}'")
+
+    DBSession.execute(stmt)
+
 
 def restart_session(caller='-- not specified --'):
     """

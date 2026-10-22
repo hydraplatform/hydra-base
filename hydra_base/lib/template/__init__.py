@@ -28,7 +28,8 @@ from sqlalchemy.orm import noload, joinedload
 from hydra_base import db
 from hydra_base.db.model import (Template, TemplateType, TypeAttr, Attr,
                                 Network, Node, Link, ResourceGroup,
-                                ResourceType, ResourceAttr, ResourceScenario, Scenario)
+                                ResourceType, ResourceAttr, ResourceScenario, Scenario,
+                                Project, ProjectTemplate)
 
 from hydra_base.db.model import Dataset as ModelDataset
 from hydra_base.lib.objects import JSONObject, Dataset
@@ -71,6 +72,17 @@ CACHE_KEY = 'template'
 
 def _save_template_to_cache(template):
     cache.set(f"{CACHE_KEY}_{template.id}", template)
+
+def _template_as_json_for_cache(template_i):
+    """
+        Build the same JSON structure that get_template builds from the database, so that
+        what is written to the cache is complete. Calling JSONObject(template_i) alone leaves
+        'templatetypes' as raw ORM data: types without type attributes then have no 'typeattrs'
+        key at all, whereas get_types() always provides one (an empty list if there are none).
+    """
+    template_j = JSONObject(template_i)
+    template_j.templatetypes = template_i.get_types()
+    return template_j
 
 def _remove_template_from_cache(template_id):
     """
@@ -456,8 +468,7 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
 
     db.DBSession.flush()
 
-    template_j = JSONObject(template_i)
-    _save_template_to_cache(template_j)
+    _save_template_to_cache(_template_as_json_for_cache(template_i))
 
 
     return template_i
@@ -518,8 +529,7 @@ def add_template(template, **kwargs):
 
     log.info("[Added template]\n{}".format(template))
 
-    template_j = JSONObject(tmpl)
-    _save_template_to_cache(template_j)
+    _save_template_to_cache(_template_as_json_for_cache(tmpl))
 
     return tmpl
 
@@ -740,11 +750,32 @@ def get_template(template_id, **kwargs):
         Get a specific resource template, by ID.
     """
     log.info("Getting template %s", template_id)
-    tmpl_j = cache.get(f"{CACHE_KEY}_{template_id}")
+
+    tmpl_j = None
+    try:
+        tmpl_j = cache.get(f"{CACHE_KEY}_{template_id}")
+    except ConnectionError as e:
+        cache_type = config.get('cache', 'type', 'memcached')
+        cache_host = config.get('cache', 'host', '127.0.0.1')
+        cache_port = config.get('cache', 'port', 11211)
+
+        log.critical(
+            f"Unable to connect to cache for template {template_id}: {e}; cache_type={cache_type} host={cache_host} port={cache_port}",
+            exc_info=True
+        )
+    except Exception as e:
+        log.critical(
+            f"Unexpected error when accessing cache for template {template_id}: {e}",
+            exc_info=True
+        )
+
 
     if tmpl_j is not None:
-        log.info("Returning cached template")
-        return tmpl_j
+        result = JSONObject(tmpl_j) if not isinstance(tmpl_j, JSONObject) else tmpl_j
+        if result.templatetypes is not None:
+            log.info("Returning cached template")
+            return result
+        log.warning("Cached template %s has no templatetypes — re-fetching from DB", template_id)
 
     try:
         log.info("Building template")
@@ -1341,3 +1372,93 @@ def get_all_parent_types(ttype_id, **kwargs):
     tt_qry = tt_qry.filter(TemplateType.id.in_(parent_ids))
     tt_qry = tt_qry.options(noload(TemplateType.typeattrs))
     return tt_qry.all()
+
+
+@required_perms("get_project")
+def get_project_templates(project_id, **kwargs):
+    """
+    Return all templates linked to a project.
+    The requesting user must have read access on the project.
+    """
+    user_id = kwargs.get('user_id')
+
+    try:
+        project_i = db.DBSession.query(Project).filter(Project.id == project_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError(f"Project {project_id} not found")
+
+    project_i.check_read_permission(user_id)
+
+    return project_i.templates
+
+
+@required_perms("edit_project")
+def add_project_template(project_id, template_id, **kwargs):
+    """
+    Link a template to a project.
+    The requesting user must have edit rights on the project.
+    """
+    user_id = kwargs.get('user_id')
+
+    try:
+        project_i = db.DBSession.query(Project).filter(Project.id == project_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError(f"Project {project_id} not found")
+
+    project_i.check_write_permission(user_id)
+
+    try:
+        db.DBSession.query(Template).filter(Template.id == template_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError(f"Template {template_id} not found")
+
+    existing = db.DBSession.query(ProjectTemplate).filter(
+        ProjectTemplate.project_id == project_id,
+        ProjectTemplate.template_id == template_id
+    ).first()
+
+    if existing is not None:
+        return existing
+
+    pt = ProjectTemplate()
+    pt.project_id = project_id
+    pt.template_id = template_id
+    db.DBSession.add(pt)
+    db.DBSession.flush()
+
+    log.info("Template %s linked to project %s", template_id, project_id)
+
+    return pt
+
+
+@required_perms("edit_project")
+def remove_project_template(project_id, template_id, **kwargs):
+    """
+    Remove the link between a template and a project.
+    The requesting user must have edit rights on the project.
+    """
+    user_id = kwargs.get('user_id')
+
+    try:
+        project_i = db.DBSession.query(Project).filter(Project.id == project_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError(f"Project {project_id} not found")
+
+    project_i.check_write_permission(user_id)
+
+    try:
+        pt = db.DBSession.query(ProjectTemplate).filter(
+            ProjectTemplate.project_id == project_id,
+            ProjectTemplate.template_id == template_id
+        ).one()
+    except NoResultFound:
+        raise ResourceNotFoundError(
+            f"Template {template_id} is not linked to project {project_id}"
+        )
+
+    db.DBSession.delete(pt)
+    db.DBSession.flush()
+
+    log.info("Template %s unlinked from project %s", template_id, project_id)
+
+    return 'OK'

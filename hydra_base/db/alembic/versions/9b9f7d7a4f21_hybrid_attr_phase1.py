@@ -1,7 +1,7 @@
 """hybrid_attr_phase1
 
 Revision ID: 9b9f7d7a4f21
-Revises: 580425ade2e4, 877adf863b33, cec2b77ad85e
+Revises: c1a2b3d4e5f7
 Create Date: 2026-07-01 00:00:00.000000
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '9b9f7d7a4f21'
-down_revision = ('580425ade2e4', '877adf863b33', 'cec2b77ad85e')
+down_revision = 'c1a2b3d4e5f7'
 branch_labels = None
 depends_on = None
 

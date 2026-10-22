@@ -66,11 +66,12 @@ def get_network_rules(network_id, summary=True, **kwargs):
     #all rules associated to them.
     all_template_rules = []
     for rtype in network.types:
-        if not hasattr(rtype, "template_id"):
+        if not hasattr(rtype, 'templatetype') or not hasattr(rtype.templatetype, "template_id"):
             continue
-        template = db.DBSession.query(Template).filter(Template.id==rtype.template_id).one()
+        template = db.DBSession.query(Template).filter(Template.id==rtype.templatetype.template_id).one()
         #need this to go top-bottom to apply rules from the top level down
-        template_hierarchy = template.get_hierarchy().reverse()
+        template_hierarchy = template.get_hierarchy(user_id)
+        template_hierarchy.reverse()
         for current_template in template_hierarchy:
             this_template_rules = rule_qry.filter(Rule.template_id == current_template.id).all()
             all_template_rules = all_template_rules + this_template_rules
@@ -279,7 +280,7 @@ def update_rule(rule, **kwargs):
     elif rule.ref_key.upper() == 'PROJECT':
         rule_i.network_id = rule.project_id if rule.project_id else rule.ref_id
     elif rule.ref_key.upper() == 'TEMPLATE':
-        rule_i.network_id = rule.template_id if rule.template_id else rule.ref_id
+        rule_i.template_id = rule.template_id if rule.template_id else rule.ref_id
     else:
         raise HydraError("Ref Key {0} not recognised.".format(rule.ref_key))
 

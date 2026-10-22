@@ -462,12 +462,26 @@ def update_dataset(dataset_id, name, data_type, val, unit_id, metadata={}, flush
     return dataset
 
 
-def add_dataset(data_type, val, unit_id=None, metadata={}, name="", user_id=None, flush=False):
+def add_dataset(data_type, val, unit_id=None, metadata={}, name="", user_id=None, flush=False,
+                 pending_cache=None):
     """
         Data can exist without scenarios. This is the mechanism whereby
         single pieces of data can be added without doing it through a scenario.
 
         A typical use of this would be for setting default values on types.
+
+        pending_cache (dict, optional): a hash -> Dataset map shared across several
+            add_dataset() calls within the same request/transaction (e.g. by
+            bulk_update_resourcedata). DBSession runs with autoflush=False (see
+            db/__init__.py), so a Dataset added by an earlier call in this same
+            batch is NOT visible yet to the Dataset.hash query below -- two new
+            datasets whose *values* are equal, even when their raw/pre-parse
+            representations differed, would otherwise both reach flush() and
+            collide on tDataset's UNIQUE(hash) constraint. Passing the same dict
+            into every add_dataset() call of a batch closes that gap: it is
+            keyed by each dataset's real, post-set_hash() hash, so it catches
+            batch-internal duplicates regardless of how their hash was estimated
+            upstream.
     """
 
     d = Dataset()
@@ -481,15 +495,31 @@ def add_dataset(data_type, val, unit_id=None, metadata={}, name="", user_id=None
     d.created_by = user_id
     d.hash  = d.set_hash()
 
-    try:
-        existing_dataset = db.DBSession.query(Dataset).filter(Dataset.hash==d.hash).one()
-        if existing_dataset.check_read_permission(user_id, do_raise=False) is True:
-            d = existing_dataset
+    pending_match = pending_cache.get(d.hash) if pending_cache is not None else None
+    if pending_match is not None:
+        if pending_match.check_read_permission(user_id, do_raise=False) is True:
+            d = pending_match
         else:
-            d.set_hash()
+            d.hash = d.set_unique_hash(metadata)
             db.DBSession.add(d)
-    except NoResultFound:
-        db.DBSession.add(d)
+    else:
+        try:
+            existing_dataset = db.DBSession.query(Dataset).filter(Dataset.hash==d.hash).one()
+            if existing_dataset.check_read_permission(user_id, do_raise=False) is True:
+                d = existing_dataset
+            else:
+                #Can't reuse the existing dataset (no read permission) and can't keep
+                #this hash either -- tDataset.hash has a UNIQUE constraint, so leaving
+                #it as-is would raise IntegrityError on flush. set_unique_hash() salts
+                #the hash computation only, it does not touch this dataset's real
+                #(persisted) metadata.
+                d.hash = d.set_unique_hash(metadata)
+                db.DBSession.add(d)
+        except NoResultFound:
+            db.DBSession.add(d)
+
+    if pending_cache is not None:
+        pending_cache[d.hash] = d
 
     if flush == True:
         db.DBSession.flush()

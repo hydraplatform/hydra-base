@@ -74,7 +74,7 @@ def init(level=None):
         config_file = os.path.expanduser(config.get('logging_conf', 'log_config_path', '.'))
         #check the config file exists...
         if os.path.isfile(config_file) and log_base_path is not None:
-            logging.config.fileConfig(config_file)
+            logging.config.fileConfig(config_file, disable_existing_loggers=False)
             logger = logging.getLogger()
             handler = logging.FileHandler(os.path.join(log_base_path, log_file),"a")
             handler.setLevel(logging.DEBUG)

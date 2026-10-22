@@ -11,8 +11,6 @@ import io
 import json
 import logging
 import os
-import transaction
-
 from bson.objectid import ObjectId
 import pymongo
 from pymongo import MongoClient
@@ -200,7 +198,7 @@ def export_dataset_to_external_storage(ds_id: int, db_name: str=None, collection
     external_token = mongo_config["direct_location_token"]
     md = Metadata(key=location_key, value=external_token)
     dataset.metadata.append(md)
-    transaction.commit()
+    db.DBSession.commit()
 
     return result
 
@@ -243,7 +241,7 @@ def import_dataset_from_external_storage(ds_id: int, db_name: str=None, collecti
         if m.key == location_key:
             break
     dataset.metadata.pop(idx)
-    transaction.commit()
+    db.DBSession.commit()
 
     result = path.delete_one({"_id": object_id})
     if result.deleted_count != 1:
