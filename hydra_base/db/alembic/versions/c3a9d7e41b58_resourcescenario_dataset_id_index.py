@@ -1,7 +1,7 @@
 """resourcescenario_dataset_id_index
 
 Revision ID: c3a9d7e41b58
-Revises: b7f3e1a92c44
+Revises: c1a2b3d4e5f7
 Create Date: 2026-10-07 00:00:00.000000
 
 """
@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 
 # revision identifiers, used by Alembic.
 revision = 'c3a9d7e41b58'
-down_revision = 'b7f3e1a92c44'
+down_revision = 'c1a2b3d4e5f7'
 branch_labels = None
 depends_on = None
 

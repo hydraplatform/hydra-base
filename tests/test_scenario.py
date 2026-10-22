@@ -610,6 +610,64 @@ class TestScenario:
             "hash-collision cache."
         )
 
+    def test_bulk_update_resourcedata_dedupes_brand_new_datasets_with_differing_raw_value(
+            self, client, network_with_data):
+        """
+            Regression test for a production failure: two resource scenarios that
+            have NEVER had a dataset before (both go through assign_value's
+            "Creating new dataset" branch, not the update-in-place fast lane)
+            are set, in the same bulk_update_resourcedata call, to dataframe
+            values that are byte-different as raw JSON -- e.g. two GAMS results
+            carrying different floating-point solver noise -- but parse to the
+            exact same value once pandas' Dataframe type rounds to its default
+            JSON precision (both end up "0.0"). The two resource scenarios must
+            still end up sharing a single dataset.
+
+            Before the fix, assign_value's new-dataset-cache was keyed by a hash
+            estimated from the pre-parse raw value, which differed between the two
+            RAs here even though their real (post-parse) hash -- the one
+            Dataset.set_hash() actually persists -- was identical. Both resource
+            scenarios then called data.add_dataset(), whose own DB-side duplicate
+            check cannot see the other's still-unflushed insert (DBSession runs
+            with autoflush=False), so both were added to the session and the
+            batch's single flush() at the end of bulk_update_resourcedata raised
+            IntegrityError on tDataset's UNIQUE(hash) constraint.
+        """
+        client.user_id = pytest.root_user_id
+        network1 = network_with_data
+        scenario = network1.scenarios[0]
+
+        node_a, node_b = network1.nodes[2], network1.nodes[3]
+        ra_a = client.testutils.get_by_name('node_attr_a', node_a.attributes)
+        ra_b = client.testutils.get_by_name('node_attr_a', node_b.attributes)
+
+        #Neither RA has ever had a dataset in this scenario, so both will go
+        #through the "Creating new dataset" branch, not update-in-place.
+        noisy_value_a = {"DYCP.0": {"2032-2033": 1.2345e-13, "2033-2034": 3.4e-14, "2034-2035": 0}}
+        noisy_value_b = {"DYCP.0": {"2032-2033": 5.6e-14, "2033-2034": 9.1e-15, "2034-2035": 0}}
+
+        rs_a = client.testutils.create_dataframe(ra_a, dataframe_value=noisy_value_a)
+        rs_b = client.testutils.create_dataframe(ra_b, dataframe_value=noisy_value_b)
+        assert rs_a.dataset.value != rs_b.dataset.value, (
+            "Test setup error: the two raw values must differ pre-parse for this "
+            "to exercise the new-dataset dedup path."
+        )
+
+        #Must not raise IntegrityError on tDataset.hash.
+        client.bulk_update_resourcedata([scenario.id], [rs_a, rs_b])
+
+        updated_scenario = client.get_scenario(scenario.id)
+        ds_a = next(rs.dataset for rs in updated_scenario.resourcescenarios
+                     if rs.resource_attr_id == ra_a['id'])
+        ds_b = next(rs.dataset for rs in updated_scenario.resourcescenarios
+                     if rs.resource_attr_id == ra_b['id'])
+
+        assert ds_a.id == ds_b.id, (
+            "Two brand-new resource scenarios set to values that differ as raw "
+            "JSON but parse to the same real value should be deduplicated onto a "
+            "single dataset, not each create their own duplicate-hash dataset."
+        )
+
     def test_bulk_update_resourcedata_hash_collision_respects_dataset_permission(
             self, client, network_with_data):
         """

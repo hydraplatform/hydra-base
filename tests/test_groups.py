@@ -158,3 +158,29 @@ class TestGroup:
             if d.type == 'timeseries':
                 with pytest.raises(HydraError):
                     client.get_dataset(d.id)
+
+    def test_delete_network_with_subgroups(self, client, network_with_extra_group):
+        """
+            A network with groups nested inside other groups (a group item
+            whose ref_key is GROUP) must be deletable. The item's subgroup_id
+            is a foreign key to the group, so removing the group before the
+            item raises an IntegrityError on databases which enforce it (MySQL).
+        """
+        net = network_with_extra_group
+        scenario_id = net.scenarios[0].id
+
+        parent_group = net.resourcegroups[-1]
+        child_group = net.resourcegroups[0]
+
+        item = JSONObject({})
+        item.ref_key = 'GROUP'
+        item.ref_id = child_group.id
+        item.group_id = parent_group.id
+
+        new_item = client.add_resourcegroupitem(item, scenario_id)
+        assert new_item.subgroup_id == child_group.id
+
+        client.delete_network(net.id, 'N')
+
+        with pytest.raises(HydraError):
+            client.get_network(net.id)

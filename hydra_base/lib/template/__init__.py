@@ -73,6 +73,17 @@ CACHE_KEY = 'template'
 def _save_template_to_cache(template):
     cache.set(f"{CACHE_KEY}_{template.id}", template)
 
+def _template_as_json_for_cache(template_i):
+    """
+        Build the same JSON structure that get_template builds from the database, so that
+        what is written to the cache is complete. Calling JSONObject(template_i) alone leaves
+        'templatetypes' as raw ORM data: types without type attributes then have no 'typeattrs'
+        key at all, whereas get_types() always provides one (an empty list if there are none).
+    """
+    template_j = JSONObject(template_i)
+    template_j.templatetypes = template_i.get_types()
+    return template_j
+
 def _remove_template_from_cache(template_id):
     """
         If a template is in the cache, remove it.
@@ -457,8 +468,7 @@ def import_template_dict(template_dict, allow_update=True, **kwargs):
 
     db.DBSession.flush()
 
-    template_j = JSONObject(template_i)
-    _save_template_to_cache(template_j)
+    _save_template_to_cache(_template_as_json_for_cache(template_i))
 
 
     return template_i
@@ -519,8 +529,7 @@ def add_template(template, **kwargs):
 
     log.info("[Added template]\n{}".format(template))
 
-    template_j = JSONObject(tmpl)
-    _save_template_to_cache(template_j)
+    _save_template_to_cache(_template_as_json_for_cache(tmpl))
 
     return tmpl
 

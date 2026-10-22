@@ -264,7 +264,7 @@ def _bulk_add_resource_attrs(network_id, ref_key, resources, resource_name_map, 
                     template_j = template.get_template(resource_type.child_template_id, user_id=admin_id)
                     template_lookup[template_j.id] = template_j
                 for tt in template_j.templatetypes:
-                    typeattr_lookup[tt.id] = tt.typeattrs
+                    typeattr_lookup[tt.id] = tt.typeattrs or []
 
                 typeattrs = typeattr_lookup.get(resource_type.id, []) #TODO this should be type_id
                 for ta in typeattrs:
@@ -1324,6 +1324,72 @@ def get_network_simple(network_id,**kwargs):
     except NoResultFound:
         raise ResourceNotFoundError("Network %s not found"%(network_id,))
 
+def check_network_write_permission(network_id, is_admin=None, **kwargs):
+    """
+        Whether the user (kwargs['user_id']) has edit access to a network.
+
+        Unlike the update functions, which raise, this just answers: False
+        for a view-only user or an unknown network. Write access on the
+        network's project counts, as for Network.check_write_permission.
+        is_admin is passed through to that check; None looks it up.
+    """
+    net_i = db.DBSession.query(Network).filter(Network.id==network_id).first()
+
+    if net_i is None:
+        return False
+
+    return net_i.check_write_permission(kwargs['user_id'], do_raise=False, is_admin=is_admin) is True
+
+def get_resource_network_id(resource_type, resource_id, **kwargs):
+    """
+        The ID of the network a resource belongs to, so that a caller which
+        is handed a node, link, group, scenario or resource attribute ID can
+        check the network's permissions. resource_type is one of NETWORK,
+        NODE, LINK, GROUP, SCENARIO or RESOURCEATTR (case-insensitive).
+
+        Returns None if the resource doesn't exist or isn't in a network the
+        user (kwargs['user_id']) can read, so this doesn't reveal which
+        networks exist.
+    """
+    try:
+        resource_id = int(resource_id)
+    except (TypeError, ValueError):
+        return None
+
+    resource_type = str(resource_type).upper()
+
+    if resource_type == 'RESOURCEATTR':
+        ra = db.DBSession.query(ResourceAttr.ref_key, ResourceAttr.network_id,
+                                ResourceAttr.node_id, ResourceAttr.link_id,
+                                ResourceAttr.group_id).filter(ResourceAttr.id==resource_id).first()
+        if ra is None:
+            return None
+        resource_type = ra.ref_key
+        resource_id = {'NETWORK': ra.network_id, 'NODE': ra.node_id,
+                       'LINK': ra.link_id, 'GROUP': ra.group_id}.get(ra.ref_key)
+        if resource_id is None:
+            return None
+
+    if resource_type == 'NETWORK':
+        network_id_col, model = Network.id, Network
+    else:
+        model = {'NODE': Node, 'LINK': Link, 'GROUP': ResourceGroup, 'SCENARIO': Scenario}.get(resource_type)
+        if model is None:
+            return None
+        network_id_col = model.network_id
+
+    row = db.DBSession.query(network_id_col).filter(model.id==resource_id).first()
+
+    if row is None or row[0] is None:
+        return None
+
+    net_i = db.DBSession.query(Network).filter(Network.id==row[0]).first()
+
+    if net_i is None or net_i.check_read_permission(kwargs['user_id'], do_raise=False) is not True:
+        return None
+
+    return net_i.id
+
 def get_node(node_id, scenario_id=None, **kwargs):
     try:
         n = db.DBSession.query(Node).filter(Node.id==node_id).options(joinedload(Node.attributes).joinedload(ResourceAttr.attr)).one()
@@ -1485,12 +1551,17 @@ def update_network(network,
     """
     log.info("Updating Network %s", network.name)
     user_id = kwargs.get('user_id')
-    #check_perm('update_network')
 
     try:
         net_i = db.DBSession.query(Network).filter(Network.id == network.id).one()
     except NoResultFound:
         raise ResourceNotFoundError("Network with id %s not found"%(network.id))
+
+    net_i.check_write_permission(user_id)
+
+    #Moving the network to another project requires write access to that project too
+    if network.project_id != net_i.project_id:
+        _get_project_for_write(network.project_id, user_id)
 
     net_i.project_id = network.project_id
     net_i.name = network.name
@@ -1643,6 +1714,8 @@ def move_network(network_id, target_project_id, **kwargs):
         raise ResourceNotFoundError("Network with id %s not found"%(network_id))
 
     net_i.check_write_permission(user_id)
+
+    _get_project_for_write(target_project_id, user_id)
 
     net_i.project_id = target_project_id
 
@@ -2892,6 +2965,20 @@ def get_all_resource_data(
     log.info("Returning %s datasets", len(return_data))
 
     return return_data
+
+def _get_project_for_write(project_id, user_id):
+    """
+        Return the project with the given ID, raising if it does not exist
+        or if the user does not have write permission on it.
+    """
+    try:
+        proj_i = db.DBSession.query(Project).filter(Project.id == project_id).one()
+    except NoResultFound:
+        raise ResourceNotFoundError("Project with id %s not found"%(project_id))
+
+    proj_i.check_write_permission(user_id)
+
+    return proj_i
 
 def clone_network(network_id,
                   recipient_user_id=None,
