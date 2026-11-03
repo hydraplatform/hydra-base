@@ -86,9 +86,10 @@ class HdfStorageAdapter():
 
     def _url_args(self, url):
         """
-            The url and fsspec arguments to open it. With the deployment's S3 map, an s3:// url
-            gets its bucket's real name, endpoint, region and key (a bucket missing from the map
-            is an error); otherwise the default AWS identity, as before.
+            The url and fsspec arguments to open it. An s3:// url whose bucket is in the
+            deployment's S3 map gets that bucket's real name, endpoint, region and key; any other
+            url (a bucket missing from the map, or no map) keeps the default AWS identity, as
+            before.
         """
         real_url, options = S3SourceMap.get().storage_options(url)
         if options is None:
