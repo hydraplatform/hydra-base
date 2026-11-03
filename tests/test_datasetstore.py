@@ -228,3 +228,97 @@ def test_no_map_file_means_no_map(tmp_path):
     assert m.storage_options("s3://any/x.h5") == ("s3://any/x.h5", None)
     with pytest.raises(S3SourceError):
         m.storage_options("s3://any/x.h5", required=True)
+
+
+def write_map(tmp_path, buckets, creds=None):
+    bfile = tmp_path / "s3-buckets.json"
+    bfile.write_text(json.dumps({"buckets": buckets}))
+    cfile = None
+    if creds is not None:
+        cfile = tmp_path / "s3-credentials.json"
+        cfile.write_text(json.dumps(creds))
+    return str(bfile), (str(cfile) if cfile else None)
+
+
+def test_auth_modes_without_a_key_file(tmp_path):
+    # A deployer without a credentials file (no nx-vault, no hcli) describes each bucket's auth.
+    bfile, _ = write_map(tmp_path, {
+        "aws-default": {"auth": "default", "region": "us-east-1"},
+        "aws-profile": {"auth": "profile", "profile": "results-reader"},
+        "public-data": {"auth": "anonymous", "endpoint": "https://s3.example.org"}})
+    m = S3SourceMap(bfile, None, strict=False)
+
+    _, opts = m.storage_options("s3://aws-default/x.h5")
+    assert opts["anon"] is False and "key" not in opts and "secret" not in opts
+    assert opts["client_kwargs"] == {"region_name": "us-east-1"}
+
+    _, opts = m.storage_options("s3://aws-profile/x.h5")
+    assert opts["anon"] is False and opts["profile"] == "results-reader" and "key" not in opts
+
+    _, opts = m.storage_options("s3://public-data/x.h5")
+    assert opts["anon"] is True and opts["client_kwargs"] == {"endpoint_url": "https://s3.example.org"}
+
+
+@pytest.mark.parametrize("entry, words", [
+    ({"region": "uk"}, "no credentials_id or auth"),
+    ({"auth": "token"}, "unknown auth"),
+    ({"auth": "profile"}, "needs a 'profile' name"),
+    ({"credentials_id": "missing"}, "No key for bucket"),
+])
+def test_bad_auth_is_an_error(tmp_path, entry, words):
+    bfile, cfile = write_map(tmp_path, {"b": entry}, creds={})
+    m = S3SourceMap(bfile, cfile, strict=False)
+    with pytest.raises(S3SourceError, match=words):
+        m.storage_options("s3://b/x.h5")
+
+
+def test_strict_mode_refuses_buckets_outside_the_map(tmp_path):
+    bfile, cfile = write_map(tmp_path, {"listed": {"auth": "default"}})
+    m = S3SourceMap(bfile, cfile, strict=True)
+    assert m.storage_options("s3://listed/x.h5")[1]["anon"] is False
+    # Without strict mode an unlisted bucket keeps the default identity; with it, an error.
+    with pytest.raises(S3SourceError, match=r"'unlisted' is not in this deployment's S3 map \(strict mode\)"):
+        m.storage_options("s3://unlisted/x.h5")
+    # Only s3:// urls are concerned.
+    assert m.storage_options("file:///tmp/x.h5") == ("file:///tmp/x.h5", None)
+    assert m.storage_options("/tmp/x.h5") == ("/tmp/x.h5", None)
+
+
+def test_strict_mode_without_a_map(tmp_path):
+    m = S3SourceMap(buckets_file=None, credentials_file=None, strict=True)
+    m.buckets_file = None
+    with pytest.raises(S3SourceError, match="no S3 map \\(strict mode\\)"):
+        m.storage_options("s3://any/x.h5")
+
+
+def test_strict_mode_from_the_environment(tmp_path, monkeypatch):
+    bfile, _ = write_map(tmp_path, {"listed": {"auth": "default"}})
+    monkeypatch.setenv("HYDRA_S3_STRICT", "true")
+    assert S3SourceMap(bfile, None).strict
+    monkeypatch.setenv("HYDRA_S3_STRICT", "no")
+    assert not S3SourceMap(bfile, None).strict
+
+
+class StrictNoMap():
+    active = False
+    strict = True
+
+
+def test_store_pointer_in_strict_mode_without_a_map(tmp_path):
+    store = DatasetStore(cache_dir=str(tmp_path / "cache"), sources=StrictNoMap())
+    with pytest.raises(DatasetStoreError, match="strict mode"):
+        store.resolve(pointer("s3://store/datasets/1.h5"), dataset_id=1)
+
+
+def test_hdf_adapter_follows_the_map(tmp_path, monkeypatch):
+    from hydra_base.lib.storage import HdfStorageAdapter
+    bfile, _ = write_map(tmp_path, {"results": {"auth": "default", "endpoint": "https://s3.example.org"}})
+    monkeypatch.setattr(S3SourceMap, "_instance", S3SourceMap(bfile, None, strict=True))
+    try:
+        a = HdfStorageAdapter()
+        url, args = a._url_args("s3://results/run/simulated_volume.h5")
+        assert args["client_kwargs"] == {"endpoint_url": "https://s3.example.org"} and args["mode"] == "rb"
+        with pytest.raises(S3SourceError, match="strict mode"):
+            a._url_args("s3://pywr-results/run/simulated_volume.h5")
+    finally:
+        S3SourceMap.reset()

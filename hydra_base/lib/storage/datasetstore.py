@@ -126,6 +126,8 @@ class DatasetStore():
         if fmt not in _FORMATS:
             raise DatasetStoreError(f"{who}: unknown datasets store format {fmt!r}")
         if not self.sources.active:
+            if getattr(self.sources, "strict", False):
+                raise DatasetStoreError(f"{who}: strict mode is on but this deployment has no S3 map")
             if not self._warned_no_map:
                 log.warning("Dataset values in a datasets store (%s) can't be read: this deployment has no S3 map.", url)
                 self._warned_no_map = True
