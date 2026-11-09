@@ -7,6 +7,7 @@
 import logging
 import datetime
 from hydra_base import config as hydraconfig
+from hydra_base.lib.objects import JSONObject, Dataset
 import tempfile
 
 log = logging.getLogger(__name__)
@@ -15,8 +16,9 @@ global cache
 def _init_diskcache():
     log.info("Using diskcache for caching.")
     global cache
-    import diskcache as dc
-    cache = dc.Cache(tempfile.gettempdir())
+    import diskcache_community as dc
+    cache = dc.Cache(tempfile.gettempdir(),
+                     disk=dc.SafeDisk.with_types(JSONObject, Dataset).with_options(on_error="miss"))
 
 class _MemcachedWithFallback:
     """Wraps a pymemcache client and falls back to diskcache on connection errors."""
@@ -61,7 +63,7 @@ elif hydraconfig.get('cache', 'type') == 'memcached':
     try:
         from pymemcache.client.base import Client as MemcacheClient
         from pymemcache.serde import pickle_serde
-        import diskcache as dc
+        import diskcache_community as dc
 
         host = hydraconfig.get('cache', 'host', '127.0.0.1')
         port = hydraconfig.get('cache', 'port', 11211)
@@ -77,7 +79,8 @@ elif hydraconfig.get('cache', 'type') == 'memcached':
         except Exception:
             raise ConnectionError("Memcached server not responding.")
 
-        _fallback = dc.Cache(tempfile.gettempdir())
+        _fallback = dc.Cache(tempfile.gettempdir(),
+                             disk=dc.SafeDisk.with_types(JSONObject, Dataset).with_options(on_error="miss"))
         cache = _MemcachedWithFallback(_mc, _fallback)
 
     except (ModuleNotFoundError, ConnectionError) as e:

@@ -38,6 +38,7 @@ import json
 import tempfile
 import time
 import pytest
+from diskcache_community import Cache, Disk
 
 import hydra_base as hb
 from hydra_base.lib.objects import JSONObject
@@ -110,6 +111,19 @@ def _make_template_input(attr_id, name=None):
 
 def _cached_entry(template_id):
     return cache.get(f"{CACHE_KEY}_{template_id}")
+
+
+planted_calls = []
+
+
+def _planted():
+    planted_calls.append(True)
+    return JSONObject({'name': 'planted', 'templatetypes': []})
+
+
+class _Planted:
+    def __reduce__(self):
+        return (_planted, ())
 
 
 # ---------------------------------------------------------------------------
@@ -319,3 +333,16 @@ class TestTemplateCachePoisoning:
         assert list(rebuilt_types["EmptyEdge"].typeattrs) == []
         assert len(first_types["TypeWithAttr"].typeattrs) == len(rebuilt_types["TypeWithAttr"].typeattrs) == 1
 
+    def test_planted_pickle_is_not_loaded(self, db):
+        attr = _create_attr()
+        new_tmpl = template_lib.add_template(
+            _make_template_input(attr.id), user_id=USER_ID
+        )
+        with Cache(cache.directory, disk=Disk) as other_writer:
+            other_writer.set(f"{CACHE_KEY}_{new_tmpl.id}", _Planted())
+
+        result = template_lib.get_template(new_tmpl.id, user_id=USER_ID)
+
+        assert planted_calls == []
+        assert result.name == new_tmpl.name
+        assert len(result.templatetypes) == 1

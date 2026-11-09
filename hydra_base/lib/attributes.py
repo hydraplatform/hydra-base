@@ -1180,7 +1180,8 @@ def get_all_network_resourceattributes(network_id, template_id=None, return_orm=
             ra_j.attr = JSONObject(ra.attr)
             network_attributes.append(ra_j)
 
-    cache.set(f'network_resource_attributes_{network_id}', network_attributes, 60*60)
+    if return_orm is not True:
+        cache.set(f'network_resource_attributes_{network_id}', network_attributes, 60*60)
 
     return network_attributes
 
