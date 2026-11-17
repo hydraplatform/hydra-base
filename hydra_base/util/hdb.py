@@ -356,6 +356,23 @@ def create_default_users_and_perms():
         ("manager", "get_data"),
     )
 
+    # Permissions that all non-admin roles need for ordinary use of the API.
+    # User / role / permission administration and delete_template stay admin-only.
+    baseline_perms = (
+        "get_network",
+        "get_template",
+        "get_rules",
+        "get_data",
+        "get_project",
+        "get_attribute",
+        "get_user",       # needed to look up users when sharing
+    )
+    rule_authoring_perms = ("add_rules", "update_rules", "delete_rules", "share_rules")
+    non_admin_roles = ("dev", "developer", "modeller", "manager", "grad", "decision")
+
+    roleperms = roleperms + tuple((r, p) for r in non_admin_roles for p in baseline_perms)
+    roleperms = roleperms + tuple((r, p) for r in ("developer", "dev", "modeller") for p in rule_authoring_perms)
+
     # Map for code to ID
     id_maps_dict = {
         "perm": {},

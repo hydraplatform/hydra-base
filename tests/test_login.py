@@ -92,5 +92,5 @@ class TestLogin:
                 with pytest.raises(hydra_base.exceptions.HydraLoginUserMaxAttemptsExceeded):
                     user_id, session_id = client.login('root', 'wrong-password!')
 
-        reset_failed_logins("root", flush=True)
-        assert get_failed_login_count("root") == 0
+        reset_failed_logins("root", flush=True, user_id=pytest.root_user_id)
+        assert get_failed_login_count("root", user_id=pytest.root_user_id) == 0

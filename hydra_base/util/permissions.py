@@ -17,6 +17,7 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
+import logging
 import threading
 import time
 from functools import wraps
@@ -24,6 +25,8 @@ from .. import db, config
 from ..db.model import Perm, User, Role, RolePerm, RoleUser
 from sqlalchemy.orm.exc import NoResultFound
 from ..exceptions import PermissionError
+
+log = logging.getLogger(__name__)
 
 _perm_cache = threading.local()
 
@@ -33,14 +36,36 @@ _perm_cache = threading.local()
 PERM_CACHE_TTL = config.getint('permissions', 'cache_ttl', 30)
 
 
+def _permission_mode():
+    """
+        'enforce' (default): a failed check raises PermissionError.
+        'warn': a failed check is logged and allowed. Only intended for a staging run
+                to find which calls would be denied before enforcing on a live system.
+        Set with [permissions] mode in hydra.ini.
+    """
+    mode = str(config.get('permissions', 'mode', 'enforce')).strip().lower()
+    return 'warn' if mode == 'warn' else 'enforce'
+
+
+def _deny(message):
+    if _permission_mode() == 'warn':
+        log.warning("[permissions] WOULD DENY (mode=warn, allowed): %s", message)
+        return
+    raise PermissionError(message)
+
+
 def check_perm(user_id, permission_code):
     """
         Checks whether a user has permission to perform an action.
         The permission_code parameter should be a permission contained in tPerm.
 
         If the user does not have permission to perfom an action, a permission
-        error is thrown.
+        error is thrown. A missing user_id is never permitted.
     """
+    if user_id is None:
+        _deny("Permission denied. No user specified for permission %s" % (permission_code,))
+        return
+
     cache = _perm_cache.__dict__.setdefault('cache', {})
     key = (user_id, permission_code)
     cached_at = cache.get(key)
@@ -52,18 +77,16 @@ def check_perm(user_id, permission_code):
     except NoResultFound:
         raise PermissionError("Nonexistent permission type: %s"%(permission_code))
 
+    #is there any role assigned to the user which carries the permission?
+    has_perm = db.DBSession.query(RoleUser.role_id)\
+        .join(RolePerm, RolePerm.role_id == RoleUser.role_id)\
+        .filter(RolePerm.perm_id == perm.id)\
+        .filter(RoleUser.user_id == user_id)\
+        .first() is not None
 
-    try:
-        #get all the roles where the specified user has the specified permission
-        qry = db.DBSession.query(RoleUser.role_id)\
-            .join(RolePerm, RolePerm.role_id == RoleUser.role_id)\
-            .filter(RolePerm.perm_id == perm.id)\
-            .filter(RoleUser.user_id == user_id)
-
-        res = qry.all()
-    except NoResultFound:
-        raise PermissionError("Permission denied. User %s does not have permission %s"%
-                        (user_id, permission_code))
+    if not has_perm:
+        _deny("Permission denied. User %s does not have permission %s" % (user_id, permission_code))
+        return
 
     cache[key] = time.time()
 
@@ -72,24 +95,25 @@ def check_role(user_id, role_code):
         Checks whether a user has been assigned the specified role
         The role_code parameter should be a role code contained in tRole.
 
-        If the user does not have code a permission error is thrown.
+        If the user does not have the role a permission error is thrown.
+        A missing user_id is never permitted.
     """
+    if user_id is None:
+        _deny("Permission denied. No user specified for role %s" % (role_code,))
+        return
+
     try:
         role = db.DBSession.query(Role).filter(Role.code==role_code).one()
     except NoResultFound:
         raise PermissionError("Nonexistent role type: %s"%(role_code))
 
+    has_role = db.DBSession.query(RoleUser.role_id)\
+        .filter(RoleUser.role_id == role.id)\
+        .filter(RoleUser.user_id == user_id)\
+        .first() is not None
 
-    try:
-        #get all the roles where the specified user has the specified permission
-        qry = db.DBSession.query(RoleUser.role_id)\
-            .filter(RoleUser.role_id == role.id)\
-            .filter(RoleUser.user_id == user_id)
-
-        res = qry.all()
-    except NoResultFound:
-        raise PermissionError("Permission denied. User %s does not have role %s"%
-                        (user_id, role_code))
+    if not has_role:
+        _deny("Permission denied. User %s does not have role %s" % (user_id, role_code))
 
 
 

@@ -1166,6 +1166,73 @@ class TestNetwork:
                 with pytest.raises(hb.exceptions.HydraError):
                     dataset = client.get_dataset(d.id)
 
+    @staticmethod
+    def _dataset_ids(client, scenario_id):
+        scen = client.get_scenario(scenario_id)
+        return sorted(rs.dataset_id for rs in scen.resourcescenarios)
+
+    def test_delete_node_purge_keeps_other_resources_data(self, client, network_with_data, second_network_with_data):
+        """
+            Purging the data of a deleted node only removes data which belongs to that
+            node. Data of the network's other resources, and of other networks, is kept.
+        """
+        net = network_with_data
+        other_net = second_network_with_data
+        scenario_id = net.scenarios[0].id
+        other_scenario_id = other_net.scenarios[0].id
+
+        node_id_to_delete = net.nodes[0].id
+        other_node_id = net.nodes[1].id
+
+        other_net_datasets_before = self._dataset_ids(client, other_scenario_id)
+        other_node_data_before = sorted(rs.dataset_id for rs in
+                                        client.get_resource_data('NODE', other_node_id, scenario_id))
+        # deleting a node also deletes its links, so use a link which is not attached to it
+        free_link = next(l for l in net.links if node_id_to_delete not in (l.node_1_id, l.node_2_id))
+        link_data_before = sorted(rs.dataset_id for rs in
+                                  client.get_resource_data('LINK', free_link.id, scenario_id))
+        assert len(other_net_datasets_before) > 0
+        assert len(other_node_data_before) > 0
+
+        client.delete_node(node_id_to_delete, 'Y')
+
+        assert self._dataset_ids(client, other_scenario_id) == other_net_datasets_before
+        assert sorted(rs.dataset_id for rs in
+                      client.get_resource_data('NODE', other_node_id, scenario_id)) == other_node_data_before
+        assert sorted(rs.dataset_id for rs in
+                      client.get_resource_data('LINK', free_link.id, scenario_id)) == link_data_before
+
+    def test_delete_node_with_purge_requires_write_permission(self, client, network_with_data):
+        """ A user who cannot edit the network can neither delete the node nor purge any data """
+        net = network_with_data
+        scenario_id = net.scenarios[0].id
+        before = self._dataset_ids(client, scenario_id)
+
+        client.user_id = pytest.user_d.id  # a developer with no access to root's project
+        try:
+            with pytest.raises(hb.exceptions.HydraError):
+                client.delete_node(net.nodes[0].id, 'Y')
+        finally:
+            client.user_id = pytest.root_user_id
+
+        assert self._dataset_ids(client, scenario_id) == before
+        assert net.nodes[0].id in [n.id for n in client.get_network(net.id, True).nodes]
+
+    def test_delete_link_purge_keeps_other_resources_data(self, client, network_with_data):
+        net = network_with_data
+        scenario_id = net.scenarios[0].id
+        node_data_before = sorted(rs.dataset_id for rs in
+                                  client.get_resource_data('NODE', net.nodes[0].id, scenario_id))
+        other_link_data_before = sorted(rs.dataset_id for rs in
+                                        client.get_resource_data('LINK', net.links[1].id, scenario_id))
+
+        client.delete_link(net.links[0].id, 'Y')
+
+        assert sorted(rs.dataset_id for rs in
+                      client.get_resource_data('NODE', net.nodes[0].id, scenario_id)) == node_data_before
+        assert sorted(rs.dataset_id for rs in
+                      client.get_resource_data('LINK', net.links[1].id, scenario_id)) == other_link_data_before
+
     def test_delete_link(self, client, network_with_data):
         net = network_with_data
         scenario_id = net.scenarios[0].id

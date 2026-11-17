@@ -448,6 +448,38 @@ def update_role(role,**kwargs):
     return role_i
 
 
+def _parse_id_filter(filter_value):
+    """
+        Turn an id filter into a list of ints. Accepts an int, a list/tuple of ints, or a
+        string of comma separated ints, optionally wrapped in [] or (), e.g. "5", "1,2,3", "[1, 2]".
+        Nothing is evaluated. Anything else raises HydraError.
+    """
+    if isinstance(filter_value, bool):
+        raise HydraError("Invalid id filter: %r" % (filter_value,))
+    if isinstance(filter_value, int):
+        return [filter_value]
+    if isinstance(filter_value, (list, tuple)):
+        items = list(filter_value)
+    elif isinstance(filter_value, str):
+        items = [i for i in filter_value.strip().strip("[]()").split(",") if i.strip() != ""]
+    else:
+        raise HydraError("Invalid id filter type: %s" % type(filter_value).__name__)
+
+    ids = []
+    for item in items:
+        if isinstance(item, bool):
+            raise HydraError("Invalid id in filter: %r" % (item,))
+        try:
+            ids.append(int(str(item).strip()))
+        except (TypeError, ValueError):
+            raise HydraError("Invalid id in filter: %r" % (item,))
+
+    if len(ids) == 0:
+        raise HydraError("Empty id filter")
+
+    return ids
+
+@required_perms("get_user")
 def get_all_users(**kwargs):
     """
         Get the username & ID of all users.
@@ -462,14 +494,13 @@ def get_all_users(**kwargs):
     if filter_type is not None:
         # Filtering the search of users
         if filter_type == "id":
-            if isinstance(filter_value, str):
-                # Trying to read a csv string
+            if filter_value is not None:
                 log.info("[HB.users] Getting user by Filter ID : %s", filter_value)
-                filter_value = eval(filter_value)
-                if type(filter_value) is int:
-                    users_qry = users_qry.filter(User.id == filter_value)
+                ids = _parse_id_filter(filter_value)
+                if len(ids) == 1:
+                    users_qry = users_qry.filter(User.id == ids[0])
                 else:
-                    users_qry = users_qry.filter(User.id.in_(filter_value))
+                    users_qry = users_qry.filter(User.id.in_(ids))
         elif filter_type == "username":
             if isinstance(filter_value, str):
                 # Trying to read a csv string
