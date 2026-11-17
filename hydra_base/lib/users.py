@@ -191,8 +191,11 @@ def delete_user(deleted_user_id,**kwargs):
 
     return 'OK'
 
-@required_perms("get_user")
-def get_failed_login_count(username, **kwargs):
+def _failed_login_count(username):
+    """
+        Internal: the failed login count for a user, -1 if the user does not exist.
+        Not permission checked, as it is used while authenticating, before any user is known.
+    """
     try:
         user_i = db.DBSession.query(User).filter(User.username == username).one()
     except NoResultFound:
@@ -207,6 +210,15 @@ def get_failed_login_count(username, **kwargs):
 
 
 @required_perms("get_user")
+def get_failed_login_count(username, **kwargs):
+    return _failed_login_count(username)
+
+
+def _max_login_attempts():
+    return int(config.get("security", "max_login_attempts", 0))
+
+
+@required_perms("get_user")
 def get_max_login_attempts(*args, **kwargs):
     """
         Get the max number of login attempts a user can have. This usually
@@ -216,9 +228,7 @@ def get_max_login_attempts(*args, **kwargs):
          a value of 0 will be returned and users will be unable to log
          in.
     """
-    max_login_attempts = int(config.get("security", "max_login_attempts", 0))
-
-    return max_login_attempts
+    return _max_login_attempts()
 
 
 @required_perms("get_user")
@@ -233,8 +243,12 @@ def get_remaining_login_attempts(username, **kwargs):
         raises:
             HydraError if the username does not exist
     """
-    max_login_attempts = get_max_login_attempts(**kwargs)
-    failed_attempts = get_failed_login_count(username, **kwargs)
+    return _remaining_login_attempts(username)
+
+
+def _remaining_login_attempts(username):
+    max_login_attempts = _max_login_attempts()
+    failed_attempts = _failed_login_count(username)
 
     log.info("Max login attempts: %s, Failed logins: %s", max_login_attempts, failed_attempts)
 
@@ -256,6 +270,11 @@ def inc_failed_login_attempts(username, flush=True, **kwargs):
         raises:
             HydraError if the username does not exist
     """
+    _increment_failed_logins(username, flush=flush)
+
+
+def _increment_failed_logins(username, flush=True):
+    """ Internal, not permission checked: used while authenticating """
     try:
         user_i = db.DBSession.query(User).filter(User.username == username).one()
     except NoResultFound:
