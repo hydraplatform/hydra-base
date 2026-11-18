@@ -175,6 +175,8 @@ class TestDefaultRolePerms:
                 assert p not in perms, f"{role} must not have {p}"
         hb.db.close_session()
 
+    @pytest.mark.local_only  # uses get_users_like, not exposed by hydra-server
+
     def test_developer_can_use_common_read_calls(self, client, network_with_data):
         """ Reading calls that carry a read permission must work for a normal user """
         net = network_with_data

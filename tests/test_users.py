@@ -166,6 +166,8 @@ class TestUser:
 
         assert delete_result == 'OK', "Role Perm was not removed!"
 
+    @pytest.mark.local_only  # RPC not exposed by hydra-server
+
     def test_get_users_like(self, client):
 
         all_users = client.get_all_users()
@@ -185,6 +187,8 @@ class TestUser:
         similar_users_b = client.get_users_like(partial_name_b)
 
         assert len(similar_users_b) == len(matching_users)
+
+    @pytest.mark.local_only  # RPC not exposed by hydra-server
 
     def test_get_usernames_like(self, client):
 
@@ -318,6 +322,9 @@ class TestUser:
         max_attempts = client.get_max_login_attempts()
 
         assert max_attempts == failed_logins + remaining_attempts
+
+
+@pytest.mark.local_only  # filter arguments are not part of the remote API
 
 
 class TestGetAllUsersFilter:
