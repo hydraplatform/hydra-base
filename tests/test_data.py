@@ -688,6 +688,8 @@ class TestSharing:
 
         client.user_id = pytest.root_user_id
 
+    @pytest.mark.local_only  # builds datetime-keyed values, which cannot be sent as JSON
+
     def test_replace_hidden_data(self, client, network_with_data):
         """
             test_replace_hidden_data
@@ -758,6 +760,8 @@ class TestSharing:
         assert hidden_dataset.value  == None
 
         client.user_id = pytest.root_user_id
+
+    @pytest.mark.local_only  # builds datetime-keyed values, which cannot be sent as JSON
 
     def test_edit_hidden_data(self, client, network_with_data):
         """
@@ -850,6 +854,9 @@ class TestiUtilities:
     ])
     def test_flatten_dict(self, client, test_input, expected):
         assert flatten_dict(test_input) == expected
+
+
+@pytest.mark.local_only  # checks the raw client results, which differ over JSON
 
 
 class TestHiddenDataVisibility:

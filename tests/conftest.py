@@ -20,6 +20,7 @@ from hydra_base.lib.cache import clear_cache
 no_externaldb_opt = "--no-externaldb"
 externaldb_mark = "externaldb"
 requires_hdf_mark = "requires_hdf"
+local_only_mark = "local_only"
 
 def pytest_addoption(parser):
     parser.addoption("--db-backend", action="store", default="sqlite",
@@ -32,6 +33,7 @@ def pytest_addoption(parser):
 def pytest_configure(config):
     config.addinivalue_line("markers", f"{externaldb_mark}: Tests external storage")
     config.addinivalue_line("markers", f"{requires_hdf_mark}: Indicates that decorated test requires HDF support")
+    config.addinivalue_line("markers", f"{local_only_mark}: Test needs the local connection (not available over a remote connection)")
 
 def pytest_collection_modifyitems(config, items):
     """
@@ -40,7 +42,16 @@ def pytest_collection_modifyitems(config, items):
 
     When config has disabled HDF support, add a skip mark to every test
     marked with `requires_hdf_mark`
+
+    When running against hydra-server (`--connection-type remote`), add a skip
+    mark to every test marked with `local_only_mark`
     """
+    if config.getoption("--connection-type") != "local":
+        local_only_skip = pytest.mark.skip(reason="needs a local connection")
+        for item in items:
+            if local_only_mark in item.keywords:
+                item.add_marker(local_only_skip)
+
     if config.getoption(no_externaldb_opt):
         externaldb_skip = pytest.mark.skip(reason=f"{no_externaldb_opt} selected")
         for item in items:
@@ -112,6 +123,18 @@ def client(connection_type, testdb_uri):
         from hydra_server import initialize_api_server
 
         hydra_server = initialize_api_server(testdb_uri, test=True)
+
+        #The server does not create the default users, permissions, units and root user
+        #(the local connection does this in connect()), so do it here for a fresh test DB.
+        try:
+            hydra_base.util.hdb.create_default_users_and_perms()
+            hydra_base.util.hdb.create_default_units_and_dimensions()
+            hydra_base.util.hdb.make_root_user()
+            hydra_base.util.hdb.create_default_net()
+            hydra_base.commit_transaction()
+        except Exception:
+            hydra_base.rollback_transaction()
+            raise
 
         null_server = NullServer(hydra_server.json_application, ostr=True)
 
