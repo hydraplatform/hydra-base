@@ -20,7 +20,8 @@
 from ..import config
 
 import os
-import subprocess 
+import subprocess
+from ..exceptions import HydraError
 import sys
 
 import logging
@@ -99,11 +100,17 @@ def run_plugin(plugin,**kwargs):
         Run a plugin
     """
    
+    if str(config.get('plugin', 'enable_run', 'N')).strip().upper() not in ('Y', 'YES', 'TRUE', '1'):
+        raise HydraError("Running plugins is disabled on this server")
+
     args = [sys.executable]
 
-    #Get plugin executable
+    #Get plugin executable. It must be a file inside the plugin directory.
     home = os.path.expanduser('~')
-    path_to_plugin = os.path.join(home, 'svn/HYDRA/HydraPlugins', plugin.location)
+    plugin_root = os.path.realpath(os.path.join(home, 'svn/HYDRA/HydraPlugins'))
+    path_to_plugin = os.path.realpath(os.path.join(plugin_root, plugin.location))
+    if os.path.commonpath([plugin_root, path_to_plugin]) != plugin_root or not os.path.isfile(path_to_plugin):
+        raise HydraError("Invalid plugin location")
     args.append(path_to_plugin)
     
     #Parse plugin arguments into a string

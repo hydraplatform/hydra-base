@@ -318,3 +318,52 @@ class TestUser:
         max_attempts = client.get_max_login_attempts()
 
         assert max_attempts == failed_logins + remaining_attempts
+
+
+class TestGetAllUsersFilter:
+    """ The id filter is parsed, never evaluated """
+
+    @staticmethod
+    def _names(users):
+        return sorted(u.username for u in users)
+
+    def test_filter_by_single_id(self, client):
+        users = client.get_all_users(filter_type="id", filter_value=str(pytest.user_a.id))
+        assert self._names(users) == [pytest.user_a.username]
+
+    @pytest.mark.parametrize("fmt", ["{a},{b}", "[{a}, {b}]", "({a},{b})", " {a} , {b} "])
+    def test_filter_by_several_ids(self, client, fmt):
+        value = fmt.format(a=pytest.user_a.id, b=pytest.user_b.id)
+        users = client.get_all_users(filter_type="id", filter_value=value)
+        assert self._names(users) == sorted([pytest.user_a.username, pytest.user_b.username])
+
+    def test_filter_by_id_list(self, client):
+        users = client.get_all_users(filter_type="id", filter_value=[pytest.user_a.id, pytest.user_b.id])
+        assert self._names(users) == sorted([pytest.user_a.username, pytest.user_b.username])
+
+    @pytest.mark.parametrize("value", ["abc", "1;2", "1,,x", "[]", "", "None", "True", "1.5"])
+    def test_invalid_id_filter_is_rejected(self, client, value):
+        with pytest.raises(HydraError):
+            client.get_all_users(filter_type="id", filter_value=value)
+
+    def test_id_filter_is_not_evaluated(self, client, tmp_path):
+        """ A python expression in the filter must be rejected and must not run """
+        marker = tmp_path / "must_not_exist"
+        expr = "__import__('pathlib').Path(%r).write_text('x')" % str(marker)
+        with pytest.raises(HydraError):
+            client.get_all_users(filter_type="id", filter_value=expr)
+        assert not marker.exists()
+
+    def test_unknown_filter_type_is_rejected(self, client):
+        with pytest.raises(Exception):
+            client.get_all_users(filter_type="other", filter_value="1")
+
+    def test_user_without_permission_is_denied(self, client):
+        no_role = JSONObject(client.add_user(JSONObject(dict(
+            username="NoRoleLister", password="password", display_name="no role"))))
+        client.user_id = no_role.id
+        try:
+            with pytest.raises(HydraError):
+                client.get_all_users()
+        finally:
+            client.user_id = pytest.root_user_id

@@ -2155,12 +2155,16 @@ def _purge_datasets_unique_to_resource(ref_key, ref_id):
                                        ResourceScenario.dataset_id).filter(
                                        ResourceScenario.resource_attr_id==ResourceAttr.id)
 
+    # Query.filter() returns a new query, so the result must be kept. Without a
+    # resource filter every dataset in the database is counted as "unique" to this resource.
     if ref_key == 'NODE':
-        count_qry.filter(ResourceAttr.node_id == ref_id)
+        count_qry = count_qry.filter(ResourceAttr.node_id == ref_id)
     elif ref_key == 'LINK':
-        count_qry.filter(ResourceAttr.link_id == ref_id)
+        count_qry = count_qry.filter(ResourceAttr.link_id == ref_id)
     elif ref_key == 'GROUP':
-        count_qry.filter(ResourceAttr.group_id == ref_id)
+        count_qry = count_qry.filter(ResourceAttr.group_id == ref_id)
+    else:
+        raise HydraError(f"Cannot purge datasets for unsupported resource type '{ref_key}'")
 
     count_rs = count_qry.all()
 
@@ -2197,6 +2201,9 @@ def delete_node(node_id, purge_data,**kwargs):
     except NoResultFound:
         raise ResourceNotFoundError("Node %s not found"%(node_id))
 
+    # Check permission before anything is modified or purged
+    node_i.network.check_write_permission(user_id)
+
     group_items = db.DBSession.query(ResourceGroupItem).filter(
                                         ResourceGroupItem.node_id==node_id).all()
     for gi in group_items:
@@ -2207,7 +2214,6 @@ def delete_node(node_id, purge_data,**kwargs):
 
     log.info("Deleting node %s, id=%s", node_i.name, node_id)
 
-    node_i.network.check_write_permission(user_id)
     db.DBSession.delete(node_i)
     db.DBSession.flush()
     return 'OK'
@@ -2342,6 +2348,9 @@ def delete_link(link_id, purge_data,**kwargs):
     except NoResultFound:
         raise ResourceNotFoundError("Link %s not found"%(link_id))
 
+    # Check permission before anything is modified or purged
+    link_i.network.check_write_permission(user_id)
+
     group_items = db.DBSession.query(ResourceGroupItem).filter(
                                                     ResourceGroupItem.link_id==link_id).all()
     for gi in group_items:
@@ -2352,7 +2361,6 @@ def delete_link(link_id, purge_data,**kwargs):
 
     log.info("Deleting link %s, id=%s", link_i.name, link_id)
 
-    link_i.network.check_write_permission(user_id)
     db.DBSession.delete(link_i)
     db.DBSession.flush()
 
@@ -2469,6 +2477,9 @@ def delete_group(group_id, purge_data,**kwargs):
     except NoResultFound:
         raise ResourceNotFoundError("Group %s not found"%(group_id))
 
+    # Check permission before anything is modified or purged
+    group_i.network.check_write_permission(user_id)
+
     group_items = db.DBSession.query(ResourceGroupItem).filter(
                                                     ResourceGroupItem.group_id==group_id).all()
     for gi in group_items:
@@ -2479,7 +2490,6 @@ def delete_group(group_id, purge_data,**kwargs):
 
     log.info("Deleting group %s, id=%s", group_i.name, group_id)
 
-    group_i.network.check_write_permission(user_id)
     db.DBSession.delete(group_i)
     db.DBSession.flush()
 
@@ -3532,7 +3542,7 @@ def _clone_attributes(network_id, newnetworkid, exnet_project_id, newnet_project
             #to the project, so it is shared by the networks
             a.network_id=None
             a.project_id=exnet_project_id
-            attributes.update_attribute(a)
+            attributes.update_attribute(a, user_id=user_id)
 
     return new_scoped_attrs_lookup
 
