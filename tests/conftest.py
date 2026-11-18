@@ -113,6 +113,18 @@ def client(connection_type, testdb_uri):
 
         hydra_server = initialize_api_server(testdb_uri, test=True)
 
+        #The server does not create the default users, permissions, units and root user
+        #(the local connection does this in connect()), so do it here for a fresh test DB.
+        try:
+            hydra_base.util.hdb.create_default_users_and_perms()
+            hydra_base.util.hdb.create_default_units_and_dimensions()
+            hydra_base.util.hdb.make_root_user()
+            hydra_base.util.hdb.create_default_net()
+            hydra_base.commit_transaction()
+        except Exception:
+            hydra_base.rollback_transaction()
+            raise
+
         null_server = NullServer(hydra_server.json_application, ostr=True)
 
         #The url argument here is to avoid the connection complaining.
