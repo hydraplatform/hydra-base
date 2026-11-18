@@ -94,3 +94,24 @@ class TestLogin:
 
         reset_failed_logins("root", flush=True)
         assert get_failed_login_count("root") == 0
+
+
+class TestPasswordLoginDisabled:
+    """ The password_login_disabled flag that sends a user to bearer-token login instead. """
+
+    def test_flag_defaults_off(self, client):
+        from hydra_base.lib.users import is_password_login_disabled
+        assert is_password_login_disabled('root') is False
+
+    def test_unknown_user_is_not_flagged(self, client):
+        from hydra_base.lib.users import is_password_login_disabled
+        assert is_password_login_disabled('no-such-user') is False
+
+    def test_set_and_clear(self, client):
+        from hydra_base.lib.users import set_password_login_disabled, is_password_login_disabled
+        assert set_password_login_disabled(['root', 'no-such-user'], True, user_id=1) == 1
+        assert is_password_login_disabled('root') is True
+        # setting it again changes nothing
+        assert set_password_login_disabled(['root'], True, user_id=1) == 0
+        assert set_password_login_disabled(['root'], False, user_id=1) == 1
+        assert is_password_login_disabled('root') is False
