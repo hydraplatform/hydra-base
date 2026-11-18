@@ -19,6 +19,7 @@ import pytest
 import datetime
 import logging
 import json
+import uuid
 import hydra_base as hb
 from hydra_base.lib.objects import JSONObject
 from hydra_base.exceptions import ResourceNotFoundError
@@ -849,3 +850,63 @@ class TestiUtilities:
     ])
     def test_flatten_dict(self, client, test_input, expected):
         assert flatten_dict(test_input) == expected
+
+
+class TestHiddenDataVisibility:
+    """ Hidden datasets must only be visible to their owners, through every read path """
+
+    @pytest.fixture()
+    def hidden_dataset(self, client):
+        """ A dataset created by root, hidden, and shared with UserD only """
+        client.user_id = pytest.root_user_id
+        dataset = client.add_dataset('descriptor', 'hidden-value-%s' % uuid.uuid4(), None,
+                                     {'source': 'hidden-search-test'}, 'hidden search test', flush=True)
+        dataset = JSONObject(dataset)
+        client.hide_dataset(dataset.id, [pytest.user_d.username], 'Y', 'N', 'N')
+        yield dataset
+        client.user_id = pytest.root_user_id
+
+    @staticmethod
+    def _search(client, user, **kwargs):
+        client.user_id = user.id if hasattr(user, "id") else user
+        return client.search_datasets(**kwargs)
+
+    def test_search_by_id_hides_it_from_other_users(self, client, hidden_dataset):
+        found = self._search(client, pytest.user_c, dataset_id=hidden_dataset.id, inc_val='Y')
+        assert [d.id for d in found] == []
+
+    def test_search_by_name_and_value_does_not_leak(self, client, hidden_dataset):
+        found = self._search(client, pytest.user_c, dataset_name=hidden_dataset.name, inc_val='Y')
+        assert hidden_dataset.id not in [d.id for d in found]
+
+    def test_unfiltered_search_does_not_leak(self, client, hidden_dataset):
+        found = self._search(client, pytest.user_c, inc_val='Y', page_size=100000)
+        assert hidden_dataset.id not in [d.id for d in found]
+
+    def test_owners_can_still_find_it_with_its_value(self, client, hidden_dataset):
+        for user in (pytest.root_user_id, pytest.user_d):  # creator, named owner
+            found = self._search(client, user, dataset_id=hidden_dataset.id, inc_val='Y')
+            assert [d.id for d in found] == [hidden_dataset.id]
+            assert found[0].value is not None
+
+    def test_search_with_metadata_returns_it(self, client, hidden_dataset):
+        found = self._search(client, pytest.user_d, dataset_id=hidden_dataset.id, inc_metadata='Y')
+        assert [d.id for d in found] == [hidden_dataset.id]
+
+    def test_unhidden_data_is_still_searchable_by_anyone(self, client, network_with_data):
+        client.user_id = pytest.root_user_id
+        visible = network_with_data.scenarios[0].resourcescenarios[0].dataset
+        found = self._search(client, pytest.user_c, dataset_id=visible.id, inc_val='Y')
+        assert [d.id for d in found] == [visible.id]
+        client.user_id = pytest.root_user_id
+
+    def test_get_dataset_masks_value_for_non_owner_only(self, client, hidden_dataset):
+        client.user_id = pytest.user_c.id
+        other = client.get_dataset(hidden_dataset.id)
+        assert other.value is None and not other.metadata
+        client.user_id = pytest.user_d.id
+        owner = client.get_dataset(hidden_dataset.id)
+        assert owner.value is not None
+        assert client.get_datasets([hidden_dataset.id])[0].value is not None
+        client.user_id = pytest.user_c.id
+        assert client.get_datasets([hidden_dataset.id])[0].value is None
