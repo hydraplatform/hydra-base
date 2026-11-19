@@ -17,7 +17,7 @@ dependencies=[
     "cheroot",
     "beaker",
     "click",
-    "diskcache",
+    "diskcache-community>=5.8.4",
     "fsspec",
     "h5py",
     "lxml",
