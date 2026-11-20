@@ -17,6 +17,7 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 from .base import *
+from sqlalchemy import Boolean
 
 #***************************************************
 #Ownership & Permissions
@@ -113,6 +114,9 @@ class User(Base, Inspect):
     last_edit = Column(TIMESTAMP())
     cr_date = Column(TIMESTAMP(),  nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
     failed_logins = Column(SMALLINT, nullable=True, default=0)
+    # True when the user must authenticate with an OAuth bearer token (issued after their second factor)
+    # rather than username/password: hydra-server's password login refuses them.
+    password_login_disabled = Column(Boolean(), nullable=False, server_default=text(u'0'), default=False)
 
     _parents  = []
     _children = ['tRoleUser']
