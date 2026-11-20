@@ -21,6 +21,7 @@ import logging
 import json
 from collections import defaultdict
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy import or_
 from sqlalchemy.orm import noload, joinedload
 
 from ..util import hdb
@@ -373,7 +374,7 @@ def get_project_by_name(project_name, **kwargs):
     return projects_i
 
 @required_perms('get_project')
-def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=None, project_id=None, **kwargs):
+def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=None, project_id=None, summary=False, **kwargs):
     """
         Get all the projects owned by the specified user.
         These include projects created by the user, but also ones shared with the user.
@@ -381,6 +382,12 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
 
         the include_shared_projects flag indicates whether to include projects which have been shared
         with the user, or to only return projects created directly by this user.
+
+        If summary is True, each returned project carries only stubs for its contents: 'networks'
+        and 'projects' are lists of {id, name} entries rather than full objects, so
+        len() of each is the visible network / sub-project count. Attribute data, scenarios, network
+        owners and grandchildren are not loaded. The number of queries is then independent of the
+        number of projects, which is what a listing page needs.
     """
     req_user_id = kwargs.get('user_id')
 
@@ -436,6 +443,9 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
     user = db.DBSession.query(User).filter(User.id == req_user_id).one()
     isadmin = user.is_admin()
 
+    if summary:
+        return _get_project_summaries(uid, req_user_id, isadmin, scoped_projects, nav_projects_i)
+
     #nav_project_ids aren't in projects_i (the user doesn't own/have direct
     #view access to them), so their networks aren't in project_network_lookup
     #below -- look them up separately, otherwise a nav_only project always
@@ -489,6 +499,73 @@ def get_projects(uid, include_shared_projects=True, projects_ids_list_filter=Non
         projects_j.append(project_j)
 
     log.info("Networks loaded projects for user %s", uid)
+
+    return projects_j + nav_projects
+
+def _get_project_summaries(uid, req_user_id, isadmin, scoped_projects, nav_projects_i):
+    """
+        Build the summary form of the project list for get_projects(summary=True).
+        Uses a fixed number of queries whatever the number of projects, and returns
+        the same structure as the full form, with 'networks' and 'projects' holding
+        {id, name} stubs for the networks / sub-projects the user can see.
+    """
+    #Networks one level further down, in a nav project's direct sub-projects.
+    #Project.get_cache(uid) already holds the tree, so this is a dict lookup.
+    nav_child_ids = {}
+    for nav_project_i in nav_projects_i:
+        nav_child_ids[nav_project_i.id] = [
+            cid for cid in Project.get_cache(uid).get(nav_project_i.id, [])
+            if cid != nav_project_i.id
+        ]
+
+    network_project_ids = {p.id for p in scoped_projects}
+    network_project_ids.update(p.id for p in nav_projects_i)
+    for cids in nav_child_ids.values():
+        network_project_ids.update(cids)
+
+    #One query for the visible networks of every project listed, the same
+    #visibility rules as get_projects_networks()
+    networks_by_project = defaultdict(list)
+    if network_project_ids:
+        network_qry = db.DBSession.query(Network.id, Network.name, Network.project_id)\
+            .filter(Network.project_id.in_(network_project_ids), Network.status == 'A')
+        if not isadmin:
+            network_qry = network_qry.join(NetworkOwner, NetworkOwner.network_id == Network.id)\
+                .filter(NetworkOwner.user_id == uid, NetworkOwner.view == 'Y')
+        for net in network_qry.order_by(Network.id).all():
+            networks_by_project[net.project_id].append(JSONObject({'id': net.id, 'name': net.name}))
+
+    #One query for the readable direct sub-projects of the scoped projects, the same
+    #rule as Project.get_child_projects(): created by the user, admin, or a view owner.
+    children_by_project = defaultdict(list)
+    scoped_ids = [p.id for p in scoped_projects]
+    if scoped_ids:
+        child_qry = db.DBSession.query(Project.id, Project.name, Project.parent_id)\
+            .filter(Project.parent_id.in_(scoped_ids), Project.status == 'A')
+        if not isadmin:
+            viewable = db.DBSession.query(ProjectOwner.project_id).filter(
+                ProjectOwner.user_id == req_user_id, ProjectOwner.view == 'Y')
+            child_qry = child_qry.filter(or_(Project.created_by == req_user_id,
+                                             Project.id.in_(viewable)))
+        for child in child_qry.order_by(Project.id).all():
+            children_by_project[child.parent_id].append(JSONObject({'id': child.id, 'name': child.name}))
+
+    projects_j = []
+    for project_i in scoped_projects:
+        project_j = JSONObject(project_i)
+        project_j.networks = networks_by_project.get(project_i.id, [])
+        project_j.projects = children_by_project.get(project_i.id, [])
+        projects_j.append(project_j)
+
+    nav_projects = []
+    for nav_project_i in nav_projects_i:
+        nav_project_j = JSONObject(nav_project_i)
+        nav_project_j.nav_only = True
+        nav_project_j.owners = []
+        nav_project_j.networks = list(networks_by_project.get(nav_project_i.id, []))
+        for cid in nav_child_ids[nav_project_i.id]:
+            nav_project_j.networks.extend(networks_by_project.get(cid, []))
+        nav_projects.append(nav_project_j)
 
     return projects_j + nav_projects
 
