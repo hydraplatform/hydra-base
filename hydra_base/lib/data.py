@@ -27,7 +27,7 @@ import pandas as pd
 from collections import namedtuple
 from decimal import Decimal
 
-from sqlalchemy import func, null, and_, or_, distinct
+from sqlalchemy import func, null, and_, or_, not_, distinct
 from sqlalchemy.orm import aliased, make_transient, joinedload
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.sql.expression import literal_column, case
@@ -59,6 +59,17 @@ NS = "soap_server.hydra_complexmodels"
 
 log = logging.getLogger(__name__)
 
+def _can_see_hidden_data(user_id):
+    """
+        SQL condition for 'this user may read the content of a hidden dataset': the creator, or an
+        owner with view access. Administrators get no implicit access here (the hidden value was
+        already masked from them by get_dataset).
+        The query it is used in must outer join DatasetOwner on this user's id.
+        Written so that NULL columns give False, never NULL.
+    """
+    return or_(and_(Dataset.created_by.isnot(None), Dataset.created_by == user_id),
+               and_(DatasetOwner.user_id.isnot(None), DatasetOwner.view == 'Y'))
+
 def get_dataset(dataset_id,**kwargs):
     """
         Get a single dataset, by ID
@@ -78,20 +89,22 @@ def get_dataset(dataset_id,**kwargs):
                 Dataset.created_by,
                 DatasetOwner.user_id,
                 null().label('metadata'),
-                case((and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None),
-                        else_=Dataset.value).label('value')).filter(
+                case((and_(Dataset.hidden=='Y', not_(_can_see_hidden_data(user_id))), None),
+                        else_=Dataset.value).label('value'),
+                _can_see_hidden_data(user_id).label('can_see')).filter(
                 Dataset.id==dataset_id).outerjoin(DatasetOwner,
                                     and_(DatasetOwner.dataset_id==Dataset.id,
                                     DatasetOwner.user_id==user_id)).one()
 
         rs_dict = dataset_rs._asdict()
+        can_see = bool(rs_dict.pop('can_see'))
 
         #convert the value row into a string as it is returned as a binary
 
         if dataset_rs.value is not None:
             rs_dict['value'] = str(dataset_rs.value)
 
-        if dataset_rs.hidden == 'N' or (dataset_rs.hidden == 'Y' and dataset_rs.user_id is not None):
+        if dataset_rs.hidden == 'N' or can_see:
             metadata = db.DBSession.query(Metadata).filter(Metadata.dataset_id==dataset_id).all()
             rs_dict['metadata'] = metadata
         else:
@@ -177,8 +190,9 @@ def get_datasets(dataset_ids,**kwargs):
                 Dataset.created_by,
                 DatasetOwner.user_id,
                 null().label('metadata'),
-                case([(and_(Dataset.hidden=='Y', DatasetOwner.user_id is not None), None)],
-                        else_=Dataset.value).label('value')).filter(
+                case((and_(Dataset.hidden=='Y', not_(_can_see_hidden_data(user_id))), None),
+                        else_=Dataset.value).label('value'),
+                _can_see_hidden_data(user_id).label('can_see')).filter(
                 Dataset.id.in_(dataset_ids)).outerjoin(DatasetOwner,
                                     and_(DatasetOwner.dataset_id==Dataset.id,
                                     DatasetOwner.user_id==user_id)).all()
@@ -186,11 +200,12 @@ def get_datasets(dataset_ids,**kwargs):
         #convert the value row into a string as it is returned as a binary
         for dataset_row in dataset_rs:
             dataset_dict = dataset_row._asdict()
+            can_see = bool(dataset_dict.pop('can_see'))
 
             if dataset_row.value is not None:
                 dataset_dict['value'] = str(dataset_row.value)
 
-            if dataset_row.hidden == 'N' or (dataset_row.hidden == 'Y' and dataset_row.user_id is not None):
+            if dataset_row.hidden == 'N' or can_see:
                 metadata = db.DBSession.query(Metadata).filter(Metadata.dataset_id == dataset_row.id).all()
                 dataset_dict['metadata'] = metadata
             else:
@@ -358,7 +373,7 @@ def search_datasets(dataset_id=None,
                                 and_(DatasetOwner.dataset_id==Dataset.id,
                                 DatasetOwner.user_id==user_id))
 
-    dataset_qry = dataset_qry.filter(or_(Dataset.hidden=='N', and_(DatasetOwner.user_id is not None, Dataset.hidden=='Y')))
+    dataset_qry = dataset_qry.filter(or_(Dataset.hidden=='N', _can_see_hidden_data(user_id)))
 
     log.info(str(dataset_qry))
 
@@ -391,7 +406,7 @@ def search_datasets(dataset_id=None,
                 dataset_dict['value'] = str(dataset_row.value)
 
         if inc_metadata=='Y':
-            metadata = db.DBSession.query(Metadata).filter(Metadata.dataset_id==dataset_row.dataset_id).all()
+            metadata = db.DBSession.query(Metadata).filter(Metadata.dataset_id==dataset_row.id).all()
             dataset_dict['metadata'] = metadata
         else:
             dataset_dict['metadata'] = []

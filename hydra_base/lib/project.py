@@ -49,7 +49,7 @@ def _get_project(project_id, user_id, check_write=False):
     except NoResultFound:
         raise ResourceNotFoundError("Project %s not found"%(project_id))
 
-def _add_project_attribute_data(project_i, attr_map, attribute_data):
+def _add_project_attribute_data(project_i, attr_map, attribute_data, user_id=None):
     if attribute_data is None:
         return []
     #As projects do not have scenarios (or to be more precise, they can only use
@@ -62,7 +62,7 @@ def _add_project_attribute_data(project_i, attr_map, attribute_data):
             ra_i = attr_map[attr.resource_attr_id]
             attr.resource_attr_id = ra_i.id
 
-        rscen = scenario._update_resourcescenario(None, attr)
+        rscen = scenario._update_resourcescenario(None, attr, user_id=user_id)
 
         resource_scenarios.append(rscen)
 
@@ -110,7 +110,7 @@ def add_project(project, **kwargs):
 
     db.DBSession.flush() #Needed to get the resource attr's ID
 
-    proj_data = _add_project_attribute_data(proj_i, attr_map, project.attribute_data)
+    proj_data = _add_project_attribute_data(proj_i, attr_map, project.attribute_data, user_id=user_id)
 
     proj_i.attribute_data = proj_data
 
@@ -164,7 +164,7 @@ def update_project(project, **kwargs):
 
     if project.attributes:
         attr_map = hdb.add_resource_attributes(proj_i, project.attributes)
-        proj_data = _add_project_attribute_data(proj_i, attr_map, project.attribute_data)
+        proj_data = _add_project_attribute_data(proj_i, attr_map, project.attribute_data, user_id=user_id)
         proj_i.attribute_data = proj_data
 
     Project.clear_cache(user_id)

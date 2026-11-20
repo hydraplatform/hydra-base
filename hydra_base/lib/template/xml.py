@@ -16,6 +16,7 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 
+import ast
 import json
 import logging
 from decimal import Decimal
@@ -564,7 +565,17 @@ def _get_layout_as_etree(layout_dict):
         return None
 
     layout = etree.Element("layout")
-    layout_dict = eval(layout_dict)
+    if isinstance(layout_dict, str):
+        # The layout is stored as a JSON (or python literal) string. Never evaluate it.
+        try:
+            layout_dict = json.loads(layout_dict)
+        except ValueError:
+            try:
+                layout_dict = ast.literal_eval(layout_dict)
+            except (ValueError, SyntaxError):
+                raise HydraError("Template layout is not a valid dictionary")
+    if not isinstance(layout_dict, dict):
+        raise HydraError("Template layout is not a valid dictionary")
     for k, v in layout_dict.items():
         item = etree.SubElement(layout, "item")
         name = etree.SubElement(item, "name")

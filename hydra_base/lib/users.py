@@ -215,8 +215,11 @@ def delete_user(deleted_user_id,**kwargs):
 
     return 'OK'
 
-@required_perms("get_user")
-def get_failed_login_count(username, **kwargs):
+def _failed_login_count(username):
+    """
+        Internal: the failed login count for a user, -1 if the user does not exist.
+        Not permission checked, as it is used while authenticating, before any user is known.
+    """
     try:
         user_i = db.DBSession.query(User).filter(User.username == username).one()
     except NoResultFound:
@@ -231,6 +234,15 @@ def get_failed_login_count(username, **kwargs):
 
 
 @required_perms("get_user")
+def get_failed_login_count(username, **kwargs):
+    return _failed_login_count(username)
+
+
+def _max_login_attempts():
+    return int(config.get("security", "max_login_attempts", 0))
+
+
+@required_perms("get_user")
 def get_max_login_attempts(*args, **kwargs):
     """
         Get the max number of login attempts a user can have. This usually
@@ -240,9 +252,7 @@ def get_max_login_attempts(*args, **kwargs):
          a value of 0 will be returned and users will be unable to log
          in.
     """
-    max_login_attempts = int(config.get("security", "max_login_attempts", 0))
-
-    return max_login_attempts
+    return _max_login_attempts()
 
 
 @required_perms("get_user")
@@ -257,8 +267,12 @@ def get_remaining_login_attempts(username, **kwargs):
         raises:
             HydraError if the username does not exist
     """
-    max_login_attempts = get_max_login_attempts(**kwargs)
-    failed_attempts = get_failed_login_count(username, **kwargs)
+    return _remaining_login_attempts(username)
+
+
+def _remaining_login_attempts(username):
+    max_login_attempts = _max_login_attempts()
+    failed_attempts = _failed_login_count(username)
 
     log.info("Max login attempts: %s, Failed logins: %s", max_login_attempts, failed_attempts)
 
@@ -280,6 +294,11 @@ def inc_failed_login_attempts(username, flush=True, **kwargs):
         raises:
             HydraError if the username does not exist
     """
+    _increment_failed_logins(username, flush=flush)
+
+
+def _increment_failed_logins(username, flush=True):
+    """ Internal, not permission checked: used while authenticating """
     try:
         user_i = db.DBSession.query(User).filter(User.username == username).one()
     except NoResultFound:
@@ -472,6 +491,38 @@ def update_role(role,**kwargs):
     return role_i
 
 
+def _parse_id_filter(filter_value):
+    """
+        Turn an id filter into a list of ints. Accepts an int, a list/tuple of ints, or a
+        string of comma separated ints, optionally wrapped in [] or (), e.g. "5", "1,2,3", "[1, 2]".
+        Nothing is evaluated. Anything else raises HydraError.
+    """
+    if isinstance(filter_value, bool):
+        raise HydraError("Invalid id filter: %r" % (filter_value,))
+    if isinstance(filter_value, int):
+        return [filter_value]
+    if isinstance(filter_value, (list, tuple)):
+        items = list(filter_value)
+    elif isinstance(filter_value, str):
+        items = [i for i in filter_value.strip().strip("[]()").split(",") if i.strip() != ""]
+    else:
+        raise HydraError("Invalid id filter type: %s" % type(filter_value).__name__)
+
+    ids = []
+    for item in items:
+        if isinstance(item, bool):
+            raise HydraError("Invalid id in filter: %r" % (item,))
+        try:
+            ids.append(int(str(item).strip()))
+        except (TypeError, ValueError):
+            raise HydraError("Invalid id in filter: %r" % (item,))
+
+    if len(ids) == 0:
+        raise HydraError("Empty id filter")
+
+    return ids
+
+@required_perms("get_user")
 def get_all_users(**kwargs):
     """
         Get the username & ID of all users.
@@ -486,14 +537,13 @@ def get_all_users(**kwargs):
     if filter_type is not None:
         # Filtering the search of users
         if filter_type == "id":
-            if isinstance(filter_value, str):
-                # Trying to read a csv string
+            if filter_value is not None:
                 log.info("[HB.users] Getting user by Filter ID : %s", filter_value)
-                filter_value = eval(filter_value)
-                if type(filter_value) is int:
-                    users_qry = users_qry.filter(User.id == filter_value)
+                ids = _parse_id_filter(filter_value)
+                if len(ids) == 1:
+                    users_qry = users_qry.filter(User.id == ids[0])
                 else:
-                    users_qry = users_qry.filter(User.id.in_(filter_value))
+                    users_qry = users_qry.filter(User.id.in_(ids))
         elif filter_type == "username":
             if isinstance(filter_value, str):
                 # Trying to read a csv string

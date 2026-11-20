@@ -29,7 +29,7 @@ from ..exceptions import HydraError, HydraLoginUserNotFound, HydraLoginUserMaxAt
 from sqlalchemy.orm import load_only
 from sqlalchemy import func
 from ..lib.objects import JSONObject
-from ..lib.users import get_remaining_login_attempts, inc_failed_login_attempts
+from ..lib.users import _remaining_login_attempts, _increment_failed_logins
 
 import logging
 log = logging.getLogger(__name__)
@@ -131,18 +131,36 @@ def make_root_user():
     return user_id
 
 
+_dummy_password_hash = None
+
+def _burn_password_check(password):
+    """ Spend the same time as a real password check so that response time does not reveal unknown users """
+    global _dummy_password_hash
+    if _dummy_password_hash is None:
+        _dummy_password_hash = bcrypt.hashpw(b"not-a-real-password", bcrypt.gensalt())
+    try:
+        password = password.encode('utf-8')
+    except (AttributeError, UnicodeEncodeError):
+        pass
+    try:
+        bcrypt.checkpw(password, _dummy_password_hash)
+    except Exception:
+        pass
+
+
 def login_user(username, password):
 
     try:
         user_i = db.DBSession.query(User).filter(User.username == username).one()
     except NoResultFound:
         """ The user has not been found in the DB """
+        _burn_password_check(password)
         raise HydraLoginUserNotFound(username)
     except:
         """ Generic DB Error """
         raise HydraError(username)
 
-    if get_remaining_login_attempts(username, user_id=user_i.id) <= 0:
+    if _remaining_login_attempts(username) <= 0:
         """  Account is not permitted to login """
         raise HydraLoginUserMaxAttemptsExceeded("Max login attempts exceeded for user {}".format(username))
 
@@ -167,7 +185,10 @@ def login_user(username, password):
         return user_id
     else:
         log.info("User {} now has {} failed logins".format(username, user_i.failed_logins+1))
-        inc_failed_login_attempts(user_i.username, user_id=1)
+        _increment_failed_logins(user_i.username)
+        # Commit now: the caller rolls the transaction back when it sees the exception,
+        # which would otherwise discard the increment and the lockout would never trigger.
+        db.commit_transaction()
         raise HydraLoginUserPasswordWrong(username)
 
 
@@ -355,6 +376,23 @@ def create_default_users_and_perms():
         ("manager", "edit_data"),
         ("manager", "get_data"),
     )
+
+    # Permissions that all non-admin roles need for ordinary use of the API.
+    # User / role / permission administration and delete_template stay admin-only.
+    baseline_perms = (
+        "get_network",
+        "get_template",
+        "get_rules",
+        "get_data",
+        "get_project",
+        "get_attribute",
+        "get_user",       # needed to look up users when sharing
+    )
+    rule_authoring_perms = ("add_rules", "update_rules", "delete_rules", "share_rules")
+    non_admin_roles = ("dev", "developer", "modeller", "manager", "grad", "decision")
+
+    roleperms = roleperms + tuple((r, p) for r in non_admin_roles for p in baseline_perms)
+    roleperms = roleperms + tuple((r, p) for r in ("developer", "dev", "modeller") for p in rule_authoring_perms)
 
     # Map for code to ID
     id_maps_dict = {
