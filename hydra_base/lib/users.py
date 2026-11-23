@@ -143,6 +143,30 @@ def update_user_password(new_pwd_user_id, new_password, **kwargs):
     except NoResultFound:
         raise ResourceNotFoundError("User (id=%s) not found"%(new_pwd_user_id))
 
+@required_perms("edit_user")
+def set_password_login_disabled(usernames, disabled=True, **kwargs):
+    """
+        Set (or clear) the password_login_disabled flag for the named users, in bulk.
+        A flagged user is refused by hydra-server's username/password login and must use an OAuth
+        bearer token instead. Returns the number of users changed.
+    """
+    usernames = list(usernames)
+    changed = 0
+    for i in range(0, len(usernames), 500):
+        changed += (db.DBSession.query(User)
+                    .filter(User.username.in_(usernames[i:i + 500]), User.password_login_disabled != bool(disabled))
+                    .update({User.password_login_disabled: bool(disabled)}, synchronize_session=False))
+    db.DBSession.flush()
+    return changed
+
+def is_password_login_disabled(username):
+    """
+        Is this user barred from password login? Used before authentication, so it takes no user_id and
+        reveals nothing but the flag. Unknown users are not barred (the password check fails for them anyway).
+    """
+    flag = db.DBSession.query(User.password_login_disabled).filter(User.username == username).scalar()
+    return bool(flag)
+
 @required_perms("get_user")
 def get_user(uid, **kwargs):
     """
