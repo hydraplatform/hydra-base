@@ -35,7 +35,9 @@ class ResourceAttr(Base, Inspect):
     )
 
     id = Column(Integer(), primary_key=True, nullable=False)
-    attr_id = Column(Integer(), ForeignKey('tAttr.id'), nullable=False)
+    attr_id = Column(Integer(), ForeignKey('tAttr.id'), nullable=True)
+    attr_name = Column(String(200), nullable=True)
+    dimension_id = Column(Integer(), ForeignKey('tDimension.id'), nullable=True)
     ref_key = Column(String(60), nullable=False, index=True)
     network_id = Column(Integer(), ForeignKey('tNetwork.id'), index=True, nullable=True)
     project_id = Column(Integer(), ForeignKey('tProject.id'), index=True, nullable=True)
@@ -46,6 +48,7 @@ class ResourceAttr(Base, Inspect):
     cr_date = Column(TIMESTAMP(), nullable=False, server_default=text(u'CURRENT_TIMESTAMP'))
 
     attr = relationship('Attr')
+    dimension = relationship('Dimension', foreign_keys=[dimension_id])
     project = relationship('Project',
                            backref=backref('attributes',
                                            uselist=True,

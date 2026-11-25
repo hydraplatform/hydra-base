@@ -19,7 +19,7 @@
 
 import os
 import json
-from ..db.model import Network, Scenario, Project, User, Role, Perm, RolePerm, RoleUser, ResourceAttr, ResourceType, Dimension, Unit
+from ..db.model import Network, Scenario, Project, User, Role, Perm, RolePerm, RoleUser, ResourceAttr, ResourceType, Dimension, Unit, Attr
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 from .. import db
 import datetime
@@ -76,11 +76,22 @@ def add_resource_attributes(resource_i, attributes):
     if attributes is None:
         return {}
     resource_attrs = {}
+    attr_ids = [ra.attr_id for ra in attributes if getattr(ra, 'attr_id', None) is not None]
+    attr_lookup = {}
+    if attr_ids:
+        all_attrs = db.DBSession.query(Attr).filter(Attr.id.in_(attr_ids)).all()
+        attr_lookup = {a.id: a for a in all_attrs}
     #ra is for ResourceAttr
     for ra in attributes:
 
         if ra.id < 0:
-            ra_i = resource_i.add_attribute(ra.attr_id, ra.attr_is_var)
+            attr_i = attr_lookup.get(ra.attr_id)
+            ra_i = resource_i.add_attribute(
+                ra.attr_id,
+                ra.attr_is_var,
+                attr_name=attr_i.name if attr_i is not None else None,
+                dimension_id=attr_i.dimension_id if attr_i is not None else None,
+            )
             db.DBSession.add(ra_i)
         else:
             ra_i = db.DBSession.query(ResourceAttr).filter(ResourceAttr.id==ra.id).one()
