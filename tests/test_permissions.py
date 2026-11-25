@@ -9,7 +9,7 @@ import pytest
 import hydra_base as hb
 from hydra_base import db
 from hydra_base.db.model import Perm, Role, RolePerm
-from hydra_base.exceptions import PermissionError
+from hydra_base.exceptions import HydraError, PermissionError
 from hydra_base.lib.objects import JSONObject
 from hydra_base.util import permissions
 from hydra_base.util.hdb import create_default_users_and_perms
@@ -106,12 +106,13 @@ class TestWarnMode:
 
 
 class TestRequiredPermsOnAPI:
-    """ The decorator must stop an unprivileged user calling an administrative function """
+    """ The decorator must stop an unprivileged user calling an administrative function.
+        Over a remote connection the server wraps the error, so only its type family and text are checked. """
 
     def test_developer_cannot_change_another_users_password(self, client):
         client.user_id = pytest.user_c.id  # a plain 'developer'
         try:
-            with pytest.raises(PermissionError):
+            with pytest.raises(HydraError, match="Permission denied"):
                 client.update_user_password(new_pwd_user_id=pytest.user_a.id, new_password="changed")
         finally:
             client.user_id = pytest.root_user_id
@@ -119,17 +120,17 @@ class TestRequiredPermsOnAPI:
     def test_developer_cannot_delete_a_user(self, client):
         client.user_id = pytest.user_c.id
         try:
-            with pytest.raises(PermissionError):
+            with pytest.raises(HydraError, match="Permission denied"):
                 client.delete_user(pytest.user_a.id)
         finally:
             client.user_id = pytest.root_user_id
-        assert client.get_user_by_id(pytest.user_a.id) is not None
+        assert client.get_user_by_name(pytest.user_a.username) not in (None, {})
 
     def test_developer_cannot_assign_roles(self, client):
         admin_role = JSONObject(client.get_role_by_code("admin"))
         client.user_id = pytest.user_c.id
         try:
-            with pytest.raises(PermissionError):
+            with pytest.raises(HydraError, match="Permission denied"):
                 client.set_user_role(new_user_id=pytest.user_c.id, role_id=admin_role.id)
         finally:
             client.user_id = pytest.root_user_id
@@ -137,7 +138,7 @@ class TestRequiredPermsOnAPI:
     def test_developer_cannot_create_roles(self, client):
         client.user_id = pytest.user_c.id
         try:
-            with pytest.raises(PermissionError):
+            with pytest.raises(HydraError, match="Permission denied"):
                 client.add_role(JSONObject(dict(name="Sneaky", code="sneaky")))
         finally:
             client.user_id = pytest.root_user_id
@@ -173,6 +174,8 @@ class TestDefaultRolePerms:
             for p in self.ADMIN_ONLY_PERMS:
                 assert p not in perms, f"{role} must not have {p}"
         hb.db.close_session()
+
+    @pytest.mark.local_only  # uses get_users_like, not exposed by hydra-server
 
     def test_developer_can_use_common_read_calls(self, client, network_with_data):
         """ Reading calls that carry a read permission must work for a normal user """

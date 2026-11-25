@@ -81,15 +81,20 @@ class TestLogin:
             user_id, session_id = client.login('root', 'wrong-password!')
 
 
-    def test_login_too_many_attempts(self, client):
+    def test_login_too_many_attempts(self, client, connection_type):
         from hydra_base.lib.users import reset_failed_logins, get_failed_login_count
+
+        # The server returns one generic error for every login failure, so the lockout
+        # can only be told apart from a wrong password when calling hydra-base directly.
+        locked_out = (hydra_base.exceptions.HydraLoginUserMaxAttemptsExceeded
+                      if connection_type == 'local' else hydra_base.exceptions.HydraError)
 
         for i in range(8):
             if i < 7:
                 with pytest.raises(hydra_base.exceptions.HydraError):
                     user_id, session_id = client.login('root', 'wrong-password!')
             if i == 7:
-                with pytest.raises(hydra_base.exceptions.HydraLoginUserMaxAttemptsExceeded):
+                with pytest.raises(locked_out):
                     user_id, session_id = client.login('root', 'wrong-password!')
 
         reset_failed_logins("root", flush=True, user_id=pytest.root_user_id)
