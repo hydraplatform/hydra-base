@@ -28,6 +28,10 @@ from ..exceptions import PermissionError
 
 log = logging.getLogger(__name__)
 
+#Writing rule code, which job runners execute, needs this permission as well as the ordinary rule
+#permissions. It is held by the `rule_author` role and not by the other roles.
+AUTHOR_PERM = "author_rules"
+
 _perm_cache = threading.local()
 
 #Seconds a positive permission check is cached for before being re-verified

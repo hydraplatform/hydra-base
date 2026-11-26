@@ -36,6 +36,13 @@ log = logging.getLogger(__name__)
 
 class TestRules:
 
+    @pytest.fixture(autouse=True)
+    def _admin_client(self, client):
+        """ Some tests switch the client to another user; every test starts as root again """
+        client.user_id = pytest.root_user_id
+        yield
+        client.user_id = pytest.root_user_id
+
     def add_rule(self, client, target=None, name='A Test Rule', text='e=mc^2',
                  ref_key=None, ref_id=None, types=[]):
         """
@@ -469,10 +476,13 @@ class TestRules:
         with pytest.raises((PermissionError, HydraError)):
             no_read_rule = client.get_rule(rule.id)
 
-        non_admin_rule = self.add_rule(client, network_with_data, name="non_admin_rule")
+        # Writing rule code needs the author_rules permission, which this user does not have
+        with pytest.raises((PermissionError, HydraError), match="author_rules"):
+            self.add_rule(client, network_with_data, name="non_admin_rule")
 
-        # However admin user can read non-admin rule
+        # However admin user can read a rule
         client.user_id = admin_user_id
+        non_admin_rule = self.add_rule(client, network_with_data, name="non_admin_rule")
         roles = client.get_user_roles(admin_user_id)
         rolecode_set = set(r.code for r in roles)
         assert "admin" in rolecode_set

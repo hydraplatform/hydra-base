@@ -24,7 +24,7 @@ from ..db.model import Rule, RuleTypeDefinition, RuleTypeLink, NetworkOwner, \
 from .. import db
 from ..exceptions import HydraError, ResourceNotFoundError
 
-from ..util.permissions import required_perms
+from ..util.permissions import required_perms, AUTHOR_PERM
 
 LOG = logging.getLogger(__name__)
 
@@ -216,7 +216,7 @@ def get_rule(rule_id, **kwargs):
     rule = _get_rule(rule_id, user_id)
     return rule
 
-@required_perms("add_rules")
+@required_perms("add_rules", AUTHOR_PERM)
 def add_rules(rules, **kwargs):
     LOG.info("Adding %s rules."%len(rules))
     for rule in rules:
@@ -224,10 +224,22 @@ def add_rules(rules, **kwargs):
 
     LOG.info("Rules Added")
 
-@required_perms("add_rules")
+@required_perms("add_rules", AUTHOR_PERM)
 def add_rule(rule, **kwargs):
     """
-        Add a new rule.
+        Add a new rule. Writing rule code needs the permission `author_rules`.
+        Args:
+            rule: A JSONObject or Spyne Rule object
+        Returns
+            A SQLAlchemy ORM Rule object
+    """
+    return _add_rule(rule, **kwargs)
+
+
+def _add_rule(rule, **kwargs):
+    """
+        Add a new rule, without checking permissions: for callers that have checked their own.
+        Cloning uses it, because a clone is a copy of code that someone who may write rules already wrote.
         Args:
             rule: A JSONObject or Spyne Rule object
         Returns
@@ -260,7 +272,7 @@ def add_rule(rule, **kwargs):
 
     return rule_i
 
-@required_perms("update_rules")
+@required_perms("update_rules", AUTHOR_PERM)
 def update_rule(rule, **kwargs):
     """
         Add a new rule.
@@ -296,7 +308,7 @@ def update_rule(rule, **kwargs):
 
     return rule_i
 
-@required_perms("update_rules")
+@required_perms("update_rules", AUTHOR_PERM)
 def set_rule_type(rule_id, typecode, **kwargs):
     """
         Assign a rule type to a rule
@@ -396,7 +408,7 @@ def clone_rule(rule_id, target_ref_key=None, target_ref_id=None, **kwargs):
         elif target_ref_key == 'TEMPLATE':
             rule_j.template_id = target_ref_id
 
-    cloned_rule = add_rule(rule_j, **kwargs)
+    cloned_rule = _add_rule(rule_j, **kwargs)
 
     return cloned_rule
 
@@ -417,7 +429,7 @@ def delete_rule(rule_id, **kwargs):
 
     db.DBSession.flush()
 
-@required_perms("update_rules")
+@required_perms("update_rules", AUTHOR_PERM)
 def activate_rule(rule_id, **kwargs):
     """
         Set the status of a rule to 'A'
