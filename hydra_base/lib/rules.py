@@ -24,7 +24,7 @@ from ..db.model import Rule, RuleTypeDefinition, RuleTypeLink, NetworkOwner, \
 from .. import db
 from ..exceptions import HydraError, ResourceNotFoundError
 
-from ..util.permissions import required_perms
+from ..util.permissions import required_perms, AUTHOR_PERM, get_rule_authors as _get_rule_authors
 
 LOG = logging.getLogger(__name__)
 
@@ -216,7 +216,7 @@ def get_rule(rule_id, **kwargs):
     rule = _get_rule(rule_id, user_id)
     return rule
 
-@required_perms("add_rules")
+@required_perms("add_rules", AUTHOR_PERM)
 def add_rules(rules, **kwargs):
     LOG.info("Adding %s rules."%len(rules))
     for rule in rules:
@@ -224,7 +224,7 @@ def add_rules(rules, **kwargs):
 
     LOG.info("Rules Added")
 
-@required_perms("add_rules")
+@required_perms("add_rules", AUTHOR_PERM)
 def add_rule(rule, **kwargs):
     """
         Add a new rule.
@@ -260,7 +260,7 @@ def add_rule(rule, **kwargs):
 
     return rule_i
 
-@required_perms("update_rules")
+@required_perms("update_rules", AUTHOR_PERM)
 def update_rule(rule, **kwargs):
     """
         Add a new rule.
@@ -296,7 +296,7 @@ def update_rule(rule, **kwargs):
 
     return rule_i
 
-@required_perms("update_rules")
+@required_perms("update_rules", AUTHOR_PERM)
 def set_rule_type(rule_id, typecode, **kwargs):
     """
         Assign a rule type to a rule
@@ -417,7 +417,7 @@ def delete_rule(rule_id, **kwargs):
 
     db.DBSession.flush()
 
-@required_perms("update_rules")
+@required_perms("update_rules", AUTHOR_PERM)
 def activate_rule(rule_id, **kwargs):
     """
         Set the status of a rule to 'A'
@@ -533,3 +533,12 @@ def purge_rule_type_definition(typecode, **kwargs):
     db.DBSession.delete(rule_type_definition_i)
 
     db.DBSession.flush()
+
+
+def get_rule_authors(**kwargs):
+    """
+        The ids of the users who may write rule code (they hold the permission `author_rules`
+        through a role). Rule code is run on job runners, so a client that is about to run it
+        asks who may be trusted. Any logged-in user may ask; only ids are returned.
+    """
+    return _get_rule_authors(kwargs.get('user_id'))

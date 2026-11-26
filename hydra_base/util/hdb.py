@@ -269,7 +269,8 @@ def create_default_users_and_perms():
         ('add_rules', "Add Rules"),
         ('update_rules', "Edit Rules"),
         ('share_rules', "Share Rules"),
-        ('delete_rules', "Delete Rules")
+        ('delete_rules', "Delete Rules"),
+        ('author_rules', "Write rule code that is run on job runners"),
 
     )
 
@@ -281,6 +282,7 @@ def create_default_users_and_perms():
         ("grad", "Graduate"),
         ("developer", "Developer"),
         ("decision", "Decision Maker"),
+        ("rule_author", "Rule author"),
     )
 
     roleperms = (
@@ -391,6 +393,10 @@ def create_default_users_and_perms():
     rule_authoring_perms = ("add_rules", "update_rules", "delete_rules", "share_rules")
     non_admin_roles = ("dev", "developer", "modeller", "manager", "grad", "decision")
 
+    # The rule_author role may write rule code, which job runners execute, so it is only given to people
+    # who may be trusted with that. No other role has it, and the job runners' own users should not have it.
+    roleperms = roleperms + (("admin", "author_rules"), ("rule_author", "author_rules")) + \
+        tuple(("rule_author", p) for p in baseline_perms + rule_authoring_perms)
     roleperms = roleperms + tuple((r, p) for r in non_admin_roles for p in baseline_perms)
     roleperms = roleperms + tuple((r, p) for r in ("developer", "dev", "modeller") for p in rule_authoring_perms)
 

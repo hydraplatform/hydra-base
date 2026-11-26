@@ -28,6 +28,10 @@ from ..exceptions import PermissionError
 
 log = logging.getLogger(__name__)
 
+#Writing rule code, which job runners execute, needs this permission as well as the ordinary rule
+#permissions. It is held by the `rule_author` role and not by the other roles.
+AUTHOR_PERM = "author_rules"
+
 _perm_cache = threading.local()
 
 #Seconds a positive permission check is cached for before being re-verified
@@ -158,3 +162,16 @@ def required_role(req_role):
 
         return wrapped
     return dec_wrapper
+
+
+def get_rule_authors(user_id):
+    """ Ids of the users who hold AUTHOR_PERM through any role. `user_id` is the caller, who must be known. """
+    if user_id is None:
+        raise PermissionError("Permission denied. No user specified")
+
+    rows = db.DBSession.query(RoleUser.user_id)\
+        .join(RolePerm, RolePerm.role_id == RoleUser.role_id)\
+        .join(Perm, Perm.id == RolePerm.perm_id)\
+        .filter(Perm.code == AUTHOR_PERM)\
+        .distinct().all()
+    return sorted(row[0] for row in rows)
