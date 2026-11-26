@@ -24,7 +24,7 @@ from ..db.model import Rule, RuleTypeDefinition, RuleTypeLink, NetworkOwner, \
 from .. import db
 from ..exceptions import HydraError, ResourceNotFoundError
 
-from ..util.permissions import required_perms, AUTHOR_PERM, filter_rule_authors
+from ..util.permissions import required_perms, AUTHOR_PERM
 
 LOG = logging.getLogger(__name__)
 
@@ -227,7 +227,19 @@ def add_rules(rules, **kwargs):
 @required_perms("add_rules", AUTHOR_PERM)
 def add_rule(rule, **kwargs):
     """
-        Add a new rule.
+        Add a new rule. Writing rule code needs the permission `author_rules`.
+        Args:
+            rule: A JSONObject or Spyne Rule object
+        Returns
+            A SQLAlchemy ORM Rule object
+    """
+    return _add_rule(rule, **kwargs)
+
+
+def _add_rule(rule, **kwargs):
+    """
+        Add a new rule, without checking permissions: for callers that have checked their own.
+        Cloning uses it, because a clone is a copy of code that someone who may write rules already wrote.
         Args:
             rule: A JSONObject or Spyne Rule object
         Returns
@@ -396,7 +408,7 @@ def clone_rule(rule_id, target_ref_key=None, target_ref_id=None, **kwargs):
         elif target_ref_key == 'TEMPLATE':
             rule_j.template_id = target_ref_id
 
-    cloned_rule = add_rule(rule_j, **kwargs)
+    cloned_rule = _add_rule(rule_j, **kwargs)
 
     return cloned_rule
 
@@ -533,23 +545,3 @@ def purge_rule_type_definition(typecode, **kwargs):
     db.DBSession.delete(rule_type_definition_i)
 
     db.DBSession.flush()
-
-
-@required_perms("get_rules")
-def get_trusted_rule_authors(rule_ids, **kwargs):
-    """
-        For the given rules, which of the users who created or last edited them may write rule code
-        (hold the permission `author_rules`). Rule code is run on job runners, so a client about to run
-        rules asks this. The caller must be able to read every rule asked about, and is only told about
-        the people who wrote those rules: the list of rule authors is not available.
-        Returns:
-            Sorted list of user ids, a subset of the creators and last editors of the rules
-    """
-    user_id = kwargs.get('user_id')
-
-    involved = set()
-    for rule_id in rule_ids:
-        rule_i = _get_rule(rule_id, user_id)   # raises if the caller may not read it
-        involved.update(u for u in (rule_i.created_by, rule_i.updated_by) if u is not None)
-
-    return filter_rule_authors(involved)

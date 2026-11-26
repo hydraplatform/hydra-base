@@ -79,6 +79,26 @@ class TestWritingRules:
         finally:
             client.login('root', '')
 
+    def test_a_developer_can_clone_a_rule_an_author_wrote(self, client, net, author, projectmaker, networkmaker):
+        """ A clone is a copy of code that an author wrote; it is not a way to write new code """
+        _as(client, 'RuleAuthor')
+        try:
+            rule = JSONObject(client.add_rule(rule=_rule(net, value="x = 5")))
+        finally:
+            client.login('root', '')
+        other = networkmaker.create(project_id=projectmaker.create(share=False).id)
+        client.share_network(other.id, ["UserC"], 'N', 'N')
+        _as(client, 'UserC')
+        try:
+            cloned = JSONObject(client.clone_rule(rule.id, target_ref_key='NETWORK', target_ref_id=other.id))
+            assert cloned.value == "x = 5"
+            cloned.ref_key = 'NETWORK'
+            cloned.value = "x = 6"
+            with pytest.raises(hb.exceptions.PermissionError, match="author_rules"):
+                client.update_rule(rule=cloned)       # the copy cannot be edited either
+        finally:
+            client.login('root', '')
+
     def test_the_developer_role_does_not_carry_the_permission(self, client):
         for code in ('developer', 'dev', 'modeller', 'manager', 'grad', 'decision'):
             role = hb.db.DBSession.query(Role).filter(Role.code == code).one()
@@ -95,49 +115,8 @@ class TestWritingRules:
             client.login('root', '')
 
 
-class TestTrustedRuleAuthors:
-    """ A caller learns about the authors of the rules it can read, and nothing else """
+class TestNoListOfAuthors:
 
-    def _rule_by(self, client, net, username):
-        _as(client, username)
-        try:
-            return JSONObject(client.add_rule(rule=_rule(net, name=f"by {username}")))
-        finally:
-            client.login('root', '')
-
-    def test_reports_whether_the_authors_of_the_rules_may_write_rules(self, client, net, author):
-        by_author = self._rule_by(client, net, 'RuleAuthor')
-        by_root = JSONObject(client.add_rule(rule=_rule(net, name="by root")))
-        ids = client.get_trusted_rule_authors([by_author.id, by_root.id])
-        assert set(ids) == {author.id, pytest.root_user_id}
-
-    def test_an_author_who_lost_the_role_is_not_reported(self, client, net, author):
-        by_author = self._rule_by(client, net, 'RuleAuthor')
-        rule = JSONObject(client.add_rule(rule=_rule(net, name="by root")))
-        assert author.id in client.get_trusted_rule_authors([by_author.id])
-        # a rule whose only author is a developer without the role
-        assert pytest.user_c.id not in client.get_trusted_rule_authors([rule.id])
-
-    def test_only_the_authors_of_the_rules_asked_about_are_reported(self, client, net, author):
-        by_root = JSONObject(client.add_rule(rule=_rule(net)))
-        ids = client.get_trusted_rule_authors([by_root.id])
-        assert author.id not in ids and ids == [pytest.root_user_id]
-
-    def test_a_user_cannot_ask_about_a_rule_they_cannot_read(self, client, net, projectmaker, networkmaker):
-        proj = projectmaker.create(share=False)
-        private = networkmaker.create(project_id=proj.id)
-        rule = JSONObject(client.add_rule(rule=_rule(private)))
-        _as(client, 'UserC')
-        try:
-            with pytest.raises(hb.exceptions.PermissionError):
-                client.get_trusted_rule_authors([rule.id])
-        finally:
-            client.login('root', '')
-
-    def test_there_is_no_list_of_all_rule_authors(self, client):
-        assert not hasattr(hb.lib.rules, 'get_rule_authors')
-        with pytest.raises(Exception):
-            client.get_rule_authors()
-
-    def test_no_rules_asks_nothing(self, client):
-        assert client.get_trusted_rule_authors([]) == []
+    def test_there_is_no_call_that_lists_who_may_write_rules(self, client):
+        for name in ('get_rule_authors', 'get_trusted_rule_authors'):
+            assert not hasattr(hb.lib.rules, name)
