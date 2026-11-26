@@ -164,14 +164,16 @@ def required_role(req_role):
     return dec_wrapper
 
 
-def get_rule_authors(user_id):
-    """ Ids of the users who hold AUTHOR_PERM through any role. `user_id` is the caller, who must be known. """
-    if user_id is None:
-        raise PermissionError("Permission denied. No user specified")
+def filter_rule_authors(user_ids):
+    """ Of `user_ids`, the ids of the users who hold AUTHOR_PERM through any role """
+    user_ids = {int(u) for u in user_ids if u is not None}
+    if not user_ids:
+        return []
 
     rows = db.DBSession.query(RoleUser.user_id)\
         .join(RolePerm, RolePerm.role_id == RoleUser.role_id)\
         .join(Perm, Perm.id == RolePerm.perm_id)\
         .filter(Perm.code == AUTHOR_PERM)\
+        .filter(RoleUser.user_id.in_(user_ids))\
         .distinct().all()
     return sorted(row[0] for row in rows)

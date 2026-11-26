@@ -95,22 +95,49 @@ class TestWritingRules:
             client.login('root', '')
 
 
-class TestRuleAuthorLookup:
+class TestTrustedRuleAuthors:
+    """ A caller learns about the authors of the rules it can read, and nothing else """
 
-    def test_lists_the_holders_of_the_permission(self, client, author):
-        ids = client.get_rule_authors()
-        assert author.id in ids
-        assert pytest.user_c.id not in ids
-        assert pytest.root_user_id in ids   # admin
-
-    def test_any_logged_in_user_may_ask(self, client, author):
-        _as(client, 'UserC')
+    def _rule_by(self, client, net, username):
+        _as(client, username)
         try:
-            assert author.id in client.get_rule_authors()
+            return JSONObject(client.add_rule(rule=_rule(net, name=f"by {username}")))
         finally:
             client.login('root', '')
 
-    def test_a_missing_user_is_refused(self):
-        from hydra_base.util import permissions
-        with pytest.raises(hb.exceptions.PermissionError):
-            permissions.get_rule_authors(None)
+    def test_reports_whether_the_authors_of_the_rules_may_write_rules(self, client, net, author):
+        by_author = self._rule_by(client, net, 'RuleAuthor')
+        by_root = JSONObject(client.add_rule(rule=_rule(net, name="by root")))
+        ids = client.get_trusted_rule_authors([by_author.id, by_root.id])
+        assert set(ids) == {author.id, pytest.root_user_id}
+
+    def test_an_author_who_lost_the_role_is_not_reported(self, client, net, author):
+        by_author = self._rule_by(client, net, 'RuleAuthor')
+        rule = JSONObject(client.add_rule(rule=_rule(net, name="by root")))
+        assert author.id in client.get_trusted_rule_authors([by_author.id])
+        # a rule whose only author is a developer without the role
+        assert pytest.user_c.id not in client.get_trusted_rule_authors([rule.id])
+
+    def test_only_the_authors_of_the_rules_asked_about_are_reported(self, client, net, author):
+        by_root = JSONObject(client.add_rule(rule=_rule(net)))
+        ids = client.get_trusted_rule_authors([by_root.id])
+        assert author.id not in ids and ids == [pytest.root_user_id]
+
+    def test_a_user_cannot_ask_about_a_rule_they_cannot_read(self, client, net, projectmaker, networkmaker):
+        proj = projectmaker.create(share=False)
+        private = networkmaker.create(project_id=proj.id)
+        rule = JSONObject(client.add_rule(rule=_rule(private)))
+        _as(client, 'UserC')
+        try:
+            with pytest.raises(hb.exceptions.PermissionError):
+                client.get_trusted_rule_authors([rule.id])
+        finally:
+            client.login('root', '')
+
+    def test_there_is_no_list_of_all_rule_authors(self, client):
+        assert not hasattr(hb.lib.rules, 'get_rule_authors')
+        with pytest.raises(Exception):
+            client.get_rule_authors()
+
+    def test_no_rules_asks_nothing(self, client):
+        assert client.get_trusted_rule_authors([]) == []

@@ -24,7 +24,7 @@ from ..db.model import Rule, RuleTypeDefinition, RuleTypeLink, NetworkOwner, \
 from .. import db
 from ..exceptions import HydraError, ResourceNotFoundError
 
-from ..util.permissions import required_perms, AUTHOR_PERM, get_rule_authors as _get_rule_authors
+from ..util.permissions import required_perms, AUTHOR_PERM, filter_rule_authors
 
 LOG = logging.getLogger(__name__)
 
@@ -535,10 +535,21 @@ def purge_rule_type_definition(typecode, **kwargs):
     db.DBSession.flush()
 
 
-def get_rule_authors(**kwargs):
+@required_perms("get_rules")
+def get_trusted_rule_authors(rule_ids, **kwargs):
     """
-        The ids of the users who may write rule code (they hold the permission `author_rules`
-        through a role). Rule code is run on job runners, so a client that is about to run it
-        asks who may be trusted. Any logged-in user may ask; only ids are returned.
+        For the given rules, which of the users who created or last edited them may write rule code
+        (hold the permission `author_rules`). Rule code is run on job runners, so a client about to run
+        rules asks this. The caller must be able to read every rule asked about, and is only told about
+        the people who wrote those rules: the list of rule authors is not available.
+        Returns:
+            Sorted list of user ids, a subset of the creators and last editors of the rules
     """
-    return _get_rule_authors(kwargs.get('user_id'))
+    user_id = kwargs.get('user_id')
+
+    involved = set()
+    for rule_id in rule_ids:
+        rule_i = _get_rule(rule_id, user_id)   # raises if the caller may not read it
+        involved.update(u for u in (rule_i.created_by, rule_i.updated_by) if u is not None)
+
+    return filter_rule_authors(involved)
