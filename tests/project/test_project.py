@@ -17,6 +17,7 @@
 # along with HydraPlatform.  If not, see <http://www.gnu.org/licenses/>
 #
 import datetime
+import time
 import copy
 import pytest
 
@@ -319,6 +320,35 @@ class TestProject:
 
         assert old_proj.status == 'X'
         assert old_proj.name != project.name
+
+    def test_rename_status_x_project_repeated(self, client, projectmaker):
+        """
+            Create, delete, re-create and delete a project with the same name
+            several times. Each deleted project must be renamed to a unique name
+            derived from its own name, not to a fixed placeholder which would
+            violate the unique project name constraint on the second cycle.
+        """
+        proj = projectmaker.create()
+        proj_name = proj.name
+        deleted_ids = [proj.id]
+
+        for _ in range(3):
+            client.set_project_status(deleted_ids[-1], 'X')
+
+            project = JSONObject({})
+            project.name = proj_name
+            project.description = 'Re-created with the name of a deleted project.'
+            project = client.add_project(project)
+            assert project.name == proj_name
+
+            deleted_ids.append(project.id)
+            # make sure the next add_project is not within the same second
+            # as the rename above, as the suffix is a timestamp
+            time.sleep(1.1)
+
+        old_names = [client.get_project(pid).name for pid in deleted_ids[:-1]]
+        assert len(set(old_names)) == len(old_names)
+        assert all(n.startswith(proj_name) and '{' not in n for n in old_names)
 
 
 

@@ -82,7 +82,7 @@ def add_project(project, **kwargs):
     if len(existing_proj) > 0:
         if existing_proj[0].status == 'X':
             now = datetime.now().strftime("%Y%m%d%H%M%S")
-            existing_proj[0].name = "{new_project_name} {now}"
+            existing_proj[0].name = f"{existing_proj[0].name} {now}"
             log.info("Updating an existing deleted project %s with new project name to avoid naming clash %s",
                       existing_proj[0].id, existing_proj[0].name)
         else:
