@@ -12,6 +12,7 @@ from functools import wraps
 from hydra_base import config
 from hydra_base.util import NullAdapter
 from hydra_base.lib.storage.readers import group_reader_map
+from hydra_base.lib.storage.s3sources import S3SourceMap
 
 log = logging.getLogger(__name__)
 
@@ -83,6 +84,18 @@ class HdfStorageAdapter():
 
         return True
 
+    def _url_args(self, url):
+        """
+            The url and fsspec arguments to open it. An s3:// url whose bucket is in the
+            deployment's S3 map gets that bucket's real name, endpoint, region and key; any other
+            url (a bucket missing from the map, or no map) keeps the default AWS identity, as
+            before.
+        """
+        real_url, options = S3SourceMap.get().storage_options(url)
+        if options is None:
+            return url, self.fsspec_args
+        return real_url, {**self.fsspec_args, **options}
+
     @staticmethod
     def get_hdf_config(config_key="storage_hdf", **kwargs):
         numeric = ()
@@ -99,7 +112,8 @@ class HdfStorageAdapter():
     @filestore_url("url")
     def open_hdf_url(self, url, **kwargs):
         try:
-            with fsspec.open(url, **self.fsspec_args) as fp:
+            url, fsspec_args = self._url_args(url)
+            with fsspec.open(url, **fsspec_args) as fp:
                 return h5py.File(fp.fs.open(url), mode='r')
         except (ClientError, FileNotFoundError, PermissionError) as e:
             raise ValueError(f"Unable to access url: {url}") from e
@@ -120,8 +134,8 @@ class HdfStorageAdapter():
 
     def file_exists_at_url(self, url, **kwargs):
         try:
-            url = self.url_to_filestore_path(url)
-            with fsspec.open(url, **self.fsspec_args) as fp:
+            url, fsspec_args = self._url_args(self.url_to_filestore_path(url))
+            with fsspec.open(url, **fsspec_args) as fp:
                 return fp.fs.exists(url)
         except (ValueError, FileNotFoundError, PermissionError):
             return False
@@ -174,7 +188,8 @@ class HdfStorageAdapter():
 
     @filestore_url("url")
     def file_size(self, url, **kwargs):
-        with fsspec.open(url, **self.fsspec_args) as fp:
+        url, fsspec_args = self._url_args(url)
+        with fsspec.open(url, **fsspec_args) as fp:
             size_bytes = fp.fs.size(fp.path)
         return size_bytes
 
@@ -285,8 +300,9 @@ class HdfStorageAdapter():
         u = urlparse(url)
         if not u.scheme == "s3":
             return
-        filesrc = f"{u.netloc}{u.path}"
         destdir, filename = self.equivalent_local_path(url)
+        real_url, options = S3SourceMap.get().storage_options(url)
+        filesrc = real_url[len("s3://"):]
 
         if not os.path.exists(destdir):
             try:
@@ -295,7 +311,7 @@ class HdfStorageAdapter():
                 raise OSError(f"Unable to create local path at {destdir}: {err}")
 
         destfile = os.path.join(destdir, filename)
-        fs = s3fs.S3FileSystem(anon=self._get_anon())
+        fs = s3fs.S3FileSystem(**options) if options else s3fs.S3FileSystem(anon=self._get_anon())
         log.info(f"Retrieving {url} to {destfile} ...")
         fs.get(filesrc, destfile)
         file_sz = os.stat(destfile).st_size

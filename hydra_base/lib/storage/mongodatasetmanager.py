@@ -5,6 +5,7 @@ from hydra_base.db import get_session
 from hydra_base.exceptions import HydraError
 from .mongostorageadapter import MongoStorageAdapter
 from .datasetmanager import DatasetManager
+from .datasetstore import resolve_store_value
 
 import logging
 log = logging.getLogger(__name__)
@@ -37,7 +38,8 @@ class MongoDatasetManager(DatasetManager):
             if loc == self.loc_mongo_direct:
                 return self.mongo.get_document_by_object_id(value)["value"]
 
-        return value
+        # A value moved to the datasets store (S3) is a pointer: read the value back.
+        return resolve_store_value(value, dataset_id=getattr(dataset, "id", None))
 
 
     def __set__(self, dataset, value):

@@ -26,7 +26,7 @@ from bson.objectid import ObjectId
 from bson.errors import InvalidId
 from datetime import datetime
 
-from hydra_base.lib.storage import MongoStorageAdapter
+from hydra_base.lib.storage import MongoStorageAdapter, resolve_store_value
 
 from ..exceptions import HydraError
 from ..util import (
@@ -196,6 +196,8 @@ class JSONObject(dict):
                 except (TypeError, InvalidId):
                     """ The value wasn't an valid ObjectID, keep the current value """
                     pass
+                """ A value moved to the datasets store (S3) is a pointer: read it back """
+                obj["value"] = resolve_store_value(obj["value"], dataset_id=obj.get("dataset_id"))
         elif hasattr(obj_dict, '__dict__') and len(obj_dict.__dict__) > 0:
             obj = obj_dict.__dict__
             """
@@ -225,6 +227,8 @@ class JSONObject(dict):
                 except (TypeError, InvalidId):
                     """ The value wasn't an valid ObjectID, keep the current value """
                     pass
+                """ A value moved to the datasets store (S3) is a pointer: read it back """
+                obj["value"] = resolve_store_value(obj["value"], dataset_id=obj.get("dataset_id"))
         else:
             #last chance...try to cast it as a dict. Do this for sqlalchemy result proxies.
             try:
